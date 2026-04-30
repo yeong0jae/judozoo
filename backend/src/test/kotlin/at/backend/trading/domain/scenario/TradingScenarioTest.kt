@@ -9,7 +9,9 @@ import at.backend.trading.domain.rule.TradingRules
 import at.backend.trading.domain.signal.CycleSnapshot
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.domain.signal.SignalDetector
+import at.backend.trading.domain.signal.SignalGuard
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -163,6 +165,103 @@ class TradingScenarioTest : FunSpec({
                 tpStagesFired = 0b000)  // 모든 단계 미발동 — 그래도 9800은 TpStage 조건 미달
             val signals = SignalDetector.detect(tick(9_800), snap)
             signals shouldContainExactly listOf(Signal.StopLoss)
+        }
+    }
+
+    context("시나리오 5: 본전 매도 무장 후 발동") {
+        // +2% 도달(breakevenArmed=true) → 매수가 도달 → Breakeven 발동
+        test("+2% 도달 후 breakevenArmed=true 설정") {
+            val buyPrice = 10_000
+            // +2% 도달: breakevenArmed 무장 조건 충족 (도메인 외부에서 armed=true로 설정)
+            val snap = baseSnapshot(CycleState.Monitoring, holdingQty = 20, buyPrice = buyPrice,
+                breakevenArmed = true, tpStagesFired = 0b001)
+            // 매수가 도달 → Breakeven 발동
+            val signals = SignalDetector.detect(tick(10_000), snap)
+            signals shouldContainExactly listOf(Signal.Breakeven)
+        }
+
+        test("Breakeven 발동 후 SignalGuard.isAlive — 매수가 이하 유지 중 true") {
+            SignalGuard.isAlive(Signal.Breakeven, currentPrice = 9_999, buyPrice = 10_000, currentBar = null) shouldBe true
+            SignalGuard.isAlive(Signal.Breakeven, currentPrice = 10_000, buyPrice = 10_000, currentBar = null) shouldBe true
+        }
+
+        test("현재가가 매수가 초과하면 Breakeven isAlive=false") {
+            SignalGuard.isAlive(Signal.Breakeven, currentPrice = 10_001, buyPrice = 10_000, currentBar = null) shouldBe false
+        }
+
+        test("Monitoring → Liquidating(BREAKEVEN) 전이 유효") {
+            CycleState.Monitoring.canTransitionTo(CycleState.Liquidating(CloseReason.BREAKEVEN)) shouldBe true
+        }
+    }
+
+    context("시나리오 6: 추세 꺾임 봉 종료 후 재발동") {
+        val buyPrice = 10_000
+        val prevBar = Bar(stockCode, openPrice = 10_600, closePrice = 10_900,
+            startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
+
+        test("봉 진행 중 TrendBreak 발동 → isAlive=true") {
+            val currentBar = Bar(stockCode, openPrice = 10_700, closePrice = 10_599,
+                startTime = now.minusSeconds(180), endTime = now.plusSeconds(60))
+            val snap = baseSnapshot(CycleState.Monitoring, 10, buyPrice,
+                tpStagesFired = 0b111, trendBreakArmed = true)
+            val signals = SignalDetector.detect(tick(10_599), snap, currentBar, prevBar)
+            signals shouldContain Signal.TrendBreak
+            SignalGuard.isAlive(Signal.TrendBreak, 10_599, buyPrice, currentBar, clock = now) shouldBe true
+        }
+
+        test("봉 종료 후 isAlive=false — 재발동 대기") {
+            val finishedBar = Bar(stockCode, openPrice = 10_700, closePrice = 10_599,
+                startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
+            SignalGuard.isAlive(Signal.TrendBreak, 10_599, buyPrice, finishedBar, clock = now) shouldBe false
+        }
+
+        test("다음 봉에서 조건 재충족 시 TrendBreak 재발동") {
+            val newPrevBar = Bar(stockCode, openPrice = 10_700, closePrice = 10_599,
+                startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
+            val newCurrentBar = Bar(stockCode, openPrice = 10_650, closePrice = 10_699,
+                startTime = now.minusSeconds(180), endTime = now.plusSeconds(60))
+            // newCurrentBar.closePrice(10699) < newPrevBar.openPrice(10700) → TrendBreak 조건 충족
+            val snap = baseSnapshot(CycleState.Monitoring, 10, buyPrice,
+                tpStagesFired = 0b111, trendBreakArmed = true)
+            val signals = SignalDetector.detect(tick(10_699), snap, newCurrentBar, newPrevBar)
+            signals shouldContain Signal.TrendBreak
+        }
+    }
+
+    context("시나리오 7: NO_FILL — 3회 매수 완료 후 보유=0") {
+        test("3회 완료 후 holdingQty=0이면 Buying→Closed(NO_FILL) 직행 허용") {
+            CycleState.Buying(3).canTransitionTo(CycleState.Closed(CloseReason.NO_FILL)) shouldBe true
+        }
+
+        test("Buying→Liquidating 후 Closed 경로는 허용") {
+            CycleState.Buying(3).canTransitionTo(CycleState.Liquidating(CloseReason.NO_FILL)) shouldBe true
+        }
+
+        test("holdingQty=0이면 SignalDetector는 빈 리스트 — 매도 없이 Closed 직행") {
+            val snap = baseSnapshot(CycleState.Buying(3), holdingQty = 0, buyPrice = 10_000, buyAttempt = 3)
+            val signals = SignalDetector.detect(tick(9_000), snap)
+            signals.shouldBeEmpty()
+        }
+    }
+
+    context("시나리오 8: 시그널 평가 보류 — holdingQty=0") {
+        test("Monitoring 상태라도 holdingQty=0이면 모든 가격 기반 시그널 평가 안 됨") {
+            val buyPrice = 10_000
+            val snap = baseSnapshot(CycleState.Monitoring, holdingQty = 0, buyPrice = buyPrice,
+                breakevenArmed = true, trendBreakArmed = true)
+            // 손절가(9800)에서도 빈 리스트
+            SignalDetector.detect(tick(9_800), snap).shouldBeEmpty()
+        }
+
+        test("Buying 상태 holdingQty=0 — 손절 조건이어도 빈 리스트") {
+            val snap = baseSnapshot(CycleState.Buying(1), holdingQty = 0, buyPrice = 10_000, buyAttempt = 1)
+            SignalDetector.detect(tick(9_000), snap).shouldBeEmpty()
+        }
+
+        test("첫 체결 발생(holdingQty>0) 시점부터 평가 시작") {
+            val snap = baseSnapshot(CycleState.Buying(1), holdingQty = 5, buyPrice = 10_000, buyAttempt = 1)
+            val signals = SignalDetector.detect(tick(9_800), snap)
+            signals shouldContain Signal.StopLoss
         }
     }
 })

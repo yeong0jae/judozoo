@@ -87,10 +87,10 @@
 
 ## 9. 시나리오 단위 테스트 5~8 (`trading.domain.scenario`)
 
-- [ ] **시나리오 5**: 본전 매도 무장 후 발동 — +2% 도달(breakevenArmed=true) → 매수가 도달 → Breakeven 발동, SignalGuard.isAlive=true 유지
-- [ ] **시나리오 6**: 추세 꺾임 봉 종료 재발동 — trendBreakArmed=true + 현재봉에서 TrendBreak 발동 → 봉 종료 후 SignalGuard.isAlive=false → 다음 봉 재충족 시 TrendBreak 재발동
-- [ ] **시나리오 7**: NO_FILL — 3회 매수 완료 후 holdingQty=0 → `Buying→Closed(NO_FILL)` 직행, Liquidating 거치지 않음
-- [ ] **시나리오 8**: 시그널 평가 보류 — holdingQty=0 상태에서 가격이 손절선 이하 → `detect()` 결과 빈 리스트 (StopLoss 평가 안 됨)
+- [x] **시나리오 5**: 본전 매도 무장 후 발동 — +2% 도달(breakevenArmed=true) → 매수가 도달 → Breakeven 발동, SignalGuard.isAlive=true 유지
+- [x] **시나리오 6**: 추세 꺾임 봉 종료 재발동 — trendBreakArmed=true + 현재봉에서 TrendBreak 발동 → 봉 종료 후 SignalGuard.isAlive=false → 다음 봉 재충족 시 TrendBreak 재발동
+- [x] **시나리오 7**: NO_FILL — 3회 매수 완료 후 holdingQty=0 → `Buying→Closed(NO_FILL)` 직행, Liquidating 거치지 않음
+- [x] **시나리오 8**: 시그널 평가 보류 — holdingQty=0 상태에서 가격이 손절선 이하 → `detect()` 결과 빈 리스트 (StopLoss 평가 안 됨)
 
 ---
 
