@@ -34,9 +34,9 @@
 
 ## 3. CycleState sealed class (`trading.domain.cycle`)
 
-- [ ] `CycleState` sealed class 작성 — `Initiated` / `Buying(nextAttempt: Int)` / `Monitoring` / `Liquidating(reason: CloseReason)` / `Closed(reason: CloseReason)`
-- [ ] 전이 유효성 함수 작성 — `CycleState.canTransitionTo(next: CycleState): Boolean` (spec §5.2 전이 규칙)
-- [ ] 단위 테스트 (`CycleStateTest.kt`, Kotest FunSpec) — 허용 전이(`Initiated→Buying`, `Buying→Monitoring` 등) + 불허 전이(`Initiated→Monitoring`, `Closed→Buying` 등)
+- [x] `CycleState` sealed class 작성 — `Initiated` / `Buying(nextAttempt: Int)` / `Monitoring` / `Liquidating(reason: CloseReason)` / `Closed(reason: CloseReason)`
+- [x] 전이 유효성 함수 작성 — `CycleState.canTransitionTo(next: CycleState): Boolean` (spec §5.2 전이 규칙)
+- [x] 단위 테스트 (`CycleStateTest.kt`, Kotest FunSpec) — 허용 전이(`Initiated→Buying`, `Buying→Monitoring` 등) + 불허 전이(`Initiated→Monitoring`, `Closed→Buying` 등)
 
 ---
 
