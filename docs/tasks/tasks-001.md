@@ -70,9 +70,9 @@
 
 ## 7. CycleSnapshot + SignalDetector (`trading.domain.signal`)
 
-- [ ] `CycleSnapshot` data class 작성 — SignalDetector가 평가에 필요한 상태 스냅샷 (`state: CycleState`, `holdingQty: Int`, `buyPrice: Int`, `tpStagesFired: Int`, `breakevenArmed: Boolean`, `trendBreakArmed: Boolean`, `buyAttempt: Int`)
-- [ ] `SignalDetector` object 작성 — `detect(tick: PriceTick, snapshot: CycleSnapshot, currentBar: Bar?, prevBar: Bar?): List<Signal>` (우선순위 오름차순 정렬, 보유=0이면 가격 기반 시그널 평가 보류)
-- [ ] 단위 테스트 (`SignalDetectorTest.kt`, FunSpec) — 우선순위 처리(StopLoss + TpStage 동시 → StopLoss만 반환), 보유=0 시 가격 기반 시그널 평가 보류, `tpStagesFired` 비트 중복 발동 방지
+- [x] `CycleSnapshot` data class 작성 — SignalDetector가 평가에 필요한 상태 스냅샷 (`state: CycleState`, `holdingQty: Int`, `buyPrice: Int`, `tpStagesFired: Int`, `breakevenArmed: Boolean`, `trendBreakArmed: Boolean`, `buyAttempt: Int`)
+- [x] `SignalDetector` object 작성 — `detect(tick: PriceTick, snapshot: CycleSnapshot, currentBar: Bar?, prevBar: Bar?): List<Signal>` (우선순위 오름차순 정렬, 보유=0이면 가격 기반 시그널 평가 보류)
+- [x] 단위 테스트 (`SignalDetectorTest.kt`, FunSpec) — 우선순위 처리(StopLoss + TpStage 동시 → StopLoss만 반환), 보유=0 시 가격 기반 시그널 평가 보류, `tpStagesFired` 비트 중복 발동 방지
 
 ---
 
