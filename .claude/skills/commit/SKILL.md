@@ -1,7 +1,6 @@
 ---
 name: commit
 description: Conventional Commits 스타일 한국어 커밋 메시지 생성 및 커밋 실행
-disable-model-invocation: true
 allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*)
 ---
 

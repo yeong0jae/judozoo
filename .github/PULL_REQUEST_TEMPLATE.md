@@ -15,4 +15,4 @@ Closes #<이슈 번호>
 ## Tasks
 
 <!-- tasks-NNN.md 링크. 모든 항목 체크 완료 상태로 머지 -->
-[.claude/docs/tasks/tasks-NNN.md](.claude/docs/tasks/tasks-NNN.md)
+[docs/tasks/tasks-NNN.md](docs/tasks/tasks-NNN.md)
