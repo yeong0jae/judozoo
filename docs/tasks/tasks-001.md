@@ -62,9 +62,9 @@
 
 ## 6. Signal sealed class + SignalGuard (`trading.domain.signal`)
 
-- [ ] `Signal` sealed class 작성 — `StopLoss(priority=1)`, `MidwayTakeProfit(priority=2)`, `TpStage(pct:Int, priority=2)`, `Breakeven(priority=2)`, `TrendBreak(priority=2)`, `LimitUp(priority=2)`, `MarketClose(priority=0)`, `Cancel(priority=0)` (낮을수록 우선)
-- [ ] `SignalGuard` object 작성 — `isAlive(signal: Signal, currentPrice: Int, buyPrice: Int, currentBar: Bar?, prevBar: Bar?): Boolean` (spec §7.3)
-- [ ] 단위 테스트 (`SignalGuardTest.kt`, FunSpec) — TrendBreak의 봉 진행 중(isAlive=true) vs. 봉 종료(isAlive=false) 케이스, Breakeven 현재가 초과(isAlive=false) 케이스
+- [x] `Signal` sealed class 작성 — `StopLoss(priority=1)`, `MidwayTakeProfit(priority=2)`, `TpStage(pct:Int, priority=2)`, `Breakeven(priority=2)`, `TrendBreak(priority=2)`, `LimitUp(priority=2)`, `MarketClose(priority=0)`, `Cancel(priority=0)` (낮을수록 우선)
+- [x] `SignalGuard` object 작성 — `isAlive(signal: Signal, currentPrice: Int, buyPrice: Int, currentBar: Bar?, clock: Instant): Boolean` (spec §7.3)
+- [x] 단위 테스트 (`SignalGuardTest.kt`, FunSpec) — TrendBreak의 봉 진행 중(isAlive=true) vs. 봉 종료(isAlive=false) 케이스, Breakeven 현재가 초과(isAlive=false) 케이스
 
 ---
 
