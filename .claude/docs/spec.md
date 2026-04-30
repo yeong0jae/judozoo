@@ -56,9 +56,8 @@
 | 런타임 | JVM 21 | 가상 스레드(Project Loom) 활용 가능 |
 | 프레임워크 | Spring Boot 4.0.6 + Web MVC | 안정적 동기 모델, 이미 초기화됨 |
 | 비동기 | kotlinx.coroutines | webmvc 위에서 IO 작업을 코루틴으로 |
-| 영속성 | Spring Data JPA + Hibernate | 이미 의존성 추가됨 |
+| 영속성 | Spring Data JPA + Hibernate | 이미 의존성 추가됨. 스키마는 `ddl-auto=update`로 자동 관리 |
 | DB | MySQL 8 | PRD 결정. mysql-connector-j 의존성 추가됨 |
-| 마이그레이션 | Flyway | 스키마 버전 관리 (의존성 추가 필요) |
 | HTTP 클라이언트 | Spring `RestClient` | KIS REST 호출 (Spring 6.1+ 표준) |
 | WebSocket 클라이언트 | OkHttp WebSocket | KIS 실시간 시세/체결 통보 수신 |
 | WebSocket 서버 | Spring WebSocket + STOMP | 프론트로 상태 푸시 |
@@ -282,8 +281,9 @@ frontend/
 - `orders(command_id)` — 명령 단위 주문 조회
 - `executions(order_id)` — 주문별 체결 조회
 
-### 4.5 마이그레이션
-- Flyway: `backend/src/main/resources/db/migration/V1__init.sql`부터 시작
+### 4.5 스키마 관리
+- Hibernate `spring.jpa.hibernate.ddl-auto=update`로 엔티티 정의에서 자동 생성/갱신
+- destructive 변경(컬럼 삭제/이름 변경)은 v1 운영 진입 시점에 별도 정책 결정
 
 ---
 
@@ -709,11 +709,10 @@ GET /api/system/status
     tokenStatus: "OK" | "REFRESH_FAILED",   // KIS 토큰 갱신 상태
     isHoliday,
     tradingHoursOpen,
-    cutoffPassed,                       // 신규 명령 컷오프 도달 여부
-    unclosedCount                       // 시스템 다운/재시작 등으로 UNCLOSED 처리된 명령 수
-                                        // (당일분, 0이면 배지 미표시)
+    cutoffPassed                       // 신규 명령 컷오프 도달 여부
   }
   // 모니터링 화면 시스템 상태 배지의 초기값 + 매매 명령 화면의 명령 가능 여부 산출용.
+  // UNCLOSED 명령은 별도 카운트가 아니라 lifecycle CLOSED 이벤트로 모니터링 "오늘 종료" 섹션에 노출.
 ```
 
 ### 11.5 실시간 상태 푸시 (STOMP)
@@ -745,7 +744,6 @@ Topics:
   { type: "MARKET_MODE",     mode: "WS" | "POLLING", ts }
   { type: "TOKEN_STATUS",    status: "OK" | "REFRESH_FAILED", ts }
   { type: "HOLIDAY",         isHoliday, ts }
-  { type: "UNCLOSED_COUNT",  count, ts }    // 재시작 등으로 UNCLOSED 처리 변동 시
   { type: "BALANCE_INVALIDATED", ts }       // 잔고 변동 가능성 알림 — 매매 명령 화면이
                                             // GET /api/account/balance 재조회를 트리거
 ```
@@ -757,7 +755,7 @@ Topics:
 1. 페이지 진입: `GET /api/system/status` + `GET /api/commands?status=active` → 시스템 상태 배지 + 리스트 렌더
 2. `/topic/commands/lifecycle` 구독 → CREATED 이벤트 시 행 추가, CLOSED 시 행 제거 + **종료 토스트** 1회 표시 (PRD §종료 인지)
 3. 활성 명령마다 `/topic/commands/{id}` 구독 → 행/상세 뷰 갱신 (PRICE / STATE / SIGNAL / EXECUTION / RETRY)
-4. `/topic/system` 구독 → 시스템 상태 배지(시세 모드 / 토큰 / 휴장 / UNCLOSED 카운트) 갱신
+4. `/topic/system` 구독 → 시스템 상태 배지(시세 모드 / 토큰 / 휴장) 갱신
 5. 상세 뷰 진입: `GET /api/commands/{id}` 로 보강 데이터(이력 + activeSell) 로드
 
 #### 프론트 구독 흐름 (매매 명령 화면)
@@ -777,10 +775,8 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jpa:
-    hibernate.ddl-auto: validate
+    hibernate.ddl-auto: update
     open-in-view: false
-  flyway:
-    enabled: true
 
 kis:
   app-key: ${KIS_APP_KEY}
@@ -850,9 +846,8 @@ logging:
   - 주문 타임아웃 + 체결 조회 후 멱등 처리
   - 장 마감 강제 청산
 
-### 14.3 수동 검증 (실거래 배포 전)
-- KIS 모의투자 환경에서 위 시나리오 1회 이상 검증 (코드 안정성 확인 용도)
-- 실거래 배포 직전: 1주 단위 최소 금액으로 정상 사이클 1회 수동 검증
+### 14.3 수동 검증 (실거래 시작 전)
+- 1주 단위 최소 금액으로 정상 사이클 1회 sanity check (Phase 4 통합 테스트가 다룬 시나리오와 동일하게 동작하는지 KIS 실응답에서 확인)
 
 ### 14.4 커버리지 목표
 - 도메인 레이어: 90% 이상
@@ -863,14 +858,15 @@ logging:
 ## 15. 운영 고려사항
 
 ### 15.1 시스템 다운 / 재시작 (PRD 명시)
-- 자동 복구 없음
-- 재시작 시 진행 중 명령 모두 사용자 알림 후 수동 처리
-- 시작 시 status가 INITIATED/BUYING/MONITORING/LIQUIDATING인 명령은 모두 close_reason=UNCLOSED로 마감하고 사용자에게 알림 표시
+- 자동 복구 없음 — 진행 중이던 매매 사이클을 재시작 후 이어가지 않는다
+- 시작 시 status가 INITIATED/BUYING/MONITORING/LIQUIDATING인 명령은 모두 `close_reason=UNCLOSED` + `closed_at=now()`로 일괄 마감
+- 마감된 명령은 lifecycle CLOSED 이벤트로 발행되어 모니터링 화면 "오늘 종료" 섹션 + 실적 화면에 자연스럽게 노출
+- 사용자 별도 알림/조치 불필요 (단, §7 거래정지로 인한 UNCLOSED는 KIS에 보유분이 남으므로 별도 — 사용자가 KIS HTS에서 수동 정리)
 
-### 15.2 배포
-- 단일 머신 (개인 PC 또는 개인 VPS)
-- 백엔드: `./gradlew bootJar` → systemd/launchd로 fat jar 실행
-- 프론트엔드: Vite 빌드 → 정적 호스팅 (백엔드에서 서빙해도 무방)
+### 15.2 로컬 실행 환경
+- 단일 사용자 / 단일 머신 (개인 PC). 외부 노출이나 다중 사용자 고려 없음.
+- 백엔드: `./gradlew bootJar` → systemd/launchd로 fat jar 실행 (PC 부팅 시 자동 시작 / 크래시 시 자동 재시작)
+- 프론트엔드: Vite 빌드 → 백엔드에서 정적 서빙 (별도 호스팅 불필요)
 - DB 백업: MySQL `mysqldump` 일별 cron
 
 ### 15.3 미해결 / 추후 결정
@@ -883,7 +879,7 @@ logging:
 ## 16. 구현 우선순위 (MVP 순서)
 
 1. **인프라 부트스트랩**
-   - 백엔드: MySQL 연결, Flyway 초기 마이그레이션, 로깅(JSON), Coroutine Scope Bean
+   - 백엔드: MySQL 연결, 로깅(JSON), Coroutine Scope Bean
    - 프론트엔드: Vite 초기화, Tailwind, 라우팅
 2. **KIS REST 어댑터**: 인증, 현재가/잔고 조회, 영업일 조회 (단위 테스트 포함)
 3. **도메인 코어 (단위 테스트 동반)**: TradingRules, Signal, CycleState (KIS 호출 없이 순수 로직)
