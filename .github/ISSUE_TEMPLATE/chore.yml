@@ -1,0 +1,25 @@
+name: Chore
+description: 환경 셋업 / 빌드 / 도구 / 의존성 / 운영 작업 (코드 동작 변경 없음)
+title: "chore: "
+labels: ["chore"]
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: 작업 범위
+      description: 무엇을 셋업 / 변경
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 동기
+      description: 왜 필요한가
+    validations:
+      required: true
+  - type: input
+    id: tasks-link
+    attributes:
+      label: 상세 체크리스트 (있으면)
+      description: tasks-NNN.md 파일 경로
+      placeholder: .claude/docs/tasks/tasks-NNN.md

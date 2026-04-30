@@ -1,0 +1,26 @@
+name: Refactor
+description: 동작 변경 없이 구조 개선
+title: "refactor: "
+labels: ["refactor"]
+body:
+  - type: textarea
+    id: target
+    attributes:
+      label: 대상
+      description: 어떤 코드 / 모듈 / 패키지
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 동기
+      description: 왜 지금 리팩토링이 필요한가
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 변경 범위
+      description: 영향받는 파일 / 모듈 / 외부 인터페이스 영향 여부
+    validations:
+      required: true
