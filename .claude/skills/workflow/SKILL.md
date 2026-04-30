@@ -81,6 +81,12 @@ echo "tasks=$LATEST done=$DONE todo=$TODO branch=$BRANCH dirty=$DIRTY issue=$ISS
 - 외부 리뷰 코멘트가 있으면 무시하지 않고 항목별로 응답 (수정 / 반박 / 후속 이슈로 위임 중 하나). 응답 없는 코멘트로 PR을 닫지 않는다.
 - 리뷰 사이클은 반복 가능 — 리뷰 → 수정 → 재리뷰가 자연스러우면 G 상태로 가지 않고 F를 다시 돈다.
 
+## 머지 원칙
+
+- 머지 방식: **merge commit** 고정. 명령: `gh pr merge <n> --merge --delete-branch --subject "<PR 제목> (#<n>)"`
+- 옵션(squash/rebase) 재질문 금지. 머지 자체에 대한 yes/no 승인만 받는다.
+- `--delete-branch`로 origin 브랜치 자동 삭제 + gh CLI가 머지 후 main 체크아웃 + pull + 로컬 phase 브랜치 삭제까지 자동 수행.
+
 
 ## 행동 원칙
 
