@@ -34,10 +34,10 @@
 
 ## 3. JSON 로깅 (`logback-spring.xml`)
 
-- [ ] `backend/src/main/resources/logback-spring.xml` 작성
-- [ ] `LogstashEncoder` 사용한 ConsoleAppender 정의
-- [ ] 기본 패턴에 `@timestamp`, `level`, `logger`, `thread`, `message`, MDC 필드 포함
-- [ ] 부팅 후 stdout에서 JSON 형식 라인 확인 (예: `jq` 파이프로 파싱 가능한지)
+- [x] `backend/src/main/resources/logback-spring.xml` 작성
+- [x] `LogstashEncoder` 사용한 ConsoleAppender 정의
+- [x] 기본 패턴에 `@timestamp`, `level`, `logger`, `thread`, `message`, MDC 필드 포함
+- [x] 부팅 후 stdout에서 JSON 형식 라인 확인 (예: `jq` 파이프로 파싱 가능한지)
 
 > 파일 회전(`logs/trading-YYYY-MM-DD.log`, 90일)은 Phase 7에서 운영 환경 구성 시 추가. Phase 0에서는 stdout JSON 출력만 검증.
 
