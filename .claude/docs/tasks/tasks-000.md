@@ -73,10 +73,10 @@
 
 ## 6. ApplicationCoroutineScope Bean (`config/CoroutineConfig.kt`)
 
-- [ ] `at.backend.config.CoroutineConfig` 작성
-- [ ] `@Bean fun applicationCoroutineScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("trading"))`
-- [ ] `@PreDestroy`로 scope cancel 처리 (서버 종료 시 코루틴 정리)
-- [ ] 단위 테스트: 빈 주입 + `launch { ... }` 동작 확인
+- [x] `at.backend.config.CoroutineConfig` 작성
+- [x] `@Bean fun applicationCoroutineScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineName("trading"))`
+- [x] `@PreDestroy`로 scope cancel 처리 (서버 종료 시 코루틴 정리)
+- [x] 단위 테스트: 빈 주입 + `launch { ... }` 동작 확인
 
 ---
 
