@@ -11,7 +11,7 @@ phase별 개발 워크플로우 오케스트레이터. 현재 git/GitHub 상태�
 ## 상태 추론 (skill 호출 시 즉시 실행)
 
 ```bash
-LATEST=$(ls .claude/docs/tasks/tasks-*.md 2>/dev/null | sort | tail -1)
+LATEST=$(ls docs/tasks/tasks-*.md 2>/dev/null | sort | tail -1)
 DONE=$(grep -c '^- \[x\]' "$LATEST" 2>/dev/null || echo 0)
 TODO=$(grep -c '^- \[ \]' "$LATEST" 2>/dev/null || echo 0)
 BRANCH=$(git branch --show-current)
@@ -25,17 +25,6 @@ PR=$(gh pr list --state open --head "$BRANCH" \
 echo "tasks=$LATEST done=$DONE todo=$TODO branch=$BRANCH dirty=$DIRTY issue=$ISSUE pr=$PR"
 ```
 
-출력 한 줄에서 다음 신호를 추출:
-
-| 신호 | 출처 | 사용처 |
-|------|------|--------|
-| `tasks` | 가장 최근 tasks 파일 경로. 없으면 빈 문자열 | A vs others |
-| `done` / `todo` | 체크된 / 안된 항목 수 | A vs D, D vs E |
-| `branch` | 현재 git 브랜치 | C vs D |
-| `dirty` | 변경된 파일 수 (정수) | D 상태에서 커밋 필요 여부 |
-| `issue` | 가장 최근 open phase 이슈 번호. 없으면 빈 문자열 | B vs C |
-| `pr` | "<번호> <reviewDecision>". 없으면 " none" | E vs F vs G |
-
 수집한 신호를 다음 표로 매핑:
 
 | 상태 | 신호 | 다음 단계 |
@@ -43,7 +32,7 @@ echo "tasks=$LATEST done=$DONE todo=$TODO branch=$BRANCH dirty=$DIRTY issue=$ISS
 | **A. tasks 없음** | 마지막 `tasks-*.md`의 항목이 모두 체크됨 | → plan.md를 참고하여 다음 phase의 tasks-NNN.md 작성 |
 | **B. 이슈 미생성** | 체크해야할 tasks가 있지만 해당 tasks의 open issue 없음, 현재 브랜치 main | → 이슈 초안 작성 → 사용자 승인 → `gh issue create` |
 | **C. 브랜치 미생성** | 이슈 있음, 현재 브랜치 main | → 브랜치명 제안 (`<type>/#<n>-<slug>`) → 사용자 승인 → `git checkout -b <name>` |
-| **D. 구현 중** | 작업 브랜치(`<type>/#<n>-...`), 미체크 항목 ≥ 1 | → tasks-NNN.md의 *다음 미체크 항목* 1개 진행 → 완료 시 자동으로 `[ ]` → `[x]` Edit + 적절히 커밋 |
+| **D. 구현 중** | 작업 브랜치(`<type>/#<n>-...`), 미체크 항목 ≥ 1 | → tasks-NNN.md의 *다음 미체크 항목* 1개 진행 → 완료 시 자동으로 `[ ]` → `[x]` Edit + `/commit` 스킬로 커밋 |
 | **E. PR 미생성** | 작업 브랜치, 모든 항목 체크됨, open PR 없음 | → PR 본문 초안 → 사용자 승인 → `gh pr create` |
 | **F. 리뷰 진행 중** | PR open된 상태 | → 사용자에게 리뷰 의사 질문 -> 의사 있으면 해당 pr에서 변경 사항을 조회하여 개선점 파악 -> 선택지 제안, 추천 선택지와 이유 설명 -> 사용자 승인 후 반영 |
 | **G. merge 대기** | PR open된 상태 | → 사용자에게 리뷰 의사 질문 -> 없으면 merge 사용자 승인 -> merge |
@@ -64,7 +53,7 @@ echo "tasks=$LATEST done=$DONE todo=$TODO branch=$BRANCH dirty=$DIRTY issue=$ISS
 
 ## 브랜치 생성 원칙
 
-- 작업 단위: `.claude/docs/tasks/tasks-NNN.md` (NNN = 0-base phase 번호 zero-padding)
+- 작업 단위: `docs/tasks/tasks-NNN.md` (NNN = 0-base phase 번호 zero-padding)
 - 브랜치: `<type>/#<issue-number>-<slug>`
   - 예: `feat/#1-bootstrap`, `chore/#5-ddl-rollout`
   - 타입 기본값: `feat` `fix` `refactor` `test` `docs` `chore`
@@ -97,6 +86,7 @@ echo "tasks=$LATEST done=$DONE todo=$TODO branch=$BRANCH dirty=$DIRTY issue=$ISS
 
 - **GitHub 액션(gh issue/pr create, merge, push)은 항상 사용자 승인 후 실행**. 본문 초안을 보여주고 yes/no를 받는다.
 - **체크박스 자동 갱신**: tasks-NNN.md의 항목 1개를 완료하면 즉시 `[ ]` → `[x]` Edit. 사용자가 손으로 체크할 필요 없음.
+- **커밋은 `/commit` 스킬 사용**: D 상태에서 작업 단위 완료 후 커밋할 때는 `git commit` 직접 실행 대신 `/commit` 슬래시 커맨드(Skill 도구)를 호출한다. tasks-NNN.md 체크박스 갱신도 커밋에 포함시킨다.
 - **"다음 한 단계만"**: 한 번 호출에 D 상태에서 *모든* 미체크 항목을 다 끝내려 들지 말 것. 자연스러운 작업 단위(보통 1~3개 체크박스 = 1 커밋)에서 멈추고 사용자에게 진척 보고.
 
 ## 사용자에게 보고하는 형식

@@ -3,8 +3,8 @@ spring:
     name: backend
   datasource:
     url: jdbc:mysql://localhost:33061/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    username: root
+    password: root
   jpa:
     hibernate:
       ddl-auto: update
@@ -19,10 +19,10 @@ logging:
     at.backend: DEBUG
 
 kis:
-  app-key: ${KIS_APP_KEY}
-  app-secret: ${KIS_APP_SECRET}
-  account-no: ${KIS_ACCOUNT_NO}
-  account-product-code: ${KIS_ACCOUNT_PRODUCT_CODE}
+  app-key: test-app-key
+  app-secret: test-app-secret
+  account-no: "00000000"
+  account-product-code: "01"
   base-url: https://openapi.koreainvestment.com:9443
   ws-url: ws://ops.koreainvestment.com:21000
   rate-limit-per-second: 20
