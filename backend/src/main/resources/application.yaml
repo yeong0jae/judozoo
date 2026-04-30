@@ -1,3 +1,37 @@
 spring:
   application:
     name: backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/trading?useSSL=false&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    at.backend: DEBUG
+
+kis:
+  app-key: ${KIS_APP_KEY}
+  app-secret: ${KIS_APP_SECRET}
+  account-no: ${KIS_ACCOUNT_NO}
+  account-product-code: ${KIS_ACCOUNT_PRODUCT_CODE:01}
+  base-url: https://openapi.koreainvestment.com:9443
+  ws-url: ws://ops.koreainvestment.com:21000
+  rate-limit-per-second: 20
+
+trading:
+  market-close-time: "15:30"
+  default-buy-interval-min: 60
+  default-split-sell-ratio: 0.5
+  default-midway-profit-pct: 0.05
+  default-breakeven-threshold-pct: 0.01
+  default-stop-loss-pct: 0.03
+  sell-cost-rate: 0.0025

@@ -23,29 +23,12 @@
 
 ---
 
-## 2. 설정 파일 분리
+## 2. 설정 파일 작성 (`application.yaml`)
 
-### 2.1 application.yaml (공통, 커밋됨)
-- [ ] 기본 server 포트 (예: 8080)
-- [ ] `spring.jpa.hibernate.ddl-auto: update`
-- [ ] `spring.jpa.open-in-view: false`
-- [ ] `logging.level.root: INFO`, `logging.level.at.backend: DEBUG`
-- [ ] DB / KIS 등 환경 의존 값은 *프로파일 활성화 시* 로컬 파일에서 로드되도록 자리만 (실제 값은 application-local.yaml)
-
-### 2.2 application-local.yaml (gitignored, 개발자 개인 파일)
-- [ ] `backend/src/main/resources/application-local.yaml` 생성 (gitignore 처리)
-- [ ] DB 접속 (jdbc URL / username / password) — 로컬 MySQL
-- [ ] KIS 자격 (`KIS_APP_KEY` / `KIS_APP_SECRET` / `KIS_ACCOUNT_NO` 등) — 환경변수 참조 형태
-- [ ] `trading.sell-cost-rate: 0.0025` 등 시스템 설정값
-- [ ] `backend/.gitignore`에 `application-local.yaml` 추가
-
-### 2.3 application-local.yaml.example (커밋됨, 템플릿)
-- [ ] `application-local.yaml`과 동일 구조의 placeholder 버전 (값은 `<your-...>` 같은 자리표시자)
-- [ ] README 또는 주석으로 "복사 후 값 채우기" 안내
-
-### 2.4 active profile
-- [ ] `application.yaml`에 `spring.profiles.active: local` 또는 부팅 시 `-Dspring.profiles.active=local` 안내
-- [ ] CI/테스트는 별도 프로파일이거나 application.yaml만으로 실행 가능하도록
+- [x] 기본 server 포트 (8080)
+- [x] `spring.jpa.hibernate.ddl-auto: update`, `spring.jpa.open-in-view: false`
+- [x] `logging.level.root: INFO`, `logging.level.at.backend: DEBUG`
+- [x] DB / KIS / Trading 설정값 — 민감값은 `${ENV_VAR}` 환경변수 참조, 나머지는 기본값 포함
 
 ---
 
