@@ -26,9 +26,9 @@
 
 ## 2. 공통 도메인 모델 (`trading.domain`)
 
-- [ ] `PriceTick` data class 작성 — `stockCode: String`, `price: Int`, `timestamp: Instant`
-- [ ] `Bar` data class 작성 — 3분봉 표현 (`stockCode: String`, `openPrice: Int`, `closePrice: Int`, `startTime: Instant`, `endTime: Instant`)
-- [ ] `CloseReason` enum 작성 — `TAKE_PROFIT`, `STOP_LOSS`, `BREAKEVEN`, `TREND_BREAK`, `MARKET_CLOSE`, `CANCELLED`, `NO_FILL`, `UNCLOSED`
+- [x] `PriceTick` data class 작성 — `stockCode: String`, `price: Int`, `timestamp: Instant`
+- [x] `Bar` data class 작성 — 3분봉 표현 (`stockCode: String`, `openPrice: Int`, `closePrice: Int`, `startTime: Instant`, `endTime: Instant`)
+- [x] `CloseReason` enum 작성 — `TAKE_PROFIT`, `STOP_LOSS`, `BREAKEVEN`, `TREND_BREAK`, `MARKET_CLOSE`, `CANCELLED`, `NO_FILL`, `UNCLOSED`
 
 ---
 
