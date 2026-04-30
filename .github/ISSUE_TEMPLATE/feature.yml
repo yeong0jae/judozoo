@@ -1,5 +1,5 @@
 name: Feature
-description: 새 기능 추가 또는 phase 단위 개발 작업
+description: 새 기능 추가
 title: "feat: "
 labels: ["feat"]
 body:
