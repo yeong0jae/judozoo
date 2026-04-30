@@ -56,18 +56,18 @@
 ## 5. @ConfigurationProperties 클래스 (`config/`)
 
 ### 5.1 KisProperties
-- [ ] `at.backend.config.KisProperties` 작성
-- [ ] 필드: `appKey`, `appSecret`, `accountNo`, `accountProductCode`, `baseUrl`, `wsUrl`, `rateLimitPerSecond`
-- [ ] `@ConfigurationProperties(prefix = "kis")` + `@ConstructorBinding` 또는 data class
-- [ ] `BackendApplication.kt`에 `@ConfigurationPropertiesScan` 또는 명시적 등록
+- [x] `at.backend.config.KisProperties` 작성
+- [x] 필드: `appKey`, `appSecret`, `accountNo`, `accountProductCode`, `baseUrl`, `wsUrl`, `rateLimitPerSecond`
+- [x] `@ConfigurationProperties(prefix = "kis")` + `@ConstructorBinding` 또는 data class
+- [x] `BackendApplication.kt`에 `@ConfigurationPropertiesScan` 또는 명시적 등록
 
 ### 5.2 TradingProperties
-- [ ] `at.backend.config.TradingProperties` 작성
-- [ ] 필드: `marketCloseTime`, `defaultBuyIntervalMin`, `defaultSplitSellRatio`, `defaultMidwayProfitPct`, `defaultBreakevenThresholdPct`, `defaultStopLossPct`, `sellCostRate`
-- [ ] `@ConfigurationProperties(prefix = "trading")`
+- [x] `at.backend.config.TradingProperties` 작성
+- [x] 필드: `marketCloseTime`, `defaultBuyIntervalMin`, `defaultSplitSellRatio`, `defaultMidwayProfitPct`, `defaultBreakevenThresholdPct`, `defaultStopLossPct`, `sellCostRate`
+- [x] `@ConfigurationProperties(prefix = "trading")`
 
 ### 5.3 부팅 검증
-- [ ] `application-local.yaml`에 채운 값이 두 Properties로 정상 바인딩되는지 (`@SpringBootTest`로 빈 주입 후 단순 not-null assertion)
+- [x] `application-local.yaml`에 채운 값이 두 Properties로 정상 바인딩되는지 (`@SpringBootTest`로 빈 주입 후 단순 not-null assertion)
 
 ---
 
