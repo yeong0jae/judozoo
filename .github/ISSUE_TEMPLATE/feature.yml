@@ -25,4 +25,4 @@ body:
     attributes:
       label: 상세 체크리스트 (있으면)
       description: tasks-NNN.md 파일 경로
-      placeholder: .claude/docs/tasks/tasks-NNN.md
+      placeholder: docs/tasks/tasks-NNN.md

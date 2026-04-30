@@ -11,7 +11,7 @@ phase별 개발 워크플로우 오케스트레이터. 현재 git/GitHub 상태�
 ## 상태 추론 (skill 호출 시 즉시 실행)
 
 ```bash
-LATEST=$(ls .claude/docs/tasks/tasks-*.md 2>/dev/null | sort | tail -1)
+LATEST=$(ls docs/tasks/tasks-*.md 2>/dev/null | sort | tail -1)
 DONE=$(grep -c '^- \[x\]' "$LATEST" 2>/dev/null || echo 0)
 TODO=$(grep -c '^- \[ \]' "$LATEST" 2>/dev/null || echo 0)
 BRANCH=$(git branch --show-current)
@@ -24,17 +24,6 @@ PR=$(gh pr list --state open --head "$BRANCH" \
        --jq '.[0] | "\(.number // "") \(.reviewDecision // "none")"')
 echo "tasks=$LATEST done=$DONE todo=$TODO branch=$BRANCH dirty=$DIRTY issue=$ISSUE pr=$PR"
 ```
-
-출력 한 줄에서 다음 신호를 추출:
-
-| 신호 | 출처 | 사용처 |
-|------|------|--------|
-| `tasks` | 가장 최근 tasks 파일 경로. 없으면 빈 문자열 | A vs others |
-| `done` / `todo` | 체크된 / 안된 항목 수 | A vs D, D vs E |
-| `branch` | 현재 git 브랜치 | C vs D |
-| `dirty` | 변경된 파일 수 (정수) | D 상태에서 커밋 필요 여부 |
-| `issue` | 가장 최근 open phase 이슈 번호. 없으면 빈 문자열 | B vs C |
-| `pr` | "<번호> <reviewDecision>". 없으면 " none" | E vs F vs G |
 
 수집한 신호를 다음 표로 매핑:
 
@@ -64,7 +53,7 @@ echo "tasks=$LATEST done=$DONE todo=$TODO branch=$BRANCH dirty=$DIRTY issue=$ISS
 
 ## 브랜치 생성 원칙
 
-- 작업 단위: `.claude/docs/tasks/tasks-NNN.md` (NNN = 0-base phase 번호 zero-padding)
+- 작업 단위: `docs/tasks/tasks-NNN.md` (NNN = 0-base phase 번호 zero-padding)
 - 브랜치: `<type>/#<issue-number>-<slug>`
   - 예: `feat/#1-bootstrap`, `chore/#5-ddl-rollout`
   - 타입 기본값: `feat` `fix` `refactor` `test` `docs` `chore`
