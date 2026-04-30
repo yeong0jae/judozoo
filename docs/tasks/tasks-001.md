@@ -42,21 +42,21 @@
 
 ## 4. Execution 모델 + TradingRules 계산 함수 (`trading.domain.rule`)
 
-- [ ] `Execution` data class 작성 — `executedPrice: Int`, `executedQty: Int`, `fee: Int`
-- [ ] `TradingRules.calcBuyPrice(executions: List<Execution>, sellCostRate: Double): Int` 구현 — `(Σ(price × qty) + Σfee) / Σqty × (1 + sellCostRate)`, 절상(올림) 처리 (spec §7.6)
-- [ ] `TradingRules.calcSplitSellQty(holdingQty: Int, splitSellRatio: Double): Pair<Int, Int>` 구현 — 1회 분할 수량(절사) + 잔여량 반환
-- [ ] 단위 테스트 (`TradingRulesTest.kt`, FunSpec) — `calcBuyPrice` 수수료 + sellCostRate 반영 정확도, `calcSplitSellQty` 절사 + 잔여 처리(홀수 수량 케이스)
+- [x] `Execution` data class 작성 — `executedPrice: Int`, `executedQty: Int`, `fee: Int`
+- [x] `TradingRules.calcBuyPrice(executions: List<Execution>, sellCostRate: Double): Int` 구현 — `(Σ(price × qty) + Σfee) / Σqty × (1 + sellCostRate)`, 절상(올림) 처리 (spec §7.6)
+- [x] `TradingRules.calcSplitSellQty(holdingQty: Int, splitSellRatio: Double): Pair<Int, Int>` 구현 — 1회 분할 수량(절사) + 잔여량 반환
+- [x] 단위 테스트 (`TradingRulesTest.kt`, FunSpec) — `calcBuyPrice` 수수료 + sellCostRate 반영 정확도, `calcSplitSellQty` 절사 + 잔여 처리(홀수 수량 케이스)
 
 ---
 
 ## 5. TradingRules 시그널 트리거 판정 함수 (`trading.domain.rule`)
 
-- [ ] `isStopLossTriggered(currentPrice: Int, buyPrice: Int, stopLossPct: Double): Boolean`
-- [ ] `isMidwayTakeProfitTriggered(currentPrice: Int, buyPrice: Int, midwayProfitPct: Double): Boolean`
-- [ ] `isTpStageTriggered(currentPrice: Int, buyPrice: Int, stagePct: Int, tpStagesFired: Int): Boolean` — 미발동 비트 확인 포함
-- [ ] `isBreakevenTriggered(currentPrice: Int, buyPrice: Int, armed: Boolean): Boolean`
-- [ ] `isTrendBreakTriggered(currentBar: Bar, prevBar: Bar, armed: Boolean): Boolean` — `현재 종가 < 1전봉 시가`
-- [ ] 단위 테스트 (`TradingRulesTest.kt`에 추가) — 각 트리거 경계값 케이스 (경계 이상 = 발동, 경계 미만 = 미발동)
+- [x] `isStopLossTriggered(currentPrice: Int, buyPrice: Int, stopLossPct: Double): Boolean`
+- [x] `isMidwayTakeProfitTriggered(currentPrice: Int, buyPrice: Int, midwayProfitPct: Double): Boolean`
+- [x] `isTpStageTriggered(currentPrice: Int, buyPrice: Int, stagePct: Int, tpStagesFired: Int): Boolean` — 미발동 비트 확인 포함
+- [x] `isBreakevenTriggered(currentPrice: Int, buyPrice: Int, armed: Boolean): Boolean`
+- [x] `isTrendBreakTriggered(currentBar: Bar, prevBar: Bar, armed: Boolean): Boolean` — `현재 종가 < 1전봉 시가`
+- [x] 단위 테스트 (`TradingRulesTest.kt`에 추가) — 각 트리거 경계값 케이스 (경계 이상 = 발동, 경계 미만 = 미발동)
 
 ---
 
