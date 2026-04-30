@@ -82,11 +82,11 @@
 
 ## 7. 검증 (Phase 0 DoD 체크)
 
-- [ ] `./gradlew clean build` 통과
-- [ ] `./gradlew bootRun --args='--spring.profiles.active=local'` 정상 부팅
-- [ ] stdout 로그가 JSON 형식 (예: `INFO`, `DEBUG` 라인 모두 JSON)
-- [ ] `npm run dev` → http://localhost:5173 mock 화면 정상 (이미 만족, 재확인만)
-- [ ] `KisProperties` / `TradingProperties` / `ApplicationCoroutineScope` 빈 주입 가능 (간단한 테스트 또는 부팅 로그로 확인)
+- [x] `./gradlew clean build` 통과
+- [x] `./gradlew bootRun` 정상 부팅 (`.env` 환경변수는 IntelliJ Run Configuration 또는 `export $(grep -v '^#' .env | xargs)`로 주입)
+- [x] stdout 로그가 JSON 형식 (예: `INFO`, `DEBUG` 라인 모두 JSON)
+- [x] `npm run dev` → http://localhost:5173 mock 화면 정상 (이미 만족, 재확인만)
+- [x] `KisProperties` / `TradingProperties` / `ApplicationCoroutineScope` 빈 주입 가능 (간단한 테스트 또는 부팅 로그로 확인)
 
 ---
 
