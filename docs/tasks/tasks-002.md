@@ -26,8 +26,8 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 ## 2. Test infrastructure: IntegrationTestBase
 
-- [ ] Write `at.backend.common.test.IntegrationTestBase` — `@SpringBootTest` + singleton Testcontainers MySQL container + `@DynamicPropertySource` overriding `spring.datasource.url/username/password`
-- [ ] Add dummy KIS values in `backend/src/test/resources/application.yaml` so `@SpringBootTest` starts (WireMock will override the base URL per test)
+- [x] Write `at.backend.common.test.IntegrationTestBase` — `@SpringBootTest` + singleton Testcontainers MySQL container + `@DynamicPropertySource` overriding `spring.datasource.url/username/password`
+- [x] Add dummy KIS values in `backend/src/test/resources/application.yaml` so `@SpringBootTest` starts (WireMock will override the base URL per test)
 
 ---
 

@@ -51,8 +51,8 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.9.1")
     testImplementation("io.mockk:mockk:1.14.3")
     testImplementation("org.wiremock:wiremock-standalone:3.9.2")
-    testImplementation("org.testcontainers:mysql")
-    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:mysql:1.20.6")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.6")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
