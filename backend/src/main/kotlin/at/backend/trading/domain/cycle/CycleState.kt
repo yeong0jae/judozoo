@@ -3,7 +3,11 @@ package at.backend.trading.domain.cycle
 sealed class CycleState {
 
     data object Initiated : CycleState()
-    data class Buying(val nextAttempt: Int) : CycleState()
+    data class Buying(val nextAttempt: Int) : CycleState() {
+        init {
+            require(nextAttempt in 1..3) { "매수 회차는 1~3이어야 합니다: $nextAttempt" }
+        }
+    }
     data object Holding : CycleState()
     data class Liquidating(val reason: CloseReason) : CycleState()
     data class Closed(val reason: CloseReason) : CycleState()

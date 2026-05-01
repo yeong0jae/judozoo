@@ -1,5 +1,6 @@
 package at.backend.trading.domain.cycle
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -39,8 +40,9 @@ class CycleStateTest : FunSpec({
             buying1.canTransitionTo(CycleState.Buying(3)) shouldBe false
         }
 
-        test("4회차 전이 불허 — 최대 3회") {
-            buying3.canTransitionTo(CycleState.Buying(4)) shouldBe false
+        test("유효 범위 밖 회차는 생성 시 예외") {
+            shouldThrow<IllegalArgumentException> { CycleState.Buying(0) }
+            shouldThrow<IllegalArgumentException> { CycleState.Buying(4) }
         }
 
         test("Holding으로 전이 허용 — 3회 완료 또는 중도 익절") {

@@ -16,6 +16,14 @@ data class CycleSnapshot(
     val stopLossPct: Double,       // 손절 기준 비율. 음수 (예: -0.02 = -2%)
     val midwayProfitPct: Double,   // 중도 익절 기준 퍼센트. 양수 (예: 3.0 = +3%)
 ) {
+    init {
+        require(holdingQty >= 0) { "보유 수량은 0 이상이어야 합니다: $holdingQty" }
+        require(buyPrice >= 0) { "매수가는 0 이상이어야 합니다: $buyPrice" }
+        require(tpStagesFired in 0..0b111) { "TP 단계 비트플래그는 0~7이어야 합니다: $tpStagesFired" }
+        require(buyAttempt in 1..3) { "매수 회차는 1~3이어야 합니다: $buyAttempt" }
+        require(stopLossPct < 0) { "손절 비율은 음수여야 합니다: $stopLossPct" }
+        require(midwayProfitPct > 0) { "중도 익절 비율은 양수여야 합니다: $midwayProfitPct" }
+    }
 
     fun detectSignals(tick: PriceTick, currentBar: Bar, prevBar: Bar): List<Signal> {
         val signals = detectSignals(tick).toMutableList()
@@ -86,6 +94,7 @@ data class CycleSnapshot(
     }
 
     fun splitSellQty(splitSellRatio: Double): Pair<Int, Int> {
+        require(splitSellRatio in 0.0..1.0) { "분할 매도 비율은 0~1이어야 합니다: $splitSellRatio" }
         val splitQty = (holdingQty * splitSellRatio).toInt()
         val remainder = holdingQty - splitQty
         return Pair(splitQty, remainder)
