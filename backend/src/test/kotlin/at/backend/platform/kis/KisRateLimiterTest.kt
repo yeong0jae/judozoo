@@ -1,6 +1,6 @@
-package at.backend.kis.infrastructure
+package at.backend.platform.kis
 
-import at.backend.kis.KisProperties
+import at.backend.platform.kis.config.KisProperties
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.longs.shouldBeLessThan

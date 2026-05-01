@@ -47,11 +47,11 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 ## 5. KisAuthService (`at.backend.kis.application`)
 
-- [ ] Write `KisAuthResponse` DTO — `accessToken: String`, `accessTokenExpired: String` (matches KIS `/oauth2/tokenP` response field names)
-- [ ] Implement `KisAuthService` — issues token via `POST /oauth2/tokenP` on `@PostConstruct`, stores token + expiry in memory
-- [ ] Add `refreshIfNearExpiry()` — annotated `@Scheduled(fixedDelay = 60_000)`, re-issues if expiry is within 5 minutes
-- [ ] Add `getToken(): String` — returns the current valid token (synchronous)
-- [ ] Integration test (`KisAuthServiceTest.kt`, FunSpec, extending `IntegrationTestBase`) — WireMock stubs for `/oauth2/tokenP`: (1) normal issuance, (2) near-expiry → `refreshIfNearExpiry()` triggers re-issuance, (3) 4xx response → exception propagates
+- [x] Write `KisAuthResponse` DTO — `accessToken: String`, `accessTokenExpired: String` (matches KIS `/oauth2/tokenP` response field names)
+- [x] Implement `KisAuthService` — issues token via `POST /oauth2/tokenP` on `@PostConstruct`, stores token + expiry in memory
+- [x] Add `refreshIfNearExpiry()` — annotated `@Scheduled(fixedDelay = 60_000)`, re-issues if expiry is within 5 minutes
+- [x] Add `getToken(): String` — returns the current valid token (synchronous)
+- [x] Integration test (`KisAuthServiceTest.kt`, FunSpec, extending `IntegrationTestBase`) — WireMock stubs for `/oauth2/tokenP`: (1) normal issuance, (2) near-expiry → `refreshIfNearExpiry()` triggers re-issuance, (3) 4xx response → exception propagates
 
 ---
 
