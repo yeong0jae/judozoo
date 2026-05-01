@@ -1,4 +1,4 @@
-package at.backend.config
+package at.backend.trading
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.math.BigDecimal

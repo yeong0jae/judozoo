@@ -1,6 +1,6 @@
-package at.backend.kis.infrastructure
+package at.backend.platform.kis
 
-import at.backend.kis.KisProperties
+import at.backend.platform.kis.config.KisProperties
 import io.github.resilience4j.ratelimiter.RateLimiter
 import io.github.resilience4j.ratelimiter.RateLimiterConfig
 import org.springframework.stereotype.Component
