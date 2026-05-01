@@ -1,11 +1,7 @@
-package at.backend.config
+package at.backend.config.coroutine
 
 import jakarta.annotation.PreDestroy
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.*
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
