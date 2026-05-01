@@ -33,8 +33,8 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 ## 3. KisProperties package migration
 
-- [ ] Move `at.backend.config.KisProperties` → `at.backend.kis.KisProperties` (update all import paths; `BackendApplication.kt` `@ConfigurationPropertiesScan` if needed)
-- [ ] Verify `./gradlew build` still passes after the move
+- [x] Move `at.backend.config.KisProperties` → `at.backend.kis.KisProperties` (update all import paths; `BackendApplication.kt` `@ConfigurationPropertiesScan` if needed)
+- [x] Verify `./gradlew build` still passes after the move
 
 ---
 
