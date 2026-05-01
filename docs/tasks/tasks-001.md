@@ -40,39 +40,39 @@
 
 ---
 
-## 4. Execution 모델 + TradingRules 계산 함수 (`trading.domain.rule`)
+## 4. Execution 모델 + 매수가/분할 매도 계산 (`trading.domain.execution`)
 
 - [x] `Execution` data class 작성 — `executedPrice: Int`, `executedQty: Int`, `fee: Int`
-- [x] `TradingRules.calcBuyPrice(executions: List<Execution>, sellCostRate: Double): Int` 구현 — `(Σ(price × qty) + Σfee) / Σqty × (1 + sellCostRate)`, 절상(올림) 처리 (spec §7.6)
-- [x] `TradingRules.calcSplitSellQty(holdingQty: Int, splitSellRatio: Double): Pair<Int, Int>` 구현 — 1회 분할 수량(절사) + 잔여량 반환
-- [x] 단위 테스트 (`TradingRulesTest.kt`, FunSpec) — `calcBuyPrice` 수수료 + sellCostRate 반영 정확도, `calcSplitSellQty` 절사 + 잔여 처리(홀수 수량 케이스)
+- [x] `Executions.calculateBuyPrice(sellCostRate: Double): Int` 구현 — `(Σ(price × qty) + Σfee) / Σqty × (1 + sellCostRate)`, 절상(올림) 처리 (spec §7.6)
+- [x] `CycleSnapshot.splitSellQty(splitSellRatio: Double): Pair<Int, Int>` 구현 — 1회 분할 수량(절사) + 잔여량 반환
+- [x] 단위 테스트 (`ExecutionsTest.kt`, FunSpec) — `calculateBuyPrice` 수수료 + sellCostRate 반영 정확도; 분할 매도는 `CycleSnapshotTest.kt`에서 절사 + 잔여 처리(홀수 수량 케이스)
 
 ---
 
-## 5. TradingRules 시그널 트리거 판정 함수 (`trading.domain.rule`)
+## 5. 시그널 트리거 판정 메서드 (`trading.domain.cycle.CycleSnapshot`)
 
-- [x] `isStopLossTriggered(currentPrice: Int, buyPrice: Int, stopLossPct: Double): Boolean`
-- [x] `isMidwayTakeProfitTriggered(currentPrice: Int, buyPrice: Int, midwayProfitPct: Double): Boolean`
-- [x] `isTpStageTriggered(currentPrice: Int, buyPrice: Int, stagePct: Int, tpStagesFired: Int): Boolean` — 미발동 비트 확인 포함
-- [x] `isBreakevenTriggered(currentPrice: Int, buyPrice: Int, armed: Boolean): Boolean`
-- [x] `isTrendBreakTriggered(currentBar: Bar, prevBar: Bar, armed: Boolean): Boolean` — `현재 종가 < 1전봉 시가`
-- [x] 단위 테스트 (`TradingRulesTest.kt`에 추가) — 각 트리거 경계값 케이스 (경계 이상 = 발동, 경계 미만 = 미발동)
+- [x] `CycleSnapshot.isStopLossTriggered(currentPrice: Int): Boolean` — `stopLossPct`를 스냅샷에서 참조
+- [x] `CycleSnapshot.isMidwayTakeProfitTriggered(currentPrice: Int): Boolean` — `midwayProfitPct`를 스냅샷에서 참조
+- [x] `CycleSnapshot.isTpStageTriggered(currentPrice: Int, stagePct: Int): Boolean` — `tpStagesFired` 비트 확인 포함
+- [x] `CycleSnapshot.isBreakevenTriggered(currentPrice: Int): Boolean` — `breakevenArmed` 플래그 포함
+- [x] `CycleSnapshot.isTrendBreakTriggered(currentBar: Bar, prevBar: Bar): Boolean` — `trendBreakArmed` 포함, `현재 종가 < 1전봉 시가`
+- [x] 단위 테스트 (`CycleSnapshotTest.kt`, FunSpec) — 각 트리거 경계값 케이스 (경계 이상 = 발동, 경계 미만 = 미발동)
 
 ---
 
-## 6. Signal sealed class + SignalGuard (`trading.domain.signal`)
+## 6. Signal sealed class + isAlive (`trading.domain.signal`)
 
 - [x] `Signal` sealed class 작성 — `StopLoss(priority=1)`, `MidwayTakeProfit(priority=2)`, `TpStage(pct:Int, priority=2)`, `Breakeven(priority=2)`, `TrendBreak(priority=2)`, `LimitUp(priority=2)`, `MarketClose(priority=0)`, `Cancel(priority=0)` (낮을수록 우선)
-- [x] `SignalGuard` object 작성 — `isAlive(signal: Signal, currentPrice: Int, buyPrice: Int, currentBar: Bar?, clock: Instant): Boolean` (spec §7.3)
-- [x] 단위 테스트 (`SignalGuardTest.kt`, FunSpec) — TrendBreak의 봉 진행 중(isAlive=true) vs. 봉 종료(isAlive=false) 케이스, Breakeven 현재가 초과(isAlive=false) 케이스
+- [x] `Signal.isAlive(currentPrice, buyPrice, currentBar, clock): Boolean` — 각 시그널이 직접 override (Breakeven: 현재가 ≤ 매수가, TrendBreak: 봉 진행 중, 나머지: 항상 true)
+- [x] 단위 테스트 (`SignalTest.kt`, FunSpec) — TrendBreak의 봉 진행 중(isAlive=true) vs. 봉 종료(isAlive=false) 케이스, Breakeven 현재가 초과(isAlive=false) 케이스
 
 ---
 
-## 7. CycleSnapshot + SignalDetector (`trading.domain.signal`)
+## 7. CycleSnapshot + detectSignals (`trading.domain.cycle`)
 
-- [x] `CycleSnapshot` data class 작성 — SignalDetector가 평가에 필요한 상태 스냅샷 (`state: CycleState`, `holdingQty: Int`, `buyPrice: Int`, `tpStagesFired: Int`, `breakevenArmed: Boolean`, `trendBreakArmed: Boolean`, `buyAttempt: Int`)
-- [x] `SignalDetector` object 작성 — `detect(tick: PriceTick, snapshot: CycleSnapshot, currentBar: Bar?, prevBar: Bar?): List<Signal>` (우선순위 오름차순 정렬, 보유=0이면 가격 기반 시그널 평가 보류)
-- [x] 단위 테스트 (`SignalDetectorTest.kt`, FunSpec) — 우선순위 처리(StopLoss + TpStage 동시 → StopLoss만 반환), 보유=0 시 가격 기반 시그널 평가 보류, `tpStagesFired` 비트 중복 발동 방지
+- [x] `CycleSnapshot` data class 작성 — 시그널 탐지에 필요한 상태 스냅샷 (`state: CycleState`, `holdingQty: Int`, `buyPrice: Int`, `tpStagesFired: Int`, `breakevenArmed: Boolean`, `trendBreakArmed: Boolean`, `buyAttempt: Int`, `stopLossPct: Double`, `midwayProfitPct: Double`)
+- [x] `CycleSnapshot.detectSignals(tick, currentBar, prevBar): List<Signal>` 구현 — 우선순위 오름차순 정렬, 보유=0이면 가격 기반 시그널 평가 보류
+- [x] 단위 테스트 (`CycleSnapshotTest.kt`, FunSpec) — 우선순위 처리(StopLoss + TpStage 동시 → StopLoss만 반환), 보유=0 시 가격 기반 시그널 평가 보류, `tpStagesFired` 비트 중복 발동 방지
 
 ---
 
@@ -108,26 +108,24 @@
 backend/src/main/kotlin/at/backend/trading/domain/
 ├── PriceTick.kt
 ├── Bar.kt
-├── CloseReason.kt
 ├── cycle/
-│   └── CycleState.kt
-├── signal/
-│   ├── Signal.kt
-│   ├── SignalGuard.kt
-│   ├── SignalDetector.kt
+│   ├── CloseReason.kt
+│   ├── CycleState.kt
 │   └── CycleSnapshot.kt
-└── rule/
-    ├── TradingRules.kt
-    └── Execution.kt
+├── execution/
+│   ├── Execution.kt
+│   └── Executions.kt
+└── signal/
+    └── Signal.kt
 
 backend/src/test/kotlin/at/backend/trading/domain/
 ├── cycle/
-│   └── CycleStateTest.kt
+│   ├── CycleStateTest.kt
+│   └── CycleSnapshotTest.kt
+├── execution/
+│   └── ExecutionsTest.kt
 ├── signal/
-│   ├── SignalGuardTest.kt
-│   └── SignalDetectorTest.kt
-├── rule/
-│   └── TradingRulesTest.kt
+│   └── SignalTest.kt
 └── scenario/
     └── TradingScenarioTest.kt
 ```
