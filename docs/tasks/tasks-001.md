@@ -34,9 +34,9 @@
 
 ## 3. CycleState sealed class (`trading.domain.cycle`)
 
-- [x] `CycleState` sealed class 작성 — `Initiated` / `Buying(nextAttempt: Int)` / `Monitoring` / `Liquidating(reason: CloseReason)` / `Closed(reason: CloseReason)`
+- [x] `CycleState` sealed class 작성 — `Initiated` / `Buying(nextAttempt: Int)` / `Holding` / `Liquidating(reason: CloseReason)` / `Closed(reason: CloseReason)`
 - [x] 전이 유효성 함수 작성 — `CycleState.canTransitionTo(next: CycleState): Boolean` (spec §5.2 전이 규칙)
-- [x] 단위 테스트 (`CycleStateTest.kt`, Kotest FunSpec) — 허용 전이(`Initiated→Buying`, `Buying→Monitoring` 등) + 불허 전이(`Initiated→Monitoring`, `Closed→Buying` 등)
+- [x] 단위 테스트 (`CycleStateTest.kt`, Kotest FunSpec) — 허용 전이(`Initiated→Buying`, `Buying→Holding` 등) + 불허 전이(`Initiated→Holding`, `Closed→Buying` 등)
 
 ---
 
@@ -79,7 +79,7 @@
 ## 8. 시나리오 단위 테스트 1~4 (`trading.domain.scenario`)
 
 - [x] **시나리오 1**: 정상 사이클 — 3회 매수 체결 → TpStage(2/3/5%) 단계별 발동 → trendBreakArmed 무장 → TrendBreak 잔여 매도 → `Closed(TAKE_PROFIT)` 전이 확인
-- [x] **시나리오 2**: 중도 익절 — 매수 2회차 중 +3.5% 도달 → MidwayTakeProfit 발동 → `Buying→Monitoring` 전이, 잔여 보유 유지
+- [x] **시나리오 2**: 중도 익절 — 매수 2회차 중 +3.5% 도달 → MidwayTakeProfit 발동 → `Buying→Holding` 전이, 잔여 보유 유지
 - [x] **시나리오 3**: 갭상승 복수 단계 — TpStage(2/3/5%) 동시 발동 → 3개 시그널 모두 반환, tp_stages_fired 비트 전부 세팅
 - [x] **시나리오 4**: 손절 우선순위 — TpStage 무장 상태 + 현재가 -2% 동시 → `detect()` 결과 StopLoss 단독 반환(TpStage 억제)
 
@@ -96,9 +96,9 @@
 
 ## 10. 검증 (Phase 1 DoD 체크)
 
-- [ ] `./gradlew test` 전체 통과
-- [ ] `./gradlew jacocoTestReport` 실행 → `backend/build/reports/jacoco/test/html/index.html` 열어 `trading.domain` 라인 커버리지 90%+ 확인
-- [ ] 소스 파일(`trading/domain/**/*.kt`) 전체에 `System.currentTimeMillis()` / KIS 패키지 import / JPA 어노테이션 없음 확인
+- [x] `./gradlew test` 전체 통과 (총 98개 테스트)
+- [x] `./gradlew jacocoTestReport` 실행 → `trading.domain` 라인 커버리지: cycle 97% / signal 96% / rule 97% (모두 90%+)
+- [x] 소스 파일(`trading/domain/**/*.kt`) 전체에 `System.currentTimeMillis()` / KIS 패키지 import / JPA 어노테이션 없음 확인
 
 ---
 
