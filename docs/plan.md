@@ -38,7 +38,7 @@ KIS 없이도 모든 매매 룰을 검증 가능한 상태로 만든다. 외부 
 
 ### 산출물
 - `trading.domain.cycle`
-  - `CycleState`: sealed class (`Initiated` / `Buying` / `Monitoring` / `Liquidating` / `Closed`)
+  - `CycleState`: sealed class (`Initiated` / `Buying` / `Holding` / `Liquidating` / `Closed`)
   - 전이 규칙 함수: spec §5.2 표 그대로
 - `trading.domain.signal`
   - `Signal`: sealed class (StopLoss / MidwayTakeProfit / TpStage / Breakeven / TrendBreak / LimitUp / MarketClose / Cancel)
@@ -52,7 +52,7 @@ KIS 없이도 모든 매매 룰을 검증 가능한 상태로 만든다. 외부 
 
 ### 검증 시나리오 (단위 테스트)
 1. **정상 사이클**: 3회 매수 → 2%/3%/5% 단계 발동 → 추세 꺾임 잔여 매도 → Closed (TAKE_PROFIT)
-2. **중도 익절 (옵션 A)**: 매수 2회차 직후 +3.5% → 충족 단계 합산 40% 즉시 매도 → 잔여로 Monitoring 진입
+2. **중도 익절 (옵션 A)**: 매수 2회차 직후 +3.5% → 충족 단계 합산 40% 즉시 매도 → 잔여로 Holding 진입
 3. **갭상승 복수 단계**: 시초가 +6% → 2%/3%/5% 한 번에 60% 매도
 4. **손절 우선순위**: TpStage 무장 + 가격 -2% 동시 → StopLoss 우선
 5. **본전 매도 무장 후 발동**: +2% 도달 → 무장 → 매수가 도달 → 전량 매도
