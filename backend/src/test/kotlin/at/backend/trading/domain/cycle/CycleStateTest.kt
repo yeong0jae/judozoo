@@ -1,6 +1,5 @@
 package at.backend.trading.domain.cycle
 
-import at.backend.trading.domain.CloseReason
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -17,8 +16,8 @@ class CycleStateTest : FunSpec({
             initiated.canTransitionTo(CycleState.Buying(2)) shouldBe false
         }
 
-        test("Monitoring으로 직접 전이 불허") {
-            initiated.canTransitionTo(CycleState.Monitoring) shouldBe false
+        test("Holding으로 직접 전이 불허") {
+            initiated.canTransitionTo(CycleState.Holding) shouldBe false
         }
 
         test("Closed로 직접 전이 불허") {
@@ -44,9 +43,9 @@ class CycleStateTest : FunSpec({
             buying3.canTransitionTo(CycleState.Buying(4)) shouldBe false
         }
 
-        test("Monitoring으로 전이 허용 — 3회 완료 또는 중도 익절") {
-            buying3.canTransitionTo(CycleState.Monitoring) shouldBe true
-            buying2.canTransitionTo(CycleState.Monitoring) shouldBe true
+        test("Holding으로 전이 허용 — 3회 완료 또는 중도 익절") {
+            buying3.canTransitionTo(CycleState.Holding) shouldBe true
+            buying2.canTransitionTo(CycleState.Holding) shouldBe true
         }
 
         test("Liquidating으로 전이 허용 — 손절/취소") {
@@ -70,11 +69,11 @@ class CycleStateTest : FunSpec({
         }
     }
 
-    context("Monitoring 상태 전이") {
-        val monitoring = CycleState.Monitoring
+    context("Holding 상태 전이") {
+        val monitoring = CycleState.Holding
 
-        test("자기 자신(Monitoring)으로 전이 허용 — TpStage 부분 매도 후 잔여 유지") {
-            monitoring.canTransitionTo(CycleState.Monitoring) shouldBe true
+        test("자기 자신(Holding)으로 전이 허용 — TpStage 부분 매도 후 잔여 유지") {
+            monitoring.canTransitionTo(CycleState.Holding) shouldBe true
         }
 
         test("Liquidating으로 전이 허용 — BE/TB/LU/MC") {
@@ -97,8 +96,8 @@ class CycleStateTest : FunSpec({
             liquidating.canTransitionTo(CycleState.Closed(CloseReason.STOP_LOSS)) shouldBe true
         }
 
-        test("Monitoring으로 역전이 불허") {
-            liquidating.canTransitionTo(CycleState.Monitoring) shouldBe false
+        test("Holding으로 역전이 불허") {
+            liquidating.canTransitionTo(CycleState.Holding) shouldBe false
         }
     }
 
@@ -108,7 +107,7 @@ class CycleStateTest : FunSpec({
         test("어떤 상태로도 전이 불허 — 종료 상태") {
             closed.canTransitionTo(CycleState.Initiated) shouldBe false
             closed.canTransitionTo(CycleState.Buying(1)) shouldBe false
-            closed.canTransitionTo(CycleState.Monitoring) shouldBe false
+            closed.canTransitionTo(CycleState.Holding) shouldBe false
             closed.canTransitionTo(CycleState.Closed(CloseReason.STOP_LOSS)) shouldBe false
         }
     }
