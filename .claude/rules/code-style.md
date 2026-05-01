@@ -1,21 +1,21 @@
 # Code Style
 
-## Domain Layer — 객체지향 원칙
+## Domain Layer — Object-Oriented Principles
 
-`domain/` 패키지의 코드는 객체에 데이터와 책임을 함께 둔다. 외부에서 데이터를 꺼내 계산하지 말고, 객체에 메시지를 보내 작업을 위임한다.
+Code in the `domain/` package keeps data and responsibility together in the object. Don't pull data out and compute externally — send a message to the object and delegate the work.
 
 ### 1. Tell, Don't Ask
 
-객체가 가진 데이터로 판단할 수 있는 일은 객체가 직접 한다. 외부가 객체의 필드를 꺼내 계산하지 않는다.
+If a decision can be made using the data an object already holds, the object makes it itself. External code does not reach into an object's fields to compute things.
 
-### 2. 유틸성 정적 클래스를 두지 않는다
+### 2. No utility static classes
 
-`XxxUtils` 같은 정적 함수 모음은 데이터를 가진 도메인 객체에 분배한다.
+Static function collections like `XxxUtils` must be distributed to the domain objects that own the relevant data.
 
-### 3. List는 일급 컬렉션으로 감싼다
+### 3. Wrap Lists in first-class collections
 
-도메인 의미가 있는 컬렉션은 `class Xxxs(private val Xxxs: List<X>)` 로 감싸서 컬렉션 단위 행동/불변식을 그 안에 둔다.
+Collections with domain meaning are wrapped as `class Xxxs(private val list: List<X>)` so that collection-level behavior and invariants live inside the wrapper.
 
-### 4. 도메인은 외부 의존이 없다
+### 4. The domain has no external dependencies
 
-`domain/` 안에서는 Spring, HTTP 클라이언트, 비결정적 의존성(시간/랜덤)을 직접 호출하지 않는다. 필요한 값은 파라미터로 받는다.
+Inside `domain/`, never directly call Spring, HTTP clients, or non-deterministic dependencies (time, random). Receive required values as parameters instead.

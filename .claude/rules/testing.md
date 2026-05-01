@@ -1,30 +1,30 @@
 # Testing Rules
 
-## Kotest & MockK 테스트 컨벤션
+## Kotest & MockK Conventions
 
-### Spec 선택 기준
+### Spec selection
 
-**FunSpec** 으로 통일한다.
-- 관련 테스트는 `context("...")` 블록으로 그룹화한다
-- `test`는 개별 케이스를 작성한다
-- 구조: `context("기능 또는 시나리오") → test("케이스")`
+Use **FunSpec** exclusively.
+- Group related tests with `context("...")` blocks
+- Write individual cases with `test`
+- Structure: `context("feature or scenario") → test("case")`
 
-### Description 작성 원칙
+### Description principles
 
-`context()` / `test()` 문자열은 **시나리오·의미**를 담는다. 메서드명·필드명 등 구현 디테일은 쓰지 않는다 — 리팩토링 시 테스트 이름까지 깨져 변경에 취약해진다. 도메인 개념(상태 이름, 시그널 종류 등 ubiquitous language)은 사용 OK.
+`context()` / `test()` strings must convey **scenario and meaning**. Do not include implementation details such as method names or field names — they make tests brittle when refactoring. Domain concepts (state names, signal types, and other ubiquitous language) are fine to use.
 
-### MockK 사용 기준
+### MockK usage guidelines
 
-**mock 사용 O:**
-- Application 레이어 테스트에서 Infrastructure 의존성(외부 Client) 격리
-- Presentation 레이어 테스트에서 Application 의존성(Service) 격리
-- 비결정적 의존성 격리 (시간, 랜덤, 외부 API)
+**Use mocks:**
+- Isolating Infrastructure dependencies (external clients) in Application layer tests
+- Isolating Application dependencies (services) in Presentation layer tests
+- Isolating non-deterministic dependencies (time, random, external APIs)
 
-**mock 사용 X:**
-- Domain 레이어 — 순수 도메인 객체는 실제 인스턴스로 테스트한다
-- Application 레이어 통합 테스트 — `@SpringBootTest` + Testcontainers로 실제 DB에서 테스트한다
-- Infrastructure 레이어 통합 테스트 — 실제 DB(Testcontainers 등)를 사용한다
+**Do not use mocks:**
+- Domain layer — test pure domain objects with real instances
+- Application layer integration tests — use `@SpringBootTest` + Testcontainers against a real DB
+- Infrastructure layer integration tests — use a real DB (Testcontainers, etc.)
 
-### SpringBootTest + Testcontainers 컨벤션
+### SpringBootTest + Testcontainers conventions
 
-- `IntegrationTestBase`를 상속받아 사용한다 — MySQL 컨테이너 및 `@DynamicPropertySource`가 베이스 클래스에 정의되어 있어 모든 통합 테스트가 컨테이너를 공유한다
+- Extend `IntegrationTestBase` — the MySQL container and `@DynamicPropertySource` are defined there so all integration tests share the same container.

@@ -1,11 +1,17 @@
-# 자동 트레이딩 시스템
+# Autonomous Trading System
 
-주도주 자동 매매 시스템 (Spring Boot/Kotlin + React + MySQL).
+A leading-stock automated trading system (Spring Boot/Kotlin + React + MySQL).
 
-## 문서
+## Language
 
-- `docs/prd.md` — 제품 요구사항
-- `docs/spec.md` — 기능 스펙
-- `docs/plan.md` — phase별 개발 계획
-- `docs/tasks/tasks-NNN.md` — phase별 작업 체크리스트
-- `docs/architecture.md` — 아키텍처
+For every prompt I enter, whether in Korean or English, first rewrite it into proper English. If I write in English, point out any grammatical errors and suggest improvements to make the sentence more natural. Then proceed with the rewritten, polished English prompt.
+
+Always respond in English only.
+
+## Documentation
+
+- `docs/prd.md` — product requirements
+- `docs/spec.md` — feature spec
+- `docs/plan.md` — phase-by-phase development plan
+- `docs/tasks/tasks-NNN.md` — per-phase task checklist
+- `docs/architecture.md` — architecture
