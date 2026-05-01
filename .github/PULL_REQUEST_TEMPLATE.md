@@ -9,8 +9,8 @@ Closes #<이슈 번호>
 ## Test plan
 
 <!-- 검증 항목 — tasks-NNN.md의 §검증 또는 §DoD 항목 -->
-- [ ]
-- [ ]
+-
+-
 
 ## Tasks
 
