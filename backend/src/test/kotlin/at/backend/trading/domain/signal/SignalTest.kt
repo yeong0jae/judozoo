@@ -12,38 +12,38 @@ class SignalTest : FunSpec({
 
     context("한 번 발동하면 끝까지 유효한 시그널들") {
         test("StopLoss는 항상 alive") {
-            Signal.StopLoss.isAlive(currentPrice = 9_000, buyPrice, currentBar = null) shouldBe true
+            Signal.StopLoss.isAlive(currentPrice = 9_000, buyPrice, currentBar = null, clock = now) shouldBe true
         }
 
         test("Cancel은 항상 alive") {
-            Signal.Cancel.isAlive(currentPrice = 9_000, buyPrice, currentBar = null) shouldBe true
+            Signal.Cancel.isAlive(currentPrice = 9_000, buyPrice, currentBar = null, clock = now) shouldBe true
         }
 
         test("MarketClose는 항상 alive") {
-            Signal.MarketClose.isAlive(currentPrice = 9_000, buyPrice, currentBar = null) shouldBe true
+            Signal.MarketClose.isAlive(currentPrice = 9_000, buyPrice, currentBar = null, clock = now) shouldBe true
         }
 
         test("MidwayTakeProfit은 항상 alive") {
-            Signal.MidwayTakeProfit.isAlive(currentPrice = 10_500, buyPrice, currentBar = null) shouldBe true
+            Signal.MidwayTakeProfit.isAlive(currentPrice = 10_500, buyPrice, currentBar = null, clock = now) shouldBe true
         }
 
         test("TpStage는 항상 alive") {
-            Signal.TpStage(2).isAlive(currentPrice = 10_200, buyPrice, currentBar = null) shouldBe true
+            Signal.TpStage(2).isAlive(currentPrice = 10_200, buyPrice, currentBar = null, clock = now) shouldBe true
         }
 
         test("LimitUp은 항상 alive") {
-            Signal.LimitUp.isAlive(currentPrice = 13_000, buyPrice, currentBar = null) shouldBe true
+            Signal.LimitUp.isAlive(currentPrice = 13_000, buyPrice, currentBar = null, clock = now) shouldBe true
         }
     }
 
     context("Breakeven은 매수가 이하 유지 중에만 유효") {
         test("현재가가 매수가 이하이면 alive") {
-            Signal.Breakeven.isAlive(currentPrice = 10_000, buyPrice, currentBar = null) shouldBe true
-            Signal.Breakeven.isAlive(currentPrice = 9_999, buyPrice, currentBar = null) shouldBe true
+            Signal.Breakeven.isAlive(currentPrice = 10_000, buyPrice, currentBar = null, clock = now) shouldBe true
+            Signal.Breakeven.isAlive(currentPrice = 9_999, buyPrice, currentBar = null, clock = now) shouldBe true
         }
 
         test("현재가가 매수가 위이면 dead — 회복 후 재진입 불필요") {
-            Signal.Breakeven.isAlive(currentPrice = 10_001, buyPrice, currentBar = null) shouldBe false
+            Signal.Breakeven.isAlive(currentPrice = 10_001, buyPrice, currentBar = null, clock = now) shouldBe false
         }
     }
 
@@ -72,7 +72,7 @@ class SignalTest : FunSpec({
         }
 
         test("봉 정보 없으면 dead") {
-            Signal.TrendBreak.isAlive(currentPrice = 10_400, buyPrice, currentBar = null) shouldBe false
+            Signal.TrendBreak.isAlive(currentPrice = 10_400, buyPrice, currentBar = null, clock = now) shouldBe false
         }
     }
 })

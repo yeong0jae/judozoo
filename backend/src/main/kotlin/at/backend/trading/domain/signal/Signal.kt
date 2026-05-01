@@ -11,7 +11,7 @@ sealed class Signal {
         currentPrice: Int,
         buyPrice: Int,
         currentBar: Bar?,
-        clock: Instant = Instant.now(),
+        clock: Instant,
     ): Boolean = true
 
     data object StopLoss : Signal() {

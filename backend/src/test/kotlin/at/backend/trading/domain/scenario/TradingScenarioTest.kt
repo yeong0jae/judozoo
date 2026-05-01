@@ -193,12 +193,12 @@ class TradingScenarioTest : FunSpec({
         }
 
         test("Breakeven 발동 후 isAlive — 매수가 이하 유지 중 true") {
-            Signal.Breakeven.isAlive(currentPrice = 9_999, buyPrice = 10_000, currentBar = null) shouldBe true
-            Signal.Breakeven.isAlive(currentPrice = 10_000, buyPrice = 10_000, currentBar = null) shouldBe true
+            Signal.Breakeven.isAlive(currentPrice = 9_999, buyPrice = 10_000, currentBar = null, clock = now) shouldBe true
+            Signal.Breakeven.isAlive(currentPrice = 10_000, buyPrice = 10_000, currentBar = null, clock = now) shouldBe true
         }
 
         test("현재가가 매수가 초과하면 Breakeven isAlive=false") {
-            Signal.Breakeven.isAlive(currentPrice = 10_001, buyPrice = 10_000, currentBar = null) shouldBe false
+            Signal.Breakeven.isAlive(currentPrice = 10_001, buyPrice = 10_000, currentBar = null, clock = now) shouldBe false
         }
 
         test("Holding → Liquidating(BREAKEVEN) 전이 유효") {

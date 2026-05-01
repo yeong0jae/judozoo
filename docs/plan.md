@@ -42,13 +42,14 @@ KIS 없이도 모든 매매 룰을 검증 가능한 상태로 만든다. 외부 
   - 전이 규칙 함수: spec §5.2 표 그대로
 - `trading.domain.signal`
   - `Signal`: sealed class (StopLoss / MidwayTakeProfit / TpStage / Breakeven / TrendBreak / LimitUp / MarketClose / Cancel)
-  - `SignalDetector`: in-memory `Flow<PriceTick>` 기반
-  - `SignalGuard.isAlive` (재시도 중단 조건)
-- `trading.domain.rule.TradingRules` (순수 함수)
-  - **매수가 산정**: `(Σ(가 × 수) + Σ수수료) / Σ수 × (1 + sellCostRate)` (PRD 매수가 정의)
-  - 분할 매도 수량: 절사 + 마지막 잔여 처리
-  - 본전 매도 / 손절 / 추세 꺾임 트리거 식
-  - 보유 수량 = 0 가드 (시그널 평가 보류)
+  - `Signal.isAlive` — 각 시그널이 직접 override (재시도 중단 조건)
+- `trading.domain.cycle.CycleSnapshot`
+  - 시그널 탐지: `detectSignals(tick, currentBar?, prevBar?)` — StopLoss 우선 처리, 보유=0 가드
+  - 트리거 판정 메서드: `isStopLossTriggered`, `isMidwayTakeProfitTriggered`, `isTpStageTriggered`, `isBreakevenTriggered`, `isTrendBreakTriggered`
+  - 분할 매도 수량: `splitSellQty` — 절사 + 잔여 처리
+- `trading.domain.execution`
+  - `Execution` + `Executions` (일급 컬렉션)
+  - **매수가 산정**: `Executions.calculateBuyPrice(sellCostRate)` — `(Σ(가 × 수) + Σ수수료) / Σ수 × (1 + sellCostRate)`
 
 ### 검증 시나리오 (단위 테스트)
 1. **정상 사이클**: 3회 매수 → 2%/3%/5% 단계 발동 → 추세 꺾임 잔여 매도 → Closed (TAKE_PROFIT)
