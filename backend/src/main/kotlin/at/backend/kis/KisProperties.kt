@@ -1,4 +1,4 @@
-package at.backend.config
+package at.backend.kis
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
