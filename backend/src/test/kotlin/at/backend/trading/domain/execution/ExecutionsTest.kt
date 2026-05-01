@@ -33,5 +33,23 @@ class ExecutionsTest : FunSpec({
                 Executions(emptyList())
             }
         }
+
+        test("체결가가 0 이하이면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                Execution(executedPrice = 0, executedQty = 10, fee = 100)
+            }
+        }
+
+        test("수량이 0 이하이면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                Execution(executedPrice = 10_000, executedQty = 0, fee = 100)
+            }
+        }
+
+        test("수수료가 음수이면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                Execution(executedPrice = 10_000, executedQty = 10, fee = -1)
+            }
+        }
     }
 })

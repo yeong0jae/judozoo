@@ -24,6 +24,9 @@ sealed class Signal {
 
     data class TpStage(val pct: Int) : Signal() {
         override val priority = 2
+        init {
+            require(pct in setOf(2, 3, 5)) { "TP 단계 비율은 2/3/5% 중 하나여야 합니다: $pct" }
+        }
     }
 
     data object Breakeven : Signal() {

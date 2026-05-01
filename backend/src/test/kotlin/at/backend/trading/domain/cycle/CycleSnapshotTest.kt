@@ -3,6 +3,7 @@ package at.backend.trading.domain.cycle
 import at.backend.trading.domain.Bar
 import at.backend.trading.domain.PriceTick
 import at.backend.trading.domain.signal.Signal
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
@@ -36,6 +37,37 @@ class CycleSnapshotTest : FunSpec({
     )
 
     fun tick(price: Int) = PriceTick(stockCode = "000660", price = price, timestamp = now)
+
+    context("불변식") {
+        test("보유 수량이 음수이면 예외") {
+            shouldThrow<IllegalArgumentException> { snapshot(holdingQty = -1) }
+        }
+
+        test("TP 단계 비트플래그가 범위를 벗어나면 예외") {
+            shouldThrow<IllegalArgumentException> { snapshot(tpStagesFired = -1) }
+            shouldThrow<IllegalArgumentException> { snapshot(tpStagesFired = 0b1000) }
+        }
+
+        test("매수 회차가 1~3 범위를 벗어나면 예외") {
+            shouldThrow<IllegalArgumentException> { snapshot(buyAttempt = 0) }
+            shouldThrow<IllegalArgumentException> { snapshot(buyAttempt = 4) }
+        }
+
+        test("손절 비율이 0 이상이면 예외") {
+            shouldThrow<IllegalArgumentException> { snapshot(stopLossPct = 0.0) }
+            shouldThrow<IllegalArgumentException> { snapshot(stopLossPct = 0.02) }
+        }
+
+        test("중도 익절 비율이 0 이하이면 예외") {
+            shouldThrow<IllegalArgumentException> { snapshot(midwayProfitPct = 0.0) }
+            shouldThrow<IllegalArgumentException> { snapshot(midwayProfitPct = -1.0) }
+        }
+
+        test("분할 매도 비율이 0~1 범위를 벗어나면 예외") {
+            shouldThrow<IllegalArgumentException> { snapshot().splitSellQty(-0.1) }
+            shouldThrow<IllegalArgumentException> { snapshot().splitSellQty(1.1) }
+        }
+    }
 
     context("손절 조건 평가") {
         test("현재가가 손절가 이하이면 발동") {

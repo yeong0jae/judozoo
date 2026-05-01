@@ -1,6 +1,7 @@
 package at.backend.trading.domain.signal
 
 import at.backend.trading.domain.Bar
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.time.Instant
@@ -44,6 +45,14 @@ class SignalTest : FunSpec({
 
         test("현재가가 매수가 위이면 dead — 회복 후 재진입 불필요") {
             Signal.Breakeven.isAlive(currentPrice = 10_001, buyPrice, currentBar = null, clock = now) shouldBe false
+        }
+    }
+
+    context("TpStage 불변식") {
+        test("유효하지 않은 단계 비율이면 예외") {
+            shouldThrow<IllegalArgumentException> { Signal.TpStage(1) }
+            shouldThrow<IllegalArgumentException> { Signal.TpStage(4) }
+            shouldThrow<IllegalArgumentException> { Signal.TpStage(0) }
         }
     }
 
