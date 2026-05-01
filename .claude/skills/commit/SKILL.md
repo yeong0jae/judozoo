@@ -10,8 +10,7 @@ allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*)
 
 1. `git status`, `git diff --staged`를 병렬 실행해 변경사항 파악
 2. 변경 의도를 분석해 타입 결정
-3. 메시지 작성 후 사용자에게 보여주고 확인
-4. 승인 시 커밋
+3. 메시지 작성 후 즉시 커밋 (사용자 확인 없음)
 
 ## 타입
 

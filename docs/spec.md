@@ -230,7 +230,7 @@ frontend/
 | midway_profit_pct | DECIMAL(5,3) | 중도 익절 기준 (%) |
 | breakeven_threshold_pct | DECIMAL(5,3) | 본전 매도 트리거 상승률 (%) |
 | stop_loss_pct | DECIMAL(5,3) | 손절 기준 (%, 음수) |
-| status | VARCHAR(20) | INITIATED / BUYING / MONITORING / LIQUIDATING / CLOSED |
+| status | VARCHAR(20) | INITIATED / BUYING / HOLDING / LIQUIDATING / CLOSED |
 | close_reason | VARCHAR(30) | NULL / TAKE_PROFIT / STOP_LOSS / BREAKEVEN / TREND_BREAK / MARKET_CLOSE / CANCELLED / NO_FILL / UNCLOSED |
 | breakeven_armed | BOOLEAN | +본전기준% 도달 여부 |
 | trend_break_armed | BOOLEAN | +5% 도달 여부 |
@@ -241,7 +241,7 @@ frontend/
 > **status 정의**:
 > - INITIATED: 검증 통과, 1차 매수 직전
 > - BUYING: 매수 회차 진행 중 (1~3차)
-> - MONITORING: 3회 매수 시도 완료, 시그널 대기
+> - HOLDING: 3회 매수 시도 완료, 시그널 대기
 > - LIQUIDATING: 청산 시그널 발동, 매도 진행 중
 > - CLOSED: 사이클 종료
 
@@ -295,7 +295,7 @@ frontend/
 sealed class CycleState {
     object Initiated : CycleState()
     data class Buying(val nextAttempt: Int) : CycleState()
-    object Monitoring : CycleState()
+    object Holding : CycleState()
     data class Liquidating(val reason: CloseReason) : CycleState()
     data class Closed(val reason: CloseReason) : CycleState()
 }
@@ -320,7 +320,7 @@ sealed class CycleState {
        │            │            │            │
        ▼            ▼            └─────┬──────┘
   ┌──────────┐  ┌──────────────┐       │ (Liquidating
-  │Monitoring│  │  Liquidating │       │  거치지 않고 직행)
+  │ Holding  │  │  Liquidating │       │  거치지 않고 직행)
   └─────┬────┘  └──────┬───────┘       │
         │ ▲            │               │
         │ └─ TpStage   │               │
@@ -341,16 +341,16 @@ sealed class CycleState {
 | From → To | 트리거 | close_reason |
 |-----------|--------|--------------|
 | `Initiated → Buying` | 1차 매수 시도 시작 시점 (발송 성공/실패와 무관) | - |
-| `Buying → Monitoring` | (a) 3회 시도 완료 + 보유 > 0, **또는** (b) 중도 익절 발동 + 보유 > 0 | - |
+| `Buying → Holding` | (a) 3회 시도 완료 + 보유 > 0, **또는** (b) 중도 익절 발동 + 보유 > 0 | - |
 | `Buying → Liquidating` | 손절 발동 OR 사용자 취소 (보유 > 0) | (매도 후 결정) |
 | `Buying → Closed` (직행) | (a) 3회 시도 완료 + 보유 = 0, (b) 사용자 취소 + 보유 = 0 | `NO_FILL` / `CANCELLED` |
-| `Monitoring → Monitoring` (자기 루프) | TpStage(2/3/5%) 부분 매도. 잔여 > 0 유지 | - |
-| `Monitoring → Liquidating` | Breakeven / TrendBreak / LimitUp / MarketClose 발동 (잔여 전량 매도 의도) | (매도 후 결정) |
+| `Holding → Holding` (자기 루프) | TpStage(2/3/5%) 부분 매도. 잔여 > 0 유지 | - |
+| `Holding → Liquidating` | Breakeven / TrendBreak / LimitUp / MarketClose 발동 (잔여 전량 매도 의도) | (매도 후 결정) |
 | `Liquidating → Closed` | 매도 체결 완료 (보유 = 0) | 발동 시그널에 따름 |
 
-> 중도 익절은 *청산이 아니라 조기 Monitoring 진입*. 충족된 TP 단계는 Monitoring 진입 직후 §6.2 TpStage 시그널이 즉시 매도.
+> 중도 익절은 *청산이 아니라 조기 Holding 진입*. 충족된 TP 단계는 Monitoring 진입 직후 §6.2 TpStage 시그널이 즉시 매도.
 
-> **TpStage가 Liquidating으로 가지 않는 이유**: 분할 비율로 *부분* 매도이므로 잔여 보유분이 남는다. 잔여는 BE/TB/LU/MC가 처리. 따라서 Monitoring 안의 자기 루프로 표현.
+> **TpStage가 Liquidating으로 가지 않는 이유**: 분할 비율로 *부분* 매도이므로 잔여 보유분이 남는다. 잔여는 BE/TB/LU/MC가 처리. 따라서 Holding 안의 자기 루프로 표현.
 
 ### 5.3 동시성
 - 명령별 `Mutex` 보유. 시그널 매칭 → 상태 전이 → 주문 발송은 모두 락 안에서 수행
@@ -382,14 +382,14 @@ sealed class Signal {
 
 | 시그널 | 트리거 조건 | 발동 가능 상태 |
 |--------|-------------|----------------|
-| StopLoss | 현재가 ≤ 매수가 × (1 + stop_loss_pct) | Buying / Monitoring (보유 > 0) |
+| StopLoss | 현재가 ≤ 매수가 × (1 + stop_loss_pct) | Buying / Holding (보유 > 0) |
 | MidwayTakeProfit | 현재가 ≥ 매수가 × (1 + midway_profit_pct) | Buying (회차 < 3, 보유 > 0) |
-| TpStage(2/3/5) | 현재가 ≥ 매수가 × (1 + N/100) AND `tp_stages_fired` 미발동 | Monitoring |
-| Breakeven | `breakeven_armed` AND 현재가 ≤ 매수가 | Monitoring |
-| TrendBreak | `trend_break_armed` AND 현재 3분봉 종가 < 1전봉 시가 | Monitoring (잔여 보유분). 봉이 끝나면 isAlive=false로 매도 중단, 다음 봉에서 조건 재충족 시 재발동. |
-| LimitUp | 현재가 = 상한가 | Monitoring (잔여 보유분) |
+| TpStage(2/3/5) | 현재가 ≥ 매수가 × (1 + N/100) AND `tp_stages_fired` 미발동 | Holding |
+| Breakeven | `breakeven_armed` AND 현재가 ≤ 매수가 | Holding |
+| TrendBreak | `trend_break_armed` AND 현재 3분봉 종가 < 1전봉 시가 | Holding (잔여 보유분). 봉이 끝나면 isAlive=false로 매도 중단, 다음 봉에서 조건 재충족 시 재발동. |
+| LimitUp | 현재가 = 상한가 | Holding (잔여 보유분) |
 | MarketClose | KST 시각 ≥ 15:20:00 | 모든 활성 상태 (보유 = 0이면 매도 없이 즉시 Closed) |
-| Cancel | 사용자 취소 요청 | INITIATED / BUYING / MONITORING (보유 = 0이면 매도 없이 즉시 Closed=CANCELLED) |
+| Cancel | 사용자 취소 요청 | INITIATED / BUYING / HOLDING (보유 = 0이면 매도 없이 즉시 Closed=CANCELLED) |
 
 > **보유 수량 = 0 동안 가격 기반 시그널 평가 보류**: 매수가가 정의되지 않으므로 StopLoss / MidwayTakeProfit / TpStage / Breakeven / TrendBreak는 평가 자체를 스킵한다. 첫 부분 체결 발생 시점부터 평가 시작 (PRD §주요 산식 §시그널 평가 전제).
 
@@ -583,7 +583,7 @@ PRD §매수가 산정에 따라 **매수 비용 + 예상 매도 비용**을 모
 ### 10.1 명령별 타이머
 - 1차 매수 직후: `delay(buyIntervalMin.minutes)` 코루틴으로 2차 매수 트리거
 - 2차 매수 직후: `delay(buyIntervalMin.minutes)` 코루틴으로 3차 매수 트리거
-- 3차 매수 직후: 타이머 종료, Monitoring 상태 진입
+- 3차 매수 직후: 타이머 종료, Holding 상태 진입
 
 > 타이머는 `TradingCycle` 코루틴 안에서 `delay()`로 직접 처리. 별도 스케줄러 불필요.
 
@@ -619,7 +619,7 @@ POST /api/commands
     - INVALID_PARAMETER
 
 DELETE /api/commands/{id}
-  - status = INITIATED / BUYING / MONITORING:
+  - status = INITIATED / BUYING / HOLDING:
       Response 202: { status: "LIQUIDATING" } (보유 > 0)
                     또는 { status: "CLOSED", closeReason: "CANCELLED" } (보유 = 0, 직행)
   - status = LIQUIDATING:
@@ -633,7 +633,7 @@ GET /api/commands?status=active|today
 
   ActiveCommandSummary: {
     commandId, stockCode, stockName,
-    status,                              // INITIATED / BUYING / MONITORING / LIQUIDATING
+    status,                              // INITIATED / BUYING / HOLDING / LIQUIDATING
     currentPrice, averageBuyPrice,
     profitRate, profitAmount,
     holdingQty,
@@ -859,7 +859,7 @@ logging:
 
 ### 15.1 시스템 다운 / 재시작 (PRD 명시)
 - 자동 복구 없음 — 진행 중이던 매매 사이클을 재시작 후 이어가지 않는다
-- 시작 시 status가 INITIATED/BUYING/MONITORING/LIQUIDATING인 명령은 모두 `close_reason=UNCLOSED` + `closed_at=now()`로 일괄 마감
+- 시작 시 status가 INITIATED/BUYING/HOLDING/LIQUIDATING인 명령은 모두 `close_reason=UNCLOSED` + `closed_at=now()`로 일괄 마감
 - 마감된 명령은 lifecycle CLOSED 이벤트로 발행되어 모니터링 화면 "오늘 종료" 섹션 + 실적 화면에 자연스럽게 노출
 - 사용자 별도 알림/조치 불필요 (단, §7 거래정지로 인한 UNCLOSED는 KIS에 보유분이 남으므로 별도 — 사용자가 KIS HTS에서 수동 정리)
 
