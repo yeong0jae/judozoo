@@ -40,8 +40,8 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 ## 4. KisRateLimiter (`at.backend.kis.infrastructure`)
 
-- [ ] Implement `KisRateLimiter` — Resilience4j `RateLimiter` bean, limit = `KisProperties.rateLimitPerSecond` per second; `acquire()` blocks until a permit is available
-- [ ] Unit test (`KisRateLimiterTest.kt`, FunSpec) — calls within limit pass immediately; calls exceeding the limit block then pass after the window resets
+- [x] Implement `KisRateLimiter` — Resilience4j `RateLimiter` bean, limit = `KisProperties.rateLimitPerSecond` per second; `acquire()` blocks until a permit is available
+- [x] Unit test (`KisRateLimiterTest.kt`, FunSpec) — calls within limit pass immediately; calls exceeding the limit block then pass after the window resets
 
 ---
 
