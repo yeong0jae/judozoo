@@ -4,7 +4,6 @@ import at.backend.common.test.TestRestClientConfig
 import at.backend.platform.kis.KisRateLimiter
 import at.backend.platform.kis.config.KisProperties
 import at.backend.stock.domain.StockInfo
-import at.backend.trading.domain.execution.Execution
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
@@ -102,7 +101,7 @@ class KisRestClientTest : FunSpec({
             val executions = client().getDailyExecutions("005930", LocalDate.of(2026, 1, 2))
 
             executions shouldHaveSize 1
-            executions[0] shouldBe Execution(executedPrice = 70000, executedQty = 10, fee = 0)
+            executions[0] shouldBe KisDailyFill(kisOrderNo = "0000000001", executedPrice = 70000, executedQty = 10)
         }
     }
 

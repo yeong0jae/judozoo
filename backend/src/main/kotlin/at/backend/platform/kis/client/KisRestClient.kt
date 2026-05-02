@@ -8,7 +8,6 @@ import at.backend.platform.kis.client.response.KisHolidayResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
 import at.backend.stock.domain.StockInfo
 import at.backend.trading.domain.Bar
-import at.backend.trading.domain.execution.Execution
 import org.springframework.web.client.RestClient
 import java.time.Duration
 import java.time.LocalDate
@@ -122,7 +121,7 @@ class KisRestClient(
         }
     }
 
-    fun getDailyExecutions(stockCode: String, date: LocalDate): List<Execution> {
+    fun getDailyExecutions(stockCode: String, date: LocalDate): List<KisDailyFill> {
         val ordDt = date.format(YYYYMMDD)
         val response = restClient.get()
             .uri {
@@ -150,10 +149,10 @@ class KisRestClient(
         return response.output1
             .filter { it.pdno == stockCode && it.ordDt == ordDt && it.totCcldQty.toInt() > 0 }
             .map {
-                Execution(
+                KisDailyFill(
+                    kisOrderNo = it.odno,
                     executedPrice = it.avgPrvs.toBigDecimal().toInt(),
                     executedQty = it.totCcldQty.toInt(),
-                    fee = 0,
                 )
             }
     }
