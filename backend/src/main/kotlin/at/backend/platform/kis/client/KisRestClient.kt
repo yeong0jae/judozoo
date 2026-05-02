@@ -6,13 +6,8 @@ import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisDailyCcldResponse
 import at.backend.platform.kis.client.response.KisHolidayResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
-import at.backend.stock.domain.StockInfo
-import at.backend.trading.domain.Bar
 import org.springframework.web.client.RestClient
-import java.time.Duration
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class KisRestClient(
@@ -21,8 +16,8 @@ class KisRestClient(
     private val restClient: RestClient,
 ) {
 
-    fun getCurrentPrice(stockCode: String): Int {
-        val response = restClient.get()
+    fun getCurrentPrice(stockCode: String): KisCurrentPriceResponse =
+        restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/inquire-price")
                     .queryParam("FID_COND_MRKT_DIV_CODE", "J")
@@ -33,11 +28,9 @@ class KisRestClient(
             .retrieve()
             .body(KisCurrentPriceResponse::class.java)
             ?: error("KIS 현재가 응답이 비어있습니다")
-        return response.output.stckPrpr.toInt()
-    }
 
-    fun isBusinessDay(date: LocalDate): Boolean {
-        val response = restClient.get()
+    fun checkHoliday(date: LocalDate): KisHolidayResponse =
+        restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/chk-holiday")
                     .queryParam("BASS_DT", date.format(YYYYMMDD))
@@ -49,11 +42,9 @@ class KisRestClient(
             .retrieve()
             .body(KisHolidayResponse::class.java)
             ?: error("KIS 휴장일 응답이 비어있습니다")
-        return response.output.first().bzdyYn == "Y"
-    }
 
-    fun searchStock(keyword: String): List<StockInfo> {
-        val response = restClient.get()
+    fun searchStock(keyword: String): KisStockSearchResponse =
+        restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/search-stock-info")
                     .queryParam("PRDT_TYPE_CD", "300")
@@ -64,11 +55,9 @@ class KisRestClient(
             .retrieve()
             .body(KisStockSearchResponse::class.java)
             ?: error("KIS 종목 검색 응답이 비어있습니다")
-        return response.output.map { StockInfo(stockCode = it.pdno, name = it.prdtAbrvName) }
-    }
 
-    fun getBalance(): Long {
-        val response = restClient.get()
+    fun getBalance(): KisBalanceResponse =
+        restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/trading/inquire-balance")
                     .queryParam("CANO", accountNo)
@@ -88,11 +77,9 @@ class KisRestClient(
             .retrieve()
             .body(KisBalanceResponse::class.java)
             ?: error("KIS 잔고 응답이 비어있습니다")
-        return response.output2.first().prvsRcdlExccAmt.toLong()
-    }
 
-    fun getBars(stockCode: String): List<Bar> {
-        val response = restClient.get()
+    fun getBars(stockCode: String): KisBarResponse =
+        restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice")
                     .queryParam("FID_ETC_CLS_CODE", "")
@@ -106,30 +93,15 @@ class KisRestClient(
             .retrieve()
             .body(KisBarResponse::class.java)
             ?: error("KIS 분봉 응답이 비어있습니다")
-        return response.output2.map { entry ->
-            val endTime = LocalDate.parse(entry.stckBsopDate, YYYYMMDD)
-                .atTime(LocalTime.parse(entry.stckCntgHour, HHMMSS))
-                .atZone(KOREA)
-                .toInstant()
-            Bar(
-                stockCode = stockCode,
-                openPrice = entry.stckOprc.toInt(),
-                closePrice = entry.stckPrpr.toInt(),
-                startTime = endTime.minus(BAR_DURATION),
-                endTime = endTime,
-            )
-        }
-    }
 
-    fun getDailyExecutions(stockCode: String, date: LocalDate): List<KisDailyFill> {
-        val ordDt = date.format(YYYYMMDD)
-        val response = restClient.get()
+    fun getDailyExecutions(stockCode: String, date: LocalDate): KisDailyCcldResponse =
+        restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/trading/inquire-daily-ccld")
                     .queryParam("CANO", accountNo)
                     .queryParam("ACNT_PRDT_CD", accountProductCode)
-                    .queryParam("INQR_STRT_DT", ordDt)
-                    .queryParam("INQR_END_DT", ordDt)
+                    .queryParam("INQR_STRT_DT", date.format(YYYYMMDD))
+                    .queryParam("INQR_END_DT", date.format(YYYYMMDD))
                     .queryParam("SLL_BUY_DVSN_CD", "00")
                     .queryParam("INQR_DVSN", "00")
                     .queryParam("PDNO", stockCode)
@@ -146,22 +118,9 @@ class KisRestClient(
             .retrieve()
             .body(KisDailyCcldResponse::class.java)
             ?: error("KIS 일별 체결 응답이 비어있습니다")
-        return response.output1
-            .filter { it.pdno == stockCode && it.ordDt == ordDt && it.totCcldQty.toInt() > 0 }
-            .map {
-                KisDailyFill(
-                    kisOrderNo = it.odno,
-                    executedPrice = it.avgPrvs.toBigDecimal().toInt(),
-                    executedQty = it.totCcldQty.toInt(),
-                )
-            }
-    }
 
     companion object {
-        private val KOREA: ZoneId = ZoneId.of("Asia/Seoul")
         private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
-        private val HHMMSS: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
-        private val BAR_DURATION: Duration = Duration.ofMinutes(3)
         private const val MARKET_CLOSE_HHMMSS = "153000"
     }
 }

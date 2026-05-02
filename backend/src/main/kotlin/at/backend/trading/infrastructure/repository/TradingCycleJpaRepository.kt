@@ -1,7 +1,7 @@
 package at.backend.trading.infrastructure.repository
 
-import at.backend.trading.domain.TradingCycle
-import at.backend.trading.domain.TradingCycleStatus
+import at.backend.trading.domain.cycle.TradingCycle
+import at.backend.trading.domain.cycle.TradingCycleStatus
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface TradingCycleJpaRepository : JpaRepository<TradingCycle, Long> {

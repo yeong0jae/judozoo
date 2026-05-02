@@ -1,9 +1,7 @@
 package at.backend.trading.domain.cycle
 
-import at.backend.trading.domain.Bar
-import at.backend.trading.domain.PriceTick
-import at.backend.trading.domain.TradingCycle
-import at.backend.trading.domain.TradingCycleStatus
+import at.backend.trading.domain.price.Bar
+import at.backend.trading.domain.price.PriceTick
 import at.backend.trading.domain.signal.Signal
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -13,7 +11,7 @@ import io.kotest.matchers.shouldBe
 import java.math.BigDecimal
 import java.time.Instant
 
-class CycleSnapshotTest : FunSpec({
+class TradingCycleTest : FunSpec({
 
     val now = Instant.now()
     val holdingQty = 50
@@ -123,8 +121,15 @@ class CycleSnapshotTest : FunSpec({
     }
 
     context("추세 꺾임 조건 평가") {
-        val prevBar = Bar("000660", openPrice = 10_500, closePrice = 10_800, startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
-        val currentBar = Bar("000660", openPrice = 10_600, closePrice = 10_499, startTime = now.minusSeconds(180), endTime = now)
+        val prevBar = Bar(
+            "000660",
+            openPrice = 10_500,
+            closePrice = 10_800,
+            startTime = now.minusSeconds(360),
+            endTime = now.minusSeconds(180)
+        )
+        val currentBar =
+            Bar("000660", openPrice = 10_600, closePrice = 10_499, startTime = now.minusSeconds(180), endTime = now)
 
         test("무장 상태에서 현재봉 종가가 직전봉 시가보다 낮으면 발동") {
             cycle(trendBreakArmed = true).isTrendBreakTriggered(currentBar, prevBar) shouldBe true
@@ -191,19 +196,40 @@ class CycleSnapshotTest : FunSpec({
         }
 
         test("Breakeven 무장 + 매수가 도달 시 Breakeven 반환") {
-            cycle(breakevenArmed = true).detectSignals(tick(10_000), holdingQty, buyPrice) shouldContainExactly listOf(Signal.Breakeven)
+            cycle(breakevenArmed = true).detectSignals(tick(10_000), holdingQty, buyPrice) shouldContainExactly listOf(
+                Signal.Breakeven
+            )
         }
 
         test("TrendBreak 무장 + 봉 조건 충족 시 TrendBreak 반환") {
-            val prevBar = Bar("000660", openPrice = 10_500, closePrice = 10_800, startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
-            val currentBar = Bar("000660", openPrice = 10_600, closePrice = 10_499, startTime = now.minusSeconds(180), endTime = now.plusSeconds(1))
+            val prevBar = Bar(
+                "000660",
+                openPrice = 10_500,
+                closePrice = 10_800,
+                startTime = now.minusSeconds(360),
+                endTime = now.minusSeconds(180)
+            )
+            val currentBar = Bar(
+                "000660",
+                openPrice = 10_600,
+                closePrice = 10_499,
+                startTime = now.minusSeconds(180),
+                endTime = now.plusSeconds(1)
+            )
             val result = cycle(trendBreakArmed = true, tpStagesFired = 0b111)
-                .detectSignals(tick(10_499), currentBar = currentBar, prevBar = prevBar, holdingQty = holdingQty, buyPrice = buyPrice)
+                .detectSignals(
+                    tick(10_499),
+                    currentBar = currentBar,
+                    prevBar = prevBar,
+                    holdingQty = holdingQty,
+                    buyPrice = buyPrice
+                )
             result shouldContainExactly listOf(Signal.TrendBreak)
         }
 
         test("봉 정보 없이 호출하면 TrendBreak 평가 안 됨") {
-            cycle(trendBreakArmed = true).detectSignals(tick(10_400), holdingQty, buyPrice).none { it is Signal.TrendBreak } shouldBe true
+            cycle(trendBreakArmed = true).detectSignals(tick(10_400), holdingQty, buyPrice)
+                .none { it is Signal.TrendBreak } shouldBe true
         }
     }
 
@@ -226,7 +252,8 @@ class CycleSnapshotTest : FunSpec({
 
     context("Buying / Holding 외 상태에서는 가격 기반 시그널 평가 안 함") {
         test("Initiated 상태에서는 빈 리스트") {
-            cycle(status = TradingCycleStatus.INITIATED).detectSignals(tick(9_000), holdingQty, buyPrice).shouldBeEmpty()
+            cycle(status = TradingCycleStatus.INITIATED).detectSignals(tick(9_000), holdingQty, buyPrice)
+                .shouldBeEmpty()
         }
     }
 })

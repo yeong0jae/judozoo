@@ -1,14 +1,11 @@
 package at.backend.trading.domain.cycle
 
-import at.backend.trading.domain.CloseReason
-import at.backend.trading.domain.TradingCycle
-import at.backend.trading.domain.TradingCycleStatus
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.math.BigDecimal
 
-class CycleStateTest : FunSpec({
+class TradingCycleTransitionTest : FunSpec({
 
     fun cycle(
         status: TradingCycleStatus,
@@ -48,12 +45,21 @@ class CycleStateTest : FunSpec({
 
     context("Buying 상태 전이") {
         test("다음 회차(+1)로 전이 허용") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(TradingCycleStatus.BUYING, nextBuyAttempt = 2) shouldBe true
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(TradingCycleStatus.BUYING, nextBuyAttempt = 3) shouldBe true
+            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(
+                TradingCycleStatus.BUYING,
+                nextBuyAttempt = 2
+            ) shouldBe true
+            cycle(TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(
+                TradingCycleStatus.BUYING,
+                nextBuyAttempt = 3
+            ) shouldBe true
         }
 
         test("회차 건너뜀 불허") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(TradingCycleStatus.BUYING, nextBuyAttempt = 3) shouldBe false
+            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(
+                TradingCycleStatus.BUYING,
+                nextBuyAttempt = 3
+            ) shouldBe false
         }
 
         test("Holding으로 전이 허용 — 3회 완료 또는 중도 익절") {
@@ -66,15 +72,24 @@ class CycleStateTest : FunSpec({
         }
 
         test("Closed(NO_FILL)로 직행 허용 — 보유=0") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(TradingCycleStatus.CLOSED, nextCloseReason = CloseReason.NO_FILL) shouldBe true
+            cycle(TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(
+                TradingCycleStatus.CLOSED,
+                nextCloseReason = CloseReason.NO_FILL
+            ) shouldBe true
         }
 
         test("Closed(CANCELLED)로 직행 허용 — 보유=0 취소") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(TradingCycleStatus.CLOSED, nextCloseReason = CloseReason.CANCELLED) shouldBe true
+            cycle(TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(
+                TradingCycleStatus.CLOSED,
+                nextCloseReason = CloseReason.CANCELLED
+            ) shouldBe true
         }
 
         test("Closed(TAKE_PROFIT)로 직행 불허") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(TradingCycleStatus.CLOSED, nextCloseReason = CloseReason.TAKE_PROFIT) shouldBe false
+            cycle(TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(
+                TradingCycleStatus.CLOSED,
+                nextCloseReason = CloseReason.TAKE_PROFIT
+            ) shouldBe false
         }
 
         test("Initiated로 역전이 불허") {

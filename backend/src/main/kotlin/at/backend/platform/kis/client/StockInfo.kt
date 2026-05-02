@@ -1,4 +1,4 @@
-package at.backend.stock.domain
+package at.backend.platform.kis.client
 
 data class StockInfo(
     val stockCode: String,
