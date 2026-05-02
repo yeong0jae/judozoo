@@ -8,7 +8,7 @@ Goal: 사용자가 매매 명령을 접수·취소·조회할 수 있는 REST AP
 
 ## Domain
 
-- [ ] `command.domain.CommandValidator`: `KisRestClient`, `TradingCycleJpaRepository`, `Clock` 주입; 아래 순서로 검증 후 실패 시 `CommandValidationException(errorCode)` 발생
+- [x] `command.domain.CommandValidator`: `KisRestClient`, `TradingCycleJpaRepository`, `Clock` 주입; 아래 순서로 검증 후 실패 시 `CommandValidationException(errorCode)` 발생
   1. 입력값 범위 검사 (INVALID_PARAMETER)
   2. `searchStock` — 종목 존재 여부 (STOCK_NOT_FOUND)
   3. `getCurrentPrice` — 1주 가격 ≤ perBuyAmount (PRICE_BELOW_ONE_SHARE)
@@ -34,7 +34,7 @@ Goal: 사용자가 매매 명령을 접수·취소·조회할 수 있는 REST AP
 
 ## Tests
 
-- [ ] 단위 테스트 — `CommandValidatorTest`: FunSpec; 8개 거부 errorCode 각각 context 블록; Clock/KisRestClient MockK; Spring 컨텍스트 없음
+- [x] 단위 테스트 — `CommandValidatorTest`: FunSpec; 8개 거부 errorCode 각각 context 블록; Clock/KisRestClient MockK; Spring 컨텍스트 없음
 - [ ] 통합 테스트 — `CommandServiceTest`: `IntegrationTestBase` (Testcontainers MySQL); WireMock KIS 스텁; 8개 거부 검증; 정상 접수 후 DB에 `TradingCycle(status=INITIATED)` 저장 확인; 다중 종목 동시 접수 시 잔고 차감 누적
 - [ ] 통합 테스트 — `CommandControllerTest`: MockMvc + mocked `CommandService`; DELETE 상태별 응답 (BUYING/HOLDING/LIQUIDATING/CLOSED); `GET /api/commands/{id}` DTO shape 검증
 

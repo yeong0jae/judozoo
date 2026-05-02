@@ -1,0 +1,94 @@
+package at.backend.command.domain
+
+import at.backend.platform.kis.client.KisRestClient
+import at.backend.trading.domain.cycle.TradingCycleStatus
+import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
+import org.springframework.stereotype.Component
+import java.math.BigDecimal
+import java.time.Clock
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+
+@Component
+class CommandValidator(
+    private val kisRestClient: KisRestClient,
+    private val tradingCycleRepository: TradingCycleJpaRepository,
+    private val clock: Clock,
+) {
+
+    fun validate(input: CommandInput): String {
+        validateInputRange(input)
+        val stockName = resolveStockName(input.stockCode)
+        validatePrice(input.stockCode, input.perBuyAmount)
+        validateBalance(input.perBuyAmount)
+        validateNoDuplicate(input.stockCode)
+        validateCutoff(input.buyIntervalMin)
+        validateHoliday()
+        validateTradingHours()
+        return stockName
+    }
+
+    private fun validateInputRange(input: CommandInput) {
+        val valid = input.perBuyAmount > 0 &&
+            input.buyIntervalMin > 0 &&
+            input.splitSellRatio > BigDecimal.ZERO && input.splitSellRatio < BigDecimal.ONE &&
+            input.midwayProfitPct > BigDecimal.ZERO &&
+            input.breakevenThresholdPct > BigDecimal.ZERO &&
+            input.stopLossPct > BigDecimal.ZERO
+        if (!valid) throw CommandValidationException(CommandValidationException.ErrorCode.INVALID_PARAMETER)
+    }
+
+    private fun resolveStockName(stockCode: String): String {
+        val output = kisRestClient.searchStock(stockCode).output
+        return output.firstOrNull()?.prdtAbrvName
+            ?: throw CommandValidationException(CommandValidationException.ErrorCode.STOCK_NOT_FOUND)
+    }
+
+    private fun validatePrice(stockCode: String, perBuyAmount: Long) {
+        val price = kisRestClient.getCurrentPrice(stockCode).output.stckPrpr.toLong()
+        if (price > perBuyAmount) throw CommandValidationException(CommandValidationException.ErrorCode.PRICE_BELOW_ONE_SHARE)
+    }
+
+    private fun validateBalance(perBuyAmount: Long) {
+        val balance = kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
+        val reserved = tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES).sumOf { it.perBuyAmount }
+        if (balance - reserved < perBuyAmount) throw CommandValidationException(CommandValidationException.ErrorCode.INSUFFICIENT_BALANCE)
+    }
+
+    private fun validateNoDuplicate(stockCode: String) {
+        val existing = tradingCycleRepository.findByStockCodeAndStatusIn(stockCode, ACTIVE_STATUSES)
+        if (existing.isNotEmpty()) throw CommandValidationException(CommandValidationException.ErrorCode.DUPLICATE_COMMAND)
+    }
+
+    private fun validateCutoff(buyIntervalMin: Int) {
+        val now = LocalTime.now(clock.withZone(KST))
+        val cutoff = CUTOFF_BASE.minusMinutes((buyIntervalMin * 2).toLong())
+        if (now.isAfter(cutoff)) throw CommandValidationException(CommandValidationException.ErrorCode.CUTOFF_PASSED)
+    }
+
+    private fun validateHoliday() {
+        val today = LocalDate.now(clock.withZone(KST))
+        val isBusinessDay = kisRestClient.checkHoliday(today).output.firstOrNull()?.bzdyYn == "Y"
+        if (!isBusinessDay) throw CommandValidationException(CommandValidationException.ErrorCode.HOLIDAY)
+    }
+
+    private fun validateTradingHours() {
+        val now = LocalTime.now(clock.withZone(KST))
+        if (now.isBefore(TRADING_START) || now.isAfter(TRADING_END)) {
+            throw CommandValidationException(CommandValidationException.ErrorCode.OUT_OF_TRADING_HOURS)
+        }
+    }
+
+    companion object {
+        private val KST = ZoneId.of("Asia/Seoul")
+        private val TRADING_START = LocalTime.of(9, 0)
+        private val TRADING_END = LocalTime.of(15, 30)
+        private val CUTOFF_BASE = LocalTime.of(15, 20)
+        private val ACTIVE_STATUSES = listOf(
+            TradingCycleStatus.INITIATED,
+            TradingCycleStatus.BUYING,
+            TradingCycleStatus.HOLDING,
+        )
+    }
+}
