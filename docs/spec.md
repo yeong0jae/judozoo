@@ -99,37 +99,31 @@ at.backend/
 │   │   └── dto/                      # CreateCommandRequest, CommandResponse
 │   ├── application/
 │   │   └── CommandService.kt         # 검증 / 접수 / 취소 오케스트레이션
-│   ├── domain/
-│   │   ├── Command.kt                # 도메인 모델
-│   │   └── CommandValidator.kt       # 입력값 / 잔고 / 거래일 / 컷오프 검증
-│   └── infrastructure/
-│       ├── entity/CommandEntity.kt
-│       └── repository/CommandJpaRepository.kt
+│   └── domain/
+│       └── CommandValidator.kt       # 입력값 / 잔고 / 거래일 / 컷오프 검증
+│   # 별도 엔티티 없음 — trading.domain.cycle.TradingCycle 을 직접 사용
+│   # CommandService → TradingCycleJpaRepository (trading.infrastructure)
 │
 ├── trading/                          # 매매 사이클 엔진 (사용자 노출 없음)
 │   ├── application/
 │   │   └── CycleOrchestrator.kt      # 가격 이벤트/시그널 → 사이클 라우팅
 │   ├── domain/
 │   │   ├── cycle/
-│   │   │   ├── TradingCycle.kt       # 코루틴 기반 사이클 실행기
-│   │   │   ├── CycleState.kt         # sealed class
-│   │   │   └── CycleRegistry.kt      # 활성 사이클 in-memory 레지스트리
-│   │   ├── signal/
-│   │   │   ├── Signal.kt             # sealed class
-│   │   │   ├── SignalDetector.kt
-│   │   │   └── SignalGuard.kt        # is_alive 판정 (재시도 중단 조건)
+│   │   │   ├── TradingCycle.kt       # JPA 엔티티 + 도메인 로직 (상태 전이 / 시그널 감지 / 매수가 산정)
+│   │   │   ├── TradingCycleStatus.kt # enum (INITIATED/BUYING/HOLDING/LIQUIDATING/CLOSED)
+│   │   │   └── CloseReason.kt        # enum (TAKE_PROFIT/STOP_LOSS/…)
 │   │   ├── order/
-│   │   │   ├── OrderExecutor.kt      # 매수/매도 + 재시도 + 멱등성
-│   │   │   └── OrderTrigger.kt       # enum
-│   │   └── rule/
-│   │       └── TradingRules.kt       # 분할 매도 수량 / 매수가 산정 등 순수 함수
+│   │   │   └── Order.kt              # JPA 엔티티 (주문)
+│   │   ├── execution/
+│   │   │   └── Execution.kt          # JPA 엔티티 (체결)
+│   │   ├── price/
+│   │   │   ├── Bar.kt                # 3분봉 값 객체
+│   │   │   └── PriceTick.kt          # 실시간 호가 값 객체
+│   │   └── signal/
+│   │       └── Signal.kt             # sealed class + isAlive
 │   └── infrastructure/
-│       ├── entity/
-│       │   ├── CycleEntity.kt
-│       │   ├── OrderEntity.kt
-│       │   └── ExecutionEntity.kt
 │       ├── repository/
-│       │   ├── CycleJpaRepository.kt
+│       │   ├── TradingCycleJpaRepository.kt
 │       │   ├── OrderJpaRepository.kt
 │       │   └── ExecutionJpaRepository.kt
 │       └── scheduler/
@@ -217,11 +211,11 @@ frontend/
 
 ## 4. 데이터 모델 (MySQL 스키마)
 
-### 4.1 `commands`
+### 4.1 `trading_cycles`
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| id | CHAR(36) | PK (UUID) |
+| id | BIGINT AUTO_INCREMENT | PK |
 | stock_code | VARCHAR(10) | 종목 코드 |
 | stock_name | VARCHAR(50) | 종목명 |
 | per_buy_amount | BIGINT | 1회 매수 금액 (원) |
@@ -232,10 +226,12 @@ frontend/
 | stop_loss_pct | DECIMAL(5,3) | 손절 기준 (%, 음수) |
 | status | VARCHAR(20) | INITIATED / BUYING / HOLDING / LIQUIDATING / CLOSED |
 | close_reason | VARCHAR(30) | NULL / TAKE_PROFIT / STOP_LOSS / BREAKEVEN / TREND_BREAK / MARKET_CLOSE / CANCELLED / NO_FILL / UNCLOSED |
+| buy_attempt | INT | 현재 매수 회차 (0~3) |
 | breakeven_armed | BOOLEAN | +본전기준% 도달 여부 |
 | trend_break_armed | BOOLEAN | +5% 도달 여부 |
 | tp_stages_fired | INT | 비트 플래그 (b0=2%, b1=3%, b2=5%) |
-| created_at | DATETIME(3) | |
+| created_at | DATETIME(3) | (BaseEntity) |
+| updated_at | DATETIME(3) | (BaseEntity) |
 | closed_at | DATETIME(3) | NULL 가능 |
 
 > **status 정의**:
@@ -245,12 +241,14 @@ frontend/
 > - LIQUIDATING: 청산 시그널 발동, 매도 진행 중
 > - CLOSED: 사이클 종료
 
+> `TradingCycle` JPA 엔티티가 이 테이블을 직접 매핑하며 도메인 로직(상태 전이 / 시그널 감지 / 매수가 산정)을 함께 보유한다. `holdingQty`·`buyPrice`는 `orders`/`executions`에서 집계하여 파라미터로 전달한다.
+
 ### 4.2 `orders`
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| id | CHAR(36) | PK (UUID), client_order_id로 사용 |
-| command_id | CHAR(36) | FK → commands |
+| id | BIGINT AUTO_INCREMENT | PK |
+| cycle_id | BIGINT | FK → trading_cycles |
 | side | VARCHAR(4) | BUY / SELL |
 | trigger | VARCHAR(20) | BUY_TRY_1/2/3 / TP_2PCT/3PCT/5PCT/REMAINDER / MIDWAY_TP / BREAKEVEN / STOP_LOSS / MARKET_CLOSE / CANCEL |
 | order_qty | INT | 주문 수량 |
@@ -258,27 +256,28 @@ frontend/
 | order_type | VARCHAR(10) | 항상 'MARKET' |
 | kis_order_no | VARCHAR(20) | KIS 주문번호 |
 | status | VARCHAR(15) | PENDING / SUBMITTED / PARTIAL / FILLED / CANCELLED / FAILED |
-| submitted_at | DATETIME(3) | |
-| settled_at | DATETIME(3) | NULL 가능 |
 | retry_count | INT | |
 | last_error | VARCHAR(500) | NULL 가능 |
+| created_at | DATETIME(3) | (BaseEntity) |
+| updated_at | DATETIME(3) | (BaseEntity) |
 
 ### 4.3 `executions`
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
 | id | BIGINT AUTO_INCREMENT | PK |
-| order_id | CHAR(36) | FK → orders |
+| order_id | BIGINT | FK → orders |
 | executed_qty | INT | |
 | executed_price | INT | 원 |
 | fee | INT | 수수료 |
 | tax | INT | 세금 (매도 시) |
-| executed_at | DATETIME(3) | |
+| created_at | DATETIME(3) | (BaseEntity) |
+| updated_at | DATETIME(3) | (BaseEntity) |
 
 ### 4.4 인덱스
-- `commands(status, stock_code)` — 활성 명령 조회
-- `commands(created_at)` — 일별 리포트
-- `orders(command_id)` — 명령 단위 주문 조회
+- `trading_cycles(status, stock_code)` — 활성 사이클 조회
+- `trading_cycles(created_at)` — 일별 리포트
+- `orders(cycle_id)` — 사이클 단위 주문 조회
 - `executions(order_id)` — 주문별 체결 조회
 
 ### 4.5 스키마 관리
@@ -289,17 +288,17 @@ frontend/
 
 ## 5. 매매 사이클 상태 머신
 
-### 5.1 상태 표현 (Kotlin sealed class)
+### 5.1 상태 표현
+
+`TradingCycleStatus` enum이 상태를 나타낸다. 전이 규칙은 `TradingCycle.canTransitionTo()`에 캡슐화되어 있다.
 
 ```kotlin
-sealed class CycleState {
-    object Initiated : CycleState()
-    data class Buying(val nextAttempt: Int) : CycleState()
-    object Holding : CycleState()
-    data class Liquidating(val reason: CloseReason) : CycleState()
-    data class Closed(val reason: CloseReason) : CycleState()
+enum class TradingCycleStatus {
+    INITIATED, BUYING, HOLDING, LIQUIDATING, CLOSED
 }
 ```
+
+`buyAttempt`(현재 회차)와 `closeReason`은 `TradingCycle` 엔티티 필드로 관리한다.
 
 ### 5.2 전이 다이어그램
 
