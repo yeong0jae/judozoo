@@ -39,7 +39,9 @@ class CommandValidator(
 
     private fun validateBalance(perBuyAmount: Long) {
         val balance = kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
-        val reserved = tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES).sumOf { it.perBuyAmount }
+        // INITIATED 사이클만 예약금 차감 — BUYING/HOLDING은 이미 체결되어 잔고에 반영됨
+        val reserved = tradingCycleRepository.findByStatusIn(listOf(TradingCycleStatus.INITIATED))
+            .sumOf { it.perBuyAmount }
         if (balance - reserved < perBuyAmount) throw CommandValidationException(CommandValidationException.ErrorCode.INSUFFICIENT_BALANCE)
     }
 
