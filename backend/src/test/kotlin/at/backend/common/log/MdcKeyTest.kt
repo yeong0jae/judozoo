@@ -1,5 +1,6 @@
 package at.backend.common.log
 
+import at.backend.library.log.MdcKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.slf4j.MDCContext

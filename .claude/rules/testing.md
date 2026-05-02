@@ -11,7 +11,7 @@ Use **FunSpec** exclusively.
 
 ### Description principles
 
-`context()` / `test()` strings must convey **scenario and meaning**. Do not include implementation details such as method names or field names — they make tests brittle when refactoring. Domain concepts (state names, signal types, and other ubiquitous language) are fine to use.
+`context()` / `test()` strings must convey **scenario and meaning**. Write them in **Korean**. Do not include implementation details such as method names or field names — they make tests brittle when refactoring. Domain concepts (state names, signal types, and other ubiquitous language) are fine to use.
 
 ### MockK usage guidelines
 

@@ -1,4 +1,4 @@
-package at.backend.config.coroutine
+package at.backend.library.coroutine
 
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.*
