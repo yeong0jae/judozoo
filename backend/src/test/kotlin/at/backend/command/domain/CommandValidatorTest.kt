@@ -6,7 +6,6 @@ import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisHolidayResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
 import at.backend.trading.domain.cycle.TradingCycle
-import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -14,27 +13,17 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import java.math.BigDecimal
-import java.time.Clock
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
+import java.time.LocalDateTime
 
 class CommandValidatorTest : FunSpec({
 
     val kisRestClient = mockk<KisRestClient>()
     val tradingCycleRepository = mockk<TradingCycleJpaRepository>()
-    val KST = ZoneId.of("Asia/Seoul")
 
-    fun clockAt(hour: Int, minute: Int): Clock =
-        Clock.fixed(
-            LocalDate.of(2026, 1, 2)
-                .atTime(hour, minute)
-                .atZone(KST)
-                .toInstant(),
-            KST,
-        )
+    fun nowAt(hour: Int, minute: Int): LocalDateTime =
+        LocalDateTime.of(2026, 1, 2, hour, minute)
 
-    fun validator(clock: Clock) = CommandValidator(kisRestClient, tradingCycleRepository, clock)
+    val validator = CommandValidator(kisRestClient, tradingCycleRepository)
 
     val validInput = CommandInput(
         stockCode = "005930",
@@ -66,7 +55,7 @@ class CommandValidatorTest : FunSpec({
     context("정상 검증 통과") {
         test("모든 조건 충족 시 종목명 반환") {
             stubAllPass()
-            val stockName = validator(clockAt(10, 0)).validate(validInput)
+            val stockName = validator.validate(validInput, nowAt(10, 0))
             stockName shouldBe "삼성전자"
         }
     }
@@ -74,35 +63,35 @@ class CommandValidatorTest : FunSpec({
     context("입력값 범위 오류") {
         test("perBuyAmount가 0이면 INVALID_PARAMETER") {
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput.copy(perBuyAmount = 0))
+                validator.validate(validInput.copy(perBuyAmount = 0), nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("buyIntervalMin이 0이면 INVALID_PARAMETER") {
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput.copy(buyIntervalMin = 0))
+                validator.validate(validInput.copy(buyIntervalMin = 0), nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("splitSellRatio가 0이면 INVALID_PARAMETER") {
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput.copy(splitSellRatio = BigDecimal.ZERO))
+                validator.validate(validInput.copy(splitSellRatio = BigDecimal.ZERO), nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("splitSellRatio가 1 이상이면 INVALID_PARAMETER") {
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput.copy(splitSellRatio = BigDecimal.ONE))
+                validator.validate(validInput.copy(splitSellRatio = BigDecimal.ONE), nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("stopLossPct가 0이면 INVALID_PARAMETER") {
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput.copy(stopLossPct = BigDecimal.ZERO))
+                validator.validate(validInput.copy(stopLossPct = BigDecimal.ZERO), nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
         }
@@ -113,7 +102,7 @@ class CommandValidatorTest : FunSpec({
             every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(output = emptyList())
 
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput)
+                validator.validate(validInput, nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.STOCK_NOT_FOUND
         }
@@ -129,7 +118,7 @@ class CommandValidatorTest : FunSpec({
             )
 
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput)
+                validator.validate(validInput, nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.PRICE_BELOW_ONE_SHARE
         }
@@ -143,15 +132,15 @@ class CommandValidatorTest : FunSpec({
             every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
                 output = KisCurrentPriceResponse.Output(stckPrpr = "70000")
             )
-            val activeCycle = mockk<TradingCycle>()
-            every { activeCycle.perBuyAmount } returns 950_000L
             every { kisRestClient.getBalance() } returns KisBalanceResponse(
                 output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
             )
+            val activeCycle = mockk<TradingCycle>()
+            every { activeCycle.perBuyAmount } returns 950_000L
             every { tradingCycleRepository.findByStatusIn(any()) } returns listOf(activeCycle)
 
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput)
+                validator.validate(validInput, nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.INSUFFICIENT_BALANCE
         }
@@ -173,7 +162,7 @@ class CommandValidatorTest : FunSpec({
             every { tradingCycleRepository.findByStockCodeAndStatusIn(any(), any()) } returns listOf(existingCycle)
 
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput)
+                validator.validate(validInput, nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.DUPLICATE_COMMAND
         }
@@ -182,17 +171,16 @@ class CommandValidatorTest : FunSpec({
     context("컷오프 초과") {
         test("현재 시각이 컷오프(15:14) 이후면 CUTOFF_PASSED — buyIntervalMin=3") {
             stubAllPass()
-
+            // cutoff = 15:20 - 3*2 = 15:14
             val ex = shouldThrow<CommandValidationException> {
-                // cutoff = 15:20 - 3*2 = 15:14
-                validator(clockAt(15, 15)).validate(validInput)
+                validator.validate(validInput, nowAt(15, 15))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.CUTOFF_PASSED
         }
 
         test("컷오프 직전이면 통과") {
             stubAllPass()
-            val stockName = validator(clockAt(15, 13)).validate(validInput)
+            val stockName = validator.validate(validInput, nowAt(15, 13))
             stockName shouldBe "삼성전자"
         }
     }
@@ -215,7 +203,7 @@ class CommandValidatorTest : FunSpec({
             )
 
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(10, 0)).validate(validInput)
+                validator.validate(validInput, nowAt(10, 0))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.HOLIDAY
         }
@@ -228,7 +216,7 @@ class CommandValidatorTest : FunSpec({
             stubAllPass()
 
             val ex = shouldThrow<CommandValidationException> {
-                validator(clockAt(8, 59)).validate(validInput)
+                validator.validate(validInput, nowAt(8, 59))
             }
             ex.errorCode shouldBe CommandValidationException.ErrorCode.OUT_OF_TRADING_HOURS
         }
