@@ -15,8 +15,7 @@ You are a PR code reviewer. Systematically analyze the changes on the current br
 
 Before starting the review, **always** read the following files to understand the project's rules and architecture:
 
-- All `.md` files in the `.claude/rules/` directory (code style, testing, security rules, etc.)
-- `docs/architecture.md` (architectural design principles)
+- All `.md` files in the `.claude/rules/` directory (code style, testing, security, architecture rules, etc.)
 
 ### 2. Understand the changes
 
@@ -29,7 +28,7 @@ Review the list of changed files and the full diff.
 
 ### 3. Architecture compliance check
 
-Using the dependency direction, layer responsibilities, and domain boundary rules read from `docs/architecture.md`, check for violations.
+Using the dependency direction, layer responsibilities, and domain boundary rules read from `.claude/rules/architecture.md`, check for violations.
 
 ### 4. Code quality check
 

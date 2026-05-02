@@ -14,4 +14,4 @@ Always respond in English only.
 - `docs/spec.md` — feature spec
 - `docs/plan.md` — phase-by-phase development plan
 - `docs/tasks/tasks-NNN.md` — per-phase task checklist
-- `docs/architecture.md` — architecture
+- `.claude/rules/architecture.md` — architecture (auto-loaded as a rule)
