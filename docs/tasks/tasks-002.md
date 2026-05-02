@@ -57,12 +57,12 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 ## 6. KIS response DTOs (`at.backend.kis.infrastructure.dto`)
 
-- [ ] `KisCurrentPriceResponse` — maps `stckPrpr` (current price) from KIS inquire-price response
-- [ ] `KisHolidayResponse` — maps `bzysYn` (business-day flag) from KIS chk-holiday response
-- [ ] `KisStockSearchResponse` — maps `output` array (stock list) from KIS search-stock-info response
-- [ ] `KisBalanceResponse` — maps `dnclAmt` (available cash) from KIS inquire-balance response
-- [ ] `KisBarResponse` — maps `output2` array (bar list) from KIS inquire-time-itemchartprice response
-- [ ] `KisDailyCcldResponse` — maps `output1` array (daily execution list) from KIS inquire-daily-ccld response
+- [x] `KisCurrentPriceResponse` — maps `stckPrpr` (current price) from KIS inquire-price response
+- [x] `KisHolidayResponse` — maps `bzdyYn` (business-day flag) from KIS chk-holiday response
+- [x] `KisStockSearchResponse` — maps `output` array (stock list) from KIS search-stock-info response
+- [x] `KisBalanceResponse` — maps `prvsRcdlExccAmt` (orderable cash, T+2 settled) from KIS inquire-balance response
+- [x] `KisBarResponse` — maps `output2` array (bar list) from KIS inquire-time-itemchartprice response
+- [x] `KisDailyCcldResponse` — maps `output1` array (daily execution list) from KIS inquire-daily-ccld response
 
 ---
 
