@@ -80,8 +80,8 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 ## 8. WireMock integration tests (`KisRestClientTest.kt`)
 
-- [ ] Add WireMock fixture JSON files under `src/test/resources/wiremock/` — one captured KIS response per endpoint (6 files: current-price, holiday, stock-search, balance, bars, daily-ccld)
-- [ ] **Normal scenarios** — one test per `KisRestClient` method: 200 response + response parsing assertion (6 tests total)
+- [x] Add WireMock fixture JSON files under `src/test/resources/wiremock/` — one captured KIS response per endpoint (6 files: current-price, holiday, stock-search, balance, bars, daily-ccld)
+- [x] **Normal scenarios** — one test per `KisRestClient` method: 200 response + response parsing assertion (6 tests total)
 - [ ] **4xx scenario** — invalid stock code → 400 response → domain exception propagates (1 test)
 - [ ] **5xx scenario** — server error → 500 response → domain exception propagates (1 test)
 - [ ] **Timeout scenario** — WireMock `fixedDelay(3000ms)` + `RestClient` read-timeout 1s → timeout exception propagates (1 test)
