@@ -1,5 +1,7 @@
-package at.backend.command.domain
+package at.backend.command.application
 
+import at.backend.command.domain.CommandInput
+import at.backend.command.domain.CommandValidationException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
