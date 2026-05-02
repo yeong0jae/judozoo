@@ -4,7 +4,6 @@ import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import org.springframework.stereotype.Component
-import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -15,7 +14,6 @@ class CommandValidator(
 ) {
 
     fun validate(input: CommandInput, now: LocalDateTime): String {
-        validateInputRange(input)
         val stockName = resolveStockName(input.stockCode)
         validatePrice(input.stockCode, input.perBuyAmount)
         validateBalance(input.perBuyAmount)
@@ -24,16 +22,6 @@ class CommandValidator(
         validateHoliday(now)
         validateTradingHours(now.toLocalTime())
         return stockName
-    }
-
-    private fun validateInputRange(input: CommandInput) {
-        val valid = input.perBuyAmount > 0 &&
-            input.buyIntervalMin > 0 &&
-            input.splitSellRatio > BigDecimal.ZERO && input.splitSellRatio < BigDecimal.ONE &&
-            input.midwayProfitPct > BigDecimal.ZERO &&
-            input.breakevenThresholdPct > BigDecimal.ZERO &&
-            input.stopLossPct > BigDecimal.ZERO
-        if (!valid) throw CommandValidationException(CommandValidationException.ErrorCode.INVALID_PARAMETER)
     }
 
     private fun resolveStockName(stockCode: String): String {
