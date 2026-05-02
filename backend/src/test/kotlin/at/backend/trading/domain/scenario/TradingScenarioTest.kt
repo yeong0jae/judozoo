@@ -1,11 +1,11 @@
 package at.backend.trading.domain.scenario
 
-import at.backend.trading.domain.Bar
-import at.backend.trading.domain.CloseReason
-import at.backend.trading.domain.PriceTick
-import at.backend.trading.domain.TradingCycle
-import at.backend.trading.domain.TradingCycleStatus
+import at.backend.trading.domain.cycle.CloseReason
+import at.backend.trading.domain.cycle.TradingCycle
+import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.execution.Execution
+import at.backend.trading.domain.price.Bar
+import at.backend.trading.domain.price.PriceTick
 import at.backend.trading.domain.signal.Signal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -63,7 +63,10 @@ class TradingScenarioTest : FunSpec({
         }
 
         test("Buying(3) → Holding 전이 유효") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
+            cycle(
+                status = TradingCycleStatus.BUYING,
+                buyAttempt = 3
+            ).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
         }
 
         test("Holding 상태에서 +2% 도달 → TpStage(2) 발동") {
@@ -74,21 +77,47 @@ class TradingScenarioTest : FunSpec({
 
         test("TpStage(2) 발동 후 tpStagesFired 갱신 → 동일 단계 재발동 없음") {
             val buyPrice = 10_091
-            cycle(tpStagesFired = 0b001).detectSignals(tick(buyPrice + (buyPrice * 0.02).toInt()), holdingQty = 30, buyPrice = buyPrice)
+            cycle(tpStagesFired = 0b001).detectSignals(
+                tick(buyPrice + (buyPrice * 0.02).toInt()),
+                holdingQty = 30,
+                buyPrice = buyPrice
+            )
                 .none { it == Signal.TpStage(2) } shouldBe true
         }
 
         test("+5% 도달 → TpStage(5) 발동") {
             val buyPrice = 10_091
-            cycle(tpStagesFired = 0b011).detectSignals(tick(buyPrice + (buyPrice * 0.05).toInt() + 1), holdingQty = 20, buyPrice = buyPrice) shouldContain Signal.TpStage(5)
+            cycle(tpStagesFired = 0b011).detectSignals(
+                tick(buyPrice + (buyPrice * 0.05).toInt() + 1),
+                holdingQty = 20,
+                buyPrice = buyPrice
+            ) shouldContain Signal.TpStage(5)
         }
 
         test("TrendBreak 무장 후 봉 꺾임 → TrendBreak 발동") {
             val buyPrice = 10_091
-            val prevBar = Bar(stockCode, openPrice = 10_700, closePrice = 11_000, startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
-            val currentBar = Bar(stockCode, openPrice = 10_800, closePrice = 10_699, startTime = now.minusSeconds(180), endTime = now.plusSeconds(1))
+            val prevBar = Bar(
+                stockCode,
+                openPrice = 10_700,
+                closePrice = 11_000,
+                startTime = now.minusSeconds(360),
+                endTime = now.minusSeconds(180)
+            )
+            val currentBar = Bar(
+                stockCode,
+                openPrice = 10_800,
+                closePrice = 10_699,
+                startTime = now.minusSeconds(180),
+                endTime = now.plusSeconds(1)
+            )
             cycle(tpStagesFired = 0b111, trendBreakArmed = true)
-                .detectSignals(tick(10_699), currentBar, prevBar, holdingQty = 8, buyPrice = buyPrice) shouldContainExactly listOf(Signal.TrendBreak)
+                .detectSignals(
+                    tick(10_699),
+                    currentBar,
+                    prevBar,
+                    holdingQty = 8,
+                    buyPrice = buyPrice
+                ) shouldContainExactly listOf(Signal.TrendBreak)
         }
 
         test("Liquidating → Closed(TAKE_PROFIT) 전이 유효") {
@@ -99,11 +128,18 @@ class TradingScenarioTest : FunSpec({
     context("시나리오 2: 중도 익절") {
         test("Buying(2) 상태에서 +3.5% 도달 → MidwayTakeProfit 발동") {
             cycle(status = TradingCycleStatus.BUYING, buyAttempt = 2)
-                .detectSignals(tick(10_350), holdingQty = 10, buyPrice = 10_000) shouldContainExactly listOf(Signal.MidwayTakeProfit)
+                .detectSignals(
+                    tick(10_350),
+                    holdingQty = 10,
+                    buyPrice = 10_000
+                ) shouldContainExactly listOf(Signal.MidwayTakeProfit)
         }
 
         test("MidwayTakeProfit 발동 후 Buying→Holding 전이 유효") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
+            cycle(
+                status = TradingCycleStatus.BUYING,
+                buyAttempt = 2
+            ).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
         }
 
         test("Holding 진입 후 잔여 수량 보유 유지") {
@@ -128,23 +164,46 @@ class TradingScenarioTest : FunSpec({
 
     context("시나리오 4: 손절 우선순위") {
         test("손절선 이하 가격에서 StopLoss만 반환") {
-            cycle(tpStagesFired = 0b001).detectSignals(tick(9_800), holdingQty = 30, buyPrice = 10_000) shouldContainExactly listOf(Signal.StopLoss)
+            cycle(tpStagesFired = 0b001).detectSignals(
+                tick(9_800),
+                holdingQty = 30,
+                buyPrice = 10_000
+            ) shouldContainExactly listOf(Signal.StopLoss)
         }
     }
 
     context("시나리오 5: 본전 매도 무장 후 발동") {
         test("breakevenArmed=true 상태에서 매수가 도달 → Breakeven 발동") {
             cycle(breakevenArmed = true, tpStagesFired = 0b001)
-                .detectSignals(tick(10_000), holdingQty = 20, buyPrice = 10_000) shouldContainExactly listOf(Signal.Breakeven)
+                .detectSignals(
+                    tick(10_000),
+                    holdingQty = 20,
+                    buyPrice = 10_000
+                ) shouldContainExactly listOf(Signal.Breakeven)
         }
 
         test("Breakeven isAlive — 매수가 이하 유지 중 true") {
-            Signal.Breakeven.isAlive(currentPrice = 9_999, buyPrice = 10_000, currentBar = null, clock = now) shouldBe true
-            Signal.Breakeven.isAlive(currentPrice = 10_000, buyPrice = 10_000, currentBar = null, clock = now) shouldBe true
+            Signal.Breakeven.isAlive(
+                currentPrice = 9_999,
+                buyPrice = 10_000,
+                currentBar = null,
+                clock = now
+            ) shouldBe true
+            Signal.Breakeven.isAlive(
+                currentPrice = 10_000,
+                buyPrice = 10_000,
+                currentBar = null,
+                clock = now
+            ) shouldBe true
         }
 
         test("현재가가 매수가 초과하면 Breakeven isAlive=false") {
-            Signal.Breakeven.isAlive(currentPrice = 10_001, buyPrice = 10_000, currentBar = null, clock = now) shouldBe false
+            Signal.Breakeven.isAlive(
+                currentPrice = 10_001,
+                buyPrice = 10_000,
+                currentBar = null,
+                clock = now
+            ) shouldBe false
         }
 
         test("Holding → Liquidating(BREAKEVEN) 전이 유효") {
@@ -154,25 +213,67 @@ class TradingScenarioTest : FunSpec({
 
     context("시나리오 6: 추세 꺾임 봉 종료 후 재발동") {
         val buyPrice = 10_000
-        val prevBar = Bar(stockCode, openPrice = 10_600, closePrice = 10_900, startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
+        val prevBar = Bar(
+            stockCode,
+            openPrice = 10_600,
+            closePrice = 10_900,
+            startTime = now.minusSeconds(360),
+            endTime = now.minusSeconds(180)
+        )
 
         test("봉 진행 중 TrendBreak 발동 → isAlive=true") {
-            val currentBar = Bar(stockCode, openPrice = 10_700, closePrice = 10_599, startTime = now.minusSeconds(180), endTime = now.plusSeconds(60))
+            val currentBar = Bar(
+                stockCode,
+                openPrice = 10_700,
+                closePrice = 10_599,
+                startTime = now.minusSeconds(180),
+                endTime = now.plusSeconds(60)
+            )
             cycle(tpStagesFired = 0b111, trendBreakArmed = true)
-                .detectSignals(tick(10_599), currentBar, prevBar, holdingQty = 10, buyPrice = buyPrice) shouldContain Signal.TrendBreak
+                .detectSignals(
+                    tick(10_599),
+                    currentBar,
+                    prevBar,
+                    holdingQty = 10,
+                    buyPrice = buyPrice
+                ) shouldContain Signal.TrendBreak
             Signal.TrendBreak.isAlive(10_599, buyPrice, currentBar, clock = now) shouldBe true
         }
 
         test("봉 종료 후 isAlive=false — 재발동 대기") {
-            val finishedBar = Bar(stockCode, openPrice = 10_700, closePrice = 10_599, startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
+            val finishedBar = Bar(
+                stockCode,
+                openPrice = 10_700,
+                closePrice = 10_599,
+                startTime = now.minusSeconds(360),
+                endTime = now.minusSeconds(180)
+            )
             Signal.TrendBreak.isAlive(10_599, buyPrice, finishedBar, clock = now) shouldBe false
         }
 
         test("다음 봉에서 조건 재충족 시 TrendBreak 재발동") {
-            val newPrevBar = Bar(stockCode, openPrice = 10_700, closePrice = 10_599, startTime = now.minusSeconds(360), endTime = now.minusSeconds(180))
-            val newCurrentBar = Bar(stockCode, openPrice = 10_650, closePrice = 10_699, startTime = now.minusSeconds(180), endTime = now.plusSeconds(60))
+            val newPrevBar = Bar(
+                stockCode,
+                openPrice = 10_700,
+                closePrice = 10_599,
+                startTime = now.minusSeconds(360),
+                endTime = now.minusSeconds(180)
+            )
+            val newCurrentBar = Bar(
+                stockCode,
+                openPrice = 10_650,
+                closePrice = 10_699,
+                startTime = now.minusSeconds(180),
+                endTime = now.plusSeconds(60)
+            )
             cycle(tpStagesFired = 0b111, trendBreakArmed = true)
-                .detectSignals(tick(10_699), newCurrentBar, newPrevBar, holdingQty = 10, buyPrice = buyPrice) shouldContain Signal.TrendBreak
+                .detectSignals(
+                    tick(10_699),
+                    newCurrentBar,
+                    newPrevBar,
+                    holdingQty = 10,
+                    buyPrice = buyPrice
+                ) shouldContain Signal.TrendBreak
         }
     }
 

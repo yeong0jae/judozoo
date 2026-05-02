@@ -1,6 +1,6 @@
 package at.backend.trading.domain.signal
 
-import at.backend.trading.domain.Bar
+import at.backend.trading.domain.price.Bar
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -25,7 +25,12 @@ class SignalTest : FunSpec({
         }
 
         test("MidwayTakeProfit은 항상 alive") {
-            Signal.MidwayTakeProfit.isAlive(currentPrice = 10_500, buyPrice, currentBar = null, clock = now) shouldBe true
+            Signal.MidwayTakeProfit.isAlive(
+                currentPrice = 10_500,
+                buyPrice,
+                currentBar = null,
+                clock = now
+            ) shouldBe true
         }
 
         test("TpStage는 항상 alive") {
@@ -73,11 +78,21 @@ class SignalTest : FunSpec({
         )
 
         test("봉이 진행 중이면 alive") {
-            Signal.TrendBreak.isAlive(currentPrice = 10_400, buyPrice, currentBar = barInProgress, clock = now) shouldBe true
+            Signal.TrendBreak.isAlive(
+                currentPrice = 10_400,
+                buyPrice,
+                currentBar = barInProgress,
+                clock = now
+            ) shouldBe true
         }
 
         test("봉이 종료됐으면 dead — 다음 봉에서 재발동 대기") {
-            Signal.TrendBreak.isAlive(currentPrice = 10_400, buyPrice, currentBar = barFinished, clock = now) shouldBe false
+            Signal.TrendBreak.isAlive(
+                currentPrice = 10_400,
+                buyPrice,
+                currentBar = barFinished,
+                clock = now
+            ) shouldBe false
         }
 
         test("봉 정보 없으면 dead") {

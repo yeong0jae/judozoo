@@ -1,4 +1,4 @@
-package at.backend.trading.domain
+package at.backend.trading.domain.cycle
 
 enum class TradingCycleStatus {
     INITIATED,

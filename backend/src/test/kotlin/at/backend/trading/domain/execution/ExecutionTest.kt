@@ -1,12 +1,12 @@
 package at.backend.trading.domain.execution
 
-import at.backend.trading.domain.TradingCycle
+import at.backend.trading.domain.cycle.TradingCycle
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.math.BigDecimal
 
-class ExecutionsTest : FunSpec({
+class ExecutionTest : FunSpec({
 
     fun cycle() = TradingCycle(
         stockCode = "000660",

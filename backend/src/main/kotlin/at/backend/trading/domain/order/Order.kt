@@ -1,4 +1,4 @@
-package at.backend.trading.domain
+package at.backend.trading.domain.order
 
 import at.backend.library.jpa.BaseEntity
 import jakarta.persistence.*
@@ -39,6 +39,6 @@ class Order(
     var retryCount: Int = 0,
 
     @Column(length = 500)
-    var lastError: String? = null,
+    var lastError: String? = null
 
 ) : BaseEntity()
