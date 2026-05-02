@@ -32,29 +32,37 @@
 
 ---
 
-## Phase 1: 도메인 코어 + 단위 테스트
+## Phase 1: 도메인 코어 + 단위 테스트 ✅ 완료
 
 KIS 없이도 모든 매매 룰을 검증 가능한 상태로 만든다. 외부 의존 mock.
 
 ### 산출물
 - `trading.domain.cycle`
-  - `CycleState`: sealed class (`Initiated` / `Buying` / `Holding` / `Liquidating` / `Closed`)
-  - 전이 규칙 함수: spec §5.2 표 그대로
-- `trading.domain.signal`
-  - `Signal`: sealed class (StopLoss / MidwayTakeProfit / TpStage / Breakeven / TrendBreak / LimitUp / MarketClose / Cancel)
-  - `Signal.isAlive` — 각 시그널이 직접 override (재시도 중단 조건)
-- `trading.domain.cycle.CycleSnapshot`
-  - 시그널 탐지: `detectSignals(tick, currentBar?, prevBar?)` — StopLoss 우선 처리, 보유=0 가드
-  - 트리거 판정 메서드: `isStopLossTriggered`, `isMidwayTakeProfitTriggered`, `isTpStageTriggered`, `isBreakevenTriggered`, `isTrendBreakTriggered`
-  - 분할 매도 수량: `splitSellQty` — 절사 + 잔여 처리
+  - `TradingCycle`: JPA 엔티티 + 도메인 로직 통합 (`trading_cycles` 테이블)
+    - 상태 전이: `canTransitionTo(nextStatus, nextBuyAttempt?, nextCloseReason?)`
+    - 시그널 탐지: `detectSignals(tick, holdingQty, buyPrice)` / `detectSignals(tick, currentBar, prevBar, holdingQty, buyPrice)`
+    - 트리거 판정: `isStopLossTriggered`, `isMidwayTakeProfitTriggered`, `isTpStageTriggered`, `isBreakevenTriggered`, `isTrendBreakTriggered`
+    - 분할 매도 수량: `splitSellQty`
+    - 매수가 산정: `calculateBuyPrice(executions, sellCostRate)`
+  - `TradingCycleStatus`: enum (INITIATED / BUYING / HOLDING / LIQUIDATING / CLOSED)
+  - `CloseReason`: enum (TAKE_PROFIT / STOP_LOSS / BREAKEVEN / TREND_BREAK / MARKET_CLOSE / CANCELLED / NO_FILL / UNCLOSED)
+- `trading.domain.order`
+  - `Order`: JPA 엔티티 (`orders` 테이블, FK → `trading_cycles`)
 - `trading.domain.execution`
-  - `Execution` + `Executions` (일급 컬렉션)
-  - **매수가 산정**: `Executions.calculateBuyPrice(sellCostRate)` — `(Σ(가 × 수) + Σ수수료) / Σ수 × (1 + sellCostRate)`
+  - `Execution`: JPA 엔티티 (`executions` 테이블, FK → `orders`)
+- `trading.domain.price`
+  - `Bar`: 3분봉 값 객체
+  - `PriceTick`: 실시간 호가 값 객체
+- `trading.domain.signal`
+  - `Signal`: sealed class + `isAlive` (StopLoss / MidwayTakeProfit / TpStage / Breakeven / TrendBreak / LimitUp / MarketClose / Cancel)
+- `trading.infrastructure.repository`
+  - `TradingCycleJpaRepository`, `OrderJpaRepository`, `ExecutionJpaRepository`
+- `library.jpa.BaseEntity`: `@MappedSuperclass` (createdAt / updatedAt)
 
 ### 검증 시나리오 (단위 테스트)
 1. **정상 사이클**: 3회 매수 → 2%/3%/5% 단계 발동 → 추세 꺾임 잔여 매도 → Closed (TAKE_PROFIT)
-2. **중도 익절 (옵션 A)**: 매수 2회차 직후 +3.5% → 충족 단계 합산 40% 즉시 매도 → 잔여로 Holding 진입
-3. **갭상승 복수 단계**: 시초가 +6% → 2%/3%/5% 한 번에 60% 매도
+2. **중도 익절**: 매수 2회차 직후 +3.5% → Holding 진입
+3. **갭상승 복수 단계**: 시초가 +6% → 2%/3%/5% 한 번에 발동
 4. **손절 우선순위**: TpStage 무장 + 가격 -2% 동시 → StopLoss 우선
 5. **본전 매도 무장 후 발동**: +2% 도달 → 무장 → 매수가 도달 → 전량 매도
 6. **추세 꺾임 + 봉 종료**: 무장 후 발동된 봉이 끝나면 isAlive=false → 다음 봉 재충족 시 재발동
@@ -62,9 +70,9 @@ KIS 없이도 모든 매매 룰을 검증 가능한 상태로 만든다. 외부 
 8. **시그널 평가 보류**: 보유 수량 = 0 동안 가격 기반 시그널 평가 안 됨
 
 ### Definition of Done
-- 위 8개 시나리오 + 각 트리거 식 단위 테스트 통과
+- 위 8개 시나리오 + 각 트리거 식 단위 테스트 통과 ✅
 - 도메인 레이어 커버리지 90%+
-- KIS / DB / 시간 의존성 모두 mock 또는 `Clock` 추상화
+- KIS / DB / 시간 의존성 모두 mock 또는 파라미터 주입
 
 ---
 
@@ -86,28 +94,33 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 
 ---
 
-## Phase 3: 영속화 + 명령 접수 API
+## Phase 3: 명령 접수 API
 
 사용자가 명령을 **데이터로만** 보낼 수 있는 상태. 백그라운드 매매는 아직 없음.
 
+> JPA 엔티티(`TradingCycle`, `Order`, `Execution`)와 Repository는 Phase 1 리팩토링에서 완료. Phase 3은 application/presentation 계층 구현에 집중.
+
 ### 산출물
-- JPA 엔티티 + Repository (도메인 모델 ↔ 엔티티 매핑은 application 계층에서). 스키마는 Hibernate `ddl-auto=update` 로 자동 생성/갱신.
-- `command.domain.CommandValidator`: 입력값 / 1주 가격 / 잔고 / 거래일 / 컷오프 / 중복 / 시간
-- `command.application.CommandService`: 접수 / 취소 오케스트레이션
+- `command.domain.CommandValidator`: 입력값 / 1주 가격 / 잔고 / 거래일 / 컷오프 / 중복 / 시간 검증
+  - `KisRestClient` / `TradingCycleJpaRepository` / `Clock` 주입
+  - 거부 시 `CommandValidationException(errorCode)` 발생
+- `command.application.CommandService`:
+  - `create()`: 검증 → `TradingCycle(status=INITIATED)` 생성 → `TradingCycleJpaRepository.save()` → 응답 반환
+  - `cancel()`: 상태별 취소 처리 (LIQUIDATING 멱등, CLOSED 거부)
 - REST 엔드포인트:
-  - `POST /api/commands`
-  - `DELETE /api/commands/{id}` (LIQUIDATING 멱등, CLOSED 거부)
+  - `POST /api/commands` → 201
+  - `DELETE /api/commands/{id}` → 202 / 409
   - `GET /api/commands?status=active|today`
-  - `GET /api/commands/{id}` (응답 DTO 전체, `activeSell`은 null)
+  - `GET /api/commands/{id}`
   - `GET /api/account/balance`
   - `GET /api/system/status`
   - `GET /api/stocks/search`, `GET /api/stocks/{code}/price`
-- 거부 사유 errorCode 매핑 (PRD 거부 사유 표 8건 + ALREADY_CLOSED)
+- `GlobalExceptionHandler`: errorCode 매핑 (8건 거부 + ALREADY_CLOSED)
 
 ### 검증 시나리오 (통합 테스트, Testcontainers MySQL + WireMock KIS)
 - 거부 케이스 8개 errorCode 검증
-- 다중 종목 동시 접수 시 잔고 차감 누적
-- DELETE 상태별 응답 (BUYING / MONITORING / LIQUIDATING / CLOSED)
+- 다중 종목 동시 접수 시 잔고 차감 누적 검증
+- DELETE 상태별 응답 (BUYING / HOLDING / LIQUIDATING / CLOSED)
 - 컷오프 시각 검증 (시계 mock)
 
 ### Definition of Done
