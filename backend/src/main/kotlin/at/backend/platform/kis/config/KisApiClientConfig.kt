@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.web.client.RestClient
+import java.time.Duration
 
 @Configuration
 class KisApiClientConfig {
@@ -34,6 +35,12 @@ class KisApiClientConfig {
             accountProductCode = properties.accountProductCode,
             restClient = RestClient.builder()
                 .baseUrl(properties.baseUrl)
+                .requestFactory(
+                    SimpleClientHttpRequestFactory().apply {
+                        setConnectTimeout(CONNECT_TIMEOUT)
+                        setReadTimeout(READ_TIMEOUT)
+                    }
+                )
                 .requestInterceptor { request, body, execution ->
                     rateLimiter.acquire()
                     request.headers.setBearerAuth(tokenProvider.getToken())
@@ -43,4 +50,9 @@ class KisApiClientConfig {
                 }
                 .build(),
         )
+
+    companion object {
+        private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(5)
+        private val READ_TIMEOUT: Duration = Duration.ofSeconds(3)
+    }
 }

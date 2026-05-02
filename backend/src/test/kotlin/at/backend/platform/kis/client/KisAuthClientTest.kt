@@ -1,13 +1,12 @@
 package at.backend.platform.kis.client
 
+import at.backend.common.test.TestRestClientConfig
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import org.springframework.http.client.SimpleClientHttpRequestFactory
-import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 
 class KisAuthClientTest : FunSpec({
@@ -21,10 +20,7 @@ class KisAuthClientTest : FunSpec({
     fun client() = KisAuthClient(
         appKey = "test-key",
         appSecret = "test-secret",
-        restClient = RestClient.builder()
-            .baseUrl("http://localhost:${wireMock.port()}")
-            .requestFactory(SimpleClientHttpRequestFactory())
-            .build(),
+        restClient = TestRestClientConfig.restClient(wireMock),
     )
 
     context("정상 응답") {

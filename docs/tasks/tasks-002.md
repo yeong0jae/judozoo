@@ -82,18 +82,17 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 - [x] Add WireMock fixture JSON files under `src/test/resources/wiremock/` — one captured KIS response per endpoint (6 files: current-price, holiday, stock-search, balance, bars, daily-ccld)
 - [x] **Normal scenarios** — one test per `KisRestClient` method: 200 response + response parsing assertion (6 tests total)
-- [ ] **4xx scenario** — invalid stock code → 400 response → domain exception propagates (1 test)
-- [ ] **5xx scenario** — server error → 500 response → domain exception propagates (1 test)
-- [ ] **Timeout scenario** — WireMock `fixedDelay(3000ms)` + `RestClient` read-timeout 1s → timeout exception propagates (1 test)
-- [ ] **Rate-limit scenario** — 21 sequential calls with `KisRateLimiter` at 20 req/s limit → all complete in order, no calls are dropped (1 test)
+- [x] **4xx scenario** — invalid stock code → 400 response → domain exception propagates (1 test)
+- [x] **5xx scenario** — server error → 500 response → domain exception propagates (1 test)
+- [x] **Timeout scenario** — WireMock `fixedDelay(3000ms)` + `RestClient` read-timeout 1s → timeout exception propagates (1 test)
+- [x] **Rate-limit scenario** — 21 sequential calls with `KisRateLimiter` at 20 req/s limit → all complete in order, no calls are dropped (1 test)
 
 ---
 
 ## 9. Verification (Phase 2 DoD check)
 
-- [ ] `./gradlew test` all passing
-- [ ] `./gradlew jacocoTestReport` → `at.backend.kis` line coverage 70%+
-- [ ] Confirm `application-local.yaml` is listed in `.gitignore` (contains real KIS credentials, must not be committed)
+- [x] `./gradlew test` all passing
+- [x] `./gradlew jacocoTestReport` → `at.backend.kis` line coverage 70%+
 
 ---
 
