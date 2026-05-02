@@ -18,6 +18,14 @@
       "ord_tmd": "110000",
       "tot_ccld_qty": "0",
       "avg_prvs": "0"
+    },
+    {
+      "pdno": "000660",
+      "odno": "0000000003",
+      "ord_dt": "20260102",
+      "ord_tmd": "120000",
+      "tot_ccld_qty": "5",
+      "avg_prvs": "180000"
     }
   ]
 }

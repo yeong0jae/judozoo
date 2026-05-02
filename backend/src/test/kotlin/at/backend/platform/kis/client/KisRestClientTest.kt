@@ -15,8 +15,11 @@ import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
 import org.springframework.web.client.RestClientException
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import kotlin.system.measureTimeMillis
+
+private val SEOUL: ZoneId = ZoneId.of("Asia/Seoul")
 
 class KisRestClientTest : FunSpec({
 
@@ -74,7 +77,7 @@ class KisRestClientTest : FunSpec({
             client().getBalance() shouldBe 1234567L
         }
 
-        test("3분봉 조회 - 체결 시각을 봉 종료 시각으로 매핑") {
+        test("3분봉 조회 - 체결 시각을 봉 종료 시각으로 매핑하고 시작 시각은 3분 전") {
             stub("/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice", "bars.json")
 
             val bars = client().getBars("005930")
@@ -83,12 +86,17 @@ class KisRestClientTest : FunSpec({
             bars[0].stockCode shouldBe "005930"
             bars[0].openPrice shouldBe 70100
             bars[0].closePrice shouldBe 70200
-            val seoulEnd = bars[0].endTime.atZone(ZoneId.of("Asia/Seoul"))
-            seoulEnd.hour shouldBe 15
-            seoulEnd.minute shouldBe 3
+            val firstEnd = bars[0].endTime.atZone(SEOUL)
+            firstEnd.toLocalDate() shouldBe LocalDate.of(2026, 1, 2)
+            firstEnd.toLocalTime() shouldBe LocalTime.of(15, 3, 0)
+            bars[0].startTime shouldBe bars[0].endTime.minusSeconds(180)
+
+            val secondEnd = bars[1].endTime.atZone(SEOUL)
+            secondEnd.toLocalDate() shouldBe LocalDate.of(2026, 1, 2)
+            secondEnd.toLocalTime() shouldBe LocalTime.of(15, 0, 0)
         }
 
-        test("일별 체결 조회 - 체결 수량 0인 주문은 제외하고 변환") {
+        test("일별 체결 조회 - 다른 종목/체결 수량 0인 주문은 제외하고 변환") {
             stub("/uapi/domestic-stock/v1/trading/inquire-daily-ccld", "daily-ccld.json")
 
             val executions = client().getDailyExecutions("005930", LocalDate.of(2026, 1, 2))
