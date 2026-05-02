@@ -20,8 +20,8 @@ Goal: 사용자가 매매 명령을 접수·취소·조회할 수 있는 REST AP
 
 ## Application
 
-- [ ] `command.application.CommandService.create()`: `CommandValidator.validate()` → `TradingCycle(status=INITIATED)` 생성 → `TradingCycleJpaRepository.save()` → `CommandCreatedResponse` 반환
-- [ ] `command.application.CommandService.cancel()`: id로 `TradingCycle` 조회 (없으면 404); INITIATED/BUYING/HOLDING → LIQUIDATING 저장 (202); LIQUIDATING → 멱등 (202); CLOSED → `AlreadyClosedException` (409)
+- [x] `command.application.CommandService.create()`: `CommandValidator.validate()` → `TradingCycle(status=INITIATED)` 생성 → `TradingCycleJpaRepository.save()` → `CommandCreatedResponse` 반환
+- [x] `command.application.CommandService.cancel()`: id로 `TradingCycle` 조회 (없으면 404); INITIATED/BUYING/HOLDING → LIQUIDATING 저장 (202); LIQUIDATING → 멱등 (202); CLOSED → `AlreadyClosedException` (409)
 
 ## Presentation
 
