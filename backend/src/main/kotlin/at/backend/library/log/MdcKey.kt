@@ -1,4 +1,4 @@
-package at.backend.common.log
+package at.backend.library.log
 
 object MdcKey {
     const val COMMAND_ID = "commandId"
