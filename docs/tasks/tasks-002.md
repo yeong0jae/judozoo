@@ -68,13 +68,13 @@ This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑�
 
 ## 7. KisRestClient (`at.backend.kis.infrastructure`)
 
-- [ ] Implement `KisRestClient` — Spring `RestClient` bean with `baseUrl = KisProperties.baseUrl`; every request adds `Authorization: Bearer {token}`, `appkey`, `appsecret` headers; all calls go through `KisRateLimiter.acquire()` first
-- [ ] `getCurrentPrice(stockCode: String): Int` — `GET /uapi/domestic-stock/v1/quotations/inquire-price`
-- [ ] `isBusinessDay(date: LocalDate): Boolean` — `GET /uapi/domestic-stock/v1/quotations/chk-holiday`
-- [ ] `searchStock(keyword: String): List<StockInfo>` — `GET /uapi/domestic-stock/v1/quotations/search-stock-info`
-- [ ] `getBalance(): Long` — `GET /uapi/domestic-stock/v1/trading/inquire-balance`
-- [ ] `getBars(stockCode: String): List<Bar>` — `GET /uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice` (3-minute bars)
-- [ ] `getDailyExecutions(stockCode: String, date: LocalDate): List<Execution>` — `GET /uapi/domestic-stock/v1/trading/inquire-daily-ccld`
+- [x] Implement `KisRestClient` — Spring `RestClient` bean with `baseUrl = KisProperties.baseUrl`; every request adds `Authorization: Bearer {token}`, `appkey`, `appsecret` headers; all calls go through `KisRateLimiter.acquire()` first
+- [x] `getCurrentPrice(stockCode: String): Int` — `GET /uapi/domestic-stock/v1/quotations/inquire-price`
+- [x] `isBusinessDay(date: LocalDate): Boolean` — `GET /uapi/domestic-stock/v1/quotations/chk-holiday`
+- [x] `searchStock(keyword: String): List<StockInfo>` — `GET /uapi/domestic-stock/v1/quotations/search-stock-info`
+- [x] `getBalance(): Long` — `GET /uapi/domestic-stock/v1/trading/inquire-balance`
+- [x] `getBars(stockCode: String): List<Bar>` — `GET /uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice` (3-minute bars)
+- [x] `getDailyExecutions(stockCode: String, date: LocalDate): List<Execution>` — `GET /uapi/domestic-stock/v1/trading/inquire-daily-ccld`
 
 ---
 
