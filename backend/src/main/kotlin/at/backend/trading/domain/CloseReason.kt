@@ -1,4 +1,4 @@
-package at.backend.trading.domain.cycle
+package at.backend.trading.domain
 
 enum class CloseReason {
     TAKE_PROFIT,  // 익절 단계 소진 후 잔여 전량 매도
