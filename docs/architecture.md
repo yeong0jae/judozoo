@@ -1,29 +1,37 @@
-# 아키텍쳐
+# Architecture
 
-## 애플리케이션 아키텍쳐
+## Application architecture
 
-### 4 Layered Architecture
+### 4-layered architecture
 
-도메인별로 분할(package by feature)하고, 각 도메인 안에 필요한 계층만 둔다.
+The codebase is split by feature (package by feature), and each feature contains only the layers it actually needs.
 
-| 계층 | 책임 |
-|------|------|
-| `presentation` | HTTP/STOMP 엔드포인트. 요청 검증과 DTO 변환. |
-| `application` | 유스케이스 오케스트레이션. **도메인 간 호출은 이 계층끼리만**. |
-| `domain` | 순수 도메인 모델·룰 (sealed class, 상태 전이, 매매 룰 함수). 외부 의존 없음. |
-| `infrastructure` | 영속화·외부 API·스케줄러. 같은 도메인 `domain`의 추상을 구현/저장. |
+| Layer | Responsibility |
+|-------|----------------|
+| `presentation` | HTTP/STOMP endpoints. Request validation and DTO conversion. |
+| `application` | Use-case orchestration. **Cross-feature calls happen only between `application` layers.** |
+| `domain` | Pure domain models and rules. No external dependencies. |
+| `infrastructure` | Implementations of external systems such as databases and external APIs. |
 
-#### 의존 방향
+#### Dependency direction
 
 ```
 presentation ──▶ application ──▶ domain ◀── infrastructure
 ```
 
-- `domain`은 같은 도메인의 어떤 계층에도 의존하지 않는다
+## Top-level package layout
 
----
+```
+at.backend
+├── <feature>/        # feature packages: trading, stock, command, market, report, ...
+│   ├── presentation/
+│   ├── application/
+│   ├── domain/
+│   └── infrastructure/
+├── library/          # generic, reusable cross-cutting code (no business logic)
+└── platform/         # adapters for external systems
+```
 
-## 시스템 아키텍쳐
+### Feature packages
 
-### 데이터 흐름
-
+Each business capability lives in its own package and contains only the layers it needs (e.g., `at.backend.stock` currently has only `domain/`). Cross-feature collaboration is allowed only between `application` layers — never between `domain` packages directly.

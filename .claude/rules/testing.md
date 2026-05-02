@@ -13,18 +13,20 @@ Use **FunSpec** exclusively.
 
 `context()` / `test()` strings must convey **scenario and meaning**. Write them in **Korean**. Do not include implementation details such as method names or field names — they make tests brittle when refactoring. Domain concepts (state names, signal types, and other ubiquitous language) are fine to use.
 
-### MockK usage guidelines
+### Per-layer guidelines
 
-**Use mocks:**
-- Isolating Infrastructure dependencies (external clients) in Application layer tests
-- Isolating Application dependencies (services) in Presentation layer tests
-- Isolating non-deterministic dependencies (time, random, external APIs)
+1. Domain Layer
+- Tests must be the purest and most independent.
+- Do not load the Spring context; do not use MockK — construct real domain objects and test against them.
 
-**Do not use mocks:**
-- Domain layer — test pure domain objects with real instances
-- Application layer integration tests — use `@SpringBootTest` + Testcontainers against a real DB
-- Infrastructure layer integration tests — use a real DB (Testcontainers, etc.)
+2. Infrastructure Layer
+- JPA Repository: use `@DataJpaTest` to verify query methods and mapping logic.
+- External API: use WireMock to simulate external-server response scenarios (success, failure, timeout).
 
-### SpringBootTest + Testcontainers conventions
+3. Application Layer
+- All integration tests extend `IntegrationTestBase` (Testcontainers) and run against the defined MySQL container environment.
+- Verify the collaboration between multiple components; isolate only the uncontrollable areas (e.g., external API integrations) with MockK.
 
-- Extend `IntegrationTestBase` — the MySQL container and `@DynamicPropertySource` are defined there so all integration tests share the same container.
+4. Presentation Layer
+- Focus on controller mapping and DTO validation.
+- Mock the service layer with MockK to keep API-contract verification fast.
