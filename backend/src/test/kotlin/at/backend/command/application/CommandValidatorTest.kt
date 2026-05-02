@@ -8,6 +8,7 @@ import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisHolidayResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
 import at.backend.trading.domain.cycle.TradingCycle
+import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -127,7 +128,7 @@ class CommandValidatorTest : FunSpec({
     }
 
     context("잔고 부족") {
-        test("활성 사이클 예약금 차감 후 잔고가 부족하면 INSUFFICIENT_BALANCE") {
+        test("접수 대기(INITIATED) 사이클 예약금 차감 후 잔고가 부족하면 INSUFFICIENT_BALANCE") {
             every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
                 output = listOf(KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자"))
             )
@@ -137,9 +138,9 @@ class CommandValidatorTest : FunSpec({
             every { kisRestClient.getBalance() } returns KisBalanceResponse(
                 output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
             )
-            val activeCycle = mockk<TradingCycle>()
-            every { activeCycle.perBuyAmount } returns 950_000L
-            every { tradingCycleRepository.findByStatusIn(any()) } returns listOf(activeCycle)
+            val initiatedCycle = mockk<TradingCycle>()
+            every { initiatedCycle.perBuyAmount } returns 950_000L
+            every { tradingCycleRepository.findByStatusIn(listOf(TradingCycleStatus.INITIATED)) } returns listOf(initiatedCycle)
 
             val ex = shouldThrow<CommandValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
