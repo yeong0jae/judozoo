@@ -1,7 +1,7 @@
-package at.backend.command.application
+package at.backend.trading.application
 
-import at.backend.command.domain.CommandInput
-import at.backend.command.domain.CommandValidationException
+import at.backend.trading.domain.TradingInput
+import at.backend.trading.domain.TradingValidationException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
@@ -18,7 +18,7 @@ import io.mockk.mockk
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
-class CommandValidatorTest : FunSpec({
+class TradingValidatorTest : FunSpec({
 
     val kisRestClient = mockk<KisRestClient>()
     val tradingCycleRepository = mockk<TradingCycleJpaRepository>()
@@ -26,9 +26,9 @@ class CommandValidatorTest : FunSpec({
     fun nowAt(hour: Int, minute: Int): LocalDateTime =
         LocalDateTime.of(2026, 1, 2, hour, minute)
 
-    val validator = CommandValidator(kisRestClient, tradingCycleRepository)
+    val validator = TradingValidator(kisRestClient, tradingCycleRepository)
 
-    val validInput = CommandInput(
+    val validInput = TradingInput(
         stockCode = "005930",
         perBuyAmount = 100_000L,
         buyIntervalMin = 3,
@@ -65,38 +65,38 @@ class CommandValidatorTest : FunSpec({
 
     context("입력값 범위 오류") {
         test("perBuyAmount가 0이면 INVALID_PARAMETER") {
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput.copy(perBuyAmount = 0), nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("buyIntervalMin이 0이면 INVALID_PARAMETER") {
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput.copy(buyIntervalMin = 0), nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("splitSellRatio가 0이면 INVALID_PARAMETER") {
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput.copy(splitSellRatio = BigDecimal.ZERO), nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("splitSellRatio가 1 이상이면 INVALID_PARAMETER") {
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput.copy(splitSellRatio = BigDecimal.ONE), nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
         }
 
         test("stopLossPct가 0이면 INVALID_PARAMETER") {
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput.copy(stopLossPct = BigDecimal.ZERO), nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.INVALID_PARAMETER
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
         }
     }
 
@@ -104,10 +104,10 @@ class CommandValidatorTest : FunSpec({
         test("KIS 검색 결과가 없으면 STOCK_NOT_FOUND") {
             every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(output = emptyList())
 
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.STOCK_NOT_FOUND
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.STOCK_NOT_FOUND
         }
     }
 
@@ -120,10 +120,10 @@ class CommandValidatorTest : FunSpec({
                 output = KisCurrentPriceResponse.Output(stckPrpr = "200000")
             )
 
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.PRICE_BELOW_ONE_SHARE
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.PRICE_BELOW_ONE_SHARE
         }
     }
 
@@ -142,10 +142,10 @@ class CommandValidatorTest : FunSpec({
             every { initiatedCycle.perBuyAmount } returns 950_000L
             every { tradingCycleRepository.findByStatusIn(listOf(TradingCycleStatus.INITIATED)) } returns listOf(initiatedCycle)
 
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.INSUFFICIENT_BALANCE
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE
         }
     }
 
@@ -164,10 +164,10 @@ class CommandValidatorTest : FunSpec({
             val existingCycle = mockk<TradingCycle>()
             every { tradingCycleRepository.findByStockCodeAndStatusIn(any(), any()) } returns listOf(existingCycle)
 
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.DUPLICATE_COMMAND
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.DUPLICATE_COMMAND
         }
     }
 
@@ -175,10 +175,10 @@ class CommandValidatorTest : FunSpec({
         test("현재 시각이 컷오프(15:14) 이후면 CUTOFF_PASSED — buyIntervalMin=3") {
             stubAllPass()
             // cutoff = 15:20 - 3*2 = 15:14
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(15, 15))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.CUTOFF_PASSED
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.CUTOFF_PASSED
         }
 
         test("컷오프 직전이면 통과") {
@@ -205,10 +205,10 @@ class CommandValidatorTest : FunSpec({
                 output = listOf(KisHolidayResponse.Output(bzdyYn = "N"))
             )
 
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.HOLIDAY
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.HOLIDAY
         }
     }
 
@@ -218,10 +218,10 @@ class CommandValidatorTest : FunSpec({
         test("장 시작 전(08:59)이면 OUT_OF_TRADING_HOURS") {
             stubAllPass()
 
-            val ex = shouldThrow<CommandValidationException> {
+            val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(8, 59))
             }
-            ex.errorCode shouldBe CommandValidationException.ErrorCode.OUT_OF_TRADING_HOURS
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.OUT_OF_TRADING_HOURS
         }
     }
 })

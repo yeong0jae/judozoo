@@ -1,6 +1,6 @@
-package at.backend.command.domain
+package at.backend.trading.domain
 
-class CommandValidationException(val errorCode: ErrorCode) : RuntimeException(errorCode.name) {
+class TradingValidationException(val errorCode: ErrorCode) : RuntimeException(errorCode.name) {
 
     enum class ErrorCode {
         INVALID_PARAMETER,

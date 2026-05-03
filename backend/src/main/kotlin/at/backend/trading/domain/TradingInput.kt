@@ -1,8 +1,8 @@
-package at.backend.command.domain
+package at.backend.trading.domain
 
 import java.math.BigDecimal
 
-data class CommandInput(
+data class TradingInput(
     val stockCode: String,                  // 종목 코드 (예: "005930")
     val perBuyAmount: Long,                 // 1회 매수 금액 (원)
     val buyIntervalMin: Int,                // 매수 간격 (분)
@@ -18,6 +18,6 @@ data class CommandInput(
             midwayProfitPct > BigDecimal.ZERO &&
             breakevenThresholdPct > BigDecimal.ZERO &&
             stopLossPct > BigDecimal.ZERO
-        if (!valid) throw CommandValidationException(CommandValidationException.ErrorCode.INVALID_PARAMETER)
+        if (!valid) throw TradingValidationException(TradingValidationException.ErrorCode.INVALID_PARAMETER)
     }
 }
