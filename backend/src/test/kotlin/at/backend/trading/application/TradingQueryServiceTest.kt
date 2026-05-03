@@ -1,7 +1,9 @@
 package at.backend.trading.application
 
+import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
+import at.backend.common.test.MutableTimeProvider
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
@@ -17,11 +19,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 
-@Import(KisRestClientMockConfig::class)
+@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
 class TradingQueryServiceTest(
     @Autowired private val tradingQueryService: TradingQueryService,
     @Autowired private val tradingCycleRepository: TradingCycleJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val timeProvider: MutableTimeProvider,
 ) : IntegrationTestBase() {
 
     private fun saveCycle(
@@ -53,6 +56,7 @@ class TradingQueryServiceTest(
         beforeEach {
             clearMocks(kisRestClient)
             tradingCycleRepository.deleteAll()
+            timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
         }
 
         context("findById") {
@@ -104,8 +108,9 @@ class TradingQueryServiceTest(
 
         context("findToday") {
             test("오늘 생성된 사이클 목록을 반환한다") {
-                saveCycle(stockCode = "005930")
+                val cycle = saveCycle(stockCode = "005930")
                 saveCycle(stockCode = "035420", stockName = "NAVER")
+                timeProvider.current = cycle.createdAt
 
                 val result = tradingQueryService.findToday()
 

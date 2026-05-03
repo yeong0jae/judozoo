@@ -1,20 +1,21 @@
 package at.backend.system.application
 
+import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.TradingProperties
 import org.springframework.stereotype.Service
-import java.time.LocalDate
 import java.time.LocalTime
 
 @Service
 class SystemService(
     private val kisRestClient: KisRestClient,
     private val tradingProperties: TradingProperties,
+    private val timeProvider: TimeProvider,
 ) {
 
     fun getStatus(): SystemStatusResult {
-        val now = LocalTime.now()
-        val isHoliday = kisRestClient.checkHoliday(LocalDate.now()).output.firstOrNull()?.bzdyYn != "Y"
+        val now = timeProvider.now().toLocalTime()
+        val isHoliday = kisRestClient.checkHoliday(timeProvider.today()).output.firstOrNull()?.bzdyYn != "Y"
         val tradingHoursOpen = now >= TRADING_START && now <= TRADING_END
         val cutoffPassed = now > CUTOFF_BASE.minusMinutes((tradingProperties.defaultBuyIntervalMin * 2).toLong())
         return SystemStatusResult(
