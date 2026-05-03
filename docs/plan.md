@@ -101,17 +101,17 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 > JPA 엔티티(`TradingCycle`, `Order`, `Execution`)와 Repository는 Phase 1 리팩토링에서 완료. Phase 3은 application/presentation 계층 구현에 집중.
 
 ### 산출물
-- `command.domain.CommandValidator`: 입력값 / 1주 가격 / 잔고 / 거래일 / 컷오프 / 중복 / 시간 검증
-  - `KisRestClient` / `TradingCycleJpaRepository` / `Clock` 주입
-  - 거부 시 `CommandValidationException(errorCode)` 발생
-- `command.application.CommandService`:
+- `trading.application.TradingValidator`: 입력값 / 1주 가격 / 잔고 / 거래일 / 컷오프 / 중복 / 시간 검증
+  - `KisRestClient` / `TradingCycleJpaRepository` 주입
+  - 거부 시 `TradingValidationException(errorCode)` 발생
+- `trading.application.TradingService`:
   - `create()`: 검증 → `TradingCycle(status=INITIATED)` 생성 → `TradingCycleJpaRepository.save()` → 응답 반환
   - `cancel()`: 상태별 취소 처리 (LIQUIDATING 멱등, CLOSED 거부)
 - REST 엔드포인트:
-  - `POST /api/commands` → 201
-  - `DELETE /api/commands/{id}` → 202 / 409
-  - `GET /api/commands?status=active|today`
-  - `GET /api/commands/{id}`
+  - `POST /api/trading` → 201
+  - `DELETE /api/trading/{id}` → 202 / 409
+  - `GET /api/trading?status=active|today`
+  - `GET /api/trading/{id}`
   - `GET /api/account/balance`
   - `GET /api/system/status`
   - `GET /api/stocks/search`, `GET /api/stocks/{code}/price`
@@ -183,8 +183,8 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 - Spring WebSocket + STOMP (`/ws` 엔드포인트)
 - `StatusBroadcastHandler`: 도메인 이벤트 → 토픽 발행
 - 토픽 페이로드 (spec §11.5):
-  - `/topic/commands/{id}`: PRICE / STATE / SIGNAL / EXECUTION / RETRY
-  - `/topic/commands/lifecycle`: CREATED / CLOSED
+  - `/topic/trading/{id}`: PRICE / STATE / SIGNAL / EXECUTION / RETRY
+  - `/topic/trading/lifecycle`: CREATED / CLOSED
   - `/topic/system`: MARKET_MODE / TOKEN_STATUS / HOLIDAY / BALANCE_INVALIDATED
 - BALANCE_INVALIDATED는 lifecycle CREATED/CLOSED와 함께 자동 발행
 

@@ -1,8 +1,9 @@
-package at.backend.command.application
+package at.backend.trading.application
 
-import at.backend.command.application.response.CommandCreatedResponse
-import at.backend.command.domain.AlreadyClosedException
-import at.backend.command.domain.CommandInput
+import at.backend.trading.application.result.TradingCancelResult
+import at.backend.trading.application.result.TradingCreatedResult
+import at.backend.trading.domain.AlreadyClosedException
+import at.backend.trading.domain.TradingInput
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
@@ -12,15 +13,15 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
 @Service
-class CommandService(
-    private val commandValidator: CommandValidator,
+class TradingService(
+    private val tradingValidator: TradingValidator,
     private val tradingCycleRepository: TradingCycleJpaRepository,
 ) {
 
     @Transactional
-    fun create(input: CommandInput): CommandCreatedResponse {
+    fun create(input: TradingInput): TradingCreatedResult {
         val now = LocalDateTime.now()
-        val stockName = commandValidator.validate(input, now)
+        val stockName = tradingValidator.validate(input, now)
         val cycle = TradingCycle(
             stockCode = input.stockCode,
             stockName = stockName,
@@ -32,13 +33,13 @@ class CommandService(
             stopLossPct = input.stopLossPct.negate(),
         )
         val saved = tradingCycleRepository.save(cycle)
-        return CommandCreatedResponse(id = saved.id)
+        return TradingCreatedResult.from(saved)
     }
 
     @Transactional
-    fun cancel(id: Long) {
+    fun cancel(id: Long): TradingCancelResult {
         val cycle = tradingCycleRepository.findById(id)
-            .orElseThrow { EntityNotFoundException("TradingCycle not found: $id") }
+            .orElseThrow { EntityNotFoundException("TradingCycle을 찾을 수 없습니다: $id") }
 
         when (cycle.status) {
             TradingCycleStatus.INITIATED,
@@ -51,5 +52,6 @@ class CommandService(
             TradingCycleStatus.LIQUIDATING -> Unit
             TradingCycleStatus.CLOSED -> throw AlreadyClosedException(id)
         }
+        return TradingCancelResult.from(cycle)
     }
 }
