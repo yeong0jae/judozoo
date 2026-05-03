@@ -4,6 +4,7 @@ import at.backend.trading.application.result.TradingSummaryResult
 import at.backend.trading.application.result.TradingDetailResult
 import at.backend.trading.application.result.DailyTradingResult
 import at.backend.library.exception.EntityNotFoundException
+import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.TradingProperties
 import at.backend.trading.domain.cycle.TradingCycle
@@ -14,7 +15,6 @@ import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import org.springframework.stereotype.Service
-import java.time.LocalDate
 
 @Service
 class TradingQueryService(
@@ -23,13 +23,14 @@ class TradingQueryService(
     private val executionRepository: ExecutionJpaRepository,
     private val kisRestClient: KisRestClient,
     private val tradingProperties: TradingProperties,
+    private val timeProvider: TimeProvider,
 ) {
 
     fun findActive(): List<TradingSummaryResult> =
         tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES).map { toSummary(it) }
 
     fun findToday(): List<DailyTradingResult> {
-        val startOfDay = LocalDate.now().atStartOfDay()
+        val startOfDay = timeProvider.today().atStartOfDay()
         val endOfDay = startOfDay.plusDays(1)
         return tradingCycleRepository.findByCreatedAtBetween(startOfDay, endOfDay).map { toDailyTrading(it) }
     }

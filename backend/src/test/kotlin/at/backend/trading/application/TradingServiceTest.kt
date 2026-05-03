@@ -1,7 +1,10 @@
 package at.backend.trading.application
 
+import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
+import at.backend.common.test.MutableTimeProvider
+import at.backend.library.exception.EntityNotFoundException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
@@ -14,7 +17,6 @@ import at.backend.trading.domain.TradingValidationException.ErrorCode
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
-import at.backend.library.exception.EntityNotFoundException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
@@ -23,11 +25,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 
-@Import(KisRestClientMockConfig::class)
+@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
 class TradingServiceTest(
     @Autowired private val tradingService: TradingService,
     @Autowired private val tradingCycleRepository: TradingCycleJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val timeProvider: MutableTimeProvider,
 ) : IntegrationTestBase() {
 
     private fun stubSearchStock(name: String = "삼성전자") {
@@ -101,7 +104,31 @@ class TradingServiceTest(
         beforeEach {
             clearMocks(kisRestClient)
             tradingCycleRepository.deleteAll()
+            timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
             stubAllKisSuccess()
+        }
+
+        context("정상 생성") {
+            test("유효한 입력이면 INITIATED 상태의 사이클이 입력값 그대로 저장된다") {
+                val result = tradingService.create(validInput())
+
+                val saved = tradingCycleRepository.findById(result.id).orElseThrow()
+                saved.status shouldBe TradingCycleStatus.INITIATED
+                saved.stockCode shouldBe "005930"
+                saved.stockName shouldBe "삼성전자"
+                saved.perBuyAmount shouldBe 100_000L
+                saved.buyIntervalMin shouldBe 3
+                saved.splitSellRatio shouldBe BigDecimal("0.500")
+                saved.midwayProfitPct shouldBe BigDecimal("1.500")
+                saved.breakevenThresholdPct shouldBe BigDecimal("0.500")
+            }
+
+            test("손절 비율은 음수로 저장된다") {
+                val result = tradingService.create(validInput())
+
+                val saved = tradingCycleRepository.findById(result.id).orElseThrow()
+                saved.stopLossPct shouldBe BigDecimal("-2.000")
+            }
         }
 
         context("입력값 범위 오류") {
