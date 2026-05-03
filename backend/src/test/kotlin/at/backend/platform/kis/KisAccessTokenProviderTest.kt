@@ -18,14 +18,14 @@ class KisAccessTokenProviderTest : FunSpec({
 
             val provider = KisAccessTokenProvider(client)
 
-            provider.getToken() shouldBe "init-token"
+            provider.token shouldBe "init-token"
         }
 
         test("발급 중 발생한 예외는 그대로 던진다") {
             val client = mockk<KisAuthClient>()
             every { client.issueToken() } throws RuntimeException("boom")
 
-            val ex = shouldThrow<RuntimeException> { KisAccessTokenProvider(client) }
+            val ex = shouldThrow<RuntimeException> { KisAccessTokenProvider(client).token }
             ex.message shouldBe "boom"
         }
     }

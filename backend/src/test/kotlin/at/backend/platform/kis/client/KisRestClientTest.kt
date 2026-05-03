@@ -3,8 +3,6 @@ package at.backend.platform.kis.client
 import at.backend.common.test.TestRestClientConfig
 import at.backend.platform.kis.KisRateLimiter
 import at.backend.platform.kis.config.KisProperties
-import at.backend.stock.domain.StockInfo
-import at.backend.trading.domain.execution.Execution
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
@@ -15,11 +13,7 @@ import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
 import org.springframework.web.client.RestClientException
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
 import kotlin.system.measureTimeMillis
-
-private val SEOUL: ZoneId = ZoneId.of("Asia/Seoul")
 
 class KisRestClientTest : FunSpec({
 
@@ -51,58 +45,54 @@ class KisRestClientTest : FunSpec({
         )
     }
 
-    context("정상 응답 매핑") {
+    context("정상 응답 역직렬화") {
 
-        test("현재가 조회 - 응답 본문의 현재가를 정수로 변환") {
+        test("현재가 조회 - stck_prpr 필드 반환") {
             stub("/uapi/domestic-stock/v1/quotations/inquire-price", "current-price.json")
 
-            client().getCurrentPrice("005930") shouldBe 70000
+            client().getCurrentPrice("005930").output.stckPrpr shouldBe "70000"
         }
 
-        test("영업일 조회 - 영업일 플래그가 Y면 true 반환") {
+        test("영업일 조회 - bzdy_yn 필드 반환") {
             stub("/uapi/domestic-stock/v1/quotations/chk-holiday", "holiday.json")
 
-            client().isBusinessDay(LocalDate.of(2026, 1, 2)) shouldBe true
+            client().checkHoliday(LocalDate.of(2026, 1, 2)).output.first().bzdyYn shouldBe "Y"
         }
 
-        test("종목 검색 - 검색 결과를 종목 정보 도메인으로 변환") {
+        test("종목 검색 - output 목록 반환") {
             stub("/uapi/domestic-stock/v1/quotations/search-stock-info", "stock-search.json")
 
-            client().searchStock("삼성") shouldBe listOf(StockInfo("005930", "삼성전자"))
+            val output = client().searchStock("삼성").output
+            output shouldHaveSize 1
+            output[0].pdno shouldBe "005930"
+            output[0].prdtAbrvName shouldBe "삼성전자"
         }
 
-        test("예수금 조회 - 주문 가능 금액을 Long으로 변환") {
+        test("예수금 조회 - prvs_rcdl_excc_amt 필드 반환") {
             stub("/uapi/domestic-stock/v1/trading/inquire-balance", "balance.json")
 
-            client().getBalance() shouldBe 1234567L
+            client().getBalance().output2.first().prvsRcdlExccAmt shouldBe "1234567"
         }
 
-        test("3분봉 조회 - 체결 시각을 봉 종료 시각으로 매핑하고 시작 시각은 3분 전") {
+        test("3분봉 조회 - output2 목록 반환") {
             stub("/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice", "bars.json")
 
-            val bars = client().getBars("005930")
-
-            bars shouldHaveSize 2
-            bars[0].stockCode shouldBe "005930"
-            bars[0].openPrice shouldBe 70100
-            bars[0].closePrice shouldBe 70200
-            val firstEnd = bars[0].endTime.atZone(SEOUL)
-            firstEnd.toLocalDate() shouldBe LocalDate.of(2026, 1, 2)
-            firstEnd.toLocalTime() shouldBe LocalTime.of(15, 3, 0)
-            bars[0].startTime shouldBe bars[0].endTime.minusSeconds(180)
-
-            val secondEnd = bars[1].endTime.atZone(SEOUL)
-            secondEnd.toLocalDate() shouldBe LocalDate.of(2026, 1, 2)
-            secondEnd.toLocalTime() shouldBe LocalTime.of(15, 0, 0)
+            val output = client().getBars("005930").output2
+            output shouldHaveSize 2
+            output[0].stckBsopDate shouldBe "20260102"
+            output[0].stckCntgHour shouldBe "150300"
+            output[0].stckOprc shouldBe "70100"
+            output[0].stckPrpr shouldBe "70200"
         }
 
-        test("일별 체결 조회 - 다른 종목/체결 수량 0인 주문은 제외하고 변환") {
+        test("일별 체결 조회 - output1 전체 목록 반환") {
             stub("/uapi/domestic-stock/v1/trading/inquire-daily-ccld", "daily-ccld.json")
 
-            val executions = client().getDailyExecutions("005930", LocalDate.of(2026, 1, 2))
-
-            executions shouldHaveSize 1
-            executions[0] shouldBe Execution(executedPrice = 70000, executedQty = 10, fee = 0)
+            val output = client().getDailyExecutions("005930", LocalDate.of(2026, 1, 2)).output1
+            output shouldHaveSize 3
+            output[0].odno shouldBe "0000000001"
+            output[0].totCcldQty shouldBe "10"
+            output[0].avgPrvs shouldBe "70000"
         }
     }
 

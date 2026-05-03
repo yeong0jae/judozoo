@@ -21,8 +21,7 @@
 │   필요한 계층만 둔다.                                       │
 │                                                          │
 │   도메인:                                                  │
-│    - command  : 매매 명령 접수/취소/조회 (사용자 facing)    │
-│    - trading  : 매매 사이클 엔진(상태머신/시그널/주문/룰)    │
+│    - trading  : 매매 사이클 접수/취소/조회 + 엔진(상태머신/시그널/주문/룰) │
 │    - market   : 시세 스트림 (WS + REST polling fallback)  │
 │    - report   : 일별 실적 집계                             │
 │    - stock    : 종목 검색                                  │
@@ -36,9 +35,9 @@
 
 ### 1.2 주요 설계 원칙
 
-- **Package by feature**: 도메인별로 분할(`command` / `trading` / `market` / `report` / `stock` / `kis` / `common`)하고 도메인 안에 `presentation` / `application` / `domain` / `infrastructure` 계층을 배치. 도메인 간 결합은 `application` 계층끼리만
+- **Package by feature**: 도메인별로 분할(`trading` / `market` / `report` / `stock` / `kis` / `common`)하고 도메인 안에 `presentation` / `application` / `domain` / `infrastructure` 계층을 배치. 도메인 간 결합은 `application` 계층끼리만
 - **Spring Web MVC + Kotlin Coroutines**: webflux 미사용. presentation 계층은 동기 처리, 백그라운드 매매 사이클은 Coroutine Scope에서 비동기 실행
-- **종목별 독립 실행**: 명령(`Command`)당 별도 코루틴 + Mutex로 격리. 다른 명령에 영향 없음
+- **종목별 독립 실행**: 트레이딩 사이클당 별도 코루틴 + Mutex로 격리. 다른 사이클에 영향 없음
 - **이벤트 기반 시그널 처리**: 시세 스트림(`Flow<PriceTick>`) → SignalDetector → 명령 매칭 → OrderExecutor
 - **시그널 감지와 주문 실행 분리**: SignalDetector는 발동 의도만 발신, OrderExecutor가 KIS 호출/재시도 담당
 - **상태 머신**: Kotlin `sealed class`로 상태/시그널 표현. 컴파일러가 케이스 누락 강제 검사
@@ -87,49 +86,43 @@
 
 ### 3.1 Backend (`backend/src/main/kotlin/at/backend/`)
 
-도메인 우선(package by feature). 각 도메인 안에서 필요한 계층(`presentation` / `application` / `domain` / `infrastructure`)만 둔다. 모든 도메인이 모든 계층을 가질 필요는 없다 — 예: `trading`은 사용자 노출이 없으므로 `presentation`이 없고, `kis`는 인프라성이라 `domain`이 얇다.
+도메인 우선(package by feature). 각 도메인 안에서 필요한 계층(`presentation` / `application` / `domain` / `infrastructure`)만 둔다. 모든 도메인이 모든 계층을 가질 필요는 없다 — 예: `kis`는 인프라성이라 `domain`이 얇다.
 
 ```
 at.backend/
 ├── BackendApplication.kt
 │
-├── command/                          # 매매 명령 접수/취소/조회 (사용자 facing)
+├── trading/                          # 매매 사이클 전체 (접수/취소/조회 + 엔진)
 │   ├── presentation/
-│   │   ├── CommandController.kt
-│   │   └── dto/                      # CreateCommandRequest, CommandResponse
+│   │   ├── TradingController.kt      # POST/DELETE/GET /api/trading
+│   │   └── request/                  # CreateTradingRequest
 │   ├── application/
-│   │   └── CommandService.kt         # 검증 / 접수 / 취소 오케스트레이션
+│   │   ├── TradingService.kt         # 검증 / 접수 / 취소 오케스트레이션
+│   │   ├── TradingQueryService.kt    # 활성/오늘/상세 조회
+│   │   ├── TradingValidator.kt       # 입력값 / 잔고 / 거래일 / 컷오프 검증
+│   │   ├── CycleOrchestrator.kt      # 가격 이벤트/시그널 → 사이클 라우팅
+│   │   └── result/                   # TradingCreatedResult, TradingSummaryResult, ...
 │   ├── domain/
-│   │   ├── Command.kt                # 도메인 모델
-│   │   └── CommandValidator.kt       # 입력값 / 잔고 / 거래일 / 컷오프 검증
-│   └── infrastructure/
-│       ├── entity/CommandEntity.kt
-│       └── repository/CommandJpaRepository.kt
-│
-├── trading/                          # 매매 사이클 엔진 (사용자 노출 없음)
-│   ├── application/
-│   │   └── CycleOrchestrator.kt      # 가격 이벤트/시그널 → 사이클 라우팅
+│   │   ├── TradingInput.kt           # 트레이딩 생성 입력 값 객체
+│   │   ├── TradingValidationException.kt
+│   │   ├── AlreadyClosedException.kt
 │   ├── domain/
 │   │   ├── cycle/
-│   │   │   ├── TradingCycle.kt       # 코루틴 기반 사이클 실행기
-│   │   │   ├── CycleState.kt         # sealed class
-│   │   │   └── CycleRegistry.kt      # 활성 사이클 in-memory 레지스트리
-│   │   ├── signal/
-│   │   │   ├── Signal.kt             # sealed class
-│   │   │   ├── SignalDetector.kt
-│   │   │   └── SignalGuard.kt        # is_alive 판정 (재시도 중단 조건)
+│   │   │   ├── TradingCycle.kt       # JPA 엔티티 + 도메인 로직 (상태 전이 / 시그널 감지 / 매수가 산정)
+│   │   │   ├── TradingCycleStatus.kt # enum (INITIATED/BUYING/HOLDING/LIQUIDATING/CLOSED)
+│   │   │   └── CloseReason.kt        # enum (TAKE_PROFIT/STOP_LOSS/…)
 │   │   ├── order/
-│   │   │   ├── OrderExecutor.kt      # 매수/매도 + 재시도 + 멱등성
-│   │   │   └── OrderTrigger.kt       # enum
-│   │   └── rule/
-│   │       └── TradingRules.kt       # 분할 매도 수량 / 매수가 산정 등 순수 함수
+│   │   │   └── Order.kt              # JPA 엔티티 (주문)
+│   │   ├── execution/
+│   │   │   └── Execution.kt          # JPA 엔티티 (체결)
+│   │   ├── price/
+│   │   │   ├── Bar.kt                # 3분봉 값 객체
+│   │   │   └── PriceTick.kt          # 실시간 호가 값 객체
+│   │   └── signal/
+│   │       └── Signal.kt             # sealed class + isAlive
 │   └── infrastructure/
-│       ├── entity/
-│       │   ├── CycleEntity.kt
-│       │   ├── OrderEntity.kt
-│       │   └── ExecutionEntity.kt
 │       ├── repository/
-│       │   ├── CycleJpaRepository.kt
+│       │   ├── TradingCycleJpaRepository.kt
 │       │   ├── OrderJpaRepository.kt
 │       │   └── ExecutionJpaRepository.kt
 │       └── scheduler/
@@ -187,7 +180,7 @@ at.backend/
 - `presentation`은 같은 도메인의 `application`에만 의존
 - `infrastructure`는 같은 도메인의 `domain`을 구현/저장 (역방향 의존 금지)
 - `kis`, `common`은 다른 도메인이 의존하는 공유 모듈. 반대로 도메인을 의존하지 않음
-- 도메인 간 호출은 `application` 계층끼리만 (예: `CommandService` → `MarketDataStream`)
+- 도메인 간 호출은 `application` 계층끼리만 (예: `TradingService` → `MarketDataStream`)
 
 ### 3.2 Frontend (`frontend/`)
 
@@ -202,12 +195,12 @@ frontend/
     ├── api/                          # REST 클라이언트 (TanStack Query)
     ├── ws/                           # STOMP 클라이언트
     ├── pages/
-    │   ├── CommandPage.tsx           # 매매 명령 화면 (입력 폼 + 검증 컨텍스트)
+    │   ├── TradingPage.tsx           # 매매 명령 화면 (입력 폼 + 검증 컨텍스트)
     │   ├── MonitoringPage.tsx        # 진행 중 모니터링 (리스트 + 상세 뷰)
     │   └── ReportPage.tsx            # 실적 조회 화면
     ├── features/
-    │   ├── command/
-    │   ├── monitoring/               # 활성 명령 리스트 + 단일 명령 상세
+    │   ├── trading/
+    │   ├── monitoring/               # 활성 사이클 리스트 + 단일 사이클 상세
     │   └── report/
     ├── components/
     └── lib/
@@ -217,11 +210,11 @@ frontend/
 
 ## 4. 데이터 모델 (MySQL 스키마)
 
-### 4.1 `commands`
+### 4.1 `trading_cycles`
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| id | CHAR(36) | PK (UUID) |
+| id | BIGINT AUTO_INCREMENT | PK |
 | stock_code | VARCHAR(10) | 종목 코드 |
 | stock_name | VARCHAR(50) | 종목명 |
 | per_buy_amount | BIGINT | 1회 매수 금액 (원) |
@@ -232,10 +225,12 @@ frontend/
 | stop_loss_pct | DECIMAL(5,3) | 손절 기준 (%, 음수) |
 | status | VARCHAR(20) | INITIATED / BUYING / HOLDING / LIQUIDATING / CLOSED |
 | close_reason | VARCHAR(30) | NULL / TAKE_PROFIT / STOP_LOSS / BREAKEVEN / TREND_BREAK / MARKET_CLOSE / CANCELLED / NO_FILL / UNCLOSED |
+| buy_attempt | INT | 현재 매수 회차 (0~3) |
 | breakeven_armed | BOOLEAN | +본전기준% 도달 여부 |
 | trend_break_armed | BOOLEAN | +5% 도달 여부 |
 | tp_stages_fired | INT | 비트 플래그 (b0=2%, b1=3%, b2=5%) |
-| created_at | DATETIME(3) | |
+| created_at | DATETIME(3) | (BaseEntity) |
+| updated_at | DATETIME(3) | (BaseEntity) |
 | closed_at | DATETIME(3) | NULL 가능 |
 
 > **status 정의**:
@@ -245,12 +240,14 @@ frontend/
 > - LIQUIDATING: 청산 시그널 발동, 매도 진행 중
 > - CLOSED: 사이클 종료
 
+> `TradingCycle` JPA 엔티티가 이 테이블을 직접 매핑하며 도메인 로직(상태 전이 / 시그널 감지 / 매수가 산정)을 함께 보유한다. `holdingQty`·`buyPrice`는 `orders`/`executions`에서 집계하여 파라미터로 전달한다.
+
 ### 4.2 `orders`
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| id | CHAR(36) | PK (UUID), client_order_id로 사용 |
-| command_id | CHAR(36) | FK → commands |
+| id | BIGINT AUTO_INCREMENT | PK |
+| cycle_id | BIGINT | FK → trading_cycles |
 | side | VARCHAR(4) | BUY / SELL |
 | trigger | VARCHAR(20) | BUY_TRY_1/2/3 / TP_2PCT/3PCT/5PCT/REMAINDER / MIDWAY_TP / BREAKEVEN / STOP_LOSS / MARKET_CLOSE / CANCEL |
 | order_qty | INT | 주문 수량 |
@@ -258,27 +255,28 @@ frontend/
 | order_type | VARCHAR(10) | 항상 'MARKET' |
 | kis_order_no | VARCHAR(20) | KIS 주문번호 |
 | status | VARCHAR(15) | PENDING / SUBMITTED / PARTIAL / FILLED / CANCELLED / FAILED |
-| submitted_at | DATETIME(3) | |
-| settled_at | DATETIME(3) | NULL 가능 |
 | retry_count | INT | |
 | last_error | VARCHAR(500) | NULL 가능 |
+| created_at | DATETIME(3) | (BaseEntity) |
+| updated_at | DATETIME(3) | (BaseEntity) |
 
 ### 4.3 `executions`
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
 | id | BIGINT AUTO_INCREMENT | PK |
-| order_id | CHAR(36) | FK → orders |
+| order_id | BIGINT | FK → orders |
 | executed_qty | INT | |
 | executed_price | INT | 원 |
 | fee | INT | 수수료 |
 | tax | INT | 세금 (매도 시) |
-| executed_at | DATETIME(3) | |
+| created_at | DATETIME(3) | (BaseEntity) |
+| updated_at | DATETIME(3) | (BaseEntity) |
 
 ### 4.4 인덱스
-- `commands(status, stock_code)` — 활성 명령 조회
-- `commands(created_at)` — 일별 리포트
-- `orders(command_id)` — 명령 단위 주문 조회
+- `trading_cycles(status, stock_code)` — 활성 사이클 조회
+- `trading_cycles(created_at)` — 일별 리포트
+- `orders(cycle_id)` — 사이클 단위 주문 조회
 - `executions(order_id)` — 주문별 체결 조회
 
 ### 4.5 스키마 관리
@@ -289,17 +287,17 @@ frontend/
 
 ## 5. 매매 사이클 상태 머신
 
-### 5.1 상태 표현 (Kotlin sealed class)
+### 5.1 상태 표현
+
+`TradingCycleStatus` enum이 상태를 나타낸다. 전이 규칙은 `TradingCycle.canTransitionTo()`에 캡슐화되어 있다.
 
 ```kotlin
-sealed class CycleState {
-    object Initiated : CycleState()
-    data class Buying(val nextAttempt: Int) : CycleState()
-    object Holding : CycleState()
-    data class Liquidating(val reason: CloseReason) : CycleState()
-    data class Closed(val reason: CloseReason) : CycleState()
+enum class TradingCycleStatus {
+    INITIATED, BUYING, HOLDING, LIQUIDATING, CLOSED
 }
 ```
+
+`buyAttempt`(현재 회차)와 `closeReason`은 `TradingCycle` 엔티티 필드로 관리한다.
 
 ### 5.2 전이 다이어그램
 
@@ -473,7 +471,7 @@ suspend fun executeSell(cycle: TradingCycle, signal: Signal, intentQty: Int) {
 
 > **부분 매도 진행 중 추가 시그널 충돌 방지**: TpStage 매도(예: 20주 부분 매도) in-flight 중에 StopLoss/MarketClose 등 우선순위 0/1 시그널이 발동하면, 새 매도의 quantity = 보유 - 진행 중 미체결분으로 자동 산정되어 *서로 다른 보유분*에 대해 매도. KIS 멱등성(clientOrderId UUID)이 중복 발사를 막는다.
 
-> **재시도 누적 가시성 (PRD §모니터링 매도 재시도 상태)**: 매도 실패가 누적되는 동안 `orders.retry_count` 와 `orders.last_error`를 매 시도마다 업데이트하고, `/topic/commands/{id}` 로 `EXECUTION` 또는 별도 `RETRY` 이벤트를 발행하여 사용자가 상세 뷰에서 진행 상태를 인지할 수 있게 한다.
+> **재시도 누적 가시성 (PRD §모니터링 매도 재시도 상태)**: 매도 실패가 누적되는 동안 `orders.retry_count` 와 `orders.last_error`를 매 시도마다 업데이트하고, `/topic/trading/{id}` 로 `EXECUTION` 또는 별도 `RETRY` 이벤트를 발행하여 사용자가 상세 뷰에서 진행 상태를 인지할 수 있게 한다.
 
 ### 7.3 시그널 생존 판정 (`SignalGuard.isAlive`)
 
@@ -519,7 +517,7 @@ PRD §매수가 산정에 따라 **매수 비용 + 예상 매도 비용**을 모
 3회 매수 시도 완료 시점에 누적 체결 수량 = 0이면:
 - Liquidating 단계 거치지 않고 즉시 Closed 전이
 - `commands.close_reason = NO_FILL`, `closed_at = now()`
-- STOMP `/topic/commands/{id}` 으로 `STATE` 이벤트(`status=CLOSED, closeReason=NO_FILL`) 발송
+- STOMP `/topic/trading/{id}` 으로 `STATE` 이벤트(`status=CLOSED, closeReason=NO_FILL`) 발송
 
 ---
 
@@ -545,7 +543,7 @@ PRD §매수가 산정에 따라 **매수 비용 + 예상 매도 비용**을 모
 | 분봉 조회 | `GET /uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice` | SignalDetector (TrendBreak) |
 | 매수/매도 주문 | `POST /uapi/domestic-stock/v1/trading/order-cash` | OrderExecutor |
 | 주문 정정/취소 | `POST /uapi/domestic-stock/v1/trading/order-rvsecncl` | OrderExecutor |
-| 잔고 조회 | `GET /uapi/domestic-stock/v1/trading/inquire-balance` | CommandService (검증) |
+| 잔고 조회 | `GET /uapi/domestic-stock/v1/trading/inquire-balance` | TradingValidator (검증) |
 | 일별 체결 내역 | `GET /uapi/domestic-stock/v1/trading/inquire-daily-ccld` | OrderExecutor (멱등성) |
 | 실시간 시세 (WS) | TR `H0STCNT0` | KisWebSocketClient |
 | 실시간 체결 통보 (WS) | TR `H0STCNI0` | KisWebSocketClient |
@@ -592,17 +590,17 @@ PRD §매수가 산정에 따라 **매수 비용 + 예상 매도 비용**을 모
 - `@Scheduled(cron = "0 0 8 * * MON-FRI", zone = "Asia/Seoul")`: 영업일 검증 + 명령 접수 게이트 토글
 
 ### 10.3 신규 명령 컷오프 검증
-- `CommandService.create()`에서 현재 KST 시각과 컷오프(`15:20 - buyIntervalMin × 2`) 비교
-- 컷오프 이후면 `CutoffPassedException` → 400 응답
+- `TradingService.create()`에서 현재 KST 시각과 컷오프(`15:20 - buyIntervalMin × 2`) 비교
+- 컷오프 이후면 `TradingValidationException(CUTOFF_PASSED)` → 400 응답
 
 ---
 
 ## 11. REST API (UI 통신)
 
-### 11.1 명령 관리
+### 11.1 트레이딩 관리
 
 ```
-POST /api/commands
+POST /api/trading
   Request: {
     stockCode, perBuyAmount, buyIntervalMin?, splitSellRatio?,
     midwayProfitPct?, breakevenThresholdPct?, stopLossPct?
@@ -618,7 +616,7 @@ POST /api/commands
     - OUT_OF_TRADING_HOURS
     - INVALID_PARAMETER
 
-DELETE /api/commands/{id}
+DELETE /api/trading/{id}
   - status = INITIATED / BUYING / HOLDING:
       Response 202: { status: "LIQUIDATING" } (보유 > 0)
                     또는 { status: "CLOSED", closeReason: "CANCELLED" } (보유 = 0, 직행)
@@ -627,11 +625,11 @@ DELETE /api/commands/{id}
   - status = CLOSED:
       Response 409 errorCode: "ALREADY_CLOSED"
 
-GET /api/commands?status=active|today
-  Response 200: ActiveCommandSummary[] (status=active)
-              | DailyCommand[]          (status=today)
+GET /api/trading?status=active|today
+  Response 200: TradingSummary[] (status=active)
+              | DailyTrading[]   (status=today)
 
-  ActiveCommandSummary: {
+  TradingSummary: {
     commandId, stockCode, stockName,
     status,                              // INITIATED / BUYING / HOLDING / LIQUIDATING
     currentPrice, averageBuyPrice,
@@ -640,17 +638,17 @@ GET /api/commands?status=active|today
     buyAttempt: { completed: 0..3, total: 3 }
   }
 
-GET /api/commands/{id}
-  Response 200: CommandDetail
+GET /api/trading/{id}
+  Response 200: TradingDetail
 
-  CommandDetail = ActiveCommandSummary + {
+  TradingDetail = TradingSummary + {
     totalBoughtQty,
     tpStages: { fired2pct, fired3pct, fired5pct },     // 비트플래그 디코딩
     splitSellProgress: { soldPct },                    // 누적 매도 비율 (0~100)
     breakevenArmed, trendBreakArmed,
     closeReason,                                       // nullable
     createdAt, closedAt,
-    // 명령 파라미터 (입력값 그대로)
+    // 트레이딩 파라미터 (입력값 그대로)
     perBuyAmount, buyIntervalMin, splitSellRatio,
     midwayProfitPct, breakevenThresholdPct, stopLossPct,
     // 매도 재시도 가시성 (PRD §모니터링 운영 항목)
@@ -720,15 +718,15 @@ GET /api/system/status
 WS endpoint: /ws
 
 Topics:
-  /topic/commands/{id}        - 단일 명령 이벤트 (모니터링 상세 뷰 / 리스트 행 갱신용)
-  /topic/commands/lifecycle   - 명령 생성/종료 (모니터링 리스트의 행 추가/제거용)
+  /topic/trading/{id}        - 단일 명령 이벤트 (모니터링 상세 뷰 / 리스트 행 갱신용)
+  /topic/trading/lifecycle   - 명령 생성/종료 (모니터링 리스트의 행 추가/제거용)
   /topic/system               - 시세 모드 변경, 휴장 토글, 토큰 갱신 실패 등 시스템 전역
 ```
 
 #### 페이로드
 
 ```
-/topic/commands/{id}:
+/topic/trading/{id}:
   { type: "PRICE",     currentPrice, profitRate, profitAmount, ts }
   { type: "STATE",     status, closeReason?, ts }
   { type: "SIGNAL",    signalType, event: "ARMED" | "FIRED", stage?, ts }
@@ -736,7 +734,7 @@ Topics:
                        totalFilledQty, holdingQty, averageBuyPrice, ts }
   { type: "RETRY",     signalType, retryCount, lastError, ts }   // 매도 재시도 누적
 
-/topic/commands/lifecycle:
+/topic/trading/lifecycle:
   { type: "CREATED", commandId, stockCode, stockName, ts }
   { type: "CLOSED",  commandId, closeReason, ts }
 
@@ -752,11 +750,11 @@ Topics:
 
 #### 프론트 구독 흐름 (모니터링 화면)
 
-1. 페이지 진입: `GET /api/system/status` + `GET /api/commands?status=active` → 시스템 상태 배지 + 리스트 렌더
-2. `/topic/commands/lifecycle` 구독 → CREATED 이벤트 시 행 추가, CLOSED 시 행 제거 + **종료 토스트** 1회 표시 (PRD §종료 인지)
-3. 활성 명령마다 `/topic/commands/{id}` 구독 → 행/상세 뷰 갱신 (PRICE / STATE / SIGNAL / EXECUTION / RETRY)
+1. 페이지 진입: `GET /api/system/status` + `GET /api/trading?status=active` → 시스템 상태 배지 + 리스트 렌더
+2. `/topic/trading/lifecycle` 구독 → CREATED 이벤트 시 행 추가, CLOSED 시 행 제거 + **종료 토스트** 1회 표시 (PRD §종료 인지)
+3. 활성 명령마다 `/topic/trading/{id}` 구독 → 행/상세 뷰 갱신 (PRICE / STATE / SIGNAL / EXECUTION / RETRY)
 4. `/topic/system` 구독 → 시스템 상태 배지(시세 모드 / 토큰 / 휴장) 갱신
-5. 상세 뷰 진입: `GET /api/commands/{id}` 로 보강 데이터(이력 + activeSell) 로드
+5. 상세 뷰 진입: `GET /api/trading/{id}` 로 보강 데이터(이력 + activeSell) 로드
 
 #### 프론트 구독 흐름 (매매 명령 화면)
 
@@ -830,7 +828,7 @@ logging:
 - `trading.domain.rule.TradingRules`: 분할 매도 수량 계산, 매수가 산정, 절사/잔여 처리
 - `trading.domain.signal.SignalDetector`: 각 시그널 트리거 조건, 우선순위, 상태성 영속화
 - `trading.domain.cycle.TradingCycle`: 상태 전이 규칙, 잘못된 전이 차단
-- `command.domain.CommandValidator`: 입력값 / 잔고 / 거래일 / 컷오프 검증
+- `trading.application.TradingValidator`: 입력값 / 잔고 / 거래일 / 컷오프 검증
 
 ### 14.2 통합 테스트
 - **DB**: Testcontainers MySQL

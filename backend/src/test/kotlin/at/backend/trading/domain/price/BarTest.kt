@@ -1,4 +1,4 @@
-package at.backend.trading.domain
+package at.backend.trading.domain.price
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
