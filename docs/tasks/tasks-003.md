@@ -35,15 +35,15 @@ Goal: 사용자가 트레이딩을 접수·취소·조회할 수 있는 REST API
 ## Tests
 
 - [x] 단위 테스트 — `TradingValidatorTest`: FunSpec; 8개 거부 errorCode 각각 context 블록; KisRestClient MockK; Spring 컨텍스트 없음
-- [ ] 통합 테스트 — `TradingServiceTest`: `IntegrationTestBase` (Testcontainers MySQL); WireMock KIS 스텁; 8개 거부 검증; 정상 접수 후 DB에 `TradingCycle(status=INITIATED)` 저장 확인; 다중 종목 동시 접수 시 잔고 차감 누적
-- [ ] 통합 테스트 — `TradingControllerTest`: MockMvc + mocked `TradingService`; DELETE 상태별 응답 (BUYING/HOLDING/LIQUIDATING/CLOSED); `GET /api/trading/{id}` DTO shape 검증
+- [x] 통합 테스트 — `TradingServiceTest`: `IntegrationTestBase` (Testcontainers MySQL); WireMock KIS 스텁; 8개 거부 검증; 정상 접수 후 DB에 `TradingCycle(status=INITIATED)` 저장 확인; 다중 종목 동시 접수 시 잔고 차감 누적
+- [x] 통합 테스트 — `TradingControllerTest`: MockMvc + mocked `TradingService`; DELETE 상태별 응답 (BUYING/HOLDING/LIQUIDATING/CLOSED); `GET /api/trading/{id}` DTO shape 검증
 
 ## Verification
 
-- [ ] 거부 errorCode 8건 + ALREADY_CLOSED 통합 테스트 통과
-- [ ] 다중 종목 동시 접수 시 잔고 차감 누적 검증
-- [ ] DELETE 상태별 응답 검증
-- [ ] `TradingDetail` DTO shape이 spec §11.1과 일치 — Phase 5 프론트 mock → 실 API 1:1 교체 가능
+- [x] 거부 errorCode 8건 + ALREADY_CLOSED 통합 테스트 통과
+- [x] 다중 종목 동시 접수 시 잔고 차감 누적 검증
+- [x] DELETE 상태별 응답 검증
+- [x] `TradingDetail` DTO shape이 spec §11.1과 일치 — Phase 5 프론트 mock → 실 API 1:1 교체 가능
 
 ---
 
