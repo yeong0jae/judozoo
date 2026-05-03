@@ -17,7 +17,7 @@ class Order(
     @Column(nullable = false, length = 4)
     val side: String,
 
-    @Column(nullable = false, length = 20)
+    @Column(name = "trigger_type", nullable = false, length = 20)
     val trigger: String,
 
     @Column(nullable = false)
