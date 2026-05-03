@@ -1,8 +1,6 @@
 # Testing Rules
 
-## Kotest & MockK Conventions
-
-### Spec selection
+### Kotest Convention
 
 Use **FunSpec** exclusively.
 - Group related tests with `context("...")` blocks
@@ -26,6 +24,9 @@ Use **FunSpec** exclusively.
 3. Application Layer
 - All integration tests extend `IntegrationTestBase` (Testcontainers) and run against the defined MySQL container environment.
 - Verify the collaboration between multiple components; isolate only the uncontrollable areas (e.g., external API integrations) with MockK.
+- External API clients (e.g., `KisRestClient`) must be mocked via `@TestConfiguration + @Primary` — never use WireMock at this layer.
+  WireMock belongs to the Infrastructure/Platform layer, where the HTTP client itself is under test.
+  Application tests verify business logic, not HTTP parsing.
 
 4. Presentation Layer
 - Focus on controller mapping and DTO validation.

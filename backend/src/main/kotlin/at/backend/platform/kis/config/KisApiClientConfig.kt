@@ -43,7 +43,7 @@ class KisApiClientConfig {
                 )
                 .requestInterceptor { request, body, execution ->
                     rateLimiter.acquire()
-                    request.headers.setBearerAuth(tokenProvider.getToken())
+                    request.headers.setBearerAuth(tokenProvider.token)
                     request.headers.set("appkey", properties.appKey)
                     request.headers.set("appsecret", properties.appSecret)
                     execution.execute(request, body)
