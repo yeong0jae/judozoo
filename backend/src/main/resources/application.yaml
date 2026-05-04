@@ -35,3 +35,8 @@ trading:
   default-breakeven-threshold-pct: 0.01
   default-stop-loss-pct: 0.03
   sell-cost-rate: 0.0025
+  market:
+    poll-interval-millis: 1000
+    bar-poll-interval-millis: 30000
+  order:
+    sell-retry-delay-millis: 5000

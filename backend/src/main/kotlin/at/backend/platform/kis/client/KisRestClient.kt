@@ -1,11 +1,15 @@
 package at.backend.platform.kis.client
 
+import at.backend.platform.kis.client.request.KisOrderCancelRequest
+import at.backend.platform.kis.client.request.KisOrderRequest
 import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisBarResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisDailyCcldResponse
 import at.backend.platform.kis.client.response.KisHolidayResponse
+import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
+import org.springframework.http.MediaType
 import org.springframework.web.client.RestClient
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -119,8 +123,65 @@ class KisRestClient(
             .body(KisDailyCcldResponse::class.java)
             ?: error("KIS 일별 체결 응답이 비어있습니다")
 
+    fun submitOrder(stockCode: String, side: String, qty: Int): KisOrderResponse {
+        val trId = when (side) {
+            "BUY" -> TR_ID_BUY
+            "SELL" -> TR_ID_SELL
+            else -> error("알 수 없는 주문 side: $side")
+        }
+        return restClient.post()
+            .uri("/uapi/domestic-stock/v1/trading/order-cash")
+            .header("tr_id", trId)
+            .header("custtype", CUSTTYPE_INDIVIDUAL)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(
+                KisOrderRequest(
+                    cano = accountNo,
+                    acntPrdtCd = accountProductCode,
+                    pdno = stockCode,
+                    ordDvsn = ORD_DVSN_MARKET,
+                    ordQty = qty.toString(),
+                    ordUnpr = ORD_UNPR_MARKET,
+                )
+            )
+            .retrieve()
+            .body(KisOrderResponse::class.java)
+            ?: error("KIS 주문 응답이 비어있습니다")
+    }
+
+    fun cancelRemainder(krxFwdgOrdOrgno: String, originalOdno: String): KisOrderResponse =
+        restClient.post()
+            .uri("/uapi/domestic-stock/v1/trading/order-rvsecncl")
+            .header("tr_id", TR_ID_CANCEL)
+            .header("custtype", CUSTTYPE_INDIVIDUAL)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(
+                KisOrderCancelRequest(
+                    cano = accountNo,
+                    acntPrdtCd = accountProductCode,
+                    krxFwdgOrdOrgno = krxFwdgOrdOrgno,
+                    orgnOdno = originalOdno,
+                    ordDvsn = ORD_DVSN_MARKET,
+                    rvseCnclDvsnCd = RVSE_CNCL_CANCEL,
+                    ordQty = "0",
+                    ordUnpr = ORD_UNPR_MARKET,
+                    qtyAllOrdYn = "Y",
+                )
+            )
+            .retrieve()
+            .body(KisOrderResponse::class.java)
+            ?: error("KIS 주문 취소 응답이 비어있습니다")
+
     companion object {
         private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
         private const val MARKET_CLOSE_HHMMSS = "153000"
+
+        private const val TR_ID_BUY = "TTTC0012U"
+        private const val TR_ID_SELL = "TTTC0011U"
+        private const val TR_ID_CANCEL = "TTTC0013U"
+        private const val CUSTTYPE_INDIVIDUAL = "P"
+        private const val ORD_DVSN_MARKET = "01"
+        private const val ORD_UNPR_MARKET = "0"
+        private const val RVSE_CNCL_CANCEL = "02"
     }
 }

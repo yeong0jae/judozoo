@@ -41,7 +41,7 @@
 - **이벤트 기반 시그널 처리**: 시세 스트림(`Flow<PriceTick>`) → SignalDetector → 명령 매칭 → OrderExecutor
 - **시그널 감지와 주문 실행 분리**: SignalDetector는 발동 의도만 발신, OrderExecutor가 KIS 호출/재시도 담당
 - **상태 머신**: Kotlin `sealed class`로 상태/시그널 표현. 컴파일러가 케이스 누락 강제 검사
-- **멱등성**: 모든 주문에 client order id (UUID) 부여, 타임아웃 시 KIS 체결 조회로 실제 상태 재확인
+- **멱등성**: KIS 발급 ODNO(`Order.kisOrderNo`) 기반 추적 + 타임아웃/통보 누락 시 KIS 일별 체결 조회로 reconcile (개인 계좌 제약상 client-supplied 멱등키 미사용)
 
 ---
 
@@ -420,7 +420,7 @@ suspend fun executeBuyTry(cycle: TradingCycle, attempt: Int) {
         trigger = OrderTrigger.buyTry(attempt)
     )
     try {
-        kis.submitOrder(order, clientOrderId = order.id)
+        kis.submitOrder(order)
     } catch (e: KisException) {
         // 발송 실패: 회차 스킵. 상태는 BUYING 유지, 다음 회차는 예정 시각에 정상 시도.
         order.markFailed(e.message)
@@ -457,7 +457,7 @@ suspend fun executeSell(cycle: TradingCycle, signal: Signal, intentQty: Int) {
         val order = ordersRepo.create(side = SELL, type = MARKET, qty = effectiveQty,
                                       trigger = signal.toTrigger())
         try {
-            kis.submitOrder(order, clientOrderId = order.id)
+            kis.submitOrder(order)
             val outcome = waitSettlement(order, timeout = 5.seconds)
             if (outcome is Filled) return
         } catch (timeout: TimeoutException) {
@@ -469,7 +469,7 @@ suspend fun executeSell(cycle: TradingCycle, signal: Signal, intentQty: Int) {
 }
 ```
 
-> **부분 매도 진행 중 추가 시그널 충돌 방지**: TpStage 매도(예: 20주 부분 매도) in-flight 중에 StopLoss/MarketClose 등 우선순위 0/1 시그널이 발동하면, 새 매도의 quantity = 보유 - 진행 중 미체결분으로 자동 산정되어 *서로 다른 보유분*에 대해 매도. KIS 멱등성(clientOrderId UUID)이 중복 발사를 막는다.
+> **부분 매도 진행 중 추가 시그널 충돌 방지**: TpStage 매도(예: 20주 부분 매도) in-flight 중에 StopLoss/MarketClose 등 우선순위 0/1 시그널이 발동하면, 새 매도의 quantity = 보유 - 진행 중 미체결분으로 자동 산정되어 *서로 다른 보유분*에 대해 매도. 동일 보유분 중복 매도 방지는 quantity 차감(`effectiveQty = intent - inFlightUnfilled`)으로 보장되며, 추가로 reconcile 1회로 통보 누락도 흡수.
 
 > **재시도 누적 가시성 (PRD §모니터링 매도 재시도 상태)**: 매도 실패가 누적되는 동안 `orders.retry_count` 와 `orders.last_error`를 매 시도마다 업데이트하고, `/topic/trading/{id}` 로 `EXECUTION` 또는 별도 `RETRY` 이벤트를 발행하여 사용자가 상세 뷰에서 진행 상태를 인지할 수 있게 한다.
 
@@ -486,12 +486,23 @@ suspend fun executeSell(cycle: TradingCycle, signal: Signal, intentQty: Int) {
 | MidwayTakeProfit | 항상 true |
 
 ### 7.4 멱등성 / 중복 방지
-- 모든 주문 발송 시 `clientOrderId = order.id (UUID)`를 KIS 호출 헤더/바디에 포함 (KIS가 지원하는 필드 한도 내)
-- 타임아웃 발생 시:
-  1. 5초 대기 후 KIS 일별 체결 내역 조회 (`/inquire-daily-ccld`)
-  2. 시간 윈도우 + 종목 + 수량으로 매칭되는 체결 검색
-  3. 체결 발견 → `executions` 기록, 주문 상태 업데이트, 재시도 안 함
-  4. 체결 없음 → 새 주문 발송
+
+**KIS 멱등키 미사용 (개인 계좌 제약).** KIS `order-cash`의 client-supplied 멱등키 `gt_uid`는 법인(`custtype=B`) 전용이고, 본 시스템은 개인 계좌(`P`)이므로 사용 불가. 또한 `gt_uid`는 응답에서 echo되지 않아 ODNO 회수에는 어차피 reconcile 필요.
+
+→ **`Order.kisOrderNo`(KIS 발급 ODNO) + `inquire-daily-ccld` reconcile** 기반 설계.
+
+#### 정상 경로
+1. `submitOrder` 호출 → 응답 `ODNO`를 `Order.kisOrderNo`에 저장
+2. WebSocket `H0STCNI0` 통보 수신 → `kisOrderNo`로 `Order` 조회 → `filledQty` 누적, `Execution` INSERT
+
+#### 타임아웃 / WS 통보 누락 시 reconcile (1회)
+1. `GET /inquire-daily-ccld` 호출
+2. 매칭 우선순위:
+   - `kisOrderNo`가 있으면(응답은 받음, 통보만 누락) → `ODNO` 직접 비교
+   - `kisOrderNo`가 없으면(응답 자체가 누락) → 시간 윈도우 ±30초 + 종목 + side + 수량 매칭
+3. 매칭 1건 → `kisOrderNo` 갱신, 체결 정보 `Execution` INSERT, 재시도 안 함
+4. 매칭 0건 → 새 주문 발송 (매수 회차 스킵 또는 매도 재시도 진행)
+5. 매칭 2건+ → 보수적 처리 (`Order.status = NEEDS_MANUAL_REVIEW`, 운영 인지 채널로 알림). Phase 4 흐름상 같은 종목·수량을 30초 내 중복 발송할 일이 거의 없음 (매수 회차는 buyIntervalMin 분 간격, 매도는 B-3 충돌 방지로 quantity가 차감되며 변동).
 
 ### 7.5 부분 체결 처리
 - KIS 실시간 체결 통보(WebSocket)로 부분 체결 누적

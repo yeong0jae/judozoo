@@ -1,13 +1,18 @@
 package at.backend.platform.kis.config
 
 import at.backend.platform.kis.KisAccessTokenProvider
+import at.backend.platform.kis.KisApprovalKeyProvider
 import at.backend.platform.kis.KisRateLimiter
 import at.backend.platform.kis.client.KisAuthClient
 import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.client.KisWebSocketClient
+import tools.jackson.databind.ObjectMapper
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.web.client.RestClient
+import org.springframework.web.socket.client.WebSocketClient
+import org.springframework.web.socket.client.standard.StandardWebSocketClient
 import java.time.Duration
 
 @Configuration
@@ -49,6 +54,23 @@ class KisApiClientConfig {
                     execution.execute(request, body)
                 }
                 .build(),
+        )
+
+    @Bean
+    fun kisWebSocketClient(): WebSocketClient = StandardWebSocketClient()
+
+    @Bean
+    fun kisRealtimeClient(
+        properties: KisProperties,
+        approvalKeyProvider: KisApprovalKeyProvider,
+        webSocketClient: WebSocketClient,
+        objectMapper: ObjectMapper,
+    ): KisWebSocketClient =
+        KisWebSocketClient(
+            properties = properties,
+            approvalKeyProvider = approvalKeyProvider,
+            webSocketClient = webSocketClient,
+            objectMapper = objectMapper,
         )
 
     companion object {
