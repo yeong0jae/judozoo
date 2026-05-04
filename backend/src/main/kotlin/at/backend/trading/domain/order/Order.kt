@@ -83,9 +83,14 @@ class Order(
 
     fun isFullyFilled(): Boolean = status == STATUS_FILLED
 
+    fun markCancelled() {
+        status = STATUS_CANCELLED
+    }
+
     companion object {
         private const val STATUS_FILLED = "FILLED"
         private const val STATUS_FAILED = "FAILED"
+        private const val STATUS_CANCELLED = "CANCELLED"
         private const val MAX_ERROR_LEN = 500
     }
 }
