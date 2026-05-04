@@ -328,20 +328,126 @@ class TradingCycleTest : FunSpec({
         }
     }
 
-    context("NO_FILL 종료") {
-        test("Buying 상태에서 호출하면 Closed/NO_FILL로 전이된다") {
+    context("Breakeven 무장") {
+        test("Holding 상태에서 호출하면 breakevenArmed가 true로 전이") {
+            val target = cycle(breakevenArmed = false)
+            target.armBreakeven()
+            target.breakevenArmed shouldBe true
+        }
+
+        test("Holding이 아닌 상태에서 호출하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.BUYING).armBreakeven()
+            }
+        }
+
+        test("disarmBreakeven은 상태와 무관하게 false로 되돌린다") {
+            val target = cycle(breakevenArmed = true)
+            target.disarmBreakeven()
+            target.breakevenArmed shouldBe false
+        }
+    }
+
+    context("TrendBreak 무장") {
+        test("Holding 상태에서 호출하면 trendBreakArmed가 true로 전이") {
+            val target = cycle(trendBreakArmed = false)
+            target.armTrendBreak()
+            target.trendBreakArmed shouldBe true
+        }
+
+        test("Holding이 아닌 상태에서 호출하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.BUYING).armTrendBreak()
+            }
+        }
+    }
+
+    context("TpStage 발동 기록") {
+        test("발동된 단계의 비트가 누적된다") {
+            val target = cycle(tpStagesFired = 0b001)
+            target.markTpStageFired(3)
+            target.tpStagesFired shouldBe 0b011
+            target.markTpStageFired(5)
+            target.tpStagesFired shouldBe 0b111
+        }
+
+        test("동일 단계를 두 번 기록해도 비트는 변하지 않는다") {
+            val target = cycle(tpStagesFired = 0b010)
+            target.markTpStageFired(3)
+            target.tpStagesFired shouldBe 0b010
+        }
+
+        test("Holding이 아닌 상태에서 호출하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.BUYING).markTpStageFired(2)
+            }
+        }
+    }
+
+    context("종료 처리") {
+        val at = java.time.LocalDateTime.of(2026, 5, 5, 10, 0)
+
+        test("Buying 상태에서 NO_FILL로 종료할 수 있다") {
             val target = cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
-            val at = java.time.LocalDateTime.of(2026, 5, 5, 10, 0)
-            target.closeNoFill(at)
+            target.close(CloseReason.NO_FILL, at)
             target.status shouldBe TradingCycleStatus.CLOSED
             target.closeReason shouldBe CloseReason.NO_FILL
             target.closedAt shouldBe at
         }
 
-        test("Buying이 아닌 상태에서 호출하면 예외") {
-            shouldThrow<IllegalArgumentException> {
-                cycle(status = TradingCycleStatus.HOLDING).closeNoFill(java.time.LocalDateTime.now())
+        test("Liquidating 상태에서 매도 사유(TAKE_PROFIT/STOP_LOSS/BREAKEVEN/TREND_BREAK/MARKET_CLOSE/CANCELLED)로 종료할 수 있다") {
+            listOf(
+                CloseReason.TAKE_PROFIT,
+                CloseReason.STOP_LOSS,
+                CloseReason.BREAKEVEN,
+                CloseReason.TREND_BREAK,
+                CloseReason.MARKET_CLOSE,
+                CloseReason.CANCELLED,
+            ).forEach { reason ->
+                val target = cycle(status = TradingCycleStatus.LIQUIDATING)
+                target.close(reason, at)
+                target.status shouldBe TradingCycleStatus.CLOSED
+                target.closeReason shouldBe reason
             }
+        }
+
+        test("Buying 상태에서 보유 0일 때 CANCELLED로 직행 종료할 수 있다") {
+            val target = cycle(status = TradingCycleStatus.BUYING)
+            target.close(CloseReason.CANCELLED, at)
+            target.status shouldBe TradingCycleStatus.CLOSED
+            target.closeReason shouldBe CloseReason.CANCELLED
+        }
+
+        test("UNCLOSED는 Closed가 아닌 모든 상태에서 종료할 수 있다") {
+            listOf(
+                TradingCycleStatus.INITIATED,
+                TradingCycleStatus.BUYING,
+                TradingCycleStatus.HOLDING,
+                TradingCycleStatus.LIQUIDATING,
+            ).forEach { from ->
+                val target = cycle(status = from)
+                target.close(CloseReason.UNCLOSED, at)
+                target.status shouldBe TradingCycleStatus.CLOSED
+                target.closeReason shouldBe CloseReason.UNCLOSED
+            }
+        }
+
+        test("Holding 상태에서 매도 사유로 직접 종료하려 하면 예외 (Liquidating 경유 필요)") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.HOLDING).close(CloseReason.TAKE_PROFIT, at)
+            }
+        }
+
+        test("Buying 상태에서 매도 사유로 종료하려 하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.BUYING).close(CloseReason.STOP_LOSS, at)
+            }
+        }
+
+        test("이미 Closed인 사이클을 다시 종료하면 AlreadyClosedException") {
+            val target = cycle(status = TradingCycleStatus.LIQUIDATING)
+            target.close(CloseReason.STOP_LOSS, at)
+            shouldThrow<AlreadyClosedException> { target.close(CloseReason.UNCLOSED, at) }
         }
     }
 })

@@ -30,7 +30,7 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 - [x] `Order.acknowledge(kisOrderNo, krxFwdgOrdOrgno)`, `markFailed(error)`, `markRetryableFailed(error)`: OrderExecutor가 도메인 필드 직접 변경 대신 메시지로 요청
 - [x] `TradingCycle.requestCancel()`: application의 status 분기 제거, 도메인이 INITIATED/BUYING/HOLDING → LIQUIDATING 전이, LIQUIDATING 멱등, CLOSED는 `AlreadyClosedException`
-- [ ] `TradingCycle` 추가 행동 메서드 (4c 진입 시 자연스럽게 도입): `incrementBuyAttempt()`, `transitionToHolding()`, `armBreakeven()` / `disarmBreakeven()`, `markTpStageFired(pct)`, `armTrendBreak()`, `close(reason, at)` — runner/orchestrator에서 직접 var 수정하지 않도록
+- [x] `TradingCycle` 추가 행동 메서드 (4c 진입 시 자연스럽게 도입): `incrementBuyAttempt()`, `transitionToHolding()`, `armBreakeven()` / `disarmBreakeven()`, `markTpStageFired(pct)`, `armTrendBreak()`, `close(reason, at)` — runner/orchestrator에서 직접 var 수정하지 않도록
 
 ## 4c. TradingCycle 코루틴 + 오케스트레이션
 

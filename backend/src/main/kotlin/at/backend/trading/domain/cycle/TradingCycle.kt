@@ -110,13 +110,50 @@ class TradingCycle(
         status = TradingCycleStatus.HOLDING
     }
 
-    fun closeNoFill(at: LocalDateTime) {
-        require(status == TradingCycleStatus.BUYING) {
-            "Buying 상태에서만 NO_FILL 종료 가능: $status"
+    fun armBreakeven() {
+        require(status == TradingCycleStatus.HOLDING) {
+            "Holding 상태에서만 Breakeven 무장 가능: $status"
+        }
+        breakevenArmed = true
+    }
+
+    fun disarmBreakeven() {
+        breakevenArmed = false
+    }
+
+    fun armTrendBreak() {
+        require(status == TradingCycleStatus.HOLDING) {
+            "Holding 상태에서만 TrendBreak 무장 가능: $status"
+        }
+        trendBreakArmed = true
+    }
+
+    fun markTpStageFired(stagePct: Int) {
+        require(status == TradingCycleStatus.HOLDING) {
+            "Holding 상태에서만 TpStage 발동 기록 가능: $status"
+        }
+        tpStagesFired = tpStagesFired or stagePctToBit(stagePct)
+    }
+
+    fun close(reason: CloseReason, at: LocalDateTime) {
+        if (status == TradingCycleStatus.CLOSED) throw AlreadyClosedException(id)
+        require(canCloseWith(reason)) {
+            "현재 상태($status)에서는 $reason 사유로 종료할 수 없습니다"
         }
         status = TradingCycleStatus.CLOSED
-        closeReason = CloseReason.NO_FILL
+        closeReason = reason
         closedAt = at
+    }
+
+    private fun canCloseWith(reason: CloseReason): Boolean = when (reason) {
+        CloseReason.UNCLOSED -> true
+        CloseReason.NO_FILL -> status == TradingCycleStatus.BUYING
+        CloseReason.CANCELLED -> status == TradingCycleStatus.BUYING || status == TradingCycleStatus.LIQUIDATING
+        CloseReason.TAKE_PROFIT,
+        CloseReason.STOP_LOSS,
+        CloseReason.BREAKEVEN,
+        CloseReason.TREND_BREAK,
+        CloseReason.MARKET_CLOSE -> status == TradingCycleStatus.LIQUIDATING
     }
 
     fun canTransitionTo(
