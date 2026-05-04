@@ -22,10 +22,12 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 - [x] `KisRestClient.cancelRemainder(krxFwdgOrdOrgno, originalOdno)` (`POST /uapi/domestic-stock/v1/trading/order-rvsecncl`, TR_ID `TTTC0013U`) → `RVSE_CNCL_DVSN_CD=02` 취소, `QTY_ALL_ORD_YN=Y` 잔량 전부
 - [x] `Order` 엔티티에 `krxFwdgOrdOrgno` 컬럼 추가 — 정정/취소 시 원주문 식별에 필요
 - [x] WireMock fixture (`order-cash.json`, `order-rvsecncl.json`) + `KisRestClientTest`에 매수/매도/취소 페이로드 검증 + 4xx 전파 테스트 (5xx/타임아웃은 기존 GET 테스트가 동일 핸들러 검증)
-- [ ] `trading.application.OrderExecutor.executeBuyTry(cycle, attempt)`: `marketData.currentPrice` → `qty = perBuyAmount/price` → `Order(BUY, MARKET)` 저장 → `kis.submitOrder` → `waitSettlement(timeout=5s)` → Filled / Partial→cancelRemainder; 발송 실패 시 `order.markFailed` + 회차 스킵 (BUYING 유지)
-- [ ] `trading.application.OrderExecutor.executeSell(cycle, signal, intentQty)`: 재시도 루프 — `signal.isAlive(tick, currentBar)` 가드 → `effectiveQty = intentQty - inFlightUnfilled` (B-3 충돌 방지) → `Order(SELL, MARKET)` → `submitOrder` + `waitSettlement` → Filled 시 종료; 타임아웃 시 reconcile (일별 체결 조회 매칭, kisOrderNo 우선·없으면 시간/수량 매칭); `delay(5s)` 후 재시도; `orders.retry_count` / `last_error` 매 시도 갱신
-- [ ] `OrderJpaRepository` 추가 메서드: `inFlightSellUnfilled(cycleId): Int`, `findByKisOrderNo(odno)`
-- [ ] `OrderExecutorTest` (IntegrationTestBase, `KisRestClient` MockK `@TestConfiguration + @Primary`): 매수 정상 체결 / 매수 부분 체결 → 잔량 취소 / 매수 발송 실패 → 회차 스킵 / 매도 정상 / 매도 타임아웃 → 일별 체결 reconcile / B-3 충돌 (TpStage in-flight 중 StopLoss 발동 → `effectiveQty` 차감) / 재시도 카운트 누적
+- [x] `trading.application.OrderExecutor.executeBuyTry(cycle, attempt)`: `KisRestClient.getCurrentPrice` → `qty = perBuyAmount / price` → `Order(BUY, PENDING)` INSERT → `kis.submitOrder` 호출 → 응답 정상이면 `kisOrderNo`/`krxFwdgOrdOrgno` 갱신; perBuyAmount < 1주 가격이면 발송 없이 Skipped, 발송 실패 시 Order FAILED + 회차 스킵 (체결 확정은 WS 통보 핸들러 책임으로 분리)
+- [x] `trading.application.OrderExecutor.executeSell(cycle, signal, intentQty, buyPrice, currentPrice, currentBar)`: 재시도 루프 — `signal.isAlive(currentPrice, buyPrice, currentBar, now)` 가드(false면 SignalDead) → `effectiveQty = intentQty - inFlightSellUnfilled` (B-3 충돌 방지, 0이면 NoQty) → `Order(SELL, PENDING)` INSERT → `submitOrder` 호출; 발송 실패 시 `retryCount++`, `lastError` 갱신, `sellRetryDelayMillis`(default 5s, test 20ms) 후 재시도
+- [x] `OrderJpaRepository` 추가 메서드: `findByKisOrderNo(kisOrderNo)`, `inFlightSellUnfilled(cycleId): Int` (SELL + PENDING의 미체결 수량 합)
+- [x] `OrderExecutorTest` (IntegrationTestBase + `KisRestClient` MockK + `FixedTimeProviderConfig`): 매수 정상 / 매수 perBuyAmount 부족 시 Skip / 매수 발송 실패 → Order FAILED / 매도 정상 / B-3 effectiveQty 차감 / NoQty 즉시 종료 / Breakeven SignalDead / 재시도 후 성공
+- [ ] reconcile (timeout / WS 통보 누락 시 일별 체결 조회 1회) — 별도 작업 단위로 분리
+- [ ] cancelRemainder 호출 (부분 체결 감지) — 별도 작업 단위 (4c TradingCycleRunner와 함께)
 
 ## 4c. TradingCycle 코루틴 + 오케스트레이션
 
