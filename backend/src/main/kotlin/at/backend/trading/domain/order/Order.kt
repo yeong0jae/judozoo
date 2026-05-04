@@ -32,6 +32,9 @@ class Order(
     @Column(length = 20)
     var kisOrderNo: String? = null,
 
+    @Column(length = 5)
+    var krxFwdgOrdOrgno: String? = null,
+
     @Column(nullable = false, length = 15)
     var status: String,
 
