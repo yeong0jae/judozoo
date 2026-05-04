@@ -1,6 +1,6 @@
 package at.backend.trading.domain.signal
 
-import at.backend.trading.domain.price.Bar
+import at.backend.market.domain.Bar
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe

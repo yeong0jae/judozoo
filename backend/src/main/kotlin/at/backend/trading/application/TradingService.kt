@@ -3,11 +3,9 @@ package at.backend.trading.application
 import at.backend.library.time.TimeProvider
 import at.backend.trading.application.result.TradingCancelResult
 import at.backend.trading.application.result.TradingCreatedResult
-import at.backend.trading.domain.AlreadyClosedException
 import at.backend.trading.domain.TradingInput
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.trading.domain.cycle.TradingCycle
-import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -41,18 +39,8 @@ class TradingService(
     fun cancel(id: Long): TradingCancelResult {
         val cycle = tradingCycleRepository.findById(id)
             .orElseThrow { EntityNotFoundException("TradingCycle을 찾을 수 없습니다: $id") }
-
-        when (cycle.status) {
-            TradingCycleStatus.INITIATED,
-            TradingCycleStatus.BUYING,
-            TradingCycleStatus.HOLDING -> {
-                cycle.status = TradingCycleStatus.LIQUIDATING
-                tradingCycleRepository.save(cycle)
-            }
-
-            TradingCycleStatus.LIQUIDATING -> Unit
-            TradingCycleStatus.CLOSED -> throw AlreadyClosedException(id)
-        }
+        cycle.requestCancel()
+        tradingCycleRepository.save(cycle)
         return TradingCancelResult.from(cycle)
     }
 }

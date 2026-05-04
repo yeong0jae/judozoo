@@ -1,9 +1,10 @@
 package at.backend.trading.domain.cycle
 
 import at.backend.library.jpa.BaseEntity
+import at.backend.trading.domain.AlreadyClosedException
 import at.backend.trading.domain.execution.Execution
-import at.backend.trading.domain.price.Bar
-import at.backend.trading.domain.price.PriceTick
+import at.backend.market.domain.Bar
+import at.backend.market.domain.PriceTick
 import at.backend.trading.domain.signal.Signal
 import jakarta.persistence.*
 import java.math.BigDecimal
@@ -71,6 +72,17 @@ class TradingCycle(
         require(stopLossPct < BigDecimal.ZERO) { "손절 비율은 음수여야 합니다: $stopLossPct" }
         require(midwayProfitPct > BigDecimal.ZERO) { "중도 익절 비율은 양수여야 합니다: $midwayProfitPct" }
         require(tpStagesFired in 0..0b111) { "TP 단계 비트플래그는 0~7이어야 합니다: $tpStagesFired" }
+    }
+
+    fun requestCancel() {
+        when (status) {
+            TradingCycleStatus.INITIATED,
+            TradingCycleStatus.BUYING,
+            TradingCycleStatus.HOLDING -> status = TradingCycleStatus.LIQUIDATING
+
+            TradingCycleStatus.LIQUIDATING -> Unit
+            TradingCycleStatus.CLOSED -> throw AlreadyClosedException(id)
+        }
     }
 
     fun canTransitionTo(
