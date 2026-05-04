@@ -43,8 +43,9 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ### 4c-2. 매수 회차 흐름
 
-- [ ] `TradingCycleRunner.runBuySequence()`: INITIATED → 1차 매수 시도 → `cycle.incrementBuyAttempt()` → BUYING 전이 → `delay(buyIntervalMin)` 2회 + 매 차수 `OrderExecutor.executeBuyTry`; 모든 회차 완료 시 보유 수량 0 → `close(NO_FILL)`, 보유 > 0 → HOLDING 전이
-- [ ] 통합 테스트: 매수 3회 정상 / 발송 실패 회차 스킵 / 모든 회차 미체결 → NO_FILL
+- [x] `TradingCycle` 행동 메서드 (Tell, Don't Ask): `startBuying`, `incrementBuyAttempt`(<3 가드), `transitionToHolding`, `closeNoFill(at)` + 단위 테스트
+- [x] `TradingCycleRunner.runBuySequence()`: `cycle.startBuying()` → 1차 매수 → `delay(buyIntervalUnit × buyIntervalMin)` 2회 + 매 차수 `incrementBuyAttempt + executeBuyTry`; 매수 후 보유 합계 0이면 `closeNoFill`, 아니면 `transitionToHolding`. `buyIntervalUnit`는 생성자 주입(테스트는 짧게)
+- [x] `TradingCycleRunnerTest` (IntegrationTestBase + KisRestClient mock): 3회 정상 → HOLDING / 모든 발송 실패 → CLOSED(NO_FILL) / 1차 실패 후 2·3차 정상 진행
 
 ### 4c-3. ExecutionNotice 처리
 
