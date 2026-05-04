@@ -26,20 +26,58 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 - [x] `trading.application.OrderExecutor.executeSell(cycle, signal, intentQty, buyPrice, currentPrice, currentBar)`: 재시도 루프 — `signal.isAlive(currentPrice, buyPrice, currentBar, now)` 가드(false면 SignalDead) → `effectiveQty = intentQty - inFlightSellUnfilled` (B-3 충돌 방지, 0이면 NoQty) → `Order(SELL, PENDING)` INSERT → `submitOrder` 호출; 발송 실패 시 `retryCount++`, `lastError` 갱신, `sellRetryDelayMillis`(default 5s, test 20ms) 후 재시도
 - [x] `OrderJpaRepository` 추가 메서드: `findByKisOrderNo(kisOrderNo)`, `inFlightSellUnfilled(cycleId): Int` (SELL + PENDING의 미체결 수량 합)
 - [x] `OrderExecutorTest` (IntegrationTestBase + `KisRestClient` MockK + `FixedTimeProviderConfig`): 매수 정상 / 매수 perBuyAmount 부족 시 Skip / 매수 발송 실패 → Order FAILED / 매도 정상 / B-3 effectiveQty 차감 / NoQty 즉시 종료 / Breakeven SignalDead / 재시도 후 성공
-- [ ] reconcile (timeout / WS 통보 누락 시 일별 체결 조회 1회) — 별도 작업 단위로 분리
-- [ ] cancelRemainder 호출 (부분 체결 감지) — 별도 작업 단위 (4c TradingCycleRunner와 함께)
+## 4d. 보조 도메인 메서드 (Tell, Don't Ask)
+
+- [x] `Order.acknowledge(kisOrderNo, krxFwdgOrdOrgno)`, `markFailed(error)`, `markRetryableFailed(error)`: OrderExecutor가 도메인 필드 직접 변경 대신 메시지로 요청
+- [x] `TradingCycle.requestCancel()`: application의 status 분기 제거, 도메인이 INITIATED/BUYING/HOLDING → LIQUIDATING 전이, LIQUIDATING 멱등, CLOSED는 `AlreadyClosedException`
+- [ ] `TradingCycle` 추가 행동 메서드 (4c 진입 시 자연스럽게 도입): `incrementBuyAttempt()`, `transitionToHolding()`, `armBreakeven()` / `disarmBreakeven()`, `markTpStageFired(pct)`, `armTrendBreak()`, `close(reason, at)` — runner/orchestrator에서 직접 var 수정하지 않도록
 
 ## 4c. TradingCycle 코루틴 + 오케스트레이션
 
-- [ ] `library.coroutine.ApplicationCoroutineScope` 빈: `SupervisorJob + Dispatchers.Default`; 애플리케이션 종료 시 `cancelAndJoin`
-- [ ] `trading.application.TradingCycleRunner`: 명령별 코루틴; 내부 Mutex로 상태 전이 / 시그널 처리 직렬화; 단계 — INITIATED→BUYING(1차 발사) → `delay(buyIntervalMin)` × 2 → HOLDING; HOLDING 중 `Flow<PriceTick>` + `Flow<BarEvent>` collect → `cycle.detectSignals` → 우선순위 정렬 → `OrderExecutor.executeSell` → 결과에 따라 상태 전이/종료
-- [ ] `trading.application.CycleOrchestrator`: `MarketDataStream` 구독 lifecycle 관리; `PriceTick`/`BarEvent`을 `stockCode`로 활성 사이클에 라우팅; `TradingService.create()` 후 `start(cycle)`, `cancel()` 시 LIQUIDATING 흐름으로 라우팅
-- [ ] `TradingService.create()` 통합: 저장 직후 `CycleOrchestrator.start(cycle)` 호출 (Phase 3 동작 보존하면서 백그라운드 시작 추가)
-- [ ] `TradingService.cancel()` 통합: in-flight 매수 주문 취소 + 보유 > 0 → MarketClose 시그널 라우팅 → 청산 / 보유 = 0 → CLOSED(CANCELLED) 직행
+작업이 큼. 단계별로 commit 분할하며 진행한다.
+
+### 4c-1. 코루틴 인프라
+
+- [ ] `library.coroutine.ApplicationCoroutineScope`: 기존 `CoroutineConfig`(`SupervisorJob + Dispatchers.IO`) 활용 가능 여부 확인 — 부족하면 보강. 종료 시 `cancelAndJoin` 보장
+- [ ] `trading.application.runner.TradingCycleRunner` 골조: 명령 ID로 식별되는 코루틴 1개 + 내부 `Mutex` 직렬화; `start(cycle)` / `submitSignal(signal)` / `cancel()` 외부 인터페이스만; 내부 상태 전이/시그널 처리는 다음 단계에서 채움
+
+### 4c-2. 매수 회차 흐름
+
+- [ ] `TradingCycleRunner.runBuySequence()`: INITIATED → 1차 매수 시도 → `cycle.incrementBuyAttempt()` → BUYING 전이 → `delay(buyIntervalMin)` 2회 + 매 차수 `OrderExecutor.executeBuyTry`; 모든 회차 완료 시 보유 수량 0 → `close(NO_FILL)`, 보유 > 0 → HOLDING 전이
+- [ ] 통합 테스트: 매수 3회 정상 / 발송 실패 회차 스킵 / 모든 회차 미체결 → NO_FILL
+
+### 4c-3. ExecutionNotice 처리
+
+- [ ] `trading.application.ExecutionNoticeHandler`: `KisWebSocketClient.executionNotices.collect`; `kisOrderNo`로 `Order` 조회 → `order.applyExecution(notice, fee, tax)` 호출 → `Execution` INSERT; `Order.isFullyFilled()` 시 status FILLED 전이 + `cancelRemainder` 호출 불필요
+- [ ] `Order.applyExecution(notice, fee, tax)`: `filledQty += notice.executedQty`; 전량 체결 시 status=FILLED
+- [ ] 부분 체결 후 추가 체결 통보 누적 / 다른 주문번호는 무시 / 통합 테스트
+
+### 4c-4. 매도 시그널 + 종료 흐름
+
+- [ ] `TradingCycleRunner.handleHolding()`: `MarketDataStream.priceTicks` + `BarCache.bars` collect (해당 종목만) → `cycle.detectSignals` → 우선순위 정렬 → `OrderExecutor.executeSell` 호출
+- [ ] 시그널별 도메인 메서드 호출: `Breakeven` 진입 조건 충족 시 `cycle.armBreakeven()`, TpStage 발동 시 `cycle.markTpStageFired(pct)` 등
+- [ ] `cycle.close(reason, closedAt)` — 매도 완료 / 손절 / MarketClose 등 모든 종료 경로 통합
+- [ ] **부분 체결 후 미체결 잔량 처리**: 매도 시그널이 죽으면(`SignalDead`) `OrderExecutor`가 in-flight Order의 잔량을 `KisRestClient.cancelRemainder`로 정리
+
+### 4c-5. CycleOrchestrator + 라우팅
+
+- [ ] `trading.application.CycleOrchestrator`: 활성 cycleId → TradingCycleRunner 매핑 (`ConcurrentHashMap`); `start(cycle)` 시 `MarketDataStream.subscribe(stockCode)` + `BarCache.subscribe`; 종료 시 `unsubscribe` (참조 카운트 자동 처리)
+- [ ] PriceTick/Bar 라우팅: `marketDataStream.priceTicks.collect`에서 stockCode 매칭되는 모든 활성 cycle에 fan-out (또는 runner가 자체 collect)
+- [ ] `TradingService.create()` 통합: 저장 직후 `CycleOrchestrator.start(savedCycle)` (트랜잭션 커밋 후)
+- [ ] `TradingService.cancel()` 통합: `cycle.requestCancel()` 호출 후 orchestrator에 신호 전달 → in-flight 매수 cancelRemainder + MarketClose 시그널 라우팅
+
+### 4c-6. reconcile (timeout / WS 통보 누락)
+
+- [ ] `OrderExecutor.reconcile(order)`: `KisRestClient.getDailyExecutions` 호출 → `kisOrderNo` 우선 매칭, 없으면 시간 윈도우 ±30초 + 종목 + side + 수량 매칭; 1건 → `Order` + `Execution` 갱신; 0건 → 새 주문 발송 안전; 2건+ → `Order.markNeedsManualReview()` (운영 인지 채널)
+- [ ] `TradingCycleRunner` / `ExecutionNoticeHandler`에서 5초 timeout 시 `reconcile(order)` 1회 호출
+- [ ] 통합 테스트: WS 통보 누락 → reconcile 매칭 / 미매칭
+
+### 4c-7. 스케줄러 + 시작 hook
+
 - [ ] `trading.infrastructure.scheduler.TradingSchedulerService`:
-  - `@Scheduled(cron = "0 20 15 * * MON-FRI", zone = "Asia/Seoul")`: 모든 활성 사이클에 MarketClose 시그널 발행
+  - `@Scheduled(cron = "0 20 15 * * MON-FRI", zone = "Asia/Seoul")`: 활성 사이클 일제 MarketClose 라우팅
   - `@Scheduled(cron = "0 0 8 * * MON-FRI", zone = "Asia/Seoul")`: 영업일 검증 + 명령 접수 게이트 토글
-- [ ] `BackendApplication` 시작 hook: 부팅 시 `status IN (INITIATED, BUYING, HOLDING, LIQUIDATING)` 사이클 조회 → 각 사이클 `closedAt = now`, `status = CLOSED`, `closeReason = UNCLOSED` 일괄 저장 (시스템 다운 후 재시작 시 자동 마감)
+- [ ] `BackendApplication` 시작 hook (`ApplicationRunner` 또는 `@EventListener(ApplicationReadyEvent::class)`): 활성 상태(`IN (INITIATED, BUYING, HOLDING, LIQUIDATING)`) 사이클 조회 → 각 cycle `cycle.close(UNCLOSED, now)` 일괄 저장
 
 ## End-to-end 통합 테스트 (`TradingCycleE2ETest`, IntegrationTestBase)
 
