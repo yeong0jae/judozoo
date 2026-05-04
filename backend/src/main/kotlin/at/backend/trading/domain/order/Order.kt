@@ -1,6 +1,7 @@
 package at.backend.trading.domain.order
 
 import at.backend.library.jpa.BaseEntity
+import at.backend.trading.domain.execution.Execution
 import jakarta.persistence.*
 
 @Entity
@@ -62,7 +63,28 @@ class Order(
         this.lastError = error?.take(MAX_ERROR_LEN)
     }
 
+    fun applyExecution(notice: ExecutionNotice, fee: Int, tax: Int): Execution {
+        require(notice.kisOrderNo == kisOrderNo) {
+            "통보 주문번호가 Order와 일치하지 않습니다: notice=${notice.kisOrderNo}, order=$kisOrderNo"
+        }
+        require(notice.side == side) {
+            "통보 side가 Order와 일치하지 않습니다: notice=${notice.side}, order=$side"
+        }
+        filledQty += notice.executedQty
+        if (filledQty >= orderQty) status = STATUS_FILLED
+        return Execution(
+            orderId = id,
+            executedQty = notice.executedQty,
+            executedPrice = notice.executedPrice,
+            fee = fee,
+            tax = tax,
+        )
+    }
+
+    fun isFullyFilled(): Boolean = status == STATUS_FILLED
+
     companion object {
+        private const val STATUS_FILLED = "FILLED"
         private const val STATUS_FAILED = "FAILED"
         private const val MAX_ERROR_LEN = 500
     }

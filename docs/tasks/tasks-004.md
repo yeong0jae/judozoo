@@ -49,9 +49,9 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ### 4c-3. ExecutionNotice 처리
 
-- [ ] `trading.application.ExecutionNoticeHandler`: `KisWebSocketClient.executionNotices.collect`; `kisOrderNo`로 `Order` 조회 → `order.applyExecution(notice, fee, tax)` 호출 → `Execution` INSERT; `Order.isFullyFilled()` 시 status FILLED 전이 + `cancelRemainder` 호출 불필요
-- [ ] `Order.applyExecution(notice, fee, tax)`: `filledQty += notice.executedQty`; 전량 체결 시 status=FILLED
-- [ ] 부분 체결 후 추가 체결 통보 누적 / 다른 주문번호는 무시 / 통합 테스트
+- [x] `trading.application.ExecutionNoticeHandler`: `KisWebSocketClient.executionNotices.collect`; `kisOrderNo`로 `Order` 조회 → `order.applyExecution(notice, fee, tax)` 호출 → `Execution` INSERT; `Order.isFullyFilled()` 시 status FILLED 전이 + `cancelRemainder` 호출 불필요
+- [x] `Order.applyExecution(notice, fee, tax)`: `filledQty += notice.executedQty`; 전량 체결 시 status=FILLED
+- [x] 부분 체결 후 추가 체결 통보 누적 / 다른 주문번호는 무시 / 통합 테스트
 
 ### 4c-4. 매도 시그널 + 종료 흐름
 
