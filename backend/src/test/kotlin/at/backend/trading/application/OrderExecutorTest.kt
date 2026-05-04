@@ -199,6 +199,68 @@ class OrderExecutorTest(
                 verify(exactly = 0) { kisRestClient.submitOrder(any(), any(), any()) }
             }
 
+            test("시그널이 죽으면 in-flight SELL 주문 잔량을 cancelRemainder로 취소하고 CANCELLED로 마킹한다") {
+                every { kisRestClient.cancelRemainder(any(), any()) } returns
+                    KisOrderResponse(
+                        rtCd = "0", msgCd = "OK", msg1 = "취소 완료",
+                        output = KisOrderResponse.Output(krxFwdgOrdOrgno = "00950", odno = "CXL0001", ordTmd = "104518"),
+                    )
+                val cycle = saveCycle()
+                val pending = orderRepository.save(
+                    Order(
+                        cycleId = cycle.id,
+                        side = "SELL",
+                        trigger = "TpStage",
+                        orderQty = 6,
+                        filledQty = 2,
+                        kisOrderNo = "ODNO_OLD",
+                        krxFwdgOrdOrgno = "00950",
+                        status = "PENDING",
+                    )
+                )
+
+                val outcome = orderExecutor.executeSell(
+                    cycle = cycle,
+                    signal = Signal.Breakeven,
+                    intentQty = 10,
+                    buyPrice = 70_000,
+                    currentPrice = 71_000,
+                    currentBar = null,
+                )
+
+                outcome shouldBe OrderExecutor.SellOutcome.SignalDead
+                verify { kisRestClient.cancelRemainder("00950", "ODNO_OLD") }
+                orderRepository.findById(pending.id).get().status shouldBe "CANCELLED"
+            }
+
+            test("kisOrderNo가 없는 in-flight 주문은 cancelRemainder 호출 없이 CANCELLED로만 마킹한다") {
+                val cycle = saveCycle()
+                val unsentPending = orderRepository.save(
+                    Order(
+                        cycleId = cycle.id,
+                        side = "SELL",
+                        trigger = "TpStage",
+                        orderQty = 5,
+                        filledQty = 0,
+                        kisOrderNo = null,
+                        krxFwdgOrdOrgno = null,
+                        status = "PENDING",
+                    )
+                )
+
+                orderExecutor.executeSell(
+                    cycle = cycle,
+                    signal = Signal.Breakeven,
+                    intentQty = 10,
+                    buyPrice = 70_000,
+                    currentPrice = 71_000,
+                    currentBar = null,
+                )
+
+                verify(exactly = 0) { kisRestClient.cancelRemainder(any(), any()) }
+                orderRepository.findById(unsentPending.id).get().status shouldBe "CANCELLED"
+            }
+
             test("첫 시도 실패 후 재시도 성공") {
                 var calls = 0
                 every { kisRestClient.submitOrder(any(), any(), any()) } answers {

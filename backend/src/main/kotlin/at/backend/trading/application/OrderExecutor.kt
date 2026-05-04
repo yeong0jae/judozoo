@@ -73,6 +73,7 @@ class OrderExecutor(
         while (true) {
             val nowInstant = timeProvider.now().atZone(KST).toInstant()
             if (!signal.isAlive(currentPrice, buyPrice, currentBar, nowInstant)) {
+                cancelInFlightSells(cycle.id)
                 return SellOutcome.SignalDead
             }
 
@@ -103,6 +104,20 @@ class OrderExecutor(
                 )
                 delay(sellRetryDelayMillis.milliseconds)
             }
+        }
+    }
+
+    private fun cancelInFlightSells(cycleId: Long) {
+        val orders = orderRepository.findInFlightSells(cycleId)
+        for (order in orders) {
+            val orgno = order.krxFwdgOrdOrgno
+            val odno = order.kisOrderNo
+            if (orgno != null && odno != null) {
+                runCatching { kisRestClient.cancelRemainder(orgno, odno) }
+                    .onFailure { log.warn("매도 잔량 취소 실패 cycleId={}, orderId={}", cycleId, order.id, it) }
+            }
+            order.markCancelled()
+            orderRepository.save(order)
         }
     }
 
