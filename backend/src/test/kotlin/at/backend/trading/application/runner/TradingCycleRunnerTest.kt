@@ -3,7 +3,10 @@ package at.backend.trading.application.runner
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
+import at.backend.common.test.KisWebSocketClientMockConfig
 import at.backend.common.test.MutableTimeProvider
+import at.backend.market.application.MarketDataStream
+import at.backend.market.infrastructure.BarCache
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
@@ -12,6 +15,7 @@ import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.order.Order
+import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.matchers.collections.shouldHaveSize
@@ -25,12 +29,16 @@ import org.springframework.web.client.RestClientException
 import java.math.BigDecimal
 import kotlin.time.Duration.Companion.milliseconds
 
-@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
+@Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class, FixedTimeProviderConfig::class)
 class TradingCycleRunnerTest(
     @Autowired private val orderExecutor: OrderExecutor,
     @Autowired private val cycleRepository: TradingCycleJpaRepository,
     @Autowired private val orderRepository: OrderJpaRepository,
+    @Autowired private val executionRepository: ExecutionJpaRepository,
+    @Autowired private val marketDataStream: MarketDataStream,
+    @Autowired private val barCache: BarCache,
     @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val webSocketClient: at.backend.platform.kis.client.KisWebSocketClient,
     @Autowired private val timeProvider: MutableTimeProvider,
 ) : IntegrationTestBase() {
 
@@ -58,8 +66,13 @@ class TradingCycleRunnerTest(
         orderExecutor = orderExecutor,
         cycleRepository = cycleRepository,
         orderRepository = orderRepository,
+        executionRepository = executionRepository,
+        marketDataStream = marketDataStream,
+        barCache = barCache,
         timeProvider = timeProvider,
+        sellCostRate = 0.0025,
         buyIntervalUnit = 5.milliseconds,
+        holdingPollIntervalMillis = 10,
     )
 
     private fun stubCurrentPrice(price: Int) {
@@ -90,6 +103,19 @@ class TradingCycleRunnerTest(
         order.filledQty = qty
         order.status = "FILLED"
         orderRepository.save(order)
+    }
+
+    private fun simulateBuyFillWithExecution(order: Order, qty: Int, price: Int) {
+        simulateFill(order, qty)
+        executionRepository.save(
+            at.backend.trading.domain.execution.Execution(
+                orderId = order.id,
+                executedQty = qty,
+                executedPrice = price,
+                fee = 0,
+                tax = 0,
+            )
+        )
     }
 
     private suspend fun waitUntilCycle(
@@ -186,6 +212,86 @@ class TradingCycleRunnerTest(
                 val orders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
                 orders shouldHaveSize 3
                 attempt shouldBe 3
+            }
+        }
+
+        context("매도 시그널 + 종료 흐름") {
+            suspend fun reachHoldingFullyFilled(cycle: TradingCycle, target: TradingCycleRunner, fillPrice: Int) {
+                target.start()
+                withTimeout(2000.milliseconds) {
+                    var orders = emptyList<Order>()
+                    while (orders.size < 3) {
+                        delay(10.milliseconds)
+                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
+                        orders.filter { it.filledQty == 0 }
+                            .forEach { simulateBuyFillWithExecution(it, it.orderQty, fillPrice) }
+                    }
+                }
+                waitUntilCycle(cycle.id) { it.status == TradingCycleStatus.HOLDING }
+            }
+
+            suspend fun emitTick(price: Int) {
+                val channels = KisWebSocketClientMockConfig.channelsOf(webSocketClient)
+                channels.priceTicks.emit(at.backend.market.domain.PriceTick("005930", price, java.time.Instant.now()))
+            }
+
+            test("StopLoss 가격 진입 시 매도 주문이 발사되고 LIQUIDATING/STOP_LOSS로 종료된다") {
+                stubCurrentPrice(70_000)
+                stubSubmitOrderOk()
+                val cycle = saveCycle(buyIntervalMin = 1)
+                val target = runner(cycle)
+                reachHoldingFullyFilled(cycle, target, fillPrice = 70_000)
+
+                emitTick(60_000)
+
+                waitUntilCycle(cycle.id, timeoutMillis = 3000) {
+                    orderRepository.findByCycleId(cycle.id).any { it.side == "SELL" }
+                }
+                val sell = orderRepository.findByCycleId(cycle.id).first { it.side == "SELL" }
+                simulateFill(sell, sell.orderQty)
+                waitUntilCycle(cycle.id, timeoutMillis = 3000) { it.status == TradingCycleStatus.CLOSED }
+                target.cancel()
+
+                val refreshed = cycleRepository.findById(cycle.id).get()
+                refreshed.status shouldBe TradingCycleStatus.CLOSED
+                refreshed.closeReason shouldBe CloseReason.STOP_LOSS
+            }
+
+            test("Breakeven 임계 가격 도달 시 breakevenArmed가 true로 갱신된다") {
+                stubCurrentPrice(70_000)
+                stubSubmitOrderOk()
+                val cycle = saveCycle(buyIntervalMin = 1)
+                val target = runner(cycle)
+                reachHoldingFullyFilled(cycle, target, fillPrice = 70_000)
+
+                emitTick(80_000)
+
+                waitUntilCycle(cycle.id, timeoutMillis = 3000) { it.breakevenArmed }
+                target.cancel()
+
+                cycleRepository.findById(cycle.id).get().breakevenArmed shouldBe true
+            }
+
+            test("외부 MarketClose 시그널 수신 시 즉시 매도 후 CLOSED(MARKET_CLOSE)로 종료된다") {
+                stubCurrentPrice(70_000)
+                stubSubmitOrderOk()
+                val cycle = saveCycle(buyIntervalMin = 1)
+                val target = runner(cycle)
+                reachHoldingFullyFilled(cycle, target, fillPrice = 70_000)
+
+                target.submitSignal(at.backend.trading.domain.signal.Signal.MarketClose)
+
+                waitUntilCycle(cycle.id, timeoutMillis = 3000) {
+                    orderRepository.findByCycleId(cycle.id).any { it.side == "SELL" }
+                }
+                val sell = orderRepository.findByCycleId(cycle.id).first { it.side == "SELL" }
+                simulateFill(sell, sell.orderQty)
+                waitUntilCycle(cycle.id, timeoutMillis = 3000) { it.status == TradingCycleStatus.CLOSED }
+                target.cancel()
+
+                val refreshed = cycleRepository.findById(cycle.id).get()
+                refreshed.status shouldBe TradingCycleStatus.CLOSED
+                refreshed.closeReason shouldBe CloseReason.MARKET_CLOSE
             }
         }
     }

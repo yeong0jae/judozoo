@@ -55,9 +55,9 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ### 4c-4. 매도 시그널 + 종료 흐름
 
-- [ ] `TradingCycleRunner.handleHolding()`: `MarketDataStream.priceTicks` + `BarCache.bars` collect (해당 종목만) → `cycle.detectSignals` → 우선순위 정렬 → `OrderExecutor.executeSell` 호출
-- [ ] 시그널별 도메인 메서드 호출: `Breakeven` 진입 조건 충족 시 `cycle.armBreakeven()`, TpStage 발동 시 `cycle.markTpStageFired(pct)` 등
-- [ ] `cycle.close(reason, closedAt)` — 매도 완료 / 손절 / MarketClose 등 모든 종료 경로 통합
+- [x] `TradingCycleRunner.handleHolding()`: `MarketDataStream.priceTicks` + `BarCache.bars` collect (해당 종목만) → `cycle.detectSignals` → 우선순위 정렬 → `OrderExecutor.executeSell` 호출
+- [x] 시그널별 도메인 메서드 호출: `Breakeven` 진입 조건 충족 시 `cycle.armBreakeven()`, TpStage 발동 시 `cycle.markTpStageFired(pct)` 등
+- [x] `cycle.close(reason, closedAt)` — 매도 완료 / 손절 / MarketClose 등 모든 종료 경로 통합
 - [x] **부분 체결 후 미체결 잔량 처리**: 매도 시그널이 죽으면(`SignalDead`) `OrderExecutor`가 in-flight Order의 잔량을 `KisRestClient.cancelRemainder`로 정리
 
 ### 4c-5. CycleOrchestrator + 라우팅
