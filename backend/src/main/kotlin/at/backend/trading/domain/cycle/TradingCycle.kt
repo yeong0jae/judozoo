@@ -2,8 +2,8 @@ package at.backend.trading.domain.cycle
 
 import at.backend.library.jpa.BaseEntity
 import at.backend.trading.domain.execution.Execution
-import at.backend.trading.domain.price.Bar
-import at.backend.trading.domain.price.PriceTick
+import at.backend.market.domain.Bar
+import at.backend.market.domain.PriceTick
 import at.backend.trading.domain.signal.Signal
 import jakarta.persistence.*
 import java.math.BigDecimal

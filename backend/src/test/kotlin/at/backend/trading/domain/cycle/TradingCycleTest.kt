@@ -1,7 +1,7 @@
 package at.backend.trading.domain.cycle
 
-import at.backend.trading.domain.price.Bar
-import at.backend.trading.domain.price.PriceTick
+import at.backend.market.domain.Bar
+import at.backend.market.domain.PriceTick
 import at.backend.trading.domain.signal.Signal
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec

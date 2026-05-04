@@ -3,7 +3,7 @@ package at.backend.platform.kis.client
 import at.backend.platform.kis.KisApprovalKeyProvider
 import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.order.ExecutionNotice
-import at.backend.trading.domain.price.PriceTick
+import at.backend.market.domain.PriceTick
 import tools.jackson.databind.ObjectMapper
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -40,9 +40,11 @@ class KisWebSocketClient(
 
     private val _priceTicks = MutableSharedFlow<PriceTick>(extraBufferCapacity = 1024)
     private val _executionNotices = MutableSharedFlow<ExecutionNotice>(extraBufferCapacity = 256)
+    private val _connectionState = MutableSharedFlow<Boolean>(replay = 1, extraBufferCapacity = 16)
 
     val priceTicks: SharedFlow<PriceTick> = _priceTicks.asSharedFlow()
     val executionNotices: SharedFlow<ExecutionNotice> = _executionNotices.asSharedFlow()
+    val connectionState: SharedFlow<Boolean> = _connectionState.asSharedFlow()
 
     fun subscribePrice(stockCode: String) {
         val sub = Subscription(TR_PRICE, stockCode)
@@ -102,6 +104,7 @@ class KisWebSocketClient(
     override fun afterConnectionEstablished(session: WebSocketSession) {
         log.info("KIS WS 연결됨: sessionId={}", session.id)
         reconnectAttempt = 0
+        _connectionState.tryEmit(true)
         subscriptions.forEach { sendSubscription(session, it, subscribe = true) }
     }
 
@@ -168,6 +171,7 @@ class KisWebSocketClient(
     override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
         log.warn("KIS WS 끊김 status={}, 재연결 예약", closeStatus)
         sessionRef.compareAndSet(session, null)
+        _connectionState.tryEmit(false)
         if (subscriptions.isNotEmpty()) scheduleReconnect()
     }
 
