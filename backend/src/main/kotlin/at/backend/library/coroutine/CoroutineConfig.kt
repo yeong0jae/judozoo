@@ -16,6 +16,8 @@ class CoroutineConfig {
 
     @PreDestroy
     fun shutdown() {
-        applicationScope.cancel()
+        runBlocking {
+            applicationScope.coroutineContext[Job]?.cancelAndJoin()
+        }
     }
 }
