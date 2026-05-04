@@ -38,8 +38,8 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ### 4c-1. 코루틴 인프라
 
-- [ ] `library.coroutine.ApplicationCoroutineScope`: 기존 `CoroutineConfig`(`SupervisorJob + Dispatchers.IO`) 활용 가능 여부 확인 — 부족하면 보강. 종료 시 `cancelAndJoin` 보장
-- [ ] `trading.application.runner.TradingCycleRunner` 골조: 명령 ID로 식별되는 코루틴 1개 + 내부 `Mutex` 직렬화; `start(cycle)` / `submitSignal(signal)` / `cancel()` 외부 인터페이스만; 내부 상태 전이/시그널 처리는 다음 단계에서 채움
+- [x] `CoroutineConfig` 보강: `@PreDestroy`에서 `cancelAndJoin`으로 진행 중 작업까지 안전 종료 (기존 `SupervisorJob + Dispatchers.IO` 유지)
+- [x] `trading.application.runner.TradingCycleRunner` 골조: cycleId별 코루틴 1개 + 내부 `Mutex` + `Channel<Signal>` 시그널 큐; `start()` / `submitSignal(signal)` / `cancel()` 외부 인터페이스. 내부 `run()`은 다음 단계에서 매수→HOLDING→매도→종료 흐름으로 채움
 
 ### 4c-2. 매수 회차 흐름
 
