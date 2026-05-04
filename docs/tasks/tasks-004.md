@@ -18,8 +18,10 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ## 4a. OrderExecutor (주문 발송 + 멱등성)
 
-- [ ] `KisRestClient` 주문 메서드 추가: `submitOrder(order)` (`POST /uapi/domestic-stock/v1/trading/order-cash`, TR_ID `TTTC0011U`/`TTTC0012U`) → 응답 `ODNO` 반환; `cancelRemainder(order)` (`POST /uapi/domestic-stock/v1/trading/order-rvsecncl`); 개인 계좌이므로 `gt_uid` 사용 안 함 — 멱등성은 `kisOrderNo` + reconcile로 처리
-- [ ] WireMock 시나리오 추가 (`order-cash-200.json`, `order-rvsecncl-200.json`) + 정상/4xx/5xx/타임아웃 단위 테스트 (`KisRestClientTest`에 추가)
+- [x] `KisRestClient.submitOrder(stockCode, side, qty)` (`POST /uapi/domestic-stock/v1/trading/order-cash`, TR_ID `TTTC0012U`/`TTTC0011U` 분기) → 시장가(`ORD_DVSN=01`, `ORD_UNPR=0`) + custtype `P`; 응답 `KisOrderResponse` (odno, krx_fwdg_ord_orgno) 반환
+- [x] `KisRestClient.cancelRemainder(krxFwdgOrdOrgno, originalOdno)` (`POST /uapi/domestic-stock/v1/trading/order-rvsecncl`, TR_ID `TTTC0013U`) → `RVSE_CNCL_DVSN_CD=02` 취소, `QTY_ALL_ORD_YN=Y` 잔량 전부
+- [x] `Order` 엔티티에 `krxFwdgOrdOrgno` 컬럼 추가 — 정정/취소 시 원주문 식별에 필요
+- [x] WireMock fixture (`order-cash.json`, `order-rvsecncl.json`) + `KisRestClientTest`에 매수/매도/취소 페이로드 검증 + 4xx 전파 테스트 (5xx/타임아웃은 기존 GET 테스트가 동일 핸들러 검증)
 - [ ] `trading.application.OrderExecutor.executeBuyTry(cycle, attempt)`: `marketData.currentPrice` → `qty = perBuyAmount/price` → `Order(BUY, MARKET)` 저장 → `kis.submitOrder` → `waitSettlement(timeout=5s)` → Filled / Partial→cancelRemainder; 발송 실패 시 `order.markFailed` + 회차 스킵 (BUYING 유지)
 - [ ] `trading.application.OrderExecutor.executeSell(cycle, signal, intentQty)`: 재시도 루프 — `signal.isAlive(tick, currentBar)` 가드 → `effectiveQty = intentQty - inFlightUnfilled` (B-3 충돌 방지) → `Order(SELL, MARKET)` → `submitOrder` + `waitSettlement` → Filled 시 종료; 타임아웃 시 reconcile (일별 체결 조회 매칭, kisOrderNo 우선·없으면 시간/수량 매칭); `delay(5s)` 후 재시도; `orders.retry_count` / `last_error` 매 시도 갱신
 - [ ] `OrderJpaRepository` 추가 메서드: `inFlightSellUnfilled(cycleId): Int`, `findByKisOrderNo(odno)`

@@ -45,6 +45,18 @@ class KisRestClientTest : FunSpec({
         )
     }
 
+    fun stubPost(urlPath: String, fixtureName: String) {
+        wireMock.stubFor(
+            WireMock.post(WireMock.urlPathEqualTo(urlPath))
+                .willReturn(
+                    WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(fixture(fixtureName))
+                )
+        )
+    }
+
     context("정상 응답 역직렬화") {
 
         test("현재가 조회 - stck_prpr 필드 반환") {
@@ -94,6 +106,51 @@ class KisRestClientTest : FunSpec({
             output[0].totCcldQty shouldBe "10"
             output[0].avgPrvs shouldBe "70000"
         }
+
+        test("주문 발송 - 매수 시 ODNO 반환") {
+            stubPost("/uapi/domestic-stock/v1/trading/order-cash", "order-cash.json")
+
+            val response = client().submitOrder("005930", "BUY", 10)
+            response.output.odno shouldBe "0000123456"
+            response.output.krxFwdgOrdOrgno shouldBe "00950"
+
+            wireMock.verify(
+                WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
+                    .withHeader("tr_id", WireMock.equalTo("TTTC0012U"))
+                    .withHeader("custtype", WireMock.equalTo("P"))
+                    .withRequestBody(WireMock.matchingJsonPath("$.PDNO", WireMock.equalTo("005930")))
+                    .withRequestBody(WireMock.matchingJsonPath("$.ORD_DVSN", WireMock.equalTo("01")))
+                    .withRequestBody(WireMock.matchingJsonPath("$.ORD_QTY", WireMock.equalTo("10")))
+                    .withRequestBody(WireMock.matchingJsonPath("$.ORD_UNPR", WireMock.equalTo("0")))
+            )
+        }
+
+        test("주문 발송 - 매도 시 매도 TR_ID 사용") {
+            stubPost("/uapi/domestic-stock/v1/trading/order-cash", "order-cash.json")
+
+            client().submitOrder("005930", "SELL", 5)
+
+            wireMock.verify(
+                WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
+                    .withHeader("tr_id", WireMock.equalTo("TTTC0011U"))
+            )
+        }
+
+        test("주문 취소 - 잔량 전부 취소 페이로드 전송 + ODNO 반환") {
+            stubPost("/uapi/domestic-stock/v1/trading/order-rvsecncl", "order-rvsecncl.json")
+
+            val response = client().cancelRemainder(krxFwdgOrdOrgno = "00950", originalOdno = "0000123456")
+            response.output.odno shouldBe "0000123457"
+
+            wireMock.verify(
+                WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-rvsecncl"))
+                    .withHeader("tr_id", WireMock.equalTo("TTTC0013U"))
+                    .withRequestBody(WireMock.matchingJsonPath("$.RVSE_CNCL_DVSN_CD", WireMock.equalTo("02")))
+                    .withRequestBody(WireMock.matchingJsonPath("$.QTY_ALL_ORD_YN", WireMock.equalTo("Y")))
+                    .withRequestBody(WireMock.matchingJsonPath("$.ORGN_ODNO", WireMock.equalTo("0000123456")))
+                    .withRequestBody(WireMock.matchingJsonPath("$.KRX_FWDG_ORD_ORGNO", WireMock.equalTo("00950")))
+            )
+        }
     }
 
     context("4xx 응답") {
@@ -105,6 +162,15 @@ class KisRestClientTest : FunSpec({
             )
 
             shouldThrow<RestClientException> { client().getCurrentPrice("BAD_CODE") }
+        }
+
+        test("주문 발송 4xx 응답도 RestClient 예외가 전파된다") {
+            wireMock.stubFor(
+                WireMock.post(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
+                    .willReturn(WireMock.aResponse().withStatus(400))
+            )
+
+            shouldThrow<RestClientException> { client().submitOrder("005930", "BUY", 1) }
         }
     }
 
