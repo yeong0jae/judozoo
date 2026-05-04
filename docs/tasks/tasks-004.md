@@ -9,10 +9,10 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 ## 4b. MarketDataStream (시세 스트림)
 
 - [x] `platform.kis.client.KisWebSocketClient`: Spring `StandardWebSocketClient`; `subscribePrice(stockCode)` / `unsubscribePrice(stockCode)` / `subscribeExecutionNotice(htsId)`; `H0STCNT0`(체결가) 통보 → `SharedFlow<PriceTick>`; `H0STCNI0`(체결 통보) → `SharedFlow<ExecutionNotice>`; onClose 시 백오프 재연결 (1s → 2s → 5s → 5s …); `KisApprovalKeyProvider`로 WS approval_key 발급
-- [ ] `market.application.MarketDataStream` *(신규 feature 패키지)*: 활성 종목 set 관리; WS 정상이면 통보 그대로 전달, 끊김 동안 1초 간격 REST 폴링(`KisRestClient.getCurrentPrice`)으로 동일 `Flow<PriceTick>` 발행; 재연결 성공 시 폴링 중단; 모드 변경(`WS`/`POLLING`) 이벤트 발행
-- [ ] `market.infrastructure.BarCache`: 3분봉 캐시; 30초마다 `KisRestClient.getBars(code)` 폴링; 새 봉 닫힘 감지 시 `Flow<BarEvent>` 발행
-- [ ] `MarketDataStreamTest` (IntegrationTestBase + WireMock WebSocket): WS 정상 시 `PriceTick` 발행 / WS 끊김 → 1초 폴링 fallback / 재연결 시 폴링 중단 / 다중 종목 구독·해제 / 모드 변경 이벤트
-- [ ] `BarCacheTest` (IntegrationTestBase + WireMock REST): 30초 폴링 시뮬레이션 → 새 봉 닫힘 감지 시에만 발행 / 미변경 시 무발행
+- [x] `market.application.MarketDataStream` *(신규 feature 패키지)*: 참조 카운트 기반 종목 구독; WS 연결 상태(`KisWebSocketClient.connectionState`)에 따라 자동 fallback — 끊김 동안 `pollIntervalMillis`(기본 1s) 간격 REST 폴링(`KisRestClient.getCurrentPrice`)으로 동일 `SharedFlow<PriceTick>`에 발행, 재연결 시 폴링 중단; 모드(`WS`/`POLLING`) `SharedFlow` 노출
+- [x] `market.infrastructure.BarCache`: 참조 카운트 기반 종목 구독; 3분봉 30초 폴링 (테스트는 `bar-poll-interval-millis`로 단축); `KisRestClient.getBars` 응답을 `Bar` 도메인 객체로 변환, 새 endTime 감지 시에만 `SharedFlow<Bar>` 발행
+- [x] `MarketDataStreamTest` (IntegrationTestBase + `KisWebSocketClient`/`KisRestClient` MockK): WS 정상 시 PriceTick 전달 / WS 끊김 시 모드 POLLING 전환 + REST 응답 발행 / 재연결 시 모드 WS 복귀 / 같은 종목 중복 구독 dedup / 참조 카운트 = 0일 때만 unsubscribe / 다중 종목 active 노출
+- [x] `BarCacheTest` (IntegrationTestBase + `KisRestClient` MockK): 첫 폴링에서 Bar 발행 / 동일 endTime이면 무발행 / 새 endTime이면 재발행
 
 ## 4a. OrderExecutor (주문 발송 + 멱등성)
 
