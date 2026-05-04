@@ -38,3 +38,5 @@ trading:
   market:
     poll-interval-millis: 1000
     bar-poll-interval-millis: 30000
+  order:
+    sell-retry-delay-millis: 5000
