@@ -278,4 +278,70 @@ class TradingCycleTest : FunSpec({
             shouldThrow<AlreadyClosedException> { target.requestCancel() }
         }
     }
+
+    context("매수 시작") {
+        test("Initiated 상태에서 호출하면 Buying 1회차로 전이된다") {
+            val target = cycle(status = TradingCycleStatus.INITIATED, buyAttempt = 0)
+            target.startBuying()
+            target.status shouldBe TradingCycleStatus.BUYING
+            target.buyAttempt shouldBe 1
+        }
+
+        test("Initiated가 아닌 상태에서 호출하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.BUYING, buyAttempt = 1).startBuying()
+            }
+        }
+    }
+
+    context("매수 회차 증가") {
+        test("Buying 상태에서 호출하면 회차가 1 증가한다") {
+            val target = cycle(status = TradingCycleStatus.BUYING, buyAttempt = 1)
+            target.incrementBuyAttempt()
+            target.buyAttempt shouldBe 2
+        }
+
+        test("회차가 3이면 더 증가하지 않는다 (예외)") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3).incrementBuyAttempt()
+            }
+        }
+
+        test("Buying이 아닌 상태에서 호출하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.HOLDING).incrementBuyAttempt()
+            }
+        }
+    }
+
+    context("Holding 전이") {
+        test("Buying 상태에서 호출하면 Holding으로 전이된다") {
+            val target = cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
+            target.transitionToHolding()
+            target.status shouldBe TradingCycleStatus.HOLDING
+        }
+
+        test("Buying이 아닌 상태에서 호출하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.INITIATED).transitionToHolding()
+            }
+        }
+    }
+
+    context("NO_FILL 종료") {
+        test("Buying 상태에서 호출하면 Closed/NO_FILL로 전이된다") {
+            val target = cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
+            val at = java.time.LocalDateTime.of(2026, 5, 5, 10, 0)
+            target.closeNoFill(at)
+            target.status shouldBe TradingCycleStatus.CLOSED
+            target.closeReason shouldBe CloseReason.NO_FILL
+            target.closedAt shouldBe at
+        }
+
+        test("Buying이 아닌 상태에서 호출하면 예외") {
+            shouldThrow<IllegalArgumentException> {
+                cycle(status = TradingCycleStatus.HOLDING).closeNoFill(java.time.LocalDateTime.now())
+            }
+        }
+    }
 })

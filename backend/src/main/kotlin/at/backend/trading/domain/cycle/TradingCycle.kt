@@ -1,10 +1,10 @@
 package at.backend.trading.domain.cycle
 
 import at.backend.library.jpa.BaseEntity
-import at.backend.trading.domain.AlreadyClosedException
-import at.backend.trading.domain.execution.Execution
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
+import at.backend.trading.domain.AlreadyClosedException
+import at.backend.trading.domain.execution.Execution
 import at.backend.trading.domain.signal.Signal
 import jakarta.persistence.*
 import java.math.BigDecimal
@@ -66,7 +66,7 @@ class TradingCycle(
     @Column
     var closedAt: LocalDateTime? = null,
 
-) : BaseEntity() {
+    ) : BaseEntity() {
 
     init {
         require(stopLossPct < BigDecimal.ZERO) { "손절 비율은 음수여야 합니다: $stopLossPct" }
@@ -85,6 +85,40 @@ class TradingCycle(
         }
     }
 
+    fun startBuying() {
+        require(status == TradingCycleStatus.INITIATED) {
+            "Initiated 상태에서만 매수 시작 가능: $status"
+        }
+        status = TradingCycleStatus.BUYING
+        buyAttempt = 1
+    }
+
+    fun incrementBuyAttempt() {
+        require(status == TradingCycleStatus.BUYING) {
+            "Buying 상태에서만 회차 증가 가능: $status"
+        }
+        require(buyAttempt < MAX_BUY_ATTEMPT) {
+            "매수 회차는 ${MAX_BUY_ATTEMPT}회를 초과할 수 없습니다: $buyAttempt"
+        }
+        buyAttempt += 1
+    }
+
+    fun transitionToHolding() {
+        require(status == TradingCycleStatus.BUYING) {
+            "Buying 상태에서만 Holding으로 전이 가능: $status"
+        }
+        status = TradingCycleStatus.HOLDING
+    }
+
+    fun closeNoFill(at: LocalDateTime) {
+        require(status == TradingCycleStatus.BUYING) {
+            "Buying 상태에서만 NO_FILL 종료 가능: $status"
+        }
+        status = TradingCycleStatus.CLOSED
+        closeReason = CloseReason.NO_FILL
+        closedAt = at
+    }
+
     fun canTransitionTo(
         nextStatus: TradingCycleStatus,
         nextBuyAttempt: Int? = null,
@@ -96,10 +130,12 @@ class TradingCycle(
         TradingCycleStatus.BUYING -> when (nextStatus) {
             TradingCycleStatus.BUYING ->
                 nextBuyAttempt != null && nextBuyAttempt == buyAttempt + 1 && nextBuyAttempt <= 3
+
             TradingCycleStatus.HOLDING -> true
             TradingCycleStatus.LIQUIDATING -> true
             TradingCycleStatus.CLOSED ->
                 nextCloseReason == CloseReason.NO_FILL || nextCloseReason == CloseReason.CANCELLED
+
             else -> false
         }
 
@@ -132,6 +168,7 @@ class TradingCycle(
                 if (isStopLossTriggered(price, buyPrice)) signals += Signal.StopLoss
                 if (buyAttempt < 3 && isMidwayTakeProfitTriggered(price, buyPrice)) signals += Signal.MidwayTakeProfit
             }
+
             TradingCycleStatus.HOLDING -> {
                 if (isStopLossTriggered(price, buyPrice)) signals += Signal.StopLoss
                 listOf(2, 3, 5).forEach { stagePct ->
@@ -139,6 +176,7 @@ class TradingCycle(
                 }
                 if (isBreakevenTriggered(price, buyPrice)) signals += Signal.Breakeven
             }
+
             else -> Unit
         }
         return prioritize(signals)
@@ -191,5 +229,9 @@ class TradingCycle(
         3 -> 0b010
         5 -> 0b100
         else -> throw IllegalArgumentException("유효하지 않은 stagePct: $stagePct")
+    }
+
+    companion object {
+        const val MAX_BUY_ATTEMPT = 3
     }
 }
