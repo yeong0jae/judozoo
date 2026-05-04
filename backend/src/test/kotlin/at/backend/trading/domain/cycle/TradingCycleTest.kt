@@ -2,6 +2,7 @@ package at.backend.trading.domain.cycle
 
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
+import at.backend.trading.domain.AlreadyClosedException
 import at.backend.trading.domain.signal.Signal
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -254,6 +255,27 @@ class TradingCycleTest : FunSpec({
         test("Initiated 상태에서는 빈 리스트") {
             cycle(status = TradingCycleStatus.INITIATED).detectSignals(tick(9_000), holdingQty, buyPrice)
                 .shouldBeEmpty()
+        }
+    }
+
+    context("취소 요청") {
+        test("Initiated/Buying/Holding 상태는 Liquidating으로 전이된다") {
+            listOf(TradingCycleStatus.INITIATED, TradingCycleStatus.BUYING, TradingCycleStatus.HOLDING).forEach { from ->
+                val target = cycle(status = from)
+                target.requestCancel()
+                target.status shouldBe TradingCycleStatus.LIQUIDATING
+            }
+        }
+
+        test("이미 Liquidating이면 멱등 처리") {
+            val target = cycle(status = TradingCycleStatus.LIQUIDATING)
+            target.requestCancel()
+            target.status shouldBe TradingCycleStatus.LIQUIDATING
+        }
+
+        test("Closed 상태에서 취소 요청하면 AlreadyClosedException") {
+            val target = cycle(status = TradingCycleStatus.CLOSED)
+            shouldThrow<AlreadyClosedException> { target.requestCancel() }
         }
     }
 })

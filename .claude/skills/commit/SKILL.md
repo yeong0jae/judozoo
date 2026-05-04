@@ -20,7 +20,7 @@ allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*)
 
 - Format: `<type>: <subject>`
 - Korean, present tense ("추가", "수정"), no period, ~50 characters
-- Body only when the "why" needs explaining (separated from subject by a blank line)
+- Body only when the "why" needs explaining: **one line** stating the reason for the core change (separated from subject by a blank line). No multi-line bodies, no bullet lists.
 - Do **not** include `Co-Authored-By` or tool attribution
 
 ## Commit command
