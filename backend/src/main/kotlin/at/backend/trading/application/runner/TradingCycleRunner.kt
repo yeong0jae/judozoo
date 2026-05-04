@@ -2,6 +2,7 @@ package at.backend.trading.application.runner
 
 import at.backend.library.time.TimeProvider
 import at.backend.trading.application.OrderExecutor
+import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -19,7 +20,7 @@ import kotlin.time.Duration.Companion.minutes
  *
  * - 명령별로 1개 코루틴이 매수 회차 → HOLDING → 매도 시그널 → 종료까지 진행한다.
  * - 외부에서는 [start] / [submitSignal] / [cancel] 만 호출한다.
- * - 도메인 상태 전이는 [TradingCycle] 메서드(`startBuying` / `incrementBuyAttempt` / `transitionToHolding` / `closeNoFill`)로 위임 — runner는 흐름 제어만.
+ * - 도메인 상태 전이는 [TradingCycle] 메서드(`startBuying` / `incrementBuyAttempt` / `transitionToHolding` / `close`)로 위임 — runner는 흐름 제어만.
  *
  * NOTE: 매도 시그널 처리(HOLDING → 종료)는 후속 단계(4c-4)에서 채운다. 현재는 매수 회차 + HOLDING 진입까지.
  */
@@ -88,7 +89,7 @@ class TradingCycleRunner(
 
         mutex.withLock {
             if (totalFilled == 0) {
-                cycle.closeNoFill(timeProvider.now())
+                cycle.close(CloseReason.NO_FILL, timeProvider.now())
             } else {
                 cycle.transitionToHolding()
             }
