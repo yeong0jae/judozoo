@@ -18,11 +18,11 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ## 4a. OrderExecutor (주문 발송 + 멱등성)
 
-- [ ] `KisRestClient` 주문 메서드 추가: `submitOrder(order, clientOrderId)` (`POST /uapi/domestic-stock/v1/trading/order-cash`), `cancelRemainder(order)` (`POST /uapi/domestic-stock/v1/trading/order-rvsecncl`); 헤더에 `clientOrderId = order.id (UUID)` 포함
+- [ ] `KisRestClient` 주문 메서드 추가: `submitOrder(order)` (`POST /uapi/domestic-stock/v1/trading/order-cash`, TR_ID `TTTC0011U`/`TTTC0012U`) → 응답 `ODNO` 반환; `cancelRemainder(order)` (`POST /uapi/domestic-stock/v1/trading/order-rvsecncl`); 개인 계좌이므로 `gt_uid` 사용 안 함 — 멱등성은 `kisOrderNo` + reconcile로 처리
 - [ ] WireMock 시나리오 추가 (`order-cash-200.json`, `order-rvsecncl-200.json`) + 정상/4xx/5xx/타임아웃 단위 테스트 (`KisRestClientTest`에 추가)
 - [ ] `trading.application.OrderExecutor.executeBuyTry(cycle, attempt)`: `marketData.currentPrice` → `qty = perBuyAmount/price` → `Order(BUY, MARKET)` 저장 → `kis.submitOrder` → `waitSettlement(timeout=5s)` → Filled / Partial→cancelRemainder; 발송 실패 시 `order.markFailed` + 회차 스킵 (BUYING 유지)
-- [ ] `trading.application.OrderExecutor.executeSell(cycle, signal, intentQty)`: 재시도 루프 — `signalGuard.isAlive` 가드 → `effectiveQty = intentQty - inFlightUnfilled` (B-3 충돌 방지) → `Order(SELL, MARKET)` → `submitOrder` + `waitSettlement` → Filled 시 종료; 타임아웃 시 `reconcileFromKis` (일별 체결 조회 매칭); `delay(5s)` 후 재시도; `orders.retry_count` / `last_error` 매 시도 갱신
-- [ ] `OrderJpaRepository` 추가 메서드: `inFlightSellUnfilled(cycleId): Int`, `findByClientOrderId(uuid)`
+- [ ] `trading.application.OrderExecutor.executeSell(cycle, signal, intentQty)`: 재시도 루프 — `signal.isAlive(tick, currentBar)` 가드 → `effectiveQty = intentQty - inFlightUnfilled` (B-3 충돌 방지) → `Order(SELL, MARKET)` → `submitOrder` + `waitSettlement` → Filled 시 종료; 타임아웃 시 reconcile (일별 체결 조회 매칭, kisOrderNo 우선·없으면 시간/수량 매칭); `delay(5s)` 후 재시도; `orders.retry_count` / `last_error` 매 시도 갱신
+- [ ] `OrderJpaRepository` 추가 메서드: `inFlightSellUnfilled(cycleId): Int`, `findByKisOrderNo(odno)`
 - [ ] `OrderExecutorTest` (IntegrationTestBase, `KisRestClient` MockK `@TestConfiguration + @Primary`): 매수 정상 체결 / 매수 부분 체결 → 잔량 취소 / 매수 발송 실패 → 회차 스킵 / 매도 정상 / 매도 타임아웃 → 일별 체결 reconcile / B-3 충돌 (TpStage in-flight 중 StopLoss 발동 → `effectiveQty` 차감) / 재시도 카운트 누적
 
 ## 4c. TradingCycle 코루틴 + 오케스트레이션

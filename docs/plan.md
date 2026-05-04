@@ -138,7 +138,7 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 **4a. OrderExecutor**
 - 매수 회차 처리 (시장가 + 부분 체결 + 발송 실패 시 스킵)
 - 매도 재시도 루프 (5초 간격, 시그널별 isAlive 가드)
-- 멱등성: `clientOrderId = UUID` + 타임아웃 시 일별 체결 조회로 reconcile
+- 멱등성: KIS 발급 `kisOrderNo`(ODNO) 추적 + 타임아웃/통보 누락 시 일별 체결 조회 1회 reconcile (개인 계좌 — client-supplied 멱등키 미지원)
 - **B-3 충돌 방지**: 매도 quantity = intent - inFlight 미체결분
 - 재시도 누적: `orders.retry_count`, `last_error` 매 시도 갱신
 
