@@ -11,10 +11,10 @@ class StockService(
     private val timeProvider: TimeProvider,
 ) {
 
-    fun search(query: String): List<StockSearchResult> =
-        kisRestClient.searchStock(query).output.map {
-            StockSearchResult(stockCode = it.pdno, stockName = it.prdtAbrvName)
-        }
+    fun search(query: String): List<StockSearchResult> {
+        val output = kisRestClient.searchStock(query).output
+        return listOf(StockSearchResult(stockCode = output.pdno, stockName = output.prdtAbrvName))
+    }
 
     fun getPrice(stockCode: String): StockPriceResult {
         val price = kisRestClient.getCurrentPrice(stockCode).output.stckPrpr.toLong()

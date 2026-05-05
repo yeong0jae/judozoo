@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -311,6 +311,13 @@ export default function CommandPage() {
           <BalancePanel
             balance={balance}
             loading={balanceQ.isLoading}
+            error={balanceQ.isError}
+            errorCode={
+              balanceQ.error instanceof ApiError
+                ? balanceQ.error.code
+                : undefined
+            }
+            onRetry={() => balanceQ.refetch()}
             insufficient={insufficientBalance}
           />
           <SystemPanel status={status} loading={systemQ.isLoading} />
@@ -542,11 +549,13 @@ function PriceDisplay({
   );
 }
 
-const AmountInput = (
-  props: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> },
-) => (
+const AmountInput = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>((props, ref) => (
   <div className="relative">
     <input
+      ref={ref}
       type="number"
       step={10_000}
       min={0}
@@ -557,7 +566,8 @@ const AmountInput = (
       원
     </span>
   </div>
-);
+));
+AmountInput.displayName = "AmountInput";
 
 function AmountPreview({
   perBuyAmount,
@@ -726,10 +736,16 @@ function NumField({
 function BalancePanel({
   balance,
   loading,
+  error,
+  errorCode,
+  onRetry,
   insufficient,
 }: {
   balance: AccountBalance | undefined;
   loading: boolean;
+  error: boolean;
+  errorCode?: string;
+  onRetry: () => void;
   insufficient: boolean;
 }) {
   return (
@@ -737,11 +753,28 @@ function BalancePanel({
       <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
         잔고
       </h3>
-      {loading || !balance ? (
+      {loading ? (
         <div className="space-y-2">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-5 w-full" />
+        </div>
+      ) : error || !balance ? (
+        <div className="text-sm text-rose-300 space-y-2">
+          <p>
+            잔고 조회 실패
+            {errorCode && (
+              <span className="text-xs text-rose-400 block mt-1">
+                ({errorCode})
+              </span>
+            )}
+          </p>
+          <button
+            onClick={onRetry}
+            className="text-xs text-zinc-300 hover:text-white px-2 py-1 rounded bg-zinc-800 border border-zinc-700"
+          >
+            다시 시도
+          </button>
         </div>
       ) : (
         <>

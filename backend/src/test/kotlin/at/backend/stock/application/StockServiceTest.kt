@@ -30,28 +30,18 @@ class StockServiceTest(
 
         context("종목 검색") {
             test("KIS 응답을 종목코드/종목명으로 매핑한다") {
-                every { kisRestClient.searchStock("삼성") } returns KisStockSearchResponse(
-                    output = listOf(
-                        KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자"),
-                        KisStockSearchResponse.Output(pdno = "207940", prdtAbrvName = "삼성바이오로직스"),
+                every { kisRestClient.searchStock("005930") } returns KisStockSearchResponse(
+                    output = KisStockSearchResponse.Output(
+                        pdno = "005930",
+                        prdtAbrvName = "삼성전자",
                     )
                 )
 
-                val result = stockService.search("삼성")
+                val result = stockService.search("005930")
 
-                result shouldHaveSize 2
+                result shouldHaveSize 1
                 result[0].stockCode shouldBe "005930"
                 result[0].stockName shouldBe "삼성전자"
-                result[1].stockCode shouldBe "207940"
-                result[1].stockName shouldBe "삼성바이오로직스"
-            }
-
-            test("KIS 검색 결과가 비어있으면 빈 목록을 반환한다") {
-                every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(output = emptyList())
-
-                val result = stockService.search("없는종목")
-
-                result shouldBe emptyList()
             }
         }
 

@@ -37,7 +37,7 @@ class TradingServiceBroadcastTest(
 
     private fun stubKisDefaults() {
         every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
-            output = listOf(KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자"))
+            output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
         )
         every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
             output = KisCurrentPriceResponse.Output(stckPrpr = "70000")

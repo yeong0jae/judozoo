@@ -36,7 +36,7 @@ class TradingValidator(
 
     private fun resolveStockName(stockCode: String): String {
         val output = kisRestClient.searchStock(stockCode).output
-        return output.firstOrNull()?.prdtAbrvName
+        return output.prdtAbrvName.takeIf { it.isNotBlank() }
             ?: throw TradingValidationException(TradingValidationException.ErrorCode.STOCK_NOT_FOUND)
     }
 
