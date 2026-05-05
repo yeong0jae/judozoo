@@ -32,7 +32,7 @@ class TradingSchedulerService(
     fun toggleCommandGate() {
         val today = timeProvider.now().toLocalDate()
         val isMarketOpen = runCatching {
-            kisRestClient.checkHoliday(today).output.opndYn == "Y"
+            kisRestClient.checkHoliday(today).output.firstOrNull()?.opndYn == "Y"
         }.getOrElse {
             log.warn("개장일 검증 실패 — 게이트 닫힘 유지", it)
             commandGate.close()

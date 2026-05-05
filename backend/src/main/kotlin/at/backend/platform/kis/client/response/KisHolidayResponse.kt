@@ -3,7 +3,8 @@ package at.backend.platform.kis.client.response
 import com.fasterxml.jackson.annotation.JsonProperty
 
 data class KisHolidayResponse(
-    val output: Output,
+    // 실서버 응답이 Array (docs는 Object로 문서화돼 있으나 실 동작은 List).
+    val output: List<Output>,
 ) {
     data class Output(
         // 개장일 여부 — 주식시장이 열리는 날 (Y/N).

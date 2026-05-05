@@ -15,7 +15,7 @@ class SystemService(
 
     fun getStatus(): SystemStatusResult {
         val now = timeProvider.now().toLocalTime()
-        val isHoliday = kisRestClient.checkHoliday(timeProvider.today()).output.opndYn != "Y"
+        val isHoliday = kisRestClient.checkHoliday(timeProvider.today()).output.firstOrNull()?.opndYn != "Y"
         val tradingHoursOpen = now >= TRADING_START && now <= TRADING_END
         val cutoffPassed = now > CUTOFF_BASE.minusMinutes((tradingProperties.defaultBuyIntervalMin * 2).toLong())
         return SystemStatusResult(
