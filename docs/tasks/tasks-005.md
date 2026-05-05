@@ -20,7 +20,8 @@ Goal: Phase 4에서 구축한 사이클 엔진(`TradingCycleRunner`, `CycleOrche
 > 진정한 E2E(controller+HTTP)는 별도 `*ControllerTest`에서 다룬다.
 
 - [ ] 정상 사이클: 3회 매수 → 봉 종료에서 +2%/+3%/+5% 단계 발동 → 추세 꺾임 잔여 매도 → CLOSED(TAKE_PROFIT)
-- [ ] 손절: HOLDING 중 -2% → CLOSED(STOP_LOSS)
+- [x] 손절: HOLDING 중 -2% → CLOSED(STOP_LOSS)
+  - 작성 중 운영 버그 발견 — `isStopLossTriggered`가 stopLossPct를 decimal로 곱했음(다른 비율은 percent /100). 같은 PR에서 fix
 - [ ] 본전 매도: +2% 도달 무장 → 매수가 도달 → 전량 매도 → CLOSED(BREAKEVEN); 무장만 된 봉 종료 후 다음 봉 재충족 시 재발동 검증
 - [ ] 취소: BUYING 1차 in-flight 중 cancel → in-flight 매수 취소 + 보유분 청산 → CLOSED(CANCELLED)
 - [x] 부분 체결 / NO_FILL: 3회 모두 미체결 → 보유 0 → CLOSED(NO_FILL) 직행

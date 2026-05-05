@@ -195,6 +195,26 @@ class TradingCycleScenarioTest(
         }
 
         context("사이클 시나리오") {
+            test("손절: HOLDING 중 -2% tick 진입 시 매도 후 CLOSED(STOP_LOSS)") {
+                val created = tradingService.create(validInput())
+
+                runBlocking {
+                    reachHoldingFullyFilled(created.id, fillPrice = 70_000)
+
+                    emitTicksUntil(price = 60_000) {
+                        orderRepository.findByCycleId(created.id)
+                            .any { it.side == "SELL" && it.kisOrderNo != null }
+                    }
+                    val sell = orderRepository.findByCycleId(created.id).first { it.side == "SELL" }
+                    fillSellOrder(sell, sell.orderQty)
+                    waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
+                }
+
+                val refreshed = cycleRepository.findById(created.id).get()
+                refreshed.status shouldBe TradingCycleStatus.CLOSED
+                refreshed.closeReason shouldBe CloseReason.STOP_LOSS
+            }
+
             test("부분 체결/NO_FILL: 매수 3회 모두 발송 실패 시 CLOSED(NO_FILL)로 종료") {
                 stubSubmitOrderFail()
 
