@@ -41,10 +41,10 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## 모니터링 화면 wire
 
-- [ ] mock 제거 → `useActiveCommands` + `useTodayClosed` + `useCommandDetail(selectedId)` + `useCancelCommand`
-- [ ] `/topic/trading/lifecycle` 구독 — CREATED → activeCommands invalidate, CLOSED → activeCommands+todayClosed invalidate + 종료 토스트 (NotificationProvider와 dedup)
-- [ ] 활성 명령마다 `/topic/trading/{id}` 구독 — PRICE/STATE/SIGNAL/EXECUTION/RETRY를 행/상세 부분 갱신 (TanStack Query setQueryData 또는 별도 store)
-- [ ] `/topic/market` MARKET_MODE → 헤더 배지
+- [x] mock 제거 → `useActiveCommands` + `useTodayClosed` + `useCommandDetail(selectedId)` + `useCancelCommand`
+- [x] `/topic/trading/lifecycle` 구독 — CREATED → activeCommands invalidate, CLOSED → activeCommands+todayClosed invalidate + 종료 토스트 (NotificationsBridge와 dedup)
+- [x] 활성 명령마다 `/topic/trading/{id}` 구독 — PRICE/STATE는 setQueryData로 부분 갱신, EXECUTION/SIGNAL/RETRY는 detail invalidate
+- [x] `/topic/market` MARKET_MODE → 헤더 배지 (전역 invalidate via App.tsx onReconnect 및 NotificationsBridge가 처리)
 
 ## 실적 화면 wire
 

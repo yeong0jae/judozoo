@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  mockActiveCommands,
-  mockCommandDetails,
-  mockTodayClosed,
-} from "../mocks/data";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type {
   CloseReason,
   DailyTrading,
+  LifecyclePayload,
   TradingCycleStatus,
+  TradingDetail,
+  TradingPayload,
   TradingSummary,
 } from "../types";
 import {
@@ -21,12 +20,22 @@ import {
 import StatusPill from "../components/common/StatusPill";
 import ProfitText from "../components/common/ProfitText";
 import EmptyState from "../components/common/EmptyState";
+import ErrorState from "../components/common/ErrorState";
+import Skeleton from "../components/common/Skeleton";
 import CloseReasonBadge from "../components/common/CloseReasonBadge";
 import FlashOnChange from "../components/common/FlashOnChange";
 import DetailPanel from "../components/trading/DetailPanel";
 import { useToast } from "../components/toast/Toast";
-import { useNotifications } from "../notifications/notifications";
 import { useSettings } from "../settings/settings";
+import {
+  QK,
+  useActiveCommands,
+  useCommandDetail,
+  useTodayClosed,
+} from "../api/queries";
+import { useCancelCommand } from "../api/mutations";
+import { useStompSubscription } from "../ws/useStompSubscription";
+import { ApiError } from "../api/client";
 
 type SortKey = "profit" | "status" | "name" | "buyProgress";
 const STATUS_ORDER: Record<TradingCycleStatus, number> = {
@@ -38,80 +47,48 @@ const STATUS_ORDER: Record<TradingCycleStatus, number> = {
 };
 
 export default function MonitoringPage() {
-  // Phase 5-B-2: useActiveCommands() / useTodayClosed()로 교체.
-  // 5-B-1에선 mock을 local state로 복사해 PRICE 시뮬레이션 가능하도록 만든다.
-  const [commands, setCommands] = useState<TradingSummary[]>(mockActiveCommands);
-  const [selectedId, setSelectedId] = useState<number | null>(
-    commands[0]?.commandId ?? null,
-  );
+  const qc = useQueryClient();
+  const toast = useToast();
+  const settings = useSettings();
+
+  const activeQ = useActiveCommands();
+  const todayQ = useTodayClosed();
+  const commands = activeQ.data ?? [];
+  const todayRows = todayQ.data ?? [];
+
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("profit");
   const [reasonFilter, setReasonFilter] = useState<Set<CloseReason>>(
     new Set(),
   );
-
-  const toast = useToast();
-  const notifications = useNotifications();
-  const settings = useSettings();
-
   const todayRowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
 
-  // === mock PRICE 시뮬레이터 — 3초마다 임의 행 수익률을 ±0.005 nudge ===
-  useEffect(() => {
-    if (commands.length === 0) return;
-    const id = setInterval(() => {
-      setCommands((prev) =>
-        prev.map((c, i) => {
-          if (i !== Math.floor(Math.random() * prev.length)) return c;
-          const delta = (Math.random() - 0.5) * 0.01;
-          const newRate = Math.max(-0.1, Math.min(0.1, c.profitRate + delta));
-          const newPrice = Math.round(
-            c.averageBuyPrice * (1 + newRate),
-          );
-          const newAmount = Math.round(
-            (newPrice - c.averageBuyPrice) * c.holdingQty,
-          );
-          return {
-            ...c,
-            currentPrice: newPrice,
-            profitRate: newRate,
-            profitAmount: newAmount,
-          };
-        }),
-      );
-    }, 3000);
-    return () => clearInterval(id);
-  }, [commands.length]);
+  const detailQ = useCommandDetail(selectedId);
+  const cancelCommand = useCancelCommand();
 
-  // === 종료 토스트 데모 + NotificationProvider 연동 ===
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const closed = mockTodayClosed[0];
-      if (!closed?.closeReason) return;
-      notifications.add({
-        ts: new Date().toISOString(),
-        commandId: closed.commandId,
-        closeReason: closed.closeReason,
-        stockName: closed.stockName,
-        stockCode: closed.stockCode,
-      });
+  // /topic/trading/lifecycle — CREATED/CLOSED 시 active/today invalidate + 종료 행 스크롤 액션
+  useStompSubscription<LifecyclePayload>("/topic/trading/lifecycle", (p) => {
+    qc.invalidateQueries({ queryKey: QK.activeCommands });
+    if (p.type === "CLOSED") {
+      qc.invalidateQueries({ queryKey: QK.todayClosed });
+      // NotificationsBridge가 toast/알림을 이미 띄움. 여기선 종료 행 스크롤 보강 토스트만 추가.
       toast.show({
-        message: `${closed.stockName} 명령이 종료되었습니다`,
-        closeReason: closed.closeReason,
+        tone: "info",
+        message: `명령 #${p.commandId} 종료 — 종료 행으로 이동`,
+        duration: 5000,
         action: {
-          label: "종료 행으로 이동",
+          label: "이동",
           onClick: () => {
-            const row = todayRowRefs.current[closed.commandId];
+            const row = todayRowRefs.current[p.commandId];
             row?.scrollIntoView({ behavior: "smooth", block: "center" });
             row?.classList.add("bg-amber-900/40");
             setTimeout(() => row?.classList.remove("bg-amber-900/40"), 1500);
           },
         },
       });
-    }, 4000);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    }
+  });
 
   const sortedCommands = useMemo(
     () => [...commands].sort(sortFn(sortKey)),
@@ -119,26 +96,50 @@ export default function MonitoringPage() {
   );
 
   const filteredTodayClosed = useMemo(() => {
-    if (reasonFilter.size === 0) return mockTodayClosed;
-    return mockTodayClosed.filter(
+    if (reasonFilter.size === 0) return todayRows;
+    return todayRows.filter(
       (r) => r.closeReason && reasonFilter.has(r.closeReason),
     );
-  }, [reasonFilter]);
+  }, [todayRows, reasonFilter]);
 
-  const selectedDetail = selectedId ? mockCommandDetails[selectedId] : null;
+  const selectedDetail = detailQ.data ?? null;
+
+  const onCancelConfirm = async () => {
+    if (!selectedId) return;
+    try {
+      await cancelCommand.mutateAsync(selectedId);
+      setShowCancelDialog(false);
+      toast.show({ tone: "success", message: "취소 요청됨" });
+    } catch (e) {
+      const code = e instanceof ApiError ? e.code : "SERVER_ERROR";
+      toast.show({ tone: "error", message: `취소 실패 — ${code}` });
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* 활성 명령마다 per-id 구독 */}
+      {commands.map((c) => (
+        <PerCycleSubscription key={c.commandId} commandId={c.commandId} qc={qc} />
+      ))}
+
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">
-            활성 명령 ({commands.length})
+            활성 명령 ({activeQ.isLoading ? "..." : commands.length})
           </h2>
           {commands.length > 0 && (
             <SortDropdown value={sortKey} onChange={setSortKey} />
           )}
         </div>
-        {commands.length === 0 ? (
+        {activeQ.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : activeQ.isError ? (
+          <ErrorState onRetry={() => activeQ.refetch()} />
+        ) : commands.length === 0 ? (
           <EmptyState
             message="활성 매매 명령이 없습니다"
             action={
@@ -164,15 +165,21 @@ export default function MonitoringPage() {
         )}
       </section>
 
-      {selectedDetail && (
+      {selectedId && (
         <section>
           <h2 className="text-lg font-semibold mb-3">
-            상세 — {selectedDetail.stockName}
+            상세 {selectedDetail && `— ${selectedDetail.stockName}`}
           </h2>
-          <DetailPanel
-            detail={selectedDetail}
-            onCancel={() => setShowCancelDialog(true)}
-          />
+          {detailQ.isLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : detailQ.isError ? (
+            <ErrorState onRetry={() => detailQ.refetch()} />
+          ) : selectedDetail ? (
+            <DetailPanel
+              detail={selectedDetail}
+              onCancel={() => setShowCancelDialog(true)}
+            />
+          ) : null}
         </section>
       )}
 
@@ -180,15 +187,15 @@ export default function MonitoringPage() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-zinc-400">
             오늘 종료된 명령 ({filteredTodayClosed.length}
-            {reasonFilter.size > 0 && ` / ${mockTodayClosed.length}`})
+            {reasonFilter.size > 0 && ` / ${todayRows.length}`})
           </h3>
-          {mockTodayClosed.length > 0 && (
+          {todayRows.length > 0 && (
             <ReasonFilter
               value={reasonFilter}
               onChange={setReasonFilter}
               available={
                 new Set(
-                  mockTodayClosed
+                  todayRows
                     .map((r) => r.closeReason)
                     .filter((x): x is CloseReason => !!x),
                 )
@@ -196,7 +203,11 @@ export default function MonitoringPage() {
             />
           )}
         </div>
-        {filteredTodayClosed.length === 0 ? (
+        {todayQ.isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : todayQ.isError ? (
+          <ErrorState onRetry={() => todayQ.refetch()} />
+        ) : filteredTodayClosed.length === 0 ? (
           <EmptyState
             icon="📭"
             message={
@@ -218,12 +229,83 @@ export default function MonitoringPage() {
         <ConfirmDialog
           title="매매 사이클 취소"
           message={`${selectedDetail.stockName} 명령을 즉시 청산합니다. 보유 ${formatQty(selectedDetail.holdingQty)}이 시장가로 매도됩니다. 계속할까요?`}
-          onConfirm={() => setShowCancelDialog(false)}
+          onConfirm={onCancelConfirm}
           onCancel={() => setShowCancelDialog(false)}
+          confirmLoading={cancelCommand.isPending}
         />
       )}
     </div>
   );
+}
+
+// ============================================================
+// Per-cycle STOMP subscription
+// ============================================================
+
+function PerCycleSubscription({
+  commandId,
+  qc,
+}: {
+  commandId: number;
+  qc: QueryClient;
+}) {
+  useStompSubscription<TradingPayload>(
+    `/topic/trading/${commandId}`,
+    (p) => {
+      if (p.type === "PRICE") {
+        // active list 행 부분 갱신
+        qc.setQueryData<TradingSummary[]>(QK.activeCommands, (prev) =>
+          prev?.map((c) =>
+            c.commandId === commandId
+              ? {
+                  ...c,
+                  currentPrice: p.currentPrice,
+                  profitRate: Number(p.profitRate),
+                  profitAmount: p.profitAmount,
+                }
+              : c,
+          ),
+        );
+        // 상세 캐시도 부분 갱신
+        qc.setQueryData<TradingDetail | undefined>(
+          QK.commandDetail(commandId),
+          (prev) =>
+            prev
+              ? {
+                  ...prev,
+                  currentPrice: p.currentPrice,
+                  profitRate: Number(p.profitRate),
+                  profitAmount: p.profitAmount,
+                }
+              : prev,
+        );
+      } else if (p.type === "STATE") {
+        qc.setQueryData<TradingSummary[]>(QK.activeCommands, (prev) =>
+          prev?.map((c) =>
+            c.commandId === commandId ? { ...c, status: p.status } : c,
+          ),
+        );
+        qc.invalidateQueries({ queryKey: QK.commandDetail(commandId) });
+      } else {
+        // EXECUTION / SIGNAL / RETRY → 상세 invalidate (active 요약은 일부 필드만)
+        if (p.type === "EXECUTION") {
+          qc.setQueryData<TradingSummary[]>(QK.activeCommands, (prev) =>
+            prev?.map((c) =>
+              c.commandId === commandId
+                ? {
+                    ...c,
+                    holdingQty: p.holdingQty,
+                    averageBuyPrice: p.averageBuyPrice,
+                  }
+                : c,
+            ),
+          );
+        }
+        qc.invalidateQueries({ queryKey: QK.commandDetail(commandId) });
+      }
+    },
+  );
+  return null;
 }
 
 function sortFn(key: SortKey): (a: TradingSummary, b: TradingSummary) => number {
@@ -486,11 +568,13 @@ function ConfirmDialog({
   message,
   onConfirm,
   onCancel,
+  confirmLoading,
 }: {
   title: string;
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  confirmLoading?: boolean;
 }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -500,15 +584,17 @@ function ConfirmDialog({
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded text-sm bg-zinc-800 hover:bg-zinc-700"
+            disabled={confirmLoading}
+            className="px-4 py-2 rounded text-sm bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
           >
             돌아가기
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded text-sm bg-rose-700 hover:bg-rose-600 text-white font-medium"
+            disabled={confirmLoading}
+            className="px-4 py-2 rounded text-sm bg-rose-700 hover:bg-rose-600 text-white font-medium disabled:opacity-50"
           >
-            취소 진행
+            {confirmLoading ? "처리 중..." : "취소 진행"}
           </button>
         </div>
       </div>
