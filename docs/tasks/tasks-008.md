@@ -9,8 +9,8 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## 의존성 / 환경
 
-- [ ] `npm install @stomp/stompjs @tanstack/react-query react-hook-form zod @hookform/resolvers`
-- [ ] Vite dev proxy — `/api`, `/ws` → `http://localhost:8080`
+- [x] `npm install @stomp/stompjs @tanstack/react-query react-hook-form zod @hookform/resolvers`
+- [x] Vite dev proxy — `/api`, `/ws` → `http://localhost:8080`
 
 ## API 클라이언트 (`src/api/`)
 
