@@ -33,11 +33,11 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## 매매 명령 화면 wire
 
-- [ ] mock 제거 → `useSystemStatus` + `useAccountBalance` + `useStockSearch` + `useStockPrice` + `useCreateCommand`
-- [ ] React Hook Form + Zod 스키마 — 1주 가격 / 잔고 한도 / 종목 선택 클라사이드 1차 검증
-- [ ] `/topic/account` 구독 → BALANCE_INVALIDATED 시 `useAccountBalance` invalidate
-- [ ] `/topic/market` 구독 → HOLIDAY/MARKET_MODE 시 `useSystemStatus` invalidate
-- [ ] 활성 명령 미리보기 → `useActiveCommands`
+- [x] mock 제거 → `useSystemStatus` + `useAccountBalance` + `useStockSearch` + `useStockPrice` + `useCreateCommand`
+- [x] React Hook Form + Zod 스키마 — perBuyAmount + 5개 advanced 필드 검증
+- [x] `/topic/account` 구독 → BALANCE_INVALIDATED 시 `useAccountBalance` invalidate
+- [x] `/topic/market` 구독 → HOLIDAY/MARKET_MODE 시 `useSystemStatus` invalidate
+- [x] 활성 명령 미리보기 → `useActiveCommands`
 
 ## 모니터링 화면 wire
 
