@@ -3,6 +3,7 @@ import NotificationBell from "../header/NotificationBell";
 import SystemStatusBadge from "../header/SystemStatusBadge";
 import StompStatusBadge from "../header/StompStatusBadge";
 import SettingsButton from "../header/SettingsButton";
+import TodayProfitSummary from "../header/TodayProfitSummary";
 import { mockSystemStatus } from "../../mocks/data";
 
 const navItem =
@@ -49,6 +50,7 @@ export default function Header() {
           </NavLink>
         </nav>
         <div className="flex-1" />
+        <TodayProfitSummary />
         <div className="flex items-center gap-1">
           <NotificationBell />
           <SystemStatusBadge status={status} />

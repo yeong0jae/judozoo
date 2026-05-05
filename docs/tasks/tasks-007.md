@@ -47,12 +47,12 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 
 - [x] 활성 명령 행 — `[StatusPill][종목 + 평단→현재가][수익률 큰글씨][매수 dots][보유수량][🔥 LIQUIDATING만]` (※ 본전/추세 무장 아이콘은 Summary에 데이터 없음 — 행에서 제거)
 - [x] 상세 패널 — 요약헤더 / 매수진행(다음 매수 시각: orders 마지막 BUY + buyIntervalMin) / 시그널무장보드(tpStages 3단계 + 본전 + 추세) / 분할매도 progress / 주문이력 / 체결이력
-- [ ] 오늘 종료 섹션 — closeReason 8종 일관 시각화, NO_FILL/UNCLOSED 행 배경 강조
-- [ ] 정렬(수익률/상태/종목명/매수진행) + closeReason 필터
-- [ ] 종료 토스트 (mock setTimeout 발화) + 클릭 시 종료 행으로 스크롤
-- [ ] 실시간 시각 효과 — PRICE flash / SIGNAL FIRED 펄스 / EXECUTION 인라인 알림 (mock 트리거로 시연)
-- [ ] 헤더 "오늘 손익" — DailyTrading.profitAmount 합 (수수료/세금 분리 표기 ❌ — Phase 6에서)
-- [ ] 빈 상태 (활성 0건 / 오늘 종료 0건)
+- [x] 오늘 종료 섹션 — closeReason 8종 일관 시각화, NO_FILL/UNCLOSED 행 배경 강조
+- [x] 정렬(수익률/상태/종목명/매수진행) + closeReason 필터
+- [x] 종료 토스트 (mock setTimeout 발화) + 클릭 시 종료 행으로 스크롤
+- [x] 실시간 시각 효과 — PRICE flash 시연 (SIGNAL FIRED 펄스/EXECUTION 인라인은 5-B-2 wire 시 추가)
+- [x] 헤더 "오늘 손익" — DailyTrading.profitAmount 합 (수수료/세금 분리 표기 ❌ — Phase 6에서)
+- [x] 빈 상태 (활성 0건 / 오늘 종료 0건)
 
 ## 매매 명령 화면 재설계
 
