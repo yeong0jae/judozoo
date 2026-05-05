@@ -55,7 +55,7 @@ class KisRestClient(
                     .queryParam("PDNO", keyword)
                     .build()
             }
-            .header("tr_id", "CTPF1604R")
+            .header("tr_id", "CTPF1002R")
             .retrieve()
             .body(KisStockSearchResponse::class.java)
             ?: error("KIS 종목 검색 응답이 비어있습니다")
