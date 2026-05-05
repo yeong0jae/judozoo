@@ -51,6 +51,7 @@ class KisApiClientConfig {
                     request.headers.setBearerAuth(tokenProvider.token)
                     request.headers.set("appkey", properties.appKey)
                     request.headers.set("appsecret", properties.appSecret)
+                    request.headers.set("custtype", CUSTTYPE_INDIVIDUAL)
                     execution.execute(request, body)
                 }
                 .build(),
@@ -76,5 +77,6 @@ class KisApiClientConfig {
     companion object {
         private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(5)
         private val READ_TIMEOUT: Duration = Duration.ofSeconds(3)
+        private const val CUSTTYPE_INDIVIDUAL = "P"
     }
 }

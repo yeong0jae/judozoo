@@ -68,7 +68,7 @@ class KisRestClient(
                     .queryParam("ACNT_PRDT_CD", accountProductCode)
                     .queryParam("AFHR_FLPR_YN", "N")
                     .queryParam("OFL_YN", "")
-                    .queryParam("INQR_DVSN", "02")
+                    .queryParam("INQR_DVSN", "01")
                     .queryParam("UNPR_DVSN", "01")
                     .queryParam("FUND_STTL_ICLD_YN", "N")
                     .queryParam("FNCG_AMT_AUTO_RDPT_YN", "N")
@@ -114,11 +114,13 @@ class KisRestClient(
                     .queryParam("ODNO", "")
                     .queryParam("INQR_DVSN_3", "00")
                     .queryParam("INQR_DVSN_1", "")
+                    .queryParam("EXCG_ID_DVSN_CD", "KRX")
                     .queryParam("CTX_AREA_FK100", "")
                     .queryParam("CTX_AREA_NK100", "")
                     .build()
             }
-            .header("tr_id", "TTTC8001R")
+            // 신TR (구 TTTC8001R은 사전고지 없이 막힐 수 있음). 본 시스템은 5초 timeout 직후 reconcile 1회만 호출하므로 항상 3개월 이내.
+            .header("tr_id", "TTTC0081R")
             .retrieve()
             .body(KisDailyCcldResponse::class.java)
             ?: error("KIS 일별 체결 응답이 비어있습니다")
@@ -132,7 +134,6 @@ class KisRestClient(
         return restClient.post()
             .uri("/uapi/domestic-stock/v1/trading/order-cash")
             .header("tr_id", trId)
-            .header("custtype", CUSTTYPE_INDIVIDUAL)
             .contentType(MediaType.APPLICATION_JSON)
             .body(
                 KisOrderRequest(
@@ -153,7 +154,6 @@ class KisRestClient(
         restClient.post()
             .uri("/uapi/domestic-stock/v1/trading/order-rvsecncl")
             .header("tr_id", TR_ID_CANCEL)
-            .header("custtype", CUSTTYPE_INDIVIDUAL)
             .contentType(MediaType.APPLICATION_JSON)
             .body(
                 KisOrderCancelRequest(
@@ -179,7 +179,6 @@ class KisRestClient(
         private const val TR_ID_BUY = "TTTC0012U"
         private const val TR_ID_SELL = "TTTC0011U"
         private const val TR_ID_CANCEL = "TTTC0013U"
-        private const val CUSTTYPE_INDIVIDUAL = "P"
         private const val ORD_DVSN_MARKET = "01"
         private const val ORD_UNPR_MARKET = "0"
         private const val RVSE_CNCL_CANCEL = "02"

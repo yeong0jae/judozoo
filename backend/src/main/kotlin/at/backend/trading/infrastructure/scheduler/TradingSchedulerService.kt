@@ -31,15 +31,15 @@ class TradingSchedulerService(
     @Scheduled(cron = "0 0 8 * * MON-FRI", zone = "Asia/Seoul")
     fun toggleCommandGate() {
         val today = timeProvider.now().toLocalDate()
-        val isBusinessDay = runCatching {
-            kisRestClient.checkHoliday(today).output.firstOrNull()?.bzdyYn == "Y"
+        val isMarketOpen = runCatching {
+            kisRestClient.checkHoliday(today).output.firstOrNull()?.opndYn == "Y"
         }.getOrElse {
-            log.warn("영업일 검증 실패 — 게이트 닫힘 유지", it)
+            log.warn("개장일 검증 실패 — 게이트 닫힘 유지", it)
             commandGate.close()
             return
         }
         val instant = timeProvider.now().atZone(KST).toInstant()
-        if (isBusinessDay) {
+        if (isMarketOpen) {
             commandGate.open()
             eventPublisher.publishEvent(HolidayChanged(isHoliday = false, ts = instant))
             log.info("영업일 — 명령 접수 게이트 OPEN")

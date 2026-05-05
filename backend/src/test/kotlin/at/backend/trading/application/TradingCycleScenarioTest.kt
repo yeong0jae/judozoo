@@ -69,7 +69,7 @@ class TradingCycleScenarioTest(
 
     private fun stubHoliday() {
         every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
-            output = listOf(KisHolidayResponse.Output(bzdyYn = "Y"))
+            output = listOf(KisHolidayResponse.Output(opndYn = "Y"))
         )
     }
 
