@@ -1,1 +1,3 @@
+// Backend DTOs aligned 1:1 (Phase 5-A 기준).
+// 참고: backend/src/main/kotlin/at/backend/{trading,system,account,stock}/...
 export {};

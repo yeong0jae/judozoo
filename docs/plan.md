@@ -125,7 +125,7 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 
 ### Definition of Done
 - 위 통합 테스트 통과
-- Phase 5 프론트 통합 시 mock → 실 API로 1:1 교체 가능 (DTO 일치)
+- Phase 5-B-2 프론트 통합 시 mock → 실 API로 1:1 교체 가능 (DTO 일치)
 
 ---
 
@@ -203,22 +203,43 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 
 ---
 
-## Phase 5-B: 프론트 통합
+## Phase 5-B-1: 프론트 UI/UX 재설계
 
-목표: 백엔드의 STOMP 토픽 표면 위에서 사용자가 실시간으로 사이클을 추적하고, mock을 걷어낸다.
+목표: 백엔드 DTO 확정 후, 그 형태에 맞춰 mock을 재작성하고 화면 UI/UX를 다시 설계한다. 데이터는 여전히 mock — 실 연결은 5-B-2.
+
+> 기존 mock은 백엔드 DTO 확정 전 추측으로 만들어진 상태. wire-up과 UI 재설계를 동시에 하면 두 번 일하게 되므로 분리.
 
 ### 산출물 (프론트)
-- `@stomp/stompjs` 클라이언트 + 자동 재연결 + STOMP 끊김 시 사용자 안내
-- TanStack Query 도입 → mock 제거, 실 API 호출로 전환
-- React Hook Form + Zod로 매매 명령 화면 폼 검증
-- 모니터링 구독 흐름 (spec §11.5 프론트 구독 흐름 그대로)
-- 종료 토스트: setTimeout mock → lifecycle CLOSED 이벤트 핸들러로 교체
-- 시스템 상태 배지: GET /api/system/status 초기 + /topic/system 푸시 갱신
-- 매매 명령 화면: BALANCE_INVALIDATED 수신 시 잔고 재조회
+- 실 DTO shape으로 mock 재작성 (Summary / Detail / Daily / Balance / SystemStatus + STOMP 페이로드)
+- 모니터링 화면 — 활성/상세/오늘종료 + closeReason 8종 일관 시각화 + NO_FILL/UNCLOSED 강조
+- 매매 명령 화면 — 차단 사유 자명성 + 매수 미리보기 + 고급 설정 토글 + 9 errorCode 라우팅
+- 실적 화면 — 요약 카드 + 거래 내역 + 드릴다운 (Phase 6 wire-up 호환 구조)
+- **인지 채널 다층화** — 헤더 종 / 탭 제목 / OS 알림 / 사운드 / 토스트 (모든 페이지 상시) — 토스트 단독으로는 화면을 안 보고 있을 때 놓침
+- 공통 — Toast / formatter / errorMessages / 색상-아이콘 시스템
 
 ### Definition of Done
-- 수동 검증: 명령 접수 → 모니터링 화면에서 1초 내 반영
-- 프론트 빌드 0 에러 + 빈 mock 디렉토리 (사용 안 함)
+- npm run build 0 에러
+- mock shape가 백엔드 DTO와 1:1 일치
+- 다음 phase의 wire-up이 "mock import → real query 교체"만으로 완결되는 구조
+
+---
+
+## Phase 5-B-2: 실 API + STOMP 연결
+
+목표: 5-B-1 위에서 mock을 실 API/STOMP로 교체한다. 화면 변경 없음.
+
+### 산출물 (프론트)
+- `@stomp/stompjs` + TanStack Query + React Hook Form + Zod 도입
+- API 클라이언트 + ApiError → errorCode 한글 라우팅 + 쿼리/뮤테이션 훅
+- StompProvider + per-id `/topic/trading/{id}` 구독 + lifecycle/market/account 구독
+- BALANCE_INVALIDATED / HOLIDAY / MARKET_MODE 처리
+- NotificationProvider — 인지 채널(종/탭/OS/사운드)을 lifecycle CLOSED와 wire
+- 재연결 시 모든 query invalidate + 누락 CLOSED 보강 (todayClosed diff)
+
+### Definition of Done
+- 수동 검증 5종 (행 추가 1초 / 종료 토스트 / STOMP 끊김-복구 / 잔고 갱신 / 다른 페이지 인지)
+- mocks/ 디렉토리 삭제
+- npm run build 0 에러
 
 ---
 
@@ -230,7 +251,7 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 - `report.infrastructure.repository.DailyReportQuery` (집계 SQL)
 - `GET /api/reports/daily?date=YYYY-MM-DD` (closeReason 포함)
 - 시작 시 활성 명령 → UNCLOSED 마감 + `BALANCE_INVALIDATED` 발행
-- 토큰 갱신 실패 / 시세 모드 변경 감지 → `/topic/system` 발행
+- 토큰 갱신 실패 / 시세 모드 변경 감지 처리 (별도 토픽 추가 여부는 후속 결정 — 현재 시스템은 `/topic/market`의 MARKET_MODE만 발행)
 
 ### 산출물 (프론트)
 - ReportPage 실데이터화 + 일자 선택
@@ -241,7 +262,7 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 ### Definition of Done
 - 일별 합계 정확도 (수수료 + 세금 + 순수익 합산)
 - 시작 hook이 활성 명령을 정확히 UNCLOSED로 마감
-- 시세 / 토큰 / 휴장 배지가 시스템 상태 변경에 1초 내 반응
+- 시세 모드 / 휴장 배지가 시스템 상태 변경에 1초 내 반응 (토큰 상태는 30s polling으로 갱신)
 
 ---
 
@@ -284,7 +305,13 @@ Phase 0 (부트스트랩, 현재)
                              Phase 4 (사이클 엔진)
                                      │
                                      ▼
-                             Phase 5 (STOMP + 프론트 통합)
+                             Phase 5-A (백엔드 STOMP 표면)
+                                     │
+                                     ▼
+                             Phase 5-B-1 (프론트 UI/UX 재설계)
+                                     │
+                                     ▼
+                             Phase 5-B-2 (실 API + STOMP 연결)
                                      │
                                      ▼
                              Phase 6 (실적 + 인지 채널)
@@ -293,7 +320,7 @@ Phase 0 (부트스트랩, 현재)
                              Phase 7 (로컬 실행 시작)
 ```
 
-Phase 1 / 2는 병렬 가능. 그 외는 순차. Phase 4까지는 사용자에게 노출되는 변화 없음 — Phase 5에서 처음으로 화면이 살아남.
+Phase 1 / 2는 병렬 가능. 그 외는 순차. Phase 5-A까지는 사용자에게 노출되는 변화 없음 — Phase 5-B-1에서 처음으로 화면이 살아남.
 
 ---
 
@@ -305,7 +332,9 @@ Phase 1 / 2는 병렬 가능. 그 외는 순차. Phase 4까지는 사용자에�
 | 2 | KIS API 응답 포맷 변경 | WireMock 응답을 실제 KIS 응답 캡쳐로 만들고 버전 기록 |
 | 3 | 시각/거래일 의존 검증 어려움 | `Clock` 추상화 + 시계 mock으로 시각 의존 검증 |
 | 4 | 코루틴/Mutex 동시성 버그 (실거래에서 가장 위험) | 통합 테스트로 다중 종목 동시 운용 + 반복 실행으로 race 검출 |
-| 5 | STOMP 재연결 / 메시지 유실 | 재연결 시 REST로 보강 fetch (spec §11.5에 명시된 흐름 그대로) |
+| 5-A | 도메인 이벤트 발행 누락 / 토픽 페이로드 스키마 불일치 | 토픽별 STOMP 통합 테스트 + spec §11.5 1:1 검증 |
+| 5-B-1 | 백엔드 DTO 표면과 mock의 shape 불일치로 5-B-2에서 재작업 | UI 작성 전에 mock을 실 DTO와 1:1로 재작성 |
+| 5-B-2 | STOMP 재연결 / 메시지 유실 | 재연결 시 REST로 보강 fetch (모든 query invalidate + todayClosed diff로 누락 CLOSED 보강) |
 | 6 | UNCLOSED 자동 마감 누락으로 사용자 인지 못 함 | 시작 시 활성 명령 카운트 로깅 + lifecycle CLOSED 이벤트로 모니터링 "오늘 종료" 섹션에 자연 노출 |
 | 7 | 통합 테스트 ≠ 실제 KIS 응답 (체결가, 슬리피지, 수수료/세금 산식) | 1주 단위 최소 금액으로 1회 실거래 sanity check 후 룰 동작 재검증 |
 

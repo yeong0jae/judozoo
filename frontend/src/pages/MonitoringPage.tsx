@@ -1,125 +1,218 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   mockActiveCommands,
   mockCommandDetails,
   mockTodayClosed,
 } from "../mocks/data";
-import type { CommandDetail, CommandStatus } from "../types";
-import { colorByPnL, formatKrw, formatPct, formatPrice, formatQty } from "../lib/format";
+import type {
+  CloseReason,
+  DailyTrading,
+  TradingCycleStatus,
+  TradingSummary,
+} from "../types";
+import {
+  formatDateTime,
+  formatKRW,
+  formatPct,
+  formatPrice,
+  formatQty,
+} from "../lib/format";
+import StatusPill from "../components/common/StatusPill";
+import ProfitText from "../components/common/ProfitText";
+import EmptyState from "../components/common/EmptyState";
+import CloseReasonBadge from "../components/common/CloseReasonBadge";
+import FlashOnChange from "../components/common/FlashOnChange";
+import DetailPanel from "../components/trading/DetailPanel";
+import { useToast } from "../components/toast/Toast";
+import { useNotifications } from "../notifications/notifications";
+import { useSettings } from "../settings/settings";
+
+type SortKey = "profit" | "status" | "name" | "buyProgress";
+const STATUS_ORDER: Record<TradingCycleStatus, number> = {
+  LIQUIDATING: 0,
+  HOLDING: 1,
+  BUYING: 2,
+  INITIATED: 3,
+  CLOSED: 4,
+};
 
 export default function MonitoringPage() {
-  const [selectedId, setSelectedId] = useState<string | null>(
-    mockActiveCommands[0]?.commandId ?? null,
+  // Phase 5-B-2: useActiveCommands() / useTodayClosed()로 교체.
+  // 5-B-1에선 mock을 local state로 복사해 PRICE 시뮬레이션 가능하도록 만든다.
+  const [commands, setCommands] = useState<TradingSummary[]>(mockActiveCommands);
+  const [selectedId, setSelectedId] = useState<number | null>(
+    commands[0]?.commandId ?? null,
   );
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("profit");
+  const [reasonFilter, setReasonFilter] = useState<Set<CloseReason>>(
+    new Set(),
+  );
 
-  // 종료 토스트 데모: 페이지 진입 후 4초 뒤 NO_FILL 종료 토스트 시뮬레이션
+  const toast = useToast();
+  const notifications = useNotifications();
+  const settings = useSettings();
+
+  const todayRowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
+
+  // === mock PRICE 시뮬레이터 — 3초마다 임의 행 수익률을 ±0.005 nudge ===
+  useEffect(() => {
+    if (commands.length === 0) return;
+    const id = setInterval(() => {
+      setCommands((prev) =>
+        prev.map((c, i) => {
+          if (i !== Math.floor(Math.random() * prev.length)) return c;
+          const delta = (Math.random() - 0.5) * 0.01;
+          const newRate = Math.max(-0.1, Math.min(0.1, c.profitRate + delta));
+          const newPrice = Math.round(
+            c.averageBuyPrice * (1 + newRate),
+          );
+          const newAmount = Math.round(
+            (newPrice - c.averageBuyPrice) * c.holdingQty,
+          );
+          return {
+            ...c,
+            currentPrice: newPrice,
+            profitRate: newRate,
+            profitAmount: newAmount,
+          };
+        }),
+      );
+    }, 3000);
+    return () => clearInterval(id);
+  }, [commands.length]);
+
+  // === 종료 토스트 데모 + NotificationProvider 연동 ===
   useEffect(() => {
     const t = setTimeout(() => {
-      setToast("LG에너지솔루션 명령 종료 — NO_FILL");
-      setTimeout(() => setToast(null), 4000);
+      const closed = mockTodayClosed[0];
+      if (!closed?.closeReason) return;
+      notifications.add({
+        ts: new Date().toISOString(),
+        commandId: closed.commandId,
+        closeReason: closed.closeReason,
+        stockName: closed.stockName,
+        stockCode: closed.stockCode,
+      });
+      toast.show({
+        message: `${closed.stockName} 명령이 종료되었습니다`,
+        closeReason: closed.closeReason,
+        action: {
+          label: "종료 행으로 이동",
+          onClick: () => {
+            const row = todayRowRefs.current[closed.commandId];
+            row?.scrollIntoView({ behavior: "smooth", block: "center" });
+            row?.classList.add("bg-amber-900/40");
+            setTimeout(() => row?.classList.remove("bg-amber-900/40"), 1500);
+          },
+        },
+      });
     }, 4000);
     return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const sortedCommands = useMemo(
+    () => [...commands].sort(sortFn(sortKey)),
+    [commands, sortKey],
+  );
+
+  const filteredTodayClosed = useMemo(() => {
+    if (reasonFilter.size === 0) return mockTodayClosed;
+    return mockTodayClosed.filter(
+      (r) => r.closeReason && reasonFilter.has(r.closeReason),
+    );
+  }, [reasonFilter]);
 
   const selectedDetail = selectedId ? mockCommandDetails[selectedId] : null;
 
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="text-lg font-semibold mb-3">활성 명령 ({mockActiveCommands.length})</h2>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-zinc-950 text-xs uppercase text-zinc-500">
-              <tr>
-                <th className="text-left px-4 py-3">종목명</th>
-                <th className="text-left px-4 py-3">상태</th>
-                <th className="text-right px-4 py-3">수익률</th>
-                <th className="text-right px-4 py-3">평가손익</th>
-                <th className="text-center px-4 py-3">매수 회차</th>
-                <th className="text-right px-4 py-3">보유 수량</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {mockActiveCommands.map((cmd) => (
-                <tr
-                  key={cmd.commandId}
-                  onClick={() => setSelectedId(cmd.commandId)}
-                  className={`border-t border-zinc-800 cursor-pointer hover:bg-zinc-800/50 ${
-                    selectedId === cmd.commandId ? "bg-zinc-800/70" : ""
-                  }`}
-                >
-                  <td className="px-4 py-3 font-medium">
-                    {cmd.stockName}
-                    <span className="text-xs text-zinc-500 ml-2">{cmd.stockCode}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusPill status={cmd.status} />
-                  </td>
-                  <td className={`px-4 py-3 text-right font-medium ${colorByPnL(cmd.profitRate)}`}>
-                    {formatPct(cmd.profitRate)}
-                  </td>
-                  <td className={`px-4 py-3 text-right ${colorByPnL(cmd.profitAmount)}`}>
-                    {formatKrw(cmd.profitAmount)}
-                  </td>
-                  <td className="px-4 py-3 text-center text-zinc-400">
-                    {cmd.buyAttempt.completed}/{cmd.buyAttempt.total}
-                  </td>
-                  <td className="px-4 py-3 text-right text-zinc-300">
-                    {formatQty(cmd.holdingQty)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">
+            활성 명령 ({commands.length})
+          </h2>
+          {commands.length > 0 && (
+            <SortDropdown value={sortKey} onChange={setSortKey} />
+          )}
         </div>
-      </section>
-
-      {selectedDetail && (
-        <section>
-          <h2 className="text-lg font-semibold mb-3">상세 — {selectedDetail.stockName}</h2>
-          <DetailPanel detail={selectedDetail} onCancel={() => setShowCancelDialog(true)} />
-        </section>
-      )}
-
-      <section>
-        <h3 className="text-sm font-semibold text-zinc-400 mb-3">오늘 종료된 명령</h3>
-        {mockTodayClosed.length === 0 ? (
-          <p className="text-sm text-zinc-600">없음</p>
+        {commands.length === 0 ? (
+          <EmptyState
+            message="활성 매매 명령이 없습니다"
+            action={
+              <Link
+                to="/command"
+                className="px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-sm text-white"
+              >
+                매매 명령 작성하기 →
+              </Link>
+            }
+          />
         ) : (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-950 text-xs uppercase text-zinc-500">
-                <tr>
-                  <th className="text-left px-4 py-2">종목명</th>
-                  <th className="text-left px-4 py-2">청산 사유</th>
-                  <th className="text-right px-4 py-2">수익률</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockTodayClosed.map((row) => (
-                  <tr key={row.commandId} className="border-t border-zinc-800">
-                    <td className="px-4 py-2">{row.stockName}</td>
-                    <td className="px-4 py-2">
-                      <CloseReasonBadge reason={row.closeReason} />
-                    </td>
-                    <td className={`px-4 py-2 text-right ${colorByPnL(row.profitRate)}`}>
-                      {row.profitRate === 0 ? "-" : formatPct(row.profitRate)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {sortedCommands.map((cmd) => (
+              <ActiveRow
+                key={cmd.commandId}
+                cmd={cmd}
+                selected={selectedId === cmd.commandId}
+                onSelect={() => setSelectedId(cmd.commandId)}
+              />
+            ))}
           </div>
         )}
       </section>
 
-      {toast && (
-        <div className="fixed bottom-6 right-6 bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-lg shadow-lg text-sm text-zinc-200">
-          {toast}
-        </div>
+      {selectedDetail && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3">
+            상세 — {selectedDetail.stockName}
+          </h2>
+          <DetailPanel
+            detail={selectedDetail}
+            onCancel={() => setShowCancelDialog(true)}
+          />
+        </section>
       )}
+
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-zinc-400">
+            오늘 종료된 명령 ({filteredTodayClosed.length}
+            {reasonFilter.size > 0 && ` / ${mockTodayClosed.length}`})
+          </h3>
+          {mockTodayClosed.length > 0 && (
+            <ReasonFilter
+              value={reasonFilter}
+              onChange={setReasonFilter}
+              available={
+                new Set(
+                  mockTodayClosed
+                    .map((r) => r.closeReason)
+                    .filter((x): x is CloseReason => !!x),
+                )
+              }
+            />
+          )}
+        </div>
+        {filteredTodayClosed.length === 0 ? (
+          <EmptyState
+            icon="📭"
+            message={
+              reasonFilter.size > 0
+                ? "필터 조건에 맞는 종료 항목이 없습니다"
+                : "오늘 종료된 명령이 없습니다"
+            }
+          />
+        ) : (
+          <TodayClosedTable
+            rows={filteredTodayClosed}
+            emphasizeUnclosed={settings.emphasizeUnclosed}
+            rowRefs={todayRowRefs}
+          />
+        )}
+      </section>
 
       {showCancelDialog && selectedDetail && (
         <ConfirmDialog
@@ -133,231 +226,258 @@ export default function MonitoringPage() {
   );
 }
 
-function DetailPanel({
-  detail,
-  onCancel,
-}: {
-  detail: CommandDetail;
-  onCancel: () => void;
-}) {
-  const showSignals = detail.status === "MONITORING";
-  const showLiquidating = detail.status === "LIQUIDATING";
-  const showMidwayOnly = detail.status === "BUYING";
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="space-y-3">
-        <Section title="포지션">
-          <KV label="평균 매수가" value={`${formatPrice(detail.averageBuyPrice)}원`} />
-          <KV label="현재가" value={`${formatPrice(detail.currentPrice)}원`} />
-          <KV
-            label="수익률"
-            value={formatPct(detail.profitRate)}
-            valueClass={colorByPnL(detail.profitRate)}
-          />
-          <KV
-            label="평가손익"
-            value={formatKrw(detail.profitAmount)}
-            valueClass={colorByPnL(detail.profitAmount)}
-          />
-          <KV label="보유 수량" value={formatQty(detail.holdingQty)} />
-          <KV label="누적 매수" value={formatQty(detail.totalBoughtQty)} />
-        </Section>
-      </div>
-
-      <div className="space-y-3">
-        <Section title="매수 진행">
-          <KV
-            label="회차 진행도"
-            value={`${detail.buyAttempt.completed} / ${detail.buyAttempt.total}`}
-          />
-          <KV label="1회 매수 금액" value={formatKrw(detail.perBuyAmount)} />
-          <KV label="추가 매수 간격" value={`${detail.buyIntervalMin}분`} />
-        </Section>
-
-        <Section title="시그널" muted={!showSignals && !showMidwayOnly}>
-          {showMidwayOnly && (
-            <p className="text-xs text-zinc-500">
-              매수 진행 중 — 중도 익절 외 시그널은 비활성
-            </p>
-          )}
-          <KV
-            label="목표 익절 단계"
-            value=""
-            extra={
-              <div className="flex gap-1.5">
-                <Stage label="2%" fired={detail.tpStages.fired2pct} active={showSignals} />
-                <Stage label="3%" fired={detail.tpStages.fired3pct} active={showSignals} />
-                <Stage label="5%" fired={detail.tpStages.fired5pct} active={showSignals} />
-              </div>
-            }
-          />
-          <KV
-            label="분할 매도 진행"
-            value={`${detail.splitSellProgress.soldPct}% / 100%`}
-          />
-          <KV
-            label="본전 매도 무장"
-            value={detail.breakevenArmed ? "무장됨" : "대기"}
-            valueClass={detail.breakevenArmed ? "text-amber-400" : "text-zinc-500"}
-          />
-          <KV
-            label="추세 꺾임 무장"
-            value={detail.trendBreakArmed ? "무장됨" : "대기"}
-            valueClass={detail.trendBreakArmed ? "text-amber-400" : "text-zinc-500"}
-          />
-        </Section>
-      </div>
-
-      <div className="space-y-3">
-        {showLiquidating && detail.activeSell && (
-          <Section title="매도 재시도 상태" tone="danger">
-            <KV label="시그널" value={detail.activeSell.signalType} />
-            <KV
-              label="누적 재시도"
-              value={`${detail.activeSell.retryCount}회`}
-              valueClass={
-                detail.activeSell.retryCount >= 3
-                  ? "text-rose-400 font-semibold"
-                  : "text-zinc-100"
-              }
-            />
-            {detail.activeSell.lastError && (
-              <KV label="마지막 에러" value={detail.activeSell.lastError} small />
-            )}
-          </Section>
-        )}
-
-        <Section title="설정값">
-          <KV label="분할 매도 비율" value={`${(detail.splitSellRatio * 100).toFixed(0)}%`} />
-          <KV label="중도 익절" value={`+${detail.midwayProfitPct}%`} />
-          <KV label="본전 매도" value={`+${detail.breakevenThresholdPct}%`} />
-          <KV label="손절" value={`${detail.stopLossPct}%`} />
-        </Section>
-
-        <button
-          onClick={onCancel}
-          className="w-full mt-2 bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 text-rose-200 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-        >
-          매매 사이클 취소
-        </button>
-      </div>
-    </div>
-  );
+function sortFn(key: SortKey): (a: TradingSummary, b: TradingSummary) => number {
+  switch (key) {
+    case "profit":
+      return (a, b) => b.profitRate - a.profitRate;
+    case "status":
+      return (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    case "name":
+      return (a, b) => a.stockName.localeCompare(b.stockName);
+    case "buyProgress":
+      return (a, b) =>
+        b.buyAttempt.completed - a.buyAttempt.completed;
+  }
 }
 
-function Section({
-  title,
-  children,
-  muted,
-  tone,
-}: {
-  title: string;
-  children: React.ReactNode;
-  muted?: boolean;
-  tone?: "danger";
-}) {
-  const cls = muted
-    ? "opacity-50"
-    : tone === "danger"
-      ? "border-rose-900/60 bg-rose-950/30"
-      : "border-zinc-800 bg-zinc-950";
-  return (
-    <div className={`border ${cls} rounded-md p-4`}>
-      <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">
-        {title}
-      </div>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  );
-}
-
-function KV({
-  label,
+function SortDropdown({
   value,
-  valueClass,
-  extra,
-  small,
+  onChange,
 }: {
-  label: string;
-  value: string;
-  valueClass?: string;
-  extra?: React.ReactNode;
-  small?: boolean;
+  value: SortKey;
+  onChange: (v: SortKey) => void;
 }) {
   return (
-    <div className="flex justify-between items-center text-sm">
-      <span className="text-zinc-500">{label}</span>
-      {extra ?? (
-        <span
-          className={`${valueClass ?? "text-zinc-100"} ${small ? "text-xs" : ""}`}
+    <div className="flex items-center gap-2 text-xs">
+      <span className="text-zinc-500">정렬</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as SortKey)}
+        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-zinc-200"
+      >
+        <option value="profit">수익률</option>
+        <option value="status">상태</option>
+        <option value="name">종목명</option>
+        <option value="buyProgress">매수 진행</option>
+      </select>
+    </div>
+  );
+}
+
+function ReasonFilter({
+  value,
+  onChange,
+  available,
+}: {
+  value: Set<CloseReason>;
+  onChange: (v: Set<CloseReason>) => void;
+  available: Set<CloseReason>;
+}) {
+  const reasons: CloseReason[] = [
+    "TAKE_PROFIT",
+    "STOP_LOSS",
+    "BREAKEVEN",
+    "TREND_BREAK",
+    "MARKET_CLOSE",
+    "CANCELLED",
+    "NO_FILL",
+    "UNCLOSED",
+  ];
+  const visible = reasons.filter((r) => available.has(r));
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {visible.map((r) => {
+        const selected = value.has(r);
+        return (
+          <button
+            key={r}
+            onClick={() => {
+              const next = new Set(value);
+              if (selected) next.delete(r);
+              else next.add(r);
+              onChange(next);
+            }}
+            className={`transition-opacity ${selected ? "opacity-100" : "opacity-40 hover:opacity-70"}`}
+            title={selected ? "필터에서 제외" : "필터에 추가"}
+          >
+            <CloseReasonBadge reason={r} showLabel={false} />
+          </button>
+        );
+      })}
+      {value.size > 0 && (
+        <button
+          onClick={() => onChange(new Set())}
+          className="text-xs text-zinc-500 hover:text-zinc-300 ml-1"
         >
-          {value}
-        </span>
+          초기화
+        </button>
       )}
     </div>
   );
 }
 
-function Stage({
-  label,
-  fired,
-  active,
+function TodayClosedTable({
+  rows,
+  emphasizeUnclosed,
+  rowRefs,
 }: {
-  label: string;
-  fired: boolean;
-  active: boolean;
+  rows: DailyTrading[];
+  emphasizeUnclosed: boolean;
+  rowRefs: React.MutableRefObject<Record<number, HTMLTableRowElement | null>>;
 }) {
-  if (!active) {
-    return (
-      <span className="px-2 py-0.5 rounded text-xs bg-zinc-800 text-zinc-600">
-        {label}
-      </span>
-    );
-  }
   return (
-    <span
-      className={`px-2 py-0.5 rounded text-xs ${
-        fired
-          ? "bg-emerald-900/60 text-emerald-300 border border-emerald-800"
-          : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-zinc-950 text-xs uppercase text-zinc-500">
+          <tr>
+            <th className="text-left px-4 py-2">청산 사유</th>
+            <th className="text-left px-4 py-2">종목명</th>
+            <th className="text-left px-4 py-2">종료시각</th>
+            <th className="text-right px-4 py-2">수익률</th>
+            <th className="text-right px-4 py-2">수익금</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const isAnomaly =
+              emphasizeUnclosed &&
+              (row.closeReason === "UNCLOSED" ||
+                row.closeReason === "NO_FILL");
+            const bg =
+              row.closeReason === "UNCLOSED"
+                ? "bg-rose-950/30"
+                : row.closeReason === "NO_FILL"
+                  ? "bg-amber-950/20"
+                  : "";
+            return (
+              <tr
+                key={row.commandId}
+                ref={(el) => {
+                  rowRefs.current[row.commandId] = el;
+                }}
+                className={`border-t border-zinc-800 transition-colors ${
+                  isAnomaly ? bg : ""
+                }`}
+              >
+                <td className="px-4 py-2">
+                  {row.closeReason && (
+                    <CloseReasonBadge reason={row.closeReason} />
+                  )}
+                </td>
+                <td className="px-4 py-2 font-medium">
+                  {row.stockName}
+                  <span className="text-xs text-zinc-500 ml-2">
+                    {row.stockCode}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-zinc-400 text-xs">
+                  {row.closedAt ? formatDateTime(row.closedAt) : "-"}
+                </td>
+                <td className="px-4 py-2 text-right">
+                  <ProfitText
+                    value={row.profitRate}
+                    format={formatPct}
+                    zeroAsDash
+                  />
+                </td>
+                <td className="px-4 py-2 text-right">
+                  <ProfitText
+                    value={row.profitAmount}
+                    format={formatKRW}
+                    zeroAsDash
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+function ActiveRow({
+  cmd,
+  selected,
+  onSelect,
+}: {
+  cmd: TradingSummary;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className={`w-full text-left rounded-lg border p-4 transition-colors ${
+        selected
+          ? "border-emerald-700 bg-zinc-800/60"
+          : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800/40"
       }`}
     >
-      {label} {fired && "✓"}
-    </span>
+      <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4">
+        <StatusPill status={cmd.status} />
+        <div className="min-w-0">
+          <div className="font-medium truncate">
+            {cmd.stockName}
+            <span className="text-xs text-zinc-500 ml-2">{cmd.stockCode}</span>
+          </div>
+          <div className="text-xs text-zinc-500 mt-0.5">
+            평단 {formatPrice(cmd.averageBuyPrice)} → 현재{" "}
+            {formatPrice(cmd.currentPrice)}
+          </div>
+        </div>
+        <div className="text-right">
+          <FlashOnChange value={cmd.profitRate}>
+            <ProfitText
+              value={cmd.profitRate}
+              format={formatPct}
+              className="text-lg font-semibold"
+            />
+          </FlashOnChange>
+          <div className="text-xs">
+            <ProfitText value={cmd.profitAmount} format={formatKRW} />
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1.5 min-w-[70px]">
+          <BuyAttemptDots
+            completed={cmd.buyAttempt.completed}
+            total={cmd.buyAttempt.total}
+          />
+          <div className="text-xs text-zinc-400 flex items-center gap-1">
+            {formatQty(cmd.holdingQty)}
+            {cmd.status === "LIQUIDATING" && (
+              <span title="청산 중" aria-label="청산 중">🔥</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </button>
   );
 }
 
-function StatusPill({ status }: { status: CommandStatus }) {
-  const map: Record<CommandStatus, { label: string; cls: string }> = {
-    INITIATED: { label: "INITIATED", cls: "bg-zinc-700 text-zinc-300" },
-    BUYING: { label: "BUYING", cls: "bg-blue-900/60 text-blue-300" },
-    MONITORING: { label: "MONITORING", cls: "bg-emerald-900/60 text-emerald-300" },
-    LIQUIDATING: { label: "LIQUIDATING", cls: "bg-amber-900/60 text-amber-300" },
-    CLOSED: { label: "CLOSED", cls: "bg-zinc-800 text-zinc-500" },
-  };
-  const { label, cls } = map[status];
+function BuyAttemptDots({
+  completed,
+  total,
+}: {
+  completed: number;
+  total: number;
+}) {
   return (
-    <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
-function CloseReasonBadge({ reason }: { reason: string }) {
-  const danger = ["STOP_LOSS", "UNCLOSED", "NO_FILL", "MARKET_CLOSE"].includes(
-    reason,
-  );
-  const success = ["TAKE_PROFIT", "TREND_BREAK"].includes(reason);
-  const cls = danger
-    ? "bg-rose-900/40 text-rose-300 border-rose-800"
-    : success
-      ? "bg-emerald-900/40 text-emerald-300 border-emerald-800"
-      : "bg-zinc-800 text-zinc-300 border-zinc-700";
-  return (
-    <span className={`px-2 py-0.5 rounded text-xs border ${cls}`}>
-      {reason}
-    </span>
+    <div
+      className="flex gap-1"
+      title={`매수 ${completed}/${total} 회차 완료`}
+      aria-label={`매수 ${completed}/${total} 회차`}
+    >
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={`w-2 h-2 rounded-full ${
+            i < completed ? "bg-emerald-400" : "bg-zinc-700"
+          }`}
+        />
+      ))}
+    </div>
   );
 }
 
