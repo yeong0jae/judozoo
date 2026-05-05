@@ -64,7 +64,10 @@ class CycleOrchestrator(
             return
         }
         orderExecutor.cancelInFlightBuys(cycleId)
-        active.runner.trySubmitSignal(Signal.Cancel)
+        applicationScope.launch {
+            runCatching { active.runner.requestCancellation() }
+                .onFailure { log.warn("사이클 취소 처리 실패 cycleId={}", cycleId, it) }
+        }
     }
 
     fun broadcastMarketClose() {

@@ -41,7 +41,7 @@ class TradingQueryServiceTest(
             splitSellRatio = BigDecimal("0.5"),
             midwayProfitPct = BigDecimal("1.5"),
             breakevenThresholdPct = BigDecimal("0.5"),
-            stopLossPct = BigDecimal("-0.02"),
+            stopLossPct = BigDecimal("-2.0"),
             status = status,
         )
     )

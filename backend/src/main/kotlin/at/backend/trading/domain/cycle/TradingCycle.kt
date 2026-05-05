@@ -220,7 +220,7 @@ class TradingCycle(
     }
 
     fun isStopLossTriggered(currentPrice: Int, buyPrice: Int): Boolean =
-        currentPrice <= (buyPrice * (1.0 + stopLossPct.toDouble())).toInt()
+        currentPrice <= (buyPrice * (1.0 + stopLossPct.toDouble() / 100.0)).toInt()
 
     fun isMidwayTakeProfitTriggered(currentPrice: Int, buyPrice: Int): Boolean =
         currentPrice >= ceil(buyPrice * (1.0 + midwayProfitPct.toDouble() / 100.0)).toInt()
