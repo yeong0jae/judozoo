@@ -79,8 +79,8 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 
 ## 라우팅 / Provider 정리
 
-- [ ] `App.tsx` — `<NotificationProvider>` + `<ToastProvider>` (Mock STOMP 상태는 임시 context로) + Layout 적용
-- [ ] mock STOMP 토글 디버그 도구 — 개발 시 토픽 페이로드 임의 발화 (개발 모드 전용)
+- [x] `App.tsx` — `<NotificationProvider>` + `<ToastProvider>` (Mock STOMP 상태는 임시 context로) + Layout 적용
+- [x] mock STOMP 토글 디버그 도구 — 개발 시 토픽 페이로드 임의 발화 (개발 모드 전용)
 
 ## Verification
 
