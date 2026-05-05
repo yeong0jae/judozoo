@@ -235,7 +235,7 @@ export default function CommandPage() {
           <Field
             number={2}
             label="1회 매수금액"
-            disabled={!selectedStock || !!block}
+            disabled={!selectedStock}
             error={
               !!errors.perBuyAmount ||
               insufficientBalance ||
@@ -246,7 +246,7 @@ export default function CommandPage() {
           >
             <AmountInput
               {...register("perBuyAmount", { valueAsNumber: true })}
-              disabled={!selectedStock || !!block}
+              disabled={!selectedStock}
             />
             {selectedStock && (
               <AmountPreview
