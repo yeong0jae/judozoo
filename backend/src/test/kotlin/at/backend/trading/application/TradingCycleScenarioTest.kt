@@ -10,6 +10,7 @@ import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.KisWebSocketClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
+import at.backend.platform.kis.client.response.KisDailyCcldResponse
 import at.backend.platform.kis.client.response.KisHolidayResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
@@ -23,6 +24,7 @@ import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.clearMocks
 import io.mockk.every
 import kotlinx.coroutines.delay
@@ -44,6 +46,8 @@ class TradingCycleScenarioTest(
     @Autowired private val webSocketClient: KisWebSocketClient,
     @Autowired private val timeProvider: MutableTimeProvider,
     @Autowired private val unclosedCycleStartupHook: UnclosedCycleStartupHook,
+    @Autowired private val cycleOrchestrator: CycleOrchestrator,
+    @Autowired private val orderExecutor: OrderExecutor,
 ) : IntegrationTestBase() {
 
     private val stockCode = "005930"
@@ -339,6 +343,61 @@ class TradingCycleScenarioTest(
                     refreshed.status shouldBe TradingCycleStatus.CLOSED
                     refreshed.closeReason shouldBe CloseReason.UNCLOSED
                 }
+            }
+
+            test("15:20 강제 청산: HOLDING 상태에서 broadcastMarketClose 시 매도 후 CLOSED(MARKET_CLOSE)") {
+                val created = tradingService.create(validInput())
+
+                runBlocking {
+                    reachHoldingFullyFilled(created.id, fillPrice = 70_000)
+
+                    cycleOrchestrator.broadcastMarketClose()
+
+                    waitUntilOrders(created.id) { orders ->
+                        orders.any { it.side == "SELL" && it.kisOrderNo != null }
+                    }
+                    val sell = orderRepository.findByCycleId(created.id).first { it.side == "SELL" }
+                    fillSellOrder(sell, sell.orderQty)
+                    waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
+                }
+
+                val refreshed = cycleRepository.findById(created.id).get()
+                refreshed.status shouldBe TradingCycleStatus.CLOSED
+                refreshed.closeReason shouldBe CloseReason.MARKET_CLOSE
+            }
+
+            test("주문 타임아웃 reconcile: WS 무응답 시 일별 체결 조회로 매도 매칭") {
+                val created = tradingService.create(validInput())
+
+                runBlocking {
+                    reachHoldingFullyFilled(created.id, fillPrice = 70_000)
+
+                    emitTicksUntil(price = 60_000) {
+                        orderRepository.findByCycleId(created.id)
+                            .any { it.side == "SELL" && it.kisOrderNo != null }
+                    }
+                }
+                val sell = orderRepository.findByCycleId(created.id).first { it.side == "SELL" }
+
+                every { kisRestClient.getDailyExecutions(any(), any()) } returns KisDailyCcldResponse(
+                    output1 = listOf(
+                        KisDailyCcldResponse.Output(
+                            pdno = stockCode,
+                            odno = sell.kisOrderNo!!,
+                            ordDt = "20260105",
+                            ordTmd = "100000",
+                            totCcldQty = sell.orderQty.toString(),
+                            avgPrvs = "60000",
+                            sllBuyDvsnCd = "01",
+                        )
+                    )
+                )
+
+                val outcome = orderExecutor.reconcile(sell.id, stockCode)
+
+                outcome.shouldBeInstanceOf<OrderExecutor.ReconcileOutcome.Matched>()
+                val refreshed = orderRepository.findById(sell.id).get()
+                refreshed.filledQty shouldBe sell.orderQty
             }
 
             test("부분 체결/NO_FILL: 매수 3회 모두 발송 실패 시 CLOSED(NO_FILL)로 종료") {
