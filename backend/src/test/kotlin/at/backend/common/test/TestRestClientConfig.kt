@@ -18,6 +18,11 @@ object TestRestClientConfig {
                     setReadTimeout(TIMEOUT)
                 }
             )
+            // KisApiClientConfig의 글로벌 인터셉터와 동일하게 custtype을 박아 prod 요청 형태와 일치시킨다.
+            .requestInterceptor { request, body, execution ->
+                request.headers.set("custtype", "P")
+                execution.execute(request, body)
+            }
 
     fun restClient(wireMock: WireMockServer): RestClient =
         builder(wireMock).build()
