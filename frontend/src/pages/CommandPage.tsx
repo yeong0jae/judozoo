@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  mockActiveCommands,
-  mockBalance,
-  mockStockPrices,
-  mockStockSearch,
-  mockSystemStatus,
-} from "../mocks/data";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useQueryClient } from "@tanstack/react-query";
 import type {
+  AccountBalance,
   ErrorCode,
   StockSearchResult,
   SystemStatus,
+  TradingSummary,
 } from "../types";
 import {
   formatKRW,
+  formatPct,
   formatPrice,
   formatQty,
   formatRelative,
@@ -22,18 +22,21 @@ import { errorMessage } from "../lib/errorMessages";
 import StatusPill from "../components/common/StatusPill";
 import ProfitText from "../components/common/ProfitText";
 import FlashOnChange from "../components/common/FlashOnChange";
+import Skeleton from "../components/common/Skeleton";
 import { useToast } from "../components/toast/Toast";
-import { formatPct } from "../lib/format";
+import {
+  QK,
+  useAccountBalance,
+  useActiveCommands,
+  useStockPrice,
+  useStockSearch,
+  useSystemStatus,
+} from "../api/queries";
+import { useCreateCommand } from "../api/mutations";
+import { ApiError } from "../api/client";
+import { useStompSubscription } from "../ws/useStompSubscription";
 
-interface Advanced {
-  buyIntervalMin: number;
-  splitSellRatio: number; // %
-  midwayProfitPct: number;
-  breakevenThresholdPct: number;
-  stopLossPct: number; // 음수
-}
-
-const DEFAULTS: Advanced = {
+const DEFAULTS = {
   buyIntervalMin: 3,
   splitSellRatio: 20,
   midwayProfitPct: 3,
@@ -41,80 +44,148 @@ const DEFAULTS: Advanced = {
   stopLossPct: -2,
 };
 
+const schema = z.object({
+  perBuyAmount: z
+    .number({ message: "숫자를 입력하세요" })
+    .min(10_000, "최소 10,000원"),
+  buyIntervalMin: z.number().min(1).max(30).nullable().optional(),
+  splitSellRatio: z.number().min(1).max(50).nullable().optional(),
+  midwayProfitPct: z.number().min(0.1).max(10).nullable().optional(),
+  breakevenThresholdPct: z.number().min(0.1).max(10).nullable().optional(),
+  stopLossPct: z.number().max(-0.1).min(-10).nullable().optional(),
+});
+type FormValues = z.infer<typeof schema>;
+
 export default function CommandPage() {
   const toast = useToast();
+  const qc = useQueryClient();
+
+  const systemQ = useSystemStatus();
+  const balanceQ = useAccountBalance();
+  const activeQ = useActiveCommands();
+
   const [query, setQuery] = useState("");
   const [selectedStock, setSelectedStock] =
     useState<StockSearchResult | null>(null);
-  const [priceRefreshAt, setPriceRefreshAt] = useState(Date.now());
-  const [perBuyAmount, setPerBuyAmount] = useState(1_000_000);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [advanced, setAdvanced] = useState<Advanced>(DEFAULTS);
   const [serverError, setServerError] = useState<ErrorCode | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  const status = mockSystemStatus;
-  const balance = mockBalance;
+  const stockSearchQ = useStockSearch(query);
+  const priceQ = useStockPrice(selectedStock?.stockCode ?? null);
 
-  const block = deriveBlock(status);
-  const price = selectedStock
-    ? mockStockPrices[selectedStock.stockCode] ?? null
-    : null;
-  const currentPrice = price?.currentPrice ?? 0;
+  const createCommand = useCreateCommand();
 
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      perBuyAmount: 1_000_000,
+      buyIntervalMin: null,
+      splitSellRatio: null,
+      midwayProfitPct: null,
+      breakevenThresholdPct: null,
+      stopLossPct: null,
+    },
+  });
+
+  const formValues = watch();
+  const perBuyAmount = formValues.perBuyAmount ?? 0;
+
+  // STOMP 구독: 잔고 / 시장 변경
+  useStompSubscription("/topic/account", () => {
+    qc.invalidateQueries({ queryKey: QK.accountBalance });
+  });
+  useStompSubscription("/topic/market", () => {
+    qc.invalidateQueries({ queryKey: QK.systemStatus });
+  });
+
+  const status = systemQ.data;
+  const balance = balanceQ.data;
+  const block = status ? deriveBlock(status) : null;
+
+  const currentPrice = priceQ.data?.currentPrice ?? 0;
   const estimatedQty =
     currentPrice > 0 ? Math.floor(perBuyAmount / currentPrice) : 0;
   const totalReserve = perBuyAmount * 3;
   const totalActualBuyEstimate = currentPrice * estimatedQty;
-  const insufficientBalance = totalReserve > balance.availableBalance;
-  const belowOneShare = currentPrice > 0 && perBuyAmount < currentPrice;
+  const insufficientBalance =
+    balance !== undefined && totalReserve > balance.availableBalance;
+  const belowOneShare =
+    currentPrice > 0 && perBuyAmount > 0 && perBuyAmount < currentPrice;
   const duplicateActive =
     selectedStock !== null &&
-    mockActiveCommands.some(
+    (activeQ.data ?? []).some(
       (c) => c.stockCode === selectedStock.stockCode,
     );
 
-  const advancedDirty = useMemo(
-    () =>
-      (Object.keys(DEFAULTS) as (keyof Advanced)[]).filter(
-        (k) => advanced[k] !== DEFAULTS[k],
-      ),
-    [advanced],
-  );
+  const advancedDirty = useMemo(() => {
+    const dirty = new Set<string>();
+    if (formValues.buyIntervalMin != null) dirty.add("buyIntervalMin");
+    if (formValues.splitSellRatio != null) dirty.add("splitSellRatio");
+    if (formValues.midwayProfitPct != null) dirty.add("midwayProfitPct");
+    if (formValues.breakevenThresholdPct != null)
+      dirty.add("breakevenThresholdPct");
+    if (formValues.stopLossPct != null) dirty.add("stopLossPct");
+    return dirty;
+  }, [formValues]);
 
   const submitDisabled =
     !!block ||
     !selectedStock ||
     insufficientBalance ||
     belowOneShare ||
-    perBuyAmount < 10_000;
+    perBuyAmount < 10_000 ||
+    createCommand.isPending;
 
-  const onSubmit = () => {
+  const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setServerError(null);
+    if (!selectedStock) return;
     if (duplicateActive) {
       setServerError("DUPLICATE_COMMAND");
       return;
     }
-    if (!selectedStock) return;
-    // mock 성공 처리
-    toast.show({
-      tone: "success",
-      message: `${selectedStock.stockName} 매매가 시작되었습니다`,
-      action: {
-        label: "모니터링에서 확인 →",
-        onClick: () => {
-          window.location.assign("/monitoring");
+    try {
+      await createCommand.mutateAsync({
+        stockCode: selectedStock.stockCode,
+        perBuyAmount: data.perBuyAmount,
+        buyIntervalMin: data.buyIntervalMin ?? null,
+        splitSellRatio:
+          data.splitSellRatio != null ? data.splitSellRatio / 100 : null,
+        midwayProfitPct: data.midwayProfitPct ?? null,
+        breakevenThresholdPct: data.breakevenThresholdPct ?? null,
+        stopLossPct: data.stopLossPct ?? null,
+      });
+      toast.show({
+        tone: "success",
+        message: `${selectedStock.stockName} 매매가 시작되었습니다`,
+        action: {
+          label: "모니터링에서 확인 →",
+          onClick: () => window.location.assign("/monitoring"),
         },
-      },
-    });
-    setQuery("");
-    setSelectedStock(null);
-    setPerBuyAmount(1_000_000);
-    setAdvanced(DEFAULTS);
-    setAdvancedOpen(false);
+      });
+      setQuery("");
+      setSelectedStock(null);
+      reset();
+      setAdvancedOpen(false);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        setServerError(e.code as ErrorCode);
+      } else {
+        toast.show({
+          tone: "error",
+          message: errorMessage("NETWORK_ERROR"),
+        });
+      }
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {block && <BlockBanner reason={block} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -124,12 +195,17 @@ export default function CommandPage() {
           <Field
             number={1}
             label="종목"
-            error={serverError === "STOCK_NOT_FOUND" || serverError === "DUPLICATE_COMMAND"}
+            error={
+              serverError === "STOCK_NOT_FOUND" ||
+              serverError === "DUPLICATE_COMMAND"
+            }
           >
             <StockSearchInput
               query={query}
               setQuery={setQuery}
               selected={selectedStock}
+              results={stockSearchQ.data ?? []}
+              loading={stockSearchQ.isFetching}
               onSelect={(s) => {
                 setSelectedStock(s);
                 setQuery("");
@@ -140,15 +216,17 @@ export default function CommandPage() {
               <PriceDisplay
                 stock={selectedStock}
                 currentPrice={currentPrice}
-                asOf={price?.asOf}
-                onRefresh={() => setPriceRefreshAt(Date.now())}
-                refreshKey={priceRefreshAt}
+                asOf={priceQ.data?.asOf}
+                loading={priceQ.isFetching}
+                onRefresh={() =>
+                  qc.invalidateQueries({
+                    queryKey: QK.stockPrice(selectedStock.stockCode),
+                  })
+                }
                 onClear={() => setSelectedStock(null)}
               />
             )}
-            {duplicateActive && (
-              <ErrorMsg code="DUPLICATE_COMMAND" />
-            )}
+            {duplicateActive && <ErrorMsg code="DUPLICATE_COMMAND" />}
             {serverError === "STOCK_NOT_FOUND" && (
               <ErrorMsg code="STOCK_NOT_FOUND" />
             )}
@@ -159,6 +237,7 @@ export default function CommandPage() {
             label="1회 매수금액"
             disabled={!selectedStock || !!block}
             error={
+              !!errors.perBuyAmount ||
               insufficientBalance ||
               belowOneShare ||
               serverError === "PRICE_BELOW_ONE_SHARE" ||
@@ -166,8 +245,7 @@ export default function CommandPage() {
             }
           >
             <AmountInput
-              value={perBuyAmount}
-              onChange={setPerBuyAmount}
+              {...register("perBuyAmount", { valueAsNumber: true })}
               disabled={!selectedStock || !!block}
             />
             {selectedStock && (
@@ -177,7 +255,7 @@ export default function CommandPage() {
                 estimatedQty={estimatedQty}
                 actualBuyEstimate={totalActualBuyEstimate}
                 currentPrice={currentPrice}
-                availableBalance={balance.availableBalance}
+                availableBalance={balance?.availableBalance}
                 insufficientBalance={insufficientBalance}
                 belowOneShare={belowOneShare}
               />
@@ -192,44 +270,58 @@ export default function CommandPage() {
             >
               <span>{advancedOpen ? "▾" : "▸"}</span>
               <span>
-                {advancedDirty.length === 0
+                {advancedDirty.size === 0
                   ? "기본값 사용 중"
-                  : `${advancedDirty.length}개 항목 변경됨`}
+                  : `${advancedDirty.size}개 항목 변경됨`}
               </span>
             </button>
             {advancedOpen && (
               <AdvancedSettings
-                value={advanced}
-                onChange={setAdvanced}
-                dirtyKeys={new Set(advancedDirty)}
+                register={register}
+                dirtyKeys={advancedDirty}
+                onReset={() => {
+                  reset({
+                    perBuyAmount: formValues.perBuyAmount,
+                    buyIntervalMin: null,
+                    splitSellRatio: null,
+                    midwayProfitPct: null,
+                    breakevenThresholdPct: null,
+                    stopLossPct: null,
+                  });
+                }}
               />
             )}
           </Field>
 
           <button
+            type="submit"
             disabled={submitDisabled}
-            onClick={onSubmit}
             className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:bg-zinc-800 disabled:text-zinc-600 text-white px-4 py-3 rounded-md font-medium transition-colors"
           >
-            매매 시작
+            {createCommand.isPending ? "전송 중..." : "매매 시작"}
           </button>
 
           {serverError &&
-            !["STOCK_NOT_FOUND", "DUPLICATE_COMMAND"].includes(serverError) && (
-              <ErrorMsg code={serverError} />
-            )}
+            !["STOCK_NOT_FOUND", "DUPLICATE_COMMAND"].includes(
+              serverError,
+            ) && <ErrorMsg code={serverError} />}
         </section>
 
         <aside className="space-y-6">
-          <BalancePanel balance={balance} insufficient={insufficientBalance} />
-          <SystemPanel status={status} />
+          <BalancePanel
+            balance={balance}
+            loading={balanceQ.isLoading}
+            insufficient={insufficientBalance}
+          />
+          <SystemPanel status={status} loading={systemQ.isLoading} />
           <ActiveCommandsPreview
-            commands={mockActiveCommands}
+            commands={activeQ.data ?? []}
             highlightStock={selectedStock?.stockCode}
+            loading={activeQ.isLoading}
           />
         </aside>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -323,30 +415,27 @@ function StockSearchInput({
   query,
   setQuery,
   selected,
+  results,
+  loading,
   onSelect,
 }: {
   query: string;
   setQuery: (v: string) => void;
   selected: StockSearchResult | null;
+  results: StockSearchResult[];
+  loading: boolean;
   onSelect: (s: StockSearchResult) => void;
 }) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const results = useMemo(() => {
-    if (selected || query.trim() === "") return [];
-    const q = query.trim().toLowerCase();
-    return mockStockSearch
-      .filter(
-        (s) =>
-          s.stockName.toLowerCase().includes(q) || s.stockCode.includes(q),
-      )
-      .slice(0, 10);
-  }, [query, selected]);
 
   useEffect(() => {
     setActiveIdx(0);
   }, [query]);
 
   if (selected) return null;
+
+  const visible = results.slice(0, 10);
+  const showDropdown = query.trim() !== "" && (loading || visible.length > 0);
 
   return (
     <div className="relative">
@@ -355,26 +444,30 @@ function StockSearchInput({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
-          if (results.length === 0) return;
+          if (visible.length === 0) return;
           if (e.key === "ArrowDown") {
             e.preventDefault();
-            setActiveIdx((i) => Math.min(i + 1, results.length - 1));
+            setActiveIdx((i) => Math.min(i + 1, visible.length - 1));
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setActiveIdx((i) => Math.max(i - 1, 0));
           } else if (e.key === "Enter") {
             e.preventDefault();
-            onSelect(results[activeIdx]);
+            onSelect(visible[activeIdx]);
           }
         }}
         placeholder="🔍 종목명 또는 코드 입력 (예: 삼성전자 / 005930)"
         className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700"
       />
-      {results.length > 0 && (
+      {showDropdown && (
         <div className="absolute z-10 left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-          {results.map((s, i) => (
+          {loading && (
+            <div className="px-3 py-2 text-xs text-zinc-500">검색 중...</div>
+          )}
+          {visible.map((s, i) => (
             <button
               key={s.stockCode}
+              type="button"
               onClick={() => onSelect(s)}
               onMouseEnter={() => setActiveIdx(i)}
               className={`w-full text-left px-3 py-2 text-sm flex justify-between ${
@@ -387,9 +480,7 @@ function StockSearchInput({
           ))}
         </div>
       )}
-      <p className="text-xs text-zinc-500 mt-1">
-        ↑/↓로 이동, Enter로 선택
-      </p>
+      <p className="text-xs text-zinc-500 mt-1">↑/↓로 이동, Enter로 선택</p>
     </div>
   );
 }
@@ -398,22 +489,19 @@ function PriceDisplay({
   stock,
   currentPrice,
   asOf,
+  loading,
   onRefresh,
-  refreshKey,
   onClear,
 }: {
   stock: StockSearchResult;
   currentPrice: number;
   asOf?: string;
+  loading: boolean;
   onRefresh: () => void;
-  refreshKey: number;
   onClear: () => void;
 }) {
   return (
-    <div
-      key={refreshKey}
-      className="bg-zinc-950 border border-zinc-800 rounded p-3 flex items-center justify-between"
-    >
+    <div className="bg-zinc-950 border border-zinc-800 rounded p-3 flex items-center justify-between">
       <div>
         <div className="text-sm font-medium">
           {stock.stockName}
@@ -422,22 +510,27 @@ function PriceDisplay({
         <div className="text-xs text-zinc-400 mt-1">
           현재가{" "}
           <span className="text-zinc-100 font-medium">
-            {formatPrice(currentPrice)}원
+            {loading ? "..." : `${formatPrice(currentPrice)}원`}
           </span>
           {asOf && (
-            <span className="ml-2 text-zinc-500">기준 {formatRelative(asOf)}</span>
+            <span className="ml-2 text-zinc-500">
+              기준 {formatRelative(asOf)}
+            </span>
           )}
         </div>
       </div>
       <div className="flex items-center gap-1">
         <button
+          type="button"
           onClick={onRefresh}
-          className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded"
+          disabled={loading}
+          className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded disabled:opacity-40"
           title="가격 갱신"
         >
           ↻
         </button>
         <button
+          type="button"
           onClick={onClear}
           className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded"
           title="다시 선택"
@@ -449,45 +542,22 @@ function PriceDisplay({
   );
 }
 
-function AmountInput({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
-  const [text, setText] = useState(formatComma(value));
-
-  useEffect(() => {
-    setText(formatComma(value));
-  }, [value]);
-
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        inputMode="numeric"
-        value={text}
-        onChange={(e) => {
-          const raw = e.target.value.replace(/[^0-9]/g, "");
-          setText(raw === "" ? "" : formatComma(Number(raw)));
-          onChange(raw === "" ? 0 : Number(raw));
-        }}
-        disabled={disabled}
-        className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700 disabled:opacity-50"
-      />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">
-        원
-      </span>
-    </div>
-  );
-}
-
-function formatComma(v: number): string {
-  return new Intl.NumberFormat("en-US").format(v);
-}
+const AmountInput = (
+  props: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> },
+) => (
+  <div className="relative">
+    <input
+      type="number"
+      step={10_000}
+      min={0}
+      {...props}
+      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700 disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+    />
+    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">
+      원
+    </span>
+  </div>
+);
 
 function AmountPreview({
   perBuyAmount,
@@ -504,7 +574,7 @@ function AmountPreview({
   estimatedQty: number;
   actualBuyEstimate: number;
   currentPrice: number;
-  availableBalance: number;
+  availableBalance?: number;
   insufficientBalance: boolean;
   belowOneShare: boolean;
 }) {
@@ -530,7 +600,7 @@ function AmountPreview({
             code="PRICE_BELOW_ONE_SHARE"
             extra={`현재가 ${formatPrice(currentPrice)}원 이상 필요`}
           />
-        ) : insufficientBalance ? (
+        ) : insufficientBalance && availableBalance !== undefined ? (
           <ErrorMsg
             code="INSUFFICIENT_BALANCE"
             extra={`사용 가능 ${formatKRW(availableBalance)}`}
@@ -546,60 +616,65 @@ function AmountPreview({
 }
 
 function AdvancedSettings({
-  value,
-  onChange,
+  register,
   dirtyKeys,
+  onReset,
 }: {
-  value: Advanced;
-  onChange: (v: Advanced) => void;
-  dirtyKeys: Set<keyof Advanced>;
+  register: ReturnType<typeof useForm<FormValues>>["register"];
+  dirtyKeys: Set<string>;
+  onReset: () => void;
 }) {
-  const reset = () => onChange(DEFAULTS);
   return (
     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-zinc-950 border border-zinc-800 rounded">
       <NumField
         label="매수 간격 (분)"
         defaultValue={DEFAULTS.buyIntervalMin}
-        value={value.buyIntervalMin}
         dirty={dirtyKeys.has("buyIntervalMin")}
-        onChange={(v) => onChange({ ...value, buyIntervalMin: v })}
+        registration={register("buyIntervalMin", {
+          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+        })}
         step={1}
       />
       <NumField
         label="분할 매도 비율 (%)"
         defaultValue={DEFAULTS.splitSellRatio}
-        value={value.splitSellRatio}
         dirty={dirtyKeys.has("splitSellRatio")}
-        onChange={(v) => onChange({ ...value, splitSellRatio: v })}
+        registration={register("splitSellRatio", {
+          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+        })}
         step={1}
       />
       <NumField
         label="중도 익절 (%)"
         defaultValue={DEFAULTS.midwayProfitPct}
-        value={value.midwayProfitPct}
         dirty={dirtyKeys.has("midwayProfitPct")}
-        onChange={(v) => onChange({ ...value, midwayProfitPct: v })}
+        registration={register("midwayProfitPct", {
+          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+        })}
         step={0.1}
       />
       <NumField
         label="본전 매도 기준 (%)"
         defaultValue={DEFAULTS.breakevenThresholdPct}
-        value={value.breakevenThresholdPct}
         dirty={dirtyKeys.has("breakevenThresholdPct")}
-        onChange={(v) => onChange({ ...value, breakevenThresholdPct: v })}
+        registration={register("breakevenThresholdPct", {
+          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+        })}
         step={0.1}
       />
       <NumField
         label="손절 (%)"
         defaultValue={DEFAULTS.stopLossPct}
-        value={value.stopLossPct}
         dirty={dirtyKeys.has("stopLossPct")}
-        onChange={(v) => onChange({ ...value, stopLossPct: v })}
+        registration={register("stopLossPct", {
+          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+        })}
         step={0.1}
       />
       <div className="md:col-span-2 flex justify-end">
         <button
-          onClick={reset}
+          type="button"
+          onClick={onReset}
           disabled={dirtyKeys.size === 0}
           className="text-xs text-zinc-500 hover:text-zinc-300 disabled:opacity-40"
         >
@@ -612,17 +687,15 @@ function AdvancedSettings({
 
 function NumField({
   label,
-  value,
   defaultValue,
   dirty,
-  onChange,
+  registration,
   step,
 }: {
   label: string;
-  value: number;
   defaultValue: number;
   dirty: boolean;
-  onChange: (v: number) => void;
+  registration: ReturnType<ReturnType<typeof useForm<FormValues>>["register"]>;
   step: number;
 }) {
   return (
@@ -637,10 +710,9 @@ function NumField({
       </span>
       <input
         type="number"
-        value={value}
         step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
         placeholder={String(defaultValue)}
+        {...registration}
         className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-emerald-700"
       />
     </label>
@@ -653,9 +725,11 @@ function NumField({
 
 function BalancePanel({
   balance,
+  loading,
   insufficient,
 }: {
-  balance: typeof mockBalance;
+  balance: AccountBalance | undefined;
+  loading: boolean;
   insufficient: boolean;
 }) {
   return (
@@ -663,37 +737,57 @@ function BalancePanel({
       <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
         잔고
       </h3>
-      <Row label="가용 현금" value={formatKRW(balance.cashBalance)} />
-      <Row
-        label="활성 예약"
-        value={`-${formatKRW(balance.reservedAmount)}`}
-        valueClass="text-zinc-400"
-      />
-      <div className="border-t border-zinc-800 mt-2 pt-2">
-        <Row
-          label="사용 가능"
-          value={
-            <FlashOnChange value={balance.availableBalance}>
-              {formatKRW(balance.availableBalance)}
-            </FlashOnChange>
-          }
-          valueClass={
-            insufficient
-              ? "text-rose-300 font-semibold"
-              : "text-emerald-300 font-semibold"
-          }
-        />
-      </div>
-      {balance.reservedAmount > 0 && (
-        <p className="text-xs text-zinc-500 mt-2">
-          활성 명령 {mockActiveCommands.length}개로 예약됨
-        </p>
+      {loading || !balance ? (
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-5 w-full" />
+        </div>
+      ) : (
+        <>
+          <Row label="가용 현금" value={formatKRW(balance.cashBalance)} />
+          <Row
+            label="활성 예약"
+            value={`-${formatKRW(balance.reservedAmount)}`}
+            valueClass="text-zinc-400"
+          />
+          <div className="border-t border-zinc-800 mt-2 pt-2">
+            <Row
+              label="사용 가능"
+              value={
+                <FlashOnChange value={balance.availableBalance}>
+                  {formatKRW(balance.availableBalance)}
+                </FlashOnChange>
+              }
+              valueClass={
+                insufficient
+                  ? "text-rose-300 font-semibold"
+                  : "text-emerald-300 font-semibold"
+              }
+            />
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-function SystemPanel({ status }: { status: SystemStatus }) {
+function SystemPanel({
+  status,
+  loading,
+}: {
+  status: SystemStatus | undefined;
+  loading: boolean;
+}) {
+  if (loading || !status) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 w-full" />
+        ))}
+      </div>
+    );
+  }
   const conditions = [
     { label: "거래시간 09:00–15:30", ok: status.tradingHoursOpen },
     { label: "휴장 아님", ok: !status.isHoliday },
@@ -728,16 +822,23 @@ function SystemPanel({ status }: { status: SystemStatus }) {
 function ActiveCommandsPreview({
   commands,
   highlightStock,
+  loading,
 }: {
-  commands: typeof mockActiveCommands;
+  commands: TradingSummary[];
   highlightStock?: string;
+  loading: boolean;
 }) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
-        활성 명령 ({commands.length})
+        활성 명령 ({loading ? "..." : commands.length})
       </h3>
-      {commands.length === 0 ? (
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-full" />
+        </div>
+      ) : commands.length === 0 ? (
         <p className="text-xs text-zinc-600">없음</p>
       ) : (
         <div className="space-y-2">
@@ -797,4 +898,3 @@ function ErrorMsg({ code, extra }: { code: ErrorCode; extra?: string }) {
     </p>
   );
 }
-
