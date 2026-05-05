@@ -4,11 +4,11 @@ import {
   mockCommandDetails,
   mockTodayClosed,
 } from "../mocks/data";
-import type { CommandDetail, CommandStatus } from "../types";
+import type { TradingCycleStatus, TradingDetail } from "../types";
 import { colorByPnL, formatKrw, formatPct, formatPrice, formatQty } from "../lib/format";
 
 export default function MonitoringPage() {
-  const [selectedId, setSelectedId] = useState<string | null>(
+  const [selectedId, setSelectedId] = useState<number | null>(
     mockActiveCommands[0]?.commandId ?? null,
   );
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -102,7 +102,7 @@ export default function MonitoringPage() {
                   <tr key={row.commandId} className="border-t border-zinc-800">
                     <td className="px-4 py-2">{row.stockName}</td>
                     <td className="px-4 py-2">
-                      <CloseReasonBadge reason={row.closeReason} />
+                      {row.closeReason && <CloseReasonBadge reason={row.closeReason} />}
                     </td>
                     <td className={`px-4 py-2 text-right ${colorByPnL(row.profitRate)}`}>
                       {row.profitRate === 0 ? "-" : formatPct(row.profitRate)}
@@ -137,11 +137,10 @@ function DetailPanel({
   detail,
   onCancel,
 }: {
-  detail: CommandDetail;
+  detail: TradingDetail;
   onCancel: () => void;
 }) {
-  const showSignals = detail.status === "MONITORING";
-  const showLiquidating = detail.status === "LIQUIDATING";
+  const showSignals = detail.status === "HOLDING";
   const showMidwayOnly = detail.status === "BUYING";
 
   return (
@@ -210,24 +209,6 @@ function DetailPanel({
       </div>
 
       <div className="space-y-3">
-        {showLiquidating && detail.activeSell && (
-          <Section title="매도 재시도 상태" tone="danger">
-            <KV label="시그널" value={detail.activeSell.signalType} />
-            <KV
-              label="누적 재시도"
-              value={`${detail.activeSell.retryCount}회`}
-              valueClass={
-                detail.activeSell.retryCount >= 3
-                  ? "text-rose-400 font-semibold"
-                  : "text-zinc-100"
-              }
-            />
-            {detail.activeSell.lastError && (
-              <KV label="마지막 에러" value={detail.activeSell.lastError} small />
-            )}
-          </Section>
-        )}
-
         <Section title="설정값">
           <KV label="분할 매도 비율" value={`${(detail.splitSellRatio * 100).toFixed(0)}%`} />
           <KV label="중도 익절" value={`+${detail.midwayProfitPct}%`} />
@@ -328,11 +309,11 @@ function Stage({
   );
 }
 
-function StatusPill({ status }: { status: CommandStatus }) {
-  const map: Record<CommandStatus, { label: string; cls: string }> = {
+function StatusPill({ status }: { status: TradingCycleStatus }) {
+  const map: Record<TradingCycleStatus, { label: string; cls: string }> = {
     INITIATED: { label: "INITIATED", cls: "bg-zinc-700 text-zinc-300" },
     BUYING: { label: "BUYING", cls: "bg-blue-900/60 text-blue-300" },
-    MONITORING: { label: "MONITORING", cls: "bg-emerald-900/60 text-emerald-300" },
+    HOLDING: { label: "HOLDING", cls: "bg-emerald-900/60 text-emerald-300" },
     LIQUIDATING: { label: "LIQUIDATING", cls: "bg-amber-900/60 text-amber-300" },
     CLOSED: { label: "CLOSED", cls: "bg-zinc-800 text-zinc-500" },
   };

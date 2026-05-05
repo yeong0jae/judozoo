@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { mockBalance, mockStockSearch, mockSystemStatus } from "../mocks/data";
+import { mockBalance, mockStockPrices, mockStockSearch, mockSystemStatus } from "../mocks/data";
 import { formatKrw, formatPrice, formatQty } from "../lib/format";
 
 export default function CommandPage() {
@@ -12,9 +12,10 @@ export default function CommandPage() {
   const [breakevenPct, setBreakevenPct] = useState(2);
   const [stopLossPct, setStopLossPct] = useState(-2);
 
+  const currentPrice = mockStockPrices[selectedStock.stockCode]?.currentPrice ?? 0;
   const estimatedQty = useMemo(
-    () => Math.floor(perBuyAmount / selectedStock.currentPrice),
-    [perBuyAmount, selectedStock],
+    () => (currentPrice > 0 ? Math.floor(perBuyAmount / currentPrice) : 0),
+    [perBuyAmount, currentPrice],
   );
   const totalReserve = perBuyAmount * 3;
 
@@ -29,7 +30,7 @@ export default function CommandPage() {
           : null;
 
   const lacksFunds = totalReserve > mockBalance.availableBalance;
-  const belowOneShare = perBuyAmount < selectedStock.currentPrice;
+  const belowOneShare = perBuyAmount < currentPrice;
   const belowMin = perBuyAmount < 10_000;
 
   const submitDisabled =
@@ -69,7 +70,7 @@ export default function CommandPage() {
             min={10_000}
           />
           <p className="text-xs text-zinc-500 mt-1">
-            허용 범위: 10,000원 이상 AND 1주 가격({formatPrice(selectedStock.currentPrice)}원) 이상
+            허용 범위: 10,000원 이상 AND 1주 가격({formatPrice(currentPrice)}원) 이상
           </p>
         </Field>
 
@@ -156,7 +157,7 @@ export default function CommandPage() {
         <h3 className="text-sm font-semibold text-zinc-400 mb-4">검증 컨텍스트</h3>
         <Row label="사용 가능 잔고" value={formatKrw(mockBalance.availableBalance)} hint={`예약 차감: ${formatKrw(mockBalance.reservedAmount)}`} />
         <Row label="선택 종목" value={`${selectedStock.stockName} (${selectedStock.stockCode})`} />
-        <Row label="현재가" value={`${formatPrice(selectedStock.currentPrice)}원`} />
+        <Row label="현재가" value={`${formatPrice(currentPrice)}원`} />
         <Row label="예상 매수 수량" value={formatQty(estimatedQty)} hint="1회분, 소수점 절사" />
         <Row label="예상 총 매수 금액" value={formatKrw(totalReserve)} hint="1회분 × 3" />
         <div className="mt-4 pt-4 border-t border-zinc-800 text-xs text-zinc-500">

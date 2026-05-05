@@ -17,7 +17,7 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 
 ## Mock 재작성 (실 DTO shape)
 
-- [ ] `mocks/data.ts` — 백엔드 DTO와 1:1 일치하는 mock 재작성
+- [x] `mocks/data.ts` — 백엔드 DTO와 1:1 일치하는 mock 재작성
   - `SystemStatus { marketMode, tokenStatus, isHoliday, tradingHoursOpen, cutoffPassed }`
   - `AccountBalance { cashBalance, reservedAmount, availableBalance }`
   - `TradingSummary { commandId, stockCode, stockName, status, currentPrice, averageBuyPrice, profitRate(소수), profitAmount, holdingQty, buyAttempt: { completed, total } }`
