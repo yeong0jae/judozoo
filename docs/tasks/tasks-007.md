@@ -69,13 +69,13 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 
 ## 실적 화면 재설계
 
-- [ ] 3 요약 카드 — 순수익(profitAmount 합) / 거래건수+승률(profitAmount > 0 = 승) / closeReason 분포 mini bar (※ 수수료/세금 분리 표시 ❌ — Phase 6)
-- [ ] 거래 내역 테이블 — 종료시각/종목/보유시간/수익률/수익금/사유 (※ "매수→매도가" 컬럼은 "—" 표시, Phase 6에서 활성)
-- [ ] 정렬(종료시각/수익률) + closeReason 다중 선택 + 손익 토글
-- [ ] NO_FILL/UNCLOSED 행 배경 강조 + 페이지 상단 UNCLOSED 알림 배너
-- [ ] 드릴다운 패널 — 모니터링 상세 컴포넌트 재사용 (`live: false` prop으로 STOMP 구독 OFF)
-- [ ] 날짜 선택기 — 좌우 화살표 + 캘린더 (5-B에서는 오늘 외 disabled + 툴팁 "이전 날짜는 추후 제공")
-- [ ] 빈 상태
+- [x] 3 요약 카드 — 순수익(profitAmount 합) / 거래건수+승률(profitAmount > 0 = 승) / closeReason 분포 mini bar (※ 수수료/세금 분리 표시 ❌ — Phase 6)
+- [x] 거래 내역 테이블 — 종료시각/종목/보유시간/수익률/수익금/사유 (※ "매수→매도가" 컬럼은 "—" 표시, Phase 6에서 활성)
+- [x] 정렬(종료시각/수익률) + closeReason 다중 선택 + 손익 토글
+- [x] NO_FILL/UNCLOSED 행 배경 강조 + 페이지 상단 UNCLOSED 알림 배너
+- [x] 드릴다운 패널 — 모니터링 상세 컴포넌트 재사용 (`live: false` prop으로 STOMP 구독 OFF)
+- [x] 날짜 선택기 — 좌우 화살표 (mock 데이터 일자 간 이동) + "오늘" 버튼 disabled (Phase 6에서 활성)
+- [x] 빈 상태
 
 ## 라우팅 / Provider 정리
 
