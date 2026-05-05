@@ -87,10 +87,25 @@ class Order(
         status = STATUS_CANCELLED
     }
 
+    fun markNeedsManualReview(reason: String?) {
+        status = STATUS_NEEDS_REVIEW
+        lastError = reason?.take(MAX_ERROR_LEN)
+    }
+
+    fun reconcileFilled(totalFilledQty: Int) {
+        require(totalFilledQty >= 0) { "체결 수량은 0 이상이어야 합니다: $totalFilledQty" }
+        filledQty = totalFilledQty
+        if (filledQty >= orderQty) status = STATUS_FILLED
+    }
+
+    fun isReconcilable(): Boolean = status == STATUS_PENDING && filledQty == 0
+
     companion object {
+        private const val STATUS_PENDING = "PENDING"
         private const val STATUS_FILLED = "FILLED"
         private const val STATUS_FAILED = "FAILED"
         private const val STATUS_CANCELLED = "CANCELLED"
+        private const val STATUS_NEEDS_REVIEW = "NEEDS_REVIEW"
         private const val MAX_ERROR_LEN = 500
     }
 }
