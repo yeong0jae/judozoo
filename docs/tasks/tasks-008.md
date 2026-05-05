@@ -67,7 +67,7 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## Verification
 
-- [ ] `npm run build` 0 에러
+- [x] `npm run build` 0 에러
 - [ ] 수동 검증: 백엔드 + 프론트 동시 기동 → `POST /api/trading` (curl 또는 폼) → 모니터링에 1초 내 행 추가
 - [ ] 수동 검증: 사이클 종료 시 종료 토스트 1회 + activeCommands에서 사라지고 todayClosed로 이동 + 헤더 종 배지 +1
 - [ ] 수동 검증: 백엔드 재시작으로 STOMP 강제 끊기 → 끊김 배너 → 재연결 후 보강 fetch + 누락 CLOSED 알림 발화
