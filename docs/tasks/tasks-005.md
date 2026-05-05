@@ -14,7 +14,10 @@ Goal: Phase 4에서 구축한 사이클 엔진(`TradingCycleRunner`, `CycleOrche
 - [x] (필요 시) 회차 진행 중 cycle 상태 동기화 — DB의 `LIQUIDATING`이 runner의 in-memory `BUYING` 상태로 덮어써지는 race를 차단
   - 옵션 B 적용으로 자동 해결 — 매수 코루틴이 cancel되면 `incrementBuyAttempt`/save가 더 이상 실행되지 않음
 
-## End-to-end 통합 테스트 (`TradingCycleE2ETest`, IntegrationTestBase)
+## 사이클 시나리오 통합 테스트 (`TradingCycleScenarioTest`, IntegrationTestBase)
+
+> 진입은 `TradingService.create/cancel` (application layer). 외부(KIS REST/WS)만 mock.
+> 진정한 E2E(controller+HTTP)는 별도 `*ControllerTest`에서 다룬다.
 
 - [ ] 정상 사이클: 3회 매수 → 봉 종료에서 +2%/+3%/+5% 단계 발동 → 추세 꺾임 잔여 매도 → CLOSED(TAKE_PROFIT)
 - [ ] 손절: HOLDING 중 -2% → CLOSED(STOP_LOSS)

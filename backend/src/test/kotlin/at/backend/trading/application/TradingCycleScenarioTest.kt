@@ -35,7 +35,7 @@ import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
 @Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class, FixedTimeProviderConfig::class)
-class TradingCycleE2ETest(
+class TradingCycleScenarioTest(
     @Autowired private val tradingService: TradingService,
     @Autowired private val cycleRepository: TradingCycleJpaRepository,
     @Autowired private val orderRepository: OrderJpaRepository,
@@ -194,7 +194,7 @@ class TradingCycleE2ETest(
             stubKisDefaults()
         }
 
-        context("E2E 시나리오") {
+        context("사이클 시나리오") {
             test("부분 체결/NO_FILL: 매수 3회 모두 발송 실패 시 CLOSED(NO_FILL)로 종료") {
                 stubSubmitOrderFail()
 
