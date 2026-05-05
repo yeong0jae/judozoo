@@ -8,6 +8,7 @@ export const QK = {
     commandDetail: (id) => ["trading", "detail", id],
     stockSearch: (q) => ["stocks", "search", q],
     stockPrice: (code) => ["stocks", "price", code],
+    dailyReport: (date) => ["reports", "daily", date],
 };
 export function useSystemStatus() {
     return useQuery({
@@ -53,5 +54,11 @@ export function useStockPrice(code) {
         queryKey: code ? QK.stockPrice(code) : ["stocks", "price", "null"],
         queryFn: () => apiFetch(`/api/stocks/${code}/price`),
         enabled: code !== null,
+    });
+}
+export function useDailyReport(date) {
+    return useQuery({
+        queryKey: QK.dailyReport(date),
+        queryFn: () => apiFetch(`/api/reports/daily?date=${date}`),
     });
 }

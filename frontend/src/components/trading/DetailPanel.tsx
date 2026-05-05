@@ -30,11 +30,49 @@ export default function DetailPanel({
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
       <SummaryHeader detail={detail} onCancel={onCancel} live={live} />
       <div className="p-6 space-y-6">
+        <ActiveSellAlert orders={detail.orders} />
         <BuyProgressSection detail={detail} />
         <SignalArmingBoard detail={detail} />
         <SplitSellSection detail={detail} />
         <OrderHistory orders={detail.orders} />
         <ExecutionHistory executions={detail.executions} />
+      </div>
+    </div>
+  );
+}
+
+// 활성 SELL 주문(아직 미체결) 중 재시도 ≥ 1 있으면 상단 강조.
+// retryCount ≥ 3 이면 더 강한 색상.
+function ActiveSellAlert({ orders }: { orders: OrderInfo[] }) {
+  const activeSell = orders
+    .filter(
+      (o) => o.side === "SELL" && o.status !== "FILLED" && o.status !== "CANCELLED",
+    )
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+  if (!activeSell || activeSell.retryCount === 0) return null;
+
+  const critical = activeSell.retryCount >= 3;
+  const cls = critical
+    ? "bg-rose-950/60 border-rose-800 text-rose-200"
+    : "bg-amber-950/40 border-amber-800/60 text-amber-200";
+
+  return (
+    <div className={`border rounded-md px-4 py-3 text-sm ${cls}`}>
+      <div className="flex items-center gap-2 font-medium">
+        <span>🔥</span>
+        <span>
+          매도 재시도 {activeSell.retryCount}회{" "}
+          {critical && <span className="text-xs ml-1">(3회 이상 — 점검 필요)</span>}
+        </span>
+      </div>
+      {activeSell.lastError && (
+        <div className="text-xs mt-1 text-zinc-300">
+          {activeSell.lastError}
+        </div>
+      )}
+      <div className="text-xs mt-1 text-zinc-500">
+        트리거 {activeSell.trigger} · 주문 {activeSell.orderQty}주 / 체결{" "}
+        {activeSell.filledQty}주
       </div>
     </div>
   );
@@ -248,8 +286,17 @@ function OrderHistory({ orders }: { orders: OrderInfo[] }) {
             </tr>
           </thead>
           <tbody>
-            {orders.map((o) => (
-              <tr key={o.id} className="border-t border-zinc-800">
+            {orders.map((o) => {
+              const highlight =
+                o.side === "SELL" &&
+                o.status !== "FILLED" &&
+                o.status !== "CANCELLED" &&
+                o.retryCount >= 3;
+              return (
+              <tr
+                key={o.id}
+                className={`border-t border-zinc-800 ${highlight ? "bg-rose-950/30" : ""}`}
+              >
                 <td className="px-2 py-2 text-zinc-400 whitespace-nowrap">
                   {formatDateTime(o.submittedAt)}
                 </td>
@@ -279,7 +326,8 @@ function OrderHistory({ orders }: { orders: OrderInfo[] }) {
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

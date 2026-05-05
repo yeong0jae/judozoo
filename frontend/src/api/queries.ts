@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import type {
   AccountBalance,
+  DailyReport,
   DailyTrading,
   StockPriceResult,
   StockSearchResult,
@@ -18,6 +19,7 @@ export const QK = {
   commandDetail: (id: number) => ["trading", "detail", id] as const,
   stockSearch: (q: string) => ["stocks", "search", q] as const,
   stockPrice: (code: string) => ["stocks", "price", code] as const,
+  dailyReport: (date: string) => ["reports", "daily", date] as const,
 };
 
 export function useSystemStatus() {
@@ -76,5 +78,13 @@ export function useStockPrice(code: string | null) {
     queryFn: () =>
       apiFetch<StockPriceResult>(`/api/stocks/${code}/price`),
     enabled: code !== null,
+  });
+}
+
+export function useDailyReport(date: string) {
+  return useQuery({
+    queryKey: QK.dailyReport(date),
+    queryFn: () =>
+      apiFetch<DailyReport[]>(`/api/reports/daily?date=${date}`),
   });
 }

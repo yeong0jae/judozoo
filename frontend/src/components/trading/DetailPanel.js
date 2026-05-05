@@ -6,7 +6,21 @@ import CloseReasonBadge from "../common/CloseReasonBadge";
 // 사이클 상세 — 모니터링/실적 양쪽에서 재사용.
 // `live: false`는 종료된 사이클 (실적 화면에서 사용) — 취소 버튼 미표시.
 export default function DetailPanel({ detail, onCancel, live = true, }) {
-    return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden", children: [_jsx(SummaryHeader, { detail: detail, onCancel: onCancel, live: live }), _jsxs("div", { className: "p-6 space-y-6", children: [_jsx(BuyProgressSection, { detail: detail }), _jsx(SignalArmingBoard, { detail: detail }), _jsx(SplitSellSection, { detail: detail }), _jsx(OrderHistory, { orders: detail.orders }), _jsx(ExecutionHistory, { executions: detail.executions })] })] }));
+    return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden", children: [_jsx(SummaryHeader, { detail: detail, onCancel: onCancel, live: live }), _jsxs("div", { className: "p-6 space-y-6", children: [_jsx(ActiveSellAlert, { orders: detail.orders }), _jsx(BuyProgressSection, { detail: detail }), _jsx(SignalArmingBoard, { detail: detail }), _jsx(SplitSellSection, { detail: detail }), _jsx(OrderHistory, { orders: detail.orders }), _jsx(ExecutionHistory, { executions: detail.executions })] })] }));
+}
+// 활성 SELL 주문(아직 미체결) 중 재시도 ≥ 1 있으면 상단 강조.
+// retryCount ≥ 3 이면 더 강한 색상.
+function ActiveSellAlert({ orders }) {
+    const activeSell = orders
+        .filter((o) => o.side === "SELL" && o.status !== "FILLED" && o.status !== "CANCELLED")
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+    if (!activeSell || activeSell.retryCount === 0)
+        return null;
+    const critical = activeSell.retryCount >= 3;
+    const cls = critical
+        ? "bg-rose-950/60 border-rose-800 text-rose-200"
+        : "bg-amber-950/40 border-amber-800/60 text-amber-200";
+    return (_jsxs("div", { className: `border rounded-md px-4 py-3 text-sm ${cls}`, children: [_jsxs("div", { className: "flex items-center gap-2 font-medium", children: [_jsx("span", { children: "\uD83D\uDD25" }), _jsxs("span", { children: ["\uB9E4\uB3C4 \uC7AC\uC2DC\uB3C4 ", activeSell.retryCount, "\uD68C", " ", critical && _jsx("span", { className: "text-xs ml-1", children: "(3\uD68C \uC774\uC0C1 \u2014 \uC810\uAC80 \uD544\uC694)" })] })] }), activeSell.lastError && (_jsx("div", { className: "text-xs mt-1 text-zinc-300", children: activeSell.lastError })), _jsxs("div", { className: "text-xs mt-1 text-zinc-500", children: ["\uD2B8\uB9AC\uAC70 ", activeSell.trigger, " \u00B7 \uC8FC\uBB38 ", activeSell.orderQty, "\uC8FC / \uCCB4\uACB0", " ", activeSell.filledQty, "\uC8FC"] })] }));
 }
 function SummaryHeader({ detail, onCancel, live, }) {
     const isClosed = detail.status === "CLOSED";
@@ -48,9 +62,15 @@ function SplitSellSection({ detail }) {
 function OrderHistory({ orders }) {
     if (orders.length === 0)
         return null;
-    return (_jsx(Section, { title: `주문 이력 (${orders.length})`, children: _jsx("div", { className: "overflow-x-auto -mx-2", children: _jsxs("table", { className: "w-full text-xs", children: [_jsx("thead", { className: "text-zinc-500 uppercase", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uC81C\uCD9C\uC2DC\uAC01" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uBC29\uD5A5" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uD2B8\uB9AC\uAC70" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC8FC\uBB38" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uCCB4\uACB0" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uC0C1\uD0DC" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC7AC\uC2DC\uB3C4" })] }) }), _jsx("tbody", { children: orders.map((o) => (_jsxs("tr", { className: "border-t border-zinc-800", children: [_jsx("td", { className: "px-2 py-2 text-zinc-400 whitespace-nowrap", children: formatDateTime(o.submittedAt) }), _jsx("td", { className: "px-2 py-2", children: _jsx(SideBadge, { side: o.side }) }), _jsx("td", { className: "px-2 py-2 text-zinc-400", children: o.trigger }), _jsx("td", { className: "px-2 py-2 text-right", children: o.orderQty }), _jsx("td", { className: "px-2 py-2 text-right", children: o.filledQty }), _jsx("td", { className: "px-2 py-2", children: _jsx(OrderStatusText, { status: o.status }) }), _jsx("td", { className: "px-2 py-2 text-right", children: o.retryCount > 0 ? (_jsxs("span", { className: o.retryCount >= 3
-                                            ? "text-rose-300 font-medium"
-                                            : "text-amber-300", title: o.lastError ?? undefined, children: [o.retryCount, "\uD68C"] })) : (_jsx("span", { className: "text-zinc-600", children: "-" })) })] }, o.id))) })] }) }) }));
+    return (_jsx(Section, { title: `주문 이력 (${orders.length})`, children: _jsx("div", { className: "overflow-x-auto -mx-2", children: _jsxs("table", { className: "w-full text-xs", children: [_jsx("thead", { className: "text-zinc-500 uppercase", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uC81C\uCD9C\uC2DC\uAC01" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uBC29\uD5A5" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uD2B8\uB9AC\uAC70" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC8FC\uBB38" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uCCB4\uACB0" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uC0C1\uD0DC" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC7AC\uC2DC\uB3C4" })] }) }), _jsx("tbody", { children: orders.map((o) => {
+                            const highlight = o.side === "SELL" &&
+                                o.status !== "FILLED" &&
+                                o.status !== "CANCELLED" &&
+                                o.retryCount >= 3;
+                            return (_jsxs("tr", { className: `border-t border-zinc-800 ${highlight ? "bg-rose-950/30" : ""}`, children: [_jsx("td", { className: "px-2 py-2 text-zinc-400 whitespace-nowrap", children: formatDateTime(o.submittedAt) }), _jsx("td", { className: "px-2 py-2", children: _jsx(SideBadge, { side: o.side }) }), _jsx("td", { className: "px-2 py-2 text-zinc-400", children: o.trigger }), _jsx("td", { className: "px-2 py-2 text-right", children: o.orderQty }), _jsx("td", { className: "px-2 py-2 text-right", children: o.filledQty }), _jsx("td", { className: "px-2 py-2", children: _jsx(OrderStatusText, { status: o.status }) }), _jsx("td", { className: "px-2 py-2 text-right", children: o.retryCount > 0 ? (_jsxs("span", { className: o.retryCount >= 3
+                                                ? "text-rose-300 font-medium"
+                                                : "text-amber-300", title: o.lastError ?? undefined, children: [o.retryCount, "\uD68C"] })) : (_jsx("span", { className: "text-zinc-600", children: "-" })) })] }, o.id));
+                        }) })] }) }) }));
 }
 function ExecutionHistory({ executions }) {
     if (executions.length === 0)
