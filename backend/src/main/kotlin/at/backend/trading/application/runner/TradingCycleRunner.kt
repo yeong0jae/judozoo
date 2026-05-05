@@ -52,6 +52,7 @@ class TradingCycleRunner(
     private val signals: Channel<Signal> = Channel(Channel.UNLIMITED)
     private val mutex = Mutex()
     private var job: Job? = null
+    private var buyJob: Job? = null
 
     @Volatile private var pendingCloseReason: CloseReason? = null
     @Volatile private var prevBar: Bar? = null
@@ -62,8 +63,14 @@ class TradingCycleRunner(
         job = applicationScope.launch {
             log.info("TradingCycleRunner 시작 cycleId={}", cycleId)
             try {
-                runBuySequence()
-                if (cycle.status == TradingCycleStatus.HOLDING) {
+                val buy = launch { runBuySequence() }
+                buyJob = buy
+                buy.join()
+                buyJob = null
+
+                if (cycle.status == TradingCycleStatus.HOLDING ||
+                    cycle.status == TradingCycleStatus.LIQUIDATING
+                ) {
                     handleHolding()
                 }
             } finally {
@@ -87,23 +94,44 @@ class TradingCycleRunner(
         job?.join()
     }
 
-    private suspend fun runBuySequence() {
+    /**
+     * 외부(orchestrator) 취소 요청.
+     * - in-memory cycle을 LIQUIDATING으로 전이시켜 finalize 분기를 CANCELLED로 유도
+     * - 매수 코루틴 즉시 취소 → 다음 회차 미발사, race 차단
+     * - HOLDING 전이된 경우를 위해 Signal.Cancel을 채널에 push (handleHolding이 청산 처리)
+     */
+    suspend fun requestCancellation() {
         mutex.withLock {
-            cycle.startBuying()
-            cycleRepository.save(cycle)
-        }
-        orderExecutor.executeBuyTry(cycle, attempt = 1)
-
-        repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
-            delay(buyIntervalUnit * cycle.buyIntervalMin)
-            mutex.withLock {
-                cycle.incrementBuyAttempt()
+            if (cycle.status != TradingCycleStatus.CLOSED &&
+                cycle.status != TradingCycleStatus.LIQUIDATING
+            ) {
+                cycle.requestCancel()
                 cycleRepository.save(cycle)
             }
-            orderExecutor.executeBuyTry(cycle, attempt = i + 2)
         }
+        buyJob?.cancelAndJoin()
+        signals.trySend(Signal.Cancel)
+    }
 
-        finalizeBuySequence()
+    private suspend fun runBuySequence() {
+        try {
+            mutex.withLock {
+                cycle.startBuying()
+                cycleRepository.save(cycle)
+            }
+            orderExecutor.executeBuyTry(cycle, attempt = 1)
+
+            repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
+                delay(buyIntervalUnit * cycle.buyIntervalMin)
+                mutex.withLock {
+                    cycle.incrementBuyAttempt()
+                    cycleRepository.save(cycle)
+                }
+                orderExecutor.executeBuyTry(cycle, attempt = i + 2)
+            }
+        } finally {
+            withContext(NonCancellable) { finalizeBuySequence() }
+        }
     }
 
     private suspend fun finalizeBuySequence() {
@@ -112,10 +140,15 @@ class TradingCycleRunner(
             .sumOf { it.filledQty }
 
         mutex.withLock {
-            if (totalFilled == 0) {
-                cycle.close(CloseReason.NO_FILL, timeProvider.now())
-            } else {
-                cycle.transitionToHolding()
+            when {
+                totalFilled == 0 && cycle.status == TradingCycleStatus.LIQUIDATING ->
+                    cycle.close(CloseReason.CANCELLED, timeProvider.now())
+
+                totalFilled == 0 && cycle.status == TradingCycleStatus.BUYING ->
+                    cycle.close(CloseReason.NO_FILL, timeProvider.now())
+
+                cycle.status == TradingCycleStatus.BUYING ->
+                    cycle.transitionToHolding()
             }
             cycleRepository.save(cycle)
         }

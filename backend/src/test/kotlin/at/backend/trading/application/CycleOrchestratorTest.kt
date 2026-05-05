@@ -10,6 +10,7 @@ import at.backend.market.infrastructure.BarCache
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
+import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -43,12 +44,13 @@ class CycleOrchestratorTest(
     private fun saveCycle(
         stockCode: String = "005930",
         status: TradingCycleStatus = TradingCycleStatus.INITIATED,
+        buyIntervalMin: Int = 1,
     ): TradingCycle = cycleRepository.save(
         TradingCycle(
             stockCode = stockCode,
             stockName = "삼성전자",
             perBuyAmount = 1_000_000L,
-            buyIntervalMin = 1,
+            buyIntervalMin = buyIntervalMin,
             splitSellRatio = BigDecimal("0.5"),
             midwayProfitPct = BigDecimal("3.0"),
             breakevenThresholdPct = BigDecimal("2.0"),
@@ -169,6 +171,31 @@ class CycleOrchestratorTest(
                 orchestrator.cancel(9999L)
 
                 verify(exactly = 0) { kisRestClient.cancelRemainder(any(), any()) }
+            }
+
+            test("BUYING 단계 취소 시 매수 회차가 즉시 중단되어 보유분 없으면 CLOSED(CANCELLED)로 종료된다") {
+                val cycle = saveCycle(buyIntervalMin = 200)
+                orchestrator.start(cycle)
+                runBlocking {
+                    waitFor(timeoutMillis = 3000) {
+                        orderRepository.findByCycleId(cycle.id).any {
+                            it.side == "BUY" && it.kisOrderNo != null
+                        }
+                    }
+                }
+
+                orchestrator.cancel(cycle.id)
+
+                runBlocking {
+                    waitFor(timeoutMillis = 3000) {
+                        cycleRepository.findById(cycle.id).get().status == TradingCycleStatus.CLOSED
+                    }
+                }
+                val refreshed = cycleRepository.findById(cycle.id).get()
+                refreshed.closeReason shouldBe CloseReason.CANCELLED
+
+                val buyOrders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
+                buyOrders shouldHaveSize 1
             }
         }
 
