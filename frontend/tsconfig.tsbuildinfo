@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/components/systemstatusbadge.tsx","./src/lib/format.ts","./src/mocks/data.ts","./src/pages/commandpage.tsx","./src/pages/monitoringpage.tsx","./src/pages/reportpage.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/components/systemstatusbadge.tsx","./src/lib/errormessages.ts","./src/lib/format.ts","./src/mocks/data.ts","./src/pages/commandpage.tsx","./src/pages/monitoringpage.tsx","./src/pages/reportpage.tsx"],"version":"5.9.3"}
