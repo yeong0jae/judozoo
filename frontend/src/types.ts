@@ -150,6 +150,24 @@ export interface DailyTrading {
   closedAt: string | null;
 }
 
+// Phase 6: 수수료/세금/매수→매도가 분리 집계 (GET /api/reports/daily 응답)
+export interface DailyReport {
+  commandId: number;
+  stockCode: string;
+  stockName: string;
+  status: TradingCycleStatus;
+  closeReason: CloseReason | null;
+  createdAt: string;
+  closedAt: string | null;
+  avgBuyPrice: number | null;
+  avgSellPrice: number | null;
+  totalFee: number;
+  totalTax: number;
+  grossProfit: number;
+  netProfit: number;
+  profitRate: number;
+}
+
 export interface StockSearchResult {
   stockCode: string;
   stockName: string;
