@@ -731,7 +731,8 @@ WS endpoint: /ws
 Topics:
   /topic/trading/{id}        - 단일 명령 이벤트 (모니터링 상세 뷰 / 리스트 행 갱신용)
   /topic/trading/lifecycle   - 명령 생성/종료 (모니터링 리스트의 행 추가/제거용)
-  /topic/system               - 시세 모드 변경, 휴장 토글, 토큰 갱신 실패 등 시스템 전역
+  /topic/market              - 시세 모드 변경, 휴장 토글
+  /topic/account             - 잔고 변동 가능성 알림
 ```
 
 #### 페이로드
@@ -749,12 +750,13 @@ Topics:
   { type: "CREATED", commandId, stockCode, stockName, ts }
   { type: "CLOSED",  commandId, closeReason, ts }
 
-/topic/system:
-  { type: "MARKET_MODE",     mode: "WS" | "POLLING", ts }
-  { type: "TOKEN_STATUS",    status: "OK" | "REFRESH_FAILED", ts }
-  { type: "HOLIDAY",         isHoliday, ts }
-  { type: "BALANCE_INVALIDATED", ts }       // 잔고 변동 가능성 알림 — 매매 명령 화면이
-                                            // GET /api/account/balance 재조회를 트리거
+/topic/market:
+  { type: "MARKET_MODE", mode: "WS" | "POLLING", ts }
+  { type: "HOLIDAY",     isHoliday, ts }
+
+/topic/account:
+  { type: "BALANCE_INVALIDATED", ts }   // 잔고 변동 가능성 알림 — 매매 명령 화면이
+                                        // GET /api/account/balance 재조회를 트리거
 ```
 
 > `BALANCE_INVALIDATED`는 lifecycle CREATED/CLOSED 이벤트와 함께 발행. 매매 명령 화면 입력 중 잔고가 stale되는 것을 막는다 (PRD §매매 명령 화면 자동 갱신).
@@ -764,14 +766,15 @@ Topics:
 1. 페이지 진입: `GET /api/system/status` + `GET /api/trading?status=active` → 시스템 상태 배지 + 리스트 렌더
 2. `/topic/trading/lifecycle` 구독 → CREATED 이벤트 시 행 추가, CLOSED 시 행 제거 + **종료 토스트** 1회 표시 (PRD §종료 인지)
 3. 활성 명령마다 `/topic/trading/{id}` 구독 → 행/상세 뷰 갱신 (PRICE / STATE / SIGNAL / EXECUTION / RETRY)
-4. `/topic/system` 구독 → 시스템 상태 배지(시세 모드 / 토큰 / 휴장) 갱신
+4. `/topic/market` 구독 → 시세 모드 / 휴장 배지 갱신
 5. 상세 뷰 진입: `GET /api/trading/{id}` 로 보강 데이터(이력 + activeSell) 로드
 
 #### 프론트 구독 흐름 (매매 명령 화면)
 
 1. 페이지 진입: `GET /api/system/status` + `GET /api/account/balance` → 명령 가능 여부 + 잔고 표시
-2. `/topic/system` 구독 → `BALANCE_INVALIDATED` 수신 시 잔고 재조회. 토큰/휴장 변동 시 화면 비활성화 갱신
-3. 종목 선택 시 `GET /api/stocks/{stockCode}/price` → 현재가 + 예상 매수 수량 계산
+2. `/topic/account` 구독 → `BALANCE_INVALIDATED` 수신 시 잔고 재조회
+3. `/topic/market` 구독 → 휴장 변동 시 화면 비활성화 갱신
+4. 종목 선택 시 `GET /api/stocks/{stockCode}/price` → 현재가 + 예상 매수 수량 계산
 
 ---
 
