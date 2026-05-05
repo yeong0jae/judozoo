@@ -28,20 +28,22 @@ Goal: 사이클 엔진의 핵심 분기점에서 도메인 이벤트를 발행�
 
 ## 도메인 이벤트 정의 + 발행
 
-- [ ] 이벤트 클래스 정의 — feature별 `domain/event/` (또는 application/event):
+- [x] 이벤트 클래스 정의 — feature별 `domain/event/`:
   - **trading**: `TradingCycleCreated`, `TradingCycleClosed`, `PriceUpdated`, `CycleStateChanged`, `SignalArmed`, `SignalFired`, `OrderExecuted`, `RetryAccumulated`
   - **market**: `MarketModeChanged`, `HolidayChanged`
   - **account**: `BalanceInvalidated`
-- [ ] Spring `ApplicationEventPublisher`로 발행 — 위치:
+- [x] Spring `ApplicationEventPublisher`로 발행 — 위치:
   - `TradingService.create` afterCommit → `TradingCycleCreated` + `BalanceInvalidated`
-  - `TradingCycle.close` 또는 runner의 `close` 호출 후 → `TradingCycleClosed` + `BalanceInvalidated`
-  - `OrderExecutor.executeBuyTry/executeSell` 발사 시 → `OrderSubmitted` (선택)
+  - Runner `finalizeBuySequence`/`processExternalSignal`/`checkAndCloseIfDone` close → `TradingCycleClosed` + `BalanceInvalidated` (+ `CycleStateChanged` CLOSED)
+  - `UnclosedCycleStartupHook` → `TradingCycleClosed` + `BalanceInvalidated`
   - `ExecutionNoticeHandler` 체결 적용 → `OrderExecuted`
   - Runner `updateArming` → `SignalArmed`
   - Runner `executeSignalSell` 진입 → `SignalFired`
-  - Runner `processTick` 또는 별도 throttle → `PriceUpdated`
-  - `MarketDataStream._mode` 변경 → `MarketModeChanged`
-  - `TradingSchedulerService` 휴장 토글 → `HolidayChanged`
+  - Runner `processTick` → `PriceUpdated`
+  - Runner `runBuySequence`/`finalizeBuySequence`/`requestCancellation`/`executeSignalSell` → `CycleStateChanged`
+  - `OrderExecutor.executeSell` retry → `RetryAccumulated`
+  - `MarketDataStream` mode 변경 → `MarketModeChanged`
+  - `TradingSchedulerService.toggleCommandGate` → `HolidayChanged`
 
 ## STOMP 인프라
 
@@ -55,10 +57,10 @@ Goal: 사이클 엔진의 핵심 분기점에서 도메인 이벤트를 발행�
 
 ## Broadcast Handler (각 feature 분산)
 
-- [ ] `trading.application.TradingBroadcastHandler` — trading 이벤트 listen → `/topic/trading/{id}`, `/topic/trading/lifecycle`
-- [ ] `market.application.MarketBroadcastHandler` — market 이벤트 listen → `/topic/market`
-- [ ] `account.application.AccountBroadcastHandler` — `BalanceInvalidated` listen → `/topic/account`
-- [ ] CREATED/CLOSED 시 BalanceInvalidated 동반 발행 (publisher가 둘 다 publish)
+- [x] `trading.application.TradingBroadcastHandler` — trading 이벤트 listen → `/topic/trading/{id}`, `/topic/trading/lifecycle`
+- [x] `market.application.MarketBroadcastHandler` — market 이벤트 listen → `/topic/market`
+- [x] `account.application.AccountBroadcastHandler` — `BalanceInvalidated` listen → `/topic/account`
+- [x] CREATED/CLOSED 시 BalanceInvalidated 동반 발행 (publisher가 둘 다 publish)
 
 ## 통합 테스트 (`*BroadcastTest`, IntegrationTestBase + STOMP 클라이언트)
 

@@ -5,6 +5,7 @@ import at.backend.market.domain.Bar
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisDailyCcldResponse
 import at.backend.trading.domain.cycle.TradingCycle
+import at.backend.trading.domain.event.RetryAccumulated
 import at.backend.trading.domain.execution.Execution
 import at.backend.trading.domain.order.Order
 import at.backend.trading.domain.signal.Signal
@@ -15,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -29,6 +31,7 @@ class OrderExecutor(
     private val kisRestClient: KisRestClient,
     private val timeProvider: TimeProvider,
     private val applicationScope: CoroutineScope,
+    private val eventPublisher: ApplicationEventPublisher,
     @Value("\${trading.order.sell-retry-delay-millis:5000}") private val sellRetryDelayMillis: Long,
     @Value("\${trading.order.reconcile-delay-millis:5000}") private val reconcileDelayMillis: Long,
 ) {
@@ -113,6 +116,15 @@ class OrderExecutor(
             } catch (e: Exception) {
                 order.markRetryableFailed(e.message)
                 orderRepository.save(order)
+                eventPublisher.publishEvent(
+                    RetryAccumulated(
+                        commandId = cycle.id,
+                        signalType = signal::class.simpleName ?: "Signal",
+                        retryCount = order.retryCount,
+                        lastError = e.message,
+                        ts = timeProvider.now().atZone(KST).toInstant(),
+                    )
+                )
                 log.warn(
                     "매도 발송 실패 cycleId={}, signal={}, retry={}",
                     cycle.id, signal::class.simpleName, order.retryCount, e,
