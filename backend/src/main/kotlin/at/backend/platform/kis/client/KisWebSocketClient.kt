@@ -28,7 +28,7 @@ class KisWebSocketClient(
     private val approvalKeyProvider: KisApprovalKeyProvider,
     private val webSocketClient: WebSocketClient,
     private val objectMapper: ObjectMapper,
-) : WebSocketHandler {
+) {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val sessionRef = AtomicReference<WebSocketSession?>(null)
@@ -45,6 +45,42 @@ class KisWebSocketClient(
     val priceTicks: SharedFlow<PriceTick> = _priceTicks.asSharedFlow()
     val executionNotices: SharedFlow<ExecutionNotice> = _executionNotices.asSharedFlow()
     val connectionState: SharedFlow<Boolean> = _connectionState.asSharedFlow()
+
+    /**
+     * Spring `WebSocketHandler` 콜백을 inner object로 분리.
+     * 직접 구현하면 `@Component` 빈이 `WebSocketHandler` 타입으로 노출되어
+     * `@EnableWebSocketMessageBroker`의 STOMP 자동 설정과 충돌한다.
+     */
+    internal val handler: WebSocketHandler = object : WebSocketHandler {
+        override fun afterConnectionEstablished(session: WebSocketSession) {
+            log.info("KIS WS 연결됨: sessionId={}", session.id)
+            reconnectAttempt = 0
+            _connectionState.tryEmit(true)
+            subscriptions.forEach { sendSubscription(session, it, subscribe = true) }
+        }
+
+        override fun handleMessage(session: WebSocketSession, message: WebSocketMessage<*>) {
+            val payload = message.payload as? String ?: return
+            if (payload.startsWith("{")) {
+                handleJsonMessage(session, payload)
+            } else {
+                handleRealtimeFrame(payload)
+            }
+        }
+
+        override fun handleTransportError(session: WebSocketSession, exception: Throwable) {
+            log.warn("KIS WS 전송 오류", exception)
+        }
+
+        override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
+            log.warn("KIS WS 끊김 status={}, 재연결 예약", closeStatus)
+            sessionRef.compareAndSet(session, null)
+            _connectionState.tryEmit(false)
+            if (subscriptions.isNotEmpty()) scheduleReconnect()
+        }
+
+        override fun supportsPartialMessages(): Boolean = false
+    }
 
     fun subscribePrice(stockCode: String) {
         val sub = Subscription(TR_PRICE, stockCode)
@@ -75,7 +111,7 @@ class KisWebSocketClient(
 
     private fun connect(): WebSocketSession? {
         return try {
-            val session = webSocketClient.execute(this, properties.wsUrl)
+            val session = webSocketClient.execute(handler, properties.wsUrl)
                 .get(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
             sessionRef.set(session)
             session
@@ -99,22 +135,6 @@ class KisWebSocketClient(
             ),
         )
         session.sendMessage(TextMessage(objectMapper.writeValueAsString(payload)))
-    }
-
-    override fun afterConnectionEstablished(session: WebSocketSession) {
-        log.info("KIS WS 연결됨: sessionId={}", session.id)
-        reconnectAttempt = 0
-        _connectionState.tryEmit(true)
-        subscriptions.forEach { sendSubscription(session, it, subscribe = true) }
-    }
-
-    override fun handleMessage(session: WebSocketSession, message: WebSocketMessage<*>) {
-        val payload = message.payload as? String ?: return
-        if (payload.startsWith("{")) {
-            handleJsonMessage(session, payload)
-        } else {
-            handleRealtimeFrame(payload)
-        }
     }
 
     private fun handleJsonMessage(session: WebSocketSession, payload: String) {
@@ -163,19 +183,6 @@ class KisWebSocketClient(
             timestamp = Instant.now(),
         )
     }
-
-    override fun handleTransportError(session: WebSocketSession, exception: Throwable) {
-        log.warn("KIS WS 전송 오류", exception)
-    }
-
-    override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
-        log.warn("KIS WS 끊김 status={}, 재연결 예약", closeStatus)
-        sessionRef.compareAndSet(session, null)
-        _connectionState.tryEmit(false)
-        if (subscriptions.isNotEmpty()) scheduleReconnect()
-    }
-
-    override fun supportsPartialMessages(): Boolean = false
 
     private fun scheduleReconnect() {
         val delay = BACKOFF_DELAYS_SEC[reconnectAttempt.coerceIn(0, BACKOFF_DELAYS_SEC.size - 1)]
