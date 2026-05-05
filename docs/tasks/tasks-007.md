@@ -30,7 +30,7 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 
 - [x] `lib/format.ts` 확장 — formatKRW / formatPct / formatQty / formatDateTime / formatTime / formatDuration / formatRelative
 - [x] `lib/errorMessages.ts` — 9개 errorCode + ALREADY_CLOSED + NOT_FOUND + Network/5xx 한글 매핑
-- [ ] 공통 컴포넌트 — `StatusPill` (TradingCycleStatus), `CloseReasonBadge` (8종), `ProfitText` (양/음/0 색상), `Skeleton`, `EmptyState`, `ErrorState`
+- [x] 공통 컴포넌트 — `StatusPill` (TradingCycleStatus), `CloseReasonBadge` (8종), `ProfitText` (양/음/0 색상), `Skeleton`, `EmptyState`, `ErrorState`
 
 ## 레이아웃 / 헤더 / 인지 채널
 
