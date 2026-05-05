@@ -67,6 +67,14 @@ class CycleOrchestrator(
         active.runner.trySubmitSignal(Signal.Cancel)
     }
 
+    fun broadcastMarketClose() {
+        val snapshot = activeRunners.values.toList()
+        log.info("MarketClose 일제 라우팅 — 대상 cycle 수={}", snapshot.size)
+        for (active in snapshot) {
+            active.runner.trySubmitSignal(Signal.MarketClose)
+        }
+    }
+
     fun activeCycleIds(): Set<Long> = activeRunners.keys.toSet()
 
     private fun cleanup(cycleId: Long) {
