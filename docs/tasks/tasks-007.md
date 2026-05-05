@@ -39,7 +39,7 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 - [ ] `StompStatusBadge` — 연결됨/재연결중/끊김 + 팝오버
 - [ ] `NotificationBell` — 미확인 카운트 + 최근 이벤트 팝오버 + lastSeenAt 관리 (localStorage)
 - [ ] `StompDisconnectionBanner` — 끊김 시 노란 띠, 복구 시 녹색 1.5s
-- [ ] `Toast` 시스템 — `useToast` hook + 우하단 stacking + 종료 토스트는 closeReason 색
+- [x] `Toast` 시스템 — `useToast` hook + 우하단 stacking + 종료 토스트는 closeReason 색
 - [ ] 탭 제목 + Favicon 빨간 점 (미확인 ≥ 1)
 - [ ] `Settings` 패널 — OS알림 / 사운드 / UNCLOSED 강조 토글 (localStorage)
 
