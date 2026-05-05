@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useMemo, useState } from "react";
-import { formatDateTime, formatDuration, formatKRW, formatPct, } from "../lib/format";
+import { formatDateTime, formatDuration, formatKRW, formatPct, formatPrice, } from "../lib/format";
 import CloseReasonBadge from "../components/common/CloseReasonBadge";
 import EmptyState from "../components/common/EmptyState";
 import ErrorState from "../components/common/ErrorState";
@@ -8,24 +8,25 @@ import Skeleton from "../components/common/Skeleton";
 import ProfitText from "../components/common/ProfitText";
 import DetailPanel from "../components/trading/DetailPanel";
 import { useSettings } from "../settings/settings";
-import { useCommandDetail, useTodayClosed } from "../api/queries";
-const today = new Date().toISOString().slice(0, 10);
+import { useCommandDetail, useDailyReport } from "../api/queries";
+const today = () => new Date().toISOString().slice(0, 10);
 export default function ReportPage() {
     const settings = useSettings();
-    const todayQ = useTodayClosed();
-    const allRows = todayQ.data ?? [];
+    const [date, setDate] = useState(today());
     const [sortKey, setSortKey] = useState("closedAt");
     const [pnlFilter, setPnLFilter] = useState("all");
     const [reasonFilter, setReasonFilter] = useState(new Set());
     const [drillDownId, setDrillDownId] = useState(null);
+    const reportQ = useDailyReport(date);
     const detailQ = useCommandDetail(drillDownId);
+    const allRows = reportQ.data ?? [];
     const filteredRows = useMemo(() => {
         return allRows
             .filter((r) => {
             if (pnlFilter === "win")
-                return r.profitAmount > 0;
+                return r.netProfit > 0;
             if (pnlFilter === "loss")
-                return r.profitAmount < 0;
+                return r.netProfit < 0;
             return true;
         })
             .filter((r) => reasonFilter.size === 0 ||
@@ -35,28 +36,36 @@ export default function ReportPage() {
     const summary = useMemo(() => computeSummary(allRows), [allRows]);
     const unclosedCount = allRows.filter((r) => r.closeReason === "UNCLOSED").length;
     const drillDown = detailQ.data ?? null;
-    return (_jsxs("div", { className: "space-y-6", children: [_jsxs("div", { className: "flex items-center justify-between flex-wrap gap-3", children: [_jsx("h2", { className: "text-lg font-semibold", children: "\uC77C\uBCC4 \uC2E4\uC801" }), _jsx(DateNavigator, {})] }), settings.emphasizeUnclosed && unclosedCount > 0 && (_jsx(UnclosedBanner, { count: unclosedCount })), todayQ.isLoading ? (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4", children: [_jsx(Skeleton, { className: "h-32" }), _jsx(Skeleton, { className: "h-32" }), _jsx(Skeleton, { className: "h-32" })] })) : todayQ.isError ? (_jsx(ErrorState, { onRetry: () => todayQ.refetch() })) : (_jsx(SummaryCards, { summary: summary })), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3 flex-wrap gap-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uAC70\uB798 \uB0B4\uC5ED (", filteredRows.length, filteredRows.length !== allRows.length && ` / ${allRows.length}`, ")"] }), _jsxs("div", { className: "flex items-center gap-3 flex-wrap", children: [_jsx(PnLFilterButtons, { value: pnlFilter, onChange: setPnLFilter }), _jsx(ReasonFilter, { value: reasonFilter, onChange: setReasonFilter, available: new Set(allRows
+    return (_jsxs("div", { className: "space-y-6", children: [_jsxs("div", { className: "flex items-center justify-between flex-wrap gap-3", children: [_jsx("h2", { className: "text-lg font-semibold", children: "\uC77C\uBCC4 \uC2E4\uC801" }), _jsx(DateNavigator, { date: date, onChange: setDate })] }), settings.emphasizeUnclosed && unclosedCount > 0 && (_jsx(UnclosedBanner, { count: unclosedCount })), reportQ.isLoading ? (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4", children: [_jsx(Skeleton, { className: "h-32" }), _jsx(Skeleton, { className: "h-32" }), _jsx(Skeleton, { className: "h-32" })] })) : reportQ.isError ? (_jsx(ErrorState, { onRetry: () => reportQ.refetch() })) : (_jsx(SummaryCards, { summary: summary })), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3 flex-wrap gap-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uAC70\uB798 \uB0B4\uC5ED (", filteredRows.length, filteredRows.length !== allRows.length && ` / ${allRows.length}`, ")"] }), _jsxs("div", { className: "flex items-center gap-3 flex-wrap", children: [_jsx(PnLFilterButtons, { value: pnlFilter, onChange: setPnLFilter }), _jsx(ReasonFilter, { value: reasonFilter, onChange: setReasonFilter, available: new Set(allRows
                                             .map((r) => r.closeReason)
-                                            .filter((x) => !!x)) }), _jsx(SortDropdown, { value: sortKey, onChange: setSortKey })] })] }), todayQ.isLoading ? (_jsx(Skeleton, { className: "h-32 w-full" })) : filteredRows.length === 0 ? (_jsx(EmptyState, { icon: "\uD83D\uDCCA", message: allRows.length === 0
-                            ? "오늘 종료된 거래가 없습니다"
-                            : "필터 조건에 맞는 거래가 없습니다" })) : (_jsx(ReportTable, { rows: filteredRows, emphasizeUnclosed: settings.emphasizeUnclosed, onSelect: setDrillDownId, selectedId: drillDownId }))] }), drillDownId && (_jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uC0AC\uC774\uD074 \uC0C1\uC138 ", drillDown && `— ${drillDown.stockName}`] }), _jsx("button", { onClick: () => setDrillDownId(null), className: "text-xs text-zinc-500 hover:text-zinc-300", children: "\uB2EB\uAE30 \u00D7" })] }), detailQ.isLoading ? (_jsx(Skeleton, { className: "h-64 w-full" })) : detailQ.isError ? (_jsx(ErrorState, { onRetry: () => detailQ.refetch() })) : drillDown ? (_jsx(DetailPanel, { detail: drillDown, live: false })) : null] })), _jsxs("p", { className: "text-xs text-zinc-500", children: ["\u203B \uC774\uC804 \uB0A0\uC9DC \uC870\uD68C\uB294 Phase 6\uC5D0\uC11C \uD65C\uC131\uD654\uB429\uB2C8\uB2E4 (\uBC31\uC5D4\uB4DC", " ", _jsx("code", { children: "/api/reports/daily?date=" }), " \uB3C4\uC785 \uD6C4). \uC218\uC218\uB8CC/\uC138\uAE08 \uBD84\uB9AC, \uB9E4\uC218\u2192\uB9E4\uB3C4\uAC00 \uCEEC\uB7FC\uB3C4 \uB3D9\uC2DC \uCD94\uAC00 \uC608\uC815."] })] }));
+                                            .filter((x) => !!x)) }), _jsx(SortDropdown, { value: sortKey, onChange: setSortKey })] })] }), reportQ.isLoading ? (_jsx(Skeleton, { className: "h-32 w-full" })) : filteredRows.length === 0 ? (_jsx(EmptyState, { icon: "\uD83D\uDCCA", message: allRows.length === 0
+                            ? `${date} 일자 거래가 없습니다`
+                            : "필터 조건에 맞는 거래가 없습니다" })) : (_jsx(ReportTable, { rows: filteredRows, emphasizeUnclosed: settings.emphasizeUnclosed, onSelect: setDrillDownId, selectedId: drillDownId }))] }), drillDownId && (_jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uC0AC\uC774\uD074 \uC0C1\uC138 ", drillDown && `— ${drillDown.stockName}`] }), _jsx("button", { onClick: () => setDrillDownId(null), className: "text-xs text-zinc-500 hover:text-zinc-300", children: "\uB2EB\uAE30 \u00D7" })] }), detailQ.isLoading ? (_jsx(Skeleton, { className: "h-64 w-full" })) : detailQ.isError ? (_jsx(ErrorState, { onRetry: () => detailQ.refetch() })) : drillDown ? (_jsx(DetailPanel, { detail: drillDown, live: false })) : null] }))] }));
 }
 // ============================================================
-// Date navigator (5-B-2: 오늘 고정, Phase 6에서 활성)
+// Date navigator (좌우 화살표 + 캘린더)
 // ============================================================
-function DateNavigator() {
-    return (_jsxs("div", { className: "flex items-center gap-2 text-sm", children: [_jsx("button", { disabled: true, className: "px-2 py-1 rounded text-zinc-600 disabled:opacity-40", children: "\u25C0" }), _jsxs("span", { className: "px-3 py-1 bg-zinc-900 border border-zinc-800 rounded", children: ["\uD83D\uDCC5 ", today, " (\uC624\uB298)"] }), _jsx("button", { disabled: true, className: "px-2 py-1 rounded text-zinc-600 disabled:opacity-40", children: "\u25B6" }), _jsx("span", { className: "text-xs text-zinc-500", children: "(\uC774\uC804 \uB0A0\uC9DC\uB294 Phase 6)" })] }));
+function DateNavigator({ date, onChange, }) {
+    const shift = (days) => {
+        const d = new Date(date);
+        d.setDate(d.getDate() + days);
+        onChange(d.toISOString().slice(0, 10));
+    };
+    const isToday = date === today();
+    return (_jsxs("div", { className: "flex items-center gap-2 text-sm", children: [_jsx("button", { onClick: () => shift(-1), className: "px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800", "aria-label": "\uC774\uC804 \uB0A0\uC9DC", children: "\u25C0" }), _jsx("input", { type: "date", value: date, max: today(), onChange: (e) => onChange(e.target.value), className: "bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200" }), _jsx("button", { onClick: () => shift(1), disabled: isToday, className: "px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40", "aria-label": "\uB2E4\uC74C \uB0A0\uC9DC", children: "\u25B6" }), _jsx("button", { onClick: () => onChange(today()), disabled: isToday, className: "px-2 py-1 text-xs rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40", children: "\uC624\uB298" })] }));
 }
 // ============================================================
 // UNCLOSED banner
 // ============================================================
 function UnclosedBanner({ count }) {
-    return (_jsxs("div", { className: "bg-rose-950/50 border border-rose-800/60 rounded-lg px-4 py-3 text-sm text-rose-200", children: ["\uD83D\uDEA8 UNCLOSED \uAC70\uB798\uAC00 ", count, "\uAC74 \uC788\uC2B5\uB2C8\uB2E4 \u2014 KIS HTS\uC5D0\uC11C \uC218\uB3D9 \uC815\uB9AC\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4 (\uC2DC\uC2A4\uD15C \uB2E4\uC6B4 \uB610\uB294 \uAC70\uB798\uC815\uC9C0 \uB4F1\uC73C\uB85C \uC790\uB3D9 \uB9C8\uAC10 \uC2E4\uD328)"] }));
+    return (_jsxs("div", { className: "bg-rose-950/50 border border-rose-800/60 rounded-lg px-4 py-3 text-sm text-rose-200", children: ["\uD83D\uDEA8 UNCLOSED \uAC70\uB798\uAC00 ", count, "\uAC74 \uC788\uC2B5\uB2C8\uB2E4 \u2014 KIS HTS\uC5D0\uC11C \uC218\uB3D9 \uC815\uB9AC\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4"] }));
 }
 function computeSummary(rows) {
-    const totalProfit = rows.reduce((s, r) => s + r.profitAmount, 0);
-    const winCount = rows.filter((r) => r.profitAmount > 0).length;
-    const lossCount = rows.filter((r) => r.profitAmount < 0).length;
+    const totalNet = rows.reduce((s, r) => s + r.netProfit, 0);
+    const totalFee = rows.reduce((s, r) => s + r.totalFee, 0);
+    const totalTax = rows.reduce((s, r) => s + r.totalTax, 0);
+    const winCount = rows.filter((r) => r.netProfit > 0).length;
+    const lossCount = rows.filter((r) => r.netProfit < 0).length;
     const drawCount = rows.length - winCount - lossCount;
     const decisive = winCount + lossCount;
     const reasonCounts = new Map();
@@ -75,7 +84,9 @@ function computeSummary(rows) {
                     new Date(r.createdAt).getTime()));
         }, 0) / rows.length;
     return {
-        totalProfit,
+        totalNet,
+        totalFee,
+        totalTax,
         totalCount: rows.length,
         winCount,
         lossCount,
@@ -86,7 +97,7 @@ function computeSummary(rows) {
     };
 }
 function SummaryCards({ summary }) {
-    return (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4", children: [_jsxs(SummaryCard, { title: "\uC21C\uC218\uC775", children: [_jsx(ProfitText, { value: summary.totalProfit, format: formatKRW, className: "text-2xl font-bold", zeroAsDash: true }), _jsx("p", { className: "text-xs text-zinc-500 mt-2", children: "\u203B \uC218\uC218\uB8CC/\uC138\uAE08 \uBD84\uB9AC \uD45C\uC2DC\uB294 Phase 6\uC5D0\uC11C \uD65C\uC131\uD654" })] }), _jsxs(SummaryCard, { title: "\uAC70\uB798 \uAC74\uC218", children: [_jsxs("div", { className: "text-2xl font-bold", children: [summary.totalCount, "\uAC74"] }), _jsxs("div", { className: "text-sm mt-1 flex gap-3", children: [_jsxs("span", { className: "text-emerald-400", children: ["\uC2B9 ", summary.winCount] }), _jsxs("span", { className: "text-zinc-400", children: ["\uBB34 ", summary.drawCount] }), _jsxs("span", { className: "text-rose-400", children: ["\uD328 ", summary.lossCount] })] }), _jsxs("p", { className: "text-xs text-zinc-500 mt-2", children: ["\uC2B9\uB960 ", (summary.winRate * 100).toFixed(0), "%", summary.totalCount > 0 && (_jsxs(_Fragment, { children: [" · ", "\uD3C9\uADE0 \uBCF4\uC720", " ", formatDuration("1970-01-01T00:00:00", new Date(summary.avgHoldMs).toISOString())] }))] })] }), _jsx(SummaryCard, { title: "\uCCAD\uC0B0 \uC0AC\uC720 \uBD84\uD3EC", children: _jsx(ReasonDistribution, { counts: summary.reasonCounts }) })] }));
+    return (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4", children: [_jsxs(SummaryCard, { title: "\uC21C\uC218\uC775", children: [_jsx(ProfitText, { value: summary.totalNet, format: formatKRW, className: "text-2xl font-bold", zeroAsDash: true }), (summary.totalFee > 0 || summary.totalTax > 0) && (_jsxs("div", { className: "text-xs text-zinc-500 mt-2 space-y-0.5", children: [_jsxs("div", { children: ["\u21B3 \uC218\uC218\uB8CC \u2212", formatKRW(summary.totalFee)] }), _jsxs("div", { children: ["\u21B3 \uC138\uAE08 \u2212", formatKRW(summary.totalTax)] })] }))] }), _jsxs(SummaryCard, { title: "\uAC70\uB798 \uAC74\uC218", children: [_jsxs("div", { className: "text-2xl font-bold", children: [summary.totalCount, "\uAC74"] }), _jsxs("div", { className: "text-sm mt-1 flex gap-3", children: [_jsxs("span", { className: "text-emerald-400", children: ["\uC2B9 ", summary.winCount] }), _jsxs("span", { className: "text-zinc-400", children: ["\uBB34 ", summary.drawCount] }), _jsxs("span", { className: "text-rose-400", children: ["\uD328 ", summary.lossCount] })] }), _jsxs("p", { className: "text-xs text-zinc-500 mt-2", children: ["\uC2B9\uB960 ", (summary.winRate * 100).toFixed(0), "%", summary.totalCount > 0 && summary.avgHoldMs > 0 && (_jsxs(_Fragment, { children: [" · ", "\uD3C9\uADE0 \uBCF4\uC720", " ", formatDuration("1970-01-01T00:00:00", new Date(summary.avgHoldMs).toISOString())] }))] })] }), _jsx(SummaryCard, { title: "\uCCAD\uC0B0 \uC0AC\uC720 \uBD84\uD3EC", children: _jsx(ReasonDistribution, { counts: summary.reasonCounts }) })] }));
 }
 function SummaryCard({ title, children, }) {
     return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg p-4", children: [_jsx("h3", { className: "text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3", children: title }), children] }));
@@ -150,7 +161,7 @@ function sortFn(key) {
 // Table
 // ============================================================
 function ReportTable({ rows, emphasizeUnclosed, onSelect, selectedId, }) {
-    return (_jsx("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto", children: _jsxs("table", { className: "w-full text-sm", children: [_jsx("thead", { className: "bg-zinc-950 text-xs uppercase text-zinc-500", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left px-4 py-3", children: "\uC885\uB8CC\uC2DC\uAC01" }), _jsx("th", { className: "text-left px-4 py-3", children: "\uC885\uBAA9" }), _jsx("th", { className: "text-left px-4 py-3", children: "\uBCF4\uC720\uC2DC\uAC04" }), _jsx("th", { className: "text-left px-4 py-3", children: "\uB9E4\uC218\u2192\uB9E4\uB3C4\uAC00" }), _jsx("th", { className: "text-right px-4 py-3", children: "\uC218\uC775\uB960" }), _jsx("th", { className: "text-right px-4 py-3", children: "\uC218\uC775\uAE08" }), _jsx("th", { className: "text-center px-4 py-3", children: "\uC0AC\uC720" })] }) }), _jsx("tbody", { children: rows.map((r) => {
+    return (_jsx("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-x-auto", children: _jsxs("table", { className: "w-full text-sm", children: [_jsx("thead", { className: "bg-zinc-950 text-xs uppercase text-zinc-500", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left px-4 py-3", children: "\uC885\uB8CC\uC2DC\uAC01" }), _jsx("th", { className: "text-left px-4 py-3", children: "\uC885\uBAA9" }), _jsx("th", { className: "text-left px-4 py-3", children: "\uBCF4\uC720\uC2DC\uAC04" }), _jsx("th", { className: "text-left px-4 py-3", children: "\uB9E4\uC218\u2192\uB9E4\uB3C4\uAC00" }), _jsx("th", { className: "text-right px-4 py-3", children: "\uC218\uC775\uB960" }), _jsx("th", { className: "text-right px-4 py-3", children: "\uC21C\uC218\uC775" }), _jsx("th", { className: "text-center px-4 py-3", children: "\uC0AC\uC720" })] }) }), _jsx("tbody", { children: rows.map((r) => {
                         const isAnomaly = emphasizeUnclosed &&
                             (r.closeReason === "UNCLOSED" || r.closeReason === "NO_FILL");
                         const bg = r.closeReason === "UNCLOSED"
@@ -160,6 +171,10 @@ function ReportTable({ rows, emphasizeUnclosed, onSelect, selectedId, }) {
                                 : "";
                         return (_jsxs("tr", { onClick: () => onSelect(r.commandId), className: `border-t border-zinc-800 cursor-pointer hover:bg-zinc-800/40 ${selectedId === r.commandId ? "bg-zinc-800/60" : ""} ${isAnomaly ? bg : ""}`, children: [_jsx("td", { className: "px-4 py-3 text-zinc-400 whitespace-nowrap", children: r.closedAt ? formatDateTime(r.closedAt) : "-" }), _jsxs("td", { className: "px-4 py-3 font-medium", children: [r.stockName, _jsx("span", { className: "text-xs text-zinc-500 ml-2", children: r.stockCode })] }), _jsx("td", { className: "px-4 py-3 text-zinc-400", children: r.closedAt
                                         ? formatDuration(r.createdAt, r.closedAt)
-                                        : "-" }), _jsxs("td", { className: "px-4 py-3 text-zinc-600 text-xs", children: ["\u2014 ", _jsx("span", { className: "text-zinc-700", children: "(Phase 6)" })] }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.profitRate, format: formatPct, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.profitAmount, format: formatKRW, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-center", children: r.closeReason && (_jsx(CloseReasonBadge, { reason: r.closeReason })) })] }, r.commandId));
+                                        : "-" }), _jsxs("td", { className: "px-4 py-3 text-zinc-300 text-xs whitespace-nowrap", children: [r.avgBuyPrice !== null
+                                            ? formatPrice(r.avgBuyPrice)
+                                            : "-", " → ", r.avgSellPrice !== null
+                                            ? formatPrice(r.avgSellPrice)
+                                            : "-"] }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.profitRate, format: formatPct, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.netProfit, format: formatKRW, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-center", children: r.closeReason && (_jsx(CloseReasonBadge, { reason: r.closeReason })) })] }, r.commandId));
                     }) })] }) }));
 }
