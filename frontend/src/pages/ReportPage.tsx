@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { mockCommandDetails, mockDailyReport } from "../mocks/data";
 import type { CloseReason, DailyTrading } from "../types";
 import {
   formatDateTime,
@@ -9,9 +8,12 @@ import {
 } from "../lib/format";
 import CloseReasonBadge from "../components/common/CloseReasonBadge";
 import EmptyState from "../components/common/EmptyState";
+import ErrorState from "../components/common/ErrorState";
+import Skeleton from "../components/common/Skeleton";
 import ProfitText from "../components/common/ProfitText";
 import DetailPanel from "../components/trading/DetailPanel";
 import { useSettings } from "../settings/settings";
+import { useCommandDetail, useTodayClosed } from "../api/queries";
 
 type SortKey = "closedAt" | "profitRate";
 type PnLFilter = "all" | "win" | "loss";
@@ -20,24 +22,9 @@ const today = new Date().toISOString().slice(0, 10);
 
 export default function ReportPage() {
   const settings = useSettings();
-  // 5-B-1: 오늘 데이터만 사용 (mockDailyReport 중 오늘 분량). 실제로는 today를 별도로 두지만,
-  // mockDailyReport에 오늘 항목이 없으면 가장 최근 날짜를 보여준다.
-  const availableDates = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          mockDailyReport.map((r) =>
-            (r.closedAt ?? r.createdAt).slice(0, 10),
-          ),
-        ),
-      ).sort(),
-    [],
-  );
-  const defaultDate = availableDates.includes(today)
-    ? today
-    : availableDates[availableDates.length - 1];
+  const todayQ = useTodayClosed();
+  const allRows: DailyTrading[] = todayQ.data ?? [];
 
-  const [date, setDate] = useState<string>(defaultDate);
   const [sortKey, setSortKey] = useState<SortKey>("closedAt");
   const [pnlFilter, setPnLFilter] = useState<PnLFilter>("all");
   const [reasonFilter, setReasonFilter] = useState<Set<CloseReason>>(
@@ -45,11 +32,10 @@ export default function ReportPage() {
   );
   const [drillDownId, setDrillDownId] = useState<number | null>(null);
 
-  const dayRows = useMemo(() => {
-    return mockDailyReport
-      .filter(
-        (r) => (r.closedAt ?? r.createdAt).slice(0, 10) === date,
-      )
+  const detailQ = useCommandDetail(drillDownId);
+
+  const filteredRows = useMemo(() => {
+    return allRows
       .filter((r) => {
         if (pnlFilter === "win") return r.profitAmount > 0;
         if (pnlFilter === "loss") return r.profitAmount < 0;
@@ -61,46 +47,43 @@ export default function ReportPage() {
           (r.closeReason && reasonFilter.has(r.closeReason)),
       )
       .sort(sortFn(sortKey));
-  }, [date, sortKey, pnlFilter, reasonFilter]);
+  }, [allRows, sortKey, pnlFilter, reasonFilter]);
 
-  const allDayRows = useMemo(
-    () =>
-      mockDailyReport.filter(
-        (r) => (r.closedAt ?? r.createdAt).slice(0, 10) === date,
-      ),
-    [date],
-  );
-
-  const summary = useMemo(() => computeSummary(allDayRows), [allDayRows]);
-  const unclosedCount = allDayRows.filter(
+  const summary = useMemo(() => computeSummary(allRows), [allRows]);
+  const unclosedCount = allRows.filter(
     (r) => r.closeReason === "UNCLOSED",
   ).length;
 
-  const drillDown = drillDownId ? mockCommandDetails[drillDownId] : null;
+  const drillDown = detailQ.data ?? null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-lg font-semibold">일별 실적</h2>
-        <DateNavigator
-          date={date}
-          available={availableDates}
-          onChange={setDate}
-        />
+        <DateNavigator />
       </div>
 
       {settings.emphasizeUnclosed && unclosedCount > 0 && (
         <UnclosedBanner count={unclosedCount} />
       )}
 
-      <SummaryCards summary={summary} />
+      {todayQ.isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+      ) : todayQ.isError ? (
+        <ErrorState onRetry={() => todayQ.refetch()} />
+      ) : (
+        <SummaryCards summary={summary} />
+      )}
 
       <section>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <h3 className="text-sm font-semibold text-zinc-400">
-            거래 내역 ({dayRows.length}
-            {dayRows.length !== allDayRows.length &&
-              ` / ${allDayRows.length}`}
+            거래 내역 ({filteredRows.length}
+            {filteredRows.length !== allRows.length && ` / ${allRows.length}`}
             )
           </h3>
           <div className="flex items-center gap-3 flex-wrap">
@@ -110,7 +93,7 @@ export default function ReportPage() {
               onChange={setReasonFilter}
               available={
                 new Set(
-                  allDayRows
+                  allRows
                     .map((r) => r.closeReason)
                     .filter((x): x is CloseReason => !!x),
                 )
@@ -120,18 +103,20 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {dayRows.length === 0 ? (
+        {todayQ.isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : filteredRows.length === 0 ? (
           <EmptyState
             icon="📊"
             message={
-              allDayRows.length === 0
-                ? "이 날짜에는 거래가 없습니다"
+              allRows.length === 0
+                ? "오늘 종료된 거래가 없습니다"
                 : "필터 조건에 맞는 거래가 없습니다"
             }
           />
         ) : (
           <ReportTable
-            rows={dayRows}
+            rows={filteredRows}
             emphasizeUnclosed={settings.emphasizeUnclosed}
             onSelect={setDrillDownId}
             selectedId={drillDownId}
@@ -139,11 +124,11 @@ export default function ReportPage() {
         )}
       </section>
 
-      {drillDown && (
+      {drillDownId && (
         <section>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-zinc-400">
-              사이클 상세 — {drillDown.stockName}
+              사이클 상세 {drillDown && `— ${drillDown.stockName}`}
             </h3>
             <button
               onClick={() => setDrillDownId(null)}
@@ -152,7 +137,13 @@ export default function ReportPage() {
               닫기 ×
             </button>
           </div>
-          <DetailPanel detail={drillDown} live={false} />
+          {detailQ.isLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : detailQ.isError ? (
+            <ErrorState onRetry={() => detailQ.refetch()} />
+          ) : drillDown ? (
+            <DetailPanel detail={drillDown} live={false} />
+          ) : null}
         </section>
       )}
 
@@ -166,47 +157,30 @@ export default function ReportPage() {
 }
 
 // ============================================================
-// Date navigator
+// Date navigator (5-B-2: 오늘 고정, Phase 6에서 활성)
 // ============================================================
 
-function DateNavigator({
-  date,
-  available,
-  onChange,
-}: {
-  date: string;
-  available: string[];
-  onChange: (v: string) => void;
-}) {
-  const idx = available.indexOf(date);
-  const canPrev = idx > 0;
-  const canNext = idx >= 0 && idx < available.length - 1;
+function DateNavigator() {
   return (
     <div className="flex items-center gap-2 text-sm">
       <button
-        disabled={!canPrev}
-        onClick={() => onChange(available[idx - 1])}
-        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
+        disabled
+        className="px-2 py-1 rounded text-zinc-600 disabled:opacity-40"
       >
         ◀
       </button>
       <span className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded">
-        📅 {date}
+        📅 {today} (오늘)
       </span>
       <button
-        disabled={!canNext}
-        onClick={() => onChange(available[idx + 1])}
-        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
+        disabled
+        className="px-2 py-1 rounded text-zinc-600 disabled:opacity-40"
       >
         ▶
       </button>
-      <button
-        disabled
-        title="오늘 외 날짜 조회는 Phase 6에서 활성화"
-        className="px-3 py-1 text-xs rounded text-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed"
-      >
-        오늘
-      </button>
+      <span className="text-xs text-zinc-500">
+        (이전 날짜는 Phase 6)
+      </span>
     </div>
   );
 }

@@ -1,29 +1,26 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useMemo, useState } from "react";
-import { mockCommandDetails, mockDailyReport } from "../mocks/data";
 import { formatDateTime, formatDuration, formatKRW, formatPct, } from "../lib/format";
 import CloseReasonBadge from "../components/common/CloseReasonBadge";
 import EmptyState from "../components/common/EmptyState";
+import ErrorState from "../components/common/ErrorState";
+import Skeleton from "../components/common/Skeleton";
 import ProfitText from "../components/common/ProfitText";
 import DetailPanel from "../components/trading/DetailPanel";
 import { useSettings } from "../settings/settings";
+import { useCommandDetail, useTodayClosed } from "../api/queries";
 const today = new Date().toISOString().slice(0, 10);
 export default function ReportPage() {
     const settings = useSettings();
-    // 5-B-1: 오늘 데이터만 사용 (mockDailyReport 중 오늘 분량). 실제로는 today를 별도로 두지만,
-    // mockDailyReport에 오늘 항목이 없으면 가장 최근 날짜를 보여준다.
-    const availableDates = useMemo(() => Array.from(new Set(mockDailyReport.map((r) => (r.closedAt ?? r.createdAt).slice(0, 10)))).sort(), []);
-    const defaultDate = availableDates.includes(today)
-        ? today
-        : availableDates[availableDates.length - 1];
-    const [date, setDate] = useState(defaultDate);
+    const todayQ = useTodayClosed();
+    const allRows = todayQ.data ?? [];
     const [sortKey, setSortKey] = useState("closedAt");
     const [pnlFilter, setPnLFilter] = useState("all");
     const [reasonFilter, setReasonFilter] = useState(new Set());
     const [drillDownId, setDrillDownId] = useState(null);
-    const dayRows = useMemo(() => {
-        return mockDailyReport
-            .filter((r) => (r.closedAt ?? r.createdAt).slice(0, 10) === date)
+    const detailQ = useCommandDetail(drillDownId);
+    const filteredRows = useMemo(() => {
+        return allRows
             .filter((r) => {
             if (pnlFilter === "win")
                 return r.profitAmount > 0;
@@ -34,26 +31,21 @@ export default function ReportPage() {
             .filter((r) => reasonFilter.size === 0 ||
             (r.closeReason && reasonFilter.has(r.closeReason)))
             .sort(sortFn(sortKey));
-    }, [date, sortKey, pnlFilter, reasonFilter]);
-    const allDayRows = useMemo(() => mockDailyReport.filter((r) => (r.closedAt ?? r.createdAt).slice(0, 10) === date), [date]);
-    const summary = useMemo(() => computeSummary(allDayRows), [allDayRows]);
-    const unclosedCount = allDayRows.filter((r) => r.closeReason === "UNCLOSED").length;
-    const drillDown = drillDownId ? mockCommandDetails[drillDownId] : null;
-    return (_jsxs("div", { className: "space-y-6", children: [_jsxs("div", { className: "flex items-center justify-between flex-wrap gap-3", children: [_jsx("h2", { className: "text-lg font-semibold", children: "\uC77C\uBCC4 \uC2E4\uC801" }), _jsx(DateNavigator, { date: date, available: availableDates, onChange: setDate })] }), settings.emphasizeUnclosed && unclosedCount > 0 && (_jsx(UnclosedBanner, { count: unclosedCount })), _jsx(SummaryCards, { summary: summary }), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3 flex-wrap gap-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uAC70\uB798 \uB0B4\uC5ED (", dayRows.length, dayRows.length !== allDayRows.length &&
-                                        ` / ${allDayRows.length}`, ")"] }), _jsxs("div", { className: "flex items-center gap-3 flex-wrap", children: [_jsx(PnLFilterButtons, { value: pnlFilter, onChange: setPnLFilter }), _jsx(ReasonFilter, { value: reasonFilter, onChange: setReasonFilter, available: new Set(allDayRows
+    }, [allRows, sortKey, pnlFilter, reasonFilter]);
+    const summary = useMemo(() => computeSummary(allRows), [allRows]);
+    const unclosedCount = allRows.filter((r) => r.closeReason === "UNCLOSED").length;
+    const drillDown = detailQ.data ?? null;
+    return (_jsxs("div", { className: "space-y-6", children: [_jsxs("div", { className: "flex items-center justify-between flex-wrap gap-3", children: [_jsx("h2", { className: "text-lg font-semibold", children: "\uC77C\uBCC4 \uC2E4\uC801" }), _jsx(DateNavigator, {})] }), settings.emphasizeUnclosed && unclosedCount > 0 && (_jsx(UnclosedBanner, { count: unclosedCount })), todayQ.isLoading ? (_jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4", children: [_jsx(Skeleton, { className: "h-32" }), _jsx(Skeleton, { className: "h-32" }), _jsx(Skeleton, { className: "h-32" })] })) : todayQ.isError ? (_jsx(ErrorState, { onRetry: () => todayQ.refetch() })) : (_jsx(SummaryCards, { summary: summary })), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3 flex-wrap gap-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uAC70\uB798 \uB0B4\uC5ED (", filteredRows.length, filteredRows.length !== allRows.length && ` / ${allRows.length}`, ")"] }), _jsxs("div", { className: "flex items-center gap-3 flex-wrap", children: [_jsx(PnLFilterButtons, { value: pnlFilter, onChange: setPnLFilter }), _jsx(ReasonFilter, { value: reasonFilter, onChange: setReasonFilter, available: new Set(allRows
                                             .map((r) => r.closeReason)
-                                            .filter((x) => !!x)) }), _jsx(SortDropdown, { value: sortKey, onChange: setSortKey })] })] }), dayRows.length === 0 ? (_jsx(EmptyState, { icon: "\uD83D\uDCCA", message: allDayRows.length === 0
-                            ? "이 날짜에는 거래가 없습니다"
-                            : "필터 조건에 맞는 거래가 없습니다" })) : (_jsx(ReportTable, { rows: dayRows, emphasizeUnclosed: settings.emphasizeUnclosed, onSelect: setDrillDownId, selectedId: drillDownId }))] }), drillDown && (_jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uC0AC\uC774\uD074 \uC0C1\uC138 \u2014 ", drillDown.stockName] }), _jsx("button", { onClick: () => setDrillDownId(null), className: "text-xs text-zinc-500 hover:text-zinc-300", children: "\uB2EB\uAE30 \u00D7" })] }), _jsx(DetailPanel, { detail: drillDown, live: false })] })), _jsxs("p", { className: "text-xs text-zinc-500", children: ["\u203B \uC774\uC804 \uB0A0\uC9DC \uC870\uD68C\uB294 Phase 6\uC5D0\uC11C \uD65C\uC131\uD654\uB429\uB2C8\uB2E4 (\uBC31\uC5D4\uB4DC", " ", _jsx("code", { children: "/api/reports/daily?date=" }), " \uB3C4\uC785 \uD6C4). \uC218\uC218\uB8CC/\uC138\uAE08 \uBD84\uB9AC, \uB9E4\uC218\u2192\uB9E4\uB3C4\uAC00 \uCEEC\uB7FC\uB3C4 \uB3D9\uC2DC \uCD94\uAC00 \uC608\uC815."] })] }));
+                                            .filter((x) => !!x)) }), _jsx(SortDropdown, { value: sortKey, onChange: setSortKey })] })] }), todayQ.isLoading ? (_jsx(Skeleton, { className: "h-32 w-full" })) : filteredRows.length === 0 ? (_jsx(EmptyState, { icon: "\uD83D\uDCCA", message: allRows.length === 0
+                            ? "오늘 종료된 거래가 없습니다"
+                            : "필터 조건에 맞는 거래가 없습니다" })) : (_jsx(ReportTable, { rows: filteredRows, emphasizeUnclosed: settings.emphasizeUnclosed, onSelect: setDrillDownId, selectedId: drillDownId }))] }), drillDownId && (_jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uC0AC\uC774\uD074 \uC0C1\uC138 ", drillDown && `— ${drillDown.stockName}`] }), _jsx("button", { onClick: () => setDrillDownId(null), className: "text-xs text-zinc-500 hover:text-zinc-300", children: "\uB2EB\uAE30 \u00D7" })] }), detailQ.isLoading ? (_jsx(Skeleton, { className: "h-64 w-full" })) : detailQ.isError ? (_jsx(ErrorState, { onRetry: () => detailQ.refetch() })) : drillDown ? (_jsx(DetailPanel, { detail: drillDown, live: false })) : null] })), _jsxs("p", { className: "text-xs text-zinc-500", children: ["\u203B \uC774\uC804 \uB0A0\uC9DC \uC870\uD68C\uB294 Phase 6\uC5D0\uC11C \uD65C\uC131\uD654\uB429\uB2C8\uB2E4 (\uBC31\uC5D4\uB4DC", " ", _jsx("code", { children: "/api/reports/daily?date=" }), " \uB3C4\uC785 \uD6C4). \uC218\uC218\uB8CC/\uC138\uAE08 \uBD84\uB9AC, \uB9E4\uC218\u2192\uB9E4\uB3C4\uAC00 \uCEEC\uB7FC\uB3C4 \uB3D9\uC2DC \uCD94\uAC00 \uC608\uC815."] })] }));
 }
 // ============================================================
-// Date navigator
+// Date navigator (5-B-2: 오늘 고정, Phase 6에서 활성)
 // ============================================================
-function DateNavigator({ date, available, onChange, }) {
-    const idx = available.indexOf(date);
-    const canPrev = idx > 0;
-    const canNext = idx >= 0 && idx < available.length - 1;
-    return (_jsxs("div", { className: "flex items-center gap-2 text-sm", children: [_jsx("button", { disabled: !canPrev, onClick: () => onChange(available[idx - 1]), className: "px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40", children: "\u25C0" }), _jsxs("span", { className: "px-3 py-1 bg-zinc-900 border border-zinc-800 rounded", children: ["\uD83D\uDCC5 ", date] }), _jsx("button", { disabled: !canNext, onClick: () => onChange(available[idx + 1]), className: "px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40", children: "\u25B6" }), _jsx("button", { disabled: true, title: "\uC624\uB298 \uC678 \uB0A0\uC9DC \uC870\uD68C\uB294 Phase 6\uC5D0\uC11C \uD65C\uC131\uD654", className: "px-3 py-1 text-xs rounded text-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed", children: "\uC624\uB298" })] }));
+function DateNavigator() {
+    return (_jsxs("div", { className: "flex items-center gap-2 text-sm", children: [_jsx("button", { disabled: true, className: "px-2 py-1 rounded text-zinc-600 disabled:opacity-40", children: "\u25C0" }), _jsxs("span", { className: "px-3 py-1 bg-zinc-900 border border-zinc-800 rounded", children: ["\uD83D\uDCC5 ", today, " (\uC624\uB298)"] }), _jsx("button", { disabled: true, className: "px-2 py-1 rounded text-zinc-600 disabled:opacity-40", children: "\u25B6" }), _jsx("span", { className: "text-xs text-zinc-500", children: "(\uC774\uC804 \uB0A0\uC9DC\uB294 Phase 6)" })] }));
 }
 // ============================================================
 // UNCLOSED banner
