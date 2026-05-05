@@ -9,6 +9,7 @@ import StompDebugPanel from "./components/dev/StompDebugPanel";
 import { ToastProvider } from "./components/toast/Toast";
 import { StompProvider } from "./ws/StompProvider";
 import { NotificationProvider } from "./notifications/notifications";
+import NotificationsBridge from "./notifications/NotificationsBridge";
 import { SettingsProvider } from "./settings/settings";
 import { useTabTitle } from "./hooks/useTabTitle";
 import { queryClient } from "./api/queryClient";
@@ -30,6 +31,7 @@ export default function App() {
         <StompProvider onReconnect={handleStompReconnect}>
           <NotificationProvider>
             <ToastProvider>
+              <NotificationsBridge />
               <AppShell />
             </ToastProvider>
           </NotificationProvider>

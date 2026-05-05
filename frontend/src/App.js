@@ -10,6 +10,7 @@ import StompDebugPanel from "./components/dev/StompDebugPanel";
 import { ToastProvider } from "./components/toast/Toast";
 import { StompProvider } from "./ws/StompProvider";
 import { NotificationProvider } from "./notifications/notifications";
+import NotificationsBridge from "./notifications/NotificationsBridge";
 import { SettingsProvider } from "./settings/settings";
 import { useTabTitle } from "./hooks/useTabTitle";
 import { queryClient } from "./api/queryClient";
@@ -23,7 +24,7 @@ const handleStompReconnect = () => {
     queryClient.invalidateQueries({ queryKey: ["trading", "detail"] });
 };
 export default function App() {
-    return (_jsx(QueryClientProvider, { client: queryClient, children: _jsx(SettingsProvider, { children: _jsx(StompProvider, { onReconnect: handleStompReconnect, children: _jsx(NotificationProvider, { children: _jsx(ToastProvider, { children: _jsx(AppShell, {}) }) }) }) }) }));
+    return (_jsx(QueryClientProvider, { client: queryClient, children: _jsx(SettingsProvider, { children: _jsx(StompProvider, { onReconnect: handleStompReconnect, children: _jsx(NotificationProvider, { children: _jsxs(ToastProvider, { children: [_jsx(NotificationsBridge, {}), _jsx(AppShell, {})] }) }) }) }) }));
 }
 function AppShell() {
     useTabTitle();
