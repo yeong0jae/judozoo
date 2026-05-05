@@ -1,8 +1,9 @@
 package at.backend.market.application
 
+import at.backend.market.domain.PriceTick
+import at.backend.market.domain.event.MarketModeChanged
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.KisWebSocketClient
-import at.backend.market.domain.PriceTick
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -22,6 +24,7 @@ class MarketDataStream(
     private val webSocketClient: KisWebSocketClient,
     private val restClient: KisRestClient,
     private val applicationScope: CoroutineScope,
+    private val eventPublisher: ApplicationEventPublisher,
     @Value("\${trading.market.poll-interval-millis:1000}") private val pollIntervalMillis: Long,
 ) {
 
@@ -74,12 +77,14 @@ class MarketDataStream(
     private fun onWsConnected() {
         stopPolling()
         _mode.tryEmit(MarketMode.WS)
+        eventPublisher.publishEvent(MarketModeChanged(mode = MarketMode.WS.name, ts = Instant.now()))
         log.info("MarketDataStream: WS 모드 복귀")
     }
 
     private fun onWsDisconnected() {
         startPolling()
         _mode.tryEmit(MarketMode.POLLING)
+        eventPublisher.publishEvent(MarketModeChanged(mode = MarketMode.POLLING.name, ts = Instant.now()))
         log.warn("MarketDataStream: WS 끊김 → REST 폴링 모드 진입")
     }
 

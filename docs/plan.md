@@ -173,20 +173,39 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 - 코루틴 누수 / 락 경합 / Mutex deadlock 검증 (반복 실행)
 - 시스템 다운 후 재시작 시 활성 명령 → UNCLOSED 자동 마감 검증
 
+> 비고: 원래 DoD에 "도메인 이벤트 발생점이 STOMP broadcast hook 부착 가능 위치에 정렬됨"이 포함되었으나, 실제 `ApplicationEventPublisher` 도입은 미실시. publisher와 STOMP 인프라는 Phase 5-A에서 함께 구축한다.
+
 ---
 
-## Phase 5: 실시간 푸시 + 프론트 통합
+## Phase 5-A: 백엔드 도메인 이벤트 + STOMP 브로드캐스트
 
-목표: 사용자가 화면에서 실시간으로 사이클 추적.
+목표: 사이클 흐름의 핵심 분기점에서 도메인 이벤트를 발행하고, STOMP 토픽으로 브로드캐스트하는 안정적 표면을 만든다 (프론트 통합의 입력).
 
 ### 산출물 (백엔드)
-- Spring WebSocket + STOMP (`/ws` 엔드포인트)
-- `StatusBroadcastHandler`: 도메인 이벤트 → 토픽 발행
+- 도메인 이벤트 정의 + Spring `ApplicationEventPublisher` 발행 (사이클 흐름 ↔ broadcast 결합도 분리)
+- Spring WebSocket + STOMP (`/ws` 엔드포인트) — `library/web/WebSocketConfig`
+- 각 feature가 자기 broadcast handler를 가짐 (분산 모델, 별도 broadcast feature 없음):
+  - `trading.application.TradingBroadcastHandler` → `/topic/trading/{id}`, `/topic/trading/lifecycle`
+  - `market.application.MarketBroadcastHandler` → `/topic/market`
+  - `account.application.AccountBroadcastHandler` → `/topic/account`
 - 토픽 페이로드 (spec §11.5):
   - `/topic/trading/{id}`: PRICE / STATE / SIGNAL / EXECUTION / RETRY
   - `/topic/trading/lifecycle`: CREATED / CLOSED
-  - `/topic/system`: MARKET_MODE / TOKEN_STATUS / HOLIDAY / BALANCE_INVALIDATED
+  - `/topic/market`: MARKET_MODE / HOLIDAY
+  - `/topic/account`: BALANCE_INVALIDATED
 - BALANCE_INVALIDATED는 lifecycle CREATED/CLOSED와 함께 자동 발행
+- HOLIDAY는 변경 hook이 시스템에 존재하는 경우 발행, 없으면 후속 이슈로 분리
+
+### Definition of Done
+- 토픽별 STOMP 통합 테스트 1건씩 통과 (PRICE / STATE / SIGNAL / EXECUTION / RETRY / lifecycle / market / account)
+- BALANCE_INVALIDATED가 CREATED/CLOSED와 동반 발행됨을 검증
+- spec §11.5 페이로드 스키마 (필드명/타입) 1:1 일치
+
+---
+
+## Phase 5-B: 프론트 통합
+
+목표: 백엔드의 STOMP 토픽 표면 위에서 사용자가 실시간으로 사이클을 추적하고, mock을 걷어낸다.
 
 ### 산출물 (프론트)
 - `@stomp/stompjs` 클라이언트 + 자동 재연결 + STOMP 끊김 시 사용자 안내
@@ -199,7 +218,6 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 
 ### Definition of Done
 - 수동 검증: 명령 접수 → 모니터링 화면에서 1초 내 반영
-- 자동 검증: STOMP 페이로드 통합 테스트 (각 토픽 1건씩)
 - 프론트 빌드 0 에러 + 빈 mock 디렉토리 (사용 안 함)
 
 ---

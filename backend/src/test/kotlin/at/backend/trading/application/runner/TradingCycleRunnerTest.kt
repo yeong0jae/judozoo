@@ -70,6 +70,7 @@ class TradingCycleRunnerTest(
         marketDataStream = marketDataStream,
         barCache = barCache,
         timeProvider = timeProvider,
+        eventPublisher = org.springframework.context.ApplicationEventPublisher { },
         sellCostRate = 0.0025,
         buyIntervalUnit = 5.milliseconds,
         holdingPollIntervalMillis = 10,

@@ -103,7 +103,7 @@ class KisWebSocketClientTest : FunSpec({
             val (client, session, sent) = fixture(mapper)
             val ping = """{"header":{"tr_id":"PINGPONG"},"body":{}}"""
 
-            client.handleMessage(session, TextMessage(ping))
+            client.handler.handleMessage(session, TextMessage(ping))
 
             sent shouldHaveSize 1
             sent[0] shouldBe ping
@@ -114,16 +114,16 @@ class KisWebSocketClientTest : FunSpec({
         test("afterConnectionEstablished 호출 시 connectionState=true 발행") {
             val (client, session, _) = fixture(mapper)
 
-            client.afterConnectionEstablished(session)
+            client.handler.afterConnectionEstablished(session)
 
             withTimeout(1000.milliseconds) { client.connectionState.first() } shouldBe true
         }
 
         test("afterConnectionClosed 호출 시 connectionState=false 발행") {
             val (client, session, _) = fixture(mapper)
-            client.afterConnectionEstablished(session)
+            client.handler.afterConnectionEstablished(session)
 
-            client.afterConnectionClosed(session, CloseStatus.NORMAL)
+            client.handler.afterConnectionClosed(session, CloseStatus.NORMAL)
 
             withTimeout(1000.milliseconds) { client.connectionState.first() } shouldBe false
         }
@@ -138,7 +138,7 @@ class KisWebSocketClientTest : FunSpec({
             val tick = coroutineScope {
                 val deferred = async { withTimeout(1000.milliseconds) { client.priceTicks.first() } }
                 delay(50.milliseconds)
-                client.handleMessage(session, TextMessage(frame))
+                client.handler.handleMessage(session, TextMessage(frame))
                 deferred.await()
             }
             tick.stockCode shouldBe "005930"
@@ -172,7 +172,7 @@ class KisWebSocketClientTest : FunSpec({
             val notice = coroutineScope {
                 val deferred = async { withTimeout(1000.milliseconds) { client.executionNotices.first() } }
                 delay(50.milliseconds)
-                client.handleMessage(session, TextMessage(frame))
+                client.handler.handleMessage(session, TextMessage(frame))
                 deferred.await()
             }
             notice.kisOrderNo shouldBe "0000123456"
@@ -186,7 +186,7 @@ class KisWebSocketClientTest : FunSpec({
             val (client, session, sent) = fixture(mapper)
             val frame = "0|H0STCNT0|001|005930"
 
-            client.handleMessage(session, TextMessage(frame))
+            client.handler.handleMessage(session, TextMessage(frame))
             sent shouldHaveSize 0
         }
     }

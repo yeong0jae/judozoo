@@ -21,7 +21,7 @@ class TradingSchedulerServiceTest : FunSpec({
         val time = mockk<TimeProvider>().also {
             every { it.now() } returns LocalDateTime.of(2026, 5, 4, 8, 0)
         }
-        val scheduler = TradingSchedulerService(orchestrator, gate, kis, time)
+        val scheduler = TradingSchedulerService(orchestrator, gate, kis, time, mockk(relaxed = true))
         return Triple(scheduler, gate, orchestrator).also { _ ->
             every { kis.checkHoliday(any()) } returns KisHolidayResponse(
                 output = listOf(KisHolidayResponse.Output(bzdyYn = "Y"))
@@ -59,7 +59,7 @@ class TradingSchedulerServiceTest : FunSpec({
             every { kis.checkHoliday(any()) } returns KisHolidayResponse(
                 output = listOf(KisHolidayResponse.Output(bzdyYn = "N"))
             )
-            val scheduler = TradingSchedulerService(orchestrator, gate, kis, time)
+            val scheduler = TradingSchedulerService(orchestrator, gate, kis, time, mockk(relaxed = true))
 
             scheduler.toggleCommandGate()
 
@@ -74,7 +74,7 @@ class TradingSchedulerServiceTest : FunSpec({
                 every { it.now() } returns LocalDateTime.of(2026, 5, 4, 8, 0)
             }
             every { kis.checkHoliday(any()) } throws RuntimeException("network down")
-            val scheduler = TradingSchedulerService(orchestrator, gate, kis, time)
+            val scheduler = TradingSchedulerService(orchestrator, gate, kis, time, mockk(relaxed = true))
 
             scheduler.toggleCommandGate()
 
