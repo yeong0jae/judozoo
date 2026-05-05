@@ -8,11 +8,11 @@ Goal: Phase 4에서 구축한 사이클 엔진(`TradingCycleRunner`, `CycleOrche
 
 ## 사전 정비
 
-- [ ] BUYING 단계 cancel 실시간 반영: `TradingService.cancel`이 `Signal.Cancel`을 큐잉해도 `runBuySequence` 루프가 끝까지 회차 진행하는 문제 해결
-  - 옵션 A — runner의 `runBuySequence`에 `signals.tryReceive` 폴링을 추가해 매 회차 사이에 Cancel을 즉시 인지
-  - 옵션 B — orchestrator가 `runner.cancel()`(코루틴 취소) + `cycle.close(CANCELLED, now)`를 직접 처리
-  - 결정 후 단위/통합 테스트 보강
-- [ ] (필요 시) 회차 진행 중 cycle 상태 동기화 — DB의 `LIQUIDATING`이 runner의 in-memory `BUYING` 상태로 덮어써지는 race를 차단
+- [x] BUYING 단계 cancel 실시간 반영: `TradingService.cancel`이 `Signal.Cancel`을 큐잉해도 `runBuySequence` 루프가 끝까지 회차 진행하는 문제 해결
+  - 옵션 B 채택 — orchestrator가 runner의 매수 코루틴(`buyJob`)을 cancelAndJoin + in-memory cycle을 LIQUIDATING으로 전이 + `Signal.Cancel` 채널 push
+  - `runBuySequence` finally를 `NonCancellable`로 감싸 `finalizeBuySequence` 보장, LIQUIDATING/filled==0 → CANCELLED close 분기 추가
+- [x] (필요 시) 회차 진행 중 cycle 상태 동기화 — DB의 `LIQUIDATING`이 runner의 in-memory `BUYING` 상태로 덮어써지는 race를 차단
+  - 옵션 B 적용으로 자동 해결 — 매수 코루틴이 cancel되면 `incrementBuyAttempt`/save가 더 이상 실행되지 않음
 
 ## End-to-end 통합 테스트 (`TradingCycleE2ETest`, IntegrationTestBase)
 
