@@ -31,7 +31,7 @@ class TradingScenarioTest : FunSpec({
         tpStagesFired: Int = 0b000,
         breakevenArmed: Boolean = false,
         trendBreakArmed: Boolean = false,
-        stopLossPct: BigDecimal = BigDecimal("-0.02"),
+        stopLossPct: BigDecimal = BigDecimal("-2.0"),
         midwayProfitPct: BigDecimal = BigDecimal("3.0"),
     ) = TradingCycle(
         stockCode = stockCode,

@@ -39,7 +39,7 @@ class ExecutionNoticeHandlerTest(
             splitSellRatio = BigDecimal("0.5"),
             midwayProfitPct = BigDecimal("3.0"),
             breakevenThresholdPct = BigDecimal("2.0"),
-            stopLossPct = BigDecimal("-0.02"),
+            stopLossPct = BigDecimal("-2.0"),
             status = TradingCycleStatus.BUYING,
             buyAttempt = 1,
         )
