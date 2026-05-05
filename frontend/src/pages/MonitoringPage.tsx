@@ -5,11 +5,25 @@ import {
   mockCommandDetails,
   mockTodayClosed,
 } from "../mocks/data";
-import type { TradingDetail, TradingSummary } from "../types";
-import { colorByPnL, formatKRW, formatPct, formatPrice, formatQty } from "../lib/format";
+import type {
+  ExecutionInfo,
+  OrderInfo,
+  TradingDetail,
+  TradingSummary,
+} from "../types";
+import {
+  colorByPnL,
+  formatDateTime,
+  formatKRW,
+  formatPct,
+  formatPrice,
+  formatQty,
+  formatTime,
+} from "../lib/format";
 import StatusPill from "../components/common/StatusPill";
 import ProfitText from "../components/common/ProfitText";
 import EmptyState from "../components/common/EmptyState";
+import CloseReasonBadgeCommon from "../components/common/CloseReasonBadge";
 
 export default function MonitoringPage() {
   const [selectedId, setSelectedId] = useState<number | null>(
@@ -121,177 +135,388 @@ export default function MonitoringPage() {
 function DetailPanel({
   detail,
   onCancel,
+  live = true,
 }: {
   detail: TradingDetail;
   onCancel: () => void;
+  live?: boolean;
 }) {
-  const showSignals = detail.status === "HOLDING";
-  const showMidwayOnly = detail.status === "BUYING";
-
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="space-y-3">
-        <Section title="포지션">
-          <KV label="평균 매수가" value={`${formatPrice(detail.averageBuyPrice)}원`} />
-          <KV label="현재가" value={`${formatPrice(detail.currentPrice)}원`} />
-          <KV
-            label="수익률"
-            value={formatPct(detail.profitRate)}
-            valueClass={colorByPnL(detail.profitRate)}
-          />
-          <KV
-            label="평가손익"
-            value={formatKRW(detail.profitAmount)}
-            valueClass={colorByPnL(detail.profitAmount)}
-          />
-          <KV label="보유 수량" value={formatQty(detail.holdingQty)} />
-          <KV label="누적 매수" value={formatQty(detail.totalBoughtQty)} />
-        </Section>
-      </div>
-
-      <div className="space-y-3">
-        <Section title="매수 진행">
-          <KV
-            label="회차 진행도"
-            value={`${detail.buyAttempt.completed} / ${detail.buyAttempt.total}`}
-          />
-          <KV label="1회 매수 금액" value={formatKRW(detail.perBuyAmount)} />
-          <KV label="추가 매수 간격" value={`${detail.buyIntervalMin}분`} />
-        </Section>
-
-        <Section title="시그널" muted={!showSignals && !showMidwayOnly}>
-          {showMidwayOnly && (
-            <p className="text-xs text-zinc-500">
-              매수 진행 중 — 중도 익절 외 시그널은 비활성
-            </p>
-          )}
-          <KV
-            label="목표 익절 단계"
-            value=""
-            extra={
-              <div className="flex gap-1.5">
-                <Stage label="2%" fired={detail.tpStages.fired2pct} active={showSignals} />
-                <Stage label="3%" fired={detail.tpStages.fired3pct} active={showSignals} />
-                <Stage label="5%" fired={detail.tpStages.fired5pct} active={showSignals} />
-              </div>
-            }
-          />
-          <KV
-            label="분할 매도 진행"
-            value={`${detail.splitSellProgress.soldPct}% / 100%`}
-          />
-          <KV
-            label="본전 매도 무장"
-            value={detail.breakevenArmed ? "무장됨" : "대기"}
-            valueClass={detail.breakevenArmed ? "text-amber-400" : "text-zinc-500"}
-          />
-          <KV
-            label="추세 꺾임 무장"
-            value={detail.trendBreakArmed ? "무장됨" : "대기"}
-            valueClass={detail.trendBreakArmed ? "text-amber-400" : "text-zinc-500"}
-          />
-        </Section>
-      </div>
-
-      <div className="space-y-3">
-        <Section title="설정값">
-          <KV label="분할 매도 비율" value={`${(detail.splitSellRatio * 100).toFixed(0)}%`} />
-          <KV label="중도 익절" value={`+${detail.midwayProfitPct}%`} />
-          <KV label="본전 매도" value={`+${detail.breakevenThresholdPct}%`} />
-          <KV label="손절" value={`${detail.stopLossPct}%`} />
-        </Section>
-
-        <button
-          onClick={onCancel}
-          className="w-full mt-2 bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 text-rose-200 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-        >
-          매매 사이클 취소
-        </button>
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+      <SummaryHeader detail={detail} onCancel={onCancel} live={live} />
+      <div className="p-6 space-y-6">
+        <BuyProgressSection detail={detail} />
+        <SignalArmingBoard detail={detail} />
+        <SplitSellSection detail={detail} />
+        <OrderHistory orders={detail.orders} />
+        <ExecutionHistory executions={detail.executions} />
       </div>
     </div>
+  );
+}
+
+function SummaryHeader({
+  detail,
+  onCancel,
+  live,
+}: {
+  detail: TradingDetail;
+  onCancel: () => void;
+  live: boolean;
+}) {
+  const isClosed = detail.status === "CLOSED";
+  return (
+    <div className="bg-zinc-950 px-6 py-5 border-b border-zinc-800">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <StatusPill status={detail.status} />
+            {isClosed && detail.closeReason && (
+              <CloseReasonBadgeCommon reason={detail.closeReason} />
+            )}
+            <h2 className="text-xl font-semibold">
+              {detail.stockName}
+              <span className="text-sm text-zinc-500 ml-2">
+                {detail.stockCode}
+              </span>
+            </h2>
+          </div>
+          <div className="flex gap-x-6 gap-y-1 text-sm text-zinc-400 flex-wrap">
+            <span>
+              평단{" "}
+              <span className="text-zinc-200">
+                {formatPrice(detail.averageBuyPrice)}원
+              </span>
+            </span>
+            <span>
+              현재{" "}
+              <span className="text-zinc-200">
+                {formatPrice(detail.currentPrice)}원
+              </span>
+            </span>
+            <span>
+              보유{" "}
+              <span className="text-zinc-200">
+                {formatQty(detail.holdingQty)}
+              </span>
+            </span>
+            <span>
+              누적 매수{" "}
+              <span className="text-zinc-200">
+                {formatQty(detail.totalBoughtQty)}
+              </span>
+            </span>
+          </div>
+        </div>
+        <div className="flex items-start gap-4">
+          <div className="text-right">
+            <ProfitText
+              value={detail.profitRate}
+              format={formatPct}
+              className="text-2xl font-bold block"
+            />
+            <ProfitText
+              value={detail.profitAmount}
+              format={formatKRW}
+              className="text-sm"
+            />
+          </div>
+          {!isClosed && live && (
+            <button
+              onClick={onCancel}
+              className="bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 text-rose-200 px-3 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap"
+            >
+              취소
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BuyProgressSection({ detail }: { detail: TradingDetail }) {
+  const lastBuy = detail.orders
+    .filter((o) => o.side === "BUY")
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+  const remaining =
+    detail.buyAttempt.total - detail.buyAttempt.completed;
+  const nextBuyAt =
+    lastBuy && remaining > 0
+      ? new Date(
+          new Date(lastBuy.submittedAt).getTime() +
+            detail.buyIntervalMin * 60_000,
+        ).toISOString()
+      : null;
+
+  return (
+    <Section title="매수 진행">
+      <div className="grid grid-cols-3 gap-3">
+        {Array.from({ length: detail.buyAttempt.total }).map((_, i) => {
+          const completed = i < detail.buyAttempt.completed;
+          const isNext = i === detail.buyAttempt.completed && nextBuyAt !== null;
+          return (
+            <div
+              key={i}
+              className={`border rounded p-3 ${
+                completed
+                  ? "border-emerald-700/60 bg-emerald-950/30"
+                  : isNext
+                    ? "border-amber-700/60 bg-amber-950/30"
+                    : "border-zinc-800 bg-zinc-950"
+              }`}
+            >
+              <div className="text-xs text-zinc-500 mb-1">회차 {i + 1}</div>
+              <div className="text-sm font-medium">
+                {completed ? "✓ 체결" : isNext ? "⏱ 다음 매수" : "대기"}
+              </div>
+              {isNext && nextBuyAt && (
+                <div className="text-xs text-amber-300 mt-1">
+                  ~{formatTime(nextBuyAt)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-xs text-zinc-500 mt-2">
+        1회 매수 {formatKRW(detail.perBuyAmount)} · 간격{" "}
+        {detail.buyIntervalMin}분
+      </div>
+    </Section>
+  );
+}
+
+function SignalArmingBoard({ detail }: { detail: TradingDetail }) {
+  return (
+    <Section title="시그널 무장">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <ArmCard label="익절 단계">
+          <div className="flex gap-1.5">
+            <Stage label="2%" fired={detail.tpStages.fired2pct} />
+            <Stage label="3%" fired={detail.tpStages.fired3pct} />
+            <Stage label="5%" fired={detail.tpStages.fired5pct} />
+          </div>
+        </ArmCard>
+        <ArmCard label="본전 매도">
+          <ArmStatus armed={detail.breakevenArmed} icon="🛡" />
+        </ArmCard>
+        <ArmCard label="추세 꺾임">
+          <ArmStatus armed={detail.trendBreakArmed} icon="📉" />
+        </ArmCard>
+      </div>
+    </Section>
+  );
+}
+
+function SplitSellSection({ detail }: { detail: TradingDetail }) {
+  const pct = detail.splitSellProgress.soldPct;
+  const totalSoldQty = detail.executions
+    .filter(
+      (e) =>
+        detail.orders.find((o) => o.id === e.orderId)?.side === "SELL",
+    )
+    .reduce((sum, e) => sum + e.executedQty, 0);
+
+  return (
+    <Section title="분할 매도 진행">
+      <div className="flex items-center gap-3">
+        <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
+          <div
+            className="h-full bg-emerald-600 transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="text-sm text-zinc-300 whitespace-nowrap">
+          {pct}% ({formatQty(totalSoldQty)} / {formatQty(detail.totalBoughtQty)})
+        </span>
+      </div>
+      <div className="text-xs text-zinc-500 mt-2">
+        분할 비율 {(detail.splitSellRatio * 100).toFixed(0)}% / 회 · 중도 익절
+        +{detail.midwayProfitPct}% · 본전 +{detail.breakevenThresholdPct}% ·
+        손절 -{detail.stopLossPct}%
+      </div>
+    </Section>
+  );
+}
+
+function OrderHistory({ orders }: { orders: OrderInfo[] }) {
+  if (orders.length === 0) return null;
+  return (
+    <Section title={`주문 이력 (${orders.length})`}>
+      <div className="overflow-x-auto -mx-2">
+        <table className="w-full text-xs">
+          <thead className="text-zinc-500 uppercase">
+            <tr>
+              <th className="text-left px-2 py-2 font-medium">제출시각</th>
+              <th className="text-left px-2 py-2 font-medium">방향</th>
+              <th className="text-left px-2 py-2 font-medium">트리거</th>
+              <th className="text-right px-2 py-2 font-medium">주문</th>
+              <th className="text-right px-2 py-2 font-medium">체결</th>
+              <th className="text-left px-2 py-2 font-medium">상태</th>
+              <th className="text-right px-2 py-2 font-medium">재시도</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.id} className="border-t border-zinc-800">
+                <td className="px-2 py-2 text-zinc-400 whitespace-nowrap">
+                  {formatDateTime(o.submittedAt)}
+                </td>
+                <td className="px-2 py-2">
+                  <SideBadge side={o.side} />
+                </td>
+                <td className="px-2 py-2 text-zinc-400">{o.trigger}</td>
+                <td className="px-2 py-2 text-right">{o.orderQty}</td>
+                <td className="px-2 py-2 text-right">{o.filledQty}</td>
+                <td className="px-2 py-2">
+                  <OrderStatusText status={o.status} />
+                </td>
+                <td className="px-2 py-2 text-right">
+                  {o.retryCount > 0 ? (
+                    <span
+                      className={
+                        o.retryCount >= 3
+                          ? "text-rose-300 font-medium"
+                          : "text-amber-300"
+                      }
+                      title={o.lastError ?? undefined}
+                    >
+                      {o.retryCount}회
+                    </span>
+                  ) : (
+                    <span className="text-zinc-600">-</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+
+function ExecutionHistory({ executions }: { executions: ExecutionInfo[] }) {
+  if (executions.length === 0) return null;
+  return (
+    <Section title={`체결 이력 (${executions.length})`}>
+      <div className="overflow-x-auto -mx-2">
+        <table className="w-full text-xs">
+          <thead className="text-zinc-500 uppercase">
+            <tr>
+              <th className="text-left px-2 py-2 font-medium">체결시각</th>
+              <th className="text-right px-2 py-2 font-medium">수량</th>
+              <th className="text-right px-2 py-2 font-medium">가격</th>
+              <th className="text-right px-2 py-2 font-medium">수수료</th>
+              <th className="text-right px-2 py-2 font-medium">세금</th>
+            </tr>
+          </thead>
+          <tbody>
+            {executions.map((e, i) => (
+              <tr key={`${e.orderId}-${i}`} className="border-t border-zinc-800">
+                <td className="px-2 py-2 text-zinc-400 whitespace-nowrap">
+                  {formatDateTime(e.executedAt)}
+                </td>
+                <td className="px-2 py-2 text-right">{e.executedQty}</td>
+                <td className="px-2 py-2 text-right">
+                  {formatPrice(e.executedPrice)}
+                </td>
+                <td className="px-2 py-2 text-right text-zinc-500">
+                  {e.fee === 0 ? "-" : formatKRW(e.fee)}
+                </td>
+                <td className="px-2 py-2 text-right text-zinc-500">
+                  {e.tax === 0 ? "-" : formatKRW(e.tax)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
   );
 }
 
 function Section({
   title,
   children,
-  muted,
-  tone,
 }: {
   title: string;
   children: React.ReactNode;
-  muted?: boolean;
-  tone?: "danger";
 }) {
-  const cls = muted
-    ? "opacity-50"
-    : tone === "danger"
-      ? "border-rose-900/60 bg-rose-950/30"
-      : "border-zinc-800 bg-zinc-950";
   return (
-    <div className={`border ${cls} rounded-md p-4`}>
-      <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
         {title}
-      </div>
-      <div className="space-y-1.5">{children}</div>
+      </h3>
+      {children}
     </div>
   );
 }
 
-function KV({
+function ArmCard({
   label,
-  value,
-  valueClass,
-  extra,
-  small,
+  children,
 }: {
   label: string;
-  value: string;
-  valueClass?: string;
-  extra?: React.ReactNode;
-  small?: boolean;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex justify-between items-center text-sm">
-      <span className="text-zinc-500">{label}</span>
-      {extra ?? (
-        <span
-          className={`${valueClass ?? "text-zinc-100"} ${small ? "text-xs" : ""}`}
-        >
-          {value}
-        </span>
-      )}
+    <div className="border border-zinc-800 bg-zinc-950 rounded p-3">
+      <div className="text-xs text-zinc-500 mb-2">{label}</div>
+      <div>{children}</div>
     </div>
   );
 }
 
-function Stage({
-  label,
-  fired,
-  active,
-}: {
-  label: string;
-  fired: boolean;
-  active: boolean;
-}) {
-  if (!active) {
-    return (
-      <span className="px-2 py-0.5 rounded text-xs bg-zinc-800 text-zinc-600">
-        {label}
-      </span>
-    );
-  }
+function ArmStatus({ armed, icon }: { armed: boolean; icon: string }) {
   return (
     <span
-      className={`px-2 py-0.5 rounded text-xs ${
+      className={
+        armed ? "text-amber-300 font-medium" : "text-zinc-500"
+      }
+    >
+      {armed ? `${icon} 무장됨` : "⚪ 미무장"}
+    </span>
+  );
+}
+
+function Stage({ label, fired }: { label: string; fired: boolean }) {
+  return (
+    <span
+      className={`px-2 py-0.5 rounded text-xs border ${
         fired
-          ? "bg-emerald-900/60 text-emerald-300 border border-emerald-800"
-          : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+          ? "bg-emerald-900/60 text-emerald-300 border-emerald-800"
+          : "bg-zinc-800 text-zinc-500 border-zinc-700"
       }`}
     >
       {label} {fired && "✓"}
     </span>
   );
+}
+
+function SideBadge({ side }: { side: "BUY" | "SELL" }) {
+  return (
+    <span
+      className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+        side === "BUY"
+          ? "bg-blue-900/60 text-blue-300"
+          : "bg-rose-900/60 text-rose-300"
+      }`}
+    >
+      {side}
+    </span>
+  );
+}
+
+function OrderStatusText({ status }: { status: string }) {
+  const cls =
+    status === "FILLED"
+      ? "text-emerald-300"
+      : status === "CANCELLED"
+        ? "text-zinc-500"
+        : "text-amber-300";
+  return <span className={cls}>{status}</span>;
 }
 
 function ActiveRow({
