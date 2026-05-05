@@ -4,6 +4,9 @@ import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
 import SystemStatusBadge from "./components/SystemStatusBadge";
 import { ToastProvider } from "./components/toast/Toast";
+import { StompMockProvider } from "./ws/stompMock";
+import { NotificationProvider } from "./notifications/notifications";
+import { SettingsProvider } from "./settings/settings";
 import { mockSystemStatus } from "./mocks/data";
 
 const navItem =
@@ -12,9 +15,15 @@ const activeItem = "bg-zinc-800 text-white";
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AppShell />
-    </ToastProvider>
+    <SettingsProvider>
+      <StompMockProvider>
+        <NotificationProvider>
+          <ToastProvider>
+            <AppShell />
+          </ToastProvider>
+        </NotificationProvider>
+      </StompMockProvider>
+    </SettingsProvider>
   );
 }
 
