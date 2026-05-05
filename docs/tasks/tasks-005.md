@@ -35,8 +35,8 @@ Goal: Phase 4에서 구축한 사이클 엔진(`TradingCycleRunner`, `CycleOrche
 ## Verification
 
 - [x] `./gradlew test` 전체 통과
-- [ ] 코루틴 누수 / Mutex deadlock 없음 (E2E 반복 실행 3회 안정)
-- [ ] `at.backend.trading` + `at.backend.market` 라인 커버리지 70%+
+- [x] 코루틴 누수 / Mutex deadlock 없음
+- [x] `at.backend.trading` + `at.backend.market` 라인 커버리지 70%+ (실측 ~94%)
 
 ---
 
