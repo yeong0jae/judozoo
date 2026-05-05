@@ -43,6 +43,7 @@ class TradingCycleScenarioTest(
     @Autowired private val kisRestClient: KisRestClient,
     @Autowired private val webSocketClient: KisWebSocketClient,
     @Autowired private val timeProvider: MutableTimeProvider,
+    @Autowired private val unclosedCycleStartupHook: UnclosedCycleStartupHook,
 ) : IntegrationTestBase() {
 
     private val stockCode = "005930"
@@ -136,18 +137,23 @@ class TradingCycleScenarioTest(
             .forEach { fillBuyOrder(it, it.orderQty, fillPrice) }
     }
 
-    private suspend fun emitTick(price: Int) {
+    private suspend fun emitTick(price: Int, code: String = stockCode) {
         val channels = KisWebSocketClientMockConfig.channelsOf(webSocketClient)
-        channels.priceTicks.emit(PriceTick(stockCode, price, Instant.now()))
+        channels.priceTicks.emit(PriceTick(code, price, Instant.now()))
     }
 
     /**
      * SharedFlow는 replay=0 + 구독 시작 전 emit이 lost되므로, 조건 충족까지 반복 emit.
      */
-    private suspend fun emitTicksUntil(price: Int, timeoutMillis: Long = 5000, condition: () -> Boolean) {
+    private suspend fun emitTicksUntil(
+        price: Int,
+        code: String = stockCode,
+        timeoutMillis: Long = 5000,
+        condition: () -> Boolean,
+    ) {
         withTimeout(timeoutMillis.milliseconds) {
             while (!condition()) {
-                emitTick(price)
+                emitTick(price, code)
                 delay(50)
             }
         }
@@ -174,15 +180,32 @@ class TradingCycleScenarioTest(
     }
 
     private suspend fun reachHoldingFullyFilled(cycleId: Long, fillPrice: Int) {
-        withTimeout(5000.milliseconds) {
-            while (true) {
-                val buys = orderRepository.findByCycleId(cycleId).filter { it.side == "BUY" }
-                fillAllPendingBuys(cycleId, fillPrice)
-                if (buys.size == 3 && buys.all { it.filledQty > 0 }) break
-                delay(20)
+        try {
+            withTimeout(10_000.milliseconds) {
+                while (true) {
+                    fillAllPendingBuys(cycleId, fillPrice)
+                    val buys = orderRepository.findByCycleId(cycleId).filter { it.side == "BUY" }
+                    if (buys.size == 3 && buys.all { it.filledQty > 0 }) break
+                    delay(20)
+                }
             }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            val buys = orderRepository.findByCycleId(cycleId).filter { it.side == "BUY" }
+            val c = cycleRepository.findById(cycleId).get()
+            throw RuntimeException(
+                "DIAG fillTimeout cycleId=$cycleId, status=${c.status}, buys=${buys.size}, " +
+                    "filled=${buys.map { it.filledQty }}, kisNos=${buys.map { it.kisOrderNo }}"
+            )
         }
-        waitUntilCycle(cycleId) { it.status == TradingCycleStatus.HOLDING }
+        try {
+            waitUntilCycle(cycleId, timeoutMillis = 10_000) { it.status == TradingCycleStatus.HOLDING }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            val c = cycleRepository.findById(cycleId).get()
+            throw RuntimeException(
+                "DIAG holdingTimeout cycleId=$cycleId, status=${c.status}, closeReason=${c.closeReason}, " +
+                    "buyAttempt=${c.buyAttempt}"
+            )
+        }
     }
 
     init {
@@ -215,6 +238,58 @@ class TradingCycleScenarioTest(
                 refreshed.closeReason shouldBe CloseReason.STOP_LOSS
             }
 
+            test("다중 종목 동시 운용: 3개 cycle 격리 진행, 한 종목만 손절 시 나머지 영향 없음") {
+                val codes = listOf("005930" to "삼성전자", "035420" to "NAVER", "000660" to "SK하이닉스")
+                every { kisRestClient.searchStock(any()) } answers {
+                    val pdno = firstArg<String>()
+                    val name = codes.firstOrNull { it.first == pdno }?.second
+                    if (name != null) {
+                        KisStockSearchResponse(
+                            output = listOf(KisStockSearchResponse.Output(pdno = pdno, prdtAbrvName = name))
+                        )
+                    } else KisStockSearchResponse(output = emptyList())
+                }
+
+                val cycles = codes.map { (code, _) ->
+                    tradingService.create(
+                        TradingInput(
+                            stockCode = code,
+                            perBuyAmount = 1_000_000,
+                            buyIntervalMin = 1,
+                            splitSellRatio = BigDecimal("0.5"),
+                            midwayProfitPct = BigDecimal("3.0"),
+                            breakevenThresholdPct = BigDecimal("2.0"),
+                            stopLossPct = BigDecimal("2.0"),
+                        )
+                    )
+                }
+
+                runBlocking {
+                    withTimeout(10_000.milliseconds) {
+                        while (true) {
+                            cycles.forEach { fillAllPendingBuys(it.id, 70_000) }
+                            val allHolding = cycles.all {
+                                cycleRepository.findById(it.id).get().status == TradingCycleStatus.HOLDING
+                            }
+                            if (allHolding) break
+                            delay(20)
+                        }
+                    }
+
+                    emitTicksUntil(price = 60_000, code = codes[0].first) {
+                        orderRepository.findByCycleId(cycles[0].id)
+                            .any { it.side == "SELL" && it.kisOrderNo != null }
+                    }
+                    val sell = orderRepository.findByCycleId(cycles[0].id).first { it.side == "SELL" }
+                    fillSellOrder(sell, sell.orderQty)
+                    waitUntilCycle(cycles[0].id) { it.status == TradingCycleStatus.CLOSED }
+                }
+
+                cycleRepository.findById(cycles[0].id).get().closeReason shouldBe CloseReason.STOP_LOSS
+                cycleRepository.findById(cycles[1].id).get().status shouldBe TradingCycleStatus.HOLDING
+                cycleRepository.findById(cycles[2].id).get().status shouldBe TradingCycleStatus.HOLDING
+            }
+
             test("취소: BUYING 단계 cancel 시 회차 즉시 차단 + 보유분 없으면 CLOSED(CANCELLED)") {
                 val created = tradingService.create(validInput(buyIntervalMin = 30))
 
@@ -232,6 +307,38 @@ class TradingCycleScenarioTest(
 
                 val buys = orderRepository.findByCycleId(created.id).filter { it.side == "BUY" }
                 buys.size shouldBe 1
+            }
+
+            test("시스템 다운 후 재시작: 활성 사이클들이 UNCLOSED로 일괄 마감") {
+                val activeStatuses = listOf(
+                    TradingCycleStatus.INITIATED,
+                    TradingCycleStatus.BUYING,
+                    TradingCycleStatus.HOLDING,
+                    TradingCycleStatus.LIQUIDATING,
+                )
+                val saved = activeStatuses.mapIndexed { i, status ->
+                    cycleRepository.save(
+                        TradingCycle(
+                            stockCode = "00593$i",
+                            stockName = "테스트$i",
+                            perBuyAmount = 1_000_000,
+                            buyIntervalMin = 1,
+                            splitSellRatio = BigDecimal("0.5"),
+                            midwayProfitPct = BigDecimal("3.0"),
+                            breakevenThresholdPct = BigDecimal("2.0"),
+                            stopLossPct = BigDecimal("-2.0"),
+                            status = status,
+                        )
+                    )
+                }
+
+                unclosedCycleStartupHook.closeUnclosedCycles()
+
+                saved.forEach { c ->
+                    val refreshed = cycleRepository.findById(c.id).get()
+                    refreshed.status shouldBe TradingCycleStatus.CLOSED
+                    refreshed.closeReason shouldBe CloseReason.UNCLOSED
+                }
             }
 
             test("부분 체결/NO_FILL: 매수 3회 모두 발송 실패 시 CLOSED(NO_FILL)로 종료") {

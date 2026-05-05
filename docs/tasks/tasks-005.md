@@ -28,9 +28,9 @@ Goal: Phase 4에서 구축한 사이클 엔진(`TradingCycleRunner`, `CycleOrche
 - [x] 부분 체결 / NO_FILL: 3회 모두 미체결 → 보유 0 → CLOSED(NO_FILL) 직행
 - [ ] WS 끊김 + REST 폴링 fallback: WebSocket 강제 종료 → 폴링으로 시그널 평가 지속 → 재연결 시 WS 복귀
 - [ ] 주문 타임아웃 reconcile: 매도 5초 무응답 → 일별 체결 조회 매칭 → 재발사 안 함
-- [ ] 다중 종목 동시 운용 (3개): 동일 흐름이 격리되어 동시 진행, 서로의 Mutex/잔고에 영향 없음
+- [x] 다중 종목 동시 운용 (3개): 동일 흐름이 격리되어 동시 진행, 서로의 Mutex/잔고에 영향 없음
 - [ ] 15:20 강제 청산: TpStage 분할 익절 후 잔여 보유분 → MarketClose 일제 발행 → CLOSED(MARKET_CLOSE)
-- [ ] 시스템 다운 후 재시작 자동 마감: 활성 사이클 있는 상태에서 재기동 → 모두 CLOSED(UNCLOSED) 검증
+- [x] 시스템 다운 후 재시작 자동 마감: 활성 사이클 있는 상태에서 재기동 → 모두 CLOSED(UNCLOSED) 검증
 
 ## Verification
 
