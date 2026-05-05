@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import type { CloseReason, DailyTrading } from "../types";
+import type { CloseReason, DailyReport } from "../types";
 import {
   formatDateTime,
   formatDuration,
   formatKRW,
   formatPct,
+  formatPrice,
 } from "../lib/format";
 import CloseReasonBadge from "../components/common/CloseReasonBadge";
 import EmptyState from "../components/common/EmptyState";
@@ -13,18 +14,16 @@ import Skeleton from "../components/common/Skeleton";
 import ProfitText from "../components/common/ProfitText";
 import DetailPanel from "../components/trading/DetailPanel";
 import { useSettings } from "../settings/settings";
-import { useCommandDetail, useTodayClosed } from "../api/queries";
+import { useCommandDetail, useDailyReport } from "../api/queries";
 
 type SortKey = "closedAt" | "profitRate";
 type PnLFilter = "all" | "win" | "loss";
 
-const today = new Date().toISOString().slice(0, 10);
+const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ReportPage() {
   const settings = useSettings();
-  const todayQ = useTodayClosed();
-  const allRows: DailyTrading[] = todayQ.data ?? [];
-
+  const [date, setDate] = useState<string>(today());
   const [sortKey, setSortKey] = useState<SortKey>("closedAt");
   const [pnlFilter, setPnLFilter] = useState<PnLFilter>("all");
   const [reasonFilter, setReasonFilter] = useState<Set<CloseReason>>(
@@ -32,13 +31,16 @@ export default function ReportPage() {
   );
   const [drillDownId, setDrillDownId] = useState<number | null>(null);
 
+  const reportQ = useDailyReport(date);
   const detailQ = useCommandDetail(drillDownId);
+
+  const allRows: DailyReport[] = reportQ.data ?? [];
 
   const filteredRows = useMemo(() => {
     return allRows
       .filter((r) => {
-        if (pnlFilter === "win") return r.profitAmount > 0;
-        if (pnlFilter === "loss") return r.profitAmount < 0;
+        if (pnlFilter === "win") return r.netProfit > 0;
+        if (pnlFilter === "loss") return r.netProfit < 0;
         return true;
       })
       .filter(
@@ -60,21 +62,21 @@ export default function ReportPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-lg font-semibold">일별 실적</h2>
-        <DateNavigator />
+        <DateNavigator date={date} onChange={setDate} />
       </div>
 
       {settings.emphasizeUnclosed && unclosedCount > 0 && (
         <UnclosedBanner count={unclosedCount} />
       )}
 
-      {todayQ.isLoading ? (
+      {reportQ.isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
         </div>
-      ) : todayQ.isError ? (
-        <ErrorState onRetry={() => todayQ.refetch()} />
+      ) : reportQ.isError ? (
+        <ErrorState onRetry={() => reportQ.refetch()} />
       ) : (
         <SummaryCards summary={summary} />
       )}
@@ -103,14 +105,14 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {todayQ.isLoading ? (
+        {reportQ.isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : filteredRows.length === 0 ? (
           <EmptyState
             icon="📊"
             message={
               allRows.length === 0
-                ? "오늘 종료된 거래가 없습니다"
+                ? `${date} 일자 거래가 없습니다`
                 : "필터 조건에 맞는 거래가 없습니다"
             }
           />
@@ -146,41 +148,58 @@ export default function ReportPage() {
           ) : null}
         </section>
       )}
-
-      <p className="text-xs text-zinc-500">
-        ※ 이전 날짜 조회는 Phase 6에서 활성화됩니다 (백엔드{" "}
-        <code>/api/reports/daily?date=</code> 도입 후). 수수료/세금 분리, 매수→매도가
-        컬럼도 동시 추가 예정.
-      </p>
     </div>
   );
 }
 
 // ============================================================
-// Date navigator (5-B-2: 오늘 고정, Phase 6에서 활성)
+// Date navigator (좌우 화살표 + 캘린더)
 // ============================================================
 
-function DateNavigator() {
+function DateNavigator({
+  date,
+  onChange,
+}: {
+  date: string;
+  onChange: (v: string) => void;
+}) {
+  const shift = (days: number) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    onChange(d.toISOString().slice(0, 10));
+  };
+  const isToday = date === today();
   return (
     <div className="flex items-center gap-2 text-sm">
       <button
-        disabled
-        className="px-2 py-1 rounded text-zinc-600 disabled:opacity-40"
+        onClick={() => shift(-1)}
+        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800"
+        aria-label="이전 날짜"
       >
         ◀
       </button>
-      <span className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded">
-        📅 {today} (오늘)
-      </span>
+      <input
+        type="date"
+        value={date}
+        max={today()}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
+      />
       <button
-        disabled
-        className="px-2 py-1 rounded text-zinc-600 disabled:opacity-40"
+        onClick={() => shift(1)}
+        disabled={isToday}
+        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
+        aria-label="다음 날짜"
       >
         ▶
       </button>
-      <span className="text-xs text-zinc-500">
-        (이전 날짜는 Phase 6)
-      </span>
+      <button
+        onClick={() => onChange(today())}
+        disabled={isToday}
+        className="px-2 py-1 text-xs rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
+      >
+        오늘
+      </button>
     </div>
   );
 }
@@ -193,7 +212,7 @@ function UnclosedBanner({ count }: { count: number }) {
   return (
     <div className="bg-rose-950/50 border border-rose-800/60 rounded-lg px-4 py-3 text-sm text-rose-200">
       🚨 UNCLOSED 거래가 {count}건 있습니다 — KIS HTS에서 수동 정리가
-      필요합니다 (시스템 다운 또는 거래정지 등으로 자동 마감 실패)
+      필요합니다
     </div>
   );
 }
@@ -203,7 +222,9 @@ function UnclosedBanner({ count }: { count: number }) {
 // ============================================================
 
 interface Summary {
-  totalProfit: number;
+  totalNet: number;
+  totalFee: number;
+  totalTax: number;
   totalCount: number;
   winCount: number;
   lossCount: number;
@@ -213,10 +234,12 @@ interface Summary {
   avgHoldMs: number;
 }
 
-function computeSummary(rows: DailyTrading[]): Summary {
-  const totalProfit = rows.reduce((s, r) => s + r.profitAmount, 0);
-  const winCount = rows.filter((r) => r.profitAmount > 0).length;
-  const lossCount = rows.filter((r) => r.profitAmount < 0).length;
+function computeSummary(rows: DailyReport[]): Summary {
+  const totalNet = rows.reduce((s, r) => s + r.netProfit, 0);
+  const totalFee = rows.reduce((s, r) => s + r.totalFee, 0);
+  const totalTax = rows.reduce((s, r) => s + r.totalTax, 0);
+  const winCount = rows.filter((r) => r.netProfit > 0).length;
+  const lossCount = rows.filter((r) => r.netProfit < 0).length;
   const drawCount = rows.length - winCount - lossCount;
   const decisive = winCount + lossCount;
   const reasonCounts = new Map<CloseReason, number>();
@@ -239,7 +262,9 @@ function computeSummary(rows: DailyTrading[]): Summary {
           );
         }, 0) / rows.length;
   return {
-    totalProfit,
+    totalNet,
+    totalFee,
+    totalTax,
     totalCount: rows.length,
     winCount,
     lossCount,
@@ -255,14 +280,17 @@ function SummaryCards({ summary }: { summary: Summary }) {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <SummaryCard title="순수익">
         <ProfitText
-          value={summary.totalProfit}
+          value={summary.totalNet}
           format={formatKRW}
           className="text-2xl font-bold"
           zeroAsDash
         />
-        <p className="text-xs text-zinc-500 mt-2">
-          ※ 수수료/세금 분리 표시는 Phase 6에서 활성화
-        </p>
+        {(summary.totalFee > 0 || summary.totalTax > 0) && (
+          <div className="text-xs text-zinc-500 mt-2 space-y-0.5">
+            <div>↳ 수수료 −{formatKRW(summary.totalFee)}</div>
+            <div>↳ 세금 −{formatKRW(summary.totalTax)}</div>
+          </div>
+        )}
       </SummaryCard>
 
       <SummaryCard title="거래 건수">
@@ -274,7 +302,7 @@ function SummaryCards({ summary }: { summary: Summary }) {
         </div>
         <p className="text-xs text-zinc-500 mt-2">
           승률 {(summary.winRate * 100).toFixed(0)}%
-          {summary.totalCount > 0 && (
+          {summary.totalCount > 0 && summary.avgHoldMs > 0 && (
             <>
               {" · "}평균 보유{" "}
               {formatDuration(
@@ -451,7 +479,7 @@ function SortDropdown({
   );
 }
 
-function sortFn(key: SortKey): (a: DailyTrading, b: DailyTrading) => number {
+function sortFn(key: SortKey): (a: DailyReport, b: DailyReport) => number {
   if (key === "profitRate") return (a, b) => b.profitRate - a.profitRate;
   return (a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? "");
 }
@@ -466,7 +494,7 @@ function ReportTable({
   onSelect,
   selectedId,
 }: {
-  rows: DailyTrading[];
+  rows: DailyReport[];
   emphasizeUnclosed: boolean;
   onSelect: (id: number) => void;
   selectedId: number | null;
@@ -481,7 +509,7 @@ function ReportTable({
             <th className="text-left px-4 py-3">보유시간</th>
             <th className="text-left px-4 py-3">매수→매도가</th>
             <th className="text-right px-4 py-3">수익률</th>
-            <th className="text-right px-4 py-3">수익금</th>
+            <th className="text-right px-4 py-3">순수익</th>
             <th className="text-center px-4 py-3">사유</th>
           </tr>
         </thead>
@@ -518,8 +546,14 @@ function ReportTable({
                     ? formatDuration(r.createdAt, r.closedAt)
                     : "-"}
                 </td>
-                <td className="px-4 py-3 text-zinc-600 text-xs">
-                  — <span className="text-zinc-700">(Phase 6)</span>
+                <td className="px-4 py-3 text-zinc-300 text-xs whitespace-nowrap">
+                  {r.avgBuyPrice !== null
+                    ? formatPrice(r.avgBuyPrice)
+                    : "-"}
+                  {" → "}
+                  {r.avgSellPrice !== null
+                    ? formatPrice(r.avgSellPrice)
+                    : "-"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <ProfitText
@@ -530,7 +564,7 @@ function ReportTable({
                 </td>
                 <td className="px-4 py-3 text-right">
                   <ProfitText
-                    value={r.profitAmount}
+                    value={r.netProfit}
                     format={formatKRW}
                     zeroAsDash
                   />
