@@ -68,7 +68,7 @@ class KisRestClient(
                     .queryParam("ACNT_PRDT_CD", accountProductCode)
                     .queryParam("AFHR_FLPR_YN", "N")
                     .queryParam("OFL_YN", "")
-                    .queryParam("INQR_DVSN", "02")
+                    .queryParam("INQR_DVSN", "01")
                     .queryParam("UNPR_DVSN", "01")
                     .queryParam("FUND_STTL_ICLD_YN", "N")
                     .queryParam("FNCG_AMT_AUTO_RDPT_YN", "N")
