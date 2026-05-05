@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { SystemStatus } from "../types";
 
 interface Props {
@@ -27,15 +26,6 @@ export default function SystemStatusBadge({ status }: Props) {
         }
       />
       {status.isHoliday && <Pill label="휴장일" tone="danger" />}
-      {status.unclosedCount > 0 && (
-        <Link to="/report">
-          <Pill
-            label={`UNCLOSED ${status.unclosedCount}건`}
-            tone="warn"
-            title="시스템 다운/재시작 등으로 미처리된 명령 — 클릭 시 실적 화면"
-          />
-        </Link>
-      )}
     </div>
   );
 }
