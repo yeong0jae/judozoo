@@ -132,7 +132,6 @@ class KisRestClient(
         return restClient.post()
             .uri("/uapi/domestic-stock/v1/trading/order-cash")
             .header("tr_id", trId)
-            .header("custtype", CUSTTYPE_INDIVIDUAL)
             .contentType(MediaType.APPLICATION_JSON)
             .body(
                 KisOrderRequest(
@@ -153,7 +152,6 @@ class KisRestClient(
         restClient.post()
             .uri("/uapi/domestic-stock/v1/trading/order-rvsecncl")
             .header("tr_id", TR_ID_CANCEL)
-            .header("custtype", CUSTTYPE_INDIVIDUAL)
             .contentType(MediaType.APPLICATION_JSON)
             .body(
                 KisOrderCancelRequest(
@@ -179,7 +177,6 @@ class KisRestClient(
         private const val TR_ID_BUY = "TTTC0012U"
         private const val TR_ID_SELL = "TTTC0011U"
         private const val TR_ID_CANCEL = "TTTC0013U"
-        private const val CUSTTYPE_INDIVIDUAL = "P"
         private const val ORD_DVSN_MARKET = "01"
         private const val ORD_UNPR_MARKET = "0"
         private const val RVSE_CNCL_CANCEL = "02"
