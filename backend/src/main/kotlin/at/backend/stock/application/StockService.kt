@@ -11,10 +11,11 @@ class StockService(
     private val timeProvider: TimeProvider,
 ) {
 
-    fun search(query: String): List<StockSearchResult> =
-        kisRestClient.searchStock(query).output.map {
-            StockSearchResult(stockCode = it.pdno, stockName = it.prdtAbrvName)
-        }
+    fun search(query: String): List<StockSearchResult> {
+        val output = kisRestClient.searchStock(query).output
+        // KIS pdno는 12자리 패딩 (예: "00000A005930"). 거래 ID로는 6자리만 사용한다.
+        return listOf(StockSearchResult(stockCode = query, stockName = output.prdtAbrvName))
+    }
 
     fun getPrice(stockCode: String): StockPriceResult {
         val price = kisRestClient.getCurrentPrice(stockCode).output.stckPrpr.toLong()

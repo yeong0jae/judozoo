@@ -1,13 +1,19 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { mockTodayClosed } from "../../mocks/data";
+import { useTodayClosed } from "../../api/queries";
 import { colorByPnL, formatKRW, formatPct } from "../../lib/format";
-// Phase 5-B-2에서 useTodayClosed()로 교체.
-// ※ profitAmount는 백엔드 DailyTradingResult 기준 (수수료/세금 분리 없음 — Phase 6에서 정확화).
 export default function TodayProfitSummary() {
-    const totalProfit = mockTodayClosed.reduce((sum, r) => sum + r.profitAmount, 0);
-    const totalBase = mockTodayClosed.reduce((sum, r) => sum + (r.profitAmount === 0 ? 0 : Math.abs(r.profitAmount / Math.max(r.profitRate, 0.0001))), 0);
+    const { data, isLoading } = useTodayClosed();
+    const rows = data ?? [];
+    const totalProfit = rows.reduce((s, r) => s + r.profitAmount, 0);
+    const totalBase = rows.reduce((s, r) => s +
+        (r.profitAmount === 0
+            ? 0
+            : Math.abs(r.profitAmount / Math.max(r.profitRate, 0.0001))), 0);
     const aggregateRate = totalBase > 0 ? totalProfit / totalBase : 0;
-    const count = mockTodayClosed.length;
+    const count = rows.length;
+    if (isLoading) {
+        return (_jsx("div", { className: "text-xs text-zinc-600 hidden md:block", children: "\uC624\uB298 ..." }));
+    }
     if (count === 0) {
         return (_jsx("div", { className: "text-xs text-zinc-500 hidden md:block", children: "\uC624\uB298 \uC885\uB8CC 0\uAC74" }));
     }

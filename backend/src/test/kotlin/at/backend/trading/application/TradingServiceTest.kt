@@ -38,12 +38,14 @@ class TradingServiceTest(
 
     private fun stubSearchStock(name: String = "삼성전자") {
         every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
-            output = listOf(KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = name))
+            output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = name)
         )
     }
 
     private fun stubSearchStockEmpty() {
-        every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(output = emptyList())
+        every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+            output = KisStockSearchResponse.Output(pdno = "999999", prdtAbrvName = ""),
+        )
     }
 
     private fun stubCurrentPrice(price: String = "70000") {
