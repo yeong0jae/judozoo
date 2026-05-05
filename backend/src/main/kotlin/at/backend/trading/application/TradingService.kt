@@ -1,16 +1,20 @@
 package at.backend.trading.application
 
+import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
 import at.backend.trading.application.result.TradingCancelResult
 import at.backend.trading.application.result.TradingCreatedResult
 import at.backend.trading.domain.TradingInput
 import at.backend.trading.domain.cycle.TradingCycle
+import at.backend.trading.domain.event.TradingCycleCreated
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
+import java.time.ZoneId
 
 @Service
 class TradingService(
@@ -18,6 +22,7 @@ class TradingService(
     private val tradingCycleRepository: TradingCycleJpaRepository,
     private val timeProvider: TimeProvider,
     private val cycleOrchestrator: CycleOrchestrator,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     @Transactional
@@ -35,7 +40,19 @@ class TradingService(
             stopLossPct = input.stopLossPct.negate(),
         )
         val saved = tradingCycleRepository.save(cycle)
-        afterCommit { cycleOrchestrator.start(saved) }
+        val instant = now.atZone(ZoneId.of("Asia/Seoul")).toInstant()
+        afterCommit {
+            cycleOrchestrator.start(saved)
+            eventPublisher.publishEvent(
+                TradingCycleCreated(
+                    commandId = saved.id,
+                    stockCode = saved.stockCode,
+                    stockName = saved.stockName,
+                    ts = instant,
+                )
+            )
+            eventPublisher.publishEvent(BalanceInvalidated(ts = instant))
+        }
         return TradingCreatedResult.from(saved)
     }
 
