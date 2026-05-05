@@ -1,5 +1,6 @@
 package at.backend.trading.application.runner
 
+import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.time.TimeProvider
 import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
@@ -9,6 +10,7 @@ import at.backend.trading.application.OrderExecutor
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
+import at.backend.trading.domain.event.TradingCycleClosed
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -19,6 +21,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
+import java.time.ZoneId
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -41,6 +45,7 @@ class TradingCycleRunner(
     private val marketDataStream: MarketDataStream,
     private val barCache: BarCache,
     private val timeProvider: TimeProvider,
+    private val eventPublisher: ApplicationEventPublisher,
     private val sellCostRate: Double,
     private val buyIntervalUnit: Duration = 1.minutes,
     private val holdingPollIntervalMillis: Long = 50,
@@ -139,19 +144,25 @@ class TradingCycleRunner(
             .filter { it.side == "BUY" }
             .sumOf { it.filledQty }
 
+        var closedReason: CloseReason? = null
         mutex.withLock {
             when {
-                totalFilled == 0 && cycle.status == TradingCycleStatus.LIQUIDATING ->
+                totalFilled == 0 && cycle.status == TradingCycleStatus.LIQUIDATING -> {
                     cycle.close(CloseReason.CANCELLED, timeProvider.now())
+                    closedReason = CloseReason.CANCELLED
+                }
 
-                totalFilled == 0 && cycle.status == TradingCycleStatus.BUYING ->
+                totalFilled == 0 && cycle.status == TradingCycleStatus.BUYING -> {
                     cycle.close(CloseReason.NO_FILL, timeProvider.now())
+                    closedReason = CloseReason.NO_FILL
+                }
 
                 cycle.status == TradingCycleStatus.BUYING ->
                     cycle.transitionToHolding()
             }
             cycleRepository.save(cycle)
         }
+        closedReason?.let { publishCycleClosed(it) }
         log.info("매수 시퀀스 종료 cycleId={}, totalFilled={}, status={}", cycleId, totalFilled, cycle.status)
     }
 
@@ -209,6 +220,7 @@ class TradingCycleRunner(
     }
 
     private suspend fun processExternalSignal(signal: Signal) {
+        var closedReason: CloseReason? = null
         mutex.withLock {
             if (cycle.status == TradingCycleStatus.CLOSED) return@withLock
             val state = computeHoldingState()
@@ -216,11 +228,13 @@ class TradingCycleRunner(
                 if (signal == Signal.Cancel) {
                     cycle.close(CloseReason.CANCELLED, timeProvider.now())
                     cycleRepository.save(cycle)
+                    closedReason = CloseReason.CANCELLED
                 }
                 return@withLock
             }
             executeSignalSell(signal, state.holdingQty, state.buyPrice, state.buyPrice, currentBar)
         }
+        closedReason?.let { publishCycleClosed(it) }
     }
 
     private suspend fun executeSignalSell(
@@ -252,25 +266,31 @@ class TradingCycleRunner(
         }
     }
 
-    private suspend fun checkAndCloseIfDone(): Boolean = mutex.withLock {
-        if (cycle.status == TradingCycleStatus.CLOSED) return@withLock true
-        val state = computeHoldingState() ?: return@withLock false
-        val inFlight = orderRepository.inFlightSellUnfilled(cycleId)
-        val allTpFired = cycle.tpStagesFired and 0b111 == 0b111
+    private suspend fun checkAndCloseIfDone(): Boolean {
+        var closedReason: CloseReason? = null
+        val done = mutex.withLock {
+            if (cycle.status == TradingCycleStatus.CLOSED) return@withLock true
+            val state = computeHoldingState() ?: return@withLock false
+            val inFlight = orderRepository.inFlightSellUnfilled(cycleId)
+            val allTpFired = cycle.tpStagesFired and 0b111 == 0b111
 
-        if (cycle.status == TradingCycleStatus.HOLDING && allTpFired && state.holdingQty == 0 && inFlight == 0) {
-            cycle.requestCancel()
-            cycleRepository.save(cycle)
-            pendingCloseReason = CloseReason.TAKE_PROFIT
-        }
+            if (cycle.status == TradingCycleStatus.HOLDING && allTpFired && state.holdingQty == 0 && inFlight == 0) {
+                cycle.requestCancel()
+                cycleRepository.save(cycle)
+                pendingCloseReason = CloseReason.TAKE_PROFIT
+            }
 
-        if (cycle.status == TradingCycleStatus.LIQUIDATING && state.holdingQty == 0 && inFlight == 0) {
-            val reason = pendingCloseReason ?: CloseReason.UNCLOSED
-            cycle.close(reason, timeProvider.now())
-            cycleRepository.save(cycle)
-            return@withLock true
+            if (cycle.status == TradingCycleStatus.LIQUIDATING && state.holdingQty == 0 && inFlight == 0) {
+                val reason = pendingCloseReason ?: CloseReason.UNCLOSED
+                cycle.close(reason, timeProvider.now())
+                cycleRepository.save(cycle)
+                closedReason = reason
+                return@withLock true
+            }
+            false
         }
-        false
+        closedReason?.let { publishCycleClosed(it) }
+        return done
     }
 
     private fun computeHoldingState(): HoldingState? {
@@ -313,9 +333,18 @@ class TradingCycleRunner(
         is Signal.TpStage -> CloseReason.TAKE_PROFIT
     }
 
+    private fun publishCycleClosed(reason: CloseReason) {
+        val instant = timeProvider.now().atZone(KST).toInstant()
+        eventPublisher.publishEvent(
+            TradingCycleClosed(commandId = cycleId, closeReason = reason.name, ts = instant)
+        )
+        eventPublisher.publishEvent(BalanceInvalidated(ts = instant))
+    }
+
     private data class HoldingState(val holdingQty: Int, val buyPrice: Int)
 
     companion object {
+        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private const val TREND_BREAK_ARM_PCT = 0.05
     }
 }
