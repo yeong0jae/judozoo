@@ -10,18 +10,22 @@ import { StompMockProvider } from "./ws/stompMock";
 import { NotificationProvider } from "./notifications/notifications";
 import { SettingsProvider } from "./settings/settings";
 import { useTabTitle } from "./hooks/useTabTitle";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./api/queryClient";
 
 export default function App() {
   return (
-    <SettingsProvider>
-      <StompMockProvider>
-        <NotificationProvider>
-          <ToastProvider>
-            <AppShell />
-          </ToastProvider>
-        </NotificationProvider>
-      </StompMockProvider>
-    </SettingsProvider>
+    <QueryClientProvider client={queryClient}>
+      <SettingsProvider>
+        <StompMockProvider>
+          <NotificationProvider>
+            <ToastProvider>
+              <AppShell />
+            </ToastProvider>
+          </NotificationProvider>
+        </StompMockProvider>
+      </SettingsProvider>
+    </QueryClientProvider>
   );
 }
 

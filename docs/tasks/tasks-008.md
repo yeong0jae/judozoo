@@ -14,10 +14,10 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## API 클라이언트 (`src/api/`)
 
-- [ ] `client.ts` — fetch wrapper, `ApiResponse<T>` 언래핑, errorCode → `ApiError` 변환
-- [ ] `queryClient.ts` — TanStack Query 전역 설정 + `App.tsx`에 Provider 부착
-- [ ] 쿼리 훅 — `useSystemStatus`(30s refetch), `useAccountBalance`, `useActiveCommands`, `useTodayClosed`, `useCommandDetail(id)`, `useStockSearch(q)`, `useStockPrice(code)`
-- [ ] 뮤테이션 훅 — `useCreateCommand`, `useCancelCommand` — 성공 시 invalidate, 실패 시 errorCode → 토스트/인라인
+- [x] `client.ts` — fetch wrapper, `ApiResponse<T>` 언래핑, errorCode → `ApiError` 변환
+- [x] `queryClient.ts` — TanStack Query 전역 설정 + `App.tsx`에 Provider 부착
+- [x] 쿼리 훅 — `useSystemStatus`(30s refetch), `useAccountBalance`, `useActiveCommands`, `useTodayClosed`, `useCommandDetail(id)`, `useStockSearch(q)`, `useStockPrice(code)`
+- [x] 뮤테이션 훅 — `useCreateCommand`, `useCancelCommand` — 성공 시 invalidate (실패 시 errorCode 라우팅은 페이지 wire 시 처리)
 
 ## STOMP 클라이언트 (`src/ws/`)
 

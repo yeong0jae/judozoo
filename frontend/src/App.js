@@ -11,8 +11,10 @@ import { StompMockProvider } from "./ws/stompMock";
 import { NotificationProvider } from "./notifications/notifications";
 import { SettingsProvider } from "./settings/settings";
 import { useTabTitle } from "./hooks/useTabTitle";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./api/queryClient";
 export default function App() {
-    return (_jsx(SettingsProvider, { children: _jsx(StompMockProvider, { children: _jsx(NotificationProvider, { children: _jsx(ToastProvider, { children: _jsx(AppShell, {}) }) }) }) }));
+    return (_jsx(QueryClientProvider, { client: queryClient, children: _jsx(SettingsProvider, { children: _jsx(StompMockProvider, { children: _jsx(NotificationProvider, { children: _jsx(ToastProvider, { children: _jsx(AppShell, {}) }) }) }) }) }));
 }
 function AppShell() {
     useTabTitle();
