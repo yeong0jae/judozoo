@@ -9,7 +9,8 @@
       "ord_dt": "20260102",
       "ord_tmd": "100530",
       "tot_ccld_qty": "10",
-      "avg_prvs": "70000"
+      "avg_prvs": "70000",
+      "sll_buy_dvsn_cd": "02"
     },
     {
       "pdno": "005930",
@@ -17,7 +18,8 @@
       "ord_dt": "20260102",
       "ord_tmd": "110000",
       "tot_ccld_qty": "0",
-      "avg_prvs": "0"
+      "avg_prvs": "0",
+      "sll_buy_dvsn_cd": "02"
     },
     {
       "pdno": "000660",
@@ -25,7 +27,8 @@
       "ord_dt": "20260102",
       "ord_tmd": "120000",
       "tot_ccld_qty": "5",
-      "avg_prvs": "180000"
+      "avg_prvs": "180000",
+      "sll_buy_dvsn_cd": "01"
     }
   ]
 }
