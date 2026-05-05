@@ -71,13 +71,12 @@ class KisRestClientTest : FunSpec({
             client().checkHoliday(LocalDate.of(2026, 1, 2)).output.first().bzdyYn shouldBe "Y"
         }
 
-        test("종목 검색 - output 목록 반환") {
+        test("종목 검색 - output 단일 객체 반환") {
             stub("/uapi/domestic-stock/v1/quotations/search-stock-info", "stock-search.json")
 
-            val output = client().searchStock("삼성").output
-            output shouldHaveSize 1
-            output[0].pdno shouldBe "005930"
-            output[0].prdtAbrvName shouldBe "삼성전자"
+            val output = client().searchStock("005930").output
+            output.pdno shouldBe "005930"
+            output.prdtAbrvName shouldBe "삼성전자"
         }
 
         test("예수금 조회 - prvs_rcdl_excc_amt 필드 반환") {
