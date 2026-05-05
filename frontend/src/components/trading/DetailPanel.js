@@ -1,0 +1,86 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { formatDateTime, formatKRW, formatPct, formatPrice, formatQty, formatTime, } from "../../lib/format";
+import StatusPill from "../common/StatusPill";
+import ProfitText from "../common/ProfitText";
+import CloseReasonBadge from "../common/CloseReasonBadge";
+// 사이클 상세 — 모니터링/실적 양쪽에서 재사용.
+// `live: false`는 종료된 사이클 (실적 화면에서 사용) — 취소 버튼 미표시.
+export default function DetailPanel({ detail, onCancel, live = true, }) {
+    return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden", children: [_jsx(SummaryHeader, { detail: detail, onCancel: onCancel, live: live }), _jsxs("div", { className: "p-6 space-y-6", children: [_jsx(BuyProgressSection, { detail: detail }), _jsx(SignalArmingBoard, { detail: detail }), _jsx(SplitSellSection, { detail: detail }), _jsx(OrderHistory, { orders: detail.orders }), _jsx(ExecutionHistory, { executions: detail.executions })] })] }));
+}
+function SummaryHeader({ detail, onCancel, live, }) {
+    const isClosed = detail.status === "CLOSED";
+    return (_jsx("div", { className: "bg-zinc-950 px-6 py-5 border-b border-zinc-800", children: _jsxs("div", { className: "flex items-start justify-between gap-4 flex-wrap", children: [_jsxs("div", { className: "min-w-0", children: [_jsxs("div", { className: "flex items-center gap-2 mb-2 flex-wrap", children: [_jsx(StatusPill, { status: detail.status }), isClosed && detail.closeReason && (_jsx(CloseReasonBadge, { reason: detail.closeReason })), _jsxs("h2", { className: "text-xl font-semibold", children: [detail.stockName, _jsx("span", { className: "text-sm text-zinc-500 ml-2", children: detail.stockCode })] })] }), _jsxs("div", { className: "flex gap-x-6 gap-y-1 text-sm text-zinc-400 flex-wrap", children: [_jsxs("span", { children: ["\uD3C9\uB2E8", " ", _jsxs("span", { className: "text-zinc-200", children: [formatPrice(detail.averageBuyPrice), "\uC6D0"] })] }), _jsxs("span", { children: ["\uD604\uC7AC", " ", _jsxs("span", { className: "text-zinc-200", children: [formatPrice(detail.currentPrice), "\uC6D0"] })] }), _jsxs("span", { children: ["\uBCF4\uC720", " ", _jsx("span", { className: "text-zinc-200", children: formatQty(detail.holdingQty) })] }), _jsxs("span", { children: ["\uB204\uC801 \uB9E4\uC218", " ", _jsx("span", { className: "text-zinc-200", children: formatQty(detail.totalBoughtQty) })] })] })] }), _jsxs("div", { className: "flex items-start gap-4", children: [_jsxs("div", { className: "text-right", children: [_jsx(ProfitText, { value: detail.profitRate, format: formatPct, className: "text-2xl font-bold block" }), _jsx(ProfitText, { value: detail.profitAmount, format: formatKRW, className: "text-sm" })] }), !isClosed && live && onCancel && (_jsx("button", { onClick: onCancel, className: "bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 text-rose-200 px-3 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap", children: "\uCDE8\uC18C" }))] })] }) }));
+}
+function BuyProgressSection({ detail }) {
+    const lastBuy = detail.orders
+        .filter((o) => o.side === "BUY")
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+    const remaining = detail.buyAttempt.total - detail.buyAttempt.completed;
+    const nextBuyAt = lastBuy && remaining > 0 && detail.status !== "CLOSED"
+        ? new Date(new Date(lastBuy.submittedAt).getTime() +
+            detail.buyIntervalMin * 60_000).toISOString()
+        : null;
+    return (_jsxs(Section, { title: "\uB9E4\uC218 \uC9C4\uD589", children: [_jsx("div", { className: "grid grid-cols-3 gap-3", children: Array.from({ length: detail.buyAttempt.total }).map((_, i) => {
+                    const completed = i < detail.buyAttempt.completed;
+                    const isNext = i === detail.buyAttempt.completed && nextBuyAt !== null;
+                    return (_jsxs("div", { className: `border rounded p-3 ${completed
+                            ? "border-emerald-700/60 bg-emerald-950/30"
+                            : isNext
+                                ? "border-amber-700/60 bg-amber-950/30"
+                                : "border-zinc-800 bg-zinc-950"}`, children: [_jsxs("div", { className: "text-xs text-zinc-500 mb-1", children: ["\uD68C\uCC28 ", i + 1] }), _jsx("div", { className: "text-sm font-medium", children: completed
+                                    ? "✓ 체결"
+                                    : isNext
+                                        ? "⏱ 다음 매수"
+                                        : "대기" }), isNext && nextBuyAt && (_jsxs("div", { className: "text-xs text-amber-300 mt-1", children: ["~", formatTime(nextBuyAt)] }))] }, i));
+                }) }), _jsxs("div", { className: "text-xs text-zinc-500 mt-2", children: ["1\uD68C \uB9E4\uC218 ", formatKRW(detail.perBuyAmount), " \u00B7 \uAC04\uACA9", " ", detail.buyIntervalMin, "\uBD84"] })] }));
+}
+function SignalArmingBoard({ detail }) {
+    return (_jsx(Section, { title: "\uC2DC\uADF8\uB110 \uBB34\uC7A5", children: _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-3", children: [_jsx(ArmCard, { label: "\uC775\uC808 \uB2E8\uACC4", children: _jsxs("div", { className: "flex gap-1.5", children: [_jsx(Stage, { label: "2%", fired: detail.tpStages.fired2pct }), _jsx(Stage, { label: "3%", fired: detail.tpStages.fired3pct }), _jsx(Stage, { label: "5%", fired: detail.tpStages.fired5pct })] }) }), _jsx(ArmCard, { label: "\uBCF8\uC804 \uB9E4\uB3C4", children: _jsx(ArmStatus, { armed: detail.breakevenArmed, icon: "\uD83D\uDEE1" }) }), _jsx(ArmCard, { label: "\uCD94\uC138 \uAEBE\uC784", children: _jsx(ArmStatus, { armed: detail.trendBreakArmed, icon: "\uD83D\uDCC9" }) })] }) }));
+}
+function SplitSellSection({ detail }) {
+    const pct = detail.splitSellProgress.soldPct;
+    const totalSoldQty = detail.executions
+        .filter((e) => detail.orders.find((o) => o.id === e.orderId)?.side === "SELL")
+        .reduce((sum, e) => sum + e.executedQty, 0);
+    return (_jsxs(Section, { title: "\uBD84\uD560 \uB9E4\uB3C4 \uC9C4\uD589", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("div", { className: "flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden", children: _jsx("div", { className: "h-full bg-emerald-600 transition-all", style: { width: `${pct}%` } }) }), _jsxs("span", { className: "text-sm text-zinc-300 whitespace-nowrap", children: [pct, "% (", formatQty(totalSoldQty), " /", " ", formatQty(detail.totalBoughtQty), ")"] })] }), _jsxs("div", { className: "text-xs text-zinc-500 mt-2", children: ["\uBD84\uD560 \uBE44\uC728 ", (detail.splitSellRatio * 100).toFixed(0), "% / \uD68C \u00B7 \uC911\uB3C4 \uC775\uC808 +", detail.midwayProfitPct, "% \u00B7 \uBCF8\uC804 +", detail.breakevenThresholdPct, "% \u00B7 \uC190\uC808 -", detail.stopLossPct, "%"] })] }));
+}
+function OrderHistory({ orders }) {
+    if (orders.length === 0)
+        return null;
+    return (_jsx(Section, { title: `주문 이력 (${orders.length})`, children: _jsx("div", { className: "overflow-x-auto -mx-2", children: _jsxs("table", { className: "w-full text-xs", children: [_jsx("thead", { className: "text-zinc-500 uppercase", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uC81C\uCD9C\uC2DC\uAC01" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uBC29\uD5A5" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uD2B8\uB9AC\uAC70" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC8FC\uBB38" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uCCB4\uACB0" }), _jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uC0C1\uD0DC" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC7AC\uC2DC\uB3C4" })] }) }), _jsx("tbody", { children: orders.map((o) => (_jsxs("tr", { className: "border-t border-zinc-800", children: [_jsx("td", { className: "px-2 py-2 text-zinc-400 whitespace-nowrap", children: formatDateTime(o.submittedAt) }), _jsx("td", { className: "px-2 py-2", children: _jsx(SideBadge, { side: o.side }) }), _jsx("td", { className: "px-2 py-2 text-zinc-400", children: o.trigger }), _jsx("td", { className: "px-2 py-2 text-right", children: o.orderQty }), _jsx("td", { className: "px-2 py-2 text-right", children: o.filledQty }), _jsx("td", { className: "px-2 py-2", children: _jsx(OrderStatusText, { status: o.status }) }), _jsx("td", { className: "px-2 py-2 text-right", children: o.retryCount > 0 ? (_jsxs("span", { className: o.retryCount >= 3
+                                            ? "text-rose-300 font-medium"
+                                            : "text-amber-300", title: o.lastError ?? undefined, children: [o.retryCount, "\uD68C"] })) : (_jsx("span", { className: "text-zinc-600", children: "-" })) })] }, o.id))) })] }) }) }));
+}
+function ExecutionHistory({ executions }) {
+    if (executions.length === 0)
+        return null;
+    return (_jsx(Section, { title: `체결 이력 (${executions.length})`, children: _jsx("div", { className: "overflow-x-auto -mx-2", children: _jsxs("table", { className: "w-full text-xs", children: [_jsx("thead", { className: "text-zinc-500 uppercase", children: _jsxs("tr", { children: [_jsx("th", { className: "text-left px-2 py-2 font-medium", children: "\uCCB4\uACB0\uC2DC\uAC01" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC218\uB7C9" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uAC00\uACA9" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC218\uC218\uB8CC" }), _jsx("th", { className: "text-right px-2 py-2 font-medium", children: "\uC138\uAE08" })] }) }), _jsx("tbody", { children: executions.map((e, i) => (_jsxs("tr", { className: "border-t border-zinc-800", children: [_jsx("td", { className: "px-2 py-2 text-zinc-400 whitespace-nowrap", children: formatDateTime(e.executedAt) }), _jsx("td", { className: "px-2 py-2 text-right", children: e.executedQty }), _jsx("td", { className: "px-2 py-2 text-right", children: formatPrice(e.executedPrice) }), _jsx("td", { className: "px-2 py-2 text-right text-zinc-500", children: e.fee === 0 ? "-" : formatKRW(e.fee) }), _jsx("td", { className: "px-2 py-2 text-right text-zinc-500", children: e.tax === 0 ? "-" : formatKRW(e.tax) })] }, `${e.orderId}-${i}`))) })] }) }) }));
+}
+function Section({ title, children, }) {
+    return (_jsxs("div", { children: [_jsx("h3", { className: "text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3", children: title }), children] }));
+}
+function ArmCard({ label, children, }) {
+    return (_jsxs("div", { className: "border border-zinc-800 bg-zinc-950 rounded p-3", children: [_jsx("div", { className: "text-xs text-zinc-500 mb-2", children: label }), _jsx("div", { children: children })] }));
+}
+function ArmStatus({ armed, icon }) {
+    return (_jsx("span", { className: armed ? "text-amber-300 font-medium" : "text-zinc-500", children: armed ? `${icon} 무장됨` : "⚪ 미무장" }));
+}
+function Stage({ label, fired }) {
+    return (_jsxs("span", { className: `px-2 py-0.5 rounded text-xs border ${fired
+            ? "bg-emerald-900/60 text-emerald-300 border-emerald-800"
+            : "bg-zinc-800 text-zinc-500 border-zinc-700"}`, children: [label, " ", fired && "✓"] }));
+}
+function SideBadge({ side }) {
+    return (_jsx("span", { className: `px-1.5 py-0.5 rounded text-[10px] font-medium ${side === "BUY"
+            ? "bg-blue-900/60 text-blue-300"
+            : "bg-rose-900/60 text-rose-300"}`, children: side }));
+}
+function OrderStatusText({ status }) {
+    const cls = status === "FILLED"
+        ? "text-emerald-300"
+        : status === "CANCELLED"
+            ? "text-zinc-500"
+            : "text-amber-300";
+    return _jsx("span", { className: cls, children: status });
+}
