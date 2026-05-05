@@ -60,9 +60,9 @@ class TradingServiceTest(
         )
     }
 
-    private fun stubHoliday(bzdyYn: String = "Y") {
+    private fun stubHoliday(opndYn: String = "Y") {
         every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
-            output = listOf(KisHolidayResponse.Output(bzdyYn = bzdyYn))
+            output = KisHolidayResponse.Output(opndYn = opndYn)
         )
     }
 
