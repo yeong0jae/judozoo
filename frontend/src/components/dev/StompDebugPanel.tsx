@@ -1,9 +1,10 @@
-// Dev-only: STOMP / 인지 채널 시뮬레이터.
-// Phase 5-B-2 wire 후에도 mock 발화 시나리오 재현용으로 유지 (실 STOMP 연결과 분리).
+// Dev-only: 인지 채널 시뮬레이터 + STOMP 강제 끊기/복구.
+// 실 STOMP 연결 상태는 백엔드 기동/종료에 따라 자동으로 변하지만,
+// 끊김 시나리오를 빠르게 재현하기 위해 deactivate/activate를 수동 트리거할 수 있게 둔다.
 
 import { useState } from "react";
 import type { CloseReason } from "../../types";
-import { useStompState, type ConnectionState } from "../../ws/stompMock";
+import { useStompState } from "../../ws/StompProvider";
 import { useNotifications } from "../../notifications/notifications";
 import { useToast } from "../toast/Toast";
 
@@ -26,7 +27,7 @@ const REASONS: CloseReason[] = [
 
 export default function StompDebugPanel() {
   const [open, setOpen] = useState(false);
-  const stomp = useStompState();
+  const { client, state } = useStompState();
   const notifications = useNotifications();
   const toast = useToast();
 
@@ -54,22 +55,27 @@ export default function StompDebugPanel() {
     });
   };
 
+  const forceReconnect = async () => {
+    if (client.active) {
+      await client.deactivate();
+    }
+    client.activate();
+  };
+
   return (
     <div className="fixed bottom-6 left-6 z-40">
       {!open ? (
         <button
           onClick={() => setOpen(true)}
           className="text-xs bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-zinc-100 px-3 py-1.5 rounded shadow"
-          title="개발 모드 STOMP 시뮬레이터"
+          title="개발 모드 시뮬레이터"
         >
           🛠 dev
         </button>
       ) : (
         <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-3 w-72 text-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold text-zinc-300">
-              🛠 STOMP 시뮬레이터
-            </span>
+            <span className="font-semibold text-zinc-300">🛠 시뮬레이터</span>
             <button
               onClick={() => setOpen(false)}
               className="text-zinc-500 hover:text-zinc-200"
@@ -78,25 +84,16 @@ export default function StompDebugPanel() {
             </button>
           </div>
 
-          <Group label="STOMP 연결">
-            {(["connected", "reconnecting", "disconnected"] as ConnectionState[]).map(
-              (s) => (
-                <button
-                  key={s}
-                  onClick={() => stomp.setState(s)}
-                  className={`px-2 py-1 rounded ${
-                    stomp.state === s
-                      ? "bg-zinc-700 text-zinc-100"
-                      : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  {s}
-                </button>
-              ),
-            )}
+          <Group label={`STOMP (현재 ${state})`}>
+            <button
+              onClick={forceReconnect}
+              className="px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+            >
+              강제 재연결
+            </button>
           </Group>
 
-          <Group label="lifecycle CLOSED">
+          <Group label="lifecycle CLOSED (mock 발화)">
             {REASONS.map((r) => (
               <button
                 key={r}
@@ -119,7 +116,7 @@ export default function StompDebugPanel() {
           </Group>
 
           <p className="mt-3 text-[10px] text-zinc-600 leading-relaxed">
-            Phase 5-B-2에서 실 STOMP 연결로 교체. 본 패널은 mock 시나리오 재현용으로 유지.
+            실 STOMP는 자동으로 재연결됩니다. 발화 버튼은 mock 토스트/알림을 트리거합니다.
           </p>
         </div>
       )}

@@ -21,9 +21,9 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## STOMP 클라이언트 (`src/ws/`)
 
-- [ ] `stompClient.ts` — 단일 `Client` 싱글톤, brokerURL `ws://.../ws`, 자동 재연결 (5s), JSON 파싱
-- [ ] `StompProvider` — 연결 상태(connected/reconnecting/disconnected) context로 노출 → `StompStatusBadge` / `StompDisconnectionBanner`가 구독
-- [ ] `useStompSubscription(destination, handler)` — mount/unmount 안전 구독 hook
+- [x] `stompClient.ts` — 단일 `Client` 싱글톤, brokerURL `ws://.../ws`, 자동 재연결 (5s), JSON 파싱
+- [x] `StompProvider` — 연결 상태(connected/reconnecting/disconnected) context로 노출 → `StompStatusBadge` / `StompDisconnectionBanner`가 구독
+- [x] `useStompSubscription(destination, handler)` — mount/unmount 안전 구독 hook
 
 ## 알림 채널 wire (NotificationProvider)
 
