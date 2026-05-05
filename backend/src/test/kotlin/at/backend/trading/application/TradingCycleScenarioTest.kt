@@ -99,10 +99,10 @@ class TradingCycleScenarioTest(
         stubSubmitOrderOk()
     }
 
-    private fun validInput(perBuyAmount: Long = 1_000_000) = TradingInput(
+    private fun validInput(perBuyAmount: Long = 1_000_000, buyIntervalMin: Int = 1) = TradingInput(
         stockCode = stockCode,
         perBuyAmount = perBuyAmount,
-        buyIntervalMin = 1,
+        buyIntervalMin = buyIntervalMin,
         splitSellRatio = BigDecimal("0.5"),
         midwayProfitPct = BigDecimal("3.0"),
         breakevenThresholdPct = BigDecimal("2.0"),
@@ -213,6 +213,25 @@ class TradingCycleScenarioTest(
                 val refreshed = cycleRepository.findById(created.id).get()
                 refreshed.status shouldBe TradingCycleStatus.CLOSED
                 refreshed.closeReason shouldBe CloseReason.STOP_LOSS
+            }
+
+            test("취소: BUYING 단계 cancel 시 회차 즉시 차단 + 보유분 없으면 CLOSED(CANCELLED)") {
+                val created = tradingService.create(validInput(buyIntervalMin = 30))
+
+                runBlocking {
+                    waitUntilOrders(created.id) { orders ->
+                        orders.any { it.side == "BUY" && it.kisOrderNo != null }
+                    }
+                    tradingService.cancel(created.id)
+                    waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
+                }
+
+                val refreshed = cycleRepository.findById(created.id).get()
+                refreshed.status shouldBe TradingCycleStatus.CLOSED
+                refreshed.closeReason shouldBe CloseReason.CANCELLED
+
+                val buys = orderRepository.findByCycleId(created.id).filter { it.side == "BUY" }
+                buys.size shouldBe 1
             }
 
             test("부분 체결/NO_FILL: 매수 3회 모두 발송 실패 시 CLOSED(NO_FILL)로 종료") {

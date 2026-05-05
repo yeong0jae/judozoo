@@ -23,7 +23,8 @@ Goal: Phase 4에서 구축한 사이클 엔진(`TradingCycleRunner`, `CycleOrche
 - [x] 손절: HOLDING 중 -2% → CLOSED(STOP_LOSS)
   - 작성 중 운영 버그 발견 — `isStopLossTriggered`가 stopLossPct를 decimal로 곱했음(다른 비율은 percent /100). 같은 PR에서 fix
 - [ ] 본전 매도: +2% 도달 무장 → 매수가 도달 → 전량 매도 → CLOSED(BREAKEVEN); 무장만 된 봉 종료 후 다음 봉 재충족 시 재발동 검증
-- [ ] 취소: BUYING 1차 in-flight 중 cancel → in-flight 매수 취소 + 보유분 청산 → CLOSED(CANCELLED)
+  - 보류 — `+2%` 도달 시 TpStage(2)도 동시 발동되어 봉 단위 분리가 필요. 봉 emit 인프라 구축 후 진행
+- [x] 취소: BUYING 1차 in-flight 중 cancel → in-flight 매수 취소 + 보유분 청산 → CLOSED(CANCELLED)
 - [x] 부분 체결 / NO_FILL: 3회 모두 미체결 → 보유 0 → CLOSED(NO_FILL) 직행
 - [ ] WS 끊김 + REST 폴링 fallback: WebSocket 강제 종료 → 폴링으로 시그널 평가 지속 → 재연결 시 WS 복귀
 - [ ] 주문 타임아웃 reconcile: 매도 5초 무응답 → 일별 체결 조회 매칭 → 재발사 안 함
