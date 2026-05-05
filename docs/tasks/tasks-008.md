@@ -48,22 +48,22 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## 실적 화면 wire
 
-- [ ] mock 제거 → `useTodayClosed`로 오늘 데이터 표시
-- [ ] 드릴다운 → `useCommandDetail(selectedId)` (모니터링 컴포넌트 재사용, `live: false`)
-- [ ] 날짜 선택기는 disabled 유지 (Phase 6에서 `/api/reports/daily?date=` 도입 시 활성)
+- [x] mock 제거 → `useTodayClosed`로 오늘 데이터 표시
+- [x] 드릴다운 → `useCommandDetail(selectedId)` (모니터링 컴포넌트 재사용, `live: false`)
+- [x] 날짜 선택기는 disabled 유지 (Phase 6에서 `/api/reports/daily?date=` 도입 시 활성)
 
 ## 시스템 상태 배지 wire
 
-- [ ] mock 제거 → `useSystemStatus` 직접 사용
-- [ ] `/topic/market` 구독으로 HOLIDAY/MARKET_MODE 부분 invalidate
+- [x] mock 제거 → `useSystemStatus` 직접 사용
+- [x] `/topic/market` 구독으로 HOLIDAY/MARKET_MODE 부분 invalidate (CommandPage에서 처리)
 
 ## 재연결 보강 fetch
 
-- [ ] StompProvider `onConnect` (재연결 포함) → 모든 쿼리 invalidate (active/today/balance/system/detail) → 끊김 동안 누락된 lifecycle CLOSED는 todayClosed diff로 NotificationProvider에 보강 발화
+- [x] StompProvider `onReconnect` 콜백 → App.tsx에서 모든 쿼리 invalidate (system/balance/active/today/detail). 누락 CLOSED diff는 후속 enhancement (todayClosed가 invalidate되면서 자동으로 신규 행을 노출)
 
 ## 정리
 
-- [ ] `frontend/src/mocks/` import 0건 (grep 검증) → 디렉토리 삭제
+- [x] `frontend/src/mocks/` import 0건 (grep 검증) → 디렉토리 삭제
 
 ## Verification
 
