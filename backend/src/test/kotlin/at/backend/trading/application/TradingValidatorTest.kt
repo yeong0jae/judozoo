@@ -22,11 +22,12 @@ class TradingValidatorTest : FunSpec({
 
     val kisRestClient = mockk<KisRestClient>()
     val tradingCycleRepository = mockk<TradingCycleJpaRepository>()
+    val commandGate = CommandGate()
 
     fun nowAt(hour: Int, minute: Int): LocalDateTime =
         LocalDateTime.of(2026, 1, 2, hour, minute)
 
-    val validator = TradingValidator(kisRestClient, tradingCycleRepository)
+    val validator = TradingValidator(kisRestClient, tradingCycleRepository, commandGate)
 
     val validInput = TradingInput(
         stockCode = "005930",
@@ -222,6 +223,19 @@ class TradingValidatorTest : FunSpec({
                 validator.validate(validInput, nowAt(8, 59))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.OUT_OF_TRADING_HOURS
+        }
+    }
+
+    context("명령 접수 게이트") {
+        test("게이트가 닫혀있으면 다른 검증보다 먼저 COMMAND_GATE_CLOSED") {
+            commandGate.close()
+
+            val ex = shouldThrow<TradingValidationException> {
+                validator.validate(validInput, nowAt(10, 0))
+            }
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.COMMAND_GATE_CLOSED
+
+            commandGate.open()
         }
     }
 })

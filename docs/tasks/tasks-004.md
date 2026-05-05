@@ -75,10 +75,10 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ### 4c-7. 스케줄러 + 시작 hook
 
-- [ ] `trading.infrastructure.scheduler.TradingSchedulerService`:
+- [x] `trading.infrastructure.scheduler.TradingSchedulerService`:
   - `@Scheduled(cron = "0 20 15 * * MON-FRI", zone = "Asia/Seoul")`: 활성 사이클 일제 MarketClose 라우팅
   - `@Scheduled(cron = "0 0 8 * * MON-FRI", zone = "Asia/Seoul")`: 영업일 검증 + 명령 접수 게이트 토글
-- [ ] `BackendApplication` 시작 hook (`ApplicationRunner` 또는 `@EventListener(ApplicationReadyEvent::class)`): 활성 상태(`IN (INITIATED, BUYING, HOLDING, LIQUIDATING)`) 사이클 조회 → 각 cycle `cycle.close(UNCLOSED, now)` 일괄 저장
+- [x] `BackendApplication` 시작 hook (`ApplicationRunner` 또는 `@EventListener(ApplicationReadyEvent::class)`): 활성 상태(`IN (INITIATED, BUYING, HOLDING, LIQUIDATING)`) 사이클 조회 → 각 cycle `cycle.close(UNCLOSED, now)` 일괄 저장
 
 ## End-to-end 통합 테스트 (`TradingCycleE2ETest`, IntegrationTestBase)
 
