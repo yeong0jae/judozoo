@@ -183,17 +183,21 @@ KIS와 안정적으로 통신하는 인프라. 단, **주문 제외** — 주문
 
 ### 산출물 (백엔드)
 - 도메인 이벤트 정의 + Spring `ApplicationEventPublisher` 발행 (사이클 흐름 ↔ broadcast 결합도 분리)
-- Spring WebSocket + STOMP (`/ws` 엔드포인트)
-- `StatusBroadcastHandler`: `@EventListener` → STOMP 토픽 변환
+- Spring WebSocket + STOMP (`/ws` 엔드포인트) — `library/web/WebSocketConfig`
+- 각 feature가 자기 broadcast handler를 가짐 (분산 모델, 별도 broadcast feature 없음):
+  - `trading.application.TradingBroadcastHandler` → `/topic/trading/{id}`, `/topic/trading/lifecycle`
+  - `market.application.MarketBroadcastHandler` → `/topic/market`
+  - `account.application.AccountBroadcastHandler` → `/topic/account`
 - 토픽 페이로드 (spec §11.5):
   - `/topic/trading/{id}`: PRICE / STATE / SIGNAL / EXECUTION / RETRY
   - `/topic/trading/lifecycle`: CREATED / CLOSED
-  - `/topic/system`: MARKET_MODE / TOKEN_STATUS / HOLIDAY / BALANCE_INVALIDATED
+  - `/topic/market`: MARKET_MODE / HOLIDAY
+  - `/topic/account`: BALANCE_INVALIDATED
 - BALANCE_INVALIDATED는 lifecycle CREATED/CLOSED와 함께 자동 발행
-- TOKEN_STATUS / HOLIDAY는 해당 변경 hook이 시스템에 존재하는 경우 발행, 없으면 후속 이슈로 분리
+- HOLIDAY는 변경 hook이 시스템에 존재하는 경우 발행, 없으면 후속 이슈로 분리
 
 ### Definition of Done
-- 토픽별 STOMP 통합 테스트 1건씩 통과 (PRICE / STATE / SIGNAL / EXECUTION / RETRY / lifecycle / system)
+- 토픽별 STOMP 통합 테스트 1건씩 통과 (PRICE / STATE / SIGNAL / EXECUTION / RETRY / lifecycle / market / account)
 - BALANCE_INVALIDATED가 CREATED/CLOSED와 동반 발행됨을 검증
 - spec §11.5 페이로드 스키마 (필드명/타입) 1:1 일치
 
