@@ -24,7 +24,7 @@ Goal: 사이클 엔진의 핵심 분기점에서 도메인 이벤트를 발행�
 
 ## 사전 정비
 
-- [ ] 도메인 이벤트 발행 hook 위치 식별 — 현 코드의 분기점들이 spec §11.5 토픽과 1:1 매핑되는지 점검 (필요 시 분기 보강)
+- [x] 도메인 이벤트 발행 hook 위치 식별 — 현 코드의 분기점들이 spec §11.5 토픽과 1:1 매핑되는지 점검 (필요 시 분기 보강)
 
 ## 도메인 이벤트 정의 + 발행
 
@@ -62,21 +62,18 @@ Goal: 사이클 엔진의 핵심 분기점에서 도메인 이벤트를 발행�
 - [x] `account.application.AccountBroadcastHandler` — `BalanceInvalidated` listen → `/topic/account`
 - [x] CREATED/CLOSED 시 BalanceInvalidated 동반 발행 (publisher가 둘 다 publish)
 
-## 통합 테스트 (`*BroadcastTest`, IntegrationTestBase + STOMP 클라이언트)
+## 통합 테스트 (testing.md 컨벤션 — application 레이어 통합만)
 
-- [ ] `/topic/trading/{id}` PRICE 1건 — tick 발생 시 페이로드 수신
-- [ ] `/topic/trading/{id}` STATE 1건 — HOLDING/LIQUIDATING/CLOSED 전이
-- [ ] `/topic/trading/{id}` SIGNAL 1건 — Breakeven 무장 / TpStage 발동
-- [ ] `/topic/trading/{id}` EXECUTION 1건 — 매수 또는 매도 체결
-- [ ] `/topic/trading/{id}` RETRY 1건 — 매도 발송 실패 누적
-- [ ] `/topic/trading/lifecycle` CREATED + CLOSED 1건씩
-- [ ] `/topic/market` MARKET_MODE / HOLIDAY 1건씩
-- [ ] `/topic/account` BALANCE_INVALIDATED — CREATED/CLOSED 동반 발행 검증
+- [x] `TradingServiceBroadcastTest` (IntegrationTestBase + `MessagingTemplateMockConfig`):
+  service.create → publishEvent → @EventListener listener → broadcaster → `messagingTemplate.convertAndSend`까지의 사슬을 1건 검증 (CREATED + BALANCE_INVALIDATED 동반 발행)
+
+> wire 통합(STOMP 클라이언트 + JSON 직렬화)은 framework 신뢰 영역으로 제외.
+> 페이로드 contract / 토픽 path는 broadcaster 단위 테스트에서 검증.
 
 ## Verification
 
-- [ ] `./gradlew test` 전체 통과
-- [ ] STOMP 페이로드가 spec §11.5 스키마와 1:1 일치 (필드명/타입)
+- [x] `./gradlew test` 전체 통과
+- [x] STOMP 페이로드가 spec §11.5 스키마와 1:1 일치 (필드명/타입은 broadcaster 단위 테스트에서)
 
 ---
 
