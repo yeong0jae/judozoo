@@ -1,5 +1,6 @@
 package at.backend.trading.application
 
+import at.backend.common.test.CycleOrchestratorMockConfig
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
@@ -21,16 +22,18 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
 import io.mockk.every
+import io.mockk.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 
-@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
+@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class, CycleOrchestratorMockConfig::class)
 class TradingServiceTest(
     @Autowired private val tradingService: TradingService,
     @Autowired private val tradingCycleRepository: TradingCycleJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
     @Autowired private val timeProvider: MutableTimeProvider,
+    @Autowired private val cycleOrchestrator: at.backend.trading.application.CycleOrchestrator,
 ) : IntegrationTestBase() {
 
     private fun stubSearchStock(name: String = "삼성전자") {
@@ -103,6 +106,7 @@ class TradingServiceTest(
     init {
         beforeEach {
             clearMocks(kisRestClient)
+            clearMocks(cycleOrchestrator)
             tradingCycleRepository.deleteAll()
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
             stubAllKisSuccess()
@@ -235,6 +239,40 @@ class TradingServiceTest(
 
             test("없는 id 취소 시 EntityNotFoundException 발생") {
                 shouldThrow<EntityNotFoundException> { tradingService.cancel(99L) }
+            }
+        }
+
+        context("오케스트레이터 연동") {
+            test("정상 생성 시 트랜잭션 커밋 후 사이클 실행이 시작된다") {
+                val result = tradingService.create(validInput())
+
+                verify(exactly = 1) {
+                    cycleOrchestrator.start(match { it.id == result.id && it.stockCode == "005930" })
+                }
+            }
+
+            test("검증 실패 시 사이클 실행이 시작되지 않는다") {
+                stubSearchStockEmpty()
+
+                shouldThrow<TradingValidationException> { tradingService.create(validInput()) }
+
+                verify(exactly = 0) { cycleOrchestrator.start(any()) }
+            }
+
+            test("취소 시 트랜잭션 커밋 후 오케스트레이터 취소가 호출된다") {
+                val cycle = saveCycle(status = TradingCycleStatus.HOLDING)
+
+                tradingService.cancel(cycle.id)
+
+                verify(exactly = 1) { cycleOrchestrator.cancel(cycle.id) }
+            }
+
+            test("취소 검증 실패(CLOSED) 시 오케스트레이터 취소가 호출되지 않는다") {
+                val cycle = saveCycle(status = TradingCycleStatus.CLOSED)
+
+                shouldThrow<AlreadyClosedException> { tradingService.cancel(cycle.id) }
+
+                verify(exactly = 0) { cycleOrchestrator.cancel(any()) }
             }
         }
     }

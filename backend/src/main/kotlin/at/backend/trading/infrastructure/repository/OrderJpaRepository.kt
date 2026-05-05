@@ -21,4 +21,10 @@ interface OrderJpaRepository : JpaRepository<Order, Long> {
             "WHERE o.cycleId = :cycleId AND o.side = 'SELL' AND o.status = 'PENDING'"
     )
     fun findInFlightSells(@Param("cycleId") cycleId: Long): List<Order>
+
+    @Query(
+        "SELECT o FROM Order o " +
+            "WHERE o.cycleId = :cycleId AND o.side = 'BUY' AND o.status = 'PENDING'"
+    )
+    fun findInFlightBuys(@Param("cycleId") cycleId: Long): List<Order>
 }

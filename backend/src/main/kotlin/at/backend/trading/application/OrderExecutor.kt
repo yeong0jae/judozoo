@@ -107,14 +107,21 @@ class OrderExecutor(
         }
     }
 
+    fun cancelInFlightBuys(cycleId: Long) {
+        cancelInFlight(orderRepository.findInFlightBuys(cycleId), cycleId, "매수")
+    }
+
     private fun cancelInFlightSells(cycleId: Long) {
-        val orders = orderRepository.findInFlightSells(cycleId)
+        cancelInFlight(orderRepository.findInFlightSells(cycleId), cycleId, "매도")
+    }
+
+    private fun cancelInFlight(orders: List<Order>, cycleId: Long, label: String) {
         for (order in orders) {
             val orgno = order.krxFwdgOrdOrgno
             val odno = order.kisOrderNo
             if (orgno != null && odno != null) {
                 runCatching { kisRestClient.cancelRemainder(orgno, odno) }
-                    .onFailure { log.warn("매도 잔량 취소 실패 cycleId={}, orderId={}", cycleId, order.id, it) }
+                    .onFailure { log.warn("$label 잔량 취소 실패 cycleId={}, orderId={}", cycleId, order.id, it) }
             }
             order.markCancelled()
             orderRepository.save(order)
