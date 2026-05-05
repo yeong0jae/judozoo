@@ -35,9 +35,9 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 ## 레이아웃 / 헤더 / 인지 채널
 
 - [ ] `components/layout/Header` — 좌측 탭(매매명령/모니터링/실적) + 우측 (알림종 / 시스템배지 / STOMP배지 / 설정⚙)
-- [ ] `SystemStatusBadge` 재설계 — 5조건 진단 팝오버 (우선순위: 토큰>휴장>거래시간>컷오프>시세모드)
-- [ ] `StompStatusBadge` — 연결됨/재연결중/끊김 + 팝오버
-- [ ] `NotificationBell` — 미확인 카운트 + 최근 이벤트 팝오버 + lastSeenAt 관리 (localStorage)
+- [x] `SystemStatusBadge` 재설계 — 5조건 진단 팝오버 (우선순위: 토큰>휴장>거래시간>컷오프>시세모드)
+- [x] `StompStatusBadge` — 연결됨/재연결중/끊김 + 팝오버
+- [x] `NotificationBell` — 미확인 카운트 + 최근 이벤트 팝오버 + lastSeenAt 관리 (localStorage)
 - [ ] `StompDisconnectionBanner` — 끊김 시 노란 띠, 복구 시 녹색 1.5s
 - [x] `Toast` 시스템 — `useToast` hook + 우하단 stacking + 종료 토스트는 closeReason 색
 - [ ] 탭 제목 + Favicon 빨간 점 (미확인 ≥ 1)
