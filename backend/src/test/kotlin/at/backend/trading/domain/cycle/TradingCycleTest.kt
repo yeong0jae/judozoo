@@ -24,7 +24,7 @@ class TradingCycleTest : FunSpec({
         breakevenArmed: Boolean = false,
         trendBreakArmed: Boolean = false,
         buyAttempt: Int = 3,
-        stopLossPct: BigDecimal = BigDecimal("-0.02"),
+        stopLossPct: BigDecimal = BigDecimal("-2.0"),
         midwayProfitPct: BigDecimal = BigDecimal("3.0"),
     ) = TradingCycle(
         stockCode = "000660",
@@ -162,7 +162,7 @@ class TradingCycleTest : FunSpec({
                 splitSellRatio = BigDecimal("1.0"),
                 midwayProfitPct = BigDecimal("3.0"),
                 breakevenThresholdPct = BigDecimal("2.0"),
-                stopLossPct = BigDecimal("-0.02"),
+                stopLossPct = BigDecimal("-2.0"),
             ).splitSellQty(5) shouldBe Pair(5, 0)
         }
     }
