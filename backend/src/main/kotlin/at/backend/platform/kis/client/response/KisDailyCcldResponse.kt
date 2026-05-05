@@ -12,5 +12,6 @@ data class KisDailyCcldResponse(
         @JsonProperty("ord_tmd") val ordTmd: String,
         @JsonProperty("tot_ccld_qty") val totCcldQty: String,
         @JsonProperty("avg_prvs") val avgPrvs: String,
+        @JsonProperty("sll_buy_dvsn_cd") val sllBuyDvsnCd: String,
     )
 }

@@ -69,9 +69,9 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ### 4c-6. reconcile (timeout / WS 통보 누락)
 
-- [ ] `OrderExecutor.reconcile(order)`: `KisRestClient.getDailyExecutions` 호출 → `kisOrderNo` 우선 매칭, 없으면 시간 윈도우 ±30초 + 종목 + side + 수량 매칭; 1건 → `Order` + `Execution` 갱신; 0건 → 새 주문 발송 안전; 2건+ → `Order.markNeedsManualReview()` (운영 인지 채널)
-- [ ] `TradingCycleRunner` / `ExecutionNoticeHandler`에서 5초 timeout 시 `reconcile(order)` 1회 호출
-- [ ] 통합 테스트: WS 통보 누락 → reconcile 매칭 / 미매칭
+- [x] `OrderExecutor.reconcile(order)`: `KisRestClient.getDailyExecutions` 호출 → `kisOrderNo` 우선 매칭, 없으면 시간 윈도우 ±30초 + 종목 + side + 수량 매칭; 1건 → `Order` + `Execution` 갱신; 0건 → 새 주문 발송 안전; 2건+ → `Order.markNeedsManualReview()` (운영 인지 채널)
+- [x] `TradingCycleRunner` / `ExecutionNoticeHandler`에서 5초 timeout 시 `reconcile(order)` 1회 호출
+- [x] 통합 테스트: WS 통보 누락 → reconcile 매칭 / 미매칭
 
 ### 4c-7. 스케줄러 + 시작 hook
 
