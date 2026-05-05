@@ -1,6 +1,7 @@
 package at.backend.trading.application
 
 import at.backend.common.test.*
+import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
 import at.backend.market.infrastructure.BarCache
@@ -22,6 +23,7 @@ import io.mockk.clearMocks
 import io.mockk.every
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
@@ -42,6 +44,7 @@ class TradingCycleScenarioTest(
     @Autowired private val cycleOrchestrator: CycleOrchestrator,
     @Autowired private val orderExecutor: OrderExecutor,
     @Autowired private val barCache: BarCache,
+    @Autowired private val marketDataStream: MarketDataStream,
 ) : IntegrationTestBase() {
 
     private val stockCode = "005930"
@@ -188,32 +191,15 @@ class TradingCycleScenarioTest(
     }
 
     private suspend fun reachHoldingFullyFilled(cycleId: Long, fillPrice: Int) {
-        try {
-            withTimeout(10_000.milliseconds) {
-                while (true) {
-                    fillAllPendingBuys(cycleId, fillPrice)
-                    val buys = orderRepository.findByCycleId(cycleId).filter { it.side == "BUY" }
-                    if (buys.size == 3 && buys.all { it.filledQty > 0 }) break
-                    delay(20)
-                }
+        withTimeout(10_000.milliseconds) {
+            while (true) {
+                fillAllPendingBuys(cycleId, fillPrice)
+                val buys = orderRepository.findByCycleId(cycleId).filter { it.side == "BUY" }
+                if (buys.size == 3 && buys.all { it.filledQty > 0 }) break
+                delay(20)
             }
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            val buys = orderRepository.findByCycleId(cycleId).filter { it.side == "BUY" }
-            val c = cycleRepository.findById(cycleId).get()
-            throw RuntimeException(
-                "DIAG fillTimeout cycleId=$cycleId, status=${c.status}, buys=${buys.size}, " +
-                        "filled=${buys.map { it.filledQty }}, kisNos=${buys.map { it.kisOrderNo }}"
-            )
         }
-        try {
-            waitUntilCycle(cycleId, timeoutMillis = 10_000) { it.status == TradingCycleStatus.HOLDING }
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            val c = cycleRepository.findById(cycleId).get()
-            throw RuntimeException(
-                "DIAG holdingTimeout cycleId=$cycleId, status=${c.status}, closeReason=${c.closeReason}, " +
-                        "buyAttempt=${c.buyAttempt}"
-            )
-        }
+        waitUntilCycle(cycleId, timeoutMillis = 10_000) { it.status == TradingCycleStatus.HOLDING }
     }
 
     init {
@@ -317,6 +303,28 @@ class TradingCycleScenarioTest(
                 buys.size shouldBe 1
             }
 
+            test("취소: 1차 체결 후 cancel 시 보유분 청산 매도 발사 → CLOSED(CANCELLED)") {
+                val created = tradingService.create(validInput(buyIntervalMin = 30))
+
+                waitUntilOrders(created.id) { orders ->
+                    orders.any { it.side == "BUY" && it.kisOrderNo != null }
+                }
+                val firstBuy = orderRepository.findByCycleId(created.id).first { it.side == "BUY" }
+                fillBuyOrder(firstBuy, firstBuy.orderQty, 70_000)
+
+                tradingService.cancel(created.id)
+
+                waitUntilOrders(created.id, timeoutMillis = 10_000) { orders ->
+                    orders.any { it.side == "SELL" && it.kisOrderNo != null }
+                }
+                val sell = orderRepository.findByCycleId(created.id).first { it.side == "SELL" }
+                fillSellOrder(sell, sell.orderQty)
+                waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
+
+                val refreshed = cycleRepository.findById(created.id).get()
+                refreshed.closeReason shouldBe CloseReason.CANCELLED
+            }
+
             test("시스템 다운 후 재시작: 활성 사이클들이 UNCLOSED로 일괄 마감") {
                 val activeStatuses = listOf(
                     TradingCycleStatus.INITIATED,
@@ -349,19 +357,28 @@ class TradingCycleScenarioTest(
                 }
             }
 
-            test("15:20 강제 청산: HOLDING 상태에서 broadcastMarketClose 시 매도 후 CLOSED(MARKET_CLOSE)") {
+            test("15:20 강제 청산: TpStage 분할 익절 후 잔여 보유분에 MarketClose 발행, CLOSED(MARKET_CLOSE)") {
                 val created = tradingService.create(validInput())
 
                 run {
                     reachHoldingFullyFilled(created.id, fillPrice = 70_000)
 
+                    emitTicksUntil(price = 71_580) {
+                        orderRepository.findByCycleId(created.id)
+                            .any { it.side == "SELL" && it.trigger == "TP_STAGE_2" && it.kisOrderNo != null }
+                    }
+                    val tpSell = orderRepository.findByCycleId(created.id)
+                        .first { it.side == "SELL" && it.trigger == "TP_STAGE_2" }
+                    fillSellOrder(tpSell, tpSell.orderQty)
+
                     cycleOrchestrator.broadcastMarketClose()
 
                     waitUntilOrders(created.id) { orders ->
-                        orders.any { it.side == "SELL" && it.kisOrderNo != null }
+                        orders.any { it.side == "SELL" && it.trigger == "MarketClose" && it.kisOrderNo != null }
                     }
-                    val sell = orderRepository.findByCycleId(created.id).first { it.side == "SELL" }
-                    fillSellOrder(sell, sell.orderQty)
+                    val mcSell = orderRepository.findByCycleId(created.id)
+                        .first { it.side == "SELL" && it.trigger == "MarketClose" }
+                    fillSellOrder(mcSell, mcSell.orderQty)
                     waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
                 }
 
@@ -432,13 +449,13 @@ class TradingCycleScenarioTest(
                 refreshed.closeReason shouldBe CloseReason.BREAKEVEN
             }
 
-            test("WS 끊김 + REST 폴링 fallback: 폴링으로 시그널 평가 지속해 손절") {
+            test("WS 끊김 + REST 폴링 fallback: 폴링으로 시그널 평가 지속해 손절, 재연결 시 WS 복귀") {
                 val created = tradingService.create(validInput())
 
+                val channels = KisWebSocketClientMockConfig.channelsOf(webSocketClient)
                 run {
                     reachHoldingFullyFilled(created.id, fillPrice = 70_000)
 
-                    val channels = KisWebSocketClientMockConfig.channelsOf(webSocketClient)
                     channels.connectionState.emit(false)
                     every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
                         output = KisCurrentPriceResponse.Output(stckPrpr = "60000")
@@ -453,8 +470,13 @@ class TradingCycleScenarioTest(
                 }
 
                 val refreshed = cycleRepository.findById(created.id).get()
-                refreshed.status shouldBe TradingCycleStatus.CLOSED
                 refreshed.closeReason shouldBe CloseReason.STOP_LOSS
+
+                channels.connectionState.emit(true)
+                val modeAfter = kotlinx.coroutines.withTimeoutOrNull(2000.milliseconds) {
+                    marketDataStream.mode.first { it == MarketDataStream.MarketMode.WS }
+                }
+                modeAfter shouldBe MarketDataStream.MarketMode.WS
             }
 
             test("주문 타임아웃 reconcile: WS 무응답 시 일별 체결 조회로 매도 매칭") {
