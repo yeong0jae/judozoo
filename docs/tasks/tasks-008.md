@@ -27,9 +27,9 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 
 ## 알림 채널 wire (NotificationProvider)
 
-- [ ] `/topic/trading/lifecycle` 전역 구독 → CLOSED 이벤트를 NotificationProvider에 누적 (lastSeenAt 이후만)
-- [ ] 탭 제목 / Favicon 점 / OS Notification API (권한 1회 요청) / 사운드 — Settings 토글에 따라 분기
-- [ ] UNCLOSED / NO_FILL은 종 빨강 + OS 알림 강조 변형
+- [x] `/topic/trading/lifecycle` 전역 구독 → CLOSED 이벤트를 NotificationProvider에 누적 (lastSeenAt 이후만)
+- [x] 탭 제목 / OS Notification API (Settings 토글 시 권한 1회 요청) / 사운드 — Settings 토글에 따라 분기
+- [x] UNCLOSED / NO_FILL은 종 빨강 + OS 알림 `requireInteraction` 강조
 
 ## 매매 명령 화면 wire
 
