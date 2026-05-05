@@ -26,6 +26,37 @@ private data class Fixture(
     val sent: MutableList<String>,
 )
 
+/**
+ * H0STCNI0 응답 본문 빌더 — KIS docs 필드 순서대로 14개 슬롯 채움.
+ * 0:CUST_ID 1:ACNT_NO 2:ODER_NO 3:OODER_NO 4:SELN_BYOV_CLS 5:RCTF_CLS
+ * 6:ODER_KIND 7:ODER_COND 8:STCK_SHRN_ISCD 9:CNTG_QTY 10:CNTG_UNPR
+ * 11:STCK_CNTG_HOUR 12:RFUS_YN 13:CNTG_YN
+ */
+private fun executionFields(
+    orderNo: String,
+    side: String,
+    stockCode: String,
+    qty: String,
+    price: String,
+    rfusYn: String,
+    cntgYn: String,
+): String = listOf(
+    "_",        // 0 CUST_ID
+    "_",        // 1 ACNT_NO
+    orderNo,    // 2 ODER_NO
+    "_",        // 3 OODER_NO
+    side,       // 4 SELN_BYOV_CLS
+    "_",        // 5 RCTF_CLS
+    "_",        // 6 ODER_KIND
+    "_",        // 7 ODER_COND
+    stockCode,  // 8 STCK_SHRN_ISCD
+    qty,        // 9 CNTG_QTY
+    price,      // 10 CNTG_UNPR
+    "_",        // 11 STCK_CNTG_HOUR
+    rfusYn,     // 12 RFUS_YN
+    cntgYn,     // 13 CNTG_YN
+).joinToString("^")
+
 private fun fixture(mapper: JsonMapper): Fixture {
     val properties = mockk<KisProperties>(relaxed = true).apply {
         every { wsUrl } returns "ws://localhost:9999"
@@ -147,26 +178,17 @@ class KisWebSocketClientTest : FunSpec({
 
         test("H0STCNI0 평문 프레임에서 ExecutionNotice를 추출한다") {
             val (client, session, _) = fixture(mapper)
-            // [2]=주문번호, [4]=매도매수구분(02=매수), [7]=체결단가, [12]=체결수량, [15]=종목코드
-            val body = listOf(
-                "_",
-                "_",
-                "0000123456",
-                "_",
-                "02",
-                "_",
-                "_",
-                "70000",
-                "_",
-                "_",
-                "_",
-                "_",
-                "10",
-                "_",
-                "_",
-                "005930"
+            // KIS docs 기준 0-indexed: [2]ODER_NO [4]SELN_BYOV_CLS [8]STCK_SHRN_ISCD
+            //                          [9]CNTG_QTY [10]CNTG_UNPR [12]RFUS_YN [13]CNTG_YN
+            val body = executionFields(
+                orderNo = "0000123456",
+                side = "02",        // 매수
+                stockCode = "005930",
+                qty = "10",
+                price = "70000",
+                rfusYn = "0",       // 승인
+                cntgYn = "2",       // 체결
             )
-                .joinToString("^")
             val frame = "0|H0STCNI0|001|$body"
 
             val notice = coroutineScope {
@@ -180,6 +202,71 @@ class KisWebSocketClientTest : FunSpec({
             notice.executedPrice shouldBe 70_000
             notice.executedQty shouldBe 10
             notice.stockCode shouldBe "005930"
+        }
+
+        test("H0STCNI0 접수통보(CNTG_YN=1)와 거부(RFUS_YN=1)는 무시되고 체결만 emit된다") {
+            val (client, session, _) = fixture(mapper)
+            val rejected = executionFields(
+                orderNo = "REJECT", side = "02", stockCode = "005930",
+                qty = "10", price = "70000",
+                rfusYn = "1",       // 거부 — 무시
+                cntgYn = "2",
+            )
+            val acknowledged = executionFields(
+                orderNo = "ACK", side = "02", stockCode = "005930",
+                qty = "10", price = "70000", rfusYn = "0",
+                cntgYn = "1",       // 접수통보 — 무시
+            )
+            val executed = executionFields(
+                orderNo = "FILL", side = "02", stockCode = "005930",
+                qty = "10", price = "70000", rfusYn = "0",
+                cntgYn = "2",       // 체결 — emit
+            )
+
+            val notice = coroutineScope {
+                val deferred = async { withTimeout(1000.milliseconds) { client.executionNotices.first() } }
+                delay(50.milliseconds)
+                client.handler.handleMessage(session, TextMessage("0|H0STCNI0|001|$rejected"))
+                client.handler.handleMessage(session, TextMessage("0|H0STCNI0|001|$acknowledged"))
+                client.handler.handleMessage(session, TextMessage("0|H0STCNI0|001|$executed"))
+                deferred.await()
+            }
+            // 거부/접수통보가 모두 무시되고 첫 emit은 체결만
+            notice.kisOrderNo shouldBe "FILL"
+        }
+
+        test("SUBSCRIBE SUCCESS 응답의 iv/key를 받아 이후 암호화 H0STCNI0 프레임을 복호화한다") {
+            val (client, session, _) = fixture(mapper)
+            // 32바이트 key + 16바이트 iv (AES-256-CBC)
+            val key = "0123456789abcdef0123456789abcdef"
+            val iv = "0123456789abcdef"
+            val subscribeAck = """{"header":{"tr_id":"H0STCNI0"},"body":{"output":{"key":"$key","iv":"$iv"}}}"""
+            client.handler.handleMessage(session, TextMessage(subscribeAck))
+
+            val plaintext = executionFields(
+                orderNo = "ENC123", side = "01", stockCode = "005930",
+                qty = "5", price = "80000", rfusYn = "0", cntgYn = "2",
+            )
+            val cipher = javax.crypto.Cipher.getInstance("AES/CBC/PKCS5Padding")
+            cipher.init(
+                javax.crypto.Cipher.ENCRYPT_MODE,
+                javax.crypto.spec.SecretKeySpec(key.toByteArray(), "AES"),
+                javax.crypto.spec.IvParameterSpec(iv.toByteArray()),
+            )
+            val encrypted = java.util.Base64.getEncoder()
+                .encodeToString(cipher.doFinal(plaintext.toByteArray()))
+            val frame = "1|H0STCNI0|001|$encrypted"
+
+            val notice = coroutineScope {
+                val deferred = async { withTimeout(1000.milliseconds) { client.executionNotices.first() } }
+                delay(50.milliseconds)
+                client.handler.handleMessage(session, TextMessage(frame))
+                deferred.await()
+            }
+            notice.kisOrderNo shouldBe "ENC123"
+            notice.side shouldBe "SELL"
+            notice.executedQty shouldBe 5
+            notice.executedPrice shouldBe 80_000
         }
 
         test("필드 수가 부족한 H0STCNT0 프레임은 예외 없이 무시된다") {

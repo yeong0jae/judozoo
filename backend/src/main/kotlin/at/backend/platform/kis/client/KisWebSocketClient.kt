@@ -17,11 +17,15 @@ import org.springframework.web.socket.WebSocketMessage
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.client.WebSocketClient
 import java.time.Instant
+import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class KisWebSocketClient(
     private val properties: KisProperties,
@@ -33,6 +37,8 @@ class KisWebSocketClient(
     private val log = LoggerFactory.getLogger(javaClass)
     private val sessionRef = AtomicReference<WebSocketSession?>(null)
     private val subscriptions = ConcurrentHashMap.newKeySet<Subscription>()
+    // tr_id별 AES256 복호화 키 (구독 SUBSCRIBE SUCCESS 응답에서 추출)
+    private val cipherKeys = ConcurrentHashMap<String, AesKey>()
     private val reconnectExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "kis-ws-reconnect").apply { isDaemon = true } }
 
@@ -139,21 +145,56 @@ class KisWebSocketClient(
 
     private fun handleJsonMessage(session: WebSocketSession, payload: String) {
         val node = objectMapper.readTree(payload)
-        val trId = node.path("header").path("tr_id").asText()
+        val header = node.path("header")
+        val trId = header.path("tr_id").asText()
         if (trId == "PINGPONG") {
             session.sendMessage(TextMessage(payload))
+            return
+        }
+        // SUBSCRIBE SUCCESS 응답에서 AES256 iv/key 추출 (체결통보 H0STCNI0 복호화용)
+        val output = node.path("body").path("output")
+        val key = output.path("key").asText("")
+        val iv = output.path("iv").asText("")
+        if (key.isNotBlank() && iv.isNotBlank()) {
+            cipherKeys[trId] = AesKey(key.toByteArray(), iv.toByteArray())
+            log.info("KIS WS 복호화 키 등록: trId={}", trId)
         }
     }
 
     private fun handleRealtimeFrame(payload: String) {
         val parts = payload.split("|", limit = 4)
         if (parts.size < 4) return
+        val encrypted = parts[0] == "1"
         val trId = parts[1]
-        val body = parts[3]
-        // TODO Phase 7 sanity check: 실서버 응답으로 필드 인덱스 / 암호화 처리 검증
+        val rawBody = parts[3]
+        val body = if (encrypted) {
+            val cipher = cipherKeys[trId] ?: run {
+                log.warn("KIS WS 암호화 응답이지만 key 없음: trId={}", trId)
+                return
+            }
+            decryptAes256(rawBody, cipher) ?: return
+        } else {
+            rawBody
+        }
         when (trId) {
             TR_PRICE -> parsePriceTick(body)?.let { _priceTicks.tryEmit(it) }
             TR_EXEC -> parseExecutionNotice(body)?.let { _executionNotices.tryEmit(it) }
+        }
+    }
+
+    private fun decryptAes256(base64Body: String, key: AesKey): String? {
+        return try {
+            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                SecretKeySpec(key.key, "AES"),
+                IvParameterSpec(key.iv),
+            )
+            val decoded = Base64.getDecoder().decode(base64Body)
+            String(cipher.doFinal(decoded), Charsets.UTF_8)
+        } catch (e: Exception) {
+            log.warn("KIS WS 복호화 실패: trId payload prefix={}", base64Body.take(20), e)
+            null
         }
     }
 
@@ -165,15 +206,27 @@ class KisWebSocketClient(
         return PriceTick(stockCode = stockCode, price = price, timestamp = Instant.now())
     }
 
+    // H0STCNI0 응답 필드 매핑 (docs 순서, ^ 분리, 0-indexed):
+    //  0:CUST_ID 1:ACNT_NO 2:ODER_NO 3:OODER_NO 4:SELN_BYOV_CLS 5:RCTF_CLS
+    //  6:ODER_KIND 7:ODER_COND 8:STCK_SHRN_ISCD 9:CNTG_QTY 10:CNTG_UNPR
+    //  11:STCK_CNTG_HOUR 12:RFUS_YN 13:CNTG_YN 14:ACPT_YN ...
     private fun parseExecutionNotice(body: String): ExecutionNotice? {
         val fields = body.split("^")
-        if (fields.size < 16) return null
+        if (fields.size < 14) return null
+        // CNTG_YN: "1" 접수통보(주문/정정/취소/거부), "2" 체결통보 — 체결만 처리
+        if (fields[13] != "2") return null
+        // RFUS_YN: "1" 거부 — 무시
+        if (fields[12] == "1") return null
         val sideCode = fields[4]
-        val side = when (sideCode) { "02" -> "BUY"; "01" -> "SELL"; else -> return null }
+        val side = when (sideCode) {
+            "02" -> "BUY"
+            "01" -> "SELL"
+            else -> return null
+        }
         val orderNo = fields[2].takeIf { it.isNotBlank() } ?: return null
-        val price = fields[7].toIntOrNull()?.takeIf { it > 0 } ?: return null
-        val qty = fields[12].toIntOrNull()?.takeIf { it > 0 } ?: return null
-        val stockCode = fields[15].takeIf { it.isNotBlank() } ?: return null
+        val stockCode = fields[8].takeIf { it.isNotBlank() } ?: return null
+        val qty = fields[9].toIntOrNull()?.takeIf { it > 0 } ?: return null
+        val price = fields[10].toIntOrNull()?.takeIf { it > 0 } ?: return null
         return ExecutionNotice(
             kisOrderNo = orderNo,
             stockCode = stockCode,
@@ -197,6 +250,12 @@ class KisWebSocketClient(
     }
 
     private data class Subscription(val trId: String, val trKey: String)
+
+    private data class AesKey(val key: ByteArray, val iv: ByteArray) {
+        // ByteArray equals/hashCode는 reference 비교라 적합하지 않음. ConcurrentHashMap 키로 안 쓰니 default 유지.
+        override fun equals(other: Any?): Boolean = this === other
+        override fun hashCode(): Int = System.identityHashCode(this)
+    }
 
     companion object {
         private const val TR_PRICE = "H0STCNT0"
