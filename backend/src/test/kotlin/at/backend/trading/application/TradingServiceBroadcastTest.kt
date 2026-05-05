@@ -46,7 +46,7 @@ class TradingServiceBroadcastTest(
             output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "100000000"))
         )
         every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
-            output = listOf(KisHolidayResponse.Output(bzdyYn = "Y"))
+            output = KisHolidayResponse.Output(opndYn = "Y")
         )
     }
 

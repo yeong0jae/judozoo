@@ -64,8 +64,8 @@ class TradingValidator(
     }
 
     private fun validateHoliday(now: LocalDateTime) {
-        val isBusinessDay = kisRestClient.checkHoliday(now.toLocalDate()).output.firstOrNull()?.bzdyYn == "Y"
-        if (!isBusinessDay) throw TradingValidationException(TradingValidationException.ErrorCode.HOLIDAY)
+        val isMarketOpen = kisRestClient.checkHoliday(now.toLocalDate()).output.opndYn == "Y"
+        if (!isMarketOpen) throw TradingValidationException(TradingValidationException.ErrorCode.HOLIDAY)
     }
 
     private fun validateTradingHours(now: LocalTime) {

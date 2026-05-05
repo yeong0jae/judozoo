@@ -52,7 +52,7 @@ class TradingValidatorTest : FunSpec({
         every { tradingCycleRepository.findByStatusIn(any()) } returns emptyList()
         every { tradingCycleRepository.findByStockCodeAndStatusIn(any(), any()) } returns emptyList()
         every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
-            output = listOf(KisHolidayResponse.Output(bzdyYn = "Y"))
+            output = KisHolidayResponse.Output(opndYn = "Y")
         )
     }
 
@@ -205,7 +205,7 @@ class TradingValidatorTest : FunSpec({
             every { tradingCycleRepository.findByStatusIn(any()) } returns emptyList()
             every { tradingCycleRepository.findByStockCodeAndStatusIn(any(), any()) } returns emptyList()
             every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
-                output = listOf(KisHolidayResponse.Output(bzdyYn = "N"))
+                output = KisHolidayResponse.Output(opndYn = "N")
             )
 
             val ex = shouldThrow<TradingValidationException> {
