@@ -1,12 +1,15 @@
 package at.backend.trading.infrastructure.scheduler
 
 import at.backend.library.time.TimeProvider
+import at.backend.market.domain.event.HolidayChanged
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.application.CommandGate
 import at.backend.trading.application.CycleOrchestrator
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import java.time.ZoneId
 
 @Component
 class TradingSchedulerService(
@@ -14,6 +17,7 @@ class TradingSchedulerService(
     private val commandGate: CommandGate,
     private val kisRestClient: KisRestClient,
     private val timeProvider: TimeProvider,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -34,12 +38,19 @@ class TradingSchedulerService(
             commandGate.close()
             return
         }
+        val instant = timeProvider.now().atZone(KST).toInstant()
         if (isBusinessDay) {
             commandGate.open()
+            eventPublisher.publishEvent(HolidayChanged(isHoliday = false, ts = instant))
             log.info("영업일 — 명령 접수 게이트 OPEN")
         } else {
             commandGate.close()
+            eventPublisher.publishEvent(HolidayChanged(isHoliday = true, ts = instant))
             log.info("휴장일 — 명령 접수 게이트 CLOSED")
         }
+    }
+
+    companion object {
+        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
     }
 }
