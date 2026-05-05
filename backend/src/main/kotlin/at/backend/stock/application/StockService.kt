@@ -13,7 +13,8 @@ class StockService(
 
     fun search(query: String): List<StockSearchResult> {
         val output = kisRestClient.searchStock(query).output
-        return listOf(StockSearchResult(stockCode = output.pdno, stockName = output.prdtAbrvName))
+        // KIS pdno는 12자리 패딩 (예: "00000A005930"). 거래 ID로는 6자리만 사용한다.
+        return listOf(StockSearchResult(stockCode = query, stockName = output.prdtAbrvName))
     }
 
     fun getPrice(stockCode: String): StockPriceResult {
