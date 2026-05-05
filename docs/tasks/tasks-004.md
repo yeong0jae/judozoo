@@ -80,29 +80,6 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
   - `@Scheduled(cron = "0 0 8 * * MON-FRI", zone = "Asia/Seoul")`: 영업일 검증 + 명령 접수 게이트 토글
 - [x] `BackendApplication` 시작 hook (`ApplicationRunner` 또는 `@EventListener(ApplicationReadyEvent::class)`): 활성 상태(`IN (INITIATED, BUYING, HOLDING, LIQUIDATING)`) 사이클 조회 → 각 cycle `cycle.close(UNCLOSED, now)` 일괄 저장
 
-## End-to-end 통합 테스트 (`TradingCycleE2ETest`, IntegrationTestBase)
+## Follow-up
 
-- [ ] 정상 사이클: 3회 매수 → 봉 종료에서 +2%/+3%/+5% 단계 발동 → 추세 꺾임 잔여 매도 → CLOSED(TAKE_PROFIT)
-- [ ] 손절: HOLDING 중 -2% → CLOSED(STOP_LOSS)
-- [ ] 본전 매도: +2% 도달 무장 → 매수가 도달 → 전량 매도 → CLOSED(BREAKEVEN); 무장만 된 봉 종료 후 다음 봉 재충족 시 재발동 검증
-- [ ] 취소: BUYING 1차 in-flight 중 cancel → in-flight 매수 취소 + 보유분 청산 → CLOSED(CANCELLED)
-- [ ] 부분 체결 / NO_FILL: 3회 모두 미체결 → 보유 0 → CLOSED(NO_FILL) 직행
-- [ ] WS 끊김 + REST 폴링 fallback: WebSocket 강제 종료 → 폴링으로 시그널 평가 지속 → 재연결 시 WS 복귀
-- [ ] 주문 타임아웃 reconcile: 매도 5초 무응답 → 일별 체결 조회 매칭 → 재발사 안 함
-- [ ] 다중 종목 동시 운용 (3개): 동일 흐름이 격리되어 동시 진행, 서로의 Mutex/잔고에 영향 없음
-- [ ] 15:20 강제 청산: TpStage 분할 익절 후 잔여 보유분 → MarketClose 일제 발행 → CLOSED(MARKET_CLOSE)
-- [ ] 시스템 다운 후 재시작 자동 마감: 활성 사이클 있는 상태에서 재기동 → 모두 CLOSED(UNCLOSED) 검증
-
-## Verification
-
-- [ ] `./gradlew test` 전체 통과
-- [ ] 코루틴 누수 / Mutex deadlock 없음 (E2E 반복 실행 3회 안정)
-- [ ] `at.backend.trading` + `at.backend.market` 라인 커버리지 70%+
-
----
-
-## Definition of Done
-
-- 위 9개 E2E 시나리오 통과
-- 시스템 다운 후 재시작 시 활성 사이클 → UNCLOSED 자동 마감 검증
-- Phase 5 진입 가능 상태 (도메인 이벤트 발생점이 STOMP broadcast hook 부착 가능 위치에 정렬됨)
+E2E 시나리오 / Verification / DoD는 [`tasks-005.md`](./tasks-005.md)에서 별도 PR로 검증한다.
