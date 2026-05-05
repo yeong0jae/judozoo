@@ -1,6 +1,6 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { useEffect, useRef, useState } from "react";
-import { useStompState } from "../../ws/stompMock";
+import { useStompState } from "../../ws/StompProvider";
 export default function StompDisconnectionBanner() {
     const { state } = useStompState();
     const [showRecovered, setShowRecovered] = useState(false);

@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useRef, useState } from "react";
-import { useStompState } from "../../ws/stompMock";
+import { useStompState } from "../../ws/StompProvider";
 import { formatRelative } from "../../lib/format";
 const META = {
     connected: {
