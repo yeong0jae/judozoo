@@ -3,6 +3,7 @@ import CommandPage from "./pages/CommandPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
 import SystemStatusBadge from "./components/SystemStatusBadge";
+import { ToastProvider } from "./components/toast/Toast";
 import { mockSystemStatus } from "./mocks/data";
 
 const navItem =
@@ -10,6 +11,14 @@ const navItem =
 const activeItem = "bg-zinc-800 text-white";
 
 export default function App() {
+  return (
+    <ToastProvider>
+      <AppShell />
+    </ToastProvider>
+  );
+}
+
+function AppShell() {
   return (
     <div className="min-h-full flex flex-col">
       <header className="border-b border-zinc-800 bg-zinc-950">
