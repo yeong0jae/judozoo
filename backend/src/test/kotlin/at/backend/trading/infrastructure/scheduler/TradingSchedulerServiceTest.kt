@@ -24,7 +24,7 @@ class TradingSchedulerServiceTest : FunSpec({
         val scheduler = TradingSchedulerService(orchestrator, gate, kis, time, mockk(relaxed = true))
         return Triple(scheduler, gate, orchestrator).also { _ ->
             every { kis.checkHoliday(any()) } returns KisHolidayResponse(
-                output = KisHolidayResponse.Output(opndYn = "Y")
+                output = listOf(KisHolidayResponse.Output(opndYn = "Y"))
             )
         }
     }
@@ -57,7 +57,7 @@ class TradingSchedulerServiceTest : FunSpec({
                 every { it.now() } returns LocalDateTime.of(2026, 5, 4, 8, 0)
             }
             every { kis.checkHoliday(any()) } returns KisHolidayResponse(
-                output = KisHolidayResponse.Output(opndYn = "N")
+                output = listOf(KisHolidayResponse.Output(opndYn = "N"))
             )
             val scheduler = TradingSchedulerService(orchestrator, gate, kis, time, mockk(relaxed = true))
 
