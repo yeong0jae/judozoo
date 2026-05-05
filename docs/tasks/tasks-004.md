@@ -62,10 +62,10 @@ Goal: `TradingService.create()`가 접수된 사이클을 백그라운드에서 
 
 ### 4c-5. CycleOrchestrator + 라우팅
 
-- [ ] `trading.application.CycleOrchestrator`: 활성 cycleId → TradingCycleRunner 매핑 (`ConcurrentHashMap`); `start(cycle)` 시 `MarketDataStream.subscribe(stockCode)` + `BarCache.subscribe`; 종료 시 `unsubscribe` (참조 카운트 자동 처리)
-- [ ] PriceTick/Bar 라우팅: `marketDataStream.priceTicks.collect`에서 stockCode 매칭되는 모든 활성 cycle에 fan-out (또는 runner가 자체 collect)
-- [ ] `TradingService.create()` 통합: 저장 직후 `CycleOrchestrator.start(savedCycle)` (트랜잭션 커밋 후)
-- [ ] `TradingService.cancel()` 통합: `cycle.requestCancel()` 호출 후 orchestrator에 신호 전달 → in-flight 매수 cancelRemainder + MarketClose 시그널 라우팅
+- [x] `trading.application.CycleOrchestrator`: 활성 cycleId → TradingCycleRunner 매핑 (`ConcurrentHashMap`); `start(cycle)` 시 `MarketDataStream.subscribe(stockCode)` + `BarCache.subscribe`; 종료 시 `unsubscribe` (참조 카운트 자동 처리)
+- [x] PriceTick/Bar 라우팅: `marketDataStream.priceTicks.collect`에서 stockCode 매칭되는 모든 활성 cycle에 fan-out (또는 runner가 자체 collect)
+- [x] `TradingService.create()` 통합: 저장 직후 `CycleOrchestrator.start(savedCycle)` (트랜잭션 커밋 후)
+- [x] `TradingService.cancel()` 통합: `cycle.requestCancel()` 호출 후 orchestrator에 신호 전달 → in-flight 매수 cancelRemainder + MarketClose 시그널 라우팅
 
 ### 4c-6. reconcile (timeout / WS 통보 누락)
 

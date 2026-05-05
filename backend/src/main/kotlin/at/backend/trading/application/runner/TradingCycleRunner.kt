@@ -77,8 +77,14 @@ class TradingCycleRunner(
         signals.send(signal)
     }
 
+    fun trySubmitSignal(signal: Signal): Boolean = signals.trySend(signal).isSuccess
+
     suspend fun cancel() {
         job?.cancelAndJoin()
+    }
+
+    suspend fun awaitCompletion() {
+        job?.join()
     }
 
     private suspend fun runBuySequence() {
