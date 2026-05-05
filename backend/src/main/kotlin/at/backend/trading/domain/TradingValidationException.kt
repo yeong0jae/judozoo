@@ -11,5 +11,6 @@ class TradingValidationException(val errorCode: ErrorCode) : RuntimeException(er
         CUTOFF_PASSED,
         HOLIDAY,
         OUT_OF_TRADING_HOURS,
+        COMMAND_GATE_CLOSED,
     }
 }
