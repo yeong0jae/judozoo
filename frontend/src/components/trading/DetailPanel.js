@@ -27,27 +27,105 @@ function SummaryHeader({ detail, onCancel, live, }) {
     return (_jsx("div", { className: "bg-zinc-950 px-6 py-5 border-b border-zinc-800", children: _jsxs("div", { className: "flex items-start justify-between gap-4 flex-wrap", children: [_jsxs("div", { className: "min-w-0", children: [_jsxs("div", { className: "flex items-center gap-2 mb-2 flex-wrap", children: [_jsx(StatusPill, { status: detail.status }), isClosed && detail.closeReason && (_jsx(CloseReasonBadge, { reason: detail.closeReason })), _jsxs("h2", { className: "text-xl font-semibold", children: [detail.stockName, _jsx("span", { className: "text-sm text-zinc-500 ml-2", children: detail.stockCode })] })] }), _jsxs("div", { className: "flex gap-x-6 gap-y-1 text-sm text-zinc-400 flex-wrap", children: [_jsxs("span", { children: ["\uD3C9\uB2E8", " ", _jsxs("span", { className: "text-zinc-200", children: [formatPrice(detail.averageBuyPrice), "\uC6D0"] })] }), _jsxs("span", { children: ["\uD604\uC7AC", " ", _jsxs("span", { className: "text-zinc-200", children: [formatPrice(detail.currentPrice), "\uC6D0"] })] }), _jsxs("span", { children: ["\uBCF4\uC720", " ", _jsx("span", { className: "text-zinc-200", children: formatQty(detail.holdingQty) })] }), _jsxs("span", { children: ["\uB204\uC801 \uB9E4\uC218", " ", _jsx("span", { className: "text-zinc-200", children: formatQty(detail.totalBoughtQty) })] })] })] }), _jsxs("div", { className: "flex items-start gap-4", children: [_jsxs("div", { className: "text-right", children: [_jsx(ProfitText, { value: detail.profitRate, format: formatPct, className: "text-2xl font-bold block" }), _jsx(ProfitText, { value: detail.profitAmount, format: formatKRW, className: "text-sm" })] }), !isClosed && live && onCancel && (_jsx("button", { onClick: onCancel, className: "bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 text-rose-200 px-3 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap", children: "\uCDE8\uC18C" }))] })] }) }));
 }
 function BuyProgressSection({ detail }) {
-    const lastBuy = detail.orders
-        .filter((o) => o.side === "BUY")
-        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
-    const remaining = detail.buyAttempt.total - detail.buyAttempt.completed;
-    const nextBuyAt = lastBuy && remaining > 0 && detail.status !== "CLOSED"
+    // 회차별 주문은 trigger=BUY_N으로 매칭. cycle.buyAttempt(시도 회차)에 의존하지 않고
+    // 실제 Order.status/filledQty로부터 상태 도출 — 발송 직후 PENDING을 "체결"로 오해하지 않게.
+    const buyOrders = detail.orders.filter((o) => o.side === "BUY");
+    const orderByRound = new Map();
+    for (const o of buyOrders) {
+        const m = o.trigger.match(/^BUY_(\d+)$/);
+        if (m)
+            orderByRound.set(parseInt(m[1], 10), o);
+    }
+    const lastBuy = buyOrders.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+    const isActive = detail.status === "INITIATED" || detail.status === "BUYING";
+    // 다음 매수 예정 회차 = 아직 주문 없는 가장 작은 회차 번호
+    const nextRound = (() => {
+        for (let r = 1; r <= detail.buyAttempt.total; r++) {
+            if (!orderByRound.has(r))
+                return r;
+        }
+        return null;
+    })();
+    const nextBuyAt = lastBuy && nextRound !== null && isActive
         ? new Date(new Date(lastBuy.submittedAt).getTime() +
-            detail.buyIntervalMin * 60_000).toISOString()
+            detail.buyIntervalMin * 60_000)
         : null;
     return (_jsxs(Section, { title: "\uB9E4\uC218 \uC9C4\uD589", children: [_jsx("div", { className: "grid grid-cols-3 gap-3", children: Array.from({ length: detail.buyAttempt.total }).map((_, i) => {
-                    const completed = i < detail.buyAttempt.completed;
-                    const isNext = i === detail.buyAttempt.completed && nextBuyAt !== null;
-                    return (_jsxs("div", { className: `border rounded p-3 ${completed
-                            ? "border-emerald-700/60 bg-emerald-950/30"
-                            : isNext
-                                ? "border-amber-700/60 bg-amber-950/30"
-                                : "border-zinc-800 bg-zinc-950"}`, children: [_jsxs("div", { className: "text-xs text-zinc-500 mb-1", children: ["\uD68C\uCC28 ", i + 1] }), _jsx("div", { className: "text-sm font-medium", children: completed
-                                    ? "✓ 체결"
-                                    : isNext
-                                        ? "⏱ 다음 매수"
-                                        : "대기" }), isNext && nextBuyAt && (_jsxs("div", { className: "text-xs text-amber-300 mt-1", children: ["~", formatTime(nextBuyAt)] }))] }, i));
+                    const round = i + 1;
+                    const order = orderByRound.get(round) ?? null;
+                    const isNext = order === null && round === nextRound && nextBuyAt;
+                    const view = roundView(order, isNext ? "next" : "idle");
+                    return (_jsxs("div", { className: `border rounded p-3 ${view.boxCls}`, children: [_jsxs("div", { className: "text-xs text-zinc-500 mb-1", children: ["\uD68C\uCC28 ", round] }), _jsx("div", { className: `text-sm font-medium ${view.textCls}`, children: view.label }), view.subLabel && (_jsx("div", { className: "text-xs text-zinc-400 mt-1", children: view.subLabel })), isNext && nextBuyAt && (_jsxs("div", { className: "text-xs text-amber-300 mt-1", children: ["~", formatTime(nextBuyAt)] })), order?.lastError && (_jsx("div", { className: "text-xs text-rose-400 mt-1 truncate", title: order.lastError, children: order.lastError }))] }, round));
                 }) }), _jsxs("div", { className: "text-xs text-zinc-500 mt-2", children: ["1\uD68C \uB9E4\uC218 ", formatKRW(detail.perBuyAmount), " \u00B7 \uAC04\uACA9", " ", detail.buyIntervalMin, "\uBD84"] })] }));
+}
+function roundView(order, fallback) {
+    if (order === null) {
+        if (fallback === "next") {
+            return {
+                label: "⏱ 다음 매수",
+                subLabel: null,
+                boxCls: "border-amber-700/60 bg-amber-950/30",
+                textCls: "",
+            };
+        }
+        return {
+            label: "대기",
+            subLabel: null,
+            boxCls: "border-zinc-800 bg-zinc-950",
+            textCls: "text-zinc-400",
+        };
+    }
+    switch (order.status) {
+        case "FILLED":
+            return {
+                label: "✓ 체결",
+                subLabel: `${order.filledQty}주`,
+                boxCls: "border-emerald-700/60 bg-emerald-950/30",
+                textCls: "",
+            };
+        case "PENDING":
+            return order.filledQty > 0
+                ? {
+                    label: "△ 부분 체결",
+                    subLabel: `${order.filledQty}/${order.orderQty}주`,
+                    boxCls: "border-amber-700/60 bg-amber-950/30",
+                    textCls: "text-amber-200",
+                }
+                : {
+                    label: "⏳ 발송됨",
+                    subLabel: `${order.orderQty}주 대기`,
+                    boxCls: "border-sky-800/60 bg-sky-950/30",
+                    textCls: "text-sky-200",
+                };
+        case "FAILED":
+            return {
+                label: "✗ 발송 실패",
+                subLabel: null,
+                boxCls: "border-rose-800/60 bg-rose-950/30",
+                textCls: "text-rose-200",
+            };
+        case "CANCELLED":
+            return {
+                label: "− 취소됨",
+                subLabel: order.filledQty > 0 ? `${order.filledQty}주 체결` : null,
+                boxCls: "border-zinc-700 bg-zinc-900",
+                textCls: "text-zinc-400",
+            };
+        case "NEEDS_REVIEW":
+            return {
+                label: "⚠ 확인 필요",
+                subLabel: null,
+                boxCls: "border-rose-800/60 bg-rose-950/30",
+                textCls: "text-rose-200",
+            };
+        default:
+            return {
+                label: order.status,
+                subLabel: null,
+                boxCls: "border-zinc-800 bg-zinc-950",
+                textCls: "text-zinc-300",
+            };
+    }
 }
 function SignalArmingBoard({ detail }) {
     return (_jsx(Section, { title: "\uC2DC\uADF8\uB110 \uBB34\uC7A5", children: _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-3", children: [_jsx(ArmCard, { label: "\uC775\uC808 \uB2E8\uACC4", children: _jsxs("div", { className: "flex gap-1.5", children: [_jsx(Stage, { label: "2%", fired: detail.tpStages.fired2pct }), _jsx(Stage, { label: "3%", fired: detail.tpStages.fired3pct }), _jsx(Stage, { label: "5%", fired: detail.tpStages.fired5pct })] }) }), _jsx(ArmCard, { label: "\uBCF8\uC804 \uB9E4\uB3C4", children: _jsx(ArmStatus, { armed: detail.breakevenArmed, icon: "\uD83D\uDEE1" }) }), _jsx(ArmCard, { label: "\uCD94\uC138 \uAEBE\uC784", children: _jsx(ArmStatus, { armed: detail.trendBreakArmed, icon: "\uD83D\uDCC9" }) })] }) }));

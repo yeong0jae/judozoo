@@ -179,12 +179,12 @@ function BuyProgressSection({ detail }: { detail: TradingDetail }) {
     }
     return null;
   })();
-  const nextBuyAt =
+  const nextBuyAt: Date | null =
     lastBuy && nextRound !== null && isActive
       ? new Date(
           new Date(lastBuy.submittedAt).getTime() +
             detail.buyIntervalMin * 60_000,
-        ).toISOString()
+        )
       : null;
 
   return (

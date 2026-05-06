@@ -47,7 +47,7 @@ class Order(
 
 ) : BaseEntity() {
 
-    fun acknowledge(kisOrderNo: String, krxFwdgOrdOrgno: String) {
+    fun acknowledge(kisOrderNo: String, krxFwdgOrdOrgno: String?) {
         this.kisOrderNo = kisOrderNo
         this.krxFwdgOrdOrgno = krxFwdgOrdOrgno
     }

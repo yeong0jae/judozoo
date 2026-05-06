@@ -18,12 +18,37 @@ export function formatPct(rate, digits = 2) {
     return `${sign}${pct.toFixed(digits)}%`;
 }
 // === Date / Time ===
-export function formatDateTime(iso) {
-    // "2026-05-05T14:23:45" → "2026-05-05 14:23:45"
-    return iso.slice(0, 10) + " " + iso.slice(11, 19);
+// 백엔드는 LocalDateTime을 timezone 없이 KST 문자열로 보내고 (예: "2026-05-06T13:04:05"),
+// 프론트에서 자체 계산한 시각은 UTC ISO("...Z")가 되므로 둘 다 KST로 정규화해 표시.
+const KST_FORMAT_OPTIONS = {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
+};
+export function formatDateTime(input) {
+    const d = typeof input === "string" ? new Date(input) : input;
+    if (Number.isNaN(d.getTime()))
+        return "-";
+    // ko-KR + Asia/Seoul → "2026. 05. 06. 13:04:05" → 정규화해 "2026-05-06 13:04:05" 형태로 변환
+    const parts = new Intl.DateTimeFormat("ko-KR", KST_FORMAT_OPTIONS).formatToParts(d);
+    const get = (t) => parts.find((p) => p.type === t)?.value ?? "";
+    return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
 }
-export function formatTime(iso) {
-    return iso.slice(11, 16); // HH:mm
+export function formatTime(input) {
+    const d = typeof input === "string" ? new Date(input) : input;
+    if (Number.isNaN(d.getTime()))
+        return "-";
+    return new Intl.DateTimeFormat("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Seoul",
+    }).format(d);
 }
 export function formatDuration(startIso, endIso) {
     const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
