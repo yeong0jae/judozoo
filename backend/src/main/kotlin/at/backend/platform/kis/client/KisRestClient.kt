@@ -2,13 +2,7 @@ package at.backend.platform.kis.client
 
 import at.backend.platform.kis.client.request.KisOrderCancelRequest
 import at.backend.platform.kis.client.request.KisOrderRequest
-import at.backend.platform.kis.client.response.KisBalanceResponse
-import at.backend.platform.kis.client.response.KisBarResponse
-import at.backend.platform.kis.client.response.KisCurrentPriceResponse
-import at.backend.platform.kis.client.response.KisDailyCcldResponse
-import at.backend.platform.kis.client.response.KisHolidayResponse
-import at.backend.platform.kis.client.response.KisOrderResponse
-import at.backend.platform.kis.client.response.KisStockSearchResponse
+import at.backend.platform.kis.client.response.*
 import org.springframework.http.MediaType
 import org.springframework.web.client.RestClient
 import java.time.LocalDate
@@ -24,7 +18,7 @@ class KisRestClient(
         restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/inquire-price")
-                    .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                    .queryParam("FID_COND_MRKT_DIV_CODE", FID_MRKT_DIV_UNIFIED)
                     .queryParam("FID_INPUT_ISCD", stockCode)
                     .build()
             }
@@ -51,7 +45,7 @@ class KisRestClient(
         restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/search-stock-info")
-                    .queryParam("PRDT_TYPE_CD", "300")
+                    .queryParam("PRDT_TYPE_CD", PRDT_TYPE_DOMESTIC_STOCK)
                     .queryParam("PDNO", keyword)
                     .build()
             }
@@ -87,7 +81,7 @@ class KisRestClient(
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice")
                     .queryParam("FID_ETC_CLS_CODE", "")
-                    .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                    .queryParam("FID_COND_MRKT_DIV_CODE", FID_MRKT_DIV_UNIFIED)
                     .queryParam("FID_INPUT_ISCD", stockCode)
                     .queryParam("FID_INPUT_HOUR_1", MARKET_CLOSE_HHMMSS)
                     .queryParam("FID_PW_DATA_INCU_YN", "N")
@@ -191,6 +185,12 @@ class KisRestClient(
     companion object {
         private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
         private const val MARKET_CLOSE_HHMMSS = "153000"
+
+        // FID_COND_MRKT_DIV_CODE: KRX + NXT 통합 호가/시세 (J=KRX 단독, NX=NXT 단독, UN=통합)
+        private const val FID_MRKT_DIV_UNIFIED = "UN"
+
+        // PRDT_TYPE_CD: 상품 유형 (300=국내주식, 301=해외주식, 302=선물옵션, 701=ETF, ...)
+        private const val PRDT_TYPE_DOMESTIC_STOCK = "300"
 
         private const val TR_ID_BUY = "TTTC0012U"
         private const val TR_ID_SELL = "TTTC0011U"
