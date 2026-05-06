@@ -1,8 +1,8 @@
 package at.backend.trading.application
 
+import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.domain.TradingInput
 import at.backend.trading.domain.TradingValidationException
-import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -23,9 +23,9 @@ class TradingValidator(
         validatePrice(input.stockCode, input.perBuyAmount)
         validateBalance(input.perBuyAmount)
         validateNoDuplicate(input.stockCode)
-        validateCutoff(input.buyIntervalMin, now.toLocalTime())
         validateHoliday(now)
         validateTradingHours(now.toLocalTime())
+        validateCutoff(input.buyIntervalMin, now.toLocalTime())
         return stockName
     }
 
