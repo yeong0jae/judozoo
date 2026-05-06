@@ -57,6 +57,15 @@ class Order(
         this.lastError = error?.take(MAX_ERROR_LEN)
     }
 
+    /**
+     * 응답 파싱 실패 / 네트워크 오류 등 KIS 측 처리 여부가 불확실한 케이스.
+     * status는 PENDING 유지 → reconcile이 일별 체결 조회로 실 체결 여부 확인 후 FILLED/FAILED 확정.
+     * lastError만 기록해 운영자가 사후 추적 가능.
+     */
+    fun markUncertain(error: String?) {
+        this.lastError = error?.take(MAX_ERROR_LEN)
+    }
+
     fun markRetryableFailed(error: String?) {
         this.status = STATUS_FAILED
         this.retryCount += 1

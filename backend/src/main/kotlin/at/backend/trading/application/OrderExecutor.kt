@@ -2,6 +2,7 @@ package at.backend.trading.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.market.domain.Bar
+import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisDailyCcldResponse
 import at.backend.trading.domain.cycle.TradingCycle
@@ -64,11 +65,20 @@ class OrderExecutor(
             val saved = orderRepository.save(order)
             scheduleReconcile(saved, cycle.stockCode)
             BuyOutcome.Submitted(saved)
-        } catch (e: Exception) {
+        } catch (e: KisOrderRejectedException) {
+            // KIS가 명시 거부 (rt_cd != 0) — 실 체결 없음 확정.
             order.markFailed(e.message)
             orderRepository.save(order)
-            log.warn("매수 발송 실패 cycleId={}, attempt={}", cycle.id, attempt, e)
-            BuyOutcome.Skipped(e.message ?: "발송 실패")
+            log.warn("매수 거부 cycleId={}, attempt={}, msgCd={}", cycle.id, attempt, e.msgCd, e)
+            BuyOutcome.Skipped(e.message ?: "발송 거부")
+        } catch (e: Exception) {
+            // 응답 파싱 실패 / HTTP 오류 / 타임아웃 — KIS가 받았는지 모름.
+            // PENDING 유지 + reconcile로 일별 체결 조회해 실 체결 여부 확인 (DB와 KIS 보유 분리 방지).
+            order.markUncertain(e.message)
+            val saved = orderRepository.save(order)
+            scheduleReconcile(saved, cycle.stockCode)
+            log.warn("매수 응답 불확실 cycleId={}, attempt={} — reconcile로 실 체결 확인", cycle.id, attempt, e)
+            BuyOutcome.Submitted(saved)
         }
     }
 
@@ -114,8 +124,13 @@ class OrderExecutor(
                 scheduleReconcile(saved, cycle.stockCode)
                 return SellOutcome.Submitted(saved)
             } catch (e: Exception) {
+                // SELL은 응답 거부/응답 불확실 모두 retry 루프로 처리. 단 응답 불확실(KisOrderRejected가 아닌 경우)은
+                // KIS가 받았을 가능성 있어 reconcile도 함께 예약 — 다음 루프에서 inFlightSellUnfilled가 자동 반영.
                 order.markRetryableFailed(e.message)
-                orderRepository.save(order)
+                val saved = orderRepository.save(order)
+                if (e !is KisOrderRejectedException) {
+                    scheduleReconcile(saved, cycle.stockCode)
+                }
                 eventPublisher.publishEvent(
                     RetryAccumulated(
                         commandId = cycle.id,
@@ -125,10 +140,8 @@ class OrderExecutor(
                         ts = timeProvider.now().atZone(KST).toInstant(),
                     )
                 )
-                log.warn(
-                    "매도 발송 실패 cycleId={}, signal={}, retry={}",
-                    cycle.id, signal::class.simpleName, order.retryCount, e,
-                )
+                log.warn("매도 발송 실패 cycleId={}, signal={}, retry={}",
+                    cycle.id, signal::class.simpleName, order.retryCount, e)
                 delay(sellRetryDelayMillis.milliseconds)
             }
         }

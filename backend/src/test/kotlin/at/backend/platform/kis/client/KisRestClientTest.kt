@@ -173,7 +173,7 @@ class KisRestClientTest : FunSpec({
             shouldThrow<RestClientException> { client().submitOrder("005930", "BUY", 1) }
         }
 
-        test("주문 발송 200이지만 rt_cd≠0(거부) 시 IllegalStateException으로 변환되어 msg1 포함") {
+        test("주문 발송 200이지만 rt_cd≠0(거부) 시 KisOrderRejectedException로 변환되어 msg1 포함") {
             wireMock.stubFor(
                 WireMock.post(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
                     .willReturn(
@@ -184,12 +184,12 @@ class KisRestClientTest : FunSpec({
                     )
             )
 
-            val ex = shouldThrow<IllegalStateException> { client().submitOrder("005930", "BUY", 1) }
-            ex.message!! shouldContain "EGW00201"
+            val ex = shouldThrow<KisOrderRejectedException> { client().submitOrder("005930", "BUY", 1) }
+            ex.msgCd shouldBe "EGW00201"
             ex.message!! shouldContain "초당 거래건수"
         }
 
-        test("주문 취소 200이지만 rt_cd≠0(거부) 시 IllegalStateException으로 변환된다") {
+        test("주문 취소 200이지만 rt_cd≠0(거부) 시 KisOrderRejectedException로 변환된다") {
             wireMock.stubFor(
                 WireMock.post(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-rvsecncl"))
                     .willReturn(
@@ -200,10 +200,10 @@ class KisRestClientTest : FunSpec({
                     )
             )
 
-            val ex = shouldThrow<IllegalStateException> {
+            val ex = shouldThrow<KisOrderRejectedException> {
                 client().cancelRemainder(krxFwdgOrdOrgno = "00950", originalOdno = "0000123456")
             }
-            ex.message!! shouldContain "40050000"
+            ex.msgCd shouldBe "40050000"
         }
     }
 

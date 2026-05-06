@@ -4,6 +4,7 @@ import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.MutableTimeProvider
+import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisDailyCcldResponse
@@ -109,9 +110,10 @@ class OrderExecutorTest(
                 orderRepository.findByCycleId(cycle.id).size shouldBe 0
             }
 
-            test("KIS 발송 실패 시 Order는 FAILED로 기록되고 회차 스킵") {
+            test("KIS 명시 거부(rt_cd≠0)는 FAILED로 확정 + 회차 스킵") {
                 stubCurrentPrice(70_000)
-                every { kisRestClient.submitOrder(any(), any(), any()) } throws RestClientException("4xx")
+                every { kisRestClient.submitOrder(any(), any(), any()) } throws
+                    KisOrderRejectedException(msgCd = "EGW00201", msg = "초당 거래건수 초과")
                 val cycle = saveCycle()
 
                 val outcome = orderExecutor.executeBuyTry(cycle, attempt = 1)
@@ -119,7 +121,22 @@ class OrderExecutorTest(
                 outcome.shouldBeInstanceOf<OrderExecutor.BuyOutcome.Skipped>()
                 val saved = orderRepository.findByCycleId(cycle.id).single()
                 saved.status shouldBe "FAILED"
-                saved.lastError shouldBe "4xx"
+                saved.lastError!! shouldBe "[EGW00201] 초당 거래건수 초과"
+            }
+
+            test("응답 파싱 실패 / HTTP 오류는 PENDING 유지 + Submitted (실 체결 reconcile로 확인)") {
+                stubCurrentPrice(70_000)
+                every { kisRestClient.submitOrder(any(), any(), any()) } throws RestClientException("응답 파싱 실패")
+                val cycle = saveCycle()
+
+                val outcome = orderExecutor.executeBuyTry(cycle, attempt = 1)
+
+                // KIS가 실제로 받았는지 모르므로 FAILED 단정 금지 — Submitted로 다음 회차 진행
+                outcome.shouldBeInstanceOf<OrderExecutor.BuyOutcome.Submitted>()
+                val saved = orderRepository.findByCycleId(cycle.id).single()
+                saved.status shouldBe "PENDING"  // status는 그대로
+                saved.lastError shouldBe "응답 파싱 실패"
+                saved.kisOrderNo shouldBe null
             }
         }
 
