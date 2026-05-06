@@ -27,11 +27,11 @@ class TradingControllerTest : FunSpec({
     val tradingQueryService = mockk<TradingQueryService>()
     val tradingProperties = TradingProperties(
         marketCloseTime = "15:30",
-        defaultBuyIntervalMin = 60,
-        defaultSplitSellRatio = BigDecimal("0.5"),
-        defaultMidwayProfitPct = BigDecimal("0.05"),
-        defaultBreakevenThresholdPct = BigDecimal("0.01"),
-        defaultStopLossPct = BigDecimal("0.03"),
+        defaultBuyIntervalMin = 3,
+        defaultSplitSellRatio = BigDecimal("0.2"),
+        defaultMidwayProfitPct = BigDecimal("3"),
+        defaultBreakevenThresholdPct = BigDecimal("2"),
+        defaultStopLossPct = BigDecimal("2"),
         sellCostRate = BigDecimal("0.0025"),
     )
     val mockMvc = MockMvcBuilders

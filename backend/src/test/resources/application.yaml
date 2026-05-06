@@ -29,12 +29,12 @@ kis:
 
 trading:
   market-close-time: "15:30"
-  default-buy-interval-min: 60
-  default-split-sell-ratio: 0.5
-  default-midway-profit-pct: 0.05
-  default-breakeven-threshold-pct: 0.01
-  default-stop-loss-pct: 0.03
-  sell-cost-rate: 0.0025
+  default-buy-interval-min: 3              # 분 단위
+  default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
+  default-midway-profit-pct: 3             # 퍼센트 숫자 (3 = 3%)
+  default-breakeven-threshold-pct: 2       # 퍼센트 숫자 (2 = 2%)
+  default-stop-loss-pct: 2                 # 퍼센트 숫자, 양수 입력 (2 → 내부 -2%)
+  sell-cost-rate: 0.0025                   # 소수 비율 (0.0025 = 0.25%)
   market:
     poll-interval-millis: 1000
     bar-poll-interval-millis: 30000
