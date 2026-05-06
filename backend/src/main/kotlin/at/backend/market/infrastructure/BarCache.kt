@@ -1,5 +1,6 @@
 package at.backend.market.infrastructure
 
+import at.backend.library.time.atKstInstant
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBarResponse
 import at.backend.market.domain.Bar
@@ -20,7 +21,6 @@ import org.springframework.stereotype.Component
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -96,7 +96,7 @@ class BarCache(
         val time = runCatching { LocalTime.parse(output.stckCntgHour, TIME_FMT) }.getOrNull() ?: return null
         val openPrice = output.stckOprc.toIntOrNull()?.takeIf { it > 0 } ?: return null
         val closePrice = output.stckPrpr.toIntOrNull()?.takeIf { it > 0 } ?: return null
-        val endTime = date.atTime(time).atZone(KST).toInstant()
+        val endTime = date.atKstInstant(time)
         val startTime = endTime.minus(BAR_DURATION)
         return Bar(
             stockCode = stockCode,
@@ -110,7 +110,6 @@ class BarCache(
     companion object {
         private val DATE_FMT: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
         private val TIME_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
-        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private val BAR_DURATION: Duration = Duration.ofMinutes(3)
     }
 }

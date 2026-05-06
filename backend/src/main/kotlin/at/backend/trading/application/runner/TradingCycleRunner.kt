@@ -2,6 +2,7 @@ package at.backend.trading.application.runner
 
 import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.time.TimeProvider
+import at.backend.library.time.toInstantKst
 import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
@@ -28,7 +29,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.ZoneId
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -362,7 +362,7 @@ class TradingCycleRunner(
     }
 
     private fun publishCycleClosed(reason: CloseReason) {
-        val instant = timeProvider.now().atZone(KST).toInstant()
+        val instant = timeProvider.now().toInstantKst()
         eventPublisher.publishEvent(
             TradingCycleClosed(commandId = cycleId, closeReason = reason.name, ts = instant)
         )
@@ -375,7 +375,7 @@ class TradingCycleRunner(
                 commandId = cycleId,
                 status = status.name,
                 closeReason = closeReason?.name,
-                ts = timeProvider.now().atZone(KST).toInstant(),
+                ts = timeProvider.now().toInstantKst(),
             )
         )
     }
@@ -392,7 +392,7 @@ class TradingCycleRunner(
                 currentPrice = currentPrice,
                 profitRate = profitRate,
                 profitAmount = profitAmount,
-                ts = timeProvider.now().atZone(KST).toInstant(),
+                ts = timeProvider.now().toInstantKst(),
             )
         )
     }
@@ -402,7 +402,7 @@ class TradingCycleRunner(
             SignalArmed(
                 commandId = cycleId,
                 signalType = signalType,
-                ts = timeProvider.now().atZone(KST).toInstant(),
+                ts = timeProvider.now().toInstantKst(),
             )
         )
     }
@@ -417,7 +417,7 @@ class TradingCycleRunner(
                 commandId = cycleId,
                 signalType = signalType,
                 stage = stage,
-                ts = timeProvider.now().atZone(KST).toInstant(),
+                ts = timeProvider.now().toInstantKst(),
             )
         )
     }
@@ -425,7 +425,6 @@ class TradingCycleRunner(
     private data class HoldingState(val holdingQty: Int, val buyPrice: Int)
 
     companion object {
-        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private const val TREND_BREAK_ARM_PCT = 0.05
     }
 }

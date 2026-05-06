@@ -2,6 +2,7 @@ package at.backend.trading.application
 
 import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.time.TimeProvider
+import at.backend.library.time.toInstantKst
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.event.TradingCycleClosed
@@ -11,7 +12,6 @@ import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
-import java.time.ZoneId
 
 @Component
 class UnclosedCycleStartupHook(
@@ -31,7 +31,7 @@ class UnclosedCycleStartupHook(
             cycle.close(CloseReason.UNCLOSED, now)
         }
         cycleRepository.saveAll(active)
-        val instant = now.atZone(KST).toInstant()
+        val instant = now.toInstantKst()
         for (cycle in active) {
             eventPublisher.publishEvent(
                 TradingCycleClosed(
@@ -48,7 +48,6 @@ class UnclosedCycleStartupHook(
     }
 
     companion object {
-        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private val ACTIVE_STATUSES = listOf(
             TradingCycleStatus.INITIATED,
             TradingCycleStatus.BUYING,

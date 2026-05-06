@@ -3,6 +3,7 @@ package at.backend.trading.application
 import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
+import at.backend.library.time.toInstantKst
 import at.backend.trading.application.result.TradingCancelResult
 import at.backend.trading.application.result.TradingCreatedResult
 import at.backend.trading.domain.TradingInput
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
-import java.time.ZoneId
 
 @Service
 class TradingService(
@@ -40,7 +40,7 @@ class TradingService(
             stopLossPct = input.stopLossPct.negate(),
         )
         val saved = tradingCycleRepository.save(cycle)
-        val instant = now.atZone(ZoneId.of("Asia/Seoul")).toInstant()
+
         afterCommit {
             cycleOrchestrator.start(saved)
             eventPublisher.publishEvent(
@@ -48,10 +48,10 @@ class TradingService(
                     commandId = saved.id,
                     stockCode = saved.stockCode,
                     stockName = saved.stockName,
-                    ts = instant,
+                    ts = now.toInstantKst(),
                 )
             )
-            eventPublisher.publishEvent(BalanceInvalidated(ts = instant))
+            eventPublisher.publishEvent(BalanceInvalidated(ts = now.toInstantKst()))
         }
         return TradingCreatedResult.from(saved)
     }

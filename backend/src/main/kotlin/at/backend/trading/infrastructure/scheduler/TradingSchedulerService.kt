@@ -1,6 +1,7 @@
 package at.backend.trading.infrastructure.scheduler
 
 import at.backend.library.time.TimeProvider
+import at.backend.library.time.toInstantKst
 import at.backend.market.domain.event.HolidayChanged
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.application.CommandGate
@@ -9,7 +10,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import java.time.ZoneId
 
 @Component
 class TradingSchedulerService(
@@ -38,7 +38,7 @@ class TradingSchedulerService(
             commandGate.close()
             return
         }
-        val instant = timeProvider.now().atZone(KST).toInstant()
+        val instant = timeProvider.now().toInstantKst()
         if (isMarketOpen) {
             commandGate.open()
             eventPublisher.publishEvent(HolidayChanged(isHoliday = false, ts = instant))
@@ -50,7 +50,4 @@ class TradingSchedulerService(
         }
     }
 
-    companion object {
-        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
-    }
 }

@@ -1,6 +1,7 @@
 package at.backend.trading.application
 
 import at.backend.library.time.TimeProvider
+import at.backend.library.time.toInstantKst
 import at.backend.market.domain.Bar
 import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRestClient
@@ -20,7 +21,6 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
@@ -98,7 +98,7 @@ class OrderExecutor(
         currentBar: Bar?,
     ): SellOutcome {
         while (true) {
-            val nowInstant = timeProvider.now().atZone(KST).toInstant()
+            val nowInstant = timeProvider.now().toInstantKst()
             if (!signal.isAlive(currentPrice, buyPrice, currentBar, nowInstant)) {
                 cancelInFlightSells(cycle.id)
                 return SellOutcome.SignalDead
@@ -138,7 +138,7 @@ class OrderExecutor(
                         signalType = signal::class.simpleName ?: "Signal",
                         retryCount = order.retryCount,
                         lastError = e.message,
-                        ts = timeProvider.now().atZone(KST).toInstant(),
+                        ts = timeProvider.now().toInstantKst(),
                     )
                 )
                 log.warn("매도 발송 실패 cycleId={}, signal={}, retry={}",
@@ -295,7 +295,6 @@ class OrderExecutor(
     }
 
     companion object {
-        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private const val FALLBACK_WINDOW_SECONDS = 30L
         private const val SLL_BUY_BUY = "02"
         private const val SLL_BUY_SELL = "01"
