@@ -3,6 +3,7 @@ package at.backend.trading.application
 import at.backend.trading.domain.TradingInput
 import at.backend.trading.domain.TradingValidationException
 import at.backend.platform.kis.client.KisRestClient
+import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import org.springframework.stereotype.Component
@@ -46,11 +47,14 @@ class TradingValidator(
     }
 
     private fun validateBalance(perBuyAmount: Long) {
+        // 활성 사이클(INITIATED/BUYING/HOLDING)의 미발사 회차 분을 reserved로 차감 — AccountService.getBalance와 동일 공식.
+        // 새 명령은 3회차(MAX_BUY_ATTEMPT) 전부 커밋 가능해야 통과 — 화면 가용잔고와 일관된 기준.
         val balance = kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
-        // INITIATED 사이클만 예약금 차감 — BUYING/HOLDING은 이미 체결되어 잔고에 반영됨
-        val reserved = tradingCycleRepository.findByStatusIn(listOf(TradingCycleStatus.INITIATED))
-            .sumOf { it.perBuyAmount }
-        if (balance - reserved < perBuyAmount) throw TradingValidationException(TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE)
+        val reserved = tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES)
+            .sumOf { it.perBuyAmount * (TradingCycle.MAX_BUY_ATTEMPT - it.buyAttempt) }
+        val available = balance - reserved
+        val newCommitment = perBuyAmount * TradingCycle.MAX_BUY_ATTEMPT
+        if (available < newCommitment) throw TradingValidationException(TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE)
     }
 
     private fun validateNoDuplicate(stockCode: String) {

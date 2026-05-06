@@ -131,24 +131,53 @@ class TradingValidatorTest : FunSpec({
     }
 
     context("잔고 부족") {
-        test("접수 대기(INITIATED) 사이클 예약금 차감 후 잔고가 부족하면 INSUFFICIENT_BALANCE") {
-            every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
-                output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
-            )
-            every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
-                output = KisCurrentPriceResponse.Output(stckPrpr = "70000")
-            )
-            every { kisRestClient.getBalance() } returns KisBalanceResponse(
-                output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
-            )
-            val initiatedCycle = mockk<TradingCycle>()
-            every { initiatedCycle.perBuyAmount } returns 950_000L
-            every { tradingCycleRepository.findByStatusIn(listOf(TradingCycleStatus.INITIATED)) } returns listOf(initiatedCycle)
+        // 새 명령은 perBuyAmount × MAX_BUY_ATTEMPT(3)을 통째로 커밋 가능해야 통과 — AccountService.getBalance와 동일.
+        // 활성 사이클의 미발사 회차 분 (perBuyAmount × (MAX - buyAttempt))도 reserved로 차감.
+
+        test("INITIATED 사이클 미발사 회차 분 차감 후 신규 명령의 3회차 커밋이 안 들어가면 INSUFFICIENT_BALANCE") {
+            stubAllPass()
+            // balance=1,000,000, 신규 명령 commitment=100,000×3=300,000
+            // INITIATED 사이클 perBuyAmount=300,000, buyAttempt=0 → reserved=300,000×3=900,000
+            // available=1,000,000 - 900,000=100,000 < 300,000 → 차단
+            val initiated = mockk<TradingCycle>().apply {
+                every { perBuyAmount } returns 300_000L
+                every { buyAttempt } returns 0
+            }
+            every { tradingCycleRepository.findByStatusIn(any()) } returns listOf(initiated)
 
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE
+        }
+
+        test("BUYING 사이클의 미발사 회차도 reserved에 포함 — 회차 1만 발사된 사이클이 신규 등록을 차단") {
+            stubAllPass()
+            // balance=1,000,000, 신규 commitment=300,000
+            // BUYING 사이클 perBuyAmount=400,000, buyAttempt=1 → reserved=400,000×(3-1)=800,000
+            // available=200,000 < 300,000 → 차단
+            val buying = mockk<TradingCycle>().apply {
+                every { perBuyAmount } returns 400_000L
+                every { buyAttempt } returns 1
+            }
+            every { tradingCycleRepository.findByStatusIn(any()) } returns listOf(buying)
+
+            val ex = shouldThrow<TradingValidationException> {
+                validator.validate(validInput, nowAt(10, 0))
+            }
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE
+        }
+
+        test("buyAttempt=MAX인 사이클은 reserved 0 — 신규 등록 통과") {
+            stubAllPass()
+            // 회차 모두 발사 끝난 HOLDING 사이클은 미발사 분이 없으므로 차단 사유가 안 됨
+            val holding = mockk<TradingCycle>().apply {
+                every { perBuyAmount } returns 500_000L
+                every { buyAttempt } returns 3
+            }
+            every { tradingCycleRepository.findByStatusIn(any()) } returns listOf(holding)
+
+            validator.validate(validInput, nowAt(10, 0)) shouldBe "삼성전자"
         }
     }
 
