@@ -4,15 +4,15 @@ import type {
   AccountBalance,
   DailyReport,
   DailyTrading,
+  MarketStatus,
   StockPriceResult,
   StockSearchResult,
-  SystemStatus,
   TradingDetail,
   TradingSummary,
 } from "../types";
 
 export const QK = {
-  systemStatus: ["system", "status"] as const,
+  marketStatus: ["market", "status"] as const,
   accountBalance: ["account", "balance"] as const,
   activeCommands: ["trading", "active"] as const,
   todayClosed: ["trading", "today"] as const,
@@ -22,10 +22,10 @@ export const QK = {
   dailyReport: (date: string) => ["reports", "daily", date] as const,
 };
 
-export function useSystemStatus() {
+export function useMarketStatus() {
   return useQuery({
-    queryKey: QK.systemStatus,
-    queryFn: () => apiFetch<SystemStatus>("/api/system/status"),
+    queryKey: QK.marketStatus,
+    queryFn: () => apiFetch<MarketStatus>("/api/market/status"),
     refetchInterval: 30_000,
   });
 }

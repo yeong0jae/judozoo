@@ -16,7 +16,7 @@ import { QK } from "./api/queries";
 
 const handleStompReconnect = () => {
   // 재연결 시 모든 query invalidate — 누락 데이터 보강.
-  queryClient.invalidateQueries({ queryKey: QK.systemStatus });
+  queryClient.invalidateQueries({ queryKey: QK.marketStatus });
   queryClient.invalidateQueries({ queryKey: QK.accountBalance });
   queryClient.invalidateQueries({ queryKey: QK.activeCommands });
   queryClient.invalidateQueries({ queryKey: QK.todayClosed });

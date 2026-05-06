@@ -7,8 +7,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import type {
   AccountBalance,
   ErrorCode,
+  MarketStatus,
   StockSearchResult,
-  SystemStatus,
   TradingSummary,
 } from "../types";
 import {
@@ -29,8 +29,8 @@ import {
   useAccountBalance,
   useActiveCommands,
   useStockPrice,
+  useMarketStatus,
   useStockSearch,
-  useSystemStatus,
 } from "../api/queries";
 import { useCreateCommand } from "../api/mutations";
 import { ApiError } from "../api/client";
@@ -60,7 +60,7 @@ export default function CommandPage() {
   const toast = useToast();
   const qc = useQueryClient();
 
-  const systemQ = useSystemStatus();
+  const systemQ = useMarketStatus();
   const balanceQ = useAccountBalance();
   const activeQ = useActiveCommands();
 
@@ -101,7 +101,7 @@ export default function CommandPage() {
     qc.invalidateQueries({ queryKey: QK.accountBalance });
   });
   useStompSubscription("/topic/market", () => {
-    qc.invalidateQueries({ queryKey: QK.systemStatus });
+    qc.invalidateQueries({ queryKey: QK.marketStatus });
   });
 
   const status = systemQ.data;
@@ -336,17 +336,11 @@ export default function CommandPage() {
 // Block banner
 // ============================================================
 
-function deriveBlock(s: SystemStatus): {
+function deriveBlock(s: MarketStatus): {
   code: ErrorCode;
   message: string;
   tone: "warn" | "danger";
 } | null {
-  if (s.tokenStatus !== "OK")
-    return {
-      code: "INVALID_PARAMETER",
-      message: "KIS 토큰 오류 — 명령 차단",
-      tone: "danger",
-    };
   if (s.isHoliday)
     return {
       code: "HOLIDAY",
@@ -809,13 +803,13 @@ function SystemPanel({
   status,
   loading,
 }: {
-  status: SystemStatus | undefined;
+  status: MarketStatus | undefined;
   loading: boolean;
 }) {
   if (loading || !status) {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-2">
-        {Array.from({ length: 5 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-4 w-full" />
         ))}
       </div>
@@ -825,7 +819,6 @@ function SystemPanel({
     { label: "거래시간 09:00–15:30", ok: status.tradingHoursOpen },
     { label: "휴장 아님", ok: !status.isHoliday },
     { label: "컷오프 전 (15:20)", ok: !status.cutoffPassed },
-    { label: "토큰 정상", ok: status.tokenStatus === "OK" },
     {
       label: `시세 모드 ${status.marketMode}`,
       ok: status.marketMode === "WS",
@@ -834,7 +827,7 @@ function SystemPanel({
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
-        시스템
+        시장 상태
       </h3>
       <div className="space-y-1.5">
         {conditions.map((c) => (

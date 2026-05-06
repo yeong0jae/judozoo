@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { SystemStatus } from "../../types";
+import type { MarketStatus } from "../../types";
 
 type Tone = "ok" | "warn" | "danger";
 
@@ -8,16 +8,15 @@ interface Condition {
   tone: Tone;
 }
 
-function deriveSummary(status: SystemStatus): { label: string; tone: Tone } {
-  if (status.tokenStatus !== "OK") return { label: "토큰 오류", tone: "danger" };
+function deriveSummary(status: MarketStatus): { label: string; tone: Tone } {
   if (status.isHoliday) return { label: "휴장", tone: "warn" };
   if (!status.tradingHoursOpen) return { label: "거래시간 외", tone: "warn" };
   if (status.cutoffPassed) return { label: "컷오프 지남", tone: "warn" };
   if (status.marketMode === "POLLING") return { label: "폴링 모드", tone: "warn" };
-  return { label: "시스템", tone: "ok" };
+  return { label: "시장 정상", tone: "ok" };
 }
 
-function deriveConditions(status: SystemStatus): Condition[] {
+function deriveConditions(status: MarketStatus): Condition[] {
   return [
     {
       label: "거래시간 09:00–15:30",
@@ -25,10 +24,6 @@ function deriveConditions(status: SystemStatus): Condition[] {
     },
     { label: "휴장 아님", tone: status.isHoliday ? "warn" : "ok" },
     { label: "컷오프 전 (15:20)", tone: status.cutoffPassed ? "warn" : "ok" },
-    {
-      label: "토큰 정상",
-      tone: status.tokenStatus === "OK" ? "ok" : "danger",
-    },
     {
       label: `시세 모드 ${status.marketMode}`,
       tone: status.marketMode === "WS" ? "ok" : "warn",
@@ -48,7 +43,7 @@ const TEXT_CLS: Record<Tone, string> = {
   danger: "text-rose-300",
 };
 
-export default function SystemStatusBadge({ status }: { status: SystemStatus }) {
+export default function MarketStatusBadge({ status }: { status: MarketStatus }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const summary = deriveSummary(status);
@@ -70,7 +65,7 @@ export default function SystemStatusBadge({ status }: { status: SystemStatus }) 
       <button
         onClick={() => setOpen((o) => !o)}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs ${TEXT_CLS[summary.tone]} hover:bg-zinc-800 transition-colors`}
-        aria-label="시스템 상태"
+        aria-label="시장 상태"
       >
         <span className={`w-2 h-2 rounded-full ${DOT_CLS[summary.tone]}`} />
         {summary.label}
@@ -78,7 +73,7 @@ export default function SystemStatusBadge({ status }: { status: SystemStatus }) 
       {open && (
         <div className="absolute right-0 mt-1 w-64 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-3 z-50">
           <div className="text-xs font-semibold text-zinc-500 mb-2 uppercase tracking-wider">
-            시스템 상태
+            시장 상태
           </div>
           <div className="space-y-1.5">
             {conditions.map((c) => (

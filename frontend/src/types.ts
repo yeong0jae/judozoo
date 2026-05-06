@@ -54,9 +54,8 @@ export interface ApiResponse<T> {
 }
 
 // === REST responses ===
-export interface SystemStatus {
+export interface MarketStatus {
   marketMode: MarketMode;
-  tokenStatus: string; // 백엔드는 현재 항상 "OK". Phase 6에서 EXPIRED/FAIL 추가 예정.
   isHoliday: boolean;
   tradingHoursOpen: boolean;
   cutoffPassed: boolean;

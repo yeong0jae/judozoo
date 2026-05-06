@@ -68,6 +68,8 @@ class MarketDataStream(
 
     fun activeStockCodes(): Set<String> = subscriptionCounts.keys.toSet()
 
+    fun currentMode(): MarketMode = _mode.replayCache.lastOrNull() ?: MarketMode.WS
+
     fun reset() {
         subscriptionCounts.clear()
         stopPolling()

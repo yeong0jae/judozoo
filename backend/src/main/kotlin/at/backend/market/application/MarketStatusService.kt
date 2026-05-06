@@ -1,4 +1,4 @@
-package at.backend.system.application
+package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisRestClient
@@ -7,29 +7,28 @@ import org.springframework.stereotype.Service
 import java.time.LocalTime
 
 @Service
-class SystemService(
+class MarketStatusService(
     private val kisRestClient: KisRestClient,
     private val tradingProperties: TradingProperties,
     private val timeProvider: TimeProvider,
+    private val marketDataStream: MarketDataStream,
 ) {
 
-    fun getStatus(): SystemStatusResult {
+    fun getStatus(): MarketStatusResult {
         val now = timeProvider.now().toLocalTime()
         val isHoliday = kisRestClient.checkHoliday(timeProvider.today()).output.firstOrNull()?.opndYn != "Y"
-        val tradingHoursOpen = now >= TRADING_START && now <= TRADING_END
+        val tradingHoursOpen = now in TRADING_START..TRADING_END
         val cutoffPassed = now > CUTOFF_BASE.minusMinutes((tradingProperties.defaultBuyIntervalMin * 2).toLong())
-        return SystemStatusResult(
-            marketMode = "WS",
-            tokenStatus = "OK",
+        return MarketStatusResult(
+            marketMode = marketDataStream.currentMode().name,
             isHoliday = isHoliday,
             tradingHoursOpen = tradingHoursOpen,
             cutoffPassed = cutoffPassed,
         )
     }
 
-    data class SystemStatusResult(
+    data class MarketStatusResult(
         val marketMode: String,
-        val tokenStatus: String,
         val isHoliday: Boolean,
         val tradingHoursOpen: Boolean,
         val cutoffPassed: Boolean,
