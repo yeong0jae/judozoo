@@ -2,16 +2,16 @@ package at.backend.platform.kis.client.response
 
 import com.fasterxml.jackson.annotation.JsonProperty
 
+// KIS 신TR 응답은 케이스에 따라 필드를 생략한다 (예: KRX-only 라우팅 시 krx_fwdg_ord_orgno, 거부 시 output 전체).
+// 모든 필드 nullable로 받고 호출자가 의미 있는 검증을 수행한다.
 data class KisOrderResponse(
-    @JsonProperty("rt_cd") val rtCd: String,
-    @JsonProperty("msg_cd") val msgCd: String,
-    @JsonProperty("msg1") val msg1: String,
-    val output: Output?,
+    @JsonProperty("rt_cd") val rtCd: String? = null,
+    @JsonProperty("msg_cd") val msgCd: String? = null,
+    @JsonProperty("msg1") val msg1: String? = null,
+    val output: Output? = null,
 ) {
-    // 신TR(TTTC0012U)는 KRX-only 라우팅 등 특정 케이스에서 krx_fwdg_ord_orgno / ord_tmd를 생략한다.
-    // odno는 주문 추적의 필수 키라 강제, 나머지는 nullable.
     data class Output(
-        @JsonProperty("odno") val odno: String,
+        @JsonProperty("odno") val odno: String? = null,
         @JsonProperty("krx_fwdg_ord_orgno") val krxFwdgOrdOrgno: String? = null,
         @JsonProperty("ord_tmd") val ordTmd: String? = null,
     )

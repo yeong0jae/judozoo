@@ -60,8 +60,9 @@ class OrderExecutor(
         )
 
         return try {
+            // requireSuccess가 odno 존재 보장 → !!안전
             val output = kisRestClient.submitOrder(cycle.stockCode, "BUY", qty).output!!
-            order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
+            order.acknowledge(output.odno!!, output.krxFwdgOrdOrgno)
             val saved = orderRepository.save(order)
             scheduleReconcile(saved, cycle.stockCode)
             BuyOutcome.Submitted(saved)
@@ -119,7 +120,7 @@ class OrderExecutor(
 
             try {
                 val output = kisRestClient.submitOrder(cycle.stockCode, "SELL", effectiveQty).output!!
-                order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
+                order.acknowledge(output.odno!!, output.krxFwdgOrdOrgno)
                 val saved = orderRepository.save(order)
                 scheduleReconcile(saved, cycle.stockCode)
                 return SellOutcome.Submitted(saved)
@@ -230,9 +231,24 @@ class OrderExecutor(
     private fun scheduleReconcile(order: Order, stockCode: String) {
         val orderId = order.id
         applicationScope.launch {
-            delay(reconcileDelayMillis.milliseconds)
-            runCatching { reconcile(orderId, stockCode) }
-                .onFailure { log.warn("reconcile 실행 실패 orderId={}", orderId, it) }
+            // KIS 일별 체결 API는 실시간보다 약간 lag이 있어 한 번만 조회하면 못 잡을 수 있음.
+            // 첫 delay는 property로 주입(test 환경에서 disable 가능), 이후는 escalating retry.
+            val delays = longArrayOf(reconcileDelayMillis) + RECONCILE_RETRY_DELAYS_MILLIS
+            for (delayMillis in delays) {
+                delay(delayMillis.milliseconds)
+                val outcome = runCatching { reconcile(orderId, stockCode) }
+                    .onFailure { log.warn("reconcile 실행 실패 orderId={}", orderId, it) }
+                    .getOrNull()
+                // 매칭/스킵/manual review 등 종결 상태면 더 시도하지 않음.
+                if (outcome is ReconcileOutcome.Matched ||
+                    outcome is ReconcileOutcome.MultipleMatches ||
+                    outcome is ReconcileOutcome.Skipped ||
+                    outcome is ReconcileOutcome.NotFound) {
+                    return@launch
+                }
+                // NoMatch / LookupFailed → 다음 단계 delay로 재시도
+            }
+            log.warn("reconcile 모든 시도 종료 (NoMatch 유지) orderId={}", orderId)
         }
     }
 
@@ -284,5 +300,7 @@ class OrderExecutor(
         private const val SLL_BUY_BUY = "02"
         private const val SLL_BUY_SELL = "01"
         private val ORD_TS_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+        // 첫 시도(reconcileDelayMillis) NoMatch 후 escalating backoff로 ~1.5분간 추가 추적.
+        private val RECONCILE_RETRY_DELAYS_MILLIS = longArrayOf(10_000, 15_000, 30_000, 30_000)
     }
 }

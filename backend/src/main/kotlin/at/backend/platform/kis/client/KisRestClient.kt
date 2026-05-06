@@ -176,8 +176,12 @@ class KisRestClient(
     }
 
     private fun KisOrderResponse.requireSuccess(label: String): KisOrderResponse {
-        if (rtCd != RT_CD_OK) throw KisOrderRejectedException(msgCd, "$label 거부 $msg1")
-        if (output == null) throw KisOrderRejectedException(msgCd, "$label 응답에 output 누락 $msg1")
+        if (rtCd != RT_CD_OK) {
+            throw KisOrderRejectedException(msgCd ?: "UNKNOWN", "$label 거부 ${msg1 ?: ""}")
+        }
+        if (output?.odno.isNullOrBlank()) {
+            throw KisOrderRejectedException(msgCd ?: "UNKNOWN", "$label 응답에 odno 누락 ${msg1 ?: ""}")
+        }
         return this
     }
 
