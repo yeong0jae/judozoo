@@ -17,6 +17,7 @@ import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.clearMocks
 import io.mockk.every
@@ -137,6 +138,25 @@ class OrderExecutorTest(
                 saved.status shouldBe "PENDING"  // status는 그대로
                 saved.lastError shouldBe "응답 파싱 실패"
                 saved.kisOrderNo shouldBe null
+            }
+
+            test("rt_cd=0 인데 odno 누락 응답도 PENDING 유지 + Submitted (실 체결 reconcile로 확인)") {
+                // KIS 실관측 케이스: rt_cd=0 + APBK0013 인데 odno만 비어옴 → 실 체결 발생 가능.
+                // FAILED로 묻으면 DB-KIS 영구 분리 + WS 통보도 kisOrderNo null이라 매칭 불가.
+                // KisRestClient.requireSuccess는 이 응답에 대해 IllegalStateException을 던지므로
+                // OrderExecutor가 generic catch 경로(markUncertain + reconcile)로 흘려야 함.
+                stubCurrentPrice(70_000)
+                every { kisRestClient.submitOrder(any(), any(), any()) } throws
+                    IllegalStateException("KIS 주문 응답 성공이지만 odno 누락 [APBK0013] 주문 전송 완료되었습니다.")
+                val cycle = saveCycle()
+
+                val outcome = orderExecutor.executeBuyTry(cycle, attempt = 1)
+
+                outcome.shouldBeInstanceOf<OrderExecutor.BuyOutcome.Submitted>()
+                val saved = orderRepository.findByCycleId(cycle.id).single()
+                saved.status shouldBe "PENDING"
+                saved.kisOrderNo shouldBe null
+                saved.lastError!! shouldContain "odno 누락"
             }
         }
 
