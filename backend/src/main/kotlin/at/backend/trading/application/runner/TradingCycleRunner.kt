@@ -58,6 +58,7 @@ class TradingCycleRunner(
 ) {
 
     val cycleId: Long = cycle.id
+    val stockCode: String = cycle.stockCode
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val signals: Channel<Signal> = Channel(Channel.UNLIMITED)

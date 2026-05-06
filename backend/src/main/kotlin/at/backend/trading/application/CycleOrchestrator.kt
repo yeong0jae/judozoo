@@ -35,11 +35,10 @@ class CycleOrchestrator(
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
-    private val activeRunners = ConcurrentHashMap<Long, ActiveRunner>()
+    private val activeRunners = ConcurrentHashMap<Long, TradingCycleRunner>()
 
     fun start(cycle: TradingCycle) {
-        val existing = activeRunners[cycle.id]
-        if (existing != null) {
+        if (activeRunners.containsKey(cycle.id)) {
             log.warn("이미 실행 중인 사이클 — start 무시 cycleId={}", cycle.id)
             return
         }
@@ -48,7 +47,7 @@ class CycleOrchestrator(
         barCache.subscribe(cycle.stockCode)
 
         val runner = newRunner(cycle)
-        activeRunners[cycle.id] = ActiveRunner(runner, cycle.stockCode)
+        activeRunners[cycle.id] = runner
         runner.start()
         applicationScope.launch {
             runCatching { runner.awaitCompletion() }
@@ -59,14 +58,14 @@ class CycleOrchestrator(
     }
 
     fun cancel(cycleId: Long) {
-        val active = activeRunners[cycleId]
-        if (active == null) {
+        val runner = activeRunners[cycleId]
+        if (runner == null) {
             log.warn("취소 대상 사이클이 활성 상태가 아님 cycleId={}", cycleId)
             return
         }
         orderExecutor.cancelInFlightBuys(cycleId)
         applicationScope.launch {
-            runCatching { active.runner.requestCancellation() }
+            runCatching { runner.requestCancellation() }
                 .onFailure { log.warn("사이클 취소 처리 실패 cycleId={}", cycleId, it) }
         }
     }
@@ -74,8 +73,8 @@ class CycleOrchestrator(
     fun broadcastMarketClose() {
         val snapshot = activeRunners.values.toList()
         log.info("MarketClose 일제 라우팅 — 대상 cycle 수={}", snapshot.size)
-        for (active in snapshot) {
-            active.runner.trySubmitSignal(Signal.MarketClose)
+        for (runner in snapshot) {
+            runner.trySubmitSignal(Signal.MarketClose)
         }
     }
 
@@ -103,6 +102,4 @@ class CycleOrchestrator(
         buyIntervalUnit = buyIntervalUnitMillis.milliseconds,
         holdingPollIntervalMillis = holdingPollIntervalMillis,
     )
-
-    private data class ActiveRunner(val runner: TradingCycleRunner, val stockCode: String)
 }
