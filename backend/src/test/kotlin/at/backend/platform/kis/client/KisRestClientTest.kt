@@ -11,6 +11,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import org.springframework.web.client.RestClientException
 import java.time.LocalDate
 import kotlin.system.measureTimeMillis
@@ -110,8 +111,8 @@ class KisRestClientTest : FunSpec({
             stubPost("/uapi/domestic-stock/v1/trading/order-cash", "order-cash.json")
 
             val response = client().submitOrder("005930", "BUY", 10)
-            response.output.odno shouldBe "0000123456"
-            response.output.krxFwdgOrdOrgno shouldBe "00950"
+            response.output!!.odno shouldBe "0000123456"
+            response.output!!.krxFwdgOrdOrgno shouldBe "00950"
 
             wireMock.verify(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
@@ -139,7 +140,7 @@ class KisRestClientTest : FunSpec({
             stubPost("/uapi/domestic-stock/v1/trading/order-rvsecncl", "order-rvsecncl.json")
 
             val response = client().cancelRemainder(krxFwdgOrdOrgno = "00950", originalOdno = "0000123456")
-            response.output.odno shouldBe "0000123457"
+            response.output!!.odno shouldBe "0000123457"
 
             wireMock.verify(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-rvsecncl"))
@@ -170,6 +171,39 @@ class KisRestClientTest : FunSpec({
             )
 
             shouldThrow<RestClientException> { client().submitOrder("005930", "BUY", 1) }
+        }
+
+        test("주문 발송 200이지만 rt_cd≠0(거부) 시 IllegalStateException으로 변환되어 msg1 포함") {
+            wireMock.stubFor(
+                WireMock.post(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
+                    .willReturn(
+                        WireMock.aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("""{"rt_cd":"1","msg_cd":"EGW00201","msg1":"초당 거래건수를 초과하였습니다."}""")
+                    )
+            )
+
+            val ex = shouldThrow<IllegalStateException> { client().submitOrder("005930", "BUY", 1) }
+            ex.message!! shouldContain "EGW00201"
+            ex.message!! shouldContain "초당 거래건수"
+        }
+
+        test("주문 취소 200이지만 rt_cd≠0(거부) 시 IllegalStateException으로 변환된다") {
+            wireMock.stubFor(
+                WireMock.post(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-rvsecncl"))
+                    .willReturn(
+                        WireMock.aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody("""{"rt_cd":"1","msg_cd":"40050000","msg1":"이미 체결된 주문입니다."}""")
+                    )
+            )
+
+            val ex = shouldThrow<IllegalStateException> {
+                client().cancelRemainder(krxFwdgOrdOrgno = "00950", originalOdno = "0000123456")
+            }
+            ex.message!! shouldContain "40050000"
         }
     }
 

@@ -59,8 +59,8 @@ class OrderExecutor(
         )
 
         return try {
-            val response = kisRestClient.submitOrder(cycle.stockCode, "BUY", qty)
-            order.acknowledge(response.output.odno, response.output.krxFwdgOrdOrgno)
+            val output = kisRestClient.submitOrder(cycle.stockCode, "BUY", qty).output!!
+            order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
             val saved = orderRepository.save(order)
             scheduleReconcile(saved, cycle.stockCode)
             BuyOutcome.Submitted(saved)
@@ -108,8 +108,8 @@ class OrderExecutor(
             )
 
             try {
-                val response = kisRestClient.submitOrder(cycle.stockCode, "SELL", effectiveQty)
-                order.acknowledge(response.output.odno, response.output.krxFwdgOrdOrgno)
+                val output = kisRestClient.submitOrder(cycle.stockCode, "SELL", effectiveQty).output!!
+                order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
                 val saved = orderRepository.save(order)
                 scheduleReconcile(saved, cycle.stockCode)
                 return SellOutcome.Submitted(saved)

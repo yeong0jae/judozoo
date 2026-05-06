@@ -6,7 +6,7 @@ data class KisOrderResponse(
     @JsonProperty("rt_cd") val rtCd: String,
     @JsonProperty("msg_cd") val msgCd: String,
     @JsonProperty("msg1") val msg1: String,
-    val output: Output,
+    val output: Output?,
 ) {
     data class Output(
         @JsonProperty("krx_fwdg_ord_orgno") val krxFwdgOrdOrgno: String,

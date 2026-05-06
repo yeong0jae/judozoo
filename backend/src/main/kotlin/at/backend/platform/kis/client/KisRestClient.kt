@@ -131,7 +131,7 @@ class KisRestClient(
             "SELL" -> TR_ID_SELL
             else -> error("알 수 없는 주문 side: $side")
         }
-        return restClient.post()
+        val response = restClient.post()
             .uri("/uapi/domestic-stock/v1/trading/order-cash")
             .header("tr_id", trId)
             .contentType(MediaType.APPLICATION_JSON)
@@ -148,10 +148,11 @@ class KisRestClient(
             .retrieve()
             .body(KisOrderResponse::class.java)
             ?: error("KIS 주문 응답이 비어있습니다")
+        return response.requireSuccess("KIS 주문")
     }
 
-    fun cancelRemainder(krxFwdgOrdOrgno: String, originalOdno: String): KisOrderResponse =
-        restClient.post()
+    fun cancelRemainder(krxFwdgOrdOrgno: String, originalOdno: String): KisOrderResponse {
+        val response = restClient.post()
             .uri("/uapi/domestic-stock/v1/trading/order-rvsecncl")
             .header("tr_id", TR_ID_CANCEL)
             .contentType(MediaType.APPLICATION_JSON)
@@ -171,6 +172,14 @@ class KisRestClient(
             .retrieve()
             .body(KisOrderResponse::class.java)
             ?: error("KIS 주문 취소 응답이 비어있습니다")
+        return response.requireSuccess("KIS 주문 취소")
+    }
+
+    private fun KisOrderResponse.requireSuccess(label: String): KisOrderResponse {
+        if (rtCd != RT_CD_OK) error("$label 거부 [$msgCd] $msg1")
+        if (output == null) error("$label 응답에 output 누락 [$msgCd] $msg1")
+        return this
+    }
 
     companion object {
         private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
@@ -182,5 +191,6 @@ class KisRestClient(
         private const val ORD_DVSN_MARKET = "01"
         private const val ORD_UNPR_MARKET = "0"
         private const val RVSE_CNCL_CANCEL = "02"
+        private const val RT_CD_OK = "0"
     }
 }
