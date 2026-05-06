@@ -545,17 +545,19 @@ function BuyAttemptDots({
   completed: number;
   total: number;
 }) {
+  // dot은 시도 회차(attempt)를 표시 — 체결 여부는 상세 패널에서 확인.
+  // 발송 직후 "체결"로 오해하지 않게 amber 색상 사용.
   return (
     <div
       className="flex gap-1"
-      title={`매수 ${completed}/${total} 회차 완료`}
-      aria-label={`매수 ${completed}/${total} 회차`}
+      title={`매수 ${completed}/${total} 회차 시도 (체결 여부는 상세 참조)`}
+      aria-label={`매수 ${completed}/${total} 회차 시도`}
     >
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={i}
           className={`w-2 h-2 rounded-full ${
-            i < completed ? "bg-emerald-400" : "bg-zinc-700"
+            i < completed ? "bg-amber-400" : "bg-zinc-700"
           }`}
         />
       ))}

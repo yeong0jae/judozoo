@@ -159,12 +159,28 @@ function SummaryHeader({
 }
 
 function BuyProgressSection({ detail }: { detail: TradingDetail }) {
-  const lastBuy = detail.orders
-    .filter((o) => o.side === "BUY")
-    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
-  const remaining = detail.buyAttempt.total - detail.buyAttempt.completed;
+  // 회차별 주문은 trigger=BUY_N으로 매칭. cycle.buyAttempt(시도 회차)에 의존하지 않고
+  // 실제 Order.status/filledQty로부터 상태 도출 — 발송 직후 PENDING을 "체결"로 오해하지 않게.
+  const buyOrders = detail.orders.filter((o) => o.side === "BUY");
+  const orderByRound = new Map<number, OrderInfo>();
+  for (const o of buyOrders) {
+    const m = o.trigger.match(/^BUY_(\d+)$/);
+    if (m) orderByRound.set(parseInt(m[1], 10), o);
+  }
+
+  const lastBuy = buyOrders.sort((a, b) =>
+    b.submittedAt.localeCompare(a.submittedAt),
+  )[0];
+  const isActive = detail.status === "INITIATED" || detail.status === "BUYING";
+  // 다음 매수 예정 회차 = 아직 주문 없는 가장 작은 회차 번호
+  const nextRound = (() => {
+    for (let r = 1; r <= detail.buyAttempt.total; r++) {
+      if (!orderByRound.has(r)) return r;
+    }
+    return null;
+  })();
   const nextBuyAt =
-    lastBuy && remaining > 0 && detail.status !== "CLOSED"
+    lastBuy && nextRound !== null && isActive
       ? new Date(
           new Date(lastBuy.submittedAt).getTime() +
             detail.buyIntervalMin * 60_000,
@@ -175,31 +191,35 @@ function BuyProgressSection({ detail }: { detail: TradingDetail }) {
     <Section title="매수 진행">
       <div className="grid grid-cols-3 gap-3">
         {Array.from({ length: detail.buyAttempt.total }).map((_, i) => {
-          const completed = i < detail.buyAttempt.completed;
-          const isNext =
-            i === detail.buyAttempt.completed && nextBuyAt !== null;
+          const round = i + 1;
+          const order = orderByRound.get(round) ?? null;
+          const isNext = order === null && round === nextRound && nextBuyAt;
+          const view = roundView(order, isNext ? "next" : "idle");
           return (
             <div
-              key={i}
-              className={`border rounded p-3 ${
-                completed
-                  ? "border-emerald-700/60 bg-emerald-950/30"
-                  : isNext
-                    ? "border-amber-700/60 bg-amber-950/30"
-                    : "border-zinc-800 bg-zinc-950"
-              }`}
+              key={round}
+              className={`border rounded p-3 ${view.boxCls}`}
             >
-              <div className="text-xs text-zinc-500 mb-1">회차 {i + 1}</div>
-              <div className="text-sm font-medium">
-                {completed
-                  ? "✓ 체결"
-                  : isNext
-                    ? "⏱ 다음 매수"
-                    : "대기"}
+              <div className="text-xs text-zinc-500 mb-1">회차 {round}</div>
+              <div className={`text-sm font-medium ${view.textCls}`}>
+                {view.label}
               </div>
+              {view.subLabel && (
+                <div className="text-xs text-zinc-400 mt-1">
+                  {view.subLabel}
+                </div>
+              )}
               {isNext && nextBuyAt && (
                 <div className="text-xs text-amber-300 mt-1">
                   ~{formatTime(nextBuyAt)}
+                </div>
+              )}
+              {order?.lastError && (
+                <div
+                  className="text-xs text-rose-400 mt-1 truncate"
+                  title={order.lastError}
+                >
+                  {order.lastError}
                 </div>
               )}
             </div>
@@ -212,6 +232,83 @@ function BuyProgressSection({ detail }: { detail: TradingDetail }) {
       </div>
     </Section>
   );
+}
+
+type RoundView = {
+  label: string;
+  subLabel: string | null;
+  boxCls: string;
+  textCls: string;
+};
+
+function roundView(order: OrderInfo | null, fallback: "next" | "idle"): RoundView {
+  if (order === null) {
+    if (fallback === "next") {
+      return {
+        label: "⏱ 다음 매수",
+        subLabel: null,
+        boxCls: "border-amber-700/60 bg-amber-950/30",
+        textCls: "",
+      };
+    }
+    return {
+      label: "대기",
+      subLabel: null,
+      boxCls: "border-zinc-800 bg-zinc-950",
+      textCls: "text-zinc-400",
+    };
+  }
+  switch (order.status) {
+    case "FILLED":
+      return {
+        label: "✓ 체결",
+        subLabel: `${order.filledQty}주`,
+        boxCls: "border-emerald-700/60 bg-emerald-950/30",
+        textCls: "",
+      };
+    case "PENDING":
+      return order.filledQty > 0
+        ? {
+            label: "△ 부분 체결",
+            subLabel: `${order.filledQty}/${order.orderQty}주`,
+            boxCls: "border-amber-700/60 bg-amber-950/30",
+            textCls: "text-amber-200",
+          }
+        : {
+            label: "⏳ 발송됨",
+            subLabel: `${order.orderQty}주 대기`,
+            boxCls: "border-sky-800/60 bg-sky-950/30",
+            textCls: "text-sky-200",
+          };
+    case "FAILED":
+      return {
+        label: "✗ 발송 실패",
+        subLabel: null,
+        boxCls: "border-rose-800/60 bg-rose-950/30",
+        textCls: "text-rose-200",
+      };
+    case "CANCELLED":
+      return {
+        label: "− 취소됨",
+        subLabel: order.filledQty > 0 ? `${order.filledQty}주 체결` : null,
+        boxCls: "border-zinc-700 bg-zinc-900",
+        textCls: "text-zinc-400",
+      };
+    case "NEEDS_REVIEW":
+      return {
+        label: "⚠ 확인 필요",
+        subLabel: null,
+        boxCls: "border-rose-800/60 bg-rose-950/30",
+        textCls: "text-rose-200",
+      };
+    default:
+      return {
+        label: order.status,
+        subLabel: null,
+        boxCls: "border-zinc-800 bg-zinc-950",
+        textCls: "text-zinc-300",
+      };
+  }
 }
 
 function SignalArmingBoard({ detail }: { detail: TradingDetail }) {
