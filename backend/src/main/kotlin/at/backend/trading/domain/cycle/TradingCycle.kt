@@ -243,7 +243,11 @@ class TradingCycle(
 
     fun splitSellQty(holdingQty: Int): Pair<Int, Int> {
         require(holdingQty >= 0) { "보유 수량은 0 이상이어야 합니다: $holdingQty" }
-        val splitQty = (holdingQty * splitSellRatio.toDouble()).toInt()
+        // floor만 쓰면 holdingQty * ratio < 1인 작은 보유(3·4주에서 20% = 0.6·0.8)에서 0이 나와
+        // 분할 익절 단계 비트는 켜지면서 실 매도가 0건이 되는 침묵 실패가 발생.
+        // 보유가 1주 이상이면 최소 1주는 매도하도록 보장 — 잔량은 자연스럽게 줄어들면서 추적 보존.
+        val raw = (holdingQty * splitSellRatio.toDouble()).toInt()
+        val splitQty = if (holdingQty > 0) raw.coerceAtLeast(1) else 0
         val remainder = holdingQty - splitQty
         return Pair(splitQty, remainder)
     }

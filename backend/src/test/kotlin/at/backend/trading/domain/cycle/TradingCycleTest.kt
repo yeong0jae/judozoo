@@ -165,6 +165,27 @@ class TradingCycleTest : FunSpec({
                 stopLossPct = BigDecimal("-2.0"),
             ).splitSellQty(5) shouldBe Pair(5, 0)
         }
+
+        test("작은 보유에서도 최소 1주 분할 매도 보장 — 3주 × 20% → 1주 + 잔여 2주") {
+            // floor만 쓰면 0.6 → 0이 되어 분할 단계 비트만 소비되고 실 매도 0건이 되는 침묵 실패 방지
+            cycle().splitSellQty(3) shouldBe Pair(1, 2)
+        }
+
+        test("작은 보유에서도 최소 1주 분할 매도 보장 — 4주 × 20% → 1주 + 잔여 3주") {
+            cycle().splitSellQty(4) shouldBe Pair(1, 3)
+        }
+
+        test("산출 결과가 1 이상인 일반 케이스는 floor 그대로 — 5주 × 20% → 1주 + 잔여 4주") {
+            cycle().splitSellQty(5) shouldBe Pair(1, 4)
+        }
+
+        test("보유 0주는 매도 0주") {
+            cycle().splitSellQty(0) shouldBe Pair(0, 0)
+        }
+
+        test("1주 보유에서도 분할 매도 1주 보장 — 1주 × 20% → 1주 + 잔여 0주") {
+            cycle().splitSellQty(1) shouldBe Pair(1, 0)
+        }
     }
 
     context("보유 수량 0이면 가격 기반 시그널 평가 보류") {
