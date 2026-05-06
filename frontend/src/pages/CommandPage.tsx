@@ -557,7 +557,7 @@ const AmountInput = forwardRef<
     <input
       ref={ref}
       type="number"
-      step={10_000}
+      step={1}
       min={0}
       {...props}
       className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700 disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
