@@ -1,23 +1,20 @@
 package at.backend.platform.kis.client
 
+import at.backend.market.domain.PriceTick
 import at.backend.platform.kis.KisApprovalKeyProvider
+import at.backend.platform.kis.client.payload.KisSubscribePayload
 import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.order.ExecutionNotice
-import at.backend.market.domain.PriceTick
-import tools.jackson.databind.ObjectMapper
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import org.slf4j.LoggerFactory
-import org.springframework.web.socket.CloseStatus
-import org.springframework.web.socket.TextMessage
-import org.springframework.web.socket.WebSocketHandler
-import org.springframework.web.socket.WebSocketMessage
-import org.springframework.web.socket.WebSocketSession
+import org.springframework.web.socket.*
 import org.springframework.web.socket.client.WebSocketClient
+import tools.jackson.databind.ObjectMapper
 import java.time.Instant
-import java.util.Base64
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -35,14 +32,18 @@ class KisWebSocketClient(
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
-    private val sessionRef = AtomicReference<WebSocketSession?>(null)
+    private val currentSession = AtomicReference<WebSocketSession?>(null)
+
+    // 종목에 대한 중복 구독 방지, 식별
     private val subscriptions = ConcurrentHashMap.newKeySet<Subscription>()
+
     // tr_id별 AES256 복호화 키 (구독 SUBSCRIBE SUCCESS 응답에서 추출)
     private val cipherKeys = ConcurrentHashMap<String, AesKey>()
     private val reconnectExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "kis-ws-reconnect").apply { isDaemon = true } }
 
-    @Volatile private var reconnectAttempt: Int = 0
+    @Volatile
+    private var reconnectAttempt: Int = 0
 
     private val _priceTicks = MutableSharedFlow<PriceTick>(extraBufferCapacity = 1024)
     private val _executionNotices = MutableSharedFlow<ExecutionNotice>(extraBufferCapacity = 256)
@@ -51,6 +52,60 @@ class KisWebSocketClient(
     val priceTicks: SharedFlow<PriceTick> = _priceTicks.asSharedFlow()
     val executionNotices: SharedFlow<ExecutionNotice> = _executionNotices.asSharedFlow()
     val connectionState: SharedFlow<Boolean> = _connectionState.asSharedFlow()
+
+    fun subscribePrice(stockCode: String) {
+        val sub = Subscription(TR_PRICE, stockCode)
+        if (!subscriptions.add(sub)) return
+        ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
+    }
+
+    fun unsubscribePrice(stockCode: String) {
+        val sub = Subscription(TR_PRICE, stockCode)
+        if (!subscriptions.remove(sub)) return
+        currentSession.get()?.let { sendSubscription(it, sub, subscribe = false) }
+    }
+
+    fun subscribeExecutionNotice(htsId: String) {
+        val sub = Subscription(TR_EXEC, htsId)
+        if (!subscriptions.add(sub)) return
+        ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
+    }
+
+    private fun ensureConnected(afterConnect: (WebSocketSession) -> Unit) {
+        val current = currentSession.get()
+        if (current != null && current.isOpen) {
+            afterConnect(current)
+            return
+        }
+        connect()?.let(afterConnect)
+    }
+
+    private fun connect(): WebSocketSession? {
+        return try {
+            val session = webSocketClient.execute(handler, properties.wsUrl)
+                .get(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
+            currentSession.set(session)
+            session
+        } catch (e: Exception) {
+            log.warn("KIS WS 연결 실패, 백오프 재연결 예약", e)
+            scheduleReconnect()
+            null
+        }
+    }
+
+    private fun sendSubscription(session: WebSocketSession, sub: Subscription, subscribe: Boolean) {
+        val payload = KisSubscribePayload(
+            header = KisSubscribePayload.Header(
+                approvalKey = approvalKeyProvider.approvalKey,
+                custtype = "P",
+                trType = if (subscribe) "1" else "2",
+            ),
+            body = KisSubscribePayload.Body(
+                input = KisSubscribePayload.Body.Input(trId = sub.trId, trKey = sub.trKey),
+            ),
+        )
+        session.sendMessage(TextMessage(objectMapper.writeValueAsString(payload)))
+    }
 
     /**
      * Spring `WebSocketHandler` 콜백을 inner object로 분리.
@@ -80,67 +135,12 @@ class KisWebSocketClient(
 
         override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
             log.warn("KIS WS 끊김 status={}, 재연결 예약", closeStatus)
-            sessionRef.compareAndSet(session, null)
+            currentSession.compareAndSet(session, null)
             _connectionState.tryEmit(false)
             if (subscriptions.isNotEmpty()) scheduleReconnect()
         }
 
         override fun supportsPartialMessages(): Boolean = false
-    }
-
-    fun subscribePrice(stockCode: String) {
-        val sub = Subscription(TR_PRICE, stockCode)
-        if (!subscriptions.add(sub)) return
-        ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
-    }
-
-    fun unsubscribePrice(stockCode: String) {
-        val sub = Subscription(TR_PRICE, stockCode)
-        if (!subscriptions.remove(sub)) return
-        sessionRef.get()?.let { sendSubscription(it, sub, subscribe = false) }
-    }
-
-    fun subscribeExecutionNotice(htsId: String) {
-        val sub = Subscription(TR_EXEC, htsId)
-        if (!subscriptions.add(sub)) return
-        ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
-    }
-
-    private fun ensureConnected(afterConnect: (WebSocketSession) -> Unit) {
-        val current = sessionRef.get()
-        if (current != null && current.isOpen) {
-            afterConnect(current)
-            return
-        }
-        connect()?.let(afterConnect)
-    }
-
-    private fun connect(): WebSocketSession? {
-        return try {
-            val session = webSocketClient.execute(handler, properties.wsUrl)
-                .get(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
-            sessionRef.set(session)
-            session
-        } catch (e: Exception) {
-            log.warn("KIS WS 연결 실패, 백오프 재연결 예약", e)
-            scheduleReconnect()
-            null
-        }
-    }
-
-    private fun sendSubscription(session: WebSocketSession, sub: Subscription, subscribe: Boolean) {
-        val payload = mapOf(
-            "header" to mapOf(
-                "approval_key" to approvalKeyProvider.approvalKey,
-                "custtype" to "P",
-                "tr_type" to if (subscribe) "1" else "2",
-                "content-type" to "utf-8",
-            ),
-            "body" to mapOf(
-                "input" to mapOf("tr_id" to sub.trId, "tr_key" to sub.trKey),
-            ),
-        )
-        session.sendMessage(TextMessage(objectMapper.writeValueAsString(payload)))
     }
 
     private fun handleJsonMessage(session: WebSocketSession, payload: String) {
@@ -245,7 +245,7 @@ class KisWebSocketClient(
 
     @PreDestroy
     fun shutdown() {
-        runCatching { sessionRef.getAndSet(null)?.close() }
+        runCatching { currentSession.getAndSet(null)?.close() }
         reconnectExecutor.shutdownNow()
     }
 
