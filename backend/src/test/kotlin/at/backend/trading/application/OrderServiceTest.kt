@@ -7,7 +7,6 @@ import at.backend.common.test.MutableTimeProvider
 import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
-import at.backend.platform.kis.client.response.KisDailyCcldResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
@@ -19,7 +18,6 @@ import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.verify
@@ -28,14 +26,11 @@ import org.springframework.context.annotation.Import
 import org.springframework.test.context.TestPropertySource
 import org.springframework.web.client.RestClientException
 import java.math.BigDecimal
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 @Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
 @TestPropertySource(
     properties = [
         "trading.order.sell-retry-delay-millis=20",
-        "trading.order.reconcile-delay-millis=600000",
     ]
 )
 class OrderServiceTest(
@@ -92,13 +87,14 @@ class OrderServiceTest(
                 stubSubmitOrder(odno = "0000111111")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle, attempt = 1)
 
-                outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Submitted>()
-                outcome.order.orderNo shouldBe "0000111111"
-                outcome.order.fwdgOrdOrgno shouldBe "00950"
-                outcome.order.orderQty shouldBe 14
-                outcome.order.side shouldBe OrderSide.BUY
+                val saved = orderRepository.findByCycleId(cycle.id).single()
+                saved.orderNo shouldBe "0000111111"
+                saved.fwdgOrdOrgno shouldBe "00950"
+                saved.orderQty shouldBe 14
+                saved.side shouldBe OrderSide.BUY
+                saved.status shouldBe OrderStatus.PENDING
 
                 verify { kisRestClient.requestOrder("005930", "BUY", 14) }
             }
@@ -107,9 +103,8 @@ class OrderServiceTest(
                 stubCurrentPrice(2_000_000)
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle, attempt = 1)
 
-                outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Skipped>()
                 verify(exactly = 0) { kisRestClient.requestOrder(any(), any(), any()) }
                 orderRepository.findByCycleId(cycle.id).size shouldBe 0
             }
@@ -120,25 +115,22 @@ class OrderServiceTest(
                         KisOrderRejectedException(msgCd = "EGW00201", msg = "초당 거래건수 초과")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle, attempt = 1)
 
-                outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Skipped>()
                 val saved = orderRepository.findByCycleId(cycle.id).single()
                 saved.status shouldBe OrderStatus.FAILED
                 saved.lastError!! shouldBe "[EGW00201] 초당 거래건수 초과"
             }
 
-            test("응답 파싱 실패 / HTTP 오류는 PENDING 유지 + Submitted (실 체결 reconcile로 확인)") {
+            test("응답 파싱 실패 / HTTP 오류도 FAILED로 확정 (WS 통보 100% 가정)") {
                 stubCurrentPrice(70_000)
                 every { kisRestClient.requestOrder(any(), any(), any()) } throws RestClientException("응답 파싱 실패")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle, attempt = 1)
 
-                // KIS가 실제로 받았는지 모르므로 FAILED 단정 금지 — Submitted로 다음 회차 진행
-                outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Submitted>()
                 val saved = orderRepository.findByCycleId(cycle.id).single()
-                saved.status shouldBe OrderStatus.PENDING  // status는 그대로
+                saved.status shouldBe OrderStatus.FAILED
                 saved.lastError shouldBe "응답 파싱 실패"
                 saved.orderNo shouldBe null
             }
@@ -150,7 +142,7 @@ class OrderServiceTest(
                 stubSubmitOrder(odno = "0000222222")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeSell(
+                orderService.placeSell(
                     cycle = cycle,
                     signal = Signal.StopLoss,
                     intentQty = 10,
@@ -159,10 +151,9 @@ class OrderServiceTest(
                     currentBar = null,
                 )
 
-                outcome.shouldBeInstanceOf<OrderService.SellOutcome.Submitted>()
-                outcome.order.orderNo shouldBe "0000222222"
-                outcome.order.side shouldBe OrderSide.SELL
-                outcome.order.orderQty shouldBe 10
+                val saved = orderRepository.findByCycleId(cycle.id).single { it.side == OrderSide.SELL }
+                saved.orderNo shouldBe "0000222222"
+                saved.orderQty shouldBe 10
             }
 
             test("in-flight 매도 미체결분이 있으면 effectiveQty가 차감된다") {
@@ -191,7 +182,7 @@ class OrderServiceTest(
                 verify { kisRestClient.requestOrder("005930", "SELL", 6) }
             }
 
-            test("in-flight 미체결분이 intentQty 이상이면 NoQty로 즉시 종료") {
+            test("in-flight 미체결분이 intentQty 이상이면 발송 없이 즉시 종료") {
                 val cycle = saveCycle()
                 orderRepository.save(
                     Order(
@@ -204,7 +195,7 @@ class OrderServiceTest(
                     )
                 )
 
-                val outcome = orderService.placeSell(
+                orderService.placeSell(
                     cycle = cycle,
                     signal = Signal.StopLoss,
                     intentQty = 10,
@@ -213,14 +204,13 @@ class OrderServiceTest(
                     currentBar = null,
                 )
 
-                outcome shouldBe OrderService.SellOutcome.NoQty
                 verify(exactly = 0) { kisRestClient.requestOrder(any(), any(), any()) }
             }
 
             test("Breakeven 시그널은 현재가가 매수가 초과면 isAlive=false로 즉시 종료") {
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeSell(
+                orderService.placeSell(
                     cycle = cycle,
                     signal = Signal.Breakeven,
                     intentQty = 10,
@@ -229,7 +219,6 @@ class OrderServiceTest(
                     currentBar = null,
                 )
 
-                outcome shouldBe OrderService.SellOutcome.SignalDead
                 verify(exactly = 0) { kisRestClient.requestOrder(any(), any(), any()) }
             }
 
@@ -259,7 +248,7 @@ class OrderServiceTest(
                     )
                 )
 
-                val outcome = orderService.placeSell(
+                orderService.placeSell(
                     cycle = cycle,
                     signal = Signal.Breakeven,
                     intentQty = 10,
@@ -268,7 +257,6 @@ class OrderServiceTest(
                     currentBar = null,
                 )
 
-                outcome shouldBe OrderService.SellOutcome.SignalDead
                 verify { kisRestClient.cancelRemainder("00950", "ODNO_OLD") }
                 orderRepository.findById(pending.id).get().status shouldBe OrderStatus.CANCELLED
             }
@@ -318,7 +306,7 @@ class OrderServiceTest(
                 }
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeSell(
+                orderService.placeSell(
                     cycle = cycle,
                     signal = Signal.StopLoss,
                     intentQty = 10,
@@ -327,125 +315,11 @@ class OrderServiceTest(
                     currentBar = null,
                 )
 
-                outcome.shouldBeInstanceOf<OrderService.SellOutcome.Submitted>()
-                outcome.order.orderNo shouldBe "0000333333"
+                val submitted = orderRepository.findByCycleId(cycle.id).single { it.orderNo != null }
+                submitted.orderNo shouldBe "0000333333"
                 calls shouldBe 2
             }
         }
 
-        context("WS 통보 누락 시 reconcile") {
-            fun savePendingBuy(
-                orderNo: String? = "ODNO_BUY",
-                orderQty: Int = 10,
-            ): Order = orderRepository.save(
-                Order(
-                    cycleId = saveCycle().id,
-                    side = OrderSide.BUY,
-                    trigger = "BUY_1",
-                    orderQty = orderQty,
-                    orderNo = orderNo,
-                    fwdgOrdOrgno = if (orderNo == null) null else "00950",
-                    status = OrderStatus.PENDING,
-                )
-            )
-
-            fun ccldRow(
-                odno: String,
-                pdno: String = "005930",
-                qty: Int = 10,
-                price: Int = 70_000,
-                side: OrderSide = OrderSide.BUY,
-                ts: LocalDateTime = LocalDateTime.now(),
-            ) = KisDailyCcldResponse.Output(
-                pdno = pdno,
-                odno = odno,
-                ordDt = ts.format(DateTimeFormatter.BASIC_ISO_DATE),
-                ordTmd = ts.format(DateTimeFormatter.ofPattern("HHmmss")),
-                totCcldQty = qty.toString(),
-                avgPrvs = price.toString(),
-                sllBuyDvsnCd = if (side == OrderSide.BUY) "02" else "01",
-            )
-
-            test("kisOrderNo 매칭 1건 → Order/Execution 갱신") {
-                val order = savePendingBuy()
-                every { kisRestClient.getDailyExecutions(any(), any()) } returns
-                        KisDailyCcldResponse(output1 = listOf(ccldRow(odno = "ODNO_BUY", qty = 10, price = 71_000)))
-
-                val outcome = orderService.reconcile(order.id, "005930")
-
-                outcome.shouldBeInstanceOf<OrderService.ReconcileOutcome.Matched>()
-                val refreshed = orderRepository.findById(order.id).get()
-                refreshed.filledQty shouldBe 10
-                refreshed.status shouldBe OrderStatus.FILLED
-                executionRepository.findByOrderId(order.id).single().executedPrice shouldBe 71_000
-            }
-
-            test("0건 매칭 → no-op (재발송 안전, status 유지)") {
-                val order = savePendingBuy(orderNo = "ODNO_BUY")
-                every { kisRestClient.getDailyExecutions(any(), any()) } returns
-                        KisDailyCcldResponse(output1 = emptyList())
-
-                val outcome = orderService.reconcile(order.id, "005930")
-
-                outcome shouldBe OrderService.ReconcileOutcome.NoMatch
-                val refreshed = orderRepository.findById(order.id).get()
-                refreshed.status shouldBe OrderStatus.PENDING
-                refreshed.filledQty shouldBe 0
-                executionRepository.findByOrderId(order.id) shouldBe emptyList()
-            }
-
-            test("kisOrderNo가 없으면 시간/종목/side/수량 fallback으로 매칭한다") {
-                val order = savePendingBuy(orderNo = null, orderQty = 7)
-                every { kisRestClient.getDailyExecutions(any(), any()) } returns
-                        KisDailyCcldResponse(
-                            output1 = listOf(
-                                ccldRow(odno = "OTHER", side = OrderSide.SELL, qty = 7),
-                                ccldRow(odno = "MATCHED", qty = 7, price = 70_500),
-                                ccldRow(odno = "DIFF_QTY", qty = 99, price = 70_500),
-                            )
-                        )
-
-                val outcome = orderService.reconcile(order.id, "005930")
-
-                outcome.shouldBeInstanceOf<OrderService.ReconcileOutcome.Matched>()
-                orderRepository.findById(order.id).get().filledQty shouldBe 7
-            }
-
-            test("fallback에서 다중 매칭이면 manual review로 마킹한다") {
-                val order = savePendingBuy(orderNo = null, orderQty = 5)
-                every { kisRestClient.getDailyExecutions(any(), any()) } returns
-                        KisDailyCcldResponse(
-                            output1 = listOf(
-                                ccldRow(odno = "DUP1", qty = 5, price = 70_000),
-                                ccldRow(odno = "DUP2", qty = 5, price = 70_500),
-                            )
-                        )
-
-                val outcome = orderService.reconcile(order.id, "005930")
-
-                outcome shouldBe OrderService.ReconcileOutcome.MultipleMatches
-                orderRepository.findById(order.id).get().status shouldBe OrderStatus.NEEDS_REVIEW
-            }
-
-            test("이미 부분 체결된 주문은 skipped (WS가 처리 중)") {
-                val partial = orderRepository.save(
-                    Order(
-                        cycleId = saveCycle().id,
-                        side = OrderSide.BUY,
-                        trigger = "BUY_1",
-                        orderQty = 10,
-                        filledQty = 4,
-                        orderNo = "ODNO_BUY",
-                        fwdgOrdOrgno = "00950",
-                        status = OrderStatus.PENDING,
-                    )
-                )
-
-                val outcome = orderService.reconcile(partial.id, "005930")
-
-                outcome shouldBe OrderService.ReconcileOutcome.Skipped
-                verify(exactly = 0) { kisRestClient.getDailyExecutions(any(), any()) }
-            }
-        }
     }
 }

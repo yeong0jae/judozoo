@@ -92,33 +92,6 @@ class KisRestClient(
             .body(KisBarResponse::class.java)
             ?: error("KIS 분봉 응답이 비어있습니다")
 
-    fun getDailyExecutions(stockCode: String, date: LocalDate): KisDailyCcldResponse =
-        restClient.get()
-            .uri {
-                it.path("/uapi/domestic-stock/v1/trading/inquire-daily-ccld")
-                    .queryParam("CANO", accountNo)
-                    .queryParam("ACNT_PRDT_CD", accountProductCode)
-                    .queryParam("INQR_STRT_DT", date.format(YYYYMMDD))
-                    .queryParam("INQR_END_DT", date.format(YYYYMMDD))
-                    .queryParam("SLL_BUY_DVSN_CD", "00")
-                    .queryParam("INQR_DVSN", "00")
-                    .queryParam("PDNO", stockCode)
-                    .queryParam("CCLD_DVSN", "01")
-                    .queryParam("ORD_GNO_BRNO", "")
-                    .queryParam("ODNO", "")
-                    .queryParam("INQR_DVSN_3", "00")
-                    .queryParam("INQR_DVSN_1", "")
-                    .queryParam("EXCG_ID_DVSN_CD", "KRX")
-                    .queryParam("CTX_AREA_FK100", "")
-                    .queryParam("CTX_AREA_NK100", "")
-                    .build()
-            }
-            // 신TR (구 TTTC8001R은 사전고지 없이 막힐 수 있음). 본 시스템은 5초 timeout 직후 reconcile 1회만 호출하므로 항상 3개월 이내.
-            .header("tr_id", "TTTC0081R")
-            .retrieve()
-            .body(KisDailyCcldResponse::class.java)
-            ?: error("KIS 일별 체결 응답이 비어있습니다")
-
     fun requestOrder(stockCode: String, side: String, qty: Int): KisOrderResponse {
         val trId = when (side) {
             "BUY" -> TR_ID_BUY

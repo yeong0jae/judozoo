@@ -97,16 +97,6 @@ class KisRestClientTest : FunSpec({
             output[0].stckPrpr shouldBe "70200"
         }
 
-        test("일별 체결 조회 - output1 전체 목록 반환") {
-            stub("/uapi/domestic-stock/v1/trading/inquire-daily-ccld", "daily-ccld.json")
-
-            val output = client().getDailyExecutions("005930", LocalDate.of(2026, 1, 2)).output1
-            output shouldHaveSize 3
-            output[0].odno shouldBe "0000000001"
-            output[0].totCcldQty shouldBe "10"
-            output[0].avgPrvs shouldBe "70000"
-        }
-
         test("주문 발송 - 매수 시 ODNO 반환") {
             stubPost("/uapi/domestic-stock/v1/trading/order-cash", "order-cash.json")
 

@@ -5,5 +5,4 @@ enum class OrderStatus {
     FILLED,
     FAILED,
     CANCELLED,
-    NEEDS_REVIEW,
 }

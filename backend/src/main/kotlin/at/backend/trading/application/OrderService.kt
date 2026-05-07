@@ -5,38 +5,27 @@ import at.backend.library.time.toInstantKst
 import at.backend.market.domain.Bar
 import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRestClient
-import at.backend.platform.kis.client.response.KisDailyCcldResponse
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.event.RetryAccumulated
-import at.backend.trading.domain.execution.Execution
 import at.backend.trading.domain.order.Order
 import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.domain.signal.Signal
-import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 @Component
 class OrderService(
     private val orderRepository: OrderJpaRepository,
-    private val executionRepository: ExecutionJpaRepository,
     private val kisRestClient: KisRestClient,
     private val timeProvider: TimeProvider,
-    private val applicationScope: CoroutineScope,
     private val eventPublisher: ApplicationEventPublisher,
     @Value("\${trading.order.sell-retry-delay-millis:5000}") private val sellRetryDelayMillis: Long,
-    @Value("\${trading.order.reconcile-delay-millis:5000}") private val reconcileDelayMillis: Long,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -45,42 +34,40 @@ class OrderService(
      * 매수 회차 1건 발송. 응답 정상이면 [Order.kisOrderNo]/[Order.krxFwdgOrdOrgno] 갱신.
      * 발송 실패는 회차 스킵 — 호출자(BUYING 사이클)는 다음 회차로 진행.
      */
-    suspend fun placeOrder(cycle: TradingCycle, attempt: Int): BuyOutcome {
+    suspend fun placeOrder(cycle: TradingCycle, attempt: Int) {
         val currentPrice = kisRestClient.getCurrentPrice(cycle.stockCode).output.stckPrpr.toIntOrNull()
-            ?: return BuyOutcome.Skipped("현재가 응답 파싱 실패")
+        if (currentPrice == null) {
+            log.warn("매수 스킵 cycleId={}, attempt={} — 현재가 응답 파싱 실패", cycle.id, attempt)
+            return
+        }
         val qty = (cycle.perBuyAmount / currentPrice).toInt()
-        if (qty <= 0) return BuyOutcome.Skipped("perBuyAmount(${cycle.perBuyAmount})가 1주 가격($currentPrice)보다 작음")
+        if (qty <= 0) {
+            log.warn(
+                "매수 스킵 cycleId={}, attempt={} — perBuyAmount({})가 1주 가격({})보다 작음",
+                cycle.id, attempt, cycle.perBuyAmount, currentPrice
+            )
+            return
+        }
 
-        val order = Order(
-            cycleId = cycle.id,
-            side = OrderSide.BUY,
-            trigger = "BUY_$attempt",
-            orderQty = qty,
-            status = OrderStatus.PENDING,
+        val order = orderRepository.save(
+            Order(
+                cycleId = cycle.id,
+                side = OrderSide.BUY,
+                trigger = "BUY_$attempt",
+                orderQty = qty,
+                status = OrderStatus.PENDING,
+            )
         )
-        orderRepository.save(order)
 
-        return try {
+        try {
             val output = kisRestClient.requestOrder(cycle.stockCode, OrderSide.BUY.name, qty).output!!.first()
             order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
-            val saved = orderRepository.save(order)
-
-            scheduleReconcile(saved, cycle.stockCode)
-            BuyOutcome.Submitted(saved)
-        } catch (e: KisOrderRejectedException) {
-            // KIS가 명시 거부 (rt_cd != 0) — 실 체결 없음 확정.
+            orderRepository.save(order)
+        } catch (e: Exception) {
             order.markFailed(e.message)
             orderRepository.save(order)
-            log.warn("매수 거부 cycleId={}, attempt={}, msgCd={}", cycle.id, attempt, e.msgCd, e)
-            BuyOutcome.Skipped(e.message ?: "발송 거부")
-        } catch (e: Exception) {
-            // 응답 파싱 실패 / HTTP 오류 / 타임아웃 — KIS가 받았는지 모름.
-            // PENDING 유지 + reconcile로 일별 체결 조회해 실 체결 여부 확인 (DB와 KIS 보유 분리 방지).
-            order.markUncertain(e.message)
-            val saved = orderRepository.save(order)
-            scheduleReconcile(saved, cycle.stockCode)
-            log.warn("매수 응답 불확실 cycleId={}, attempt={} — reconcile로 실 체결 확인", cycle.id, attempt, e)
-            BuyOutcome.Submitted(saved)
+            val msgCd = (e as? KisOrderRejectedException)?.msgCd
+            log.warn("매수 발송 실패 cycleId={}, attempt={}, msgCd={}", cycle.id, attempt, msgCd, e)
         }
     }
 
@@ -97,17 +84,17 @@ class OrderService(
         buyPrice: Int,
         currentPrice: Int,
         currentBar: Bar?,
-    ): SellOutcome {
+    ) {
         while (true) {
             val nowInstant = timeProvider.now().toInstantKst()
             if (!signal.isAlive(currentPrice, buyPrice, currentBar, nowInstant)) {
                 cancelInFlightSells(cycle.id)
-                return SellOutcome.SignalDead
+                return
             }
 
             val inFlight = orderRepository.inFlightSellUnfilled(cycle.id)
             val effectiveQty = (intentQty - inFlight).coerceAtLeast(0)
-            if (effectiveQty == 0) return SellOutcome.NoQty
+            if (effectiveQty == 0) return
 
             val order = orderRepository.save(
                 Order(
@@ -123,17 +110,11 @@ class OrderService(
                 val output =
                     kisRestClient.requestOrder(cycle.stockCode, OrderSide.SELL.name, effectiveQty).output!!.first()
                 order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
-                val saved = orderRepository.save(order)
-                scheduleReconcile(saved, cycle.stockCode)
-                return SellOutcome.Submitted(saved)
+                orderRepository.save(order)
+                return
             } catch (e: Exception) {
-                // SELL은 응답 거부/응답 불확실 모두 retry 루프로 처리. 단 응답 불확실(KisOrderRejected가 아닌 경우)은
-                // KIS가 받았을 가능성 있어 reconcile도 함께 예약 — 다음 루프에서 inFlightSellUnfilled가 자동 반영.
                 order.markRetryableFailed(e.message)
-                val saved = orderRepository.save(order)
-                if (e !is KisOrderRejectedException) {
-                    scheduleReconcile(saved, cycle.stockCode)
-                }
+                orderRepository.save(order)
                 eventPublisher.publishEvent(
                     RetryAccumulated(
                         commandId = cycle.id,
@@ -156,107 +137,6 @@ class OrderService(
         cancelInFlight(orderRepository.findInFlightBuys(cycleId), cycleId, "매수")
     }
 
-    /**
-     * WS 체결 통보 누락 / 5초 timeout 시 호출 — KIS 일별 체결 조회로 동기화.
-     * - 매칭 우선순위: `kisOrderNo` > 시간 윈도우 ±30초 + 종목 + side + 수량 fallback
-     * - 1건 매칭 → Order/Execution 갱신, 0건 → no-op (재발송 안전), 2건+ → manual review
-     */
-    fun reconcile(orderId: Long, stockCode: String): ReconcileOutcome {
-        val order = orderRepository.findById(orderId).orElse(null) ?: return ReconcileOutcome.NotFound
-        if (!order.isReconcilable()) return ReconcileOutcome.Skipped
-        val today = timeProvider.now().toLocalDate()
-        val response = runCatching { kisRestClient.getDailyExecutions(stockCode, today) }
-            .getOrElse {
-                log.warn("일별 체결 조회 실패 orderId={}", order.id, it)
-                return ReconcileOutcome.LookupFailed
-            }
-        val candidates = matchCandidates(order, stockCode, response.output1)
-        return when (candidates.size) {
-            0 -> ReconcileOutcome.NoMatch
-            1 -> applyReconciledExecution(order, candidates.single())
-            else -> {
-                order.markNeedsManualReview("일별 체결 ${candidates.size}건 매칭")
-                orderRepository.save(order)
-                log.warn("reconcile 다중 매칭 orderId={}, count={}", order.id, candidates.size)
-                ReconcileOutcome.MultipleMatches
-            }
-        }
-    }
-
-    private fun matchCandidates(
-        order: Order,
-        stockCode: String,
-        outputs: List<KisDailyCcldResponse.Output>,
-    ): List<KisDailyCcldResponse.Output> {
-        val byOrderNo = order.orderNo?.let { orderNo -> outputs.filter { it.odno == orderNo } }
-        if (!byOrderNo.isNullOrEmpty()) return byOrderNo
-        return outputs.filter { row -> matchesByFallback(order, stockCode, row) }
-    }
-
-    private fun matchesByFallback(order: Order, stockCode: String, row: KisDailyCcldResponse.Output): Boolean {
-        if (row.pdno != stockCode) return false
-        if (sideOf(row) != order.side) return false
-        if (row.totCcldQty.toIntOrNull() != order.orderQty) return false
-        val orderedAt = parseOrderTime(row) ?: return false
-        return abs(java.time.Duration.between(order.createdAt, orderedAt).seconds) <= FALLBACK_WINDOW_SECONDS
-    }
-
-    private fun sideOf(row: KisDailyCcldResponse.Output): OrderSide? = when (row.sllBuyDvsnCd) {
-        SLL_BUY_BUY -> OrderSide.BUY
-        SLL_BUY_SELL -> OrderSide.SELL
-        else -> null
-    }
-
-    private fun parseOrderTime(row: KisDailyCcldResponse.Output): LocalDateTime? = runCatching {
-        LocalDateTime.parse(row.ordDt + row.ordTmd, ORD_TS_FMT)
-    }.getOrNull()
-
-    private fun applyReconciledExecution(order: Order, output: KisDailyCcldResponse.Output): ReconcileOutcome {
-        val totalFilled = output.totCcldQty.toIntOrNull() ?: 0
-        val avgPrice = output.avgPrvs.toIntOrNull() ?: 0
-        if (totalFilled <= 0 || avgPrice <= 0) {
-            log.warn("reconcile 응답 파싱 실패 orderId={}, output={}", order.id, output)
-            return ReconcileOutcome.NoMatch
-        }
-        order.reconcileFilled(totalFilled)
-        orderRepository.save(order)
-        executionRepository.save(
-            Execution(
-                orderId = order.id,
-                executedQty = totalFilled,
-                executedPrice = avgPrice,
-                fee = 0,
-                tax = 0,
-            )
-        )
-        return ReconcileOutcome.Matched(order.id, totalFilled)
-    }
-
-    private fun scheduleReconcile(order: Order, stockCode: String) {
-        val orderId = order.id
-        applicationScope.launch {
-            // KIS 일별 체결 API는 실시간보다 약간 lag이 있어 한 번만 조회하면 못 잡을 수 있음.
-            // 첫 delay는 property로 주입(test 환경에서 disable 가능), 이후는 escalating retry.
-            val delays = longArrayOf(reconcileDelayMillis) + RECONCILE_RETRY_DELAYS_MILLIS
-            for (delayMillis in delays) {
-                delay(delayMillis.milliseconds)
-                val outcome = runCatching { reconcile(orderId, stockCode) }
-                    .onFailure { log.warn("reconcile 실행 실패 orderId={}", orderId, it) }
-                    .getOrNull()
-                // 매칭/스킵/manual review 등 종결 상태면 더 시도하지 않음.
-                if (outcome is ReconcileOutcome.Matched ||
-                    outcome is ReconcileOutcome.MultipleMatches ||
-                    outcome is ReconcileOutcome.Skipped ||
-                    outcome is ReconcileOutcome.NotFound
-                ) {
-                    return@launch
-                }
-                // NoMatch / LookupFailed → 다음 단계 delay로 재시도
-            }
-            log.warn("reconcile 모든 시도 종료 (NoMatch 유지) orderId={}", orderId)
-        }
-    }
-
     private fun cancelInFlightSells(cycleId: Long) {
         cancelInFlight(orderRepository.findInFlightSells(cycleId), cycleId, "매도")
     }
@@ -277,35 +157,5 @@ class OrderService(
     private fun Signal.triggerLabel(): String = when (this) {
         is Signal.TpStage -> "TP_STAGE_$pct"
         else -> this::class.simpleName ?: "SELL"
-    }
-
-    sealed class BuyOutcome {
-        data class Submitted(val order: Order) : BuyOutcome()
-        data class Skipped(val reason: String) : BuyOutcome()
-    }
-
-    sealed class SellOutcome {
-        data class Submitted(val order: Order) : SellOutcome()
-        data object SignalDead : SellOutcome()
-        data object NoQty : SellOutcome()
-    }
-
-    sealed class ReconcileOutcome {
-        data class Matched(val orderId: Long, val filledQty: Int) : ReconcileOutcome()
-        data object NoMatch : ReconcileOutcome()
-        data object MultipleMatches : ReconcileOutcome()
-        data object Skipped : ReconcileOutcome()
-        data object NotFound : ReconcileOutcome()
-        data object LookupFailed : ReconcileOutcome()
-    }
-
-    companion object {
-        private const val FALLBACK_WINDOW_SECONDS = 30L
-        private const val SLL_BUY_BUY = "02"
-        private const val SLL_BUY_SELL = "01"
-        private val ORD_TS_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-
-        // 첫 시도(reconcileDelayMillis) NoMatch 후 escalating backoff로 ~1.5분간 추가 추적.
-        private val RECONCILE_RETRY_DELAYS_MILLIS = longArrayOf(10_000, 15_000, 30_000, 30_000)
     }
 }
