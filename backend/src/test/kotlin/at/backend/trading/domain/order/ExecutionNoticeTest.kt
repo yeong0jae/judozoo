@@ -10,7 +10,7 @@ class ExecutionNoticeTest : FunSpec({
     val now = Instant.now()
 
     fun valid() = ExecutionNotice(
-        kisOrderNo = "0000123456",
+        orderNo = "0000123456",
         stockCode = "005930",
         side = OrderSide.BUY,
         executedQty = 10,
@@ -30,7 +30,7 @@ class ExecutionNoticeTest : FunSpec({
 
     context("불변식") {
         test("주문번호가 공백이면 예외") {
-            shouldThrow<IllegalArgumentException> { valid().copy(kisOrderNo = "   ") }
+            shouldThrow<IllegalArgumentException> { valid().copy(orderNo = "   ") }
         }
 
         test("종목코드가 공백이면 예외") {

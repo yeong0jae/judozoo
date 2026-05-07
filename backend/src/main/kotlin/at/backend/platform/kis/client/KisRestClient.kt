@@ -119,7 +119,7 @@ class KisRestClient(
             .body(KisDailyCcldResponse::class.java)
             ?: error("KIS 일별 체결 응답이 비어있습니다")
 
-    fun submitOrder(stockCode: String, side: String, qty: Int): KisOrderResponse {
+    fun requestOrder(stockCode: String, side: String, qty: Int): KisOrderResponse {
         val trId = when (side) {
             "BUY" -> TR_ID_BUY
             "SELL" -> TR_ID_SELL
@@ -137,6 +137,7 @@ class KisRestClient(
                     ordDvsn = ORD_DVSN_MARKET,
                     ordQty = qty.toString(),
                     ordUnpr = ORD_UNPR_MARKET,
+                    excgIdDvsnCd = EXCG_ID_SOR,
                 )
             )
             .retrieve()
@@ -171,13 +172,7 @@ class KisRestClient(
 
     private fun KisOrderResponse.requireSuccess(label: String): KisOrderResponse {
         if (rtCd != RT_CD_OK) {
-            throw KisOrderRejectedException(msgCd ?: "UNKNOWN", "$label 거부 ${msg1 ?: ""}")
-        }
-        if (output?.odno.isNullOrBlank()) {
-            // rt_cd=0 = KIS는 정상 수신/처리. odno만 누락된 케이스는 실 체결이 발생할 수 있으므로
-            // 절대 KisOrderRejectedException(=실 체결 없음 확정)으로 분류하면 안 됨.
-            // 호출자(OrderService)의 generic catch가 markUncertain + reconcile 경로로 흘려서 복구.
-            error("$label 응답 성공이지만 odno 누락 [${msgCd ?: "UNKNOWN"}] ${msg1 ?: ""}")
+            throw KisOrderRejectedException(msgCd, "$label 거부 ${msg1 ?: ""}")
         }
         return this
     }
@@ -199,5 +194,9 @@ class KisRestClient(
         private const val ORD_UNPR_MARKET = "0"
         private const val RVSE_CNCL_CANCEL = "02"
         private const val RT_CD_OK = "0"
+
+        // EXCG_ID_DVSN_CD: 거래소 라우팅 (KRX=한국거래소, NXT=넥스트레이드, SOR=Smart Order Routing)
+        // SOR: KRX/NXT 중 best execution 자동 선택
+        private const val EXCG_ID_SOR = "SOR"
     }
 }

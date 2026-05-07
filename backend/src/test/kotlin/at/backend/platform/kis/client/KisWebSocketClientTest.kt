@@ -198,7 +198,7 @@ class KisWebSocketClientTest : FunSpec({
                 client.handler.handleMessage(session, TextMessage(frame))
                 deferred.await()
             }
-            notice.kisOrderNo shouldBe "0000123456"
+            notice.orderNo shouldBe "0000123456"
             notice.side shouldBe OrderSide.BUY
             notice.executedPrice shouldBe 70_000
             notice.executedQty shouldBe 10
@@ -233,7 +233,7 @@ class KisWebSocketClientTest : FunSpec({
                 deferred.await()
             }
             // 거부/접수통보가 모두 무시되고 첫 emit은 체결만
-            notice.kisOrderNo shouldBe "FILL"
+            notice.orderNo shouldBe "FILL"
         }
 
         test("SUBSCRIBE SUCCESS 응답의 iv/key를 받아 이후 암호화 H0STCNI0 프레임을 복호화한다") {
@@ -264,7 +264,7 @@ class KisWebSocketClientTest : FunSpec({
                 client.handler.handleMessage(session, TextMessage(frame))
                 deferred.await()
             }
-            notice.kisOrderNo shouldBe "ENC123"
+            notice.orderNo shouldBe "ENC123"
             notice.side shouldBe OrderSide.SELL
             notice.executedQty shouldBe 5
             notice.executedPrice shouldBe 80_000

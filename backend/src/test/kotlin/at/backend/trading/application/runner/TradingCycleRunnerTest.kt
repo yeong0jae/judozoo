@@ -1,12 +1,8 @@
 package at.backend.trading.application.runner
 
-import at.backend.common.test.FixedTimeProviderConfig
-import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
-import at.backend.common.test.KisWebSocketClientMockConfig
-import at.backend.common.test.MutableTimeProvider
-import at.backend.market.application.MarketDataStream
+import at.backend.common.test.*
 import at.backend.market.application.BarPoller
+import at.backend.market.application.MarketDataStream
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
@@ -85,21 +81,23 @@ class TradingCycleRunnerTest(
 
     private fun stubSubmitOrderOk() {
         var counter = 0
-        every { kisRestClient.submitOrder(any(), any(), any()) } answers {
+        every { kisRestClient.requestOrder(any(), any(), any()) } answers {
             counter += 1
             KisOrderResponse(
                 rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                output = KisOrderResponse.Output(
-                    krxFwdgOrdOrgno = "00950",
-                    odno = "ODNO%04d".format(counter),
-                    ordTmd = "100000",
+                output = listOf(
+                    KisOrderResponse.Output(
+                        krxFwdgOrdOrgno = "00950",
+                        odno = "ODNO%04d".format(counter),
+                        ordTmd = "100000",
+                    )
                 ),
             )
         }
     }
 
     private fun stubSubmitOrderFail() {
-        every { kisRestClient.submitOrder(any(), any(), any()) } throws RestClientException("4xx")
+        every { kisRestClient.requestOrder(any(), any(), any()) } throws RestClientException("4xx")
     }
 
     private fun simulateFill(order: Order, qty: Int) {
@@ -181,17 +179,19 @@ class TradingCycleRunnerTest(
             test("발송 실패 회차도 회차 카운트는 진행되어 다음 회차가 시도된다") {
                 stubCurrentPrice(70_000)
                 var attempt = 0
-                every { kisRestClient.submitOrder(any(), any(), any()) } answers {
+                every { kisRestClient.requestOrder(any(), any(), any()) } answers {
                     attempt += 1
                     if (attempt == 1) {
                         throw RestClientException("4xx")
                     } else {
                         KisOrderResponse(
                             rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                            output = KisOrderResponse.Output(
-                                krxFwdgOrdOrgno = "00950",
-                                odno = "ODNO_$attempt",
-                                ordTmd = "100000",
+                            output = listOf(
+                                KisOrderResponse.Output(
+                                    krxFwdgOrdOrgno = "00950",
+                                    odno = "ODNO_$attempt",
+                                    ordTmd = "100000",
+                                )
                             ),
                         )
                     }

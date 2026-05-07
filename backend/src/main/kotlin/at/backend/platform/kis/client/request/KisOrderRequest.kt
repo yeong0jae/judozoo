@@ -9,4 +9,5 @@ data class KisOrderRequest(
     @JsonProperty("ORD_DVSN") val ordDvsn: String,
     @JsonProperty("ORD_QTY") val ordQty: String,
     @JsonProperty("ORD_UNPR") val ordUnpr: String,
+    @JsonProperty("EXCG_ID_DVSN_CD") val excgIdDvsnCd: String,
 )

@@ -32,11 +32,11 @@ class Order(
     @Column(nullable = false, length = 10)
     val orderType: OrderType = OrderType.MARKET,
 
-    @Column(length = 20)
-    var kisOrderNo: String? = null,
+    @Column(name = "kis_order_no", length = 20)
+    var orderNo: String? = null,
 
-    @Column(length = 5)
-    var krxFwdgOrdOrgno: String? = null,
+    @Column(name = "krx_fwdg_ord_orgno", length = 5)
+    var fwdgOrdOrgno: String? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 15)
@@ -50,9 +50,9 @@ class Order(
 
 ) : BaseEntity() {
 
-    fun acknowledge(kisOrderNo: String, krxFwdgOrdOrgno: String?) {
-        this.kisOrderNo = kisOrderNo
-        this.krxFwdgOrdOrgno = krxFwdgOrdOrgno
+    fun acknowledge(orderNo: String, fwdgOrdOrgno: String?) {
+        this.orderNo = orderNo
+        this.fwdgOrdOrgno = fwdgOrdOrgno
     }
 
     fun markFailed(error: String?) {
@@ -76,8 +76,8 @@ class Order(
     }
 
     fun applyExecution(notice: ExecutionNotice, fee: Int, tax: Int): Execution {
-        require(notice.kisOrderNo == kisOrderNo) {
-            "통보 주문번호가 Order와 일치하지 않습니다: notice=${notice.kisOrderNo}, order=$kisOrderNo"
+        require(notice.orderNo == orderNo) {
+            "통보 주문번호가 Order와 일치하지 않습니다: notice=${notice.orderNo}, order=$orderNo"
         }
         require(notice.side == side) {
             "통보 side가 Order와 일치하지 않습니다: notice=${notice.side}, order=$side"

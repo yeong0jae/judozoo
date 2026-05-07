@@ -121,7 +121,7 @@ class ReportServiceTest(
                 trigger = trigger,
                 orderQty = qty,
                 status = OrderStatus.FILLED,
-                kisOrderNo = "K${System.nanoTime()}".take(20),
+                orderNo = "K${System.nanoTime()}".take(20),
             )
         ).id
 

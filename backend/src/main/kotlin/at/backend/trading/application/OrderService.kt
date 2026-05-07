@@ -61,9 +61,8 @@ class OrderService(
         orderRepository.save(order)
 
         return try {
-            // requireSuccess가 odno 존재 보장 → !!안전
-            val output = kisRestClient.submitOrder(cycle.stockCode, OrderSide.BUY.name, qty).output!!
-            order.acknowledge(output.odno!!, output.krxFwdgOrdOrgno)
+            val output = kisRestClient.requestOrder(cycle.stockCode, OrderSide.BUY.name, qty).output!!.first()
+            order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
             val saved = orderRepository.save(order)
 
             scheduleReconcile(saved, cycle.stockCode)
@@ -121,8 +120,9 @@ class OrderService(
             )
 
             try {
-                val output = kisRestClient.submitOrder(cycle.stockCode, OrderSide.SELL.name, effectiveQty).output!!
-                order.acknowledge(output.odno!!, output.krxFwdgOrdOrgno)
+                val output =
+                    kisRestClient.requestOrder(cycle.stockCode, OrderSide.SELL.name, effectiveQty).output!!.first()
+                order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
                 val saved = orderRepository.save(order)
                 scheduleReconcile(saved, cycle.stockCode)
                 return SellOutcome.Submitted(saved)
@@ -188,8 +188,8 @@ class OrderService(
         stockCode: String,
         outputs: List<KisDailyCcldResponse.Output>,
     ): List<KisDailyCcldResponse.Output> {
-        val byKisOrderNo = order.kisOrderNo?.let { kisOrderNo -> outputs.filter { it.odno == kisOrderNo } }
-        if (!byKisOrderNo.isNullOrEmpty()) return byKisOrderNo
+        val byOrderNo = order.orderNo?.let { orderNo -> outputs.filter { it.odno == orderNo } }
+        if (!byOrderNo.isNullOrEmpty()) return byOrderNo
         return outputs.filter { row -> matchesByFallback(order, stockCode, row) }
     }
 
@@ -263,8 +263,8 @@ class OrderService(
 
     private fun cancelInFlight(orders: List<Order>, cycleId: Long, label: String) {
         for (order in orders) {
-            val orgno = order.krxFwdgOrdOrgno
-            val odno = order.kisOrderNo
+            val orgno = order.fwdgOrdOrgno
+            val odno = order.orderNo
             if (orgno != null && odno != null) {
                 runCatching { kisRestClient.cancelRemainder(orgno, odno) }
                     .onFailure { log.warn("$label 잔량 취소 실패 cycleId={}, orderId={}", cycleId, order.id, it) }

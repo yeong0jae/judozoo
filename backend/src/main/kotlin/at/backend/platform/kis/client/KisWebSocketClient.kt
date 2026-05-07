@@ -229,7 +229,7 @@ class KisWebSocketClient(
         val qty = fields[9].toIntOrNull()?.takeIf { it > 0 } ?: return null
         val price = fields[10].toIntOrNull()?.takeIf { it > 0 } ?: return null
         return ExecutionNotice(
-            kisOrderNo = orderNo,
+            orderNo = orderNo,
             stockCode = stockCode,
             side = side,
             executedQty = qty,

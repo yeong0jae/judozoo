@@ -1,10 +1,10 @@
 package at.backend.trading.application
 
 import at.backend.common.test.*
+import at.backend.market.application.BarPoller
 import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
-import at.backend.market.application.BarPoller
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.KisWebSocketClient
 import at.backend.platform.kis.client.response.*
@@ -77,21 +77,23 @@ class TradingCycleScenarioTest(
 
     private fun stubSubmitOrderOk() {
         var counter = 0
-        every { kisRestClient.submitOrder(any(), any(), any()) } answers {
+        every { kisRestClient.requestOrder(any(), any(), any()) } answers {
             counter += 1
             KisOrderResponse(
                 rtCd = "0", msgCd = "OK", msg1 = "OK",
-                output = KisOrderResponse.Output(
-                    krxFwdgOrdOrgno = "00950",
-                    odno = "ODNO%04d".format(counter),
-                    ordTmd = "100000",
+                output = listOf(
+                    KisOrderResponse.Output(
+                        krxFwdgOrdOrgno = "00950",
+                        odno = "ODNO%04d".format(counter),
+                        ordTmd = "100000",
+                    )
                 ),
             )
         }
     }
 
     private fun stubSubmitOrderFail() {
-        every { kisRestClient.submitOrder(any(), any(), any()) } throws
+        every { kisRestClient.requestOrder(any(), any(), any()) } throws
                 org.springframework.web.client.RestClientException("4xx")
     }
 
@@ -136,7 +138,7 @@ class TradingCycleScenarioTest(
 
     private fun fillAllPendingBuys(cycleId: Long, fillPrice: Int) {
         orderRepository.findByCycleId(cycleId)
-            .filter { it.side == OrderSide.BUY && it.filledQty == 0 && it.status == OrderStatus.PENDING && it.kisOrderNo != null }
+            .filter { it.side == OrderSide.BUY && it.filledQty == 0 && it.status == OrderStatus.PENDING && it.orderNo != null }
             .forEach { fillBuyOrder(it, it.orderQty, fillPrice) }
     }
 
@@ -222,7 +224,7 @@ class TradingCycleScenarioTest(
 
                     emitTicksUntil(price = 60_000) {
                         orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.kisOrderNo != null }
+                            .any { it.side == OrderSide.SELL && it.orderNo != null }
                     }
                     val sell = orderRepository.findByCycleId(created.id).first { it.side == OrderSide.SELL }
                     fillSellOrder(sell, sell.orderQty)
@@ -276,7 +278,7 @@ class TradingCycleScenarioTest(
 
                     emitTicksUntil(price = 60_000, code = codes[0].first) {
                         orderRepository.findByCycleId(cycles[0].id)
-                            .any { it.side == OrderSide.SELL && it.kisOrderNo != null }
+                            .any { it.side == OrderSide.SELL && it.orderNo != null }
                     }
                     val sell = orderRepository.findByCycleId(cycles[0].id).first { it.side == OrderSide.SELL }
                     fillSellOrder(sell, sell.orderQty)
@@ -293,7 +295,7 @@ class TradingCycleScenarioTest(
 
                 run {
                     waitUntilOrders(created.id) { orders ->
-                        orders.any { it.side == OrderSide.BUY && it.kisOrderNo != null }
+                        orders.any { it.side == OrderSide.BUY && it.orderNo != null }
                     }
                     tradingService.cancel(created.id)
                     waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
@@ -311,7 +313,7 @@ class TradingCycleScenarioTest(
                 val created = tradingService.create(validInput(buyIntervalMin = 30))
 
                 waitUntilOrders(created.id) { orders ->
-                    orders.any { it.side == OrderSide.BUY && it.kisOrderNo != null }
+                    orders.any { it.side == OrderSide.BUY && it.orderNo != null }
                 }
                 val firstBuy = orderRepository.findByCycleId(created.id).first { it.side == OrderSide.BUY }
                 fillBuyOrder(firstBuy, firstBuy.orderQty, 70_000)
@@ -319,7 +321,7 @@ class TradingCycleScenarioTest(
                 tradingService.cancel(created.id)
 
                 waitUntilOrders(created.id, timeoutMillis = 10_000) { orders ->
-                    orders.any { it.side == OrderSide.SELL && it.kisOrderNo != null }
+                    orders.any { it.side == OrderSide.SELL && it.orderNo != null }
                 }
                 val sell = orderRepository.findByCycleId(created.id).first { it.side == OrderSide.SELL }
                 fillSellOrder(sell, sell.orderQty)
@@ -369,7 +371,7 @@ class TradingCycleScenarioTest(
 
                     emitTicksUntil(price = 71_580) {
                         orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" && it.kisOrderNo != null }
+                            .any { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" && it.orderNo != null }
                     }
                     val tpSell = orderRepository.findByCycleId(created.id)
                         .first { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" }
@@ -378,7 +380,7 @@ class TradingCycleScenarioTest(
                     cycleOrchestrator.broadcastMarketClose()
 
                     waitUntilOrders(created.id) { orders ->
-                        orders.any { it.side == OrderSide.SELL && it.trigger == "MarketClose" && it.kisOrderNo != null }
+                        orders.any { it.side == OrderSide.SELL && it.trigger == "MarketClose" && it.orderNo != null }
                     }
                     val mcSell = orderRepository.findByCycleId(created.id)
                         .first { it.side == OrderSide.SELL && it.trigger == "MarketClose" }
@@ -401,7 +403,7 @@ class TradingCycleScenarioTest(
                         cycleRepository.findById(created.id).get().tpStagesFired == 0b111
                     }
                     orderRepository.findByCycleId(created.id)
-                        .filter { it.side == OrderSide.SELL && it.filledQty == 0 && it.kisOrderNo != null }
+                        .filter { it.side == OrderSide.SELL && it.filledQty == 0 && it.orderNo != null }
                         .forEach { fillSellOrder(it, it.orderQty) }
 
                     emitBar(openPrice = 73_700, closePrice = 73_700)
@@ -411,7 +413,7 @@ class TradingCycleScenarioTest(
 
                     emitTicksUntil(price = 73_700, timeoutMillis = 10_000) {
                         orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.trigger == "TrendBreak" && it.kisOrderNo != null }
+                            .any { it.side == OrderSide.SELL && it.trigger == "TrendBreak" && it.orderNo != null }
                     }
                     val tbSell = orderRepository.findByCycleId(created.id)
                         .first { it.side == OrderSide.SELL && it.trigger == "TrendBreak" }
@@ -432,7 +434,7 @@ class TradingCycleScenarioTest(
 
                     emitTicksUntil(price = 71_580) {
                         orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" && it.kisOrderNo != null }
+                            .any { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" && it.orderNo != null }
                     }
                     val tpSell = orderRepository.findByCycleId(created.id)
                         .first { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" }
@@ -440,7 +442,7 @@ class TradingCycleScenarioTest(
 
                     emitTicksUntil(price = 70_000) {
                         orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.trigger == "Breakeven" && it.kisOrderNo != null }
+                            .any { it.side == OrderSide.SELL && it.trigger == "Breakeven" && it.orderNo != null }
                     }
                     val beSell = orderRepository.findByCycleId(created.id)
                         .first { it.side == OrderSide.SELL && it.trigger == "Breakeven" }
@@ -466,7 +468,7 @@ class TradingCycleScenarioTest(
                     )
 
                     waitUntilOrders(created.id, timeoutMillis = 10_000) { orders ->
-                        orders.any { it.side == OrderSide.SELL && it.kisOrderNo != null }
+                        orders.any { it.side == OrderSide.SELL && it.orderNo != null }
                     }
                     val sell = orderRepository.findByCycleId(created.id).first { it.side == OrderSide.SELL }
                     fillSellOrder(sell, sell.orderQty)
@@ -491,7 +493,7 @@ class TradingCycleScenarioTest(
 
                     emitTicksUntil(price = 60_000) {
                         orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.kisOrderNo != null }
+                            .any { it.side == OrderSide.SELL && it.orderNo != null }
                     }
                 }
                 val sell = orderRepository.findByCycleId(created.id).first { it.side == OrderSide.SELL }
@@ -500,7 +502,7 @@ class TradingCycleScenarioTest(
                     output1 = listOf(
                         KisDailyCcldResponse.Output(
                             pdno = stockCode,
-                            odno = sell.kisOrderNo!!,
+                            odno = sell.orderNo!!,
                             ordDt = "20260105",
                             ordTmd = "100000",
                             totCcldQty = sell.orderQty.toString(),

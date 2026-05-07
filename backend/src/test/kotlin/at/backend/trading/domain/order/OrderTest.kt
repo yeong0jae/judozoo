@@ -7,19 +7,19 @@ import java.time.Instant
 
 class OrderTest : FunSpec({
 
-    fun pendingBuy(orderQty: Int = 10, kisOrderNo: String? = "ODNO0001") = Order(
+    fun pendingBuy(orderQty: Int = 10, orderNo: String? = "ODNO0001") = Order(
         id = 1L,
         cycleId = 100L,
         side = OrderSide.BUY,
         trigger = "BUY_1",
         orderQty = orderQty,
-        kisOrderNo = kisOrderNo,
+        orderNo = orderNo,
         status = OrderStatus.PENDING,
     )
 
-    fun notice(qty: Int, price: Int = 70_000, kisOrderNo: String = "ODNO0001", side: OrderSide = OrderSide.BUY) =
+    fun notice(qty: Int, price: Int = 70_000, orderNo: String = "ODNO0001", side: OrderSide = OrderSide.BUY) =
         ExecutionNotice(
-            kisOrderNo = kisOrderNo,
+            orderNo = orderNo,
             stockCode = "005930",
             side = side,
             executedQty = qty,
@@ -64,10 +64,10 @@ class OrderTest : FunSpec({
         }
 
         test("주문번호가 다른 통보는 거부된다") {
-            val order = pendingBuy(kisOrderNo = "ODNO0001")
+            val order = pendingBuy(orderNo = "ODNO0001")
 
             shouldThrow<IllegalArgumentException> {
-                order.applyExecution(notice(qty = 1, kisOrderNo = "ODNO9999"), fee = 0, tax = 0)
+                order.applyExecution(notice(qty = 1, orderNo = "ODNO9999"), fee = 0, tax = 0)
             }
         }
 

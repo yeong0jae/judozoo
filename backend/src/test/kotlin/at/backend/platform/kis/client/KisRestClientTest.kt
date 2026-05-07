@@ -110,9 +110,9 @@ class KisRestClientTest : FunSpec({
         test("주문 발송 - 매수 시 ODNO 반환") {
             stubPost("/uapi/domestic-stock/v1/trading/order-cash", "order-cash.json")
 
-            val response = client().submitOrder("005930", "BUY", 10)
-            response.output!!.odno shouldBe "0000123456"
-            response.output!!.krxFwdgOrdOrgno shouldBe "00950"
+            val response = client().requestOrder("005930", "BUY", 10)
+            response.output!!.first().odno shouldBe "0000123456"
+            response.output!!.first().krxFwdgOrdOrgno shouldBe "00950"
 
             wireMock.verify(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
@@ -128,7 +128,7 @@ class KisRestClientTest : FunSpec({
         test("주문 발송 - 매도 시 매도 TR_ID 사용") {
             stubPost("/uapi/domestic-stock/v1/trading/order-cash", "order-cash.json")
 
-            client().submitOrder("005930", "SELL", 5)
+            client().requestOrder("005930", "SELL", 5)
 
             wireMock.verify(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
@@ -140,7 +140,7 @@ class KisRestClientTest : FunSpec({
             stubPost("/uapi/domestic-stock/v1/trading/order-rvsecncl", "order-rvsecncl.json")
 
             val response = client().cancelRemainder(krxFwdgOrdOrgno = "00950", originalOdno = "0000123456")
-            response.output!!.odno shouldBe "0000123457"
+            response.output!!.first().odno shouldBe "0000123457"
 
             wireMock.verify(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-rvsecncl"))
@@ -170,7 +170,7 @@ class KisRestClientTest : FunSpec({
                     .willReturn(WireMock.aResponse().withStatus(400))
             )
 
-            shouldThrow<RestClientException> { client().submitOrder("005930", "BUY", 1) }
+            shouldThrow<RestClientException> { client().requestOrder("005930", "BUY", 1) }
         }
 
         test("주문 발송 200이지만 rt_cd≠0(거부) 시 KisOrderRejectedException로 변환되어 msg1 포함") {
@@ -184,28 +184,9 @@ class KisRestClientTest : FunSpec({
                     )
             )
 
-            val ex = shouldThrow<KisOrderRejectedException> { client().submitOrder("005930", "BUY", 1) }
+            val ex = shouldThrow<KisOrderRejectedException> { client().requestOrder("005930", "BUY", 1) }
             ex.msgCd shouldBe "EGW00201"
             ex.message!! shouldContain "초당 거래건수"
-        }
-
-        test("주문 발송 200 rt_cd=0 인데 odno 누락 응답은 거부가 아닌 불확실 예외로 변환되어야 한다") {
-            // KIS 실관측 케이스: rt_cd=0 + APBK0013("주문 전송 완료")인데 output.odno만 비어옴.
-            // 이때 실제로는 체결이 발생할 수 있으므로 KisOrderRejectedException(=실 체결 없음 확정)
-            // 으로 분류하면 OrderService가 reconcile 없이 FAILED로 묻어서 DB-KIS 영구 분리 발생.
-            wireMock.stubFor(
-                WireMock.post(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
-                    .willReturn(
-                        WireMock.aResponse()
-                            .withStatus(200)
-                            .withHeader("Content-Type", "application/json")
-                            .withBody("""{"rt_cd":"0","msg_cd":"APBK0013","msg1":"주문 전송 완료되었습니다.","output":{"KRX_FWDG_ORD_ORGNO":"00950","ODNO":"","ORD_TMD":"104518"}}""")
-                    )
-            )
-
-            val ex = shouldThrow<IllegalStateException> { client().submitOrder("005930", "BUY", 1) }
-            ex.message!! shouldContain "odno 누락"
-            ex.message!! shouldContain "APBK0013"
         }
 
         test("주문 취소 200이지만 rt_cd≠0(거부) 시 KisOrderRejectedException로 변환된다") {

@@ -1,12 +1,8 @@
 package at.backend.trading.application
 
-import at.backend.common.test.FixedTimeProviderConfig
-import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
-import at.backend.common.test.KisWebSocketClientMockConfig
-import at.backend.common.test.MutableTimeProvider
-import at.backend.market.application.MarketDataStream
+import at.backend.common.test.*
 import at.backend.market.application.BarPoller
+import at.backend.market.application.MarketDataStream
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
@@ -69,14 +65,16 @@ class CycleOrchestratorTest(
 
     private fun stubSubmitOrderOk() {
         var counter = 0
-        every { kisRestClient.submitOrder(any(), any(), any()) } answers {
+        every { kisRestClient.requestOrder(any(), any(), any()) } answers {
             counter += 1
             KisOrderResponse(
                 rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                output = KisOrderResponse.Output(
-                    krxFwdgOrdOrgno = "00950",
-                    odno = "ODNO%04d".format(counter),
-                    ordTmd = "100000",
+                output = listOf(
+                    KisOrderResponse.Output(
+                        krxFwdgOrdOrgno = "00950",
+                        odno = "ODNO%04d".format(counter),
+                        ordTmd = "100000",
+                    )
                 ),
             )
         }
@@ -88,10 +86,12 @@ class CycleOrchestratorTest(
                     rtCd = "0",
                     msgCd = "OK",
                     msg1 = "OK",
-                    output = KisOrderResponse.Output(
-                        krxFwdgOrdOrgno = "00950",
-                        odno = "ODNO0001",
-                        ordTmd = "100000",
+                    output = listOf(
+                        KisOrderResponse.Output(
+                            krxFwdgOrdOrgno = "00950",
+                            odno = "ODNO0001",
+                            ordTmd = "100000",
+                        )
                     ),
                 )
     }
@@ -126,7 +126,7 @@ class CycleOrchestratorTest(
             }
 
             test("매수 전량 미체결로 자연 종료되면 구독이 해제된다") {
-                every { kisRestClient.submitOrder(any(), any(), any()) } throws RuntimeException("4xx")
+                every { kisRestClient.requestOrder(any(), any(), any()) } throws RuntimeException("4xx")
                 val cycle = saveCycle()
 
                 orchestrator.start(cycle)
@@ -149,11 +149,11 @@ class CycleOrchestratorTest(
                 val pendingAtCancel = runBlocking {
                     waitFor(timeoutMillis = 3000) {
                         orderRepository.findByCycleId(cycle.id).any {
-                            it.side == OrderSide.BUY && it.status == OrderStatus.PENDING && it.kisOrderNo != null
+                            it.side == OrderSide.BUY && it.status == OrderStatus.PENDING && it.orderNo != null
                         }
                     }
                     orderRepository.findByCycleId(cycle.id)
-                        .filter { it.side == OrderSide.BUY && it.status == OrderStatus.PENDING && it.kisOrderNo != null }
+                        .filter { it.side == OrderSide.BUY && it.status == OrderStatus.PENDING && it.orderNo != null }
                         .map { it.id }
                 }
 
@@ -181,7 +181,7 @@ class CycleOrchestratorTest(
                 runBlocking {
                     waitFor(timeoutMillis = 3000) {
                         orderRepository.findByCycleId(cycle.id).any {
-                            it.side == OrderSide.BUY && it.kisOrderNo != null
+                            it.side == OrderSide.BUY && it.orderNo != null
                         }
                     }
                 }
@@ -203,7 +203,7 @@ class CycleOrchestratorTest(
 
         context("정리 / 자연 종료 후 재시작") {
             test("자연 종료된 사이클은 activeCycleIds에서 제거된다") {
-                every { kisRestClient.submitOrder(any(), any(), any()) } throws RuntimeException("4xx")
+                every { kisRestClient.requestOrder(any(), any(), any()) } throws RuntimeException("4xx")
                 val cycle = saveCycle()
                 orchestrator.start(cycle)
 

@@ -24,7 +24,7 @@ class ExecutionNoticeListener(
         job = applicationScope.launch {
             webSocketClient.executionNotices.collect { notice ->
                 runCatching { handler.handle(notice) }
-                    .onFailure { log.error("체결 통보 처리 실패 kisOrderNo={}", notice.kisOrderNo, it) }
+                    .onFailure { log.error("체결 통보 처리 실패 orderNo={}", notice.orderNo, it) }
             }
         }
     }

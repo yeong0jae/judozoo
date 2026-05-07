@@ -21,9 +21,9 @@ class ExecutionNoticeHandler(
 
     @Transactional
     fun handle(notice: ExecutionNotice) {
-        val order = orderRepository.findByKisOrderNo(notice.kisOrderNo)
+        val order = orderRepository.findByOrderNo(notice.orderNo)
         if (order == null) {
-            log.debug("일치하는 Order 없음 — 통보 무시 kisOrderNo={}", notice.kisOrderNo)
+            log.debug("일치하는 Order 없음 — 통보 무시 orderNo={}", notice.orderNo)
             return
         }
         val execution = order.applyExecution(notice, fee = 0, tax = 0)

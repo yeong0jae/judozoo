@@ -49,7 +49,7 @@ class ExecutionNoticeHandlerTest(
 
     private fun saveOrder(
         cycleId: Long,
-        kisOrderNo: String = "ODNO0001",
+        orderNo: String = "ODNO0001",
         orderQty: Int = 10,
         side: OrderSide = OrderSide.BUY,
     ): Order = orderRepository.save(
@@ -58,19 +58,19 @@ class ExecutionNoticeHandlerTest(
             side = side,
             trigger = "BUY_1",
             orderQty = orderQty,
-            kisOrderNo = kisOrderNo,
-            krxFwdgOrdOrgno = "00950",
+            orderNo = orderNo,
+            fwdgOrdOrgno = "00950",
             status = OrderStatus.PENDING,
         )
     )
 
     private fun notice(
-        kisOrderNo: String = "ODNO0001",
+        orderNo: String = "ODNO0001",
         qty: Int,
         price: Int = 70_000,
         side: OrderSide = OrderSide.BUY,
     ) = ExecutionNotice(
-        kisOrderNo = kisOrderNo,
+        orderNo = orderNo,
         stockCode = "005930",
         side = side,
         executedQty = qty,
@@ -101,9 +101,9 @@ class ExecutionNoticeHandlerTest(
 
             test("일치하는 Order가 없는 통보는 무시된다") {
                 val cycle = saveCycle()
-                saveOrder(cycle.id, kisOrderNo = "ODNO0001", orderQty = 10)
+                saveOrder(cycle.id, orderNo = "ODNO0001", orderQty = 10)
 
-                handler.handle(notice(kisOrderNo = "UNKNOWN", qty = 5))
+                handler.handle(notice(orderNo = "UNKNOWN", qty = 5))
 
                 val orders = orderRepository.findByCycleId(cycle.id)
                 orders.single().filledQty shouldBe 0

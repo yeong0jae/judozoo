@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param
 interface OrderJpaRepository : JpaRepository<Order, Long> {
     fun findByCycleId(cycleId: Long): List<Order>
 
-    fun findByKisOrderNo(kisOrderNo: String): Order?
+    fun findByOrderNo(orderNo: String): Order?
 
     @Query(
         "SELECT COALESCE(SUM(o.orderQty - o.filledQty), 0) FROM Order o " +
