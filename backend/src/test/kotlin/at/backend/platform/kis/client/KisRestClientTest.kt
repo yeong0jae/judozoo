@@ -192,7 +192,7 @@ class KisRestClientTest : FunSpec({
         test("주문 발송 200 rt_cd=0 인데 odno 누락 응답은 거부가 아닌 불확실 예외로 변환되어야 한다") {
             // KIS 실관측 케이스: rt_cd=0 + APBK0013("주문 전송 완료")인데 output.odno만 비어옴.
             // 이때 실제로는 체결이 발생할 수 있으므로 KisOrderRejectedException(=실 체결 없음 확정)
-            // 으로 분류하면 OrderExecutor가 reconcile 없이 FAILED로 묻어서 DB-KIS 영구 분리 발생.
+            // 으로 분류하면 OrderService가 reconcile 없이 FAILED로 묻어서 DB-KIS 영구 분리 발생.
             wireMock.stubFor(
                 WireMock.post(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
                     .willReturn(

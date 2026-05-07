@@ -7,7 +7,7 @@ import at.backend.market.application.BarPoller
 import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
-import at.backend.trading.application.OrderExecutor
+import at.backend.trading.application.OrderService
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
@@ -40,7 +40,7 @@ import kotlin.time.Duration.Companion.minutes
 class TradingCycleRunner(
     private val cycle: TradingCycle,
     private val applicationScope: CoroutineScope,
-    private val orderExecutor: OrderExecutor,
+    private val orderService: OrderService,
     private val cycleRepository: TradingCycleJpaRepository,
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
@@ -101,7 +101,7 @@ class TradingCycleRunner(
                 cycleRepository.save(cycle)
             }
             publishStateChanged(TradingCycleStatus.BUYING)
-            orderExecutor.executeBuyTry(cycle, attempt = 1)
+            orderService.placeBuy(cycle, attempt = 1)
 
             repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
                 delay(buyIntervalUnit * cycle.buyIntervalMin)
@@ -109,7 +109,7 @@ class TradingCycleRunner(
                     cycle.incrementBuyAttempt()
                     cycleRepository.save(cycle)
                 }
-                orderExecutor.executeBuyTry(cycle, attempt = i + 2)
+                orderService.placeBuy(cycle, attempt = i + 2)
             }
         } finally {
             withContext(NonCancellable) { finalizeBuySequence() }
@@ -275,7 +275,7 @@ class TradingCycleRunner(
                 cycleRepository.save(cycle)
                 val (sellQty, _) = cycle.splitSellQty(holdingQty)
                 if (sellQty > 0) {
-                    orderExecutor.executeSell(cycle, signal, sellQty, buyPrice, currentPrice, currentBar)
+                    orderService.placeSell(cycle, signal, sellQty, buyPrice, currentPrice, currentBar)
                 }
             }
 
@@ -287,7 +287,7 @@ class TradingCycleRunner(
                     publishStateChanged(TradingCycleStatus.LIQUIDATING)
                 }
                 if (holdingQty > 0) {
-                    orderExecutor.executeSell(cycle, signal, holdingQty, buyPrice, currentPrice, currentBar)
+                    orderService.placeSell(cycle, signal, holdingQty, buyPrice, currentPrice, currentBar)
                 }
             }
         }

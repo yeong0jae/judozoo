@@ -21,7 +21,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Component
 class CycleOrchestrator(
     private val applicationScope: CoroutineScope,
-    private val orderExecutor: OrderExecutor,
+    private val orderService: OrderService,
     private val cycleRepository: TradingCycleJpaRepository,
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
@@ -63,7 +63,7 @@ class CycleOrchestrator(
             log.warn("취소 대상 사이클이 활성 상태가 아님 cycleId={}", cycleId)
             return
         }
-        orderExecutor.cancelInFlightBuys(cycleId)
+        orderService.cancelInFlightBuys(cycleId)
         applicationScope.launch {
             runCatching { runner.requestCancellation() }
                 .onFailure { log.warn("사이클 취소 처리 실패 cycleId={}", cycleId, it) }
@@ -90,7 +90,7 @@ class CycleOrchestrator(
     private fun newTradingCycleRunner(cycle: TradingCycle) = TradingCycleRunner(
         cycle = cycle,
         applicationScope = applicationScope,
-        orderExecutor = orderExecutor,
+        orderService = orderService,
         cycleRepository = cycleRepository,
         orderRepository = orderRepository,
         executionRepository = executionRepository,

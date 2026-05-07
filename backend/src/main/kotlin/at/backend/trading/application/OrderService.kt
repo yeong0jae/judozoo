@@ -26,7 +26,7 @@ import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 @Component
-class OrderExecutor(
+class OrderService(
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
     private val kisRestClient: KisRestClient,
@@ -43,7 +43,7 @@ class OrderExecutor(
      * 매수 회차 1건 발송. 응답 정상이면 [Order.kisOrderNo]/[Order.krxFwdgOrdOrgno] 갱신.
      * 발송 실패는 회차 스킵 — 호출자(BUYING 사이클)는 다음 회차로 진행.
      */
-    suspend fun executeBuyTry(cycle: TradingCycle, attempt: Int): BuyOutcome {
+    suspend fun placeBuy(cycle: TradingCycle, attempt: Int): BuyOutcome {
         val currentPrice = kisRestClient.getCurrentPrice(cycle.stockCode).output.stckPrpr.toIntOrNull()
             ?: return BuyOutcome.Skipped("현재가 응답 파싱 실패")
         val qty = (cycle.perBuyAmount / currentPrice).toInt()
@@ -89,7 +89,7 @@ class OrderExecutor(
      * - 발송 성공 시 종료 (체결 확정은 WS 통보 핸들러 책임)
      * - 발송 실패 시 [sellRetryDelayMillis] 후 재시도
      */
-    suspend fun executeSell(
+    suspend fun placeSell(
         cycle: TradingCycle,
         signal: Signal,
         intentQty: Int,

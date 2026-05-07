@@ -176,7 +176,7 @@ class KisRestClient(
         if (output?.odno.isNullOrBlank()) {
             // rt_cd=0 = KIS는 정상 수신/처리. odno만 누락된 케이스는 실 체결이 발생할 수 있으므로
             // 절대 KisOrderRejectedException(=실 체결 없음 확정)으로 분류하면 안 됨.
-            // 호출자(OrderExecutor)의 generic catch가 markUncertain + reconcile 경로로 흘려서 복구.
+            // 호출자(OrderService)의 generic catch가 markUncertain + reconcile 경로로 흘려서 복구.
             error("$label 응답 성공이지만 odno 누락 [${msgCd ?: "UNKNOWN"}] ${msg1 ?: ""}")
         }
         return this

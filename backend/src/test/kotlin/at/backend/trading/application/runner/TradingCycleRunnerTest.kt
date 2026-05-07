@@ -10,7 +10,7 @@ import at.backend.market.application.BarPoller
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
-import at.backend.trading.application.OrderExecutor
+import at.backend.trading.application.OrderService
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class, FixedTimeProviderConfig::class)
 class TradingCycleRunnerTest(
-    @Autowired private val orderExecutor: OrderExecutor,
+    @Autowired private val orderService: OrderService,
     @Autowired private val cycleRepository: TradingCycleJpaRepository,
     @Autowired private val orderRepository: OrderJpaRepository,
     @Autowired private val executionRepository: ExecutionJpaRepository,
@@ -63,7 +63,7 @@ class TradingCycleRunnerTest(
     private fun runner(cycle: TradingCycle) = TradingCycleRunner(
         cycle = cycle,
         applicationScope = applicationScope,
-        orderExecutor = orderExecutor,
+        orderService = orderService,
         cycleRepository = cycleRepository,
         orderRepository = orderRepository,
         executionRepository = executionRepository,

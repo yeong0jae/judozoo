@@ -42,7 +42,7 @@ class TradingCycleScenarioTest(
     @Autowired private val timeProvider: MutableTimeProvider,
     @Autowired private val unclosedCycleStartupHook: UnclosedCycleStartupHook,
     @Autowired private val cycleOrchestrator: CycleOrchestrator,
-    @Autowired private val orderExecutor: OrderExecutor,
+    @Autowired private val orderService: OrderService,
     @Autowired private val barPoller: BarPoller,
     @Autowired private val marketDataStream: MarketDataStream,
 ) : IntegrationTestBase() {
@@ -508,9 +508,9 @@ class TradingCycleScenarioTest(
                     )
                 )
 
-                val outcome = orderExecutor.reconcile(sell.id, stockCode)
+                val outcome = orderService.reconcile(sell.id, stockCode)
 
-                outcome.shouldBeInstanceOf<OrderExecutor.ReconcileOutcome.Matched>()
+                outcome.shouldBeInstanceOf<OrderService.ReconcileOutcome.Matched>()
                 val refreshed = orderRepository.findById(sell.id).get()
                 refreshed.filledQty shouldBe sell.orderQty
             }
