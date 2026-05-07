@@ -15,8 +15,9 @@ class Order(
     @Column(nullable = false)
     val cycleId: Long,
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 4)
-    val side: String,
+    val side: OrderSide,
 
     @Column(name = "trigger_type", nullable = false, length = 20)
     val trigger: String,
@@ -27,8 +28,9 @@ class Order(
     @Column(nullable = false)
     var filledQty: Int = 0,
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
-    val orderType: String = "MARKET",
+    val orderType: OrderType = OrderType.MARKET,
 
     @Column(length = 20)
     var kisOrderNo: String? = null,
@@ -36,8 +38,9 @@ class Order(
     @Column(length = 5)
     var krxFwdgOrdOrgno: String? = null,
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 15)
-    var status: String,
+    var status: OrderStatus,
 
     @Column(nullable = false)
     var retryCount: Int = 0,
@@ -53,7 +56,7 @@ class Order(
     }
 
     fun markFailed(error: String?) {
-        this.status = STATUS_FAILED
+        this.status = OrderStatus.FAILED
         this.lastError = error?.take(MAX_ERROR_LEN)
     }
 
@@ -67,7 +70,7 @@ class Order(
     }
 
     fun markRetryableFailed(error: String?) {
-        this.status = STATUS_FAILED
+        this.status = OrderStatus.FAILED
         this.retryCount += 1
         this.lastError = error?.take(MAX_ERROR_LEN)
     }
@@ -80,7 +83,7 @@ class Order(
             "통보 side가 Order와 일치하지 않습니다: notice=${notice.side}, order=$side"
         }
         filledQty += notice.executedQty
-        if (filledQty >= orderQty) status = STATUS_FILLED
+        if (filledQty >= orderQty) status = OrderStatus.FILLED
         return Execution(
             orderId = id,
             executedQty = notice.executedQty,
@@ -90,31 +93,26 @@ class Order(
         )
     }
 
-    fun isFullyFilled(): Boolean = status == STATUS_FILLED
+    fun isFullyFilled(): Boolean = status == OrderStatus.FILLED
 
     fun markCancelled() {
-        status = STATUS_CANCELLED
+        status = OrderStatus.CANCELLED
     }
 
     fun markNeedsManualReview(reason: String?) {
-        status = STATUS_NEEDS_REVIEW
+        status = OrderStatus.NEEDS_REVIEW
         lastError = reason?.take(MAX_ERROR_LEN)
     }
 
     fun reconcileFilled(totalFilledQty: Int) {
         require(totalFilledQty >= 0) { "체결 수량은 0 이상이어야 합니다: $totalFilledQty" }
         filledQty = totalFilledQty
-        if (filledQty >= orderQty) status = STATUS_FILLED
+        if (filledQty >= orderQty) status = OrderStatus.FILLED
     }
 
-    fun isReconcilable(): Boolean = status == STATUS_PENDING && filledQty == 0
+    fun isReconcilable(): Boolean = status == OrderStatus.PENDING && filledQty == 0
 
     companion object {
-        private const val STATUS_PENDING = "PENDING"
-        private const val STATUS_FILLED = "FILLED"
-        private const val STATUS_FAILED = "FAILED"
-        private const val STATUS_CANCELLED = "CANCELLED"
-        private const val STATUS_NEEDS_REVIEW = "NEEDS_REVIEW"
         private const val MAX_ERROR_LEN = 500
     }
 }

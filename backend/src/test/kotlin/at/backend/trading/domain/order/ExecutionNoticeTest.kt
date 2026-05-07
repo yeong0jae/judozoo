@@ -12,7 +12,7 @@ class ExecutionNoticeTest : FunSpec({
     fun valid() = ExecutionNotice(
         kisOrderNo = "0000123456",
         stockCode = "005930",
-        side = "BUY",
+        side = OrderSide.BUY,
         executedQty = 10,
         executedPrice = 70_000,
         timestamp = now,
@@ -20,11 +20,11 @@ class ExecutionNoticeTest : FunSpec({
 
     context("정상 생성") {
         test("BUY 통보를 만들 수 있다") {
-            valid().side shouldBe "BUY"
+            valid().side shouldBe OrderSide.BUY
         }
 
         test("SELL 통보를 만들 수 있다") {
-            valid().copy(side = "SELL").side shouldBe "SELL"
+            valid().copy(side = OrderSide.SELL).side shouldBe OrderSide.SELL
         }
     }
 
@@ -35,11 +35,6 @@ class ExecutionNoticeTest : FunSpec({
 
         test("종목코드가 공백이면 예외") {
             shouldThrow<IllegalArgumentException> { valid().copy(stockCode = "") }
-        }
-
-        test("side가 BUY/SELL이 아니면 예외") {
-            shouldThrow<IllegalArgumentException> { valid().copy(side = "BID") }
-            shouldThrow<IllegalArgumentException> { valid().copy(side = "buy") }
         }
 
         test("체결 수량이 0 이하이면 예외") {

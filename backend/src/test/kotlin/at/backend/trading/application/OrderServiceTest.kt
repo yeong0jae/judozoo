@@ -12,6 +12,8 @@ import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.order.Order
+import at.backend.trading.domain.order.OrderSide
+import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -31,10 +33,12 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
-@TestPropertySource(properties = [
-    "trading.order.sell-retry-delay-millis=20",
-    "trading.order.reconcile-delay-millis=600000",
-])
+@TestPropertySource(
+    properties = [
+        "trading.order.sell-retry-delay-millis=20",
+        "trading.order.reconcile-delay-millis=600000",
+    ]
+)
 class OrderServiceTest(
     @Autowired private val orderService: OrderService,
     @Autowired private val orderRepository: OrderJpaRepository,
@@ -61,17 +65,17 @@ class OrderServiceTest(
 
     private fun stubCurrentPrice(price: Int) {
         every { kisRestClient.getCurrentPrice(any()) } returns
-            KisCurrentPriceResponse(KisCurrentPriceResponse.Output(stckPrpr = price.toString()))
+                KisCurrentPriceResponse(KisCurrentPriceResponse.Output(stckPrpr = price.toString()))
     }
 
     private fun stubSubmitOrder(odno: String = "0000123456", orgno: String = "00950") {
         every { kisRestClient.submitOrder(any(), any(), any()) } returns
-            KisOrderResponse(
-                rtCd = "0",
-                msgCd = "APBK0013",
-                msg1 = "주문 전송 완료",
-                output = KisOrderResponse.Output(krxFwdgOrdOrgno = orgno, odno = odno, ordTmd = "104518"),
-            )
+                KisOrderResponse(
+                    rtCd = "0",
+                    msgCd = "APBK0013",
+                    msg1 = "주문 전송 완료",
+                    output = KisOrderResponse.Output(krxFwdgOrdOrgno = orgno, odno = odno, ordTmd = "104518"),
+                )
     }
 
     init {
@@ -89,13 +93,13 @@ class OrderServiceTest(
                 stubSubmitOrder(odno = "0000111111")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeBuy(cycle, attempt = 1)
+                val outcome = orderService.placeOrder(cycle, attempt = 1)
 
                 outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Submitted>()
                 outcome.order.kisOrderNo shouldBe "0000111111"
                 outcome.order.krxFwdgOrdOrgno shouldBe "00950"
                 outcome.order.orderQty shouldBe 14
-                outcome.order.side shouldBe "BUY"
+                outcome.order.side shouldBe OrderSide.BUY
 
                 verify { kisRestClient.submitOrder("005930", "BUY", 14) }
             }
@@ -104,7 +108,7 @@ class OrderServiceTest(
                 stubCurrentPrice(2_000_000)
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeBuy(cycle, attempt = 1)
+                val outcome = orderService.placeOrder(cycle, attempt = 1)
 
                 outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Skipped>()
                 verify(exactly = 0) { kisRestClient.submitOrder(any(), any(), any()) }
@@ -114,14 +118,14 @@ class OrderServiceTest(
             test("KIS 명시 거부(rt_cd≠0)는 FAILED로 확정 + 회차 스킵") {
                 stubCurrentPrice(70_000)
                 every { kisRestClient.submitOrder(any(), any(), any()) } throws
-                    KisOrderRejectedException(msgCd = "EGW00201", msg = "초당 거래건수 초과")
+                        KisOrderRejectedException(msgCd = "EGW00201", msg = "초당 거래건수 초과")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeBuy(cycle, attempt = 1)
+                val outcome = orderService.placeOrder(cycle, attempt = 1)
 
                 outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Skipped>()
                 val saved = orderRepository.findByCycleId(cycle.id).single()
-                saved.status shouldBe "FAILED"
+                saved.status shouldBe OrderStatus.FAILED
                 saved.lastError!! shouldBe "[EGW00201] 초당 거래건수 초과"
             }
 
@@ -130,12 +134,12 @@ class OrderServiceTest(
                 every { kisRestClient.submitOrder(any(), any(), any()) } throws RestClientException("응답 파싱 실패")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeBuy(cycle, attempt = 1)
+                val outcome = orderService.placeOrder(cycle, attempt = 1)
 
                 // KIS가 실제로 받았는지 모르므로 FAILED 단정 금지 — Submitted로 다음 회차 진행
                 outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Submitted>()
                 val saved = orderRepository.findByCycleId(cycle.id).single()
-                saved.status shouldBe "PENDING"  // status는 그대로
+                saved.status shouldBe OrderStatus.PENDING  // status는 그대로
                 saved.lastError shouldBe "응답 파싱 실패"
                 saved.kisOrderNo shouldBe null
             }
@@ -147,14 +151,14 @@ class OrderServiceTest(
                 // OrderService가 generic catch 경로(markUncertain + reconcile)로 흘려야 함.
                 stubCurrentPrice(70_000)
                 every { kisRestClient.submitOrder(any(), any(), any()) } throws
-                    IllegalStateException("KIS 주문 응답 성공이지만 odno 누락 [APBK0013] 주문 전송 완료되었습니다.")
+                        IllegalStateException("KIS 주문 응답 성공이지만 odno 누락 [APBK0013] 주문 전송 완료되었습니다.")
                 val cycle = saveCycle()
 
-                val outcome = orderService.placeBuy(cycle, attempt = 1)
+                val outcome = orderService.placeOrder(cycle, attempt = 1)
 
                 outcome.shouldBeInstanceOf<OrderService.BuyOutcome.Submitted>()
                 val saved = orderRepository.findByCycleId(cycle.id).single()
-                saved.status shouldBe "PENDING"
+                saved.status shouldBe OrderStatus.PENDING
                 saved.kisOrderNo shouldBe null
                 saved.lastError!! shouldContain "odno 누락"
             }
@@ -176,7 +180,7 @@ class OrderServiceTest(
 
                 outcome.shouldBeInstanceOf<OrderService.SellOutcome.Submitted>()
                 outcome.order.kisOrderNo shouldBe "0000222222"
-                outcome.order.side shouldBe "SELL"
+                outcome.order.side shouldBe OrderSide.SELL
                 outcome.order.orderQty shouldBe 10
             }
 
@@ -186,11 +190,11 @@ class OrderServiceTest(
                 orderRepository.save(
                     Order(
                         cycleId = cycle.id,
-                        side = "SELL",
+                        side = OrderSide.SELL,
                         trigger = "TpStage",
                         orderQty = 6,
                         filledQty = 2,
-                        status = "PENDING",
+                        status = OrderStatus.PENDING,
                     )
                 )
 
@@ -211,11 +215,11 @@ class OrderServiceTest(
                 orderRepository.save(
                     Order(
                         cycleId = cycle.id,
-                        side = "SELL",
+                        side = OrderSide.SELL,
                         trigger = "TpStage",
                         orderQty = 10,
                         filledQty = 0,
-                        status = "PENDING",
+                        status = OrderStatus.PENDING,
                     )
                 )
 
@@ -250,21 +254,25 @@ class OrderServiceTest(
 
             test("시그널이 죽으면 in-flight SELL 주문 잔량을 cancelRemainder로 취소하고 CANCELLED로 마킹한다") {
                 every { kisRestClient.cancelRemainder(any(), any()) } returns
-                    KisOrderResponse(
-                        rtCd = "0", msgCd = "OK", msg1 = "취소 완료",
-                        output = KisOrderResponse.Output(krxFwdgOrdOrgno = "00950", odno = "CXL0001", ordTmd = "104518"),
-                    )
+                        KisOrderResponse(
+                            rtCd = "0", msgCd = "OK", msg1 = "취소 완료",
+                            output = KisOrderResponse.Output(
+                                krxFwdgOrdOrgno = "00950",
+                                odno = "CXL0001",
+                                ordTmd = "104518"
+                            ),
+                        )
                 val cycle = saveCycle()
                 val pending = orderRepository.save(
                     Order(
                         cycleId = cycle.id,
-                        side = "SELL",
+                        side = OrderSide.SELL,
                         trigger = "TpStage",
                         orderQty = 6,
                         filledQty = 2,
                         kisOrderNo = "ODNO_OLD",
                         krxFwdgOrdOrgno = "00950",
-                        status = "PENDING",
+                        status = OrderStatus.PENDING,
                     )
                 )
 
@@ -279,7 +287,7 @@ class OrderServiceTest(
 
                 outcome shouldBe OrderService.SellOutcome.SignalDead
                 verify { kisRestClient.cancelRemainder("00950", "ODNO_OLD") }
-                orderRepository.findById(pending.id).get().status shouldBe "CANCELLED"
+                orderRepository.findById(pending.id).get().status shouldBe OrderStatus.CANCELLED
             }
 
             test("kisOrderNo가 없는 in-flight 주문은 cancelRemainder 호출 없이 CANCELLED로만 마킹한다") {
@@ -287,13 +295,13 @@ class OrderServiceTest(
                 val unsentPending = orderRepository.save(
                     Order(
                         cycleId = cycle.id,
-                        side = "SELL",
+                        side = OrderSide.SELL,
                         trigger = "TpStage",
                         orderQty = 5,
                         filledQty = 0,
                         kisOrderNo = null,
                         krxFwdgOrdOrgno = null,
-                        status = "PENDING",
+                        status = OrderStatus.PENDING,
                     )
                 )
 
@@ -307,7 +315,7 @@ class OrderServiceTest(
                 )
 
                 verify(exactly = 0) { kisRestClient.cancelRemainder(any(), any()) }
-                orderRepository.findById(unsentPending.id).get().status shouldBe "CANCELLED"
+                orderRepository.findById(unsentPending.id).get().status shouldBe OrderStatus.CANCELLED
             }
 
             test("첫 시도 실패 후 재시도 성공") {
@@ -316,7 +324,11 @@ class OrderServiceTest(
                     calls += 1
                     if (calls == 1) throw RestClientException("5xx") else KisOrderResponse(
                         rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                        output = KisOrderResponse.Output(krxFwdgOrdOrgno = "00950", odno = "0000333333", ordTmd = "104518"),
+                        output = KisOrderResponse.Output(
+                            krxFwdgOrdOrgno = "00950",
+                            odno = "0000333333",
+                            ordTmd = "104518"
+                        ),
                     )
                 }
                 val cycle = saveCycle()
@@ -343,12 +355,12 @@ class OrderServiceTest(
             ): Order = orderRepository.save(
                 Order(
                     cycleId = saveCycle().id,
-                    side = "BUY",
+                    side = OrderSide.BUY,
                     trigger = "BUY_1",
                     orderQty = orderQty,
                     kisOrderNo = kisOrderNo,
                     krxFwdgOrdOrgno = if (kisOrderNo == null) null else "00950",
-                    status = "PENDING",
+                    status = OrderStatus.PENDING,
                 )
             )
 
@@ -357,7 +369,7 @@ class OrderServiceTest(
                 pdno: String = "005930",
                 qty: Int = 10,
                 price: Int = 70_000,
-                side: String = "BUY",
+                side: OrderSide = OrderSide.BUY,
                 ts: LocalDateTime = LocalDateTime.now(),
             ) = KisDailyCcldResponse.Output(
                 pdno = pdno,
@@ -366,7 +378,7 @@ class OrderServiceTest(
                 ordTmd = ts.format(DateTimeFormatter.ofPattern("HHmmss")),
                 totCcldQty = qty.toString(),
                 avgPrvs = price.toString(),
-                sllBuyDvsnCd = if (side == "BUY") "02" else "01",
+                sllBuyDvsnCd = if (side == OrderSide.BUY) "02" else "01",
             )
 
             test("kisOrderNo 매칭 1건 → Order/Execution 갱신") {
@@ -379,7 +391,7 @@ class OrderServiceTest(
                 outcome.shouldBeInstanceOf<OrderService.ReconcileOutcome.Matched>()
                 val refreshed = orderRepository.findById(order.id).get()
                 refreshed.filledQty shouldBe 10
-                refreshed.status shouldBe "FILLED"
+                refreshed.status shouldBe OrderStatus.FILLED
                 executionRepository.findByOrderId(order.id).single().executedPrice shouldBe 71_000
             }
 
@@ -392,7 +404,7 @@ class OrderServiceTest(
 
                 outcome shouldBe OrderService.ReconcileOutcome.NoMatch
                 val refreshed = orderRepository.findById(order.id).get()
-                refreshed.status shouldBe "PENDING"
+                refreshed.status shouldBe OrderStatus.PENDING
                 refreshed.filledQty shouldBe 0
                 executionRepository.findByOrderId(order.id) shouldBe emptyList()
             }
@@ -402,7 +414,7 @@ class OrderServiceTest(
                 every { kisRestClient.getDailyExecutions(any(), any()) } returns
                         KisDailyCcldResponse(
                             output1 = listOf(
-                                ccldRow(odno = "OTHER", side = "SELL", qty = 7),
+                                ccldRow(odno = "OTHER", side = OrderSide.SELL, qty = 7),
                                 ccldRow(odno = "MATCHED", qty = 7, price = 70_500),
                                 ccldRow(odno = "DIFF_QTY", qty = 99, price = 70_500),
                             )
@@ -427,20 +439,20 @@ class OrderServiceTest(
                 val outcome = orderService.reconcile(order.id, "005930")
 
                 outcome shouldBe OrderService.ReconcileOutcome.MultipleMatches
-                orderRepository.findById(order.id).get().status shouldBe "NEEDS_REVIEW"
+                orderRepository.findById(order.id).get().status shouldBe OrderStatus.NEEDS_REVIEW
             }
 
             test("이미 부분 체결된 주문은 skipped (WS가 처리 중)") {
                 val partial = orderRepository.save(
                     Order(
                         cycleId = saveCycle().id,
-                        side = "BUY",
+                        side = OrderSide.BUY,
                         trigger = "BUY_1",
                         orderQty = 10,
                         filledQty = 4,
                         kisOrderNo = "ODNO_BUY",
                         krxFwdgOrdOrgno = "00950",
-                        status = "PENDING",
+                        status = OrderStatus.PENDING,
                     )
                 )
 

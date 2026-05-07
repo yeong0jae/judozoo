@@ -5,6 +5,7 @@ import at.backend.platform.kis.KisApprovalKeyProvider
 import at.backend.platform.kis.client.payload.KisSubscribePayload
 import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.order.ExecutionNotice
+import at.backend.trading.domain.order.OrderSide
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -219,8 +220,8 @@ class KisWebSocketClient(
         if (fields[12] == "1") return null
         val sideCode = fields[4]
         val side = when (sideCode) {
-            "02" -> "BUY"
-            "01" -> "SELL"
+            "02" -> OrderSide.BUY
+            "01" -> OrderSide.SELL
             else -> return null
         }
         val orderNo = fields[2].takeIf { it.isNotBlank() } ?: return null

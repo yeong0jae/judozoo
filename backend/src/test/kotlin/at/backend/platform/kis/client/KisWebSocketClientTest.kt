@@ -2,6 +2,7 @@ package at.backend.platform.kis.client
 
 import at.backend.platform.kis.KisApprovalKeyProvider
 import at.backend.platform.kis.config.KisProperties
+import at.backend.trading.domain.order.OrderSide
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -198,7 +199,7 @@ class KisWebSocketClientTest : FunSpec({
                 deferred.await()
             }
             notice.kisOrderNo shouldBe "0000123456"
-            notice.side shouldBe "BUY"
+            notice.side shouldBe OrderSide.BUY
             notice.executedPrice shouldBe 70_000
             notice.executedQty shouldBe 10
             notice.stockCode shouldBe "005930"
@@ -264,7 +265,7 @@ class KisWebSocketClientTest : FunSpec({
                 deferred.await()
             }
             notice.kisOrderNo shouldBe "ENC123"
-            notice.side shouldBe "SELL"
+            notice.side shouldBe OrderSide.SELL
             notice.executedQty shouldBe 5
             notice.executedPrice shouldBe 80_000
         }

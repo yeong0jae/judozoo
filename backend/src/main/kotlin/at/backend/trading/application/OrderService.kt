@@ -10,6 +10,8 @@ import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.event.RetryAccumulated
 import at.backend.trading.domain.execution.Execution
 import at.backend.trading.domain.order.Order
+import at.backend.trading.domain.order.OrderSide
+import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -43,27 +45,27 @@ class OrderService(
      * 매수 회차 1건 발송. 응답 정상이면 [Order.kisOrderNo]/[Order.krxFwdgOrdOrgno] 갱신.
      * 발송 실패는 회차 스킵 — 호출자(BUYING 사이클)는 다음 회차로 진행.
      */
-    suspend fun placeBuy(cycle: TradingCycle, attempt: Int): BuyOutcome {
+    suspend fun placeOrder(cycle: TradingCycle, attempt: Int): BuyOutcome {
         val currentPrice = kisRestClient.getCurrentPrice(cycle.stockCode).output.stckPrpr.toIntOrNull()
             ?: return BuyOutcome.Skipped("현재가 응답 파싱 실패")
         val qty = (cycle.perBuyAmount / currentPrice).toInt()
         if (qty <= 0) return BuyOutcome.Skipped("perBuyAmount(${cycle.perBuyAmount})가 1주 가격($currentPrice)보다 작음")
 
-        val order = orderRepository.save(
-            Order(
-                cycleId = cycle.id,
-                side = "BUY",
-                trigger = "BUY_$attempt",
-                orderQty = qty,
-                status = "PENDING",
-            )
+        val order = Order(
+            cycleId = cycle.id,
+            side = OrderSide.BUY,
+            trigger = "BUY_$attempt",
+            orderQty = qty,
+            status = OrderStatus.PENDING,
         )
+        orderRepository.save(order)
 
         return try {
             // requireSuccess가 odno 존재 보장 → !!안전
-            val output = kisRestClient.submitOrder(cycle.stockCode, "BUY", qty).output!!
+            val output = kisRestClient.submitOrder(cycle.stockCode, OrderSide.BUY.name, qty).output!!
             order.acknowledge(output.odno!!, output.krxFwdgOrdOrgno)
             val saved = orderRepository.save(order)
+
             scheduleReconcile(saved, cycle.stockCode)
             BuyOutcome.Submitted(saved)
         } catch (e: KisOrderRejectedException) {
@@ -111,15 +113,15 @@ class OrderService(
             val order = orderRepository.save(
                 Order(
                     cycleId = cycle.id,
-                    side = "SELL",
+                    side = OrderSide.SELL,
                     trigger = signal.triggerLabel(),
                     orderQty = effectiveQty,
-                    status = "PENDING",
+                    status = OrderStatus.PENDING,
                 )
             )
 
             try {
-                val output = kisRestClient.submitOrder(cycle.stockCode, "SELL", effectiveQty).output!!
+                val output = kisRestClient.submitOrder(cycle.stockCode, OrderSide.SELL.name, effectiveQty).output!!
                 order.acknowledge(output.odno!!, output.krxFwdgOrdOrgno)
                 val saved = orderRepository.save(order)
                 scheduleReconcile(saved, cycle.stockCode)
@@ -141,8 +143,10 @@ class OrderService(
                         ts = timeProvider.now().toInstantKst(),
                     )
                 )
-                log.warn("매도 발송 실패 cycleId={}, signal={}, retry={}",
-                    cycle.id, signal::class.simpleName, order.retryCount, e)
+                log.warn(
+                    "매도 발송 실패 cycleId={}, signal={}, retry={}",
+                    cycle.id, signal::class.simpleName, order.retryCount, e
+                )
                 delay(sellRetryDelayMillis.milliseconds)
             }
         }
@@ -197,9 +201,9 @@ class OrderService(
         return abs(java.time.Duration.between(order.createdAt, orderedAt).seconds) <= FALLBACK_WINDOW_SECONDS
     }
 
-    private fun sideOf(row: KisDailyCcldResponse.Output): String? = when (row.sllBuyDvsnCd) {
-        SLL_BUY_BUY -> "BUY"
-        SLL_BUY_SELL -> "SELL"
+    private fun sideOf(row: KisDailyCcldResponse.Output): OrderSide? = when (row.sllBuyDvsnCd) {
+        SLL_BUY_BUY -> OrderSide.BUY
+        SLL_BUY_SELL -> OrderSide.SELL
         else -> null
     }
 
@@ -243,7 +247,8 @@ class OrderService(
                 if (outcome is ReconcileOutcome.Matched ||
                     outcome is ReconcileOutcome.MultipleMatches ||
                     outcome is ReconcileOutcome.Skipped ||
-                    outcome is ReconcileOutcome.NotFound) {
+                    outcome is ReconcileOutcome.NotFound
+                ) {
                     return@launch
                 }
                 // NoMatch / LookupFailed → 다음 단계 delay로 재시도
@@ -299,6 +304,7 @@ class OrderService(
         private const val SLL_BUY_BUY = "02"
         private const val SLL_BUY_SELL = "01"
         private val ORD_TS_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+
         // 첫 시도(reconcileDelayMillis) NoMatch 후 escalating backoff로 ~1.5분간 추가 추적.
         private val RECONCILE_RETRY_DELAYS_MILLIS = longArrayOf(10_000, 15_000, 30_000, 30_000)
     }

@@ -11,6 +11,7 @@ import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.execution.Execution
 import at.backend.trading.domain.order.Order
+import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -57,9 +58,9 @@ class TradingQueryService(
 
     private fun toDailyTrading(cycle: TradingCycle): DailyTradingResult {
         val (orders, executions) = loadOrdersAndExecutions(cycle.id)
-        val sellExecutions = orders.filter { it.side == "SELL" }.flatMap { o -> executions.filter { it.orderId == o.id } }
+        val sellExecutions = orders.filter { it.side == OrderSide.SELL }.flatMap { o -> executions.filter { it.orderId == o.id } }
         val totalSoldAmount = sellExecutions.sumOf { it.executedPrice.toLong() * it.executedQty }
-        val totalBuyAmount = orders.filter { it.side == "BUY" }.flatMap { o -> executions.filter { it.orderId == o.id } }
+        val totalBuyAmount = orders.filter { it.side == OrderSide.BUY }.flatMap { o -> executions.filter { it.orderId == o.id } }
             .sumOf { it.executedPrice.toLong() * it.executedQty }
         val profitAmount = totalSoldAmount - totalBuyAmount
         val profitRate = if (totalBuyAmount == 0L) 0.0 else profitAmount.toDouble() / totalBuyAmount
@@ -70,7 +71,7 @@ class TradingQueryService(
         val (orders, executions) = loadOrdersAndExecutions(cycle.id)
         val currentPrice = fetchCurrentPrice(cycle.stockCode)
         val (holdingQty, averageBuyPrice, totalBoughtQty) = computeHolding(cycle, orders, executions)
-        val sellExecutions = orders.filter { it.side == "SELL" }.flatMap { o -> executions.filter { it.orderId == o.id } }
+        val sellExecutions = orders.filter { it.side == OrderSide.SELL }.flatMap { o -> executions.filter { it.orderId == o.id } }
         val totalSoldQty = sellExecutions.sumOf { it.executedQty }
         val soldPct = if (totalBoughtQty == 0) 0 else totalSoldQty * 100 / totalBoughtQty
         return TradingDetailResult.from(
@@ -96,8 +97,8 @@ class TradingQueryService(
     private data class HoldingInfo(val holdingQty: Int, val averageBuyPrice: Long, val totalBoughtQty: Int)
 
     private fun computeHolding(cycle: TradingCycle, orders: List<Order>, executions: List<Execution>): HoldingInfo {
-        val buyExecutions = orders.filter { it.side == "BUY" }.flatMap { o -> executions.filter { it.orderId == o.id } }
-        val sellExecutions = orders.filter { it.side == "SELL" }.flatMap { o -> executions.filter { it.orderId == o.id } }
+        val buyExecutions = orders.filter { it.side == OrderSide.BUY }.flatMap { o -> executions.filter { it.orderId == o.id } }
+        val sellExecutions = orders.filter { it.side == OrderSide.SELL }.flatMap { o -> executions.filter { it.orderId == o.id } }
         val totalBoughtQty = buyExecutions.sumOf { it.executedQty }
         val totalSoldQty = sellExecutions.sumOf { it.executedQty }
         val holdingQty = totalBoughtQty - totalSoldQty

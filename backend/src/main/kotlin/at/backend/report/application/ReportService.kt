@@ -1,6 +1,7 @@
 package at.backend.report.application
 
 import at.backend.trading.domain.cycle.TradingCycle
+import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -28,7 +29,7 @@ class ReportService(
         val orderById = orders.associateBy { it.id }
 
         val (buyExecs, sellExecs) = executions.partition {
-            orderById[it.orderId]?.side == "BUY"
+            orderById[it.orderId]?.side == OrderSide.BUY
         }
 
         val totalBoughtAmount = buyExecs.sumOf { it.executedPrice.toLong() * it.executedQty }

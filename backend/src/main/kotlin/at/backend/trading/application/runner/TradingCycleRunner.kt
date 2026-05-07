@@ -11,6 +11,7 @@ import at.backend.trading.application.OrderService
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
+import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.domain.event.*
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
@@ -101,7 +102,7 @@ class TradingCycleRunner(
                 cycleRepository.save(cycle)
             }
             publishStateChanged(TradingCycleStatus.BUYING)
-            orderService.placeBuy(cycle, attempt = 1)
+            orderService.placeOrder(cycle, attempt = 1)
 
             repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
                 delay(buyIntervalUnit * cycle.buyIntervalMin)
@@ -109,7 +110,7 @@ class TradingCycleRunner(
                     cycle.incrementBuyAttempt()
                     cycleRepository.save(cycle)
                 }
-                orderService.placeBuy(cycle, attempt = i + 2)
+                orderService.placeOrder(cycle, attempt = i + 2)
             }
         } finally {
             withContext(NonCancellable) { finalizeBuySequence() }
@@ -154,7 +155,7 @@ class TradingCycleRunner(
 
     private suspend fun finalizeBuySequence() {
         val totalFilled = orderRepository.findByCycleId(cycleId)
-            .filter { it.side == "BUY" }
+            .filter { it.side == OrderSide.BUY }
             .sumOf { it.filledQty }
 
         var closedReason: CloseReason? = null
@@ -325,8 +326,8 @@ class TradingCycleRunner(
 
     private fun computeHoldingState(): HoldingState? {
         val orders = orderRepository.findByCycleId(cycleId)
-        val buyOrders = orders.filter { it.side == "BUY" }
-        val sellOrders = orders.filter { it.side == "SELL" }
+        val buyOrders = orders.filter { it.side == OrderSide.BUY }
+        val sellOrders = orders.filter { it.side == OrderSide.SELL }
         val boughtQty = buyOrders.sumOf { it.filledQty }
         if (boughtQty == 0) return null
         val soldQty = sellOrders.sumOf { it.filledQty }

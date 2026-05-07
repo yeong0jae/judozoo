@@ -3,6 +3,7 @@ package at.backend.trading.application.result
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.execution.Execution
 import at.backend.trading.domain.order.Order
+import at.backend.trading.domain.order.OrderStatus
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
@@ -62,13 +63,15 @@ data class TradingDetailResult(
         companion object {
             fun from(order: Order) = OrderInfo(
                 id = order.id,
-                side = order.side,
+                side = order.side.name,
                 trigger = order.trigger,
-                status = order.status,
+                status = order.status.name,
                 orderQty = order.orderQty,
                 filledQty = order.filledQty,
                 submittedAt = order.createdAt,
-                settledAt = order.updatedAt.takeIf { order.status == "FILLED" || order.status == "CANCELLED" },
+                settledAt = order.updatedAt.takeIf {
+                    order.status == OrderStatus.FILLED || order.status == OrderStatus.CANCELLED
+                },
                 retryCount = order.retryCount,
                 lastError = order.lastError,
             )

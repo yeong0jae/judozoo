@@ -13,6 +13,8 @@ import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
+import at.backend.trading.domain.order.OrderSide
+import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.matchers.collections.shouldContain
@@ -147,11 +149,11 @@ class CycleOrchestratorTest(
                 val pendingAtCancel = runBlocking {
                     waitFor(timeoutMillis = 3000) {
                         orderRepository.findByCycleId(cycle.id).any {
-                            it.side == "BUY" && it.status == "PENDING" && it.kisOrderNo != null
+                            it.side == OrderSide.BUY && it.status == OrderStatus.PENDING && it.kisOrderNo != null
                         }
                     }
                     orderRepository.findByCycleId(cycle.id)
-                        .filter { it.side == "BUY" && it.status == "PENDING" && it.kisOrderNo != null }
+                        .filter { it.side == OrderSide.BUY && it.status == OrderStatus.PENDING && it.kisOrderNo != null }
                         .map { it.id }
                 }
 
@@ -161,7 +163,7 @@ class CycleOrchestratorTest(
                 runBlocking {
                     waitFor(timeoutMillis = 3000) {
                         pendingAtCancel.all { id ->
-                            orderRepository.findById(id).get().status == "CANCELLED"
+                            orderRepository.findById(id).get().status == OrderStatus.CANCELLED
                         }
                     }
                 }
@@ -179,7 +181,7 @@ class CycleOrchestratorTest(
                 runBlocking {
                     waitFor(timeoutMillis = 3000) {
                         orderRepository.findByCycleId(cycle.id).any {
-                            it.side == "BUY" && it.kisOrderNo != null
+                            it.side == OrderSide.BUY && it.kisOrderNo != null
                         }
                     }
                 }
@@ -194,7 +196,7 @@ class CycleOrchestratorTest(
                 val refreshed = cycleRepository.findById(cycle.id).get()
                 refreshed.closeReason shouldBe CloseReason.CANCELLED
 
-                val buyOrders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
+                val buyOrders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
                 buyOrders shouldHaveSize 1
             }
         }

@@ -6,6 +6,8 @@ import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.execution.Execution
 import at.backend.trading.domain.order.Order
+import at.backend.trading.domain.order.OrderSide
+import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -39,8 +41,8 @@ class ReportServiceTest(
             test("매수/매도 체결을 합산해 순수익을 계산한다") {
                 val date = LocalDate.of(2026, 3, 14)
                 val cycleId = saveCycle(date.atTime(9, 30), CloseReason.TAKE_PROFIT)
-                val buyId = saveOrder(cycleId, side = "BUY", trigger = "INITIAL", qty = 100)
-                val sellId = saveOrder(cycleId, side = "SELL", trigger = "TP_2PCT", qty = 100)
+                val buyId = saveOrder(cycleId, side = OrderSide.BUY, trigger = "INITIAL", qty = 100)
+                val sellId = saveOrder(cycleId, side = OrderSide.SELL, trigger = "TP_2PCT", qty = 100)
                 executionRepository.save(execution(buyId, qty = 100, price = 1_000, fee = 100, tax = 0))
                 executionRepository.save(execution(sellId, qty = 100, price = 1_050, fee = 105, tax = 100))
 
@@ -60,7 +62,7 @@ class ReportServiceTest(
             test("매수만 있고 매도가 없으면 평단 매도가는 null, 순수익은 음수") {
                 val date = LocalDate.of(2026, 3, 14)
                 val cycleId = saveCycle(date.atTime(9, 30), CloseReason.NO_FILL)
-                val buyId = saveOrder(cycleId, side = "BUY", trigger = "INITIAL", qty = 50)
+                val buyId = saveOrder(cycleId, side = OrderSide.BUY, trigger = "INITIAL", qty = 50)
                 executionRepository.save(execution(buyId, qty = 50, price = 2_000, fee = 50, tax = 0))
 
                 val r = reportService.findDaily(date).first()
@@ -111,14 +113,14 @@ class ReportServiceTest(
         return saved.id
     }
 
-    private fun saveOrder(cycleId: Long, side: String, trigger: String, qty: Int): Long =
+    private fun saveOrder(cycleId: Long, side: OrderSide, trigger: String, qty: Int): Long =
         orderRepository.save(
             Order(
                 cycleId = cycleId,
                 side = side,
                 trigger = trigger,
                 orderQty = qty,
-                status = "FILLED",
+                status = OrderStatus.FILLED,
                 kisOrderNo = "K${System.nanoTime()}".take(20),
             )
         ).id

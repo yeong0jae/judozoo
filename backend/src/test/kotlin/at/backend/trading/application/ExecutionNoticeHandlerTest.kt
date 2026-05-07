@@ -8,6 +8,8 @@ import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.order.ExecutionNotice
 import at.backend.trading.domain.order.Order
+import at.backend.trading.domain.order.OrderSide
+import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -49,7 +51,7 @@ class ExecutionNoticeHandlerTest(
         cycleId: Long,
         kisOrderNo: String = "ODNO0001",
         orderQty: Int = 10,
-        side: String = "BUY",
+        side: OrderSide = OrderSide.BUY,
     ): Order = orderRepository.save(
         Order(
             cycleId = cycleId,
@@ -58,7 +60,7 @@ class ExecutionNoticeHandlerTest(
             orderQty = orderQty,
             kisOrderNo = kisOrderNo,
             krxFwdgOrdOrgno = "00950",
-            status = "PENDING",
+            status = OrderStatus.PENDING,
         )
     )
 
@@ -66,7 +68,7 @@ class ExecutionNoticeHandlerTest(
         kisOrderNo: String = "ODNO0001",
         qty: Int,
         price: Int = 70_000,
-        side: String = "BUY",
+        side: OrderSide = OrderSide.BUY,
     ) = ExecutionNotice(
         kisOrderNo = kisOrderNo,
         stockCode = "005930",
@@ -93,7 +95,7 @@ class ExecutionNoticeHandlerTest(
 
                 val refreshed = orderRepository.findById(order.id).get()
                 refreshed.filledQty shouldBe 10
-                refreshed.status shouldBe "FILLED"
+                refreshed.status shouldBe OrderStatus.FILLED
                 executionRepository.findByOrderId(order.id) shouldHaveSize 2
             }
 
@@ -119,7 +121,7 @@ class ExecutionNoticeHandlerTest(
                 val executions = executionRepository.findByOrderId(order.id).sortedBy { it.id }
                 executions shouldHaveSize 3
                 executions.map { it.executedPrice } shouldBe listOf(70_000, 70_100, 70_200)
-                orderRepository.findById(order.id).get().status shouldBe "FILLED"
+                orderRepository.findById(order.id).get().status shouldBe OrderStatus.FILLED
             }
         }
 
@@ -132,7 +134,7 @@ class ExecutionNoticeHandlerTest(
                 channels.executionNotices.emit(notice(qty = 10))
 
                 withTimeout(2000.milliseconds) {
-                    while (orderRepository.findById(order.id).get().status != "FILLED") {
+                    while (orderRepository.findById(order.id).get().status != OrderStatus.FILLED) {
                         delay(20.milliseconds)
                     }
                 }

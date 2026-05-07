@@ -2,6 +2,7 @@ package at.backend.trading.application
 
 import at.backend.trading.domain.event.OrderExecuted
 import at.backend.trading.domain.order.ExecutionNotice
+import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import org.slf4j.LoggerFactory
@@ -33,10 +34,10 @@ class ExecutionNoticeHandler(
 
     private fun publishExecuted(cycleId: Long, notice: ExecutionNotice) {
         val orders = orderRepository.findByCycleId(cycleId)
-        val totalFilled = orders.filter { it.side == "BUY" }.sumOf { it.filledQty }
-        val sold = orders.filter { it.side == "SELL" }.sumOf { it.filledQty }
+        val totalFilled = orders.filter { it.side == OrderSide.BUY }.sumOf { it.filledQty }
+        val sold = orders.filter { it.side == OrderSide.SELL }.sumOf { it.filledQty }
         val holdingQty = (totalFilled - sold).coerceAtLeast(0)
-        val buyExecutions = orders.filter { it.side == "BUY" }
+        val buyExecutions = orders.filter { it.side == OrderSide.BUY }
             .flatMap { executionRepository.findByOrderId(it.id) }
         val averageBuyPrice = if (buyExecutions.isNotEmpty()) {
             val cost = buyExecutions.sumOf { it.executedPrice.toLong() * it.executedQty }
@@ -47,7 +48,7 @@ class ExecutionNoticeHandler(
         eventPublisher.publishEvent(
             OrderExecuted(
                 commandId = cycleId,
-                side = notice.side,
+                side = notice.side.name,
                 qty = notice.executedQty,
                 price = notice.executedPrice,
                 totalFilledQty = totalFilled,

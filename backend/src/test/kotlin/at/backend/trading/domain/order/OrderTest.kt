@@ -10,14 +10,14 @@ class OrderTest : FunSpec({
     fun pendingBuy(orderQty: Int = 10, kisOrderNo: String? = "ODNO0001") = Order(
         id = 1L,
         cycleId = 100L,
-        side = "BUY",
+        side = OrderSide.BUY,
         trigger = "BUY_1",
         orderQty = orderQty,
         kisOrderNo = kisOrderNo,
-        status = "PENDING",
+        status = OrderStatus.PENDING,
     )
 
-    fun notice(qty: Int, price: Int = 70_000, kisOrderNo: String = "ODNO0001", side: String = "BUY") =
+    fun notice(qty: Int, price: Int = 70_000, kisOrderNo: String = "ODNO0001", side: OrderSide = OrderSide.BUY) =
         ExecutionNotice(
             kisOrderNo = kisOrderNo,
             stockCode = "005930",
@@ -34,7 +34,7 @@ class OrderTest : FunSpec({
             val execution = order.applyExecution(notice(qty = 4), fee = 100, tax = 0)
 
             order.filledQty shouldBe 4
-            order.status shouldBe "PENDING"
+            order.status shouldBe OrderStatus.PENDING
             order.isFullyFilled() shouldBe false
             execution.executedQty shouldBe 4
             execution.executedPrice shouldBe 70_000
@@ -49,7 +49,7 @@ class OrderTest : FunSpec({
             order.applyExecution(notice(qty = 6), fee = 0, tax = 0)
 
             order.filledQty shouldBe 10
-            order.status shouldBe "FILLED"
+            order.status shouldBe OrderStatus.FILLED
             order.isFullyFilled() shouldBe true
         }
 
@@ -60,7 +60,7 @@ class OrderTest : FunSpec({
             order.applyExecution(notice(qty = 1), fee = 0, tax = 0)
 
             order.filledQty shouldBe 11
-            order.status shouldBe "FILLED"
+            order.status shouldBe OrderStatus.FILLED
         }
 
         test("주문번호가 다른 통보는 거부된다") {
@@ -75,7 +75,7 @@ class OrderTest : FunSpec({
             val order = pendingBuy()
 
             shouldThrow<IllegalArgumentException> {
-                order.applyExecution(notice(qty = 1, side = "SELL"), fee = 0, tax = 0)
+                order.applyExecution(notice(qty = 1, side = OrderSide.SELL), fee = 0, tax = 0)
             }
         }
     }

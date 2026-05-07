@@ -15,6 +15,8 @@ import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.order.Order
+import at.backend.trading.domain.order.OrderSide
+import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -102,7 +104,7 @@ class TradingCycleRunnerTest(
 
     private fun simulateFill(order: Order, qty: Int) {
         order.filledQty = qty
-        order.status = "FILLED"
+        order.status = OrderStatus.FILLED
         orderRepository.save(order)
     }
 
@@ -149,7 +151,7 @@ class TradingCycleRunnerTest(
                     var orders = emptyList<Order>()
                     while (orders.size < 3) {
                         delay(20.milliseconds)
-                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
+                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
                         orders.filter { it.filledQty == 0 }.forEach { simulateFill(it, it.orderQty) }
                     }
                 }
@@ -202,15 +204,15 @@ class TradingCycleRunnerTest(
                     var orders = emptyList<Order>()
                     while (orders.size < 3) {
                         delay(20.milliseconds)
-                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
-                        orders.filter { it.status == "PENDING" && it.filledQty == 0 }
+                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
+                        orders.filter { it.status == OrderStatus.PENDING && it.filledQty == 0 }
                             .forEach { simulateFill(it, it.orderQty) }
                     }
                 }
                 waitUntilCycle(cycle.id) { it.status == TradingCycleStatus.HOLDING }
                 target.cancel()
 
-                val orders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
+                val orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
                 orders shouldHaveSize 3
                 attempt shouldBe 3
             }
@@ -223,7 +225,7 @@ class TradingCycleRunnerTest(
                     var orders = emptyList<Order>()
                     while (orders.size < 3) {
                         delay(10.milliseconds)
-                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == "BUY" }
+                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
                         orders.filter { it.filledQty == 0 }
                             .forEach { simulateBuyFillWithExecution(it, it.orderQty, fillPrice) }
                     }
@@ -246,9 +248,9 @@ class TradingCycleRunnerTest(
                 emitTick(60_000)
 
                 waitUntilCycle(cycle.id, timeoutMillis = 3000) {
-                    orderRepository.findByCycleId(cycle.id).any { it.side == "SELL" }
+                    orderRepository.findByCycleId(cycle.id).any { it.side == OrderSide.SELL }
                 }
-                val sell = orderRepository.findByCycleId(cycle.id).first { it.side == "SELL" }
+                val sell = orderRepository.findByCycleId(cycle.id).first { it.side == OrderSide.SELL }
                 simulateFill(sell, sell.orderQty)
                 waitUntilCycle(cycle.id, timeoutMillis = 3000) { it.status == TradingCycleStatus.CLOSED }
                 target.cancel()
@@ -283,9 +285,9 @@ class TradingCycleRunnerTest(
                 target.submitSignal(at.backend.trading.domain.signal.Signal.MarketClose)
 
                 waitUntilCycle(cycle.id, timeoutMillis = 3000) {
-                    orderRepository.findByCycleId(cycle.id).any { it.side == "SELL" }
+                    orderRepository.findByCycleId(cycle.id).any { it.side == OrderSide.SELL }
                 }
-                val sell = orderRepository.findByCycleId(cycle.id).first { it.side == "SELL" }
+                val sell = orderRepository.findByCycleId(cycle.id).first { it.side == OrderSide.SELL }
                 simulateFill(sell, sell.orderQty)
                 waitUntilCycle(cycle.id, timeoutMillis = 3000) { it.status == TradingCycleStatus.CLOSED }
                 target.cancel()
