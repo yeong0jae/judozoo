@@ -11,8 +11,8 @@ import at.backend.trading.application.OrderService
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
-import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.domain.event.*
+import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -80,10 +80,8 @@ class TradingCycleRunner(
                 buy.join()
                 buyJob = null
 
-                if (cycle.status == TradingCycleStatus.HOLDING ||
-                    cycle.status == TradingCycleStatus.LIQUIDATING
-                ) {
-                    handleHolding()
+                if (cycle.status == TradingCycleStatus.HOLDING || cycle.status == TradingCycleStatus.LIQUIDATING) {
+                    handleAfterBuy()
                 }
             } finally {
                 signals.close()
@@ -106,7 +104,7 @@ class TradingCycleRunner(
                 orderService.placeOrder(cycle, attempt = i + 2)
             }
         } finally {
-            withContext(NonCancellable) { finalizeBuySequence() }
+            finalizeBuySequence()
         }
     }
 
@@ -128,7 +126,7 @@ class TradingCycleRunner(
      * 외부(orchestrator) 취소 요청.
      * - in-memory cycle을 LIQUIDATING으로 전이시켜 finalize 분기를 CANCELLED로 유도
      * - 매수 코루틴 즉시 취소 → 다음 회차 미발사, race 차단
-     * - HOLDING 전이된 경우를 위해 Signal.Cancel을 채널에 push (handleHolding이 청산 처리)
+     * - HOLDING 전이된 경우를 위해 Signal.Cancel을 채널에 push (handleAfterBuy가 청산 처리)
      */
     suspend fun requestCancellation() {
         val transitioned = if (cycle.status != TradingCycleStatus.CLOSED &&
@@ -148,34 +146,32 @@ class TradingCycleRunner(
             .filter { it.side == OrderSide.BUY }
             .sumOf { it.filledQty }
 
-        var closedReason: CloseReason? = null
-        var transitionedToHolding = false
         when {
             totalFilled == 0 && cycle.status == TradingCycleStatus.LIQUIDATING -> {
                 cycle.close(CloseReason.CANCELLED, timeProvider.now())
-                closedReason = CloseReason.CANCELLED
+                cycleRepository.save(cycle)
+                publishStateChanged(TradingCycleStatus.CLOSED, CloseReason.CANCELLED)
+                publishCycleClosed(CloseReason.CANCELLED)
             }
 
             totalFilled == 0 && cycle.status == TradingCycleStatus.BUYING -> {
                 cycle.close(CloseReason.NO_FILL, timeProvider.now())
-                closedReason = CloseReason.NO_FILL
+                cycleRepository.save(cycle)
+                publishStateChanged(TradingCycleStatus.CLOSED, CloseReason.NO_FILL)
+                publishCycleClosed(CloseReason.NO_FILL)
             }
 
             cycle.status == TradingCycleStatus.BUYING -> {
                 cycle.transitionToHolding()
-                transitionedToHolding = true
+                cycleRepository.save(cycle)
+                publishStateChanged(TradingCycleStatus.HOLDING)
             }
-        }
-        cycleRepository.save(cycle)
-        if (transitionedToHolding) publishStateChanged(TradingCycleStatus.HOLDING)
-        closedReason?.let {
-            publishStateChanged(TradingCycleStatus.CLOSED, it)
-            publishCycleClosed(it)
+            // status == LIQUIDATING && totalFilled > 0 → handleAfterBuy가 보유분을 청산하고 close
         }
         log.info("매수 시퀀스 종료 cycleId={}, totalFilled={}, status={}", cycleId, totalFilled, cycle.status)
     }
 
-    private suspend fun handleHolding() = coroutineScope {
+    private suspend fun handleAfterBuy() = coroutineScope {
         val barJob = launch {
             barPoller.bars
                 .filter { it.stockCode == cycle.stockCode }
@@ -209,9 +205,12 @@ class TradingCycleRunner(
 
     private suspend fun processTick(tick: PriceTick) {
         if (cycle.status != TradingCycleStatus.HOLDING) return
+
         val state = computeHoldingState() ?: return
         publishPriceUpdated(tick.price, state.buyPrice, state.holdingQty)
+
         updateArming(tick.price, state.buyPrice)
+
         val signal = detectFirstSignal(tick, state.holdingQty, state.buyPrice) ?: return
         executeSignalSell(signal, state.holdingQty, state.buyPrice, tick.price, currentBar)
     }
@@ -300,13 +299,16 @@ class TradingCycleRunner(
     private fun computeHoldingState(): HoldingState? {
         val orders = orderRepository.findByCycleId(cycleId)
         val buyOrders = orders.filter { it.side == OrderSide.BUY }
-        val sellOrders = orders.filter { it.side == OrderSide.SELL }
         val boughtQty = buyOrders.sumOf { it.filledQty }
         if (boughtQty == 0) return null
-        val soldQty = sellOrders.sumOf { it.filledQty }
+
         val buyExecutions = buyOrders.flatMap { executionRepository.findByOrderId(it.id) }
         if (buyExecutions.isEmpty()) return null
+
+        val sellOrders = orders.filter { it.side == OrderSide.SELL }
+        val soldQty = sellOrders.sumOf { it.filledQty }
         val buyPrice = cycle.calculateBuyPrice(buyExecutions, sellCostRate)
+
         return HoldingState(holdingQty = boughtQty - soldQty, buyPrice = buyPrice)
     }
 
