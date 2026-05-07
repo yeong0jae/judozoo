@@ -6,7 +6,7 @@ import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.KisWebSocketClientMockConfig
 import at.backend.common.test.MutableTimeProvider
 import at.backend.market.application.MarketDataStream
-import at.backend.market.infrastructure.BarCache
+import at.backend.market.application.BarPoller
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
@@ -36,7 +36,7 @@ class TradingCycleRunnerTest(
     @Autowired private val orderRepository: OrderJpaRepository,
     @Autowired private val executionRepository: ExecutionJpaRepository,
     @Autowired private val marketDataStream: MarketDataStream,
-    @Autowired private val barCache: BarCache,
+    @Autowired private val barPoller: BarPoller,
     @Autowired private val kisRestClient: KisRestClient,
     @Autowired private val webSocketClient: at.backend.platform.kis.client.KisWebSocketClient,
     @Autowired private val timeProvider: MutableTimeProvider,
@@ -68,7 +68,7 @@ class TradingCycleRunnerTest(
         orderRepository = orderRepository,
         executionRepository = executionRepository,
         marketDataStream = marketDataStream,
-        barCache = barCache,
+        barPoller = barPoller,
         timeProvider = timeProvider,
         eventPublisher = org.springframework.context.ApplicationEventPublisher { },
         sellCostRate = 0.0025,

@@ -1,8 +1,8 @@
 package at.backend.trading.application
 
 import at.backend.library.time.TimeProvider
+import at.backend.market.application.BarPoller
 import at.backend.market.application.MarketDataStream
-import at.backend.market.infrastructure.BarCache
 import at.backend.trading.TradingProperties
 import at.backend.trading.application.runner.TradingCycleRunner
 import at.backend.trading.domain.cycle.TradingCycle
@@ -26,7 +26,7 @@ class CycleOrchestrator(
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
     private val marketDataStream: MarketDataStream,
-    private val barCache: BarCache,
+    private val barPoller: BarPoller,
     private val timeProvider: TimeProvider,
     private val tradingProperties: TradingProperties,
     private val eventPublisher: org.springframework.context.ApplicationEventPublisher,
@@ -44,13 +44,13 @@ class CycleOrchestrator(
         }
 
         marketDataStream.subscribe(cycle.stockCode)
-        barCache.subscribe(cycle.stockCode)
+        barPoller.subscribe(cycle.stockCode)
 
-        val runner = newRunner(cycle)
-        activeRunners[cycle.id] = runner
-        runner.start()
+        val tradingCycleRunner = newTradingCycleRunner(cycle)
+        activeRunners[cycle.id] = tradingCycleRunner
+        tradingCycleRunner.start()
         applicationScope.launch {
-            runCatching { runner.awaitCompletion() }
+            runCatching { tradingCycleRunner.awaitCompletion() }
                 .onFailure { log.warn("사이클 종료 대기 중 오류 cycleId={}", cycle.id, it) }
             cleanup(cycle.id)
         }
@@ -83,11 +83,11 @@ class CycleOrchestrator(
     private fun cleanup(cycleId: Long) {
         val removed = activeRunners.remove(cycleId) ?: return
         marketDataStream.unsubscribe(removed.stockCode)
-        barCache.unsubscribe(removed.stockCode)
+        barPoller.unsubscribe(removed.stockCode)
         log.info("CycleOrchestrator 정리 cycleId={}, stockCode={}", cycleId, removed.stockCode)
     }
 
-    private fun newRunner(cycle: TradingCycle): TradingCycleRunner = TradingCycleRunner(
+    private fun newTradingCycleRunner(cycle: TradingCycle) = TradingCycleRunner(
         cycle = cycle,
         applicationScope = applicationScope,
         orderExecutor = orderExecutor,
@@ -95,7 +95,7 @@ class CycleOrchestrator(
         orderRepository = orderRepository,
         executionRepository = executionRepository,
         marketDataStream = marketDataStream,
-        barCache = barCache,
+        barPoller = barPoller,
         timeProvider = timeProvider,
         eventPublisher = eventPublisher,
         sellCostRate = tradingProperties.sellCostRate.toDouble(),

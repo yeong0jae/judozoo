@@ -3,19 +3,15 @@ package at.backend.trading.application.runner
 import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
+import at.backend.market.application.BarPoller
 import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
-import at.backend.market.infrastructure.BarCache
 import at.backend.trading.application.OrderExecutor
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
-import at.backend.trading.domain.event.CycleStateChanged
-import at.backend.trading.domain.event.PriceUpdated
-import at.backend.trading.domain.event.SignalArmed
-import at.backend.trading.domain.event.SignalFired
-import at.backend.trading.domain.event.TradingCycleClosed
+import at.backend.trading.domain.event.*
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -49,7 +45,7 @@ class TradingCycleRunner(
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
     private val marketDataStream: MarketDataStream,
-    private val barCache: BarCache,
+    private val barPoller: BarPoller,
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
     private val sellCostRate: Double,
@@ -66,12 +62,18 @@ class TradingCycleRunner(
     private var job: Job? = null
     private var buyJob: Job? = null
 
-    @Volatile private var pendingCloseReason: CloseReason? = null
-    @Volatile private var prevBar: Bar? = null
-    @Volatile private var currentBar: Bar? = null
+    @Volatile
+    private var pendingCloseReason: CloseReason? = null
+
+    @Volatile
+    private var prevBar: Bar? = null
+
+    @Volatile
+    private var currentBar: Bar? = null
 
     fun start() {
         check(job == null) { "이미 실행 중인 사이클입니다: cycleId=$cycleId" }
+
         job = applicationScope.launch {
             log.info("TradingCycleRunner 시작 cycleId={}", cycleId)
             try {
@@ -89,6 +91,28 @@ class TradingCycleRunner(
                 signals.close()
                 log.info("TradingCycleRunner 종료 cycleId={}, status={}", cycleId, cycle.status)
             }
+        }
+    }
+
+    private suspend fun runBuySequence() {
+        try {
+            mutex.withLock {
+                cycle.startBuying()
+                cycleRepository.save(cycle)
+            }
+            publishStateChanged(TradingCycleStatus.BUYING)
+            orderExecutor.executeBuyTry(cycle, attempt = 1)
+
+            repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
+                delay(buyIntervalUnit * cycle.buyIntervalMin)
+                mutex.withLock {
+                    cycle.incrementBuyAttempt()
+                    cycleRepository.save(cycle)
+                }
+                orderExecutor.executeBuyTry(cycle, attempt = i + 2)
+            }
+        } finally {
+            withContext(NonCancellable) { finalizeBuySequence() }
         }
     }
 
@@ -128,28 +152,6 @@ class TradingCycleRunner(
         signals.trySend(Signal.Cancel)
     }
 
-    private suspend fun runBuySequence() {
-        try {
-            mutex.withLock {
-                cycle.startBuying()
-                cycleRepository.save(cycle)
-            }
-            publishStateChanged(TradingCycleStatus.BUYING)
-            orderExecutor.executeBuyTry(cycle, attempt = 1)
-
-            repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
-                delay(buyIntervalUnit * cycle.buyIntervalMin)
-                mutex.withLock {
-                    cycle.incrementBuyAttempt()
-                    cycleRepository.save(cycle)
-                }
-                orderExecutor.executeBuyTry(cycle, attempt = i + 2)
-            }
-        } finally {
-            withContext(NonCancellable) { finalizeBuySequence() }
-        }
-    }
-
     private suspend fun finalizeBuySequence() {
         val totalFilled = orderRepository.findByCycleId(cycleId)
             .filter { it.side == "BUY" }
@@ -186,7 +188,7 @@ class TradingCycleRunner(
 
     private suspend fun handleHolding() = coroutineScope {
         val barJob = launch {
-            barCache.bars
+            barPoller.bars
                 .filter { it.stockCode == cycle.stockCode }
                 .collect { bar -> recordBar(bar) }
         }
@@ -276,6 +278,7 @@ class TradingCycleRunner(
                     orderExecutor.executeSell(cycle, signal, sellQty, buyPrice, currentPrice, currentBar)
                 }
             }
+
             else -> {
                 pendingCloseReason = signal.toCloseReason()
                 if (cycle.status == TradingCycleStatus.HOLDING) {

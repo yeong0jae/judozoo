@@ -29,6 +29,8 @@ class MarketDataStream(
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
+
+    // 몇 개의 사이클이 해당 종목을 구독하는지 카운트
     private val subscriptionCounts = ConcurrentHashMap<String, AtomicInteger>()
     private val pollingJob = AtomicReference<Job?>(null)
 
@@ -53,7 +55,7 @@ class MarketDataStream(
 
     fun subscribe(stockCode: String) {
         val count = subscriptionCounts.computeIfAbsent(stockCode) { AtomicInteger(0) }
-        if (count.incrementAndGet() == 1) {
+        if (count.incrementAndGet() == 1) { // 해당 종목을 구독하는 첫 사이클만 WS 구독 요청
             webSocketClient.subscribePrice(stockCode)
         }
     }

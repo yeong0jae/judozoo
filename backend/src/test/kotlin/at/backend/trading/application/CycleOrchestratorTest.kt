@@ -6,7 +6,7 @@ import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.KisWebSocketClientMockConfig
 import at.backend.common.test.MutableTimeProvider
 import at.backend.market.application.MarketDataStream
-import at.backend.market.infrastructure.BarCache
+import at.backend.market.application.BarPoller
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
@@ -37,7 +37,7 @@ class CycleOrchestratorTest(
     @Autowired private val orderRepository: OrderJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
     @Autowired private val marketDataStream: MarketDataStream,
-    @Autowired private val barCache: BarCache,
+    @Autowired private val barPoller: BarPoller,
     @Autowired private val timeProvider: MutableTimeProvider,
 ) : IntegrationTestBase() {
 
@@ -107,7 +107,7 @@ class CycleOrchestratorTest(
             cycleRepository.deleteAll()
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
             marketDataStream.reset()
-            barCache.reset()
+            barPoller.reset()
             stubCurrentPrice()
             stubSubmitOrderOk()
             stubCancelOk()

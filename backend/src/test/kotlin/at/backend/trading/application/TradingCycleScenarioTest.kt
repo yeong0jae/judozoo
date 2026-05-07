@@ -4,7 +4,7 @@ import at.backend.common.test.*
 import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
-import at.backend.market.infrastructure.BarCache
+import at.backend.market.application.BarPoller
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.KisWebSocketClient
 import at.backend.platform.kis.client.response.*
@@ -43,7 +43,7 @@ class TradingCycleScenarioTest(
     @Autowired private val unclosedCycleStartupHook: UnclosedCycleStartupHook,
     @Autowired private val cycleOrchestrator: CycleOrchestrator,
     @Autowired private val orderExecutor: OrderExecutor,
-    @Autowired private val barCache: BarCache,
+    @Autowired private val barPoller: BarPoller,
     @Autowired private val marketDataStream: MarketDataStream,
 ) : IntegrationTestBase() {
 
@@ -146,10 +146,10 @@ class TradingCycleScenarioTest(
     private suspend fun emitBar(openPrice: Int, closePrice: Int, code: String = stockCode) {
         val now = Instant.now()
         val bar = Bar(code, openPrice, closePrice, now.minusSeconds(180), now)
-        val field = BarCache::class.java.getDeclaredField("_bars")
+        val field = BarPoller::class.java.getDeclaredField("_bars")
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
-        val flow = field.get(barCache) as MutableSharedFlow<Bar>
+        val flow = field.get(barPoller) as MutableSharedFlow<Bar>
         flow.emit(bar)
     }
 

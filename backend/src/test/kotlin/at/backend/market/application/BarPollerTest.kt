@@ -1,4 +1,4 @@
-package at.backend.market.infrastructure
+package at.backend.market.application
 
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
@@ -19,14 +19,14 @@ import org.springframework.test.context.TestPropertySource
 
 @Import(KisRestClientMockConfig::class)
 @TestPropertySource(properties = ["trading.market.bar-poll-interval-millis=30"])
-class BarCacheTest(
-    @Autowired private val barCache: BarCache,
+class BarPollerTest(
+    @Autowired private val barPoller: BarPoller,
     @Autowired private val restClient: KisRestClient,
 ) : IntegrationTestBase() {
 
     init {
         beforeEach {
-            barCache.reset()
+            barPoller.reset()
             clearMocks(restClient, answers = false)
         }
 
@@ -36,10 +36,10 @@ class BarCacheTest(
 
                 val bar = coroutineScope {
                     val deferred = async {
-                        withTimeout(2000) { barCache.bars.first() }
+                        withTimeout(2000) { barPoller.bars.first() }
                     }
                     delay(100)
-                    barCache.subscribe("005930")
+                    barPoller.subscribe("005930")
                     deferred.await()
                 }
                 bar.stockCode shouldBe "005930"
@@ -52,14 +52,14 @@ class BarCacheTest(
 
                 coroutineScope {
                     val deferred = async {
-                        withTimeout(2000) { barCache.bars.first() }
+                        withTimeout(2000) { barPoller.bars.first() }
                     }
                     delay(100)
-                    barCache.subscribe("005930")
+                    barPoller.subscribe("005930")
                     deferred.await()
                 }
 
-                val received = withTimeoutOrNull(200) { barCache.bars.first() }
+                val received = withTimeoutOrNull(200) { barPoller.bars.first() }
                 received shouldBe null
             }
 
@@ -68,16 +68,16 @@ class BarCacheTest(
 
                 coroutineScope {
                     val deferred = async {
-                        withTimeout(2000) { barCache.bars.first() }
+                        withTimeout(2000) { barPoller.bars.first() }
                     }
                     delay(100)
-                    barCache.subscribe("005930")
+                    barPoller.subscribe("005930")
                     deferred.await()
                 }
 
                 val next = coroutineScope {
                     val deferred = async {
-                        withTimeout(2000) { barCache.bars.first() }
+                        withTimeout(2000) { barPoller.bars.first() }
                     }
                     delay(100)
                     every { restClient.getBars("005930") } returns barResponse("20260504", "150600", 70_500, 70_700)

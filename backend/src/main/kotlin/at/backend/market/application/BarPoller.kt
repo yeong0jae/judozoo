@@ -1,33 +1,30 @@
-package at.backend.market.infrastructure
+package at.backend.market.application
 
 import at.backend.library.time.atKstInstant
+import at.backend.market.domain.Bar
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBarResponse
-import at.backend.market.domain.Bar
 import jakarta.annotation.PostConstruct
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
+import jakarta.annotation.PreDestroy
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.milliseconds
 
 @Component
-class BarCache(
+class BarPoller(
     private val restClient: KisRestClient,
     private val applicationScope: CoroutineScope,
     @Value("\${trading.market.bar-poll-interval-millis:30000}") private val pollIntervalMillis: Long,
@@ -35,7 +32,7 @@ class BarCache(
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val subscriptionCounts = ConcurrentHashMap<String, AtomicInteger>()
-    private val latestBarEnd = ConcurrentHashMap<String, java.time.Instant>()
+    private val latestBarEnd = ConcurrentHashMap<String, Instant>()
     private val pollingJob = AtomicReference<Job?>(null)
 
     private val _bars = MutableSharedFlow<Bar>(extraBufferCapacity = 256)
@@ -58,6 +55,7 @@ class BarCache(
         }
     }
 
+    @PreDestroy
     fun stop() {
         val job = pollingJob.getAndSet(null) ?: return
         runBlocking { job.cancelAndJoin() }
@@ -73,9 +71,9 @@ class BarCache(
             while (isActive) {
                 subscriptionCounts.keys.forEach { code ->
                     runCatching { pollOnce(code) }
-                        .onFailure { log.warn("BarCache 폴링 실패 stockCode={}", code, it) }
+                        .onFailure { log.warn("BarPoller 폴링 실패 stockCode={}", code, it) }
                 }
-                delay(pollIntervalMillis)
+                delay(pollIntervalMillis.milliseconds)
             }
         }
         pollingJob.set(job)
