@@ -20,8 +20,6 @@ import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
@@ -59,7 +57,6 @@ class TradingCycleRunner(
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val signals: Channel<Signal> = Channel(Channel.UNLIMITED)
-    private val mutex = Mutex()
     private var job: Job? = null
     private var buyJob: Job? = null
 
@@ -97,19 +94,15 @@ class TradingCycleRunner(
 
     private suspend fun runBuySequence() {
         try {
-            mutex.withLock {
-                cycle.startBuying()
-                cycleRepository.save(cycle)
-            }
+            cycle.startBuying()
+            cycleRepository.save(cycle)
             publishStateChanged(TradingCycleStatus.BUYING)
             orderService.placeOrder(cycle, attempt = 1)
 
             repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
                 delay(buyIntervalUnit * cycle.buyIntervalMin)
-                mutex.withLock {
-                    cycle.incrementBuyAttempt()
-                    cycleRepository.save(cycle)
-                }
+                cycle.incrementBuyAttempt()
+                cycleRepository.save(cycle)
                 orderService.placeOrder(cycle, attempt = i + 2)
             }
         } finally {
@@ -138,47 +131,42 @@ class TradingCycleRunner(
      * - HOLDING 전이된 경우를 위해 Signal.Cancel을 채널에 push (handleHolding이 청산 처리)
      */
     suspend fun requestCancellation() {
-        var transitioned = false
-        mutex.withLock {
-            if (cycle.status != TradingCycleStatus.CLOSED &&
-                cycle.status != TradingCycleStatus.LIQUIDATING
-            ) {
-                cycle.requestCancel()
-                cycleRepository.save(cycle)
-                transitioned = true
-            }
-        }
+        val transitioned = if (cycle.status != TradingCycleStatus.CLOSED &&
+            cycle.status != TradingCycleStatus.LIQUIDATING
+        ) {
+            cycle.requestCancel()
+            cycleRepository.save(cycle)
+            true
+        } else false
         if (transitioned) publishStateChanged(TradingCycleStatus.LIQUIDATING)
         buyJob?.cancelAndJoin()
         signals.trySend(Signal.Cancel)
     }
 
-    private suspend fun finalizeBuySequence() {
+    private fun finalizeBuySequence() {
         val totalFilled = orderRepository.findByCycleId(cycleId)
             .filter { it.side == OrderSide.BUY }
             .sumOf { it.filledQty }
 
         var closedReason: CloseReason? = null
         var transitionedToHolding = false
-        mutex.withLock {
-            when {
-                totalFilled == 0 && cycle.status == TradingCycleStatus.LIQUIDATING -> {
-                    cycle.close(CloseReason.CANCELLED, timeProvider.now())
-                    closedReason = CloseReason.CANCELLED
-                }
-
-                totalFilled == 0 && cycle.status == TradingCycleStatus.BUYING -> {
-                    cycle.close(CloseReason.NO_FILL, timeProvider.now())
-                    closedReason = CloseReason.NO_FILL
-                }
-
-                cycle.status == TradingCycleStatus.BUYING -> {
-                    cycle.transitionToHolding()
-                    transitionedToHolding = true
-                }
+        when {
+            totalFilled == 0 && cycle.status == TradingCycleStatus.LIQUIDATING -> {
+                cycle.close(CloseReason.CANCELLED, timeProvider.now())
+                closedReason = CloseReason.CANCELLED
             }
-            cycleRepository.save(cycle)
+
+            totalFilled == 0 && cycle.status == TradingCycleStatus.BUYING -> {
+                cycle.close(CloseReason.NO_FILL, timeProvider.now())
+                closedReason = CloseReason.NO_FILL
+            }
+
+            cycle.status == TradingCycleStatus.BUYING -> {
+                cycle.transitionToHolding()
+                transitionedToHolding = true
+            }
         }
+        cycleRepository.save(cycle)
         if (transitionedToHolding) publishStateChanged(TradingCycleStatus.HOLDING)
         closedReason?.let {
             publishStateChanged(TradingCycleStatus.CLOSED, it)
@@ -220,14 +208,12 @@ class TradingCycleRunner(
     }
 
     private suspend fun processTick(tick: PriceTick) {
-        mutex.withLock {
-            if (cycle.status != TradingCycleStatus.HOLDING) return@withLock
-            val state = computeHoldingState() ?: return@withLock
-            publishPriceUpdated(tick.price, state.buyPrice, state.holdingQty)
-            updateArming(tick.price, state.buyPrice)
-            val signal = detectFirstSignal(tick, state.holdingQty, state.buyPrice) ?: return@withLock
-            executeSignalSell(signal, state.holdingQty, state.buyPrice, tick.price, currentBar)
-        }
+        if (cycle.status != TradingCycleStatus.HOLDING) return
+        val state = computeHoldingState() ?: return
+        publishPriceUpdated(tick.price, state.buyPrice, state.holdingQty)
+        updateArming(tick.price, state.buyPrice)
+        val signal = detectFirstSignal(tick, state.holdingQty, state.buyPrice) ?: return
+        executeSignalSell(signal, state.holdingQty, state.buyPrice, tick.price, currentBar)
     }
 
     private fun detectFirstSignal(tick: PriceTick, holdingQty: Int, buyPrice: Int): Signal? {
@@ -242,24 +228,18 @@ class TradingCycleRunner(
     }
 
     private suspend fun processExternalSignal(signal: Signal) {
-        var closedReason: CloseReason? = null
-        mutex.withLock {
-            if (cycle.status == TradingCycleStatus.CLOSED) return@withLock
-            val state = computeHoldingState()
-            if (state == null) {
-                if (signal == Signal.Cancel) {
-                    cycle.close(CloseReason.CANCELLED, timeProvider.now())
-                    cycleRepository.save(cycle)
-                    closedReason = CloseReason.CANCELLED
-                }
-                return@withLock
+        if (cycle.status == TradingCycleStatus.CLOSED) return
+        val state = computeHoldingState()
+        if (state == null) {
+            if (signal == Signal.Cancel) {
+                cycle.close(CloseReason.CANCELLED, timeProvider.now())
+                cycleRepository.save(cycle)
+                publishStateChanged(TradingCycleStatus.CLOSED, CloseReason.CANCELLED)
+                publishCycleClosed(CloseReason.CANCELLED)
             }
-            executeSignalSell(signal, state.holdingQty, state.buyPrice, state.buyPrice, currentBar)
+            return
         }
-        closedReason?.let {
-            publishStateChanged(TradingCycleStatus.CLOSED, it)
-            publishCycleClosed(it)
-        }
+        executeSignalSell(signal, state.holdingQty, state.buyPrice, state.buyPrice, currentBar)
     }
 
     private suspend fun executeSignalSell(
@@ -294,34 +274,27 @@ class TradingCycleRunner(
         }
     }
 
-    private suspend fun checkAndCloseIfDone(): Boolean {
-        var closedReason: CloseReason? = null
-        val done = mutex.withLock {
-            if (cycle.status == TradingCycleStatus.CLOSED) return@withLock true
-            val state = computeHoldingState() ?: return@withLock false
-            val inFlight = orderRepository.inFlightSellUnfilled(cycleId)
-            val allTpFired = cycle.tpStagesFired and 0b111 == 0b111
+    private fun checkAndCloseIfDone(): Boolean {
+        if (cycle.status == TradingCycleStatus.CLOSED) return true
+        val state = computeHoldingState() ?: return false
+        val inFlight = orderRepository.inFlightSellUnfilled(cycleId)
+        val allTpFired = cycle.tpStagesFired and 0b111 == 0b111
 
-            if (cycle.status == TradingCycleStatus.HOLDING && allTpFired && state.holdingQty == 0 && inFlight == 0) {
-                cycle.requestCancel()
-                cycleRepository.save(cycle)
-                pendingCloseReason = CloseReason.TAKE_PROFIT
-            }
+        if (cycle.status == TradingCycleStatus.HOLDING && allTpFired && state.holdingQty == 0 && inFlight == 0) {
+            cycle.requestCancel()
+            cycleRepository.save(cycle)
+            pendingCloseReason = CloseReason.TAKE_PROFIT
+        }
 
-            if (cycle.status == TradingCycleStatus.LIQUIDATING && state.holdingQty == 0 && inFlight == 0) {
-                val reason = pendingCloseReason ?: CloseReason.UNCLOSED
-                cycle.close(reason, timeProvider.now())
-                cycleRepository.save(cycle)
-                closedReason = reason
-                return@withLock true
-            }
-            false
+        if (cycle.status == TradingCycleStatus.LIQUIDATING && state.holdingQty == 0 && inFlight == 0) {
+            val reason = pendingCloseReason ?: CloseReason.UNCLOSED
+            cycle.close(reason, timeProvider.now())
+            cycleRepository.save(cycle)
+            publishStateChanged(TradingCycleStatus.CLOSED, reason)
+            publishCycleClosed(reason)
+            return true
         }
-        closedReason?.let {
-            publishStateChanged(TradingCycleStatus.CLOSED, it)
-            publishCycleClosed(it)
-        }
-        return done
+        return false
     }
 
     private fun computeHoldingState(): HoldingState? {
