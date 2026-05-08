@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 export const QK = {
-    systemStatus: ["system", "status"],
+    marketStatus: ["market", "status"],
     accountBalance: ["account", "balance"],
     activeCommands: ["trading", "active"],
     todayClosed: ["trading", "today"],
@@ -10,10 +10,10 @@ export const QK = {
     stockPrice: (code) => ["stocks", "price", code],
     dailyReport: (date) => ["reports", "daily", date],
 };
-export function useSystemStatus() {
+export function useMarketStatus() {
     return useQuery({
-        queryKey: QK.systemStatus,
-        queryFn: () => apiFetch("/api/system/status"),
+        queryKey: QK.marketStatus,
+        queryFn: () => apiFetch("/api/market/status"),
         refetchInterval: 30_000,
     });
 }
