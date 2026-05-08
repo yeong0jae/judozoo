@@ -20,13 +20,13 @@ export default function NotificationsBridge() {
 
       notifications.add({
         ts,
-        commandId: p.commandId,
+        cycleId: p.cycleId,
         closeReason: p.closeReason,
       });
 
       const isCritical =
         p.closeReason === "UNCLOSED" || p.closeReason === "NO_FILL";
-      const message = `명령 #${p.commandId} 종료 — ${p.closeReason}`;
+      const message = `명령 #${p.cycleId} 종료 — ${p.closeReason}`;
 
       toast.show({
         message,
@@ -38,7 +38,7 @@ export default function NotificationsBridge() {
         if (Notification.permission === "granted") {
           new Notification("AT 자동매매", {
             body: message,
-            tag: `cmd-${p.commandId}`,
+            tag: `cmd-${p.cycleId}`,
             requireInteraction: isCritical,
           });
         }

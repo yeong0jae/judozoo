@@ -47,7 +47,7 @@ class ExecutionNoticeHandler(
 
         eventPublisher.publishEvent(
             OrderExecuted(
-                commandId = cycleId,
+                cycleId = cycleId,
                 side = notice.side.name,
                 qty = notice.executedQty,
                 price = notice.executedPrice,

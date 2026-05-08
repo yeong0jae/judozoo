@@ -45,7 +45,7 @@ class TradingService(
             cycleOrchestrator.start(saved)
             eventPublisher.publishEvent(
                 TradingCycleCreated(
-                    commandId = saved.id,
+                    cycleId = saved.id,
                     stockCode = saved.stockCode,
                     stockName = saved.stockName,
                     ts = now.toInstantKst(),
@@ -60,8 +60,10 @@ class TradingService(
     fun cancel(id: Long): TradingCancelResult {
         val cycle = tradingCycleRepository.findById(id)
             .orElseThrow { EntityNotFoundException("TradingCycle을 찾을 수 없습니다: $id") }
+
         cycle.requestCancel()
         tradingCycleRepository.save(cycle)
+
         afterCommit { cycleOrchestrator.cancel(cycle.id) }
         return TradingCancelResult.from(cycle)
     }

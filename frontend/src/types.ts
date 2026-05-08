@@ -73,7 +73,7 @@ export interface BuyAttemptInfo {
 }
 
 export interface TradingSummary {
-  commandId: number;
+  cycleId: number;
   stockCode: string;
   stockName: string;
   status: TradingCycleStatus;
@@ -138,7 +138,7 @@ export interface TradingDetail extends TradingSummary {
 }
 
 export interface DailyTrading {
-  commandId: number;
+  cycleId: number;
   stockCode: string;
   stockName: string;
   status: TradingCycleStatus;
@@ -151,7 +151,7 @@ export interface DailyTrading {
 
 // Phase 6: 수수료/세금/매수→매도가 분리 집계 (GET /api/reports/daily 응답)
 export interface DailyReport {
-  commandId: number;
+  cycleId: number;
   stockCode: string;
   stockName: string;
   status: TradingCycleStatus;
@@ -241,12 +241,12 @@ export type TradingPayload =
 export type LifecyclePayload =
   | {
       type: "CREATED";
-      commandId: number;
+      cycleId: number;
       stockCode: string;
       stockName: string;
       ts: string;
     }
-  | { type: "CLOSED"; commandId: number; closeReason: CloseReason; ts: string };
+  | { type: "CLOSED"; cycleId: number; closeReason: CloseReason; ts: string };
 
 export type MarketPayload =
   | { type: "MARKET_MODE"; mode: MarketMode; ts: string }

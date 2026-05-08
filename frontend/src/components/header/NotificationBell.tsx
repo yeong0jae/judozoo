@@ -74,7 +74,7 @@ export default function NotificationBell() {
                     </div>
                     <div className="flex items-baseline justify-between gap-2 text-sm">
                       <span className="truncate">
-                        {e.stockName ?? `명령 #${e.commandId}`}
+                        {e.stockName ?? `명령 #${e.cycleId}`}
                       </span>
                       <span className="text-xs text-zinc-500 shrink-0">
                         {formatRelative(e.ts)}

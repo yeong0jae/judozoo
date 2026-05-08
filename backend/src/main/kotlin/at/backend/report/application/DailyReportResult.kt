@@ -9,7 +9,7 @@ import java.time.LocalDateTime
  * Phase 6의 실적 화면은 수수료/세금 분리와 매수→매도가가 필요해 본 DTO를 별도로 둔다.
  */
 data class DailyReportResult(
-    val commandId: Long,
+    val cycleId: Long,
     val stockCode: String,
     val stockName: String,
     val status: String,

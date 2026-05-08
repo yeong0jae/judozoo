@@ -526,10 +526,10 @@ function ReportTable({
                   : "";
             return (
               <tr
-                key={r.commandId}
-                onClick={() => onSelect(r.commandId)}
+                key={r.cycleId}
+                onClick={() => onSelect(r.cycleId)}
                 className={`border-t border-zinc-800 cursor-pointer hover:bg-zinc-800/40 ${
-                  selectedId === r.commandId ? "bg-zinc-800/60" : ""
+                  selectedId === r.cycleId ? "bg-zinc-800/60" : ""
                 } ${isAnomaly ? bg : ""}`}
               >
                 <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">

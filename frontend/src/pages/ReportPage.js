@@ -169,12 +169,12 @@ function ReportTable({ rows, emphasizeUnclosed, onSelect, selectedId, }) {
                             : r.closeReason === "NO_FILL"
                                 ? "bg-amber-950/20"
                                 : "";
-                        return (_jsxs("tr", { onClick: () => onSelect(r.commandId), className: `border-t border-zinc-800 cursor-pointer hover:bg-zinc-800/40 ${selectedId === r.commandId ? "bg-zinc-800/60" : ""} ${isAnomaly ? bg : ""}`, children: [_jsx("td", { className: "px-4 py-3 text-zinc-400 whitespace-nowrap", children: r.closedAt ? formatDateTime(r.closedAt) : "-" }), _jsxs("td", { className: "px-4 py-3 font-medium", children: [r.stockName, _jsx("span", { className: "text-xs text-zinc-500 ml-2", children: r.stockCode })] }), _jsx("td", { className: "px-4 py-3 text-zinc-400", children: r.closedAt
+                        return (_jsxs("tr", { onClick: () => onSelect(r.cycleId), className: `border-t border-zinc-800 cursor-pointer hover:bg-zinc-800/40 ${selectedId === r.cycleId ? "bg-zinc-800/60" : ""} ${isAnomaly ? bg : ""}`, children: [_jsx("td", { className: "px-4 py-3 text-zinc-400 whitespace-nowrap", children: r.closedAt ? formatDateTime(r.closedAt) : "-" }), _jsxs("td", { className: "px-4 py-3 font-medium", children: [r.stockName, _jsx("span", { className: "text-xs text-zinc-500 ml-2", children: r.stockCode })] }), _jsx("td", { className: "px-4 py-3 text-zinc-400", children: r.closedAt
                                         ? formatDuration(r.createdAt, r.closedAt)
                                         : "-" }), _jsxs("td", { className: "px-4 py-3 text-zinc-300 text-xs whitespace-nowrap", children: [r.avgBuyPrice !== null
                                             ? formatPrice(r.avgBuyPrice)
                                             : "-", " → ", r.avgSellPrice !== null
                                             ? formatPrice(r.avgSellPrice)
-                                            : "-"] }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.profitRate, format: formatPct, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.netProfit, format: formatKRW, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-center", children: r.closeReason && (_jsx(CloseReasonBadge, { reason: r.closeReason })) })] }, r.commandId));
+                                            : "-"] }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.profitRate, format: formatPct, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-right", children: _jsx(ProfitText, { value: r.netProfit, format: formatKRW, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-3 text-center", children: r.closeReason && (_jsx(CloseReasonBadge, { reason: r.closeReason })) })] }, r.cycleId));
                     }) })] }) }));
 }

@@ -45,11 +45,11 @@
 
 ## 4. MDC 코루틴 컨텍스트 헬퍼 (`common.log`)
 
-- [x] `at.backend.common.log.MdcKey` 객체 — `COMMAND_ID`, `ORDER_ID`, `STOCK_CODE` 키 상수
+- [x] `at.backend.common.log.MdcKey` 객체 — `CYCLE_ID`, `ORDER_ID`, `STOCK_CODE` 키 상수
 - [x] `at.backend.common.log.MdcContextElement` 또는 단순 helper — 코루틴 launch 시 `MDCContext()` 사용 가이드 주석 정도
 - [x] 단순 사용 예시 단위 테스트 1건 (MDC put → 로그 확인 필요까진 X, MDC 키가 코루틴 경계에서 보존되는지만)
 
-> 본격적인 MDC 주입은 Phase 4 TradingCycle에서 commandId/orderId 자동 주입 시 활용. 여기선 도구만 준비.
+> 본격적인 MDC 주입은 Phase 4 TradingCycle에서 cycleId/orderId 자동 주입 시 활용. 여기선 도구만 준비.
 
 ---
 

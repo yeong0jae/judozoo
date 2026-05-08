@@ -47,12 +47,12 @@ export default function MonitoringPage() {
             // NotificationsBridge가 toast/알림을 이미 띄움. 여기선 종료 행 스크롤 보강 토스트만 추가.
             toast.show({
                 tone: "info",
-                message: `명령 #${p.commandId} 종료 — 종료 행으로 이동`,
+                message: `명령 #${p.cycleId} 종료 — 종료 행으로 이동`,
                 duration: 5000,
                 action: {
                     label: "이동",
                     onClick: () => {
-                        const row = todayRowRefs.current[p.commandId];
+                        const row = todayRowRefs.current[p.cycleId];
                         row?.scrollIntoView({ behavior: "smooth", block: "center" });
                         row?.classList.add("bg-amber-900/40");
                         setTimeout(() => row?.classList.remove("bg-amber-900/40"), 1500);
@@ -81,7 +81,7 @@ export default function MonitoringPage() {
             toast.show({ tone: "error", message: `취소 실패 — ${code}` });
         }
     };
-    return (_jsxs("div", { className: "space-y-6", children: [commands.map((c) => (_jsx(PerCycleSubscription, { commandId: c.commandId, qc: qc }, c.commandId))), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h2", { className: "text-lg font-semibold", children: ["\uD65C\uC131 \uBA85\uB839 (", activeQ.isLoading ? "..." : commands.length, ")"] }), commands.length > 0 && (_jsx(SortDropdown, { value: sortKey, onChange: setSortKey }))] }), activeQ.isLoading ? (_jsxs("div", { className: "space-y-2", children: [_jsx(Skeleton, { className: "h-20 w-full" }), _jsx(Skeleton, { className: "h-20 w-full" })] })) : activeQ.isError ? (_jsx(ErrorState, { onRetry: () => activeQ.refetch() })) : commands.length === 0 ? (_jsx(EmptyState, { message: "\uD65C\uC131 \uB9E4\uB9E4 \uBA85\uB839\uC774 \uC5C6\uC2B5\uB2C8\uB2E4", action: _jsx(Link, { to: "/command", className: "px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-sm text-white", children: "\uB9E4\uB9E4 \uBA85\uB839 \uC791\uC131\uD558\uAE30 \u2192" }) })) : (_jsx("div", { className: "space-y-2", children: sortedCommands.map((cmd) => (_jsx(ActiveRow, { cmd: cmd, selected: selectedId === cmd.commandId, onSelect: () => setSelectedId(cmd.commandId) }, cmd.commandId))) }))] }), selectedId && (_jsxs("section", { children: [_jsxs("h2", { className: "text-lg font-semibold mb-3", children: ["\uC0C1\uC138 ", selectedDetail && `— ${selectedDetail.stockName}`] }), detailQ.isLoading ? (_jsx(Skeleton, { className: "h-64 w-full" })) : detailQ.isError ? (_jsx(ErrorState, { onRetry: () => detailQ.refetch() })) : selectedDetail ? (_jsx(DetailPanel, { detail: selectedDetail, onCancel: () => setShowCancelDialog(true) })) : null] })), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uC624\uB298 \uC885\uB8CC\uB41C \uBA85\uB839 (", filteredTodayClosed.length, reasonFilter.size > 0 && ` / ${todayRows.length}`, ")"] }), todayRows.length > 0 && (_jsx(ReasonFilter, { value: reasonFilter, onChange: setReasonFilter, available: new Set(todayRows
+    return (_jsxs("div", { className: "space-y-6", children: [commands.map((c) => (_jsx(PerCycleSubscription, { cycleId: c.cycleId, qc: qc }, c.cycleId))), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h2", { className: "text-lg font-semibold", children: ["\uD65C\uC131 \uBA85\uB839 (", activeQ.isLoading ? "..." : commands.length, ")"] }), commands.length > 0 && (_jsx(SortDropdown, { value: sortKey, onChange: setSortKey }))] }), activeQ.isLoading ? (_jsxs("div", { className: "space-y-2", children: [_jsx(Skeleton, { className: "h-20 w-full" }), _jsx(Skeleton, { className: "h-20 w-full" })] })) : activeQ.isError ? (_jsx(ErrorState, { onRetry: () => activeQ.refetch() })) : commands.length === 0 ? (_jsx(EmptyState, { message: "\uD65C\uC131 \uB9E4\uB9E4 \uBA85\uB839\uC774 \uC5C6\uC2B5\uB2C8\uB2E4", action: _jsx(Link, { to: "/command", className: "px-4 py-2 rounded bg-emerald-700 hover:bg-emerald-600 text-sm text-white", children: "\uB9E4\uB9E4 \uBA85\uB839 \uC791\uC131\uD558\uAE30 \u2192" }) })) : (_jsx("div", { className: "space-y-2", children: sortedCommands.map((cmd) => (_jsx(ActiveRow, { cmd: cmd, selected: selectedId === cmd.cycleId, onSelect: () => setSelectedId(cmd.cycleId) }, cmd.cycleId))) }))] }), selectedId && (_jsxs("section", { children: [_jsxs("h2", { className: "text-lg font-semibold mb-3", children: ["\uC0C1\uC138 ", selectedDetail && `— ${selectedDetail.stockName}`] }), detailQ.isLoading ? (_jsx(Skeleton, { className: "h-64 w-full" })) : detailQ.isError ? (_jsx(ErrorState, { onRetry: () => detailQ.refetch() })) : selectedDetail ? (_jsx(DetailPanel, { detail: selectedDetail, onCancel: () => setShowCancelDialog(true) })) : null] })), _jsxs("section", { children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsxs("h3", { className: "text-sm font-semibold text-zinc-400", children: ["\uC624\uB298 \uC885\uB8CC\uB41C \uBA85\uB839 (", filteredTodayClosed.length, reasonFilter.size > 0 && ` / ${todayRows.length}`, ")"] }), todayRows.length > 0 && (_jsx(ReasonFilter, { value: reasonFilter, onChange: setReasonFilter, available: new Set(todayRows
                                     .map((r) => r.closeReason)
                                     .filter((x) => !!x)) }))] }), todayQ.isLoading ? (_jsx(Skeleton, { className: "h-32 w-full" })) : todayQ.isError ? (_jsx(ErrorState, { onRetry: () => todayQ.refetch() })) : filteredTodayClosed.length === 0 ? (_jsx(EmptyState, { icon: "\uD83D\uDCED", message: reasonFilter.size > 0
                             ? "필터 조건에 맞는 종료 항목이 없습니다"
@@ -90,11 +90,11 @@ export default function MonitoringPage() {
 // ============================================================
 // Per-cycle STOMP subscription
 // ============================================================
-function PerCycleSubscription({ commandId, qc, }) {
-    useStompSubscription(`/topic/trading/${commandId}`, (p) => {
+function PerCycleSubscription({ cycleId, qc, }) {
+    useStompSubscription(`/topic/trading/${cycleId}`, (p) => {
         if (p.type === "PRICE") {
             // active list 행 부분 갱신
-            qc.setQueryData(QK.activeCommands, (prev) => prev?.map((c) => c.commandId === commandId
+            qc.setQueryData(QK.activeCommands, (prev) => prev?.map((c) => c.cycleId === cycleId
                 ? {
                     ...c,
                     currentPrice: p.currentPrice,
@@ -103,7 +103,7 @@ function PerCycleSubscription({ commandId, qc, }) {
                 }
                 : c));
             // 상세 캐시도 부분 갱신
-            qc.setQueryData(QK.commandDetail(commandId), (prev) => prev
+            qc.setQueryData(QK.commandDetail(cycleId), (prev) => prev
                 ? {
                     ...prev,
                     currentPrice: p.currentPrice,
@@ -113,13 +113,13 @@ function PerCycleSubscription({ commandId, qc, }) {
                 : prev);
         }
         else if (p.type === "STATE") {
-            qc.setQueryData(QK.activeCommands, (prev) => prev?.map((c) => c.commandId === commandId ? { ...c, status: p.status } : c));
-            qc.invalidateQueries({ queryKey: QK.commandDetail(commandId) });
+            qc.setQueryData(QK.activeCommands, (prev) => prev?.map((c) => c.cycleId === cycleId ? { ...c, status: p.status } : c));
+            qc.invalidateQueries({ queryKey: QK.commandDetail(cycleId) });
         }
         else {
             // EXECUTION / SIGNAL / RETRY → 상세 invalidate (active 요약은 일부 필드만)
             if (p.type === "EXECUTION") {
-                qc.setQueryData(QK.activeCommands, (prev) => prev?.map((c) => c.commandId === commandId
+                qc.setQueryData(QK.activeCommands, (prev) => prev?.map((c) => c.cycleId === cycleId
                     ? {
                         ...c,
                         holdingQty: p.holdingQty,
@@ -127,7 +127,7 @@ function PerCycleSubscription({ commandId, qc, }) {
                     }
                     : c));
             }
-            qc.invalidateQueries({ queryKey: QK.commandDetail(commandId) });
+            qc.invalidateQueries({ queryKey: QK.commandDetail(cycleId) });
         }
     });
     return null;
@@ -182,8 +182,8 @@ function TodayClosedTable({ rows, emphasizeUnclosed, rowRefs, }) {
                                 ? "bg-amber-950/20"
                                 : "";
                         return (_jsxs("tr", { ref: (el) => {
-                                rowRefs.current[row.commandId] = el;
-                            }, className: `border-t border-zinc-800 transition-colors ${isAnomaly ? bg : ""}`, children: [_jsx("td", { className: "px-4 py-2", children: row.closeReason && (_jsx(CloseReasonBadge, { reason: row.closeReason })) }), _jsxs("td", { className: "px-4 py-2 font-medium", children: [row.stockName, _jsx("span", { className: "text-xs text-zinc-500 ml-2", children: row.stockCode })] }), _jsx("td", { className: "px-4 py-2 text-zinc-400 text-xs", children: row.closedAt ? formatDateTime(row.closedAt) : "-" }), _jsx("td", { className: "px-4 py-2 text-right", children: _jsx(ProfitText, { value: row.profitRate, format: formatPct, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-2 text-right", children: _jsx(ProfitText, { value: row.profitAmount, format: formatKRW, zeroAsDash: true }) })] }, row.commandId));
+                                rowRefs.current[row.cycleId] = el;
+                            }, className: `border-t border-zinc-800 transition-colors ${isAnomaly ? bg : ""}`, children: [_jsx("td", { className: "px-4 py-2", children: row.closeReason && (_jsx(CloseReasonBadge, { reason: row.closeReason })) }), _jsxs("td", { className: "px-4 py-2 font-medium", children: [row.stockName, _jsx("span", { className: "text-xs text-zinc-500 ml-2", children: row.stockCode })] }), _jsx("td", { className: "px-4 py-2 text-zinc-400 text-xs", children: row.closedAt ? formatDateTime(row.closedAt) : "-" }), _jsx("td", { className: "px-4 py-2 text-right", children: _jsx(ProfitText, { value: row.profitRate, format: formatPct, zeroAsDash: true }) }), _jsx("td", { className: "px-4 py-2 text-right", children: _jsx(ProfitText, { value: row.profitAmount, format: formatKRW, zeroAsDash: true }) })] }, row.cycleId));
                     }) })] }) }));
 }
 function ActiveRow({ cmd, selected, onSelect, }) {

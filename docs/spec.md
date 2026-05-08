@@ -201,7 +201,7 @@ PRD §매수가 산정 기준 — 매수 비용 + 예상 매도 비용 반영 �
 ### 10.1 트레이딩
 
 ```
-POST /api/trading              { stockCode, perBuyAmount, [advanced 5필드] } → 201 { commandId, status }
+POST /api/trading              { stockCode, perBuyAmount, [advanced 5필드] } → 201 { cycleId, status }
   errorCodes: STOCK_NOT_FOUND / PRICE_BELOW_ONE_SHARE / INSUFFICIENT_BALANCE /
               DUPLICATE_COMMAND / CUTOFF_PASSED / HOLIDAY / OUT_OF_TRADING_HOURS /
               COMMAND_GATE_CLOSED / INVALID_PARAMETER
@@ -218,7 +218,7 @@ GET /api/trading/{id}                   → TradingDetail (orders[], executions[
 ### 10.2 실적
 ```
 GET /api/reports/daily?date=YYYY-MM-DD → DailyReport[]
-  { commandId, stockCode/Name, closeReason, createdAt, closedAt,
+  { cycleId, stockCode/Name, closeReason, createdAt, closedAt,
     avgBuyPrice, avgSellPrice, totalFee, totalTax, grossProfit, netProfit, profitRate }
 ```
 UI는 closeReason = UNCLOSED / NO_FILL 강조.
@@ -246,8 +246,8 @@ GET /api/system/status   → { marketMode: "WS"|"POLLING", tokenStatus, isHolida
   RETRY     { signalType, retryCount, lastError, ts }
 
 /topic/trading/lifecycle:
-  CREATED { commandId, stockCode, stockName, ts }
-  CLOSED  { commandId, closeReason, ts }
+  CREATED { cycleId, stockCode, stockName, ts }
+  CLOSED  { cycleId, closeReason, ts }
 
 /topic/market:
   MARKET_MODE { mode:"WS"|"POLLING", ts }
@@ -290,7 +290,7 @@ trading:
 
 ## 12. 로깅 / 관측
 
-Logback + `logstash-logback-encoder` JSON. MDC에 `commandId`, `orderId`, `stockCode` 자동 (`MdcContextElement`로 코루틴 경계). 필수 이벤트: 명령 접수/거부, 매수/매도 발송/체결/실패, 시그널 발동, WS 연결/끊김, 토큰 발급, 사이클 종료. 파일 회전 일별 90일.
+Logback + `logstash-logback-encoder` JSON. MDC에 `cycleId`, `orderId`, `stockCode` 자동 (`MdcContextElement`로 코루틴 경계). 필수 이벤트: 명령 접수/거부, 매수/매도 발송/체결/실패, 시그널 발동, WS 연결/끊김, 토큰 발급, 사이클 종료. 파일 회전 일별 90일.
 
 ---
 

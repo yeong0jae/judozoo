@@ -10,7 +10,7 @@ sealed interface LifecyclePayload {
     val ts: Instant
 
     data class Created(
-        val commandId: Long,
+        val cycleId: Long,
         val stockCode: String,
         val stockName: String,
         override val ts: Instant,
@@ -19,7 +19,7 @@ sealed interface LifecyclePayload {
     }
 
     data class Closed(
-        val commandId: Long,
+        val cycleId: Long,
         val closeReason: String,
         override val ts: Instant,
     ) : LifecyclePayload {

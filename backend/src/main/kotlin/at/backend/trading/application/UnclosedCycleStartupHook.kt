@@ -35,7 +35,7 @@ class UnclosedCycleStartupHook(
         for (cycle in active) {
             eventPublisher.publishEvent(
                 TradingCycleClosed(
-                    commandId = cycle.id,
+                    cycleId = cycle.id,
                     closeReason = CloseReason.UNCLOSED.name,
                     ts = instant,
                 )

@@ -12,7 +12,7 @@ import ProfitText from "../components/common/ProfitText";
 import FlashOnChange from "../components/common/FlashOnChange";
 import Skeleton from "../components/common/Skeleton";
 import { useToast } from "../components/toast/Toast";
-import { QK, useAccountBalance, useActiveCommands, useStockPrice, useStockSearch, useSystemStatus, } from "../api/queries";
+import { QK, useAccountBalance, useActiveCommands, useStockPrice, useMarketStatus, useStockSearch, } from "../api/queries";
 import { useCreateCommand } from "../api/mutations";
 import { ApiError } from "../api/client";
 import { useStompSubscription } from "../ws/useStompSubscription";
@@ -36,7 +36,7 @@ const schema = z.object({
 export default function CommandPage() {
     const toast = useToast();
     const qc = useQueryClient();
-    const systemQ = useSystemStatus();
+    const systemQ = useMarketStatus();
     const balanceQ = useAccountBalance();
     const activeQ = useActiveCommands();
     const [query, setQuery] = useState("");
@@ -64,7 +64,7 @@ export default function CommandPage() {
         qc.invalidateQueries({ queryKey: QK.accountBalance });
     });
     useStompSubscription("/topic/market", () => {
-        qc.invalidateQueries({ queryKey: QK.systemStatus });
+        qc.invalidateQueries({ queryKey: QK.marketStatus });
     });
     const status = systemQ.data;
     const balance = balanceQ.data;
@@ -171,12 +171,6 @@ export default function CommandPage() {
 // Block banner
 // ============================================================
 function deriveBlock(s) {
-    if (s.tokenStatus !== "OK")
-        return {
-            code: "INVALID_PARAMETER",
-            message: "KIS 토큰 오류 — 명령 차단",
-            tone: "danger",
-        };
     if (s.isHoliday)
         return {
             code: "HOLIDAY",
@@ -269,24 +263,23 @@ function BalancePanel({ balance, loading, error, errorCode, onRetry, insufficien
 }
 function SystemPanel({ status, loading, }) {
     if (loading || !status) {
-        return (_jsx("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-2", children: Array.from({ length: 5 }).map((_, i) => (_jsx(Skeleton, { className: "h-4 w-full" }, i))) }));
+        return (_jsx("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-2", children: Array.from({ length: 4 }).map((_, i) => (_jsx(Skeleton, { className: "h-4 w-full" }, i))) }));
     }
     const conditions = [
         { label: "거래시간 09:00–15:30", ok: status.tradingHoursOpen },
         { label: "휴장 아님", ok: !status.isHoliday },
         { label: "컷오프 전 (15:20)", ok: !status.cutoffPassed },
-        { label: "토큰 정상", ok: status.tokenStatus === "OK" },
         {
             label: `시세 모드 ${status.marketMode}`,
             ok: status.marketMode === "WS",
         },
     ];
-    return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg p-4", children: [_jsx("h3", { className: "text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3", children: "\uC2DC\uC2A4\uD15C" }), _jsx("div", { className: "space-y-1.5", children: conditions.map((c) => (_jsxs("div", { className: "flex items-center gap-2 text-sm", children: [_jsx("span", { className: `w-1.5 h-1.5 rounded-full ${c.ok ? "bg-emerald-400" : "bg-rose-400"}` }), _jsx("span", { className: c.ok ? "text-zinc-300" : "text-rose-300", children: c.label })] }, c.label))) })] }));
+    return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg p-4", children: [_jsx("h3", { className: "text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3", children: "\uC2DC\uC7A5 \uC0C1\uD0DC" }), _jsx("div", { className: "space-y-1.5", children: conditions.map((c) => (_jsxs("div", { className: "flex items-center gap-2 text-sm", children: [_jsx("span", { className: `w-1.5 h-1.5 rounded-full ${c.ok ? "bg-emerald-400" : "bg-rose-400"}` }), _jsx("span", { className: c.ok ? "text-zinc-300" : "text-rose-300", children: c.label })] }, c.label))) })] }));
 }
 function ActiveCommandsPreview({ commands, highlightStock, loading, }) {
     return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg p-4", children: [_jsxs("h3", { className: "text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3", children: ["\uD65C\uC131 \uBA85\uB839 (", loading ? "..." : commands.length, ")"] }), loading ? (_jsxs("div", { className: "space-y-2", children: [_jsx(Skeleton, { className: "h-6 w-full" }), _jsx(Skeleton, { className: "h-6 w-full" })] })) : commands.length === 0 ? (_jsx("p", { className: "text-xs text-zinc-600", children: "\uC5C6\uC74C" })) : (_jsx("div", { className: "space-y-2", children: commands.map((c) => {
                     const isHighlight = highlightStock === c.stockCode;
-                    return (_jsxs(Link, { to: "/monitoring", className: `flex items-center justify-between gap-2 p-2 rounded text-xs hover:bg-zinc-800 ${isHighlight ? "bg-rose-950/40 border border-rose-800/60" : ""}`, children: [_jsxs("span", { className: "flex items-center gap-2 min-w-0", children: [_jsx(StatusPill, { status: c.status }), _jsx("span", { className: "truncate", children: c.stockName })] }), _jsx(ProfitText, { value: c.profitRate, format: formatPct })] }, c.commandId));
+                    return (_jsxs(Link, { to: "/monitoring", className: `flex items-center justify-between gap-2 p-2 rounded text-xs hover:bg-zinc-800 ${isHighlight ? "bg-rose-950/40 border border-rose-800/60" : ""}`, children: [_jsxs("span", { className: "flex items-center gap-2 min-w-0", children: [_jsx(StatusPill, { status: c.status }), _jsx("span", { className: "truncate", children: c.stockName })] }), _jsx(ProfitText, { value: c.profitRate, format: formatPct })] }, c.cycleId));
                 }) })), _jsx("p", { className: "text-xs text-zinc-500 mt-3", children: "\uAC19\uC740 \uC885\uBAA9 \uC911\uBCF5 \uBA85\uB839\uC740 \uAC70\uBD80\uB429\uB2C8\uB2E4" })] }));
 }
 // ============================================================

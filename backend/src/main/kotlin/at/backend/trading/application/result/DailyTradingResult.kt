@@ -4,7 +4,7 @@ import at.backend.trading.domain.cycle.TradingCycle
 import java.time.LocalDateTime
 
 data class DailyTradingResult(
-    val commandId: Long,
+    val cycleId: Long,
     val stockCode: String,
     val stockName: String,
     val status: String,
@@ -16,7 +16,7 @@ data class DailyTradingResult(
 ) {
     companion object {
         fun from(cycle: TradingCycle, profitRate: Double, profitAmount: Long) = DailyTradingResult(
-            commandId = cycle.id,
+            cycleId = cycle.id,
             stockCode = cycle.stockCode,
             stockName = cycle.stockName,
             status = cycle.status.name,

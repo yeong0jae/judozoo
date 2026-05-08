@@ -8,7 +8,7 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 
 data class TradingDetailResult(
-    val commandId: Long,
+    val cycleId: Long,
     val stockCode: String,
     val stockName: String,
     val status: String,
@@ -111,7 +111,7 @@ data class TradingDetailResult(
             orders: List<Order>,
             executions: List<Execution>,
         ) = TradingDetailResult(
-            commandId = cycle.id,
+            cycleId = cycle.id,
             stockCode = cycle.stockCode,
             stockName = cycle.stockName,
             status = cycle.status.name,

@@ -1,7 +1,6 @@
-package at.backend.account.application
+package at.backend.account.presentation
 
 import at.backend.account.domain.event.BalanceInvalidated
-import at.backend.account.presentation.AccountBroadcaster
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 

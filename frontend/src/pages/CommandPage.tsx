@@ -872,7 +872,7 @@ function ActiveCommandsPreview({
             const isHighlight = highlightStock === c.stockCode;
             return (
               <Link
-                key={c.commandId}
+                key={c.cycleId}
                 to="/monitoring"
                 className={`flex items-center justify-between gap-2 p-2 rounded text-xs hover:bg-zinc-800 ${
                   isHighlight ? "bg-rose-950/40 border border-rose-800/60" : ""

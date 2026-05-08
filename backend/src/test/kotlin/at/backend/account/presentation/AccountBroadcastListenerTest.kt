@@ -1,7 +1,6 @@
-package at.backend.account.application
+package at.backend.account.presentation
 
 import at.backend.account.domain.event.BalanceInvalidated
-import at.backend.account.presentation.AccountBroadcaster
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.mockk
 import io.mockk.verify

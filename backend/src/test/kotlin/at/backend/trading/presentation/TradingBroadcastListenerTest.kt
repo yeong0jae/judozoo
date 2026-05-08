@@ -1,4 +1,4 @@
-package at.backend.trading.application
+package at.backend.trading.presentation
 
 import at.backend.trading.domain.event.CycleStateChanged
 import at.backend.trading.domain.event.OrderExecuted
@@ -8,7 +8,6 @@ import at.backend.trading.domain.event.SignalArmed
 import at.backend.trading.domain.event.SignalFired
 import at.backend.trading.domain.event.TradingCycleClosed
 import at.backend.trading.domain.event.TradingCycleCreated
-import at.backend.trading.presentation.TradingBroadcaster
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.mockk
 import io.mockk.verify

@@ -15,7 +15,7 @@ import type { CloseReason } from "../types";
 export interface NotificationEvent {
   id: number;
   ts: string;
-  commandId: number;
+  cycleId: number;
   closeReason: CloseReason;
   stockName?: string;
   stockCode?: string;

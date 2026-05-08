@@ -1,8 +1,7 @@
-package at.backend.market.application
+package at.backend.market.presentation
 
 import at.backend.market.domain.event.HolidayChanged
 import at.backend.market.domain.event.MarketModeChanged
-import at.backend.market.presentation.MarketBroadcaster
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 

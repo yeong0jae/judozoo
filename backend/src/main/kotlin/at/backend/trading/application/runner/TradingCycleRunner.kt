@@ -60,13 +60,8 @@ class TradingCycleRunner(
     private var job: Job? = null
     private var buyJob: Job? = null
 
-    @Volatile
     private var pendingCloseReason: CloseReason? = null
-
-    @Volatile
     private var prevBar: Bar? = null
-
-    @Volatile
     private var currentBar: Bar? = null
 
     fun start() {
@@ -129,14 +124,11 @@ class TradingCycleRunner(
      * - HOLDING 전이된 경우를 위해 Signal.Cancel을 채널에 push (handleAfterBuy가 청산 처리)
      */
     suspend fun requestCancellation() {
-        val transitioned = if (cycle.status != TradingCycleStatus.CLOSED &&
-            cycle.status != TradingCycleStatus.LIQUIDATING
-        ) {
+        if (cycle.status != TradingCycleStatus.CLOSED && cycle.status != TradingCycleStatus.LIQUIDATING) {
             cycle.requestCancel()
             cycleRepository.save(cycle)
-            true
-        } else false
-        if (transitioned) publishStateChanged(TradingCycleStatus.LIQUIDATING)
+            publishStateChanged(TradingCycleStatus.LIQUIDATING)
+        }
         buyJob?.cancelAndJoin()
         signals.trySend(Signal.Cancel)
     }
@@ -344,7 +336,7 @@ class TradingCycleRunner(
     private fun publishCycleClosed(reason: CloseReason) {
         val instant = timeProvider.now().toInstantKst()
         eventPublisher.publishEvent(
-            TradingCycleClosed(commandId = cycleId, closeReason = reason.name, ts = instant)
+            TradingCycleClosed(cycleId = cycleId, closeReason = reason.name, ts = instant)
         )
         eventPublisher.publishEvent(BalanceInvalidated(ts = instant))
     }
@@ -352,7 +344,7 @@ class TradingCycleRunner(
     private fun publishStateChanged(status: TradingCycleStatus, closeReason: CloseReason? = null) {
         eventPublisher.publishEvent(
             CycleStateChanged(
-                commandId = cycleId,
+                cycleId = cycleId,
                 status = status.name,
                 closeReason = closeReason?.name,
                 ts = timeProvider.now().toInstantKst(),
@@ -368,7 +360,7 @@ class TradingCycleRunner(
         val profitAmount = (currentPrice - buyPrice).toLong() * holdingQty
         eventPublisher.publishEvent(
             PriceUpdated(
-                commandId = cycleId,
+                cycleId = cycleId,
                 currentPrice = currentPrice,
                 profitRate = profitRate,
                 profitAmount = profitAmount,
@@ -380,7 +372,7 @@ class TradingCycleRunner(
     private fun publishSignalArmed(signalType: String) {
         eventPublisher.publishEvent(
             SignalArmed(
-                commandId = cycleId,
+                cycleId = cycleId,
                 signalType = signalType,
                 ts = timeProvider.now().toInstantKst(),
             )
@@ -394,7 +386,7 @@ class TradingCycleRunner(
         }
         eventPublisher.publishEvent(
             SignalFired(
-                commandId = cycleId,
+                cycleId = cycleId,
                 signalType = signalType,
                 stage = stage,
                 ts = timeProvider.now().toInstantKst(),

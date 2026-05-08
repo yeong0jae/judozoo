@@ -117,7 +117,7 @@ class OrderService(
                 orderRepository.save(order)
                 eventPublisher.publishEvent(
                     RetryAccumulated(
-                        commandId = cycle.id,
+                        cycleId = cycle.id,
                         signalType = signal::class.simpleName ?: "Signal",
                         retryCount = order.retryCount,
                         lastError = e.message,

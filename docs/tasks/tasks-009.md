@@ -8,7 +8,7 @@ Goal: 실적 화면을 진짜 일별 실적 집계 데이터로 채우고, 시�
 
 ## 백엔드 — 일별 실적 집계
 
-- [x] `report.application.DailyReportResult` — DTO (commandId, stockCode, stockName, closeReason, createdAt, closedAt, **avgBuyPrice, avgSellPrice, totalFee, totalTax, grossProfit, netProfit, profitRate**)
+- [x] `report.application.DailyReportResult` — DTO (cycleId, stockCode, stockName, closeReason, createdAt, closedAt, **avgBuyPrice, avgSellPrice, totalFee, totalTax, grossProfit, netProfit, profitRate**)
 - [x] `ReportService.aggregate()` — 사이클별 orders+executions 합산 (Kotlin 인메모리 집계 — v1 거래량 기준 충분, 별도 SQL 불필요)
 - [x] `report.application.ReportService.findDaily(date)` — TradingCycleRepository.findByCreatedAtBetween 결과를 집계 변환
 - [x] `report.presentation.ReportController` — `GET /api/reports/daily?date=YYYY-MM-DD` (default = 오늘)

@@ -66,7 +66,7 @@ class TradingQueryServiceTest(
 
                 val result = tradingQueryService.findById(cycle.id)
 
-                result.commandId shouldBe cycle.id
+                result.cycleId shouldBe cycle.id
                 result.stockCode shouldBe "005930"
                 result.stockName shouldBe "삼성전자"
                 result.status shouldBe "INITIATED"

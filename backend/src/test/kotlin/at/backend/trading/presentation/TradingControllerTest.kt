@@ -129,7 +129,7 @@ class TradingControllerTest : FunSpec({
         test("상세 조회 시 DTO shape이 spec과 일치한다") {
             val now = LocalDateTime.of(2026, 5, 3, 10, 0)
             every { tradingQueryService.findById(1L) } returns TradingDetailResult(
-                commandId = 1L,
+                cycleId = 1L,
                 stockCode = "005930",
                 stockName = "삼성전자",
                 status = "INITIATED",
@@ -161,7 +161,7 @@ class TradingControllerTest : FunSpec({
             mockMvc.get("/api/trading/1").andExpect {
                 status { isOk() }
                 jsonPath("$.code") { value("SUCCESS") }
-                jsonPath("$.data.commandId") { value(1) }
+                jsonPath("$.data.cycleId") { value(1) }
                 jsonPath("$.data.stockCode") { value("005930") }
                 jsonPath("$.data.stockName") { value("삼성전자") }
                 jsonPath("$.data.status") { value("INITIATED") }

@@ -3,7 +3,7 @@ package at.backend.trading.application.result
 import at.backend.trading.domain.cycle.TradingCycle
 
 data class TradingSummaryResult(
-    val commandId: Long,
+    val cycleId: Long,
     val stockCode: String,
     val stockName: String,
     val status: String,
@@ -25,7 +25,7 @@ data class TradingSummaryResult(
             profitRate: Double,
             profitAmount: Long,
         ) = TradingSummaryResult(
-            commandId = cycle.id,
+            cycleId = cycle.id,
             stockCode = cycle.stockCode,
             stockName = cycle.stockName,
             status = cycle.status.name,

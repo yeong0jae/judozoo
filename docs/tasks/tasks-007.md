@@ -20,9 +20,9 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 - [x] `mocks/data.ts` — 백엔드 DTO와 1:1 일치하는 mock 재작성
   - `SystemStatus { marketMode, tokenStatus, isHoliday, tradingHoursOpen, cutoffPassed }`
   - `AccountBalance { cashBalance, reservedAmount, availableBalance }`
-  - `TradingSummary { commandId, stockCode, stockName, status, currentPrice, averageBuyPrice, profitRate(소수), profitAmount, holdingQty, buyAttempt: { completed, total } }`
+  - `TradingSummary { cycleId, stockCode, stockName, status, currentPrice, averageBuyPrice, profitRate(소수), profitAmount, holdingQty, buyAttempt: { completed, total } }`
   - `TradingDetail` (Summary + tpStages, splitSellProgress, breakevenArmed, trendBreakArmed, perBuyAmount, buyIntervalMin, splitSellRatio, midwayProfitPct, breakevenThresholdPct, stopLossPct, orders[], executions[], closeReason, createdAt, closedAt)
-  - `DailyTrading { commandId, stockCode, stockName, status, closeReason, profitRate, profitAmount, createdAt, closedAt }`
+  - `DailyTrading { cycleId, stockCode, stockName, status, closeReason, profitRate, profitAmount, createdAt, closedAt }`
   - `StockSearchResult { stockCode, stockName }` / `StockPriceResult { stockCode, currentPrice, asOf }`
   - STOMP 페이로드 시뮬레이터 (PRICE/STATE/SIGNAL/EXECUTION/RETRY, lifecycle CREATED/CLOSED, market MODE/HOLIDAY, account BALANCE_INVALIDATED) — 임의 발화 가능
 

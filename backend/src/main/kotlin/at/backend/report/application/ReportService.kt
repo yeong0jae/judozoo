@@ -28,17 +28,17 @@ class ReportService(
         val executions = orders.flatMap { executionRepository.findByOrderId(it.id) }
         val orderById = orders.associateBy { it.id }
 
-        val (buyExecs, sellExecs) = executions.partition {
+        val (buyExecutions, sellExecutions) = executions.partition {
             orderById[it.orderId]?.side == OrderSide.BUY
         }
 
-        val totalBoughtAmount = buyExecs.sumOf { it.executedPrice.toLong() * it.executedQty }
-        val totalSoldAmount = sellExecs.sumOf { it.executedPrice.toLong() * it.executedQty }
-        val totalBoughtQty = buyExecs.sumOf { it.executedQty }
-        val totalSoldQty = sellExecs.sumOf { it.executedQty }
+        val totalBoughtAmount = buyExecutions.sumOf { it.executedPrice.toLong() * it.executedQty }
+        val totalSoldAmount = sellExecutions.sumOf { it.executedPrice.toLong() * it.executedQty }
+        val totalBoughtQty = buyExecutions.sumOf { it.executedQty }
+        val totalSoldQty = sellExecutions.sumOf { it.executedQty }
 
-        val totalFee = (buyExecs + sellExecs).sumOf { it.fee.toLong() }
-        val totalTax = (buyExecs + sellExecs).sumOf { it.tax.toLong() }
+        val totalFee = (buyExecutions + sellExecutions).sumOf { it.fee.toLong() }
+        val totalTax = (buyExecutions + sellExecutions).sumOf { it.tax.toLong() }
 
         val grossProfit = totalSoldAmount - totalBoughtAmount
         val netProfit = grossProfit - totalFee - totalTax
@@ -47,7 +47,7 @@ class ReportService(
             else netProfit.toDouble() / totalBoughtAmount
 
         return DailyReportResult(
-            commandId = cycle.id,
+            cycleId = cycle.id,
             stockCode = cycle.stockCode,
             stockName = cycle.stockName,
             status = cycle.status.name,

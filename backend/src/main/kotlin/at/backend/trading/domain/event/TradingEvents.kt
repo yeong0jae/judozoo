@@ -9,27 +9,27 @@ import java.time.Instant
  */
 
 data class TradingCycleCreated(
-    val commandId: Long,
+    val cycleId: Long,
     val stockCode: String,
     val stockName: String,
     val ts: Instant,
 )
 
 data class TradingCycleClosed(
-    val commandId: Long,
+    val cycleId: Long,
     val closeReason: String,
     val ts: Instant,
 )
 
 data class CycleStateChanged(
-    val commandId: Long,
+    val cycleId: Long,
     val status: String,
     val closeReason: String? = null,
     val ts: Instant,
 )
 
 data class PriceUpdated(
-    val commandId: Long,
+    val cycleId: Long,
     val currentPrice: Int,
     val profitRate: BigDecimal,
     val profitAmount: Long,
@@ -37,20 +37,20 @@ data class PriceUpdated(
 )
 
 data class SignalArmed(
-    val commandId: Long,
+    val cycleId: Long,
     val signalType: String,
     val ts: Instant,
 )
 
 data class SignalFired(
-    val commandId: Long,
+    val cycleId: Long,
     val signalType: String,
     val stage: Int? = null,
     val ts: Instant,
 )
 
 data class OrderExecuted(
-    val commandId: Long,
+    val cycleId: Long,
     val side: String,
     val qty: Int,
     val price: Int,
@@ -61,7 +61,7 @@ data class OrderExecuted(
 )
 
 data class RetryAccumulated(
-    val commandId: Long,
+    val cycleId: Long,
     val signalType: String,
     val retryCount: Int,
     val lastError: String?,
