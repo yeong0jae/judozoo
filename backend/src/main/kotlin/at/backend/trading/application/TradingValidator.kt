@@ -14,11 +14,9 @@ import java.time.LocalTime
 class TradingValidator(
     private val kisRestClient: KisRestClient,
     private val tradingCycleRepository: TradingCycleJpaRepository,
-    private val commandGate: CommandGate,
 ) {
 
     fun validate(input: TradingInput, now: LocalDateTime): String {
-        validateGate()
         val stockName = resolveStockName(input.stockCode)
         validatePrice(input.stockCode, input.perBuyAmount)
         validateBalance(input.perBuyAmount)
@@ -27,12 +25,6 @@ class TradingValidator(
         validateTradingHours(now.toLocalTime())
         validateCutoff(input.buyIntervalMin, now.toLocalTime())
         return stockName
-    }
-
-    private fun validateGate() {
-        if (!commandGate.isOpen()) {
-            throw TradingValidationException(TradingValidationException.ErrorCode.COMMAND_GATE_CLOSED)
-        }
     }
 
     private fun resolveStockName(stockCode: String): String {

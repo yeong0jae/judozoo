@@ -1,7 +1,7 @@
 // 백엔드 errorCode → 한글 메시지. 표시 위치는 호출자가 결정 (인라인/배너/토스트).
 // 참고: backend/src/main/kotlin/at/backend/trading/domain/TradingValidationException.kt
 const messages = {
-    // 9개 trading validation errorCodes
+    // 8개 trading validation errorCodes
     INVALID_PARAMETER: "입력값을 확인해주세요",
     STOCK_NOT_FOUND: "해당 종목을 찾을 수 없습니다",
     PRICE_BELOW_ONE_SHARE: "1주 가격에 미달합니다",
@@ -10,7 +10,6 @@ const messages = {
     CUTOFF_PASSED: "신규 명령 마감 — 15:20 컷오프를 지났습니다",
     HOLIDAY: "휴장일에는 명령을 받을 수 없습니다",
     OUT_OF_TRADING_HOURS: "거래시간이 아닙니다 (09:00~15:30)",
-    COMMAND_GATE_CLOSED: "명령 접수가 일시 중단되었습니다",
     // HTTP / 일반 오류
     ALREADY_CLOSED: "이미 종료된 명령입니다",
     NOT_FOUND: "항목을 찾을 수 없습니다",
