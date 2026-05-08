@@ -1,12 +1,12 @@
 package at.backend.trading.application
 
-import at.backend.trading.application.result.TradingSummaryResult
-import at.backend.trading.application.result.TradingDetailResult
-import at.backend.trading.application.result.DailyTradingResult
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.trading.TradingProperties
+import at.backend.trading.application.result.DailyTradingResult
+import at.backend.trading.application.result.TradingDetailResult
+import at.backend.trading.application.result.TradingSummaryResult
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.execution.Execution
@@ -28,12 +28,14 @@ class TradingQueryService(
 ) {
 
     fun findActive(): List<TradingSummaryResult> =
-        tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES).map { toSummary(it) }
+        tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES)
+            .map { toSummary(it) }
 
     fun findToday(): List<DailyTradingResult> {
         val startOfDay = timeProvider.today().atStartOfDay()
         val endOfDay = startOfDay.plusDays(1)
-        return tradingCycleRepository.findByCreatedAtBetween(startOfDay, endOfDay).map { toDailyTrading(it) }
+        return tradingCycleRepository.findByCreatedAtBetween(startOfDay, endOfDay)
+            .map { toDailyTrading(it) }
     }
 
     fun findById(id: Long): TradingDetailResult {
@@ -44,36 +46,50 @@ class TradingQueryService(
 
     private fun toSummary(cycle: TradingCycle): TradingSummaryResult {
         val (orders, executions) = loadOrdersAndExecutions(cycle.id)
+        val holdingInfo = computeHolding(cycle, orders, executions)
+
         val currentPrice = fetchCurrentPrice(cycle.stockCode)
-        val (holdingQty, averageBuyPrice, _) = computeHolding(cycle, orders, executions)
         return TradingSummaryResult.from(
             cycle = cycle,
             currentPrice = currentPrice,
-            holdingQty = holdingQty,
-            averageBuyPrice = averageBuyPrice,
-            profitRate = profitRate(currentPrice, averageBuyPrice),
-            profitAmount = profitAmount(currentPrice, averageBuyPrice, holdingQty),
+            holdingQty = holdingInfo.holdingQty,
+            averageBuyPrice = holdingInfo.averageBuyPrice,
+            profitRate = profitRate(currentPrice, holdingInfo.averageBuyPrice),
+            profitAmount = profitAmount(currentPrice, holdingInfo.averageBuyPrice, holdingInfo.holdingQty),
         )
     }
 
     private fun toDailyTrading(cycle: TradingCycle): DailyTradingResult {
         val (orders, executions) = loadOrdersAndExecutions(cycle.id)
-        val sellExecutions = orders.filter { it.side == OrderSide.SELL }.flatMap { o -> executions.filter { it.orderId == o.id } }
-        val totalSoldAmount = sellExecutions.sumOf { it.executedPrice.toLong() * it.executedQty }
-        val totalBuyAmount = orders.filter { it.side == OrderSide.BUY }.flatMap { o -> executions.filter { it.orderId == o.id } }
+
+        val totalSoldAmount = orders
+            .filter { it.side == OrderSide.SELL }
+            .flatMap { o -> executions.filter { it.orderId == o.id } }
+            .sumOf { it.executedPrice.toLong() * it.executedQty }
+        val totalBuyAmount = orders
+            .filter { it.side == OrderSide.BUY }
+            .flatMap { o -> executions.filter { it.orderId == o.id } }
             .sumOf { it.executedPrice.toLong() * it.executedQty }
         val profitAmount = totalSoldAmount - totalBuyAmount
+
         val profitRate = if (totalBuyAmount == 0L) 0.0 else profitAmount.toDouble() / totalBuyAmount
+
         return DailyTradingResult.from(cycle, profitRate, profitAmount)
     }
 
     private fun toDetail(cycle: TradingCycle): TradingDetailResult {
         val (orders, executions) = loadOrdersAndExecutions(cycle.id)
+
         val currentPrice = fetchCurrentPrice(cycle.stockCode)
+
         val (holdingQty, averageBuyPrice, totalBoughtQty) = computeHolding(cycle, orders, executions)
-        val sellExecutions = orders.filter { it.side == OrderSide.SELL }.flatMap { o -> executions.filter { it.orderId == o.id } }
-        val totalSoldQty = sellExecutions.sumOf { it.executedQty }
+
+        val totalSoldQty = orders
+            .filter { it.side == OrderSide.SELL }
+            .flatMap { o -> executions.filter { it.orderId == o.id } }
+            .sumOf { it.executedQty }
         val soldPct = if (totalBoughtQty == 0) 0 else totalSoldQty * 100 / totalBoughtQty
+        
         return TradingDetailResult.from(
             cycle = cycle,
             currentPrice = currentPrice,
@@ -97,19 +113,25 @@ class TradingQueryService(
     private data class HoldingInfo(val holdingQty: Int, val averageBuyPrice: Long, val totalBoughtQty: Int)
 
     private fun computeHolding(cycle: TradingCycle, orders: List<Order>, executions: List<Execution>): HoldingInfo {
-        val buyExecutions = orders.filter { it.side == OrderSide.BUY }.flatMap { o -> executions.filter { it.orderId == o.id } }
-        val sellExecutions = orders.filter { it.side == OrderSide.SELL }.flatMap { o -> executions.filter { it.orderId == o.id } }
+        val buyExecutions = orders
+            .filter { it.side == OrderSide.BUY }
+            .flatMap { o -> executions.filter { it.orderId == o.id } }
+        val sellExecutions = orders
+            .filter { it.side == OrderSide.SELL }
+            .flatMap { o -> executions.filter { it.orderId == o.id } }
+
         val totalBoughtQty = buyExecutions.sumOf { it.executedQty }
         val totalSoldQty = sellExecutions.sumOf { it.executedQty }
         val holdingQty = totalBoughtQty - totalSoldQty
+
         val averageBuyPrice = if (buyExecutions.isEmpty()) 0L
         else cycle.calculateBuyPrice(buyExecutions, tradingProperties.sellCostRate.toDouble()).toLong()
+
         return HoldingInfo(holdingQty, averageBuyPrice, totalBoughtQty)
     }
 
-    private fun fetchCurrentPrice(stockCode: String): Long = runCatching {
+    private fun fetchCurrentPrice(stockCode: String): Long =
         kisRestClient.getCurrentPrice(stockCode).output.stckPrpr.toLong()
-    }.getOrDefault(0L)
 
     private fun profitRate(currentPrice: Long, averageBuyPrice: Long): Double =
         if (averageBuyPrice == 0L) 0.0
