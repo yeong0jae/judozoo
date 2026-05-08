@@ -81,7 +81,8 @@ class BarPoller(
 
     private fun pollOnce(stockCode: String) {
         val response = restClient.getBars(stockCode)
-        val bar = response.output2.firstOrNull()?.let { toBar(stockCode, it) } ?: return
+        // output2[0]은 진행 중 봉(종가가 계속 움직임). 정밀 비교를 위해 직전 닫힌 봉인 [1] 사용.
+        val bar = response.output2.getOrNull(1)?.let { toBar(stockCode, it) } ?: return
         val previousEnd = latestBarEnd[stockCode]
         if (previousEnd == null || bar.endTime.isAfter(previousEnd)) {
             latestBarEnd[stockCode] = bar.endTime

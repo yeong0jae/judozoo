@@ -88,15 +88,22 @@ class BarPollerTest(
         }
     }
 
+    /**
+     * BarPoller는 output2[1] (직전 닫힌 봉)을 사용. [0]은 진행 중 봉이므로 더미로 채움.
+     * 테스트 인자(date/time/open/close)는 [1]에 매핑된다.
+     */
     private fun barResponse(date: String, time: String, open: Int, close: Int): KisBarResponse =
         KisBarResponse(
             output2 = listOf(
+                KisBarResponse.Output(
+                    stckBsopDate = date, stckCntgHour = "153000", stckOprc = "1", stckPrpr = "1",
+                ),
                 KisBarResponse.Output(
                     stckBsopDate = date,
                     stckCntgHour = time,
                     stckOprc = open.toString(),
                     stckPrpr = close.toString(),
-                )
+                ),
             )
         )
 }
