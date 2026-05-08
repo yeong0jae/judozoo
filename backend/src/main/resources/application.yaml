@@ -39,3 +39,6 @@ trading:
     bar-poll-interval-millis: 30000
   order:
     sell-retry-delay-millis: 5000
+  cycle:
+    buy-interval-unit-millis: 60000
+    holding-poll-interval-millis: 50

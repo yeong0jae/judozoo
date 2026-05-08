@@ -30,8 +30,8 @@ class CycleOrchestrator(
     private val timeProvider: TimeProvider,
     private val tradingProperties: TradingProperties,
     private val eventPublisher: org.springframework.context.ApplicationEventPublisher,
-    @Value("\${trading.cycle.buy-interval-unit-millis:60000}") private val buyIntervalUnitMillis: Long,
-    @Value("\${trading.cycle.holding-poll-interval-millis:50}") private val holdingPollIntervalMillis: Long,
+    @Value("\${trading.cycle.buy-interval-unit-millis}") private val buyIntervalUnitMillis: Long,
+    @Value("\${trading.cycle.holding-poll-interval-millis}") private val holdingPollIntervalMillis: Long,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)

@@ -27,7 +27,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class BarPoller(
     private val restClient: KisRestClient,
     private val applicationScope: CoroutineScope,
-    @Value("\${trading.market.bar-poll-interval-millis:30000}") private val pollIntervalMillis: Long,
+    @Value("\${trading.market.bar-poll-interval-millis}") private val pollIntervalMillis: Long,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)

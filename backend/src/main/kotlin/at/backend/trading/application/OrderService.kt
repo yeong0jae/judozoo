@@ -25,7 +25,7 @@ class OrderService(
     private val kisRestClient: KisRestClient,
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
-    @Value("\${trading.order.sell-retry-delay-millis:5000}") private val sellRetryDelayMillis: Long,
+    @Value("\${trading.order.sell-retry-delay-millis}") private val sellRetryDelayMillis: Long,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
