@@ -2,7 +2,6 @@ package at.backend.trading.application
 
 import at.backend.common.test.*
 import at.backend.market.application.BarPoller
-import at.backend.market.application.MarketDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
 import at.backend.platform.kis.client.KisRestClient
@@ -24,7 +23,6 @@ import io.mockk.clearMocks
 import io.mockk.every
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
@@ -44,7 +42,6 @@ class TradingCycleScenarioTest(
     @Autowired private val unclosedCycleStartupHook: UnclosedCycleStartupHook,
     @Autowired private val cycleOrchestrator: CycleOrchestrator,
     @Autowired private val barPoller: BarPoller,
-    @Autowired private val marketDataStream: MarketDataStream,
 ) : IntegrationTestBase() {
 
     private val stockCode = "005930"
@@ -451,36 +448,6 @@ class TradingCycleScenarioTest(
                 val refreshed = cycleRepository.findById(created.id).get()
                 refreshed.status shouldBe TradingCycleStatus.CLOSED
                 refreshed.closeReason shouldBe CloseReason.BREAKEVEN
-            }
-
-            test("WS 끊김 + REST 폴링 fallback: 폴링으로 시그널 평가 지속해 손절, 재연결 시 WS 복귀") {
-                val created = tradingService.create(validInput())
-
-                val channels = KisWebSocketClientMockConfig.channelsOf(webSocketClient)
-                run {
-                    reachHoldingFullyFilled(created.id, fillPrice = 70_000)
-
-                    channels.connectionState.emit(false)
-                    every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
-                        output = KisCurrentPriceResponse.Output(stckPrpr = "60000")
-                    )
-
-                    waitUntilOrders(created.id, timeoutMillis = 10_000) { orders ->
-                        orders.any { it.side == OrderSide.SELL && it.orderNo != null }
-                    }
-                    val sell = orderRepository.findByCycleId(created.id).first { it.side == OrderSide.SELL }
-                    fillSellOrder(sell, sell.orderQty)
-                    waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
-                }
-
-                val refreshed = cycleRepository.findById(created.id).get()
-                refreshed.closeReason shouldBe CloseReason.STOP_LOSS
-
-                channels.connectionState.emit(true)
-                val modeAfter = kotlinx.coroutines.withTimeoutOrNull(2000.milliseconds) {
-                    marketDataStream.mode.first { it == MarketDataStream.MarketMode.WS }
-                }
-                modeAfter shouldBe MarketDataStream.MarketMode.WS
             }
 
             test("부분 체결/NO_FILL: 매수 3회 모두 발송 실패 시 CLOSED(NO_FILL)로 종료") {

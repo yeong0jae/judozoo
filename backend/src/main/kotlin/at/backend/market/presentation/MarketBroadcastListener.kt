@@ -1,7 +1,6 @@
 package at.backend.market.presentation
 
 import at.backend.market.domain.event.HolidayChanged
-import at.backend.market.domain.event.MarketModeChanged
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 
@@ -9,10 +8,6 @@ import org.springframework.stereotype.Component
 class MarketBroadcastListener(
     private val broadcaster: MarketBroadcaster,
 ) {
-
-    @EventListener
-    fun onMarketModeChanged(event: MarketModeChanged) =
-        broadcaster.marketModeChanged(event.mode, event.ts)
 
     @EventListener
     fun onHolidayChanged(event: HolidayChanged) =

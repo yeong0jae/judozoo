@@ -7,8 +7,6 @@ function deriveSummary(status) {
         return { label: "거래시간 외", tone: "warn" };
     if (status.cutoffPassed)
         return { label: "컷오프 지남", tone: "warn" };
-    if (status.marketMode === "POLLING")
-        return { label: "폴링 모드", tone: "warn" };
     return { label: "시장 정상", tone: "ok" };
 }
 function deriveConditions(status) {
@@ -19,10 +17,6 @@ function deriveConditions(status) {
         },
         { label: "휴장 아님", tone: status.isHoliday ? "warn" : "ok" },
         { label: "컷오프 전 (15:20)", tone: status.cutoffPassed ? "warn" : "ok" },
-        {
-            label: `시세 모드 ${status.marketMode}`,
-            tone: status.marketMode === "WS" ? "ok" : "warn",
-        },
     ];
 }
 const DOT_CLS = {

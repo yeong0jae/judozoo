@@ -1,7 +1,6 @@
 package at.backend.market.presentation
 
 import at.backend.market.presentation.payload.HolidayPayload
-import at.backend.market.presentation.payload.MarketModePayload
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.mockk
 import io.mockk.verify
@@ -13,11 +12,6 @@ class MarketBroadcasterTest : FunSpec({
     val template = mockk<SimpMessagingTemplate>(relaxed = true)
     val broadcaster = MarketBroadcaster(template)
     val ts = Instant.parse("2026-01-02T01:00:00Z")
-
-    test("marketModeChanged는 market 토픽 MARKET_MODE 페이로드를 발행한다") {
-        broadcaster.marketModeChanged("POLLING", ts)
-        verify { template.convertAndSend("/topic/market", MarketModePayload("POLLING", ts)) }
-    }
 
     test("holidayChanged는 market 토픽 HOLIDAY 페이로드를 발행한다") {
         broadcaster.holidayChanged(true, ts)

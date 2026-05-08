@@ -819,10 +819,6 @@ function SystemPanel({
     { label: "거래시간 09:00–15:30", ok: status.tradingHoursOpen },
     { label: "휴장 아님", ok: !status.isHoliday },
     { label: "컷오프 전 (15:20)", ok: !status.cutoffPassed },
-    {
-      label: `시세 모드 ${status.marketMode}`,
-      ok: status.marketMode === "WS",
-    },
   ];
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">

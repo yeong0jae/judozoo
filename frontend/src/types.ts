@@ -31,8 +31,6 @@ export type SignalType =
   | "MARKET_CLOSE"
   | "CANCEL";
 
-export type MarketMode = "WS" | "POLLING";
-
 export type ErrorCode =
   | "INVALID_PARAMETER"
   | "STOCK_NOT_FOUND"
@@ -54,7 +52,6 @@ export interface ApiResponse<T> {
 
 // === REST responses ===
 export interface MarketStatus {
-  marketMode: MarketMode;
   isHoliday: boolean;
   tradingHoursOpen: boolean;
   cutoffPassed: boolean;
@@ -248,7 +245,6 @@ export type LifecyclePayload =
   | { type: "CLOSED"; cycleId: number; closeReason: CloseReason; ts: string };
 
 export type MarketPayload =
-  | { type: "MARKET_MODE"; mode: MarketMode; ts: string }
   | { type: "HOLIDAY"; isHoliday: boolean; ts: string };
 
 export type AccountPayload = { type: "BALANCE_INVALIDATED"; ts: string };

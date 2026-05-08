@@ -11,7 +11,6 @@ class MarketStatusService(
     private val kisRestClient: KisRestClient,
     private val tradingProperties: TradingProperties,
     private val timeProvider: TimeProvider,
-    private val marketDataStream: MarketDataStream,
 ) {
 
     fun getStatus(): MarketStatusResult {
@@ -20,7 +19,6 @@ class MarketStatusService(
         val tradingHoursOpen = now in TRADING_START..TRADING_END
         val cutoffPassed = now > CUTOFF_BASE.minusMinutes((tradingProperties.defaultBuyIntervalMin * 2).toLong())
         return MarketStatusResult(
-            marketMode = marketDataStream.currentMode().name,
             isHoliday = isHoliday,
             tradingHoursOpen = tradingHoursOpen,
             cutoffPassed = cutoffPassed,
@@ -28,7 +26,6 @@ class MarketStatusService(
     }
 
     data class MarketStatusResult(
-        val marketMode: String,
         val isHoliday: Boolean,
         val tradingHoursOpen: Boolean,
         val cutoffPassed: Boolean,

@@ -36,7 +36,6 @@ trading:
   default-stop-loss-pct: 2                 # 퍼센트 숫자, 양수 입력 (2 → 내부 -2%)
   sell-cost-rate: 0.0025                   # 소수 비율 (0.0025 = 0.25%)
   market:
-    poll-interval-millis: 1000
     bar-poll-interval-millis: 30000
   order:
     sell-retry-delay-millis: 5000

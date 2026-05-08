@@ -1,7 +1,6 @@
 package at.backend.market.presentation
 
 import at.backend.market.domain.event.HolidayChanged
-import at.backend.market.domain.event.MarketModeChanged
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.mockk
 import io.mockk.verify
@@ -12,11 +11,6 @@ class MarketBroadcastListenerTest : FunSpec({
     val broadcaster = mockk<MarketBroadcaster>(relaxed = true)
     val listener = MarketBroadcastListener(broadcaster)
     val ts = Instant.parse("2026-01-02T01:00:00Z")
-
-    test("MarketModeChanged → broadcaster.marketModeChanged") {
-        listener.onMarketModeChanged(MarketModeChanged("POLLING", ts))
-        verify { broadcaster.marketModeChanged("POLLING", ts) }
-    }
 
     test("HolidayChanged → broadcaster.holidayChanged") {
         listener.onHolidayChanged(HolidayChanged(true, ts))

@@ -269,10 +269,6 @@ function SystemPanel({ status, loading, }) {
         { label: "거래시간 09:00–15:30", ok: status.tradingHoursOpen },
         { label: "휴장 아님", ok: !status.isHoliday },
         { label: "컷오프 전 (15:20)", ok: !status.cutoffPassed },
-        {
-            label: `시세 모드 ${status.marketMode}`,
-            ok: status.marketMode === "WS",
-        },
     ];
     return (_jsxs("div", { className: "bg-zinc-900 border border-zinc-800 rounded-lg p-4", children: [_jsx("h3", { className: "text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3", children: "\uC2DC\uC7A5 \uC0C1\uD0DC" }), _jsx("div", { className: "space-y-1.5", children: conditions.map((c) => (_jsxs("div", { className: "flex items-center gap-2 text-sm", children: [_jsx("span", { className: `w-1.5 h-1.5 rounded-full ${c.ok ? "bg-emerald-400" : "bg-rose-400"}` }), _jsx("span", { className: c.ok ? "text-zinc-300" : "text-rose-300", children: c.label })] }, c.label))) })] }));
 }

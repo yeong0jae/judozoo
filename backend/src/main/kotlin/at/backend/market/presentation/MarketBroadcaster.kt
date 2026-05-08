@@ -1,7 +1,6 @@
 package at.backend.market.presentation
 
 import at.backend.market.presentation.payload.HolidayPayload
-import at.backend.market.presentation.payload.MarketModePayload
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Component
 import java.time.Instant
@@ -13,10 +12,6 @@ import java.time.Instant
 class MarketBroadcaster(
     private val messagingTemplate: SimpMessagingTemplate,
 ) {
-
-    fun marketModeChanged(mode: String, ts: Instant) {
-        messagingTemplate.convertAndSend(MARKET_TOPIC, MarketModePayload(mode, ts))
-    }
 
     fun holidayChanged(isHoliday: Boolean, ts: Instant) {
         messagingTemplate.convertAndSend(MARKET_TOPIC, HolidayPayload(isHoliday, ts))
