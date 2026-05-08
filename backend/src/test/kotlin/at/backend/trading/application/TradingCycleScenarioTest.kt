@@ -285,6 +285,60 @@ class TradingCycleScenarioTest(
                 cycleRepository.findById(cycles[2].id).get().status shouldBe TradingCycleStatus.HOLDING
             }
 
+            test("BUYING 중도 익절: 1회차 체결 후 +3% 도달 시 매수 시퀀스 종료 → HOLDING 진입 → 분할 매도 발사") {
+                val created = tradingService.create(validInput(buyIntervalMin = 120))
+
+                run {
+                    waitUntilOrders(created.id) { orders ->
+                        orders.any { it.side == OrderSide.BUY && it.orderNo != null }
+                    }
+                    fillAllPendingBuys(created.id, fillPrice = 70_000)
+
+                    // 시그널 평가 기준 buyPrice = 70_000 × (1 + 0.0025) = 70_175 (sell-cost-rate 반영).
+                    // +3% 라인은 70_175 × 1.03 ≈ 72_281이라 73_000 tick → MidwayTakeProfit 발동
+                    // → buyJob 취소 → HOLDING 전이 → 첫 HOLDING tick에서 TpStage 평가 → SELL 발사까지 한 번에
+                    emitTicksUntil(price = 73_000) {
+                        val statusOk = cycleRepository.findById(created.id).get().status == TradingCycleStatus.HOLDING
+                        val hasSell = orderRepository.findByCycleId(created.id)
+                            .any { it.side == OrderSide.SELL && it.orderNo != null }
+                        statusOk && hasSell
+                    }
+                }
+
+                val refreshed = cycleRepository.findById(created.id).get()
+                refreshed.status shouldBe TradingCycleStatus.HOLDING
+
+                val buys = orderRepository.findByCycleId(created.id).filter { it.side == OrderSide.BUY }
+                buys.size shouldBe 1
+            }
+
+            test("BUYING 손절: 1회차 체결 후 -2% 도달 시 LIQUIDATING + 전량 매도 → CLOSED(STOP_LOSS)") {
+                val created = tradingService.create(validInput(buyIntervalMin = 120))
+
+                run {
+                    waitUntilOrders(created.id) { orders ->
+                        orders.any { it.side == OrderSide.BUY && it.orderNo != null }
+                    }
+                    fillAllPendingBuys(created.id, fillPrice = 70_000)
+
+                    // 시그널 평가 기준 buyPrice = 70_175. 손절 라인은 70_175 × 0.98 ≈ 68_771.
+                    // 68_000 tick → BUYING 손절 발동 → LIQUIDATING + SELL 발사
+                    emitTicksUntil(price = 68_000) {
+                        orderRepository.findByCycleId(created.id)
+                            .any { it.side == OrderSide.SELL && it.orderNo != null }
+                    }
+                    val sell = orderRepository.findByCycleId(created.id).first { it.side == OrderSide.SELL }
+                    fillSellOrder(sell, sell.orderQty)
+                    waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
+                }
+
+                val refreshed = cycleRepository.findById(created.id).get()
+                refreshed.closeReason shouldBe CloseReason.STOP_LOSS
+
+                val buys = orderRepository.findByCycleId(created.id).filter { it.side == OrderSide.BUY }
+                buys.size shouldBe 1
+            }
+
             test("취소: BUYING 단계 cancel 시 회차 즉시 차단 + 보유분 없으면 CLOSED(CANCELLED)") {
                 val created = tradingService.create(validInput(buyIntervalMin = 30))
 

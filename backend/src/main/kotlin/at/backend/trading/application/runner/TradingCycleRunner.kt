@@ -70,13 +70,28 @@ class TradingCycleRunner(
         job = applicationScope.launch {
             log.info("TradingCycleRunner 시작 cycleId={}", cycleId)
             try {
-                val buy = launch { runBuySequence() }
-                buyJob = buy
-                buy.join()
-                buyJob = null
+                // BUYING 단계부터 tick/signal 수집 — 중도 익절·BUYING 손절 평가용
+                val tickJob = launch {
+                    marketDataStream.priceTicks
+                        .filter { it.stockCode == cycle.stockCode }
+                        .collect { tick -> processTick(tick) }
+                }
+                val signalJob = launch {
+                    for (signal in signals) processExternalSignal(signal)
+                }
 
-                if (cycle.status == TradingCycleStatus.HOLDING || cycle.status == TradingCycleStatus.LIQUIDATING) {
-                    handleAfterBuy()
+                try {
+                    val buy = launch { runBuySequence() }
+                    buyJob = buy
+                    buy.join()
+                    buyJob = null
+
+                    if (cycle.status == TradingCycleStatus.HOLDING || cycle.status == TradingCycleStatus.LIQUIDATING) {
+                        handleAfterBuy()
+                    }
+                } finally {
+                    tickJob.cancel()
+                    signalJob.cancel()
                 }
             } finally {
                 signals.close()
@@ -164,18 +179,11 @@ class TradingCycleRunner(
     }
 
     private suspend fun handleAfterBuy() = coroutineScope {
+        // tick/signal은 outer start()에서 BUYING 단계부터 이미 수집 중. 여기선 bar 수집과 종료 폴링만.
         val barJob = launch {
             barPoller.bars
                 .filter { it.stockCode == cycle.stockCode }
                 .collect { bar -> recordBar(bar) }
-        }
-        val tickJob = launch {
-            marketDataStream.priceTicks
-                .filter { it.stockCode == cycle.stockCode }
-                .collect { tick -> processTick(tick) }
-        }
-        val signalJob = launch {
-            for (signal in signals) processExternalSignal(signal)
         }
 
         try {
@@ -185,8 +193,6 @@ class TradingCycleRunner(
             }
         } finally {
             barJob.cancel()
-            tickJob.cancel()
-            signalJob.cancel()
         }
     }
 
@@ -196,8 +202,52 @@ class TradingCycleRunner(
     }
 
     private suspend fun processTick(tick: PriceTick) {
-        if (cycle.status != TradingCycleStatus.HOLDING) return
+        when (cycle.status) {
+            TradingCycleStatus.BUYING -> processTickDuringBuying(tick)
+            TradingCycleStatus.HOLDING -> processTickDuringHolding(tick)
+            else -> Unit
+        }
+    }
 
+    /**
+     * BUYING 중 tick 처리 — MidwayTakeProfit / StopLoss만 평가.
+     * - MidwayTakeProfit: buyJob 취소 → finalizeBuySequence가 HOLDING 전이 → handleAfterBuy 첫 tick에서 TpStage 평가
+     * - StopLoss: LIQUIDATING 전이 + 보유분 즉시 매도
+     * 같은 시그널이 다음 tick에서 재발동하지 않도록 buyJob 취소 여부로 가드.
+     */
+    private suspend fun processTickDuringBuying(tick: PriceTick) {
+        val currentBuyJob = buyJob ?: return
+        if (currentBuyJob.isCancelled) return
+
+        val state = computeHoldingState() ?: return
+        publishPriceUpdated(tick.price, state.buyPrice, state.holdingQty)
+
+        val signal = cycle.detectSignals(tick, state.holdingQty, state.buyPrice).firstOrNull() ?: return
+        when (signal) {
+            is Signal.MidwayTakeProfit -> {
+                log.info("중도 익절 발동 cycleId={}, price={}", cycleId, tick.price)
+                publishSignalFired(signal)
+                currentBuyJob.cancel()
+            }
+
+            is Signal.StopLoss -> {
+                log.info("BUYING 손절 발동 cycleId={}, price={}", cycleId, tick.price)
+                publishSignalFired(signal)
+                pendingCloseReason = signal.toCloseReason()
+                cycle.requestCancel()
+                cycleRepository.save(cycle)
+                publishStateChanged(TradingCycleStatus.LIQUIDATING)
+                currentBuyJob.cancel()
+                if (state.holdingQty > 0) {
+                    orderService.placeSell(cycle, signal, state.holdingQty, state.buyPrice, tick.price, currentBar)
+                }
+            }
+
+            else -> Unit
+        }
+    }
+
+    private suspend fun processTickDuringHolding(tick: PriceTick) {
         val state = computeHoldingState() ?: return
         publishPriceUpdated(tick.price, state.buyPrice, state.holdingQty)
 
