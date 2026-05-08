@@ -17,6 +17,9 @@ class KisRateLimiterTest : FunSpec({
             baseUrl = "http://localhost",
             wsUrl = "ws://localhost",
             rateLimitPerSecond = perSecond,
+            tr = KisProperties.Tr("BUY", "SELL", "CANCEL", "BAL", "EXEC"),
+            marketDivCode = "UN",
+            exchangeId = "SOR",
         )
     )
 

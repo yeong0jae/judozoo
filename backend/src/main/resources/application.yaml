@@ -1,6 +1,8 @@
 spring:
   application:
     name: backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:real}    # 기본 prod 환경 — 로컬은 SPRING_PROFILES_ACTIVE=vts
   datasource:
     url: jdbc:mysql://localhost:33061/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME}
@@ -23,9 +25,8 @@ kis:
   app-secret: ${KIS_APP_SECRET}
   account-no: ${KIS_ACCOUNT_NO}
   account-product-code: ${KIS_ACCOUNT_PRODUCT_CODE}
-  base-url: https://openapi.koreainvestment.com:9443
-  ws-url: ws://ops.koreainvestment.com:21000
   rate-limit-per-second: 20
+  # base-url, ws-url, market-div-code, exchange-id, tr.* 는 profile별 (application-{real,vts}.yaml)
 
 trading:
   market-close-time: "15:30"

@@ -27,6 +27,12 @@ class KisRestClientTest : FunSpec({
     fun client() = KisRestClient(
         accountNo = "12345678",
         accountProductCode = "01",
+        trIdBuy = "TTTC0012U",
+        trIdSell = "TTTC0011U",
+        trIdCancel = "TTTC0013U",
+        trIdBalance = "TTTC8434R",
+        marketDivCode = "UN",
+        exchangeId = "SOR",
         restClient = TestRestClientConfig.restClient(wireMock),
     )
 
@@ -241,11 +247,20 @@ class KisRestClientTest : FunSpec({
                     baseUrl = "http://localhost",
                     wsUrl = "ws://localhost",
                     rateLimitPerSecond = 20,
+                    tr = KisProperties.Tr("BUY", "SELL", "CANCEL", "BAL", "EXEC"),
+                    marketDivCode = "UN",
+                    exchangeId = "SOR",
                 )
             )
             val rateLimitedClient = KisRestClient(
                 accountNo = "12345678",
                 accountProductCode = "01",
+                trIdBuy = "TTTC0012U",
+                trIdSell = "TTTC0011U",
+                trIdCancel = "TTTC0013U",
+                trIdBalance = "TTTC8434R",
+                marketDivCode = "UN",
+                exchangeId = "SOR",
                 restClient = TestRestClientConfig.builder(wireMock)
                     .requestInterceptor { request, body, execution ->
                         rateLimiter.acquire()

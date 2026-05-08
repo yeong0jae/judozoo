@@ -11,6 +11,12 @@ import java.time.format.DateTimeFormatter
 class KisRestClient(
     private val accountNo: String,
     private val accountProductCode: String,
+    private val trIdBuy: String,
+    private val trIdSell: String,
+    private val trIdCancel: String,
+    private val trIdBalance: String,
+    private val marketDivCode: String,
+    private val exchangeId: String,
     private val restClient: RestClient,
 ) {
 
@@ -18,7 +24,7 @@ class KisRestClient(
         restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/inquire-price")
-                    .queryParam("FID_COND_MRKT_DIV_CODE", FID_MRKT_DIV_UNIFIED)
+                    .queryParam("FID_COND_MRKT_DIV_CODE", marketDivCode)
                     .queryParam("FID_INPUT_ISCD", stockCode)
                     .build()
             }
@@ -71,7 +77,7 @@ class KisRestClient(
                     .queryParam("CTX_AREA_NK100", "")
                     .build()
             }
-            .header("tr_id", "TTTC8434R")
+            .header("tr_id", trIdBalance)
             .retrieve()
             .body(KisBalanceResponse::class.java)
             ?: error("KIS 잔고 응답이 비어있습니다")
@@ -81,7 +87,7 @@ class KisRestClient(
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice")
                     .queryParam("FID_ETC_CLS_CODE", "")
-                    .queryParam("FID_COND_MRKT_DIV_CODE", FID_MRKT_DIV_UNIFIED)
+                    .queryParam("FID_COND_MRKT_DIV_CODE", marketDivCode)
                     .queryParam("FID_INPUT_ISCD", stockCode)
                     .queryParam("FID_INPUT_HOUR_1", MARKET_CLOSE_HHMMSS)
                     .queryParam("FID_PW_DATA_INCU_YN", "N")
@@ -94,8 +100,8 @@ class KisRestClient(
 
     fun requestOrder(stockCode: String, side: String, qty: Int): KisOrderResponse {
         val trId = when (side) {
-            "BUY" -> TR_ID_BUY
-            "SELL" -> TR_ID_SELL
+            "BUY" -> trIdBuy
+            "SELL" -> trIdSell
             else -> error("알 수 없는 주문 side: $side")
         }
         val response = restClient.post()
@@ -110,7 +116,7 @@ class KisRestClient(
                     ordDvsn = ORD_DVSN_MARKET,
                     ordQty = qty.toString(),
                     ordUnpr = ORD_UNPR_MARKET,
-                    excgIdDvsnCd = EXCG_ID_SOR,
+                    excgIdDvsnCd = exchangeId,
                 )
             )
             .retrieve()
@@ -122,7 +128,7 @@ class KisRestClient(
     fun cancelRemainder(krxFwdgOrdOrgno: String, originalOdno: String): KisOrderResponse {
         val response = restClient.post()
             .uri("/uapi/domestic-stock/v1/trading/order-rvsecncl")
-            .header("tr_id", TR_ID_CANCEL)
+            .header("tr_id", trIdCancel)
             .contentType(MediaType.APPLICATION_JSON)
             .body(
                 KisOrderCancelRequest(
@@ -154,22 +160,12 @@ class KisRestClient(
         private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
         private const val MARKET_CLOSE_HHMMSS = "153000"
 
-        // FID_COND_MRKT_DIV_CODE: KRX + NXT 통합 호가/시세 (J=KRX 단독, NX=NXT 단독, UN=통합)
-        private const val FID_MRKT_DIV_UNIFIED = "UN"
-
         // PRDT_TYPE_CD: 상품 유형 (300=국내주식, 301=해외주식, 302=선물옵션, 701=ETF, ...)
         private const val PRDT_TYPE_DOMESTIC_STOCK = "300"
 
-        private const val TR_ID_BUY = "TTTC0012U"
-        private const val TR_ID_SELL = "TTTC0011U"
-        private const val TR_ID_CANCEL = "TTTC0013U"
         private const val ORD_DVSN_MARKET = "01"
         private const val ORD_UNPR_MARKET = "0"
         private const val RVSE_CNCL_CANCEL = "02"
         private const val RT_CD_OK = "0"
-
-        // EXCG_ID_DVSN_CD: 거래소 라우팅 (KRX=한국거래소, NXT=넥스트레이드, SOR=Smart Order Routing)
-        // SOR: KRX/NXT 중 best execution 자동 선택
-        private const val EXCG_ID_SOR = "SOR"
     }
 }

@@ -26,6 +26,14 @@ kis:
   base-url: https://openapi.koreainvestment.com:9443
   ws-url: ws://ops.koreainvestment.com:21000
   rate-limit-per-second: 20
+  market-div-code: UN
+  exchange-id: SOR
+  tr:
+    buy: TTTC0012U
+    sell: TTTC0011U
+    cancel: TTTC0013U
+    balance: TTTC8434R
+    execution-notice: H0STCNI0
 
 trading:
   market-close-time: "15:30"

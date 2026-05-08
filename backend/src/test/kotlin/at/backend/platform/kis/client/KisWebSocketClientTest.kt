@@ -61,6 +61,13 @@ private fun executionFields(
 private fun fixture(mapper: JsonMapper): Fixture {
     val properties = mockk<KisProperties>(relaxed = true).apply {
         every { wsUrl } returns "ws://localhost:9999"
+        every { tr } returns KisProperties.Tr(
+            buy = "TTTC0012U",
+            sell = "TTTC0011U",
+            cancel = "TTTC0013U",
+            balance = "TTTC8434R",
+            executionNotice = "H0STCNI0",
+        )
     }
     val approvalProvider = mockk<KisApprovalKeyProvider>().apply {
         every { approvalKey } returns "fake-approval-key"

@@ -1,0 +1,11 @@
+kis:
+  base-url: https://openapivts.koreainvestment.com:29443
+  ws-url: ws://ops.koreainvestment.com:31000
+  market-div-code: J               # VTS는 NXT 미지원 — KRX 단독
+  exchange-id: KRX                 # VTS는 SOR 미지원 — KRX 직접
+  tr:
+    buy: VTTC0012U
+    sell: VTTC0011U
+    cancel: VTTC0013U
+    balance: VTTC8434R
+    execution-notice: H0STCNI9

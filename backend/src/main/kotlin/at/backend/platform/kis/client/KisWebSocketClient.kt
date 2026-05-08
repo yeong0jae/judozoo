@@ -33,6 +33,7 @@ class KisWebSocketClient(
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
+    private val trExec: String = properties.tr.executionNotice
     private val currentSession = AtomicReference<WebSocketSession?>(null)
 
     // 종목에 대한 중복 구독 방지, 식별
@@ -67,7 +68,7 @@ class KisWebSocketClient(
     }
 
     fun subscribeExecutionNotice(htsId: String) {
-        val sub = Subscription(TR_EXEC, htsId)
+        val sub = Subscription(trExec, htsId)
         if (!subscriptions.add(sub)) return
         ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
     }
@@ -179,7 +180,7 @@ class KisWebSocketClient(
         }
         when (trId) {
             TR_PRICE -> parsePriceTick(body)?.let { _priceTicks.tryEmit(it) }
-            TR_EXEC -> parseExecutionNotice(body)?.let { _executionNotices.tryEmit(it) }
+            trExec -> parseExecutionNotice(body)?.let { _executionNotices.tryEmit(it) }
         }
     }
 
@@ -260,7 +261,6 @@ class KisWebSocketClient(
 
     companion object {
         private const val TR_PRICE = "H0STCNT0"
-        private const val TR_EXEC = "H0STCNI0"
         private const val CONNECT_TIMEOUT_SEC = 5L
         private val BACKOFF_DELAYS_SEC = longArrayOf(1, 2, 5, 5)
     }

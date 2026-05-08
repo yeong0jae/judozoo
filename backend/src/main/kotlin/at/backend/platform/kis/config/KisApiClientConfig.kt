@@ -38,6 +38,12 @@ class KisApiClientConfig {
         KisRestClient(
             accountNo = properties.accountNo,
             accountProductCode = properties.accountProductCode,
+            trIdBuy = properties.tr.buy,
+            trIdSell = properties.tr.sell,
+            trIdCancel = properties.tr.cancel,
+            trIdBalance = properties.tr.balance,
+            marketDivCode = properties.marketDivCode,
+            exchangeId = properties.exchangeId,
             restClient = RestClient.builder()
                 .baseUrl(properties.baseUrl)
                 .requestFactory(
