@@ -83,9 +83,10 @@ Liquidating ─(매도완료 보유=0)─▶ Closed (close_reason은 발동 시�
 ```
 
 ### 4.2 동시성
-- 명령별 `Mutex` — 시그널 매칭 → 상태 전이 → 주문 발송이 모두 락 안에서
-- 다른 명령은 독립 코루틴 — 락 경합 없음
-- 단일 `ApplicationCoroutineScope` (SupervisorJob + Dispatchers.IO)
+- 사이클별 `TradingCycleRunner`가 단일 outer 코루틴 안에서 tick / signal / bar 수집 + 매수 시퀀스 + holding 폴링을 구동. 명시적 Mutex는 사용하지 않음.
+- 다른 명령은 독립 코루틴 — 격리.
+- 단일 `ApplicationCoroutineScope` (SupervisorJob + Dispatchers.IO).
+- 한 사이클 안의 가변 상태(`prevBar`, `currentBar`, `pendingCloseReason`, `buyJob`)는 같은 outer 코루틴 트리 안의 자식 코루틴들이 접근 — 협력적 스케줄링과 사이클당 트래픽 수준이 낮은 점에 의존해 lock-free로 단순화. 강한 동시성 보장이 필요한 변경은 별도 검토.
 
 ---
 
