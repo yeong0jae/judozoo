@@ -25,6 +25,7 @@ kis:
   app-secret: ${KIS_APP_SECRET}
   account-no: ${KIS_ACCOUNT_NO}
   account-product-code: ${KIS_ACCOUNT_PRODUCT_CODE}
+  hts-id: ${KIS_HTS_ID}
   rate-limit-per-second: 20
   # base-url, ws-url, market-div-code, exchange-id, tr.* 는 profile별 (application-{real,vts}.yaml)
 

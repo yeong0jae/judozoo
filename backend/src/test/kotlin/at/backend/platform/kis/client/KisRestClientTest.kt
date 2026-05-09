@@ -244,6 +244,7 @@ class KisRestClientTest : FunSpec({
                     appSecret = "s",
                     accountNo = "12345678",
                     accountProductCode = "01",
+                    htsId = "TESTHTSID01",
                     baseUrl = "http://localhost",
                     wsUrl = "ws://localhost",
                     rateLimitPerSecond = 20,

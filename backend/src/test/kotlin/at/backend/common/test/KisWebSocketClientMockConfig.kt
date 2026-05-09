@@ -26,7 +26,7 @@ class KisWebSocketClientMockConfig {
             every { client.connectionState } returns connectionState.asSharedFlow()
             every { client.subscribePrice(any()) } returns Unit
             every { client.unsubscribePrice(any()) } returns Unit
-            every { client.subscribeExecutionNotice(any()) } returns Unit
+            every { client.subscribeExecutionNotice() } returns Unit
             wsTestChannels[client] = WsTestChannels(priceTicks, executionNotices, connectionState)
         }
     }

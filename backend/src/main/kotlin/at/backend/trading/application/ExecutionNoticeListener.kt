@@ -21,6 +21,7 @@ class ExecutionNoticeListener(
 
     @PostConstruct
     fun start() {
+        webSocketClient.subscribeExecutionNotice()
         job = applicationScope.launch {
             webSocketClient.executionNotices.collect { notice ->
                 runCatching { handler.handle(notice) }

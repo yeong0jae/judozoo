@@ -14,6 +14,7 @@ class KisRateLimiterTest : FunSpec({
             appSecret = "secret",
             accountNo = "00000000",
             accountProductCode = "01",
+            htsId = "TESTHTSID01",
             baseUrl = "http://localhost",
             wsUrl = "ws://localhost",
             rateLimitPerSecond = perSecond,

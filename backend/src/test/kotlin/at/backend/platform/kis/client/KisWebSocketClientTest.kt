@@ -61,6 +61,7 @@ private fun executionFields(
 private fun fixture(mapper: JsonMapper): Fixture {
     val properties = mockk<KisProperties>(relaxed = true).apply {
         every { wsUrl } returns "ws://localhost:9999"
+        every { htsId } returns "HTSID01"
         every { tr } returns KisProperties.Tr(
             buy = "TTTC0012U",
             sell = "TTTC0011U",
@@ -119,9 +120,9 @@ class KisWebSocketClientTest : FunSpec({
             payload["body"]["input"]["tr_id"].asText() shouldBe "H0STCNT0"
         }
 
-        test("subscribeExecutionNotice는 H0STCNI0 페이로드를 htsId로 전송한다") {
+        test("subscribeExecutionNotice는 properties.htsId를 tr_key로 H0STCNI0 페이로드를 전송한다") {
             val (client, _, sent) = fixture(mapper)
-            client.subscribeExecutionNotice("HTSID01")
+            client.subscribeExecutionNotice()
 
             val payload = mapper.readTree(sent[0])
             payload["body"]["input"]["tr_id"].asText() shouldBe "H0STCNI0"

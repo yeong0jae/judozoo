@@ -23,6 +23,7 @@ kis:
   app-secret: test-app-secret
   account-no: "00000000"
   account-product-code: "01"
+  hts-id: "TESTHTSID01"
   base-url: https://openapi.koreainvestment.com:9443
   ws-url: ws://ops.koreainvestment.com:21000
   rate-limit-per-second: 20

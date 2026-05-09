@@ -67,8 +67,8 @@ class KisWebSocketClient(
         currentSession.get()?.let { sendSubscription(it, sub, subscribe = false) }
     }
 
-    fun subscribeExecutionNotice(htsId: String) {
-        val sub = Subscription(trExec, htsId)
+    fun subscribeExecutionNotice() {
+        val sub = Subscription(trExec, properties.htsId)
         if (!subscriptions.add(sub)) return
         ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
     }

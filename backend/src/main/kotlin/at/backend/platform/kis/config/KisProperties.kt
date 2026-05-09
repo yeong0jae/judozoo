@@ -8,6 +8,7 @@ data class KisProperties(
     val appSecret: String,
     val accountNo: String,
     val accountProductCode: String,
+    val htsId: String,             // HTS 사용자 ID — 체결통보 WS 구독의 tr_key
     val baseUrl: String,
     val wsUrl: String,
     val rateLimitPerSecond: Int,
