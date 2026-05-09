@@ -113,7 +113,7 @@ sealed class Signal {
 | Breakeven | breakeven_armed AND 현재가 ≤ 매수가 | Holding |
 | TrendBreak | trend_break_armed AND 현재 3분봉 종가 < 1전봉 시가 | Holding 잔여. 봉 종료 시 isAlive=false → 다음 봉 재충족 시 재발동 |
 | LimitUp | 현재가 = 상한가 | Holding 잔여 |
-| MarketClose | KST ≥ 15:20 | 모든 활성 (보유=0이면 즉시 Closed) |
+| MarketClose | (자동 트리거 없음 — 외부에서 수동 발사 시에만 작동) | 모든 활성 (보유=0이면 즉시 Closed) |
 | Cancel | 사용자 요청 | INITIATED/BUYING/HOLDING (보유=0이면 Closed=CANCELLED) |
 
 > **보유 = 0 동안 가격 기반 시그널 평가 보류** — 매수가 미정의. 첫 부분 체결 시점부터 평가 시작.
@@ -125,7 +125,7 @@ sealed class Signal {
 `breakeven_armed`, `trend_break_armed`, `tp_stages_fired`는 무장으로 전이 시 즉시 UPDATE. 가격 진동으로 인한 반복 발동 방지.
 
 ### 5.5 추세 꺾임 데이터 부족
-KIS 3분봉 응답에서 직전봉 없으면 (`bars.size<2`) TrendBreak 보류. 09:00–09:03 사이 +5% 도달 시 잔여는 LimitUp/MarketClose까지 보유.
+KIS 3분봉 응답에서 직전봉 없으면 (`bars.size<2`) TrendBreak 보류. 09:00–09:03 사이 +5% 도달 시 잔여는 LimitUp 또는 사용자 수동 청산까지 보유.
 
 ---
 
@@ -189,11 +189,12 @@ PRD §매수가 산정 기준 — 매수 비용 + 예상 매도 비용 반영 �
 
 ---
 
-## 9. 스케줄러 (`TradingSchedulerService`)
+## 9. 스케줄러
 
 - **명령별 타이머**: `TradingCycle` 코루틴 안에서 `delay(buyIntervalMin.minutes)`로 회차 트리거
-- **글로벌 cron**: `0 20 15 * * MON-FRI` MarketClose 일제 발행, `0 0 8 * * MON-FRI` 영업일 게이트 토글
-- **컷오프**: `TradingService.create()`에서 KST 시각 vs `15:20 - buyIntervalMin × 2` 비교, 초과 시 `CUTOFF_PASSED`
+- **부팅 훅**: `MarketDayStartupHook`가 ApplicationReadyEvent 시 KIS 휴장일 조회 → `HolidayChanged` 이벤트 1회 발행 (프론트엔드 영업일 표시용)
+- **컷오프**: `TradingService.create()`에서 KST 시각 vs `15:20 - buyIntervalMin × 2` 비교, 초과 시 `CUTOFF_PASSED` — 매수 시퀀스 완주 불가능 시각 차단
+- **자동 강제 청산 없음** — 장 마감 시 사용자가 수동으로 청산하거나 다음 영업일로 이월
 
 ---
 
@@ -278,7 +279,6 @@ kis:
   rate-limit-per-second: 20
 
 trading:
-  market-close-time: "15:20"
   default-buy-interval-min: 3
   default-split-sell-ratio: 0.20
   default-midway-profit-pct: 3.0

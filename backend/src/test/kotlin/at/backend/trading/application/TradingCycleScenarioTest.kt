@@ -412,36 +412,6 @@ class TradingCycleScenarioTest(
                 }
             }
 
-            test("15:20 강제 청산: TpStage 분할 익절 후 잔여 보유분에 MarketClose 발행, CLOSED(MARKET_CLOSE)") {
-                val created = tradingService.create(validInput())
-
-                run {
-                    reachHoldingFullyFilled(created.id, fillPrice = 70_000)
-
-                    emitTicksUntil(price = 71_580) {
-                        orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" && it.orderNo != null }
-                    }
-                    val tpSell = orderRepository.findByCycleId(created.id)
-                        .first { it.side == OrderSide.SELL && it.trigger == "TP_STAGE_2" }
-                    fillSellOrder(tpSell, tpSell.orderQty)
-
-                    cycleOrchestrator.broadcastMarketClose()
-
-                    waitUntilOrders(created.id) { orders ->
-                        orders.any { it.side == OrderSide.SELL && it.trigger == "MarketClose" && it.orderNo != null }
-                    }
-                    val mcSell = orderRepository.findByCycleId(created.id)
-                        .first { it.side == OrderSide.SELL && it.trigger == "MarketClose" }
-                    fillSellOrder(mcSell, mcSell.orderQty)
-                    waitUntilCycle(created.id) { it.status == TradingCycleStatus.CLOSED }
-                }
-
-                val refreshed = cycleRepository.findById(created.id).get()
-                refreshed.status shouldBe TradingCycleStatus.CLOSED
-                refreshed.closeReason shouldBe CloseReason.MARKET_CLOSE
-            }
-
             test("정상 사이클: 모든 TpStage 분할 익절 후 추세 꺾임으로 잔여 매도, CLOSED(TREND_BREAK)") {
                 val created = tradingService.create(validInput())
 

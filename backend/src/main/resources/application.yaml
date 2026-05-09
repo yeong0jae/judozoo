@@ -30,7 +30,6 @@ kis:
   # base-url, ws-url, market-div-code, exchange-id, tr.* 는 profile별 (application-{real,vts}.yaml)
 
 trading:
-  market-close-time: "15:30"
   default-buy-interval-min: 3              # 분 단위
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
   default-midway-profit-pct: 3             # 퍼센트 숫자 (3 = 3%)

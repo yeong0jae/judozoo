@@ -6,7 +6,6 @@ import at.backend.market.application.MarketDataStream
 import at.backend.trading.TradingProperties
 import at.backend.trading.application.runner.TradingCycleRunner
 import at.backend.trading.domain.cycle.TradingCycle
-import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -67,14 +66,6 @@ class CycleOrchestrator(
         applicationScope.launch {
             runCatching { runner.requestCancellation() }
                 .onFailure { log.warn("사이클 취소 처리 실패 cycleId={}", cycleId, it) }
-        }
-    }
-
-    fun broadcastMarketClose() {
-        val snapshot = activeRunners.values.toList()
-        log.info("MarketClose 일제 라우팅 — 대상 cycle 수={}", snapshot.size)
-        for (runner in snapshot) {
-            runner.trySubmitSignal(Signal.MarketClose)
         }
     }
 
