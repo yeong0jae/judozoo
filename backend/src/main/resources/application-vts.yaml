@@ -1,4 +1,9 @@
 kis:
+  app-key: ${VTS_KIS_APP_KEY}
+  app-secret: ${VTS_KIS_APP_SECRET}
+  account-no: ${VTS_KIS_ACCOUNT_NO}
+  account-product-code: ${VTS_KIS_ACCOUNT_PRODUCT_CODE}
+  hts-id: ${KIS_HTS_ID}
   base-url: https://openapivts.koreainvestment.com:29443
   ws-url: ws://ops.koreainvestment.com:31000
   market-div-code: J               # VTS는 NXT 미지원 — KRX 단독

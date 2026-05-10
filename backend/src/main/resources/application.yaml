@@ -2,7 +2,7 @@ spring:
   application:
     name: backend
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:real}    # 기본 prod 환경 — 로컬은 SPRING_PROFILES_ACTIVE=vts
+    active: vts
   datasource:
     url: jdbc:mysql://localhost:33061/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME}
@@ -21,13 +21,9 @@ logging:
     at.backend: DEBUG
 
 kis:
-  app-key: ${KIS_APP_KEY}
-  app-secret: ${KIS_APP_SECRET}
-  account-no: ${KIS_ACCOUNT_NO}
-  account-product-code: ${KIS_ACCOUNT_PRODUCT_CODE}
-  hts-id: ${KIS_HTS_ID}
   rate-limit-per-second: 20
-  # base-url, ws-url, market-div-code, exchange-id, tr.* 는 profile별 (application-{real,vts}.yaml)
+  # 자격증명/엔드포인트는 profile별 (application-{real,vts}.yaml) — env: VTS_KIS_*, REAL_KIS_*
+  # app-key, app-secret, account-no, account-product-code, hts-id, base-url, ws-url, market-div-code, exchange-id, tr.*
 
 trading:
   default-buy-interval-min: 3              # 분 단위

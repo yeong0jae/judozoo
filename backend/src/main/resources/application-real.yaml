@@ -1,4 +1,9 @@
 kis:
+  app-key: ${REAL_KIS_APP_KEY}
+  app-secret: ${REAL_KIS_APP_SECRET}
+  account-no: ${REAL_KIS_ACCOUNT_NO}
+  account-product-code: ${REAL_KIS_ACCOUNT_PRODUCT_CODE}
+  hts-id: ${KIS_HTS_ID}
   base-url: https://openapi.koreainvestment.com:9443
   ws-url: ws://ops.koreainvestment.com:21000
   market-div-code: UN              # FID_COND_MRKT_DIV_CODE — KRX+NXT 통합 시세
