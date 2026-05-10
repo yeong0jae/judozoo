@@ -3,11 +3,13 @@ package at.backend.common.test
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.spring.SpringExtension
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.MySQLContainer
 
 @SpringBootTest
+@ActiveProfiles("test")
 abstract class IntegrationTestBase : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)
