@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @Component
 class BarPoller(
-    private val restClient: KisRestClient,
+    private val kisRestClient: KisRestClient,
     private val applicationScope: CoroutineScope,
     @Value("\${trading.market.bar-poll-interval-millis}") private val pollIntervalMillis: Long,
 ) {
@@ -66,9 +66,9 @@ class BarPoller(
     private fun startPolling() {
         val job = applicationScope.launch {
             while (isActive) {
-                subscribed.forEach { code ->
-                    runCatching { pollOnce(code) }
-                        .onFailure { log.warn("BarPoller 폴링 실패 stockCode={}", code, it) }
+                subscribed.forEach { stockCode ->
+                    runCatching { pollOnce(stockCode) }
+                        .onFailure { log.warn("BarPoller 폴링 실패 stockCode={}", stockCode, it) }
                 }
                 delay(pollIntervalMillis.milliseconds)
             }
@@ -77,7 +77,7 @@ class BarPoller(
     }
 
     private fun pollOnce(stockCode: String) {
-        val response = restClient.getBars(stockCode)
+        val response = kisRestClient.getBars(stockCode)
         // output2[0]은 진행 중 봉(종가가 계속 움직임). 정밀 비교를 위해 직전 닫힌 봉인 [1] 사용.
         val bar = response.output2.getOrNull(1)?.let { toBar(stockCode, it) } ?: return
         val previousEnd = latestBarEnd[stockCode]

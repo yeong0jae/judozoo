@@ -22,10 +22,10 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.time.Duration.Companion.seconds
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import kotlin.time.Duration.Companion.seconds
 
 class KisWebSocketClient(
     private val properties: KisProperties,
@@ -62,16 +62,16 @@ class KisWebSocketClient(
         ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
     }
 
-    fun unsubscribePrice(stockCode: String) {
-        val sub = Subscription(TR_PRICE, stockCode)
-        if (!subscriptions.remove(sub)) return
-        currentSession.get()?.let { sendSubscription(it, sub, subscribe = false) }
-    }
-
     fun subscribeExecutionNotice() {
         val sub = Subscription(trExec, properties.htsId)
         if (!subscriptions.add(sub)) return
         ensureConnected { session -> sendSubscription(session, sub, subscribe = true) }
+    }
+
+    fun unsubscribePrice(stockCode: String) {
+        val sub = Subscription(TR_PRICE, stockCode)
+        if (!subscriptions.remove(sub)) return
+        currentSession.get()?.let { sendSubscription(it, sub, subscribe = false) }
     }
 
     private fun ensureConnected(afterConnect: (WebSocketSession) -> Unit) {
