@@ -1,6 +1,5 @@
 package at.backend.trading.application.runner
 
-import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
 import at.backend.market.application.BarPoller
@@ -388,7 +387,6 @@ class TradingCycleRunner(
         eventPublisher.publishEvent(
             TradingCycleClosed(cycleId = cycleId, closeReason = reason.name, ts = instant)
         )
-        eventPublisher.publishEvent(BalanceInvalidated(ts = instant))
     }
 
     private fun publishStateChanged(status: TradingCycleStatus, closeReason: CloseReason? = null) {

@@ -96,10 +96,7 @@ export default function CommandPage() {
   const formValues = watch();
   const perBuyAmount = formValues.perBuyAmount ?? 0;
 
-  // STOMP 구독: 잔고 / 시장 변경
-  useStompSubscription("/topic/account", () => {
-    qc.invalidateQueries({ queryKey: QK.accountBalance });
-  });
+  // STOMP 구독: 시장 변경
   useStompSubscription("/topic/market", () => {
     qc.invalidateQueries({ queryKey: QK.marketStatus });
   });
@@ -160,6 +157,7 @@ export default function CommandPage() {
         breakevenThresholdPct: data.breakevenThresholdPct ?? null,
         stopLossPct: data.stopLossPct ?? null,
       });
+      qc.invalidateQueries({ queryKey: QK.accountBalance });
       toast.show({
         tone: "success",
         message: `${selectedStock.stockName} 매매가 시작되었습니다`,

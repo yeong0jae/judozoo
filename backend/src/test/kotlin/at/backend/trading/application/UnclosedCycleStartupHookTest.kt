@@ -1,6 +1,5 @@
 package at.backend.trading.application
 
-import at.backend.account.presentation.payload.BalanceInvalidatedPayload
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
@@ -82,13 +81,12 @@ class UnclosedCycleStartupHookTest(
                 refreshed.closeReason shouldBe CloseReason.MARKET_CLOSE
             }
 
-            test("마감된 사이클별 lifecycle CLOSED + BALANCE_INVALIDATED가 STOMP로 발송된다") {
+            test("마감된 사이클별 lifecycle CLOSED가 STOMP로 발송된다") {
                 saveCycle(TradingCycleStatus.HOLDING)
                 saveCycle(TradingCycleStatus.BUYING)
 
                 hook.closeUnclosedCycles()
 
-                // CLOSED 페이로드가 lifecycle 토픽으로 사이클당 1회 발송 (총 2건)
                 verify(exactly = 2) {
                     messagingTemplate.convertAndSend(
                         "/topic/trading/lifecycle",
@@ -97,28 +95,15 @@ class UnclosedCycleStartupHookTest(
                         }
                     )
                 }
-                // BALANCE_INVALIDATED는 일괄 마감 후 1회만 발송
-                verify(exactly = 1) {
-                    messagingTemplate.convertAndSend(
-                        "/topic/account",
-                        any<BalanceInvalidatedPayload>()
-                    )
-                }
             }
 
-            test("활성 사이클이 없으면 어떤 이벤트도 발송되지 않는다") {
+            test("활성 사이클이 없으면 lifecycle 이벤트가 발송되지 않는다") {
                 hook.closeUnclosedCycles()
 
                 verify(exactly = 0) {
                     messagingTemplate.convertAndSend(
                         "/topic/trading/lifecycle",
                         any<LifecyclePayload>()
-                    )
-                }
-                verify(exactly = 0) {
-                    messagingTemplate.convertAndSend(
-                        "/topic/account",
-                        any<BalanceInvalidatedPayload>()
                     )
                 }
             }

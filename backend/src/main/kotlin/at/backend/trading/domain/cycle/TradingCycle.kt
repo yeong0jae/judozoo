@@ -47,12 +47,11 @@ class TradingCycle(
     @Column(nullable = false, length = 20)
     var status: TradingCycleStatus = TradingCycleStatus.INITIATED,
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 30)
-    var closeReason: CloseReason? = null,
-
     @Column(nullable = false)
     var buyAttempt: Int = 0,
+
+    @Column(nullable = false)
+    var tpStagesFired: Int = 0,
 
     @Column(nullable = false)
     var breakevenArmed: Boolean = false,
@@ -60,9 +59,10 @@ class TradingCycle(
     @Column(nullable = false)
     var trendBreakArmed: Boolean = false,
 
-    @Column(nullable = false)
-    var tpStagesFired: Int = 0,
-
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    var closeReason: CloseReason? = null,
+    
     @Column
     var closedAt: LocalDateTime? = null,
 

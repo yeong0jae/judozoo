@@ -28,7 +28,7 @@ class TradingQueryService(
 ) {
 
     fun findActive(): List<TradingSummaryResult> =
-        tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES)
+        tradingCycleRepository.findByStatusIn(TradingCycleStatus.OPEN)
             .map { toSummary(it) }
 
     fun findToday(): List<DailyTradingResult> {
@@ -139,13 +139,4 @@ class TradingQueryService(
 
     private fun profitAmount(currentPrice: Long, averageBuyPrice: Long, holdingQty: Int): Long =
         (currentPrice - averageBuyPrice) * holdingQty
-
-    companion object {
-        private val ACTIVE_STATUSES = listOf(
-            TradingCycleStatus.INITIATED,
-            TradingCycleStatus.BUYING,
-            TradingCycleStatus.HOLDING,
-            TradingCycleStatus.LIQUIDATING,
-        )
-    }
 }

@@ -5,5 +5,10 @@ enum class TradingCycleStatus {
     BUYING,
     HOLDING,
     LIQUIDATING,
-    CLOSED,
+    CLOSED;
+
+    companion object {
+        val ACTIVE = listOf(INITIATED, BUYING, HOLDING)
+        val OPEN = listOf(INITIATED, BUYING, HOLDING, LIQUIDATING)
+    }
 }

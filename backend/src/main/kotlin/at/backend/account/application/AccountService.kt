@@ -13,7 +13,7 @@ class AccountService(
 
     fun getBalance(): AccountBalanceResult {
         val cashBalance = kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
-        val reservedAmount = tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES)
+        val reservedAmount = tradingCycleRepository.findByStatusIn(TradingCycleStatus.ACTIVE)
             .sumOf { it.perBuyAmount * (MAX_BUY_ATTEMPT - it.buyAttempt) }
         return AccountBalanceResult(
             cashBalance = cashBalance,
@@ -30,10 +30,5 @@ class AccountService(
 
     companion object {
         private const val MAX_BUY_ATTEMPT = 3
-        private val ACTIVE_STATUSES = listOf(
-            TradingCycleStatus.INITIATED,
-            TradingCycleStatus.BUYING,
-            TradingCycleStatus.HOLDING,
-        )
     }
 }

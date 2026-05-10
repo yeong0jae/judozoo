@@ -39,18 +39,14 @@ class TradingValidator(
     }
 
     private fun validateBalance(perBuyAmount: Long) {
-        // 활성 사이클(INITIATED/BUYING/HOLDING)의 미발사 회차 분을 reserved로 차감 — AccountService.getBalance와 동일 공식.
-        // 새 명령은 3회차(MAX_BUY_ATTEMPT) 전부 커밋 가능해야 통과 — 화면 가용잔고와 일관된 기준.
         val balance = kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
-        val reserved = tradingCycleRepository.findByStatusIn(ACTIVE_STATUSES)
-            .sumOf { it.perBuyAmount * (TradingCycle.MAX_BUY_ATTEMPT - it.buyAttempt) }
-        val available = balance - reserved
-        val newCommitment = perBuyAmount * TradingCycle.MAX_BUY_ATTEMPT
-        if (available < newCommitment) throw TradingValidationException(TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE)
+        if (perBuyAmount * TradingCycle.MAX_BUY_ATTEMPT > balance) {
+            throw TradingValidationException(TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE)
+        }
     }
 
     private fun validateNoDuplicate(stockCode: String) {
-        val existing = tradingCycleRepository.findByStockCodeAndStatusIn(stockCode, ACTIVE_STATUSES)
+        val existing = tradingCycleRepository.findByStockCodeAndStatusIn(stockCode, TradingCycleStatus.ACTIVE)
         if (existing.isNotEmpty()) throw TradingValidationException(TradingValidationException.ErrorCode.DUPLICATE_COMMAND)
     }
 
@@ -74,10 +70,5 @@ class TradingValidator(
         private val TRADING_START = LocalTime.of(9, 0)
         private val TRADING_END = LocalTime.of(15, 30)
         private val CUTOFF_BASE = LocalTime.of(15, 20)
-        private val ACTIVE_STATUSES = listOf(
-            TradingCycleStatus.INITIATED,
-            TradingCycleStatus.BUYING,
-            TradingCycleStatus.HOLDING,
-        )
     }
 }

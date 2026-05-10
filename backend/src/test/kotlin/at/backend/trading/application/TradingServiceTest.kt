@@ -169,21 +169,11 @@ class TradingServiceTest(
         }
 
         context("잔고 부족") {
-            test("INITIATED 사이클 예약금 차감 후 잔고가 부족하면 INSUFFICIENT_BALANCE") {
+            test("perBuyAmount × MAX_BUY_ATTEMPT(3)이 잔고를 초과하면 INSUFFICIENT_BALANCE") {
                 stubBalance("100000")
 
                 val ex = shouldThrow<TradingValidationException> {
                     tradingService.create(validInput(perBuyAmount = 200_000L))
-                }
-                ex.errorCode shouldBe ErrorCode.INSUFFICIENT_BALANCE
-            }
-
-            test("다중 종목 동시 접수 시 INITIATED 사이클 예약금이 누적 차감됨") {
-                stubBalance("1000000")
-                saveCycle(stockCode = "035420", stockName = "NAVER", perBuyAmount = 900_000L)
-
-                val ex = shouldThrow<TradingValidationException> {
-                    tradingService.create(validInput(stockCode = "005930", perBuyAmount = 200_000L))
                 }
                 ex.errorCode shouldBe ErrorCode.INSUFFICIENT_BALANCE
             }

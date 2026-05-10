@@ -1,6 +1,5 @@
 package at.backend.trading.application
 
-import at.backend.account.presentation.payload.BalanceInvalidatedPayload
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
@@ -59,7 +58,7 @@ class TradingServiceBroadcastTest(
         }
 
         context("사이클 생성 시 broadcast 사슬") {
-            test("CREATED + BALANCE_INVALIDATED 동반 발행이 사슬 끝에서 messagingTemplate으로 도달한다") {
+            test("CREATED 발행이 사슬 끝에서 messagingTemplate으로 도달한다") {
                 tradingService.create(
                     TradingInput(
                         stockCode = "005930",
@@ -78,12 +77,6 @@ class TradingServiceBroadcastTest(
                         match<LifecyclePayload.Created> {
                             it.stockCode == "005930" && it.stockName == "삼성전자"
                         },
-                    )
-                }
-                verify {
-                    messagingTemplate.convertAndSend(
-                        "/topic/account",
-                        any<BalanceInvalidatedPayload>(),
                     )
                 }
             }

@@ -1,6 +1,5 @@
 package at.backend.trading.application
 
-import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
@@ -51,7 +50,6 @@ class TradingService(
                     ts = now.toInstantKst(),
                 )
             )
-            eventPublisher.publishEvent(BalanceInvalidated(ts = now.toInstantKst()))
         }
         return TradingCreatedResult.from(saved)
     }

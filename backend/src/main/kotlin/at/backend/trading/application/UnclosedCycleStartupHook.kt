@@ -1,6 +1,5 @@
 package at.backend.trading.application
 
-import at.backend.account.domain.event.BalanceInvalidated
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
 import at.backend.trading.domain.cycle.CloseReason
@@ -24,7 +23,7 @@ class UnclosedCycleStartupHook(
 
     @EventListener(ApplicationReadyEvent::class)
     fun closeUnclosedCycles() {
-        val active = cycleRepository.findByStatusIn(ACTIVE_STATUSES)
+        val active = cycleRepository.findByStatusIn(TradingCycleStatus.OPEN)
         if (active.isEmpty()) return
         val now = timeProvider.now()
         for (cycle in active) {
@@ -41,18 +40,6 @@ class UnclosedCycleStartupHook(
                 )
             )
         }
-        if (active.isNotEmpty()) {
-            eventPublisher.publishEvent(BalanceInvalidated(ts = instant))
-        }
         log.warn("재기동 시 활성 사이클 일괄 마감 — count={}", active.size)
-    }
-
-    companion object {
-        private val ACTIVE_STATUSES = listOf(
-            TradingCycleStatus.INITIATED,
-            TradingCycleStatus.BUYING,
-            TradingCycleStatus.HOLDING,
-            TradingCycleStatus.LIQUIDATING,
-        )
     }
 }
