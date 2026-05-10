@@ -18,8 +18,8 @@ import org.springframework.context.annotation.Import
 import java.time.Instant
 
 @Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class)
-class MarketDataStreamTest(
-    @Autowired private val marketDataStream: MarketDataStream,
+class PriceTickDataStreamTest(
+    @Autowired private val priceTickDataStream: PriceTickDataStream,
     @Autowired private val webSocketClient: KisWebSocketClient,
 ) : IntegrationTestBase() {
 
@@ -31,11 +31,11 @@ class MarketDataStreamTest(
         context("WS 가격 통보 전달") {
             test("WebSocket으로 들어온 PriceTick이 그대로 컨슈머에게 전달된다") {
                 val channels = KisWebSocketClientMockConfig.channelsOf(webSocketClient)
-                marketDataStream.subscribe("005930")
+                priceTickDataStream.subscribe("005930")
 
                 val received = coroutineScope {
                     val deferred = async {
-                        withTimeout(2000) { marketDataStream.priceTicks.first() }
+                        withTimeout(2000) { priceTickDataStream.priceTicks.first() }
                     }
                     delay(100)
                     channels.priceTicks.tryEmit(tick("005930", 70_000))
@@ -48,12 +48,12 @@ class MarketDataStreamTest(
 
         context("KIS WS 위임") {
             test("subscribe는 KIS WS subscribePrice를 호출한다") {
-                marketDataStream.subscribe("005930")
+                priceTickDataStream.subscribe("005930")
                 verify(exactly = 1) { webSocketClient.subscribePrice("005930") }
             }
 
             test("unsubscribe는 KIS WS unsubscribePrice를 호출한다") {
-                marketDataStream.unsubscribe("005930")
+                priceTickDataStream.unsubscribe("005930")
                 verify(exactly = 1) { webSocketClient.unsubscribePrice("005930") }
             }
         }

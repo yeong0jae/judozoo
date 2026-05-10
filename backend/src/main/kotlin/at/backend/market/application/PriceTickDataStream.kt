@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import org.springframework.stereotype.Component
 
 @Component
-class MarketDataStream(
+class PriceTickDataStream(
     private val webSocketClient: KisWebSocketClient,
     private val applicationScope: CoroutineScope,
 ) {

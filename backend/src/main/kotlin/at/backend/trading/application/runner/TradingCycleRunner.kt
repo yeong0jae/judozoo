@@ -3,7 +3,7 @@ package at.backend.trading.application.runner
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
 import at.backend.market.application.BarPoller
-import at.backend.market.application.MarketDataStream
+import at.backend.market.application.PriceTickDataStream
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
 import at.backend.trading.application.OrderService
@@ -42,7 +42,7 @@ class TradingCycleRunner(
     private val cycleRepository: TradingCycleJpaRepository,
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
-    private val marketDataStream: MarketDataStream,
+    private val priceTickDataStream: PriceTickDataStream,
     private val barPoller: BarPoller,
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
@@ -71,7 +71,7 @@ class TradingCycleRunner(
             try {
                 // BUYING 단계부터 tick/signal 수집 — 중도 익절·BUYING 손절 평가용
                 val tickJob = launch {
-                    marketDataStream.priceTicks
+                    priceTickDataStream.priceTicks
                         .filter { it.stockCode == cycle.stockCode }
                         .collect { tick -> processTick(tick) }
                 }

@@ -2,7 +2,7 @@ package at.backend.trading.application.runner
 
 import at.backend.common.test.*
 import at.backend.market.application.BarPoller
-import at.backend.market.application.MarketDataStream
+import at.backend.market.application.PriceTickDataStream
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
@@ -33,7 +33,7 @@ class TradingCycleRunnerTest(
     @Autowired private val cycleRepository: TradingCycleJpaRepository,
     @Autowired private val orderRepository: OrderJpaRepository,
     @Autowired private val executionRepository: ExecutionJpaRepository,
-    @Autowired private val marketDataStream: MarketDataStream,
+    @Autowired private val priceTickDataStream: PriceTickDataStream,
     @Autowired private val barPoller: BarPoller,
     @Autowired private val kisRestClient: KisRestClient,
     @Autowired private val webSocketClient: at.backend.platform.kis.client.KisWebSocketClient,
@@ -65,7 +65,7 @@ class TradingCycleRunnerTest(
         cycleRepository = cycleRepository,
         orderRepository = orderRepository,
         executionRepository = executionRepository,
-        marketDataStream = marketDataStream,
+        priceTickDataStream = priceTickDataStream,
         barPoller = barPoller,
         timeProvider = timeProvider,
         eventPublisher = org.springframework.context.ApplicationEventPublisher { },

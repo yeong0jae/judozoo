@@ -2,7 +2,7 @@ package at.backend.trading.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.market.application.BarPoller
-import at.backend.market.application.MarketDataStream
+import at.backend.market.application.PriceTickDataStream
 import at.backend.trading.TradingProperties
 import at.backend.trading.application.runner.TradingCycleRunner
 import at.backend.trading.domain.cycle.TradingCycle
@@ -24,7 +24,7 @@ class CycleOrchestrator(
     private val cycleRepository: TradingCycleJpaRepository,
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
-    private val marketDataStream: MarketDataStream,
+    private val priceTickDataStream: PriceTickDataStream,
     private val barPoller: BarPoller,
     private val timeProvider: TimeProvider,
     private val tradingProperties: TradingProperties,
@@ -42,7 +42,7 @@ class CycleOrchestrator(
             return
         }
 
-        marketDataStream.subscribe(cycle.stockCode)
+        priceTickDataStream.subscribe(cycle.stockCode)
         barPoller.subscribe(cycle.stockCode)
 
         val tradingCycleRunner = newTradingCycleRunner(cycle)
@@ -73,7 +73,7 @@ class CycleOrchestrator(
 
     private fun cleanup(cycleId: Long) {
         val removed = activeRunners.remove(cycleId) ?: return
-        marketDataStream.unsubscribe(removed.stockCode)
+        priceTickDataStream.unsubscribe(removed.stockCode)
         barPoller.unsubscribe(removed.stockCode)
         log.info("CycleOrchestrator 정리 cycleId={}, stockCode={}", cycleId, removed.stockCode)
     }
@@ -85,7 +85,7 @@ class CycleOrchestrator(
         cycleRepository = cycleRepository,
         orderRepository = orderRepository,
         executionRepository = executionRepository,
-        marketDataStream = marketDataStream,
+        priceTickDataStream = priceTickDataStream,
         barPoller = barPoller,
         timeProvider = timeProvider,
         eventPublisher = eventPublisher,
