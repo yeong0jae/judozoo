@@ -2,8 +2,8 @@ package at.backend.trading.application
 
 import at.backend.common.test.*
 import at.backend.market.application.BarPoller
-import at.backend.market.application.MarketDataStream
 import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.client.KisWebSocketClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.trading.domain.cycle.CloseReason
@@ -15,7 +15,6 @@ import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
-import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
 import io.mockk.every
@@ -34,7 +33,7 @@ class CycleOrchestratorTest(
     @Autowired private val cycleRepository: TradingCycleJpaRepository,
     @Autowired private val orderRepository: OrderJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
-    @Autowired private val marketDataStream: MarketDataStream,
+    @Autowired private val kisWebSocketClient: KisWebSocketClient,
     @Autowired private val barPoller: BarPoller,
     @Autowired private val timeProvider: MutableTimeProvider,
 ) : IntegrationTestBase() {
@@ -104,11 +103,10 @@ class CycleOrchestratorTest(
 
     init {
         beforeEach {
-            clearMocks(kisRestClient, answers = false)
+            clearMocks(kisRestClient, kisWebSocketClient, answers = false)
             orderRepository.deleteAll()
             cycleRepository.deleteAll()
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
-            marketDataStream.reset()
             barPoller.reset()
             stubCurrentPrice()
             stubSubmitOrderOk()
@@ -121,7 +119,7 @@ class CycleOrchestratorTest(
 
                 orchestrator.start(cycle)
 
-                marketDataStream.activeStockCodes() shouldContain "005930"
+                verify { kisWebSocketClient.subscribePrice("005930") }
                 orchestrator.activeCycleIds() shouldContain cycle.id
             }
 
@@ -138,7 +136,7 @@ class CycleOrchestratorTest(
                     waitFor(timeoutMillis = 2000) { cycle.id !in orchestrator.activeCycleIds() }
                 }
 
-                marketDataStream.activeStockCodes() shouldNotContain "005930"
+                verify { kisWebSocketClient.unsubscribePrice("005930") }
             }
         }
 

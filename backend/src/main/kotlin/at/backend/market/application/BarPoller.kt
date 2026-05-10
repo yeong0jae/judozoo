@@ -19,7 +19,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -31,7 +30,7 @@ class BarPoller(
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
-    private val subscriptionCounts = ConcurrentHashMap<String, AtomicInteger>()
+    private val subscribed = ConcurrentHashMap.newKeySet<String>()
     private val latestBarEnd = ConcurrentHashMap<String, Instant>()
     private val pollingJob = AtomicReference<Job?>(null)
 
@@ -44,13 +43,11 @@ class BarPoller(
     }
 
     fun subscribe(stockCode: String) {
-        subscriptionCounts.computeIfAbsent(stockCode) { AtomicInteger(0) }.incrementAndGet()
+        subscribed.add(stockCode)
     }
 
     fun unsubscribe(stockCode: String) {
-        val count = subscriptionCounts[stockCode] ?: return
-        if (count.decrementAndGet() <= 0) {
-            subscriptionCounts.remove(stockCode)
+        if (subscribed.remove(stockCode)) {
             latestBarEnd.remove(stockCode)
         }
     }
@@ -62,14 +59,14 @@ class BarPoller(
     }
 
     fun reset() {
-        subscriptionCounts.clear()
+        subscribed.clear()
         latestBarEnd.clear()
     }
 
     private fun startPolling() {
         val job = applicationScope.launch {
             while (isActive) {
-                subscriptionCounts.keys.forEach { code ->
+                subscribed.forEach { code ->
                     runCatching { pollOnce(code) }
                         .onFailure { log.warn("BarPoller 폴링 실패 stockCode={}", code, it) }
                 }

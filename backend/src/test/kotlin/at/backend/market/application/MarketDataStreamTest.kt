@@ -5,8 +5,6 @@ import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.KisWebSocketClientMockConfig
 import at.backend.market.domain.PriceTick
 import at.backend.platform.kis.client.KisWebSocketClient
-import io.kotest.matchers.collections.shouldContain
-import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
 import io.mockk.verify
@@ -27,7 +25,6 @@ class MarketDataStreamTest(
 
     init {
         beforeEach {
-            marketDataStream.reset()
             clearMocks(webSocketClient, answers = false)
         }
 
@@ -49,30 +46,15 @@ class MarketDataStreamTest(
             }
         }
 
-        context("다중 종목 구독") {
-            test("같은 종목을 두 번 구독해도 KIS WS subscribe는 한 번만 호출된다") {
+        context("KIS WS 위임") {
+            test("subscribe는 KIS WS subscribePrice를 호출한다") {
                 marketDataStream.subscribe("005930")
-                marketDataStream.subscribe("005930")
-
                 verify(exactly = 1) { webSocketClient.subscribePrice("005930") }
             }
 
-            test("참조 카운트가 0이 될 때만 KIS WS unsubscribe가 호출된다") {
-                marketDataStream.subscribe("005930")
-                marketDataStream.subscribe("005930")
-                marketDataStream.unsubscribe("005930")
-                verify(exactly = 0) { webSocketClient.unsubscribePrice("005930") }
-
+            test("unsubscribe는 KIS WS unsubscribePrice를 호출한다") {
                 marketDataStream.unsubscribe("005930")
                 verify(exactly = 1) { webSocketClient.unsubscribePrice("005930") }
-            }
-
-            test("여러 종목이 활성 상태에 함께 노출된다") {
-                marketDataStream.subscribe("005930")
-                marketDataStream.subscribe("035420")
-                marketDataStream.activeStockCodes() shouldContain "005930"
-                marketDataStream.activeStockCodes() shouldContain "035420"
-                marketDataStream.activeStockCodes() shouldHaveSize 2
             }
         }
     }
