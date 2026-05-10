@@ -152,8 +152,7 @@ class TradingCycle(
         CloseReason.TAKE_PROFIT,
         CloseReason.STOP_LOSS,
         CloseReason.BREAKEVEN,
-        CloseReason.TREND_BREAK,
-        CloseReason.MARKET_CLOSE -> status == TradingCycleStatus.LIQUIDATING
+        CloseReason.TREND_BREAK -> status == TradingCycleStatus.LIQUIDATING
     }
 
     fun canTransitionTo(

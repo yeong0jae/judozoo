@@ -50,14 +50,6 @@ sealed class Signal {
         ): Boolean = currentBar != null && clock < currentBar.endTime
     }
 
-    data object LimitUp : Signal() {
-        override val priority = 2
-    }
-
-    data object MarketClose : Signal() {
-        override val priority = 0
-    }
-
     data object Cancel : Signal() {
         override val priority = 0
     }

@@ -416,13 +416,12 @@ class TradingCycleTest : FunSpec({
             target.closedAt shouldBe at
         }
 
-        test("Liquidating 상태에서 매도 사유(TAKE_PROFIT/STOP_LOSS/BREAKEVEN/TREND_BREAK/MARKET_CLOSE/CANCELLED)로 종료할 수 있다") {
+        test("Liquidating 상태에서 매도 사유(TAKE_PROFIT/STOP_LOSS/BREAKEVEN/TREND_BREAK/CANCELLED)로 종료할 수 있다") {
             listOf(
                 CloseReason.TAKE_PROFIT,
                 CloseReason.STOP_LOSS,
                 CloseReason.BREAKEVEN,
                 CloseReason.TREND_BREAK,
-                CloseReason.MARKET_CLOSE,
                 CloseReason.CANCELLED,
             ).forEach { reason ->
                 val target = cycle(status = TradingCycleStatus.LIQUIDATING)

@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.minutes
  * 트레이딩 사이클 1건의 백그라운드 실행 단위.
  *
  * - 명령별로 1개 코루틴이 매수 회차 → HOLDING → 매도 시그널 → 종료까지 진행한다.
- * - 외부에서는 [start] / [submitSignal] / [cancel] 만 호출한다.
+ * - 외부에서는 [start] / [requestCancellation] / [awaitCompletion] 만 호출한다.
  * - 도메인 상태 전이는 [TradingCycle] 메서드(`startBuying` / `incrementBuyAttempt` / `transitionToHolding`
  *   / `armBreakeven` / `armTrendBreak` / `markTpStageFired` / `requestCancel` / `close`)로 위임 — runner는 흐름 제어만.
  */
@@ -117,18 +117,13 @@ class TradingCycleRunner(
         }
     }
 
-    suspend fun submitSignal(signal: Signal) {
-        signals.send(signal)
-    }
-
-    fun trySubmitSignal(signal: Signal): Boolean = signals.trySend(signal).isSuccess
-
-    suspend fun cancel() {
-        job?.cancelAndJoin()
-    }
-
     suspend fun awaitCompletion() {
         job?.join()
+    }
+
+    /** 테스트 teardown용 강제 종료 (프로덕션은 [requestCancellation] 사용). */
+    suspend fun cancel() {
+        job?.cancelAndJoin()
     }
 
     /**
@@ -376,7 +371,6 @@ class TradingCycleRunner(
         Signal.StopLoss -> CloseReason.STOP_LOSS
         Signal.Breakeven -> CloseReason.BREAKEVEN
         Signal.TrendBreak -> CloseReason.TREND_BREAK
-        Signal.MarketClose, Signal.LimitUp -> CloseReason.MARKET_CLOSE
         Signal.Cancel -> CloseReason.CANCELLED
         Signal.MidwayTakeProfit -> CloseReason.TAKE_PROFIT
         is Signal.TpStage -> CloseReason.TAKE_PROFIT

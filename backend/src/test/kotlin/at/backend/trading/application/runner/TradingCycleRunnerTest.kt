@@ -275,27 +275,6 @@ class TradingCycleRunnerTest(
                 cycleRepository.findById(cycle.id).get().breakevenArmed shouldBe true
             }
 
-            test("외부 MarketClose 시그널 수신 시 즉시 매도 후 CLOSED(MARKET_CLOSE)로 종료된다") {
-                stubCurrentPrice(70_000)
-                stubSubmitOrderOk()
-                val cycle = saveCycle(buyIntervalMin = 1)
-                val target = runner(cycle)
-                reachHoldingFullyFilled(cycle, target, fillPrice = 70_000)
-
-                target.submitSignal(at.backend.trading.domain.signal.Signal.MarketClose)
-
-                waitUntilCycle(cycle.id, timeoutMillis = 3000) {
-                    orderRepository.findByCycleId(cycle.id).any { it.side == OrderSide.SELL }
-                }
-                val sell = orderRepository.findByCycleId(cycle.id).first { it.side == OrderSide.SELL }
-                simulateFill(sell, sell.orderQty)
-                waitUntilCycle(cycle.id, timeoutMillis = 3000) { it.status == TradingCycleStatus.CLOSED }
-                target.cancel()
-
-                val refreshed = cycleRepository.findById(cycle.id).get()
-                refreshed.status shouldBe TradingCycleStatus.CLOSED
-                refreshed.closeReason shouldBe CloseReason.MARKET_CLOSE
-            }
         }
     }
 }

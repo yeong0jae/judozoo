@@ -71,14 +71,14 @@ class UnclosedCycleStartupHookTest(
 
             test("이미 CLOSED인 사이클은 변경되지 않는다") {
                 val closed = saveCycle(TradingCycleStatus.LIQUIDATING).also {
-                    it.close(CloseReason.MARKET_CLOSE, FixedTimeProviderConfig.DEFAULT_NOW.minusHours(1))
+                    it.close(CloseReason.TAKE_PROFIT, FixedTimeProviderConfig.DEFAULT_NOW.minusHours(1))
                     cycleRepository.save(it)
                 }
 
                 hook.closeUnclosedCycles()
 
                 val refreshed = cycleRepository.findById(closed.id).get()
-                refreshed.closeReason shouldBe CloseReason.MARKET_CLOSE
+                refreshed.closeReason shouldBe CloseReason.TAKE_PROFIT
             }
 
             test("마감된 사이클별 lifecycle CLOSED가 STOMP로 발송된다") {
