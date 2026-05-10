@@ -30,12 +30,13 @@ class TradingServiceBroadcastTest(
     @Autowired private val tradingService: TradingService,
     @Autowired private val cycleRepository: TradingCycleJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val kisRealQuotationClient: at.backend.platform.kis.client.KisRealQuotationClient,
     @Autowired private val timeProvider: MutableTimeProvider,
     @Autowired private val messagingTemplate: SimpMessagingTemplate,
 ) : IntegrationTestBase() {
 
     private fun stubKisDefaults() {
-        every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
             output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
         )
         every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
@@ -44,14 +45,14 @@ class TradingServiceBroadcastTest(
         every { kisRestClient.getBalance() } returns KisBalanceResponse(
             output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "100000000"))
         )
-        every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
+        every { kisRealQuotationClient.checkHoliday(any()) } returns KisHolidayResponse(
             output = listOf(KisHolidayResponse.Output(opndYn = "Y"))
         )
     }
 
     init {
         beforeEach {
-            clearMocks(kisRestClient, messagingTemplate, answers = false)
+            clearMocks(kisRestClient, kisRealQuotationClient, messagingTemplate, answers = false)
             cycleRepository.deleteAll()
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
             stubKisDefaults()

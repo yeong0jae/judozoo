@@ -1,21 +1,22 @@
 package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
-import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.trading.TradingProperties
 import org.springframework.stereotype.Service
 import java.time.LocalTime
 
 @Service
 class MarketStatusService(
-    private val kisRestClient: KisRestClient,
+    private val kisRealQuotationClient: KisRealQuotationClient,
     private val tradingProperties: TradingProperties,
     private val timeProvider: TimeProvider,
 ) {
 
     fun getStatus(): MarketStatusResult {
         val now = timeProvider.now().toLocalTime()
-        val isHoliday = kisRestClient.checkHoliday(timeProvider.today()).output.firstOrNull()?.opndYn != "Y"
+        // chk-holiday는 VTS 미지원이라 실거래 자격증명 클라이언트로 호출
+        val isHoliday = kisRealQuotationClient.checkHoliday(timeProvider.today()).output.firstOrNull()?.opndYn != "Y"
         val tradingHoursOpen = now in TRADING_START..TRADING_END
         val cutoffPassed = now > CUTOFF_BASE.minusMinutes((tradingProperties.defaultBuyIntervalMin * 2).toLong())
         return MarketStatusResult(

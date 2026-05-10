@@ -2,7 +2,7 @@ package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.market.domain.event.HolidayChanged
-import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.response.KisHolidayResponse
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.every
@@ -14,8 +14,8 @@ import java.time.LocalDateTime
 
 class MarketDayStartupHookTest : FunSpec({
 
-    fun newHook(): Triple<MarketDayStartupHook, KisRestClient, ApplicationEventPublisher> {
-        val kis = mockk<KisRestClient>()
+    fun newHook(): Triple<MarketDayStartupHook, KisRealQuotationClient, ApplicationEventPublisher> {
+        val kis = mockk<KisRealQuotationClient>()
         val time = mockk<TimeProvider>().also {
             every { it.today() } returns LocalDate.of(2026, 5, 4)
             every { it.now() } returns LocalDateTime.of(2026, 5, 4, 8, 30)

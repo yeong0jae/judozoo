@@ -4,6 +4,7 @@ import at.backend.platform.kis.KisAccessTokenProvider
 import at.backend.platform.kis.KisApprovalKeyProvider
 import at.backend.platform.kis.KisRateLimiter
 import at.backend.platform.kis.client.KisAuthClient
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.KisWebSocketClient
 import kotlinx.coroutines.CoroutineScope
@@ -63,6 +64,41 @@ class KisApiClientConfig {
                 }
                 .build(),
         )
+
+    @Bean
+    fun kisRealQuotationClient(
+        properties: KisRealQuotationProperties,
+        rateLimiter: KisRateLimiter,
+    ): KisRealQuotationClient {
+        val authClient = KisAuthClient(
+            appKey = properties.appKey,
+            appSecret = properties.appSecret,
+            restClient = RestClient.builder()
+                .baseUrl(properties.baseUrl)
+                .requestFactory(SimpleClientHttpRequestFactory())
+                .build(),
+        )
+        val tokenProvider = KisAccessTokenProvider(authClient)
+        return KisRealQuotationClient(
+            restClient = RestClient.builder()
+                .baseUrl(properties.baseUrl)
+                .requestFactory(
+                    SimpleClientHttpRequestFactory().apply {
+                        setConnectTimeout(CONNECT_TIMEOUT)
+                        setReadTimeout(READ_TIMEOUT)
+                    }
+                )
+                .requestInterceptor { request, body, execution ->
+                    rateLimiter.acquire()
+                    request.headers.setBearerAuth(tokenProvider.token)
+                    request.headers.set("appkey", properties.appKey)
+                    request.headers.set("appsecret", properties.appSecret)
+                    request.headers.set("custtype", CUSTTYPE_INDIVIDUAL)
+                    execution.execute(request, body)
+                }
+                .build(),
+        )
+    }
 
     @Bean
     fun kisWebSocketClient(): WebSocketClient = StandardWebSocketClient()

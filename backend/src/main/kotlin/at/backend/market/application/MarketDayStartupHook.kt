@@ -3,7 +3,7 @@ package at.backend.market.application
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
 import at.backend.market.domain.event.HolidayChanged
-import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.client.KisRealQuotationClient
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.ApplicationEventPublisher
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class MarketDayStartupHook(
-    private val kisRestClient: KisRestClient,
+    private val kisRealQuotationClient: KisRealQuotationClient,
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
 ) {
@@ -23,7 +23,8 @@ class MarketDayStartupHook(
     fun publishMarketDay() {
         val today = timeProvider.today()
         val isHoliday = runCatching {
-            kisRestClient.checkHoliday(today).output.firstOrNull()?.opndYn != "Y"
+            // chk-holiday는 VTS 미지원이라 실거래 자격증명 클라이언트로 호출
+            kisRealQuotationClient.checkHoliday(today).output.firstOrNull()?.opndYn != "Y"
         }.getOrElse {
             log.warn("개장일 검증 실패 — HolidayChanged 발행 생략", it)
             return

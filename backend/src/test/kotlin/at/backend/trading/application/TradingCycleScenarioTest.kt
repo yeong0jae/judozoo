@@ -37,6 +37,7 @@ class TradingCycleScenarioTest(
     @Autowired private val orderRepository: OrderJpaRepository,
     @Autowired private val executionRepository: ExecutionJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val kisRealQuotationClient: at.backend.platform.kis.client.KisRealQuotationClient,
     @Autowired private val webSocketClient: KisWebSocketClient,
     @Autowired private val timeProvider: MutableTimeProvider,
     @Autowired private val unclosedCycleStartupHook: UnclosedCycleStartupHook,
@@ -47,7 +48,7 @@ class TradingCycleScenarioTest(
     private val stockCode = "005930"
 
     private fun stubSearchStock(name: String = "삼성전자") {
-        every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
             output = KisStockSearchResponse.Output(pdno = stockCode, prdtAbrvName = name)
         )
     }
@@ -65,7 +66,7 @@ class TradingCycleScenarioTest(
     }
 
     private fun stubHoliday() {
-        every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
+        every { kisRealQuotationClient.checkHoliday(any()) } returns KisHolidayResponse(
             output = listOf(KisHolidayResponse.Output(opndYn = "Y"))
         )
     }
@@ -203,7 +204,7 @@ class TradingCycleScenarioTest(
 
     init {
         beforeEach {
-            clearMocks(kisRestClient, answers = false)
+            clearMocks(kisRestClient, kisRealQuotationClient, answers = false)
             orderRepository.deleteAll()
             cycleRepository.deleteAll()
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
@@ -233,7 +234,7 @@ class TradingCycleScenarioTest(
 
             test("다중 종목 동시 운용: 3개 cycle 격리 진행, 한 종목만 손절 시 나머지 영향 없음") {
                 val codes = listOf("005930" to "삼성전자", "035420" to "NAVER", "000660" to "SK하이닉스")
-                every { kisRestClient.searchStock(any()) } answers {
+                every { kisRealQuotationClient.searchStock(any()) } answers {
                     val pdno = firstArg<String>()
                     val name = codes.firstOrNull { it.first == pdno }?.second
                     if (name != null) {

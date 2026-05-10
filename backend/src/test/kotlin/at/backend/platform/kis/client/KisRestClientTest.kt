@@ -13,7 +13,6 @@ import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import org.springframework.web.client.RestClientException
-import java.time.LocalDate
 import kotlin.system.measureTimeMillis
 
 class KisRestClientTest : FunSpec({
@@ -70,20 +69,6 @@ class KisRestClientTest : FunSpec({
             stub("/uapi/domestic-stock/v1/quotations/inquire-price", "current-price.json")
 
             client().getCurrentPrice("005930").output.stckPrpr shouldBe "70000"
-        }
-
-        test("개장일 조회 - opnd_yn 반환 (실 KIS는 output을 Array로 반환)") {
-            stub("/uapi/domestic-stock/v1/quotations/chk-holiday", "holiday.json")
-
-            client().checkHoliday(LocalDate.of(2026, 1, 2)).output.first().opndYn shouldBe "Y"
-        }
-
-        test("종목 검색 - output 단일 객체 반환") {
-            stub("/uapi/domestic-stock/v1/quotations/search-stock-info", "stock-search.json")
-
-            val output = client().searchStock("005930").output
-            output.pdno shouldBe "005930"
-            output.prdtAbrvName shouldBe "삼성전자"
         }
 
         test("예수금 조회 - prvs_rcdl_excc_amt 필드 반환") {

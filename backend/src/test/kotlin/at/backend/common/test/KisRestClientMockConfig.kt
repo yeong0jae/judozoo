@@ -1,5 +1,6 @@
 package at.backend.common.test
 
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
 import io.mockk.mockk
 import org.springframework.boot.test.context.TestConfiguration
@@ -12,4 +13,8 @@ class KisRestClientMockConfig {
     @Bean
     @Primary
     fun mockKisRestClient(): KisRestClient = mockk()
+
+    @Bean
+    @Primary
+    fun mockKisRealQuotationClient(): KisRealQuotationClient = mockk()
 }

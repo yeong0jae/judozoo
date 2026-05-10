@@ -10,6 +10,7 @@ import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisHolidayResponse
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.response.KisStockSearchResponse
 import at.backend.trading.domain.AlreadyClosedException
 import at.backend.trading.domain.TradingInput
@@ -32,18 +33,19 @@ class TradingServiceTest(
     @Autowired private val tradingService: TradingService,
     @Autowired private val tradingCycleRepository: TradingCycleJpaRepository,
     @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val kisRealQuotationClient: KisRealQuotationClient,
     @Autowired private val timeProvider: MutableTimeProvider,
     @Autowired private val cycleOrchestrator: at.backend.trading.application.CycleOrchestrator,
 ) : IntegrationTestBase() {
 
     private fun stubSearchStock(name: String = "삼성전자") {
-        every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
             output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = name)
         )
     }
 
     private fun stubSearchStockEmpty() {
-        every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
             output = KisStockSearchResponse.Output(pdno = "999999", prdtAbrvName = ""),
         )
     }
@@ -61,7 +63,7 @@ class TradingServiceTest(
     }
 
     private fun stubHoliday(opndYn: String = "Y") {
-        every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
+        every { kisRealQuotationClient.checkHoliday(any()) } returns KisHolidayResponse(
             output = listOf(KisHolidayResponse.Output(opndYn = opndYn))
         )
     }
@@ -108,7 +110,7 @@ class TradingServiceTest(
 
     init {
         beforeEach {
-            clearMocks(kisRestClient)
+            clearMocks(kisRestClient, kisRealQuotationClient)
             clearMocks(cycleOrchestrator)
             tradingCycleRepository.deleteAll()
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW

@@ -5,8 +5,6 @@ import at.backend.platform.kis.client.request.KisOrderRequest
 import at.backend.platform.kis.client.response.*
 import org.springframework.http.MediaType
 import org.springframework.web.client.RestClient
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 class KisRestClient(
     private val accountNo: String,
@@ -32,33 +30,6 @@ class KisRestClient(
             .retrieve()
             .body(KisCurrentPriceResponse::class.java)
             ?: error("KIS 현재가 응답이 비어있습니다")
-
-    fun checkHoliday(date: LocalDate): KisHolidayResponse =
-        restClient.get()
-            .uri {
-                it.path("/uapi/domestic-stock/v1/quotations/chk-holiday")
-                    .queryParam("BASS_DT", date.format(YYYYMMDD))
-                    .queryParam("CTX_AREA_NK", "")
-                    .queryParam("CTX_AREA_FK", "")
-                    .build()
-            }
-            .header("tr_id", "CTCA0903R")
-            .retrieve()
-            .body(KisHolidayResponse::class.java)
-            ?: error("KIS 휴장일 응답이 비어있습니다")
-
-    fun searchStock(keyword: String): KisStockSearchResponse =
-        restClient.get()
-            .uri {
-                it.path("/uapi/domestic-stock/v1/quotations/search-stock-info")
-                    .queryParam("PRDT_TYPE_CD", PRDT_TYPE_DOMESTIC_STOCK)
-                    .queryParam("PDNO", keyword)
-                    .build()
-            }
-            .header("tr_id", "CTPF1002R")
-            .retrieve()
-            .body(KisStockSearchResponse::class.java)
-            ?: error("KIS 종목 검색 응답이 비어있습니다")
 
     fun getBalance(): KisBalanceResponse =
         restClient.get()
@@ -157,12 +128,7 @@ class KisRestClient(
     }
 
     companion object {
-        private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
         private const val MARKET_CLOSE_HHMMSS = "153000"
-
-        // PRDT_TYPE_CD: 상품 유형 (300=국내주식, 301=해외주식, 302=선물옵션, 701=ETF, ...)
-        private const val PRDT_TYPE_DOMESTIC_STOCK = "300"
-
         private const val ORD_DVSN_MARKET = "01"
         private const val ORD_UNPR_MARKET = "0"
         private const val RVSE_CNCL_CANCEL = "02"

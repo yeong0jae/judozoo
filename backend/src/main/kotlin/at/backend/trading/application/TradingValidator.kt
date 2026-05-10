@@ -1,5 +1,6 @@
 package at.backend.trading.application
 
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.TradingInput
@@ -14,6 +15,7 @@ import java.time.LocalTime
 @Component
 class TradingValidator(
     private val kisRestClient: KisRestClient,
+    private val kisRealQuotationClient: KisRealQuotationClient,
     private val tradingCycleRepository: TradingCycleJpaRepository,
     private val kisProperties: KisProperties,
 ) {
@@ -30,7 +32,8 @@ class TradingValidator(
     }
 
     private fun resolveStockName(stockCode: String): String {
-        val output = kisRestClient.searchStock(stockCode).output
+        // search-stock-info는 VTS 미지원이라 실거래 자격증명을 쓰는 별도 클라이언트로 호출
+        val output = kisRealQuotationClient.searchStock(stockCode).output
         return output.prdtAbrvName.takeIf { it.isNotBlank() }
             ?: throw TradingValidationException(TradingValidationException.ErrorCode.STOCK_NOT_FOUND)
     }
@@ -60,7 +63,8 @@ class TradingValidator(
     }
 
     private fun validateHoliday(now: LocalDateTime) {
-        val isMarketOpen = kisRestClient.checkHoliday(now.toLocalDate()).output.firstOrNull()?.opndYn == "Y"
+        // chk-holiday는 VTS 미지원이라 실거래 자격증명 클라이언트로 호출
+        val isMarketOpen = kisRealQuotationClient.checkHoliday(now.toLocalDate()).output.firstOrNull()?.opndYn == "Y"
         if (!isMarketOpen) throw TradingValidationException(TradingValidationException.ErrorCode.HOLIDAY)
     }
 

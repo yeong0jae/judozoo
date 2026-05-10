@@ -4,6 +4,7 @@ import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.MutableTimeProvider
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
@@ -19,18 +20,19 @@ import java.time.LocalDateTime
 class StockServiceTest(
     @Autowired private val stockService: StockService,
     @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val kisRealQuotationClient: KisRealQuotationClient,
     @Autowired private val timeProvider: MutableTimeProvider,
 ) : IntegrationTestBase() {
 
     init {
         beforeEach {
-            clearMocks(kisRestClient)
+            clearMocks(kisRestClient, kisRealQuotationClient)
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
         }
 
         context("종목 검색") {
             test("KIS 응답을 종목코드/종목명으로 매핑한다") {
-                every { kisRestClient.searchStock("005930") } returns KisStockSearchResponse(
+                every { kisRealQuotationClient.searchStock("005930") } returns KisStockSearchResponse(
                     output = KisStockSearchResponse.Output(
                         pdno = "005930",
                         prdtAbrvName = "삼성전자",

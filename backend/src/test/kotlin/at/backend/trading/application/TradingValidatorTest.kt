@@ -2,6 +2,7 @@ package at.backend.trading.application
 
 import at.backend.trading.domain.TradingInput
 import at.backend.trading.domain.TradingValidationException
+import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
@@ -21,6 +22,7 @@ import java.time.LocalDateTime
 class TradingValidatorTest : FunSpec({
 
     val kisRestClient = mockk<KisRestClient>()
+    val kisRealQuotationClient = mockk<KisRealQuotationClient>()
     val tradingCycleRepository = mockk<TradingCycleJpaRepository>()
     val kisProperties = mockk<KisProperties>().apply {
         every { accountNo } returns "00000000"
@@ -29,7 +31,7 @@ class TradingValidatorTest : FunSpec({
     fun nowAt(hour: Int, minute: Int): LocalDateTime =
         LocalDateTime.of(2026, 1, 2, hour, minute)
 
-    val validator = TradingValidator(kisRestClient, tradingCycleRepository, kisProperties)
+    val validator = TradingValidator(kisRestClient, kisRealQuotationClient, tradingCycleRepository, kisProperties)
 
     val validInput = TradingInput(
         stockCode = "005930",
@@ -42,7 +44,7 @@ class TradingValidatorTest : FunSpec({
     )
 
     fun stubAllPass() {
-        every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
             output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
         )
         every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
@@ -53,7 +55,7 @@ class TradingValidatorTest : FunSpec({
         )
         every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
         every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns emptyList()
-        every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
+        every { kisRealQuotationClient.checkHoliday(any()) } returns KisHolidayResponse(
             output = listOf(KisHolidayResponse.Output(opndYn = "Y"))
         )
     }
@@ -105,7 +107,7 @@ class TradingValidatorTest : FunSpec({
 
     context("종목 미존재") {
         test("KIS 검색 결과의 종목명이 비어있으면 STOCK_NOT_FOUND") {
-            every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
                 output = KisStockSearchResponse.Output(pdno = "999999", prdtAbrvName = "")
             )
 
@@ -118,7 +120,7 @@ class TradingValidatorTest : FunSpec({
 
     context("1주 가격 초과") {
         test("현재가가 perBuyAmount를 초과하면 PRICE_BELOW_ONE_SHARE") {
-            every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
                 output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
             )
             every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
@@ -148,7 +150,7 @@ class TradingValidatorTest : FunSpec({
 
     context("동일 종목 활성 사이클 중복") {
         test("같은 종목의 활성 사이클이 존재하면 DUPLICATE_COMMAND") {
-            every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
                 output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
             )
             every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
@@ -187,7 +189,7 @@ class TradingValidatorTest : FunSpec({
 
     context("휴장일") {
         test("KIS 영업일 조회에서 bzdy_yn=N이면 HOLIDAY") {
-            every { kisRestClient.searchStock(any()) } returns KisStockSearchResponse(
+            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
                 output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
             )
             every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
@@ -198,7 +200,7 @@ class TradingValidatorTest : FunSpec({
             )
             every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
             every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns emptyList()
-            every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
+            every { kisRealQuotationClient.checkHoliday(any()) } returns KisHolidayResponse(
                 output = listOf(KisHolidayResponse.Output(opndYn = "N"))
             )
 
