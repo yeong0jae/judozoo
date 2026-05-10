@@ -7,9 +7,12 @@ import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.order.ExecutionNotice
 import at.backend.trading.domain.order.OrderSide
 import jakarta.annotation.PreDestroy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.web.socket.*
 import org.springframework.web.socket.client.WebSocketClient
@@ -17,10 +20,9 @@ import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.seconds
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -30,6 +32,7 @@ class KisWebSocketClient(
     private val approvalKeyProvider: KisApprovalKeyProvider,
     private val webSocketClient: WebSocketClient,
     private val objectMapper: ObjectMapper,
+    private val applicationScope: CoroutineScope,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -41,8 +44,6 @@ class KisWebSocketClient(
 
     // tr_id별 AES256 복호화 키 (구독 SUBSCRIBE SUCCESS 응답에서 추출)
     private val cipherKeys = ConcurrentHashMap<String, AesKey>()
-    private val reconnectExecutor: ScheduledExecutorService =
-        Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "kis-ws-reconnect").apply { isDaemon = true } }
 
     @Volatile
     private var reconnectAttempt: Int = 0
@@ -240,24 +241,22 @@ class KisWebSocketClient(
     }
 
     private fun scheduleReconnect() {
-        val delay = BACKOFF_DELAYS_SEC[reconnectAttempt.coerceIn(0, BACKOFF_DELAYS_SEC.size - 1)]
+        val delaySec = BACKOFF_DELAYS_SEC[reconnectAttempt.coerceIn(0, BACKOFF_DELAYS_SEC.size - 1)]
         reconnectAttempt = (reconnectAttempt + 1).coerceAtMost(BACKOFF_DELAYS_SEC.size - 1)
-        reconnectExecutor.schedule({ connect() }, delay, TimeUnit.SECONDS)
+        applicationScope.launch {
+            delay(delaySec.seconds)
+            connect()
+        }
     }
 
     @PreDestroy
     fun shutdown() {
         runCatching { currentSession.getAndSet(null)?.close() }
-        reconnectExecutor.shutdownNow()
     }
 
     private data class Subscription(val trId: String, val trKey: String)
 
-    private data class AesKey(val key: ByteArray, val iv: ByteArray) {
-        // ByteArray equals/hashCode는 reference 비교라 적합하지 않음. ConcurrentHashMap 키로 안 쓰니 default 유지.
-        override fun equals(other: Any?): Boolean = this === other
-        override fun hashCode(): Int = System.identityHashCode(this)
-    }
+    private class AesKey(val key: ByteArray, val iv: ByteArray)
 
     companion object {
         private const val TR_PRICE = "H0STCNT0"

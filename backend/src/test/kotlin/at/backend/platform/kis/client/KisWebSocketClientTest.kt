@@ -8,6 +8,9 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -85,7 +88,8 @@ private fun fixture(mapper: JsonMapper): Fixture {
     val wsClient = mockk<WebSocketClient>().apply {
         every { execute(any(), any<String>()) } returns CompletableFuture.completedFuture(session)
     }
-    val client = KisWebSocketClient(properties, approvalProvider, wsClient, mapper)
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val client = KisWebSocketClient(properties, approvalProvider, wsClient, mapper, scope)
     return Fixture(client, session, sent)
 }
 

@@ -6,6 +6,7 @@ import at.backend.platform.kis.KisRateLimiter
 import at.backend.platform.kis.client.KisAuthClient
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.KisWebSocketClient
+import kotlinx.coroutines.CoroutineScope
 import tools.jackson.databind.ObjectMapper
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -72,12 +73,14 @@ class KisApiClientConfig {
         approvalKeyProvider: KisApprovalKeyProvider,
         webSocketClient: WebSocketClient,
         objectMapper: ObjectMapper,
+        applicationScope: CoroutineScope,
     ): KisWebSocketClient =
         KisWebSocketClient(
             properties = properties,
             approvalKeyProvider = approvalKeyProvider,
             webSocketClient = webSocketClient,
             objectMapper = objectMapper,
+            applicationScope = applicationScope,
         )
 
     companion object {
