@@ -27,6 +27,7 @@ class TradingCycleTest : FunSpec({
         stopLossPct: BigDecimal = BigDecimal("-2.0"),
         midwayProfitPct: BigDecimal = BigDecimal("3.0"),
     ) = TradingCycle(
+        accountNo = "00000000",
         stockCode = "000660",
         stockName = "SK하이닉스",
         perBuyAmount = 1_000_000,
@@ -157,6 +158,7 @@ class TradingCycleTest : FunSpec({
 
         test("100% 매도 시 잔여 0") {
             TradingCycle(
+                accountNo = "00000000",
                 stockCode = "000660", stockName = "SK하이닉스",
                 perBuyAmount = 1_000_000, buyIntervalMin = 3,
                 splitSellRatio = BigDecimal("1.0"),

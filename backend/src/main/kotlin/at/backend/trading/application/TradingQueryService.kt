@@ -3,6 +3,7 @@ package at.backend.trading.application
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.TradingProperties
 import at.backend.trading.application.result.DailyTradingResult
 import at.backend.trading.application.result.TradingDetailResult
@@ -25,16 +26,17 @@ class TradingQueryService(
     private val kisRestClient: KisRestClient,
     private val tradingProperties: TradingProperties,
     private val timeProvider: TimeProvider,
+    private val kisProperties: KisProperties,
 ) {
 
     fun findActive(): List<TradingSummaryResult> =
-        tradingCycleRepository.findByStatusIn(TradingCycleStatus.OPEN)
+        tradingCycleRepository.findByAccountNoAndStatusIn(kisProperties.accountNo, TradingCycleStatus.OPEN)
             .map { toSummary(it) }
 
     fun findToday(): List<DailyTradingResult> {
         val startOfDay = timeProvider.today().atStartOfDay()
         val endOfDay = startOfDay.plusDays(1)
-        return tradingCycleRepository.findByCreatedAtBetween(startOfDay, endOfDay)
+        return tradingCycleRepository.findByAccountNoAndCreatedAtBetween(kisProperties.accountNo, startOfDay, endOfDay)
             .map { toDailyTrading(it) }
     }
 

@@ -34,6 +34,7 @@ class AccountServiceTest(
         buyAttempt: Int = 0,
     ) = tradingCycleRepository.save(
         TradingCycle(
+            accountNo = "00000000",
             stockCode = stockCode,
             stockName = "삼성전자",
             perBuyAmount = perBuyAmount,

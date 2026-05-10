@@ -45,6 +45,7 @@ class TradingCycleRunnerTest(
     private fun saveCycle(buyIntervalMin: Int = 3, perBuyAmount: Long = 1_000_000): TradingCycle =
         cycleRepository.save(
             TradingCycle(
+                accountNo = "00000000",
                 stockCode = "005930",
                 stockName = "삼성전자",
                 perBuyAmount = perBuyAmount,

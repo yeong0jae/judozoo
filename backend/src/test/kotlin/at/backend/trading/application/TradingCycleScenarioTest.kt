@@ -390,6 +390,7 @@ class TradingCycleScenarioTest(
                 val saved = activeStatuses.mapIndexed { i, status ->
                     cycleRepository.save(
                         TradingCycle(
+                            accountNo = "00000000",
                             stockCode = "00593$i",
                             stockName = "테스트$i",
                             perBuyAmount = 1_000_000,

@@ -33,6 +33,7 @@ class UnclosedCycleStartupHookTest(
     private fun saveCycle(status: TradingCycleStatus): TradingCycle =
         cycleRepository.save(
             TradingCycle(
+                accountNo = "00000000",
                 stockCode = "005930",
                 stockName = "삼성전자",
                 perBuyAmount = 100_000L,

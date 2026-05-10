@@ -44,6 +44,7 @@ class CycleOrchestratorTest(
         buyIntervalMin: Int = 1,
     ): TradingCycle = cycleRepository.save(
         TradingCycle(
+            accountNo = "00000000",
             stockCode = stockCode,
             stockName = "삼성전자",
             perBuyAmount = 1_000_000L,

@@ -6,7 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.time.LocalDateTime
 
 interface TradingCycleJpaRepository : JpaRepository<TradingCycle, Long> {
-    fun findByStatusIn(statuses: List<TradingCycleStatus>): List<TradingCycle>
-    fun findByStockCodeAndStatusIn(stockCode: String, statuses: List<TradingCycleStatus>): List<TradingCycle>
-    fun findByCreatedAtBetween(start: LocalDateTime, end: LocalDateTime): List<TradingCycle>
+    fun findByAccountNoAndStatusIn(accountNo: String, statuses: List<TradingCycleStatus>): List<TradingCycle>
+    fun findByAccountNoAndStockCodeAndStatusIn(
+        accountNo: String,
+        stockCode: String,
+        statuses: List<TradingCycleStatus>,
+    ): List<TradingCycle>
+    fun findByAccountNoAndCreatedAtBetween(
+        accountNo: String,
+        start: LocalDateTime,
+        end: LocalDateTime,
+    ): List<TradingCycle>
 }

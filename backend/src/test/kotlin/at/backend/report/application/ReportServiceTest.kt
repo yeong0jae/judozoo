@@ -88,6 +88,7 @@ class ReportServiceTest(
 
     private fun saveCycle(createdAt: LocalDateTime, closeReason: CloseReason): Long {
         val cycle = TradingCycle(
+            accountNo = "00000000",
             stockCode = "005930",
             stockName = "삼성전자",
             perBuyAmount = 100_000,

@@ -19,6 +19,9 @@ class TradingCycle(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
 
+    @Column(nullable = false, length = 16)
+    val accountNo: String,
+
     @Column(nullable = false, length = 10)
     val stockCode: String,
 

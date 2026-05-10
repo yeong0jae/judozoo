@@ -44,6 +44,7 @@ class OrderServiceTest(
 
     private fun saveCycle(): TradingCycle = cycleRepository.save(
         TradingCycle(
+            accountNo = "00000000",
             stockCode = "005930",
             stockName = "삼성전자",
             perBuyAmount = 1_000_000L,

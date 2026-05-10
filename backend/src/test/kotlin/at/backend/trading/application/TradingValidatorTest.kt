@@ -7,6 +7,7 @@ import at.backend.platform.kis.client.response.KisBalanceResponse
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
 import at.backend.platform.kis.client.response.KisHolidayResponse
 import at.backend.platform.kis.client.response.KisStockSearchResponse
+import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.assertions.throwables.shouldThrow
@@ -21,11 +22,14 @@ class TradingValidatorTest : FunSpec({
 
     val kisRestClient = mockk<KisRestClient>()
     val tradingCycleRepository = mockk<TradingCycleJpaRepository>()
+    val kisProperties = mockk<KisProperties>().apply {
+        every { accountNo } returns "00000000"
+    }
 
     fun nowAt(hour: Int, minute: Int): LocalDateTime =
         LocalDateTime.of(2026, 1, 2, hour, minute)
 
-    val validator = TradingValidator(kisRestClient, tradingCycleRepository)
+    val validator = TradingValidator(kisRestClient, tradingCycleRepository, kisProperties)
 
     val validInput = TradingInput(
         stockCode = "005930",
@@ -47,8 +51,8 @@ class TradingValidatorTest : FunSpec({
         every { kisRestClient.getBalance() } returns KisBalanceResponse(
             output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
         )
-        every { tradingCycleRepository.findByStatusIn(any()) } returns emptyList()
-        every { tradingCycleRepository.findByStockCodeAndStatusIn(any(), any()) } returns emptyList()
+        every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
+        every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns emptyList()
         every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
             output = listOf(KisHolidayResponse.Output(opndYn = "Y"))
         )
@@ -153,9 +157,9 @@ class TradingValidatorTest : FunSpec({
             every { kisRestClient.getBalance() } returns KisBalanceResponse(
                 output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
             )
-            every { tradingCycleRepository.findByStatusIn(any()) } returns emptyList()
+            every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
             val existingCycle = mockk<TradingCycle>()
-            every { tradingCycleRepository.findByStockCodeAndStatusIn(any(), any()) } returns listOf(existingCycle)
+            every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns listOf(existingCycle)
 
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
@@ -192,8 +196,8 @@ class TradingValidatorTest : FunSpec({
             every { kisRestClient.getBalance() } returns KisBalanceResponse(
                 output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
             )
-            every { tradingCycleRepository.findByStatusIn(any()) } returns emptyList()
-            every { tradingCycleRepository.findByStockCodeAndStatusIn(any(), any()) } returns emptyList()
+            every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
+            every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns emptyList()
             every { kisRestClient.checkHoliday(any()) } returns KisHolidayResponse(
                 output = listOf(KisHolidayResponse.Output(opndYn = "N"))
             )

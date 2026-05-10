@@ -34,6 +34,7 @@ class TradingQueryServiceTest(
         status: TradingCycleStatus = TradingCycleStatus.INITIATED,
     ) = tradingCycleRepository.save(
         TradingCycle(
+            accountNo = "00000000",
             stockCode = stockCode,
             stockName = stockName,
             perBuyAmount = perBuyAmount,

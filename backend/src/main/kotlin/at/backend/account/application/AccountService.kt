@@ -1,6 +1,7 @@
 package at.backend.account.application
 
 import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import org.springframework.stereotype.Service
@@ -9,11 +10,12 @@ import org.springframework.stereotype.Service
 class AccountService(
     private val kisRestClient: KisRestClient,
     private val tradingCycleRepository: TradingCycleJpaRepository,
+    private val kisProperties: KisProperties,
 ) {
 
     fun getBalance(): AccountBalanceResult {
         val cashBalance = kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
-        val reservedAmount = tradingCycleRepository.findByStatusIn(TradingCycleStatus.ACTIVE)
+        val reservedAmount = tradingCycleRepository.findByAccountNoAndStatusIn(kisProperties.accountNo, TradingCycleStatus.ACTIVE)
             .sumOf { it.perBuyAmount * (MAX_BUY_ATTEMPT - it.buyAttempt) }
         return AccountBalanceResult(
             cashBalance = cashBalance,

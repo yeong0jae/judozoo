@@ -2,6 +2,7 @@ package at.backend.trading.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
+import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.event.TradingCycleClosed
@@ -17,13 +18,14 @@ class UnclosedCycleStartupHook(
     private val cycleRepository: TradingCycleJpaRepository,
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
+    private val kisProperties: KisProperties,
 ) {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
     @EventListener(ApplicationReadyEvent::class)
     fun closeUnclosedCycles() {
-        val active = cycleRepository.findByStatusIn(TradingCycleStatus.OPEN)
+        val active = cycleRepository.findByAccountNoAndStatusIn(kisProperties.accountNo, TradingCycleStatus.OPEN)
         if (active.isEmpty()) return
         val now = timeProvider.now()
         for (cycle in active) {

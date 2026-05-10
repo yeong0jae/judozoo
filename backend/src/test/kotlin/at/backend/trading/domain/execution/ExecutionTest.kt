@@ -9,6 +9,7 @@ import java.math.BigDecimal
 class ExecutionTest : FunSpec({
 
     fun cycle() = TradingCycle(
+        accountNo = "00000000",
         stockCode = "000660",
         stockName = "SK하이닉스",
         perBuyAmount = 1_000_000,

@@ -1,5 +1,6 @@
 package at.backend.report.application
 
+import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
@@ -13,13 +14,14 @@ class ReportService(
     private val cycleRepository: TradingCycleJpaRepository,
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
+    private val kisProperties: KisProperties,
 ) {
 
     fun findDaily(date: LocalDate): List<DailyReportResult> {
         val startOfDay = date.atStartOfDay()
         val endOfDay = startOfDay.plusDays(1)
         return cycleRepository
-            .findByCreatedAtBetween(startOfDay, endOfDay)
+            .findByAccountNoAndCreatedAtBetween(kisProperties.accountNo, startOfDay, endOfDay)
             .map { aggregate(it) }
     }
 

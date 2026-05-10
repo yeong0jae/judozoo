@@ -11,6 +11,7 @@ class TradingCycleTransitionTest : FunSpec({
         status: TradingCycleStatus,
         buyAttempt: Int = 0,
     ) = TradingCycle(
+        accountNo = "00000000",
         stockCode = "000660",
         stockName = "SK하이닉스",
         perBuyAmount = 1_000_000,
@@ -152,6 +153,7 @@ class TradingCycleTransitionTest : FunSpec({
 private fun TradingCycle.copy(
     stopLossPct: BigDecimal = this.stopLossPct,
 ) = TradingCycle(
+    accountNo = accountNo,
     stockCode = stockCode,
     stockName = stockName,
     perBuyAmount = perBuyAmount,

@@ -1,6 +1,7 @@
 package at.backend.trading.application
 
 import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.TradingInput
 import at.backend.trading.domain.TradingValidationException
 import at.backend.trading.domain.cycle.TradingCycle
@@ -14,6 +15,7 @@ import java.time.LocalTime
 class TradingValidator(
     private val kisRestClient: KisRestClient,
     private val tradingCycleRepository: TradingCycleJpaRepository,
+    private val kisProperties: KisProperties,
 ) {
 
     fun validate(input: TradingInput, now: LocalDateTime): String {
@@ -46,7 +48,9 @@ class TradingValidator(
     }
 
     private fun validateNoDuplicate(stockCode: String) {
-        val existing = tradingCycleRepository.findByStockCodeAndStatusIn(stockCode, TradingCycleStatus.ACTIVE)
+        val existing = tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(
+            kisProperties.accountNo, stockCode, TradingCycleStatus.ACTIVE
+        )
         if (existing.isNotEmpty()) throw TradingValidationException(TradingValidationException.ErrorCode.DUPLICATE_COMMAND)
     }
 

@@ -3,6 +3,7 @@ package at.backend.trading.application
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
+import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.application.result.TradingCancelResult
 import at.backend.trading.application.result.TradingCreatedResult
 import at.backend.trading.domain.TradingInput
@@ -22,6 +23,7 @@ class TradingService(
     private val timeProvider: TimeProvider,
     private val cycleOrchestrator: CycleOrchestrator,
     private val eventPublisher: ApplicationEventPublisher,
+    private val kisProperties: KisProperties,
 ) {
 
     @Transactional
@@ -29,6 +31,7 @@ class TradingService(
         val now = timeProvider.now()
         val stockName = tradingValidator.validate(input, now)
         val cycle = TradingCycle(
+            accountNo = kisProperties.accountNo,
             stockCode = input.stockCode,
             stockName = stockName,
             perBuyAmount = input.perBuyAmount,
