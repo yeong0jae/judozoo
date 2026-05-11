@@ -5,7 +5,7 @@ import at.backend.trading.domain.order.ExecutionNotice
 import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -17,13 +17,13 @@ class ExecutionNoticeHandler(
     private val eventPublisher: ApplicationEventPublisher,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     @Transactional
     fun handle(notice: ExecutionNotice) {
         val order = orderRepository.findByOrderNo(notice.orderNo)
         if (order == null) {
-            log.debug("일치하는 Order 없음 — 통보 무시 orderNo={}", notice.orderNo)
+            log.debug { "일치하는 Order 없음 — 통보 무시 orderNo=${notice.orderNo}" }
             return
         }
         val execution = order.applyExecution(notice, fee = 0, tax = 0)

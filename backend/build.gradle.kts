@@ -38,6 +38,7 @@ dependencies {
 
     // logback
     implementation("net.logstash.logback:logstash-logback-encoder:8.0")
+    implementation("io.github.oshai:kotlin-logging-jvm:7.0.7")
 
     // resilience4j
     implementation("io.github.resilience4j:resilience4j-ratelimiter:2.2.0")

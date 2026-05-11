@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.web.socket.*
 import org.springframework.web.socket.client.WebSocketClient
 import tools.jackson.databind.ObjectMapper
@@ -35,7 +35,7 @@ class KisWebSocketClient(
     private val applicationScope: CoroutineScope,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
     private val trExec: String = properties.tr.executionNotice
     private val currentSession = AtomicReference<WebSocketSession?>(null)
 
@@ -90,7 +90,7 @@ class KisWebSocketClient(
             currentSession.set(session)
             session
         } catch (e: Exception) {
-            log.warn("KIS WS 연결 실패, 백오프 재연결 예약", e)
+            log.warn(e) { "KIS WS 연결 실패, 백오프 재연결 예약" }
             scheduleReconnect()
             null
         }
@@ -117,7 +117,7 @@ class KisWebSocketClient(
      */
     internal val handler: WebSocketHandler = object : WebSocketHandler {
         override fun afterConnectionEstablished(session: WebSocketSession) {
-            log.info("KIS WS 연결됨: sessionId={}", session.id)
+            log.info { "KIS WS 연결됨: sessionId=${session.id}" }
             reconnectAttempt = 0
             _connectionState.tryEmit(true)
             subscriptions.forEach { sendSubscription(session, it, subscribe = true) }
@@ -133,11 +133,11 @@ class KisWebSocketClient(
         }
 
         override fun handleTransportError(session: WebSocketSession, exception: Throwable) {
-            log.warn("KIS WS 전송 오류", exception)
+            log.warn(exception) { "KIS WS 전송 오류" }
         }
 
         override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
-            log.warn("KIS WS 끊김 status={}, 재연결 예약", closeStatus)
+            log.warn { "KIS WS 끊김 status=$closeStatus, 재연결 예약" }
             currentSession.compareAndSet(session, null)
             _connectionState.tryEmit(false)
             if (subscriptions.isNotEmpty()) scheduleReconnect()
@@ -160,7 +160,7 @@ class KisWebSocketClient(
         val iv = output.path("iv").asText("")
         if (key.isNotBlank() && iv.isNotBlank()) {
             cipherKeys[trId] = AesKey(key.toByteArray(), iv.toByteArray())
-            log.info("KIS WS 복호화 키 등록: trId={}", trId)
+            log.info { "KIS WS 복호화 키 등록: trId=$trId" }
         }
     }
 
@@ -172,7 +172,7 @@ class KisWebSocketClient(
         val rawBody = parts[3]
         val body = if (encrypted) {
             val cipher = cipherKeys[trId] ?: run {
-                log.warn("KIS WS 암호화 응답이지만 key 없음: trId={}", trId)
+                log.warn { "KIS WS 암호화 응답이지만 key 없음: trId=$trId" }
                 return
             }
             decryptAes256(rawBody, cipher) ?: return
@@ -196,7 +196,7 @@ class KisWebSocketClient(
             val decoded = Base64.getDecoder().decode(base64Body)
             String(cipher.doFinal(decoded), Charsets.UTF_8)
         } catch (e: Exception) {
-            log.warn("KIS WS 복호화 실패: trId payload prefix={}", base64Body.take(20), e)
+            log.warn(e) { "KIS WS 복호화 실패: trId payload prefix=${base64Body.take(20)}" }
             null
         }
     }

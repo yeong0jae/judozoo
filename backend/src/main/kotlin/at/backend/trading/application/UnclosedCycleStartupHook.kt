@@ -7,7 +7,7 @@ import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.event.TradingCycleClosed
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.event.EventListener
@@ -21,7 +21,7 @@ class UnclosedCycleStartupHook(
     private val kisProperties: KisProperties,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     @EventListener(ApplicationReadyEvent::class)
     fun closeUnclosedCycles() {
@@ -42,6 +42,6 @@ class UnclosedCycleStartupHook(
                 )
             )
         }
-        log.warn("재기동 시 활성 사이클 일괄 마감 — count={}", active.size)
+        log.warn { "재기동 시 활성 사이클 일괄 마감 — count=${active.size}" }
     }
 }

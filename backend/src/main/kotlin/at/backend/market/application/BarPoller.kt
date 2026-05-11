@@ -4,13 +4,13 @@ import at.backend.library.time.atKstInstant
 import at.backend.market.domain.Bar
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBarResponse
+import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.time.Duration
@@ -29,7 +29,7 @@ class BarPoller(
     @Value("\${trading.market.bar-poll-interval-millis}") private val pollIntervalMillis: Long,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
     private val subscribed = ConcurrentHashMap.newKeySet<String>()
     private val latestBarEnd = ConcurrentHashMap<String, Instant>()
     private val pollingJob = AtomicReference<Job?>(null)
@@ -68,7 +68,7 @@ class BarPoller(
             while (isActive) {
                 subscribed.forEach { stockCode ->
                     runCatching { pollOnce(stockCode) }
-                        .onFailure { log.warn("BarPoller 폴링 실패 stockCode={}", stockCode, it) }
+                        .onFailure { log.warn(it) { "BarPoller 폴링 실패 stockCode=$stockCode" } }
                 }
                 delay(pollIntervalMillis.milliseconds)
             }

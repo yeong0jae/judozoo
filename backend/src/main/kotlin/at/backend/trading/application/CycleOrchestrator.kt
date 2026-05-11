@@ -11,7 +11,7 @@ import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.concurrent.ConcurrentHashMap
@@ -33,12 +33,12 @@ class CycleOrchestrator(
     @Value("\${trading.cycle.holding-poll-interval-millis}") private val holdingPollIntervalMillis: Long,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
     private val activeRunners = ConcurrentHashMap<Long, TradingCycleRunner>()
 
     fun start(cycle: TradingCycle) {
         if (activeRunners.containsKey(cycle.id)) {
-            log.warn("이미 실행 중인 사이클 — start 무시 cycleId={}", cycle.id)
+            log.warn { "이미 실행 중인 사이클 — start 무시 cycleId=${cycle.id}" }
             return
         }
 
@@ -50,22 +50,22 @@ class CycleOrchestrator(
         tradingCycleRunner.start()
         applicationScope.launch {
             runCatching { tradingCycleRunner.awaitCompletion() }
-                .onFailure { log.warn("사이클 종료 대기 중 오류 cycleId={}", cycle.id, it) }
+                .onFailure { log.warn(it) { "사이클 종료 대기 중 오류 cycleId=${cycle.id}" } }
             cleanup(cycle.id)
         }
-        log.info("CycleOrchestrator 시작 cycleId={}, stockCode={}", cycle.id, cycle.stockCode)
+        log.info { "CycleOrchestrator 시작 cycleId=${cycle.id}, stockCode=${cycle.stockCode}" }
     }
 
     fun cancel(cycleId: Long) {
         val runner = activeRunners[cycleId]
         if (runner == null) {
-            log.warn("취소 대상 사이클이 활성 상태가 아님 cycleId={}", cycleId)
+            log.warn { "취소 대상 사이클이 활성 상태가 아님 cycleId=$cycleId" }
             return
         }
         orderService.cancelInFlightBuys(cycleId)
         applicationScope.launch {
             runCatching { runner.requestCancellation() }
-                .onFailure { log.warn("사이클 취소 처리 실패 cycleId={}", cycleId, it) }
+                .onFailure { log.warn(it) { "사이클 취소 처리 실패 cycleId=$cycleId" } }
         }
     }
 
@@ -75,7 +75,7 @@ class CycleOrchestrator(
         val removed = activeRunners.remove(cycleId) ?: return
         priceTickDataStream.unsubscribe(removed.stockCode)
         barPoller.unsubscribe(removed.stockCode)
-        log.info("CycleOrchestrator 정리 cycleId={}, stockCode={}", cycleId, removed.stockCode)
+        log.info { "CycleOrchestrator 정리 cycleId=$cycleId, stockCode=${removed.stockCode}" }
     }
 
     private fun newTradingCycleRunner(cycle: TradingCycle) = TradingCycleRunner(

@@ -6,7 +6,7 @@ import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Component
 
 @Component
@@ -16,7 +16,7 @@ class ExecutionNoticeListener(
     private val applicationScope: CoroutineScope,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
     private var job: Job? = null
 
     @PostConstruct
@@ -25,7 +25,7 @@ class ExecutionNoticeListener(
         job = applicationScope.launch {
             webSocketClient.executionNotices.collect { notice ->
                 runCatching { handler.handle(notice) }
-                    .onFailure { log.error("체결 통보 처리 실패 orderNo={}", notice.orderNo, it) }
+                    .onFailure { log.error(it) { "체결 통보 처리 실패 orderNo=${notice.orderNo}" } }
             }
         }
     }

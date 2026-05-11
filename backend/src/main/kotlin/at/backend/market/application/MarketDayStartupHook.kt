@@ -4,7 +4,7 @@ import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
 import at.backend.market.domain.event.HolidayChanged
 import at.backend.platform.kis.client.KisRealQuotationClient
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.event.EventListener
@@ -17,7 +17,7 @@ class MarketDayStartupHook(
     private val eventPublisher: ApplicationEventPublisher,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     @EventListener(ApplicationReadyEvent::class)
     fun publishMarketDay() {
@@ -26,12 +26,12 @@ class MarketDayStartupHook(
             // chk-holiday는 VTS 미지원이라 실거래 자격증명 클라이언트로 호출
             kisRealQuotationClient.checkHoliday(today).output.firstOrNull()?.opndYn != "Y"
         }.getOrElse {
-            log.warn("개장일 검증 실패 — HolidayChanged 발행 생략", it)
+            log.warn(it) { "개장일 검증 실패 — HolidayChanged 발행 생략" }
             return
         }
         eventPublisher.publishEvent(
             HolidayChanged(isHoliday = isHoliday, ts = timeProvider.now().toInstantKst())
         )
-        log.info("부팅 시 영업일 상태 발행 — isHoliday={}", isHoliday)
+        log.info { "부팅 시 영업일 상태 발행 — isHoliday=$isHoliday" }
     }
 }

@@ -3,7 +3,7 @@ package at.backend.library.web
 import at.backend.trading.domain.AlreadyClosedException
 import at.backend.trading.domain.TradingValidationException
 import at.backend.library.exception.EntityNotFoundException
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     @ExceptionHandler(TradingValidationException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -38,7 +38,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(Exception::class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     fun handleUnexpected(ex: Exception): ApiResponse<Nothing> {
-        log.error("Unhandled exception", ex)
+        log.error(ex) { "Unhandled exception" }
         return ApiResponse.error("INTERNAL_ERROR", 500)
     }
 }

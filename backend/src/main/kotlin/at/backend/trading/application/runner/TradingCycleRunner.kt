@@ -19,7 +19,7 @@ import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.filter
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -54,7 +54,7 @@ class TradingCycleRunner(
     val cycleId: Long = cycle.id
     val stockCode: String = cycle.stockCode
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
     private val signals: Channel<Signal> = Channel(Channel.UNLIMITED)
     private val events = RunnerEvents(eventPublisher)
 
@@ -71,7 +71,7 @@ class TradingCycleRunner(
         check(job == null) { "이미 실행 중인 사이클입니다: cycleId=$cycleId" }
 
         job = applicationScope.launch {
-            log.info("TradingCycleRunner 시작 cycleId={}", cycleId)
+            log.info { "TradingCycleRunner 시작 cycleId=$cycleId" }
             try {
                 // BUYING 단계부터 tick/signal 수집 — 중도 익절·BUYING 손절 평가용
                 val tickJob = launch {
@@ -98,7 +98,7 @@ class TradingCycleRunner(
                 }
             } finally {
                 signals.close()
-                log.info("TradingCycleRunner 종료 cycleId={}, status={}", cycleId, cycle.status)
+                log.info { "TradingCycleRunner 종료 cycleId=$cycleId, status=${cycle.status}" }
             }
         }
     }
@@ -169,7 +169,7 @@ class TradingCycleRunner(
             }
             // status == LIQUIDATING && totalFilled > 0 → handleAfterBuy가 보유분을 청산하고 close
         }
-        log.info("매수 시퀀스 종료 cycleId={}, totalFilled={}, status={}", cycleId, totalFilled, cycle.status)
+        log.info { "매수 시퀀스 종료 cycleId=$cycleId, totalFilled=$totalFilled, status=${cycle.status}" }
     }
 
     // ─── HOLDING phase ───────────────────────────────────────────────────────
@@ -262,13 +262,13 @@ class TradingCycleRunner(
     }
 
     private fun applyMidwayTakeProfit(signal: Signal, buyJob: Job, price: Int) {
-        log.info("중도 익절 발동 cycleId={}, price={}", cycleId, price)
+        log.info { "중도 익절 발동 cycleId=$cycleId, price=$price" }
         events.signalFired(signal)
         buyJob.cancel()
     }
 
     private suspend fun applyBuyingStopLoss(signal: Signal, buyJob: Job, state: HoldingState, tick: PriceTick) {
-        log.info("BUYING 손절 발동 cycleId={}, price={}", cycleId, tick.price)
+        log.info { "BUYING 손절 발동 cycleId=$cycleId, price=${tick.price}" }
         events.signalFired(signal)
         pendingCloseReason = signal.toCloseReason()
         cycle.requestCancel()

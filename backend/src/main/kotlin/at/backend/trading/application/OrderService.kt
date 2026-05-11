@@ -13,7 +13,7 @@ import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import kotlinx.coroutines.delay
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
@@ -28,7 +28,7 @@ class OrderService(
     @Value("\${trading.order.sell-retry-delay-millis}") private val sellRetryDelayMillis: Long,
 ) {
 
-    private val log = LoggerFactory.getLogger(javaClass)
+    private val log = KotlinLogging.logger {}
 
     /**
      * 매수 회차 1건 발송. 응답 정상이면 [Order.kisOrderNo]/[Order.krxFwdgOrdOrgno] 갱신.
@@ -37,15 +37,12 @@ class OrderService(
     suspend fun placeOrder(cycle: TradingCycle, attempt: Int) {
         val currentPrice = kisRestClient.getCurrentPrice(cycle.stockCode).output.stckPrpr.toIntOrNull()
         if (currentPrice == null) {
-            log.warn("매수 스킵 cycleId={}, attempt={} — 현재가 응답 파싱 실패", cycle.id, attempt)
+            log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — 현재가 응답 파싱 실패" }
             return
         }
         val qty = (cycle.perBuyAmount / currentPrice).toInt()
         if (qty <= 0) {
-            log.warn(
-                "매수 스킵 cycleId={}, attempt={} — perBuyAmount({})가 1주 가격({})보다 작음",
-                cycle.id, attempt, cycle.perBuyAmount, currentPrice
-            )
+            log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — perBuyAmount(${cycle.perBuyAmount})가 1주 가격($currentPrice)보다 작음" }
             return
         }
 
@@ -67,7 +64,7 @@ class OrderService(
             order.markFailed(e.message)
             orderRepository.save(order)
             val msgCd = (e as? KisOrderRejectedException)?.msgCd
-            log.warn("매수 발송 실패 cycleId={}, attempt={}, msgCd={}", cycle.id, attempt, msgCd, e)
+            log.warn(e) { "매수 발송 실패 cycleId=${cycle.id}, attempt=$attempt, msgCd=$msgCd" }
         }
     }
 
@@ -124,10 +121,7 @@ class OrderService(
                         ts = timeProvider.now().toInstantKst(),
                     )
                 )
-                log.warn(
-                    "매도 발송 실패 cycleId={}, signal={}, retry={}",
-                    cycle.id, signal::class.simpleName, order.retryCount, e
-                )
+                log.warn(e) { "매도 발송 실패 cycleId=${cycle.id}, signal=${signal::class.simpleName}, retry=${order.retryCount}" }
                 delay(sellRetryDelayMillis.milliseconds)
             }
         }
@@ -147,7 +141,7 @@ class OrderService(
             val odno = order.orderNo
             if (orgno != null && odno != null) {
                 runCatching { kisRestClient.cancelRemainder(orgno, odno) }
-                    .onFailure { log.warn("$label 잔량 취소 실패 cycleId={}, orderId={}", cycleId, order.id, it) }
+                    .onFailure { log.warn(it) { "$label 잔량 취소 실패 cycleId=$cycleId, orderId=${order.id}" } }
             }
             order.markCancelled()
             orderRepository.save(order)
