@@ -1,7 +1,10 @@
 <configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <includeCallerData>false</includeCallerData>
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
 

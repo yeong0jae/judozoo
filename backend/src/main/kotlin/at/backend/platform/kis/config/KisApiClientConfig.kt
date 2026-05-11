@@ -120,8 +120,8 @@ class KisApiClientConfig {
         )
 
     companion object {
-        private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(5)
-        private val READ_TIMEOUT: Duration = Duration.ofSeconds(3)
+        private val CONNECT_TIMEOUT: Duration = Duration.ofSeconds(15)
+        private val READ_TIMEOUT: Duration = Duration.ofSeconds(10)
         private const val CUSTTYPE_INDIVIDUAL = "P"
     }
 }

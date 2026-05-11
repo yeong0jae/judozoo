@@ -3,6 +3,7 @@ package at.backend.library.web
 import at.backend.trading.domain.AlreadyClosedException
 import at.backend.trading.domain.TradingValidationException
 import at.backend.library.exception.EntityNotFoundException
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    private val log = LoggerFactory.getLogger(javaClass)
 
     @ExceptionHandler(TradingValidationException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -31,4 +34,11 @@ class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     fun handleMethodArgumentNotValid(ex: MethodArgumentNotValidException) =
         ApiResponse.error("INVALID_PARAMETER", 400)
+
+    @ExceptionHandler(Exception::class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    fun handleUnexpected(ex: Exception): ApiResponse<Nothing> {
+        log.error("Unhandled exception", ex)
+        return ApiResponse.error("INTERNAL_ERROR", 500)
+    }
 }

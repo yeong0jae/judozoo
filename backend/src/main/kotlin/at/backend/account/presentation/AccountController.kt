@@ -2,12 +2,19 @@ package at.backend.account.presentation
 
 import at.backend.account.application.AccountService
 import at.backend.library.web.ApiResponse
+import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
 class AccountController(private val accountService: AccountService) {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @GetMapping("/api/account/balance")
-    fun getBalance() = ApiResponse.ok(accountService.getBalance())
+    fun getBalance(@RequestHeader(value = "Referer", required = false) referer: String?): ApiResponse<AccountService.AccountBalanceResult> {
+        log.info("GET /api/account/balance referer={}", referer)
+        return ApiResponse.ok(accountService.getBalance())
+    }
 }
