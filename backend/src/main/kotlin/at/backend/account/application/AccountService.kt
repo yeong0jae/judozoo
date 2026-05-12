@@ -16,9 +16,9 @@ class AccountService(
     fun getBalance(): AccountBalanceResult {
         val response = kisRestClient.getBalance()
         val cashBalance = response.output2.first().prvsRcdlExccAmt.toLong()
-        val reservedAmount =
-            tradingCycleRepository.findByAccountNoAndStatusIn(kisProperties.accountNo, TradingCycleStatus.ACTIVE)
-                .sumOf { it.perBuyAmount * (MAX_BUY_ATTEMPT - it.buyAttempt) }
+        val reservedAmount = tradingCycleRepository.findByAccountNoAndStatusIn(
+            kisProperties.accountNo, TradingCycleStatus.ACTIVE
+        ).sumOf { it.perBuyAmount * (MAX_BUY_ATTEMPT - it.buyAttempt) }
         return AccountBalanceResult(
             cashBalance = cashBalance,
             reservedAmount = reservedAmount,
