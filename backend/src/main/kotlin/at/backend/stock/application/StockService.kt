@@ -15,7 +15,7 @@ class StockService(
 
     fun search(query: String): List<StockSearchResult> {
         // search-stock-info는 VTS 미지원이라 실거래 자격증명을 쓰는 별도 클라이언트로 호출
-        val output = kisRealQuotationClient.searchStock(query).output
+        val output = kisRealQuotationClient.searchStock(query) ?: return emptyList()
         // KIS pdno는 12자리 패딩 (예: "00000A005930"). 거래 ID로는 6자리만 사용한다.
         return listOf(StockSearchResult(stockCode = query, stockName = output.prdtAbrvName))
     }

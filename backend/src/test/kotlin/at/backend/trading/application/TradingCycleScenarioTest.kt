@@ -48,9 +48,7 @@ class TradingCycleScenarioTest(
     private val stockCode = "005930"
 
     private fun stubSearchStock(name: String = "삼성전자") {
-        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
-            output = KisStockSearchResponse.Output(pdno = stockCode, prdtAbrvName = name)
-        )
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = stockCode, prdtAbrvName = name)
     }
 
     private fun stubCurrentPrice(price: Int = 70_000) {
@@ -238,12 +236,8 @@ class TradingCycleScenarioTest(
                     val pdno = firstArg<String>()
                     val name = codes.firstOrNull { it.first == pdno }?.second
                     if (name != null) {
-                        KisStockSearchResponse(
-                            output = KisStockSearchResponse.Output(pdno = pdno, prdtAbrvName = name)
-                        )
-                    } else KisStockSearchResponse(
-                        output = KisStockSearchResponse.Output(pdno = pdno, prdtAbrvName = ""),
-                    )
+                        KisStockSearchResponse.Output(pdno = pdno, prdtAbrvName = name)
+                    } else KisStockSearchResponse.Output(pdno = pdno, prdtAbrvName = "")
                 }
 
                 val cycles = codes.map { (code, _) ->

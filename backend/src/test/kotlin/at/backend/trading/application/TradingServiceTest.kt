@@ -39,15 +39,11 @@ class TradingServiceTest(
 ) : IntegrationTestBase() {
 
     private fun stubSearchStock(name: String = "삼성전자") {
-        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
-            output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = name)
-        )
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = name)
     }
 
     private fun stubSearchStockEmpty() {
-        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
-            output = KisStockSearchResponse.Output(pdno = "999999", prdtAbrvName = ""),
-        )
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "999999", prdtAbrvName = "")
     }
 
     private fun stubCurrentPrice(price: String = "70000") {

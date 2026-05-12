@@ -26,12 +26,14 @@ import Skeleton from "../components/common/Skeleton";
 import { useToast } from "../components/toast/Toast";
 import {
   QK,
+  isStockCode,
   useAccountBalance,
   useActiveCommands,
   useStockPrice,
   useMarketStatus,
   useStockSearch,
 } from "../api/queries";
+import { useDebounce } from "../hooks/useDebounce";
 import { useCreateCommand } from "../api/mutations";
 import { ApiError } from "../api/client";
 import { useStompSubscription } from "../ws/useStompSubscription";
@@ -70,7 +72,8 @@ export default function CommandPage() {
   const [serverError, setServerError] = useState<ErrorCode | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  const stockSearchQ = useStockSearch(query);
+  const debouncedQuery = useDebounce(query, 250);
+  const stockSearchQ = useStockSearch(debouncedQuery);
   const priceQ = useStockPrice(selectedStock?.stockCode ?? null);
 
   const createCommand = useCreateCommand();
@@ -433,8 +436,10 @@ function StockSearchInput({
 
   if (selected) return null;
 
+  const trimmed = query.trim();
+  const incompleteCode = trimmed !== "" && !isStockCode(trimmed);
   const visible = results.slice(0, 10);
-  const showDropdown = query.trim() !== "" && (loading || visible.length > 0);
+  const showDropdown = isStockCode(trimmed) && (loading || visible.length > 0);
 
   return (
     <div className="relative">
@@ -455,7 +460,7 @@ function StockSearchInput({
             onSelect(visible[activeIdx]);
           }
         }}
-        placeholder="🔍 종목명 또는 코드 입력 (예: 삼성전자 / 005930)"
+        placeholder="🔍 종목 코드 6자리 입력 (예: 005930)"
         className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700"
       />
       {showDropdown && (
@@ -479,7 +484,9 @@ function StockSearchInput({
           ))}
         </div>
       )}
-      <p className="text-xs text-zinc-500 mt-1">↑/↓로 이동, Enter로 선택</p>
+      <p className="text-xs text-zinc-500 mt-1">
+        {incompleteCode ? "6자리 종목 코드를 입력하세요" : "↑/↓로 이동, Enter로 선택"}
+      </p>
     </div>
   );
 }

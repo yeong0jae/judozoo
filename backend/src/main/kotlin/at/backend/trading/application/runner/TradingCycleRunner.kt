@@ -16,10 +16,10 @@ import at.backend.trading.domain.signal.Signal
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.filter
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -280,6 +280,12 @@ class TradingCycleRunner(
         }
     }
 
+    /**
+     * HOLDING 중 tick 처리 — 매도 시그널 풀세트 평가.
+     * - 무장: 가격이 임계치 도달 시 Breakeven / TrendBreak를 armed로 전이 (armed 돼야 이후 발동 가능)
+     * - 탐지: 봉 데이터가 있으면 TrendBreak까지 포함해 평가, 우선순위 최상위 1건만 채택 (StopLoss > 나머지)
+     * - 집행: TpStage(2/3/5%)는 splitSellRatio만큼 분할 익절(단계 비트 기록), 그 외 종결 시그널은 LIQUIDATING 전이 + 보유분 전량 청산
+     */
     private suspend fun processTickDuringHolding(tick: PriceTick) {
         val state = computeHoldingState() ?: return
         events.priceUpdated(tick.price, state.buyPrice, state.holdingQty)

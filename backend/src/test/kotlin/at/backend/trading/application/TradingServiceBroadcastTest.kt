@@ -36,9 +36,7 @@ class TradingServiceBroadcastTest(
 ) : IntegrationTestBase() {
 
     private fun stubKisDefaults() {
-        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse(
-            output = KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
-        )
+        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
         every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
             output = KisCurrentPriceResponse.Output(stckPrpr = "70000")
         )

@@ -32,11 +32,9 @@ class StockServiceTest(
 
         context("종목 검색") {
             test("KIS 응답을 종목코드/종목명으로 매핑한다") {
-                every { kisRealQuotationClient.searchStock("005930") } returns KisStockSearchResponse(
-                    output = KisStockSearchResponse.Output(
-                        pdno = "005930",
-                        prdtAbrvName = "삼성전자",
-                    )
+                every { kisRealQuotationClient.searchStock("005930") } returns KisStockSearchResponse.Output(
+                    pdno = "005930",
+                    prdtAbrvName = "삼성전자",
                 )
 
                 val result = stockService.search("005930")
@@ -44,6 +42,12 @@ class StockServiceTest(
                 result shouldHaveSize 1
                 result[0].stockCode shouldBe "005930"
                 result[0].stockName shouldBe "삼성전자"
+            }
+
+            test("존재하지 않는 코드면 빈 결과를 반환한다") {
+                every { kisRealQuotationClient.searchStock("000000") } returns null
+
+                stockService.search("000000") shouldHaveSize 0
             }
         }
 

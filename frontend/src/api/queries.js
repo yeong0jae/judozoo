@@ -42,11 +42,16 @@ export function useCommandDetail(id) {
         enabled: id !== null,
     });
 }
+// 백엔드 search-stock-info는 종목코드 정확 일치 조회라 미완성 코드("0", "00"...)는 KIS 에러를 부른다.
+// 6자리 코드가 입력됐을 때만 호출한다.
+const STOCK_CODE_PATTERN = /^[A-Za-z0-9]{6}$/;
+export const isStockCode = (q) => STOCK_CODE_PATTERN.test(q.trim());
 export function useStockSearch(query) {
+    const code = query.trim();
     return useQuery({
-        queryKey: QK.stockSearch(query),
-        queryFn: () => apiFetch(`/api/stocks/search?q=${encodeURIComponent(query)}`),
-        enabled: query.trim().length > 0,
+        queryKey: QK.stockSearch(code),
+        queryFn: () => apiFetch(`/api/stocks/search?q=${encodeURIComponent(code)}`),
+        enabled: isStockCode(code),
     });
 }
 export function useStockPrice(code) {

@@ -3,7 +3,8 @@ package at.backend.platform.kis.client.response
 import com.fasterxml.jackson.annotation.JsonProperty
 
 data class KisStockSearchResponse(
-    val output: Output,
+    @JsonProperty("rt_cd") val rtCd: String,
+    val output: Output?,
 ) {
     data class Output(
         val pdno: String,

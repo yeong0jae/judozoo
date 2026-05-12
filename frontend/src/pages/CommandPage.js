@@ -12,7 +12,8 @@ import ProfitText from "../components/common/ProfitText";
 import FlashOnChange from "../components/common/FlashOnChange";
 import Skeleton from "../components/common/Skeleton";
 import { useToast } from "../components/toast/Toast";
-import { QK, useAccountBalance, useActiveCommands, useStockPrice, useMarketStatus, useStockSearch, } from "../api/queries";
+import { QK, isStockCode, useAccountBalance, useActiveCommands, useStockPrice, useMarketStatus, useStockSearch, } from "../api/queries";
+import { useDebounce } from "../hooks/useDebounce";
 import { useCreateCommand } from "../api/mutations";
 import { ApiError } from "../api/client";
 import { useStompSubscription } from "../ws/useStompSubscription";
@@ -43,7 +44,8 @@ export default function CommandPage() {
     const [selectedStock, setSelectedStock] = useState(null);
     const [serverError, setServerError] = useState(null);
     const [advancedOpen, setAdvancedOpen] = useState(false);
-    const stockSearchQ = useStockSearch(query);
+    const debouncedQuery = useDebounce(query, 250);
+    const stockSearchQ = useStockSearch(debouncedQuery);
     const priceQ = useStockPrice(selectedStock?.stockCode ?? null);
     const createCommand = useCreateCommand();
     const { register, handleSubmit, watch, reset, formState: { errors }, } = useForm({
@@ -59,10 +61,7 @@ export default function CommandPage() {
     });
     const formValues = watch();
     const perBuyAmount = formValues.perBuyAmount ?? 0;
-    // STOMP 구독: 잔고 / 시장 변경
-    useStompSubscription("/topic/account", () => {
-        qc.invalidateQueries({ queryKey: QK.accountBalance });
-    });
+    // STOMP 구독: 시장 변경
     useStompSubscription("/topic/market", () => {
         qc.invalidateQueries({ queryKey: QK.marketStatus });
     });
@@ -115,6 +114,7 @@ export default function CommandPage() {
                 breakevenThresholdPct: data.breakevenThresholdPct ?? null,
                 stopLossPct: data.stopLossPct ?? null,
             });
+            qc.invalidateQueries({ queryKey: QK.accountBalance });
             toast.show({
                 tone: "success",
                 message: `${selectedStock.stockName} 매매가 시작되었습니다`,
@@ -210,8 +210,10 @@ function StockSearchInput({ query, setQuery, selected, results, loading, onSelec
     }, [query]);
     if (selected)
         return null;
+    const trimmed = query.trim();
+    const incompleteCode = trimmed !== "" && !isStockCode(trimmed);
     const visible = results.slice(0, 10);
-    const showDropdown = query.trim() !== "" && (loading || visible.length > 0);
+    const showDropdown = isStockCode(trimmed) && (loading || visible.length > 0);
     return (_jsxs("div", { className: "relative", children: [_jsx("input", { type: "text", value: query, onChange: (e) => setQuery(e.target.value), onKeyDown: (e) => {
                     if (visible.length === 0)
                         return;
@@ -227,7 +229,7 @@ function StockSearchInput({ query, setQuery, selected, results, loading, onSelec
                         e.preventDefault();
                         onSelect(visible[activeIdx]);
                     }
-                }, placeholder: "\uD83D\uDD0D \uC885\uBAA9\uBA85 \uB610\uB294 \uCF54\uB4DC \uC785\uB825 (\uC608: \uC0BC\uC131\uC804\uC790 / 005930)", className: "w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700" }), showDropdown && (_jsxs("div", { className: "absolute z-10 left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-60 overflow-y-auto", children: [loading && (_jsx("div", { className: "px-3 py-2 text-xs text-zinc-500", children: "\uAC80\uC0C9 \uC911..." })), visible.map((s, i) => (_jsxs("button", { type: "button", onClick: () => onSelect(s), onMouseEnter: () => setActiveIdx(i), className: `w-full text-left px-3 py-2 text-sm flex justify-between ${i === activeIdx ? "bg-zinc-800" : "hover:bg-zinc-800/50"}`, children: [_jsx("span", { children: s.stockName }), _jsx("span", { className: "text-zinc-500", children: s.stockCode })] }, s.stockCode)))] })), _jsx("p", { className: "text-xs text-zinc-500 mt-1", children: "\u2191/\u2193\uB85C \uC774\uB3D9, Enter\uB85C \uC120\uD0DD" })] }));
+                }, placeholder: "\uD83D\uDD0D \uC885\uBAA9 \uCF54\uB4DC 6\uC790\uB9AC \uC785\uB825 (\uC608: 005930)", className: "w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700" }), showDropdown && (_jsxs("div", { className: "absolute z-10 left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-60 overflow-y-auto", children: [loading && (_jsx("div", { className: "px-3 py-2 text-xs text-zinc-500", children: "\uAC80\uC0C9 \uC911..." })), visible.map((s, i) => (_jsxs("button", { type: "button", onClick: () => onSelect(s), onMouseEnter: () => setActiveIdx(i), className: `w-full text-left px-3 py-2 text-sm flex justify-between ${i === activeIdx ? "bg-zinc-800" : "hover:bg-zinc-800/50"}`, children: [_jsx("span", { children: s.stockName }), _jsx("span", { className: "text-zinc-500", children: s.stockCode })] }, s.stockCode)))] })), _jsx("p", { className: "text-xs text-zinc-500 mt-1", children: incompleteCode ? "6자리 종목 코드를 입력하세요" : "↑/↓로 이동, Enter로 선택" })] }));
 }
 function PriceDisplay({ stock, currentPrice, asOf, loading, onRefresh, onClear, }) {
     return (_jsxs("div", { className: "bg-zinc-950 border border-zinc-800 rounded p-3 flex items-center justify-between", children: [_jsxs("div", { children: [_jsxs("div", { className: "text-sm font-medium", children: [stock.stockName, _jsx("span", { className: "text-xs text-zinc-500 ml-2", children: stock.stockCode })] }), _jsxs("div", { className: "text-xs text-zinc-400 mt-1", children: ["\uD604\uC7AC\uAC00", " ", _jsx("span", { className: "text-zinc-100 font-medium", children: loading ? "..." : `${formatPrice(currentPrice)}원` }), asOf && (_jsxs("span", { className: "ml-2 text-zinc-500", children: ["\uAE30\uC900 ", formatRelative(asOf)] }))] })] }), _jsxs("div", { className: "flex items-center gap-1", children: [_jsx("button", { type: "button", onClick: onRefresh, disabled: loading, className: "p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded disabled:opacity-40", title: "\uAC00\uACA9 \uAC31\uC2E0", children: "\u21BB" }), _jsx("button", { type: "button", onClick: onClear, className: "p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded", title: "\uB2E4\uC2DC \uC120\uD0DD", children: "\u00D7" })] })] }));

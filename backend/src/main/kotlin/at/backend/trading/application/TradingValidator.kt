@@ -33,8 +33,8 @@ class TradingValidator(
 
     private fun resolveStockName(stockCode: String): String {
         // search-stock-info는 VTS 미지원이라 실거래 자격증명을 쓰는 별도 클라이언트로 호출
-        val output = kisRealQuotationClient.searchStock(stockCode).output
-        return output.prdtAbrvName.takeIf { it.isNotBlank() }
+        val output = kisRealQuotationClient.searchStock(stockCode)
+        return output?.prdtAbrvName?.takeIf { it.isNotBlank() }
             ?: throw TradingValidationException(TradingValidationException.ErrorCode.STOCK_NOT_FOUND)
     }
 

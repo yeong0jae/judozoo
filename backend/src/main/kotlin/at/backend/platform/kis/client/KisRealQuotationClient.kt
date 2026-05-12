@@ -14,8 +14,9 @@ class KisRealQuotationClient(
     private val restClient: RestClient,
 ) {
 
-    fun searchStock(keyword: String): KisStockSearchResponse =
-        restClient.get()
+    /** 존재하지 않는 코드거나 KIS가 에러 envelope(rt_cd != "0", output 없음)를 주면 null. */
+    fun searchStock(keyword: String): KisStockSearchResponse.Output? {
+        val response = restClient.get()
             .uri {
                 it.path("/uapi/domestic-stock/v1/quotations/search-stock-info")
                     .queryParam("PRDT_TYPE_CD", PRDT_TYPE_DOMESTIC_STOCK)
@@ -26,6 +27,8 @@ class KisRealQuotationClient(
             .retrieve()
             .body(KisStockSearchResponse::class.java)
             ?: error("KIS 종목 검색 응답이 비어있습니다")
+        return response.output?.takeIf { response.rtCd == "0" }
+    }
 
     fun checkHoliday(date: LocalDate): KisHolidayResponse =
         restClient.get()
