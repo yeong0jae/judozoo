@@ -85,6 +85,7 @@ class KisWebSocketClient(
 
     private fun connect(): WebSocketSession? {
         return try {
+            log.info { "KIS WS 연결 시도 → ${properties.wsUrl}" }
             val session = webSocketClient.execute(handler, properties.wsUrl)
                 .get(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
             currentSession.set(session)
@@ -107,6 +108,7 @@ class KisWebSocketClient(
                 input = KisSubscribePayload.Body.Input(trId = sub.trId, trKey = sub.trKey),
             ),
         )
+        log.info { "KIS WS ${if (subscribe) "구독" else "해지"} 전송 → trId=${sub.trId}, trKey=${sub.trKey}" }
         session.sendMessage(TextMessage(objectMapper.writeValueAsString(payload)))
     }
 
