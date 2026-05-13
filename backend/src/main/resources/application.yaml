@@ -21,7 +21,7 @@ logging:
     at.backend: DEBUG
 
 kis:
-  rate-limit-per-second: 20
+  rate-limit-per-second: 20        # 실전 기준 — 모의투자(vts)는 1건/초로 override
   # 자격증명/엔드포인트는 profile별 (application-{real,vts}.yaml) — env: VTS_KIS_*, REAL_KIS_*
   # app-key, app-secret, account-no, account-product-code, hts-id, base-url, ws-url, market-div-code, exchange-id, tr.*
   real-quotation:
