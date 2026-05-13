@@ -26,7 +26,7 @@ export function useMarketStatus() {
   return useQuery({
     queryKey: QK.marketStatus,
     queryFn: () => apiFetch<MarketStatus>("/api/market/status"),
-    refetchInterval: 30_000,
+    refetchInterval: 10 * 60_000,
   });
 }
 
