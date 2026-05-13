@@ -86,12 +86,10 @@ class TradingCycleRunnerTest(
             counter += 1
             KisOrderResponse(
                 rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                output = listOf(
-                    KisOrderResponse.Output(
-                        krxFwdgOrdOrgno = "00950",
-                        odno = "ODNO%04d".format(counter),
-                        ordTmd = "100000",
-                    )
+                output = KisOrderResponse.Output(
+                    krxFwdgOrdOrgno = "00950",
+                    odno = "ODNO%04d".format(counter),
+                    ordTmd = "100000",
                 ),
             )
         }
@@ -187,12 +185,10 @@ class TradingCycleRunnerTest(
                     } else {
                         KisOrderResponse(
                             rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                            output = listOf(
-                                KisOrderResponse.Output(
-                                    krxFwdgOrdOrgno = "00950",
-                                    odno = "ODNO_$attempt",
-                                    ordTmd = "100000",
-                                )
+                            output = KisOrderResponse.Output(
+                                krxFwdgOrdOrgno = "00950",
+                                odno = "ODNO_$attempt",
+                                ordTmd = "100000",
                             ),
                         )
                     }

@@ -69,7 +69,7 @@ class OrderServiceTest(
                     rtCd = "0",
                     msgCd = "APBK0013",
                     msg1 = "주문 전송 완료",
-                    output = listOf(KisOrderResponse.Output(krxFwdgOrdOrgno = orgno, odno = odno, ordTmd = "104518")),
+                    output = KisOrderResponse.Output(krxFwdgOrdOrgno = orgno, odno = odno, ordTmd = "104518"),
                 )
     }
 
@@ -227,12 +227,10 @@ class OrderServiceTest(
                 every { kisRestClient.cancelRemainder(any(), any()) } returns
                         KisOrderResponse(
                             rtCd = "0", msgCd = "OK", msg1 = "취소 완료",
-                            output = listOf(
-                                KisOrderResponse.Output(
-                                    krxFwdgOrdOrgno = "00950",
-                                    odno = "CXL0001",
-                                    ordTmd = "104518",
-                                )
+                            output = KisOrderResponse.Output(
+                                krxFwdgOrdOrgno = "00950",
+                                odno = "CXL0001",
+                                ordTmd = "104518",
                             ),
                         )
                 val cycle = saveCycle()
@@ -296,12 +294,10 @@ class OrderServiceTest(
                     calls += 1
                     if (calls == 1) throw RestClientException("5xx") else KisOrderResponse(
                         rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                        output = listOf(
-                            KisOrderResponse.Output(
-                                krxFwdgOrdOrgno = "00950",
-                                odno = "0000333333",
-                                ordTmd = "104518",
-                            )
+                        output = KisOrderResponse.Output(
+                            krxFwdgOrdOrgno = "00950",
+                            odno = "0000333333",
+                            ordTmd = "104518",
                         ),
                     )
                 }

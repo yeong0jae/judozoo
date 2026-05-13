@@ -92,8 +92,8 @@ class KisRestClientTest : FunSpec({
             stubPost("/uapi/domestic-stock/v1/trading/order-cash", "order-cash.json")
 
             val response = client().requestOrder("005930", "BUY", 10)
-            response.output!!.first().odno shouldBe "0000123456"
-            response.output!!.first().krxFwdgOrdOrgno shouldBe "00950"
+            response.output!!.odno shouldBe "0000123456"
+            response.output!!.krxFwdgOrdOrgno shouldBe "00950"
 
             wireMock.verify(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-cash"))
@@ -121,7 +121,7 @@ class KisRestClientTest : FunSpec({
             stubPost("/uapi/domestic-stock/v1/trading/order-rvsecncl", "order-rvsecncl.json")
 
             val response = client().cancelRemainder(krxFwdgOrdOrgno = "00950", originalOdno = "0000123456")
-            response.output!!.first().odno shouldBe "0000123457"
+            response.output!!.odno shouldBe "0000123457"
 
             wireMock.verify(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/uapi/domestic-stock/v1/trading/order-rvsecncl"))

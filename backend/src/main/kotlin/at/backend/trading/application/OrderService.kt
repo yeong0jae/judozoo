@@ -57,7 +57,7 @@ class OrderService(
         )
 
         try {
-            val output = kisRestClient.requestOrder(cycle.stockCode, OrderSide.BUY.name, qty).output!!.first()
+            val output = kisRestClient.requestOrder(cycle.stockCode, OrderSide.BUY.name, qty).output!!
             order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
             orderRepository.save(order)
         } catch (e: Exception) {
@@ -105,7 +105,7 @@ class OrderService(
 
             try {
                 val output =
-                    kisRestClient.requestOrder(cycle.stockCode, OrderSide.SELL.name, effectiveQty).output!!.first()
+                    kisRestClient.requestOrder(cycle.stockCode, OrderSide.SELL.name, effectiveQty).output!!
                 order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
                 orderRepository.save(order)
                 return
