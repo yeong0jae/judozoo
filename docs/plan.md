@@ -42,7 +42,10 @@ KIS 없이 모든 매매 룰을 검증. `TradingCycle` JPA 엔티티 + 도메인
 ## Phase 6: 실적 + 운영 인지 채널 마무리 ✅
 `report` feature — `DailyReportResult` + `ReportService` + `GET /api/reports/daily?date=` (수수료/세금/매수→매도가 포함). UnclosedCycleStartupHook 통합 테스트 보강 (lifecycle CLOSED + BALANCE_INVALIDATED 발송 검증). Frontend ReportPage 실 wire + 날짜 선택기 + DetailPanel `ActiveSellAlert` (매도 재시도 ≥3 강조).
 
-## Phase 7: 로컬 실행 시작 (보류)
+## Phase 7: 보유 주식 수동 매도
+`account` feature — KIS 잔고 조회(`inquire-balance`)의 실 계좌 보유분을 조회하는 `GET /api/account/holdings` + 종목별 보유 전량 시장가 매도 `POST /api/account/holdings/{code}/sell`. 프론트 "보유 주식" 탭 (리스트 + 행별 "시장가 매도" 버튼 + 확인 다이얼로그). 활성 사이클이 매매 중인 종목은 표시하되 매도 버튼 비활성. 예상치 못한 오류로 사이클이 종료됐지만 KIS 계좌에 포지션이 남은 케이스의 수동 정리 수단.
+
+## Phase 8: 로컬 실행 시작 (보류)
 실거래 1주 단위 sanity check, bootJar + systemd/launchd, MySQL 일별 백업, 로그 회전. 운영 체크리스트.
 
 ---
@@ -72,7 +75,10 @@ Phase 0
                      Phase 6 (실적 + 인지)
                          │
                          ▼
-                     Phase 7 (로컬 실행)
+                     Phase 7 (보유 주식 수동 매도)
+                         │
+                         ▼
+                     Phase 8 (로컬 실행)
 ```
 
 Phase 1 / 2는 병렬 가능. Phase 5-A까지는 사용자 노출 변화 없음.

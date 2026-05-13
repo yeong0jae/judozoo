@@ -58,8 +58,7 @@ Goal: 실적 화면을 진짜 일별 실적 집계 데이터로 채우고, 시�
 - 토큰 갱신 실패 시 시스템 배지가 30s 내 "토큰 오류"로 갱신
 - 매도 재시도 3회 이상 강조가 데이터 흐름에 따라 자동 표시
 
-## 후속 / Phase 7 (tasks-010)
+## 후속
 
-- 실거래 1주 단위 sanity check
-- bootJar + systemd/launchd, MySQL 백업 cron, 로그 회전
-- 운영 체크리스트 (매일/매주)
+- Phase 7 (tasks-010) — 보유 주식 수동 매도 (운영 중 발견된 필요로 추가: 사이클 종료됐지만 KIS 계좌에 포지션 남은 케이스 정리)
+- Phase 8 (tasks-011, 보류) — 로컬 실행 시작: 실거래 1주 단위 sanity check / bootJar + systemd·launchd / MySQL 백업 cron / 로그 회전 / 운영 체크리스트
