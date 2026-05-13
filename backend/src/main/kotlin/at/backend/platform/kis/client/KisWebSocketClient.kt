@@ -20,7 +20,7 @@ import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -38,6 +38,9 @@ class KisWebSocketClient(
     private val log = KotlinLogging.logger {}
     private val trExec: String = properties.tr.executionNotice
     private val currentSession = AtomicReference<WebSocketSession?>(null)
+
+    // execute() 호출 중복 방지. afterConnectionEstablished 또는 실패 시 해제.
+    private val connecting = AtomicBoolean(false)
 
     // 종목에 대한 중복 구독 방지, 식별
     private val subscriptions = ConcurrentHashMap.newKeySet<Subscription>()
@@ -80,20 +83,34 @@ class KisWebSocketClient(
             afterConnect(current)
             return
         }
-        connect()?.let(afterConnect)
+        // 끊긴 상태: subscriptions 셋은 이미 호출자가 갱신함.
+        // 신규 연결 후 afterConnectionEstablished가 셋의 모든 항목을 SUBSCRIBE 전송한다.
+        connect()
     }
 
-    private fun connect(): WebSocketSession? {
-        return try {
+    /**
+     * 비동기 연결 시작. Spring `WebSocketClient.execute(...)`가 반환하는 CompletableFuture는
+     * 어댑터에 따라 세션 확립 후에도 즉시 complete되지 않는 경우가 있어(타임아웃 5s 발생),
+     * future에는 의존하지 않고 콜백(`afterConnectionEstablished`)에서 세션을 받는다.
+     * 실패는 `.whenComplete` 또는 콜백 미발화 시 `afterConnectionClosed`/외부 keepalive로 감지.
+     */
+    private fun connect() {
+        if (!connecting.compareAndSet(false, true)) return
+        try {
             log.info { "KIS WS 연결 시도 → ${properties.wsUrl}" }
-            val session = webSocketClient.execute(handler, properties.wsUrl)
-                .get(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
-            currentSession.set(session)
-            session
+            webSocketClient.execute(handler, properties.wsUrl)
+                .whenComplete { _, err ->
+                    if (err != null) {
+                        log.warn(err) { "KIS WS 연결 실패, 백오프 재연결 예약" }
+                        connecting.set(false)
+                        scheduleReconnect()
+                    }
+                    // 성공은 afterConnectionEstablished에서 처리(connecting 해제 포함)
+                }
         } catch (e: Exception) {
-            log.warn(e) { "KIS WS 연결 실패, 백오프 재연결 예약" }
+            log.warn(e) { "KIS WS execute 호출 자체 실패, 백오프 재연결 예약" }
+            connecting.set(false)
             scheduleReconnect()
-            null
         }
     }
 
@@ -120,6 +137,8 @@ class KisWebSocketClient(
     internal val handler: WebSocketHandler = object : WebSocketHandler {
         override fun afterConnectionEstablished(session: WebSocketSession) {
             log.info { "KIS WS 연결됨: sessionId=${session.id}" }
+            currentSession.set(session)
+            connecting.set(false)
             reconnectAttempt = 0
             _connectionState.tryEmit(true)
             subscriptions.forEach { sendSubscription(session, it, subscribe = true) }
@@ -141,6 +160,7 @@ class KisWebSocketClient(
         override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
             log.warn { "KIS WS 끊김 status=$closeStatus, 재연결 예약" }
             currentSession.compareAndSet(session, null)
+            connecting.set(false)
             _connectionState.tryEmit(false)
             if (subscriptions.isNotEmpty()) scheduleReconnect()
         }
@@ -262,7 +282,6 @@ class KisWebSocketClient(
 
     companion object {
         private const val TR_PRICE = "H0STCNT0"
-        private const val CONNECT_TIMEOUT_SEC = 5L
         private val BACKOFF_DELAYS_SEC = longArrayOf(1, 2, 5, 5)
     }
 }

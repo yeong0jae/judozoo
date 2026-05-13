@@ -86,7 +86,12 @@ private fun fixture(mapper: JsonMapper): Fixture {
         }
     }
     val wsClient = mockk<WebSocketClient>().apply {
-        every { execute(any(), any<String>()) } returns CompletableFuture.completedFuture(session)
+        // 실제 WebSocketClient는 execute() 호출 후 handler.afterConnectionEstablished를 발화시킨다.
+        every { execute(any(), any<String>()) } answers {
+            val handler = firstArg<org.springframework.web.socket.WebSocketHandler>()
+            handler.afterConnectionEstablished(session)
+            CompletableFuture.completedFuture(session)
+        }
     }
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val client = KisWebSocketClient(properties, approvalProvider, wsClient, mapper, scope)
