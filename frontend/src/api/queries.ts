@@ -4,6 +4,7 @@ import type {
   AccountBalance,
   DailyReport,
   DailyTrading,
+  Holding,
   MarketStatus,
   StockPriceResult,
   StockSearchResult,
@@ -14,6 +15,7 @@ import type {
 export const QK = {
   marketStatus: ["market", "status"] as const,
   accountBalance: ["account", "balance"] as const,
+  holdings: ["account", "holdings"] as const,
   activeCommands: ["trading", "active"] as const,
   todayClosed: ["trading", "today"] as const,
   commandDetail: (id: number) => ["trading", "detail", id] as const,
@@ -34,6 +36,13 @@ export function useAccountBalance() {
   return useQuery({
     queryKey: QK.accountBalance,
     queryFn: () => apiFetch<AccountBalance>("/api/account/balance"),
+  });
+}
+
+export function useHoldings() {
+  return useQuery({
+    queryKey: QK.holdings,
+    queryFn: () => apiFetch<Holding[]>("/api/account/holdings"),
   });
 }
 

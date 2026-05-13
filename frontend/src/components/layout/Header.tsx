@@ -40,6 +40,14 @@ export default function Header() {
             모니터링
           </NavLink>
           <NavLink
+            to="/holdings"
+            className={({ isActive }) =>
+              `${navItem} ${isActive ? activeItem : inactiveItem}`
+            }
+          >
+            보유 주식
+          </NavLink>
+          <NavLink
             to="/report"
             className={({ isActive }) =>
               `${navItem} ${isActive ? activeItem : inactiveItem}`

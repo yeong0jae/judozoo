@@ -3,6 +3,7 @@ import { apiFetch } from "./client";
 export const QK = {
     marketStatus: ["market", "status"],
     accountBalance: ["account", "balance"],
+    holdings: ["account", "holdings"],
     activeCommands: ["trading", "active"],
     todayClosed: ["trading", "today"],
     commandDetail: (id) => ["trading", "detail", id],
@@ -14,13 +15,19 @@ export function useMarketStatus() {
     return useQuery({
         queryKey: QK.marketStatus,
         queryFn: () => apiFetch("/api/market/status"),
-        refetchInterval: 30_000,
+        refetchInterval: 10 * 60_000,
     });
 }
 export function useAccountBalance() {
     return useQuery({
         queryKey: QK.accountBalance,
         queryFn: () => apiFetch("/api/account/balance"),
+    });
+}
+export function useHoldings() {
+    return useQuery({
+        queryKey: QK.holdings,
+        queryFn: () => apiFetch("/api/account/holdings"),
     });
 }
 export function useActiveCommands() {

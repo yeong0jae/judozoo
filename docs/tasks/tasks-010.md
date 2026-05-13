@@ -19,11 +19,11 @@ Goal: 시스템 사이클과 무관하게 KIS 계좌에 남아있는 보유 주�
 
 ## 프론트 — 보유 주식 탭
 
-- [ ] 헤더 네비게이션에 "보유 주식" 탭 추가 (매매 명령 / 모니터링 / 실적 / **보유 주식**) + 라우트 `/holdings`
-- [ ] `types.ts` — `Holding` 타입 (stockCode, stockName, qty, avgBuyPrice, currentPrice, evalProfit, evalProfitRate, hasActiveCycle)
-- [ ] `api/queries.ts` `useHoldings()` (`GET /api/account/holdings`) + `api/mutations.ts` `useLiquidateHolding()` (`POST /api/account/holdings/{code}/sell`) → 성공 시 holdings·accountBalance invalidate + 토스트
-- [ ] `pages/HoldingsPage.tsx` — 보유 주식 리스트 (종목명/코드, 보유수량, 평균매입가, 현재가, 평가손익 `ProfitText` / 평가손익률 `formatPct`) + 행마다 "시장가 매도" 버튼. `hasActiveCycle` 행은 "매매 중" 배지(`StatusPill` 또는 전용 배지) + 매도 버튼 disabled. 빈 목록 시 안내 문구.
-- [ ] "시장가 매도" 클릭 → 확인 다이얼로그("{종목명} {N}주를 시장가로 전량 매도합니다. 진행할까요?") → 확인 시 mutation 호출. (모니터링 취소 버튼과 동일한 2단계 안전망 패턴)
+- [x] 헤더 네비게이션에 "보유 주식" 탭 추가 (매매 명령 / 모니터링 / **보유 주식** / 실적) + 라우트 `/holdings` + STOMP 재연결 시 holdings invalidate
+- [x] `types.ts` — `Holding` / `LiquidateHoldingResult` 타입
+- [x] `api/queries.ts` `useHoldings()` (`GET /api/account/holdings`) + `api/mutations.ts` `useLiquidateHolding()` (`POST /api/account/holdings/{code}/sell`) → 성공 시 holdings·accountBalance invalidate + 토스트
+- [x] `pages/HoldingsPage.tsx` — 보유 주식 테이블 (종목명/코드, 보유수량, 평균매입가, 현재가, 평가손익 `ProfitText` / 평가손익률 `formatPct`) + 새로고침 버튼. `hasActiveCycle` 행은 "매매 중" 배지 + 매도 버튼 자리에 배지로 치환. 빈 목록 `EmptyState` / 에러 `ErrorState`.
+- [x] "시장가 매도" 클릭 → 확인 다이얼로그("{종목명} {N}주를 시장가로 전량 매도합니다. 진행할까요?") → 확인 시 mutation 호출. 성공 토스트에 ODNO 포함.
 
 > `.js` 미러 파일(`pages/*.js` 등)은 빌드 산출물 잔재이며 엔트리(`main.tsx`)에서 미사용 — 이번 작업에서 손대지 않음.
 

@@ -26,3 +26,13 @@ export function useCancelCommand() {
         },
     });
 }
+export function useLiquidateHolding() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (stockCode) => apiFetch(`/api/account/holdings/${stockCode}/sell`, { method: "POST" }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: QK.holdings });
+            qc.invalidateQueries({ queryKey: QK.accountBalance });
+        },
+    });
+}

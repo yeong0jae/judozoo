@@ -63,6 +63,24 @@ export interface AccountBalance {
   availableBalance: number;
 }
 
+export interface Holding {
+  stockCode: string;
+  stockName: string;
+  qty: number;
+  avgBuyPrice: number;
+  currentPrice: number;
+  evalProfit: number;
+  evalProfitRate: number; // 소수 (0.025 = 2.5%)
+  hasActiveCycle: boolean;
+}
+
+export interface LiquidateHoldingResult {
+  stockCode: string;
+  qty: number;
+  orderNo: string;
+  krxFwdgOrdOrgno: string;
+}
+
 export interface BuyAttemptInfo {
   completed: number;
   total: number; // 항상 3

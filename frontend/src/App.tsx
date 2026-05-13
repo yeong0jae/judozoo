@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import CommandPage from "./pages/CommandPage";
+import HoldingsPage from "./pages/HoldingsPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
 import Header from "./components/layout/Header";
@@ -18,6 +19,7 @@ const handleStompReconnect = () => {
   // 재연결 시 모든 query invalidate — 누락 데이터 보강.
   queryClient.invalidateQueries({ queryKey: QK.marketStatus });
   queryClient.invalidateQueries({ queryKey: QK.accountBalance });
+  queryClient.invalidateQueries({ queryKey: QK.holdings });
   queryClient.invalidateQueries({ queryKey: QK.activeCommands });
   queryClient.invalidateQueries({ queryKey: QK.todayClosed });
   queryClient.invalidateQueries({ queryKey: ["trading", "detail"] });
@@ -51,6 +53,7 @@ function AppShell() {
           <Route path="/" element={<Navigate to="/monitoring" replace />} />
           <Route path="/command" element={<CommandPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />
+          <Route path="/holdings" element={<HoldingsPage />} />
           <Route path="/report" element={<ReportPage />} />
         </Routes>
       </main>

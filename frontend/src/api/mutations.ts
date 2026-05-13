@@ -5,6 +5,7 @@ import type {
   CancelTradingResult,
   CreateTradingRequest,
   CreateTradingResult,
+  LiquidateHoldingResult,
 } from "../types";
 
 export function useCreateCommand() {
@@ -32,6 +33,21 @@ export function useCancelCommand() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.activeCommands });
       qc.invalidateQueries({ queryKey: QK.todayClosed });
+    },
+  });
+}
+
+export function useLiquidateHolding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (stockCode: string) =>
+      apiFetch<LiquidateHoldingResult>(
+        `/api/account/holdings/${stockCode}/sell`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.holdings });
+      qc.invalidateQueries({ queryKey: QK.accountBalance });
     },
   });
 }
