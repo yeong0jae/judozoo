@@ -419,9 +419,10 @@ class TradingCycleRunner(
         )
 
         fun priceUpdated(currentPrice: Int, buyPrice: Int, holdingQty: Int) {
+            // profitRate는 소수(0.025 = 2.5%) — REST(TradingQueryService)·프론트 formatPct와 동일 규약
             val profitRate = if (buyPrice > 0) {
-                BigDecimal((currentPrice - buyPrice).toDouble() / buyPrice * 100.0)
-                    .setScale(3, RoundingMode.HALF_UP)
+                BigDecimal((currentPrice - buyPrice).toDouble() / buyPrice)
+                    .setScale(6, RoundingMode.HALF_UP)
             } else BigDecimal.ZERO
             val profitAmount = (currentPrice - buyPrice).toLong() * holdingQty
             publish(
