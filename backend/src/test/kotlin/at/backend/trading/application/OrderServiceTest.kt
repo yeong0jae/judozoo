@@ -136,6 +136,17 @@ class OrderServiceTest(
                 saved.orderNo shouldBe null
             }
 
+            test("현재가 조회 실패는 회차 스킵으로 처리 — 사이클 전체가 죽지 않는다") {
+                every { kisRestClient.getCurrentPrice(any()) } throws RestClientException("EGW00201")
+                val cycle = saveCycle()
+
+                // 예외 전파 없이 정상 리턴해야 함
+                orderService.placeOrder(cycle, attempt = 1)
+
+                verify(exactly = 0) { kisRestClient.requestOrder(any(), any(), any()) }
+                orderRepository.findByCycleId(cycle.id).size shouldBe 0
+            }
+
         }
 
         context("매도 시그널 발송") {

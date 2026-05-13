@@ -35,7 +35,14 @@ class OrderService(
      * 발송 실패는 회차 스킵 — 호출자(BUYING 사이클)는 다음 회차로 진행.
      */
     suspend fun placeOrder(cycle: TradingCycle, attempt: Int) {
-        val currentPrice = kisRestClient.getCurrentPrice(cycle.stockCode).output.stckPrpr.toIntOrNull()
+        val currentPrice = try {
+            kisRestClient.getCurrentPrice(cycle.stockCode).output.stckPrpr.toIntOrNull()
+        } catch (e: Exception) {
+            // KIS 일시 거부(EGW00201 등) 시 회차 스킵 — 사이클 전체가 죽지 않도록.
+            // PRD 매수 §7: 회차별 발송 실패는 스킵, 다음 회차는 예정 시각에 정상 시도.
+            log.warn(e) { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — 현재가 조회 실패" }
+            return
+        }
         if (currentPrice == null) {
             log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — 현재가 응답 파싱 실패" }
             return
