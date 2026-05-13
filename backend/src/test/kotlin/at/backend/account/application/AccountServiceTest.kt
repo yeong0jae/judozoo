@@ -27,6 +27,29 @@ class AccountServiceTest(
         )
     }
 
+    private fun stubHoldings(vararg holdings: KisBalanceResponse.Holding) {
+        every { kisRestClient.getBalance() } returns KisBalanceResponse(
+            output1 = holdings.toList(),
+            output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "0")),
+        )
+    }
+
+    private fun holding(
+        pdno: String = "005930",
+        prdtName: String = "삼성전자",
+        hldgQty: String = "10",
+        pchsAvgPric: String = "70000",
+        prpr: String = "71000",
+    ) = KisBalanceResponse.Holding(
+        pdno = pdno,
+        prdtName = prdtName,
+        hldgQty = hldgQty,
+        pchsAvgPric = pchsAvgPric,
+        prpr = prpr,
+        evluPflsAmt = "0",
+        evluPflsRt = "0",
+    )
+
     private fun saveCycle(
         stockCode: String = "005930",
         perBuyAmount: Long = 100_000L,
@@ -143,6 +166,62 @@ class AccountServiceTest(
 
                 result.reservedAmount shouldBe 700_000L
                 result.availableBalance shouldBe 300_000L
+            }
+        }
+
+        context("보유 주식 조회") {
+            test("KIS 잔고가 비어있으면 빈 목록을 반환한다") {
+                stubHoldings()
+
+                accountService.getHoldings() shouldBe emptyList()
+            }
+
+            test("보유 수량이 0인 행은 결과에서 제외된다") {
+                stubHoldings(
+                    holding(pdno = "005930", hldgQty = "10"),
+                    holding(pdno = "035420", hldgQty = "0"),
+                )
+
+                val result = accountService.getHoldings()
+
+                result.map { it.stockCode } shouldBe listOf("005930")
+            }
+
+            test("평가손익과 평가손익률은 현재가와 매입평균가에서 산출된다") {
+                stubHoldings(
+                    holding(pdno = "005930", hldgQty = "10", pchsAvgPric = "70000", prpr = "71000"),
+                )
+
+                val result = accountService.getHoldings().single()
+
+                result.qty shouldBe 10
+                result.avgBuyPrice shouldBe 70_000L
+                result.currentPrice shouldBe 71_000L
+                result.evalProfit shouldBe 10_000L
+                result.evalProfitRate shouldBe (1_000.0 / 70_000.0)
+            }
+
+            test("OPEN 상태(LIQUIDATING 포함) 사이클이 있는 종목은 hasActiveCycle=true") {
+                stubHoldings(
+                    holding(pdno = "005930"),
+                    holding(pdno = "035420"),
+                    holding(pdno = "000660"),
+                )
+                saveCycle(stockCode = "005930", status = TradingCycleStatus.BUYING)
+                saveCycle(stockCode = "035420", status = TradingCycleStatus.LIQUIDATING)
+
+                val result = accountService.getHoldings().associate { it.stockCode to it.hasActiveCycle }
+
+                result["005930"] shouldBe true
+                result["035420"] shouldBe true
+                result["000660"] shouldBe false
+            }
+
+            test("CLOSED 사이클만 있는 종목은 hasActiveCycle=false") {
+                stubHoldings(holding(pdno = "005930"))
+                saveCycle(stockCode = "005930", status = TradingCycleStatus.CLOSED)
+
+                accountService.getHoldings().single().hasActiveCycle shouldBe false
             }
         }
     }

@@ -8,9 +8,9 @@ Goal: 시스템 사이클과 무관하게 KIS 계좌에 남아있는 보유 주�
 
 ## 백엔드 — 보유 주식 조회
 
-- [ ] `KisBalanceResponse`에 `output1` 매핑 추가 — 보유 종목 배열: `pdno`(종목코드), `prdt_name`(종목명), `hldg_qty`(보유수량), `pchs_avg_pric`(매입평균가), `prpr`(현재가), `evlu_pfls_amt`(평가손익금액), `evlu_pfls_rt`(평가손익률). WireMock fixture `balance.json`을 `output1` 포함하도록 보강 (`KisRestClientTest` 영향 확인).
-- [ ] `account.application.AccountService.getHoldings()` — KIS 잔고 `output1` → `HoldingResult` 리스트 변환. 보유수량 0 행 제외. 각 행에 `hasActiveCycle: Boolean` 부여 (`TradingCycleRepository`로 해당 stockCode에 ACTIVE 사이클 존재 여부).
-- [ ] `account.presentation.AccountController` — `GET /api/account/holdings` → `List<HoldingResult>`
+- [x] `KisBalanceResponse`에 `output1` 매핑 추가 — 보유 종목 배열: `pdno`(종목코드), `prdt_name`(종목명), `hldg_qty`(보유수량), `pchs_avg_pric`(매입평균가), `prpr`(현재가), `evlu_pfls_amt`(평가손익금액), `evlu_pfls_rt`(평가손익률). WireMock fixture `balance.json`을 `output1` 포함하도록 보강 (`KisRestClientTest` 영향 확인).
+- [x] `account.application.AccountService.getHoldings()` — KIS 잔고 `output1` → `HoldingResult` 리스트 변환. 보유수량 0 행 제외. 각 행에 `hasActiveCycle: Boolean` 부여 (`OPEN` = ACTIVE + LIQUIDATING 상태 사이클 존재 여부 — LIQUIDATING 중 수동 매도도 충돌 위험이라 차단).
+- [x] `account.presentation.AccountController` — `GET /api/account/holdings` → `List<HoldingResult>`
 
 ## 백엔드 — 보유 전량 시장가 매도
 

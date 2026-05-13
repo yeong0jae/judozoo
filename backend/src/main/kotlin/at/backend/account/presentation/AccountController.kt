@@ -17,4 +17,10 @@ class AccountController(private val accountService: AccountService) {
         log.info { "GET /api/account/balance referer=$referer" }
         return ApiResponse.ok(accountService.getBalance())
     }
+
+    @GetMapping("/api/account/holdings")
+    fun getHoldings(): ApiResponse<List<AccountService.HoldingResult>> {
+        log.info { "GET /api/account/holdings" }
+        return ApiResponse.ok(accountService.getHoldings())
+    }
 }

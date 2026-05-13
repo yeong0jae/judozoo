@@ -77,6 +77,18 @@ class KisRestClientTest : FunSpec({
             client().getBalance().output2.first().prvsRcdlExccAmt shouldBe "1234567"
         }
 
+        test("잔고 조회 - 보유 종목(output1) 매핑") {
+            stub("/uapi/domestic-stock/v1/trading/inquire-balance", "balance.json")
+
+            val output1 = client().getBalance().output1
+            output1 shouldHaveSize 2
+            val samsung = output1.first { it.pdno == "005930" }
+            samsung.prdtName shouldBe "삼성전자"
+            samsung.hldgQty shouldBe "10"
+            samsung.pchsAvgPric shouldBe "70000.00"
+            samsung.prpr shouldBe "71000"
+        }
+
         test("3분봉 조회 - output2 목록 반환") {
             stub("/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice", "bars.json")
 

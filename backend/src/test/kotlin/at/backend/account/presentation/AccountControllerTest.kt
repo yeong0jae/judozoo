@@ -34,4 +34,41 @@ class AccountControllerTest : FunSpec({
             }
         }
     }
+
+    context("GET /api/account/holdings") {
+        test("보유 주식 조회 시 200과 종목별 보유/평가/활성사이클 여부를 반환한다") {
+            every { accountService.getHoldings() } returns listOf(
+                AccountService.HoldingResult(
+                    stockCode = "005930",
+                    stockName = "삼성전자",
+                    qty = 10,
+                    avgBuyPrice = 70_000L,
+                    currentPrice = 71_000L,
+                    evalProfit = 10_000L,
+                    evalProfitRate = 0.014285,
+                    hasActiveCycle = true,
+                ),
+            )
+
+            mockMvc.get("/api/account/holdings").andExpect {
+                status { isOk() }
+                jsonPath("$.data[0].stockCode") { value("005930") }
+                jsonPath("$.data[0].stockName") { value("삼성전자") }
+                jsonPath("$.data[0].qty") { value(10) }
+                jsonPath("$.data[0].avgBuyPrice") { value(70_000) }
+                jsonPath("$.data[0].currentPrice") { value(71_000) }
+                jsonPath("$.data[0].evalProfit") { value(10_000) }
+                jsonPath("$.data[0].hasActiveCycle") { value(true) }
+            }
+        }
+
+        test("보유 종목이 없으면 빈 배열을 반환한다") {
+            every { accountService.getHoldings() } returns emptyList()
+
+            mockMvc.get("/api/account/holdings").andExpect {
+                status { isOk() }
+                jsonPath("$.data.length()") { value(0) }
+            }
+        }
+    }
 })
