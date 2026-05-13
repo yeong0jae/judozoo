@@ -29,8 +29,8 @@ Goal: 시스템 사이클과 무관하게 KIS 계좌에 남아있는 보유 주�
 
 ## Verification
 
-- [ ] `./gradlew test` — `AccountService.getHoldings`(output1 매핑 / 보유0 제외 / hasActiveCycle 판정) + `liquidate`(보유0 거부 / 정상 발송) + `AccountControllerTest`. `balance.json` fixture 변경에 따른 `KisRestClientTest` 그린.
-- [ ] `npm run build` 0 에러
+- [x] `./gradlew test` — `AccountService.getHoldings`(output1 매핑 / 보유0 제외 / hasActiveCycle 판정) + `liquidate`(보유0 거부 / 정상 발송) + `AccountControllerTest`. `balance.json` fixture 변경에 따른 `KisRestClientTest` 그린.
+- [x] `npm run build` 0 에러
 - [ ] 수동 검증: 백엔드+프론트 기동 → "보유 주식" 탭에 KIS 계좌 보유분 표시 → orphan 종목 "시장가 매도" → 확인 다이얼로그 → KIS 매도 주문 발송 로그 확인 → 재조회 시 수량 감소(또는 사라짐)
 - [ ] 수동 검증: 활성 사이클 있는 종목은 "매매 중" 배지 + 매도 버튼 비활성
 
