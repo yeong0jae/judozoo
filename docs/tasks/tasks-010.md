@@ -14,8 +14,8 @@ Goal: 시스템 사이클과 무관하게 KIS 계좌에 남아있는 보유 주�
 
 ## 백엔드 — 보유 전량 시장가 매도
 
-- [ ] `account.application.AccountService.liquidate(stockCode)` — KIS 잔고에서 해당 종목 보유수량 조회 → 0이면 거부(예외), 아니면 `KisRestClient.requestOrder(stockCode, SELL, qty)` 시장가 1회 발송 (재시도 없음 — 체결 확인은 사용자가 재조회). 응답을 `LiquidateResult`(odno 등)로 반환. 활성 사이클이 있는 종목이어도 API 레벨에선 막지 않음 — UI 가드가 1차 방어선, API는 운영자 강제 개입 여지 유지하되 호출 시 WARN 로그.
-- [ ] `AccountController` — `POST /api/account/holdings/{stockCode}/sell` → `liquidate` 호출. KIS 거부 시 `GlobalExceptionHandler` 경유 적절한 HTTP 에러.
+- [x] `account.application.AccountService.liquidate(stockCode)` — KIS 잔고에서 해당 종목 보유수량 조회 → 0이면 `EntityNotFoundException`, 아니면 `KisRestClient.requestOrder(stockCode, SELL, qty)` 시장가 1회 발송 (재시도 없음 — 체결 확인은 사용자가 재조회). 응답을 `LiquidateResult`(stockCode/qty/orderNo/krxFwdgOrdOrgno)로 반환. 활성 사이클이 있는 종목이어도 API 레벨에선 막지 않음(UI 가드가 1차 방어선) — 호출 시 WARN 로그.
+- [x] `AccountController` — `POST /api/account/holdings/{stockCode}/sell` → `liquidate` 호출. `GlobalExceptionHandler`에 `KisOrderRejectedException` 핸들러 추가(502 + msgCd 그대로 노출), 보유 0은 `EntityNotFoundException` → 404.
 
 ## 프론트 — 보유 주식 탭
 

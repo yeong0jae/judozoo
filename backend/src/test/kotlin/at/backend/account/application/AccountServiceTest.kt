@@ -2,14 +2,18 @@ package at.backend.account.application
 
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
+import at.backend.library.exception.EntityNotFoundException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
+import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
 import io.mockk.every
+import io.mockk.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import java.math.BigDecimal
@@ -222,6 +226,56 @@ class AccountServiceTest(
                 saveCycle(stockCode = "005930", status = TradingCycleStatus.CLOSED)
 
                 accountService.getHoldings().single().hasActiveCycle shouldBe false
+            }
+        }
+
+        context("보유 전량 시장가 매도") {
+            fun stubSellOk(odno: String = "0000999999") {
+                every { kisRestClient.requestOrder(any(), any(), any()) } returns KisOrderResponse(
+                    rtCd = "0", msgCd = "OK", msg1 = "OK",
+                    output = KisOrderResponse.Output(
+                        odno = odno, krxFwdgOrdOrgno = "00950", ordTmd = "104518",
+                    ),
+                )
+            }
+
+            test("보유 종목이 없으면 EntityNotFoundException을 던진다") {
+                stubHoldings()
+
+                shouldThrow<EntityNotFoundException> {
+                    accountService.liquidate("005930")
+                }
+            }
+
+            test("보유 수량 0인 종목도 EntityNotFoundException을 던진다") {
+                stubHoldings(holding(pdno = "005930", hldgQty = "0"))
+
+                shouldThrow<EntityNotFoundException> {
+                    accountService.liquidate("005930")
+                }
+            }
+
+            test("보유 종목을 보유 수량만큼 시장가 매도로 발송하고 KIS 주문번호를 반환한다") {
+                stubHoldings(holding(pdno = "005930", hldgQty = "7"))
+                stubSellOk(odno = "0000777777")
+
+                val result = accountService.liquidate("005930")
+
+                result.stockCode shouldBe "005930"
+                result.qty shouldBe 7
+                result.orderNo shouldBe "0000777777"
+                result.krxFwdgOrdOrgno shouldBe "00950"
+                verify { kisRestClient.requestOrder("005930", "SELL", 7) }
+            }
+
+            test("활성 사이클이 있는 종목이어도 API 레벨에선 매도 발송한다 (UI 가드가 1차 방어선)") {
+                stubHoldings(holding(pdno = "005930", hldgQty = "5"))
+                stubSellOk()
+                saveCycle(stockCode = "005930", status = TradingCycleStatus.LIQUIDATING)
+
+                accountService.liquidate("005930").qty shouldBe 5
+
+                verify { kisRestClient.requestOrder("005930", "SELL", 5) }
             }
         }
     }

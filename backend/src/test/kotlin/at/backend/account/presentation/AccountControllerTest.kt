@@ -1,11 +1,13 @@
 package at.backend.account.presentation
 
 import at.backend.account.application.AccountService
+import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.web.GlobalExceptionHandler
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.every
 import io.mockk.mockk
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 
 class AccountControllerTest : FunSpec({
@@ -68,6 +70,34 @@ class AccountControllerTest : FunSpec({
             mockMvc.get("/api/account/holdings").andExpect {
                 status { isOk() }
                 jsonPath("$.data.length()") { value(0) }
+            }
+        }
+    }
+
+    context("POST /api/account/holdings/{stockCode}/sell") {
+        test("시장가 매도 발송 시 200과 매도된 수량·주문번호를 반환한다") {
+            every { accountService.liquidate("005930") } returns AccountService.LiquidateResult(
+                stockCode = "005930",
+                qty = 7,
+                orderNo = "0000777777",
+                krxFwdgOrdOrgno = "00950",
+            )
+
+            mockMvc.post("/api/account/holdings/005930/sell").andExpect {
+                status { isOk() }
+                jsonPath("$.data.stockCode") { value("005930") }
+                jsonPath("$.data.qty") { value(7) }
+                jsonPath("$.data.orderNo") { value("0000777777") }
+                jsonPath("$.data.krxFwdgOrdOrgno") { value("00950") }
+            }
+        }
+
+        test("보유 종목이 없으면 404 NOT_FOUND") {
+            every { accountService.liquidate("005930") } throws EntityNotFoundException("보유 종목이 없습니다: 005930")
+
+            mockMvc.post("/api/account/holdings/005930/sell").andExpect {
+                status { isNotFound() }
+                jsonPath("$.code") { value("NOT_FOUND") }
             }
         }
     }

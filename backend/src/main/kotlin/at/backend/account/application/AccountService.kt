@@ -1,9 +1,12 @@
 package at.backend.account.application
 
+import at.backend.library.exception.EntityNotFoundException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.cycle.TradingCycleStatus
+import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 
 @Service
@@ -12,6 +15,8 @@ class AccountService(
     private val tradingCycleRepository: TradingCycleJpaRepository,
     private val kisProperties: KisProperties,
 ) {
+
+    private val log = KotlinLogging.logger {}
 
     fun getBalance(): AccountBalanceResult {
         val response = kisRestClient.getBalance()
@@ -58,6 +63,32 @@ class AccountService(
             }
     }
 
+    /**
+     * 종목 보유 전량을 시장가로 매도 발송. 1회 발송 후 반환 — 체결 확정은 사용자가 재조회해 확인.
+     * 활성 사이클이 있어도 API 레벨에선 막지 않고 WARN만 남긴다 (UI가 1차 가드).
+     * 보유 0 이면 [EntityNotFoundException], KIS 거부는 KisOrderRejectedException 전파.
+     */
+    fun liquidate(stockCode: String): LiquidateResult {
+        val holding = kisRestClient.getBalance().output1
+            .firstOrNull { it.pdno == stockCode && (it.hldgQty.toIntOrNull() ?: 0) > 0 }
+            ?: throw EntityNotFoundException("보유 종목이 없습니다: $stockCode")
+        val qty = holding.hldgQty.toInt()
+        val hasActive = tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(
+            kisProperties.accountNo, stockCode, TradingCycleStatus.OPEN
+        ).isNotEmpty()
+        if (hasActive) {
+            log.warn { "수동 시장가 매도: 활성 사이클 있는 종목에 호출됨 stockCode=$stockCode, qty=$qty" }
+        }
+        val output = kisRestClient.requestOrder(stockCode, OrderSide.SELL.name, qty).output
+            ?: error("KIS 매도 응답 output이 비어있습니다")
+        return LiquidateResult(
+            stockCode = stockCode,
+            qty = qty,
+            orderNo = output.odno,
+            krxFwdgOrdOrgno = output.krxFwdgOrdOrgno,
+        )
+    }
+
     data class AccountBalanceResult(
         val cashBalance: Long,
         val reservedAmount: Long,
@@ -73,6 +104,13 @@ class AccountService(
         val evalProfit: Long,
         val evalProfitRate: Double,
         val hasActiveCycle: Boolean,
+    )
+
+    data class LiquidateResult(
+        val stockCode: String,
+        val qty: Int,
+        val orderNo: String,
+        val krxFwdgOrdOrgno: String,
     )
 
     companion object {
