@@ -108,14 +108,27 @@ class TradingQueryServiceTest(
         }
 
         context("findToday") {
-            test("오늘 생성된 사이클 목록을 반환한다") {
-                val cycle = saveCycle(stockCode = "005930")
-                saveCycle(stockCode = "035420", stockName = "NAVER")
+            test("오늘 종료된 사이클만 반환한다") {
+                val cycle = saveCycle(stockCode = "005930", status = TradingCycleStatus.CLOSED)
+                saveCycle(stockCode = "035420", stockName = "NAVER", status = TradingCycleStatus.CLOSED)
                 timeProvider.current = cycle.createdAt
 
                 val result = tradingQueryService.findToday()
 
                 result shouldHaveSize 2
+            }
+
+            test("진행 중 사이클(INITIATED/BUYING/HOLDING/LIQUIDATING)은 결과에서 제외된다") {
+                saveCycle(stockCode = "005930", status = TradingCycleStatus.INITIATED)
+                saveCycle(stockCode = "035420", status = TradingCycleStatus.BUYING)
+                saveCycle(stockCode = "000660", status = TradingCycleStatus.HOLDING)
+                saveCycle(stockCode = "035720", status = TradingCycleStatus.LIQUIDATING)
+                val closed = saveCycle(stockCode = "207940", status = TradingCycleStatus.CLOSED)
+                timeProvider.current = closed.createdAt
+
+                val result = tradingQueryService.findToday()
+
+                result.map { it.cycleId } shouldBe listOf(closed.id)
             }
 
             test("사이클이 없으면 빈 목록을 반환한다") {

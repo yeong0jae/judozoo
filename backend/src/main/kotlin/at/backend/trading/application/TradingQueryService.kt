@@ -37,6 +37,7 @@ class TradingQueryService(
         val startOfDay = timeProvider.today().atStartOfDay()
         val endOfDay = startOfDay.plusDays(1)
         return tradingCycleRepository.findByAccountNoAndCreatedAtBetween(kisProperties.accountNo, startOfDay, endOfDay)
+            .filter { it.status == TradingCycleStatus.CLOSED }   // "오늘 종료" 미니 섹션 — 진행 중 사이클은 위쪽 활성 명령에 노출됨
             .map { toDailyTrading(it) }
     }
 
