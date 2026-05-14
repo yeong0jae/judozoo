@@ -7,6 +7,7 @@ import at.backend.common.test.MutableTimeProvider
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
+import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -32,6 +33,7 @@ class TradingQueryServiceTest(
         stockName: String = "삼성전자",
         perBuyAmount: Long = 100_000L,
         status: TradingCycleStatus = TradingCycleStatus.INITIATED,
+        closeReason: CloseReason? = null,
     ) = tradingCycleRepository.save(
         TradingCycle(
             accountNo = "00000000",
@@ -44,6 +46,7 @@ class TradingQueryServiceTest(
             breakevenThresholdPct = BigDecimal("0.5"),
             stopLossPct = BigDecimal("-2.0"),
             status = status,
+            closeReason = closeReason,
         )
     )
 
@@ -129,6 +132,23 @@ class TradingQueryServiceTest(
                 val result = tradingQueryService.findToday()
 
                 result.map { it.cycleId } shouldBe listOf(closed.id)
+            }
+
+            test("UNCLOSED로 마감된 사이클은 profitAmount/profitRate가 null로 반환된다") {
+                val cycle = saveCycle(
+                    stockCode = "005930",
+                    status = TradingCycleStatus.CLOSED,
+                    closeReason = CloseReason.UNCLOSED,
+                )
+                timeProvider.current = cycle.createdAt
+
+                val result = tradingQueryService.findToday()
+
+                result shouldHaveSize 1
+                val r = result.first()
+                r.cycleId shouldBe cycle.id
+                r.profitAmount shouldBe null
+                r.profitRate shouldBe null
             }
 
             test("사이클이 없으면 빈 목록을 반환한다") {

@@ -4,8 +4,13 @@ import { colorByPnL, formatKRW, formatPct } from "../../lib/format";
 export default function TodayProfitSummary() {
   const { data, isLoading } = useTodayClosed();
   const rows = data ?? [];
-  const totalProfit = rows.reduce((s, r) => s + r.profitAmount, 0);
-  const totalBase = rows.reduce(
+  // UNCLOSED 등 손익이 확정되지 않은 사이클은 백엔드가 null로 보내므로 합계/카운트에서 제외.
+  const realized = rows.filter(
+    (r): r is typeof r & { profitAmount: number; profitRate: number } =>
+      r.profitAmount !== null && r.profitRate !== null,
+  );
+  const totalProfit = realized.reduce((s, r) => s + r.profitAmount, 0);
+  const totalBase = realized.reduce(
     (s, r) =>
       s +
       (r.profitAmount === 0
@@ -14,7 +19,7 @@ export default function TodayProfitSummary() {
     0,
   );
   const aggregateRate = totalBase > 0 ? totalProfit / totalBase : 0;
-  const count = rows.length;
+  const count = realized.length;
 
   if (isLoading) {
     return (

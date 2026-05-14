@@ -1,6 +1,7 @@
 package at.backend.report.application
 
 import at.backend.platform.kis.config.KisProperties
+import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.order.OrderSide
@@ -43,9 +44,11 @@ class ReportService(
         val totalFee = (buyExecutions + sellExecutions).sumOf { it.fee.toLong() }
         val totalTax = (buyExecutions + sellExecutions).sumOf { it.tax.toLong() }
 
-        // 청산되지 않은(=CLOSED 아닌) 사이클은 손익이 확정되지 않았으므로 null
-        val isClosed = cycle.status == TradingCycleStatus.CLOSED
-        val grossProfit: Long? = if (isClosed) totalSoldAmount - totalBoughtAmount else null
+        // 손익 확정으로 보지 않는 사이클은 null 처리한다 — 합계/승패에서 자동 제외.
+        //   1) CLOSED가 아닌 사이클: 아직 진행 중
+        //   2) closeReason == UNCLOSED: KIS 측에서 청산이 끝나지 않은 비정상 종료
+        val realized = cycle.status == TradingCycleStatus.CLOSED && cycle.closeReason != CloseReason.UNCLOSED
+        val grossProfit: Long? = if (realized) totalSoldAmount - totalBoughtAmount else null
         val netProfit: Long? = grossProfit?.let { it - totalFee - totalTax }
         val profitRate: Double? = when {
             netProfit == null -> null

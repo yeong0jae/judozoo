@@ -157,8 +157,8 @@ export interface DailyTrading {
   stockName: string;
   status: TradingCycleStatus;
   closeReason: CloseReason | null;
-  profitRate: number;
-  profitAmount: number;
+  profitRate: number | null;
+  profitAmount: number | null;
   createdAt: string;
   closedAt: string | null;
 }

@@ -9,13 +9,13 @@ data class DailyTradingResult(
     val stockName: String,
     val status: String,
     val closeReason: String?,
-    val profitRate: Double,
-    val profitAmount: Long,
+    val profitRate: Double?,
+    val profitAmount: Long?,
     val createdAt: LocalDateTime,
     val closedAt: LocalDateTime?,
 ) {
     companion object {
-        fun from(cycle: TradingCycle, profitRate: Double, profitAmount: Long) = DailyTradingResult(
+        fun from(cycle: TradingCycle, profitRate: Double?, profitAmount: Long?) = DailyTradingResult(
             cycleId = cycle.id,
             stockCode = cycle.stockCode,
             stockName = cycle.stockName,

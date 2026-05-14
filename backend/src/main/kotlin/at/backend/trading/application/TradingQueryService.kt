@@ -8,6 +8,7 @@ import at.backend.trading.TradingProperties
 import at.backend.trading.application.result.DailyTradingResult
 import at.backend.trading.application.result.TradingDetailResult
 import at.backend.trading.application.result.TradingSummaryResult
+import at.backend.trading.domain.cycle.CloseReason
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.execution.Execution
@@ -73,9 +74,16 @@ class TradingQueryService(
             .filter { it.side == OrderSide.BUY }
             .flatMap { o -> executions.filter { it.orderId == o.id } }
             .sumOf { it.executedPrice.toLong() * it.executedQty }
-        val profitAmount = totalSoldAmount - totalBuyAmount
 
-        val profitRate = if (totalBuyAmount == 0L) 0.0 else profitAmount.toDouble() / totalBuyAmount
+        // 손익으로 보지 않는 사이클은 null — 헤더 합계 및 메인 화면에서 자동 제외.
+        //   - CLOSED가 아닌 경우(여기 도달하지 않음) 또는 closeReason == UNCLOSED(비정상 종료)
+        val realized = cycle.status == TradingCycleStatus.CLOSED && cycle.closeReason != CloseReason.UNCLOSED
+        val profitAmount: Long? = if (realized) totalSoldAmount - totalBuyAmount else null
+        val profitRate: Double? = when {
+            profitAmount == null -> null
+            totalBuyAmount == 0L -> 0.0
+            else -> profitAmount.toDouble() / totalBuyAmount
+        }
 
         return DailyTradingResult.from(cycle, profitRate, profitAmount)
     }

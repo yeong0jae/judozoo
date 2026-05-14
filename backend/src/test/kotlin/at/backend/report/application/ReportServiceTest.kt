@@ -73,6 +73,21 @@ class ReportServiceTest(
                 r.netProfit shouldBe -100_050
             }
 
+            test("UNCLOSED로 마감된 사이클은 손익이 null로 비워진다") {
+                val date = LocalDate.of(2026, 3, 14)
+                val cycleId = saveCycle(date.atTime(9, 30), CloseReason.UNCLOSED)
+                val buyId = saveOrder(cycleId, side = OrderSide.BUY, trigger = "INITIAL", qty = 5)
+                executionRepository.save(execution(buyId, qty = 5, price = 1_000, fee = 10, tax = 0))
+
+                val r = reportService.findDaily(date).first()
+
+                r.status shouldBe "CLOSED"
+                r.closeReason shouldBe "UNCLOSED"
+                r.grossProfit shouldBe null
+                r.netProfit shouldBe null
+                r.profitRate shouldBe null
+            }
+
             test("아직 청산되지 않은 사이클은 손익이 null로 비워진다") {
                 val date = LocalDate.of(2026, 3, 14)
                 val cycleId = saveCycle(date.atTime(9, 30), status = TradingCycleStatus.HOLDING)
