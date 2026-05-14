@@ -63,14 +63,37 @@ class BarPoller(
         latestBarEnd.clear()
     }
 
+    /**
+     * 폴링 루프. 한 사이클 안에서 1건이라도 실패하면 다음 delay를 ×2로 늘리고(상한 [MAX_BACKOFF_MILLIS]),
+     * 전건 성공한 사이클이 나오면 base 주기로 리셋한다. KIS 일시 장애에서 호출 폭주를 줄이는 용도.
+     */
     private fun startPolling() {
+        val baseDelayMillis = pollIntervalMillis
+        var currentDelayMillis = baseDelayMillis
+
         val job = applicationScope.launch {
             while (isActive) {
+                var anyFailed = false
                 subscribed.forEach { stockCode ->
                     runCatching { pollOnce(stockCode) }
-                        .onFailure { log.warn(it) { "BarPoller 폴링 실패 stockCode=$stockCode" } }
+                        .onFailure {
+                            anyFailed = true
+                            log.warn(it) { "BarPoller 폴링 실패 stockCode=$stockCode" }
+                        }
                 }
-                delay(pollIntervalMillis.milliseconds)
+                currentDelayMillis = if (anyFailed) {
+                    val next = (currentDelayMillis * 2).coerceAtMost(MAX_BACKOFF_MILLIS)
+                    if (next != currentDelayMillis) {
+                        log.warn { "BarPoller 백오프 ${currentDelayMillis}ms → ${next}ms" }
+                    }
+                    next
+                } else {
+                    if (currentDelayMillis != baseDelayMillis) {
+                        log.info { "BarPoller 백오프 해제 → ${baseDelayMillis}ms" }
+                    }
+                    baseDelayMillis
+                }
+                delay(currentDelayMillis.milliseconds)
             }
         }
         pollingJob.set(job)
@@ -107,5 +130,6 @@ class BarPoller(
         private val DATE_FMT: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
         private val TIME_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
         private val BAR_DURATION: Duration = Duration.ofMinutes(3)
+        private const val MAX_BACKOFF_MILLIS: Long = 5L * 60 * 1000  // 5분
     }
 }
