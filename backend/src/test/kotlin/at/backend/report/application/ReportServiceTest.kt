@@ -73,6 +73,22 @@ class ReportServiceTest(
                 r.netProfit shouldBe -100_050
             }
 
+            test("아직 청산되지 않은 사이클은 손익이 null로 비워진다") {
+                val date = LocalDate.of(2026, 3, 14)
+                val cycleId = saveCycle(date.atTime(9, 30), status = TradingCycleStatus.HOLDING)
+                val buyId = saveOrder(cycleId, side = OrderSide.BUY, trigger = "INITIAL", qty = 9)
+                executionRepository.save(execution(buyId, qty = 9, price = 297_166, fee = 0, tax = 0))
+
+                val r = reportService.findDaily(date).first()
+
+                r.status shouldBe "HOLDING"
+                r.avgBuyPrice shouldBe 297_166
+                r.avgSellPrice shouldBe null
+                r.grossProfit shouldBe null
+                r.netProfit shouldBe null
+                r.profitRate shouldBe null
+            }
+
             test("date 외 사이클은 결과에 포함되지 않는다") {
                 val day = LocalDate.of(2026, 3, 14)
                 saveCycle(day.minusDays(1).atTime(15, 0), CloseReason.TAKE_PROFIT)
@@ -86,7 +102,11 @@ class ReportServiceTest(
         }
     }
 
-    private fun saveCycle(createdAt: LocalDateTime, closeReason: CloseReason): Long {
+    private fun saveCycle(
+        createdAt: LocalDateTime,
+        closeReason: CloseReason? = null,
+        status: TradingCycleStatus = TradingCycleStatus.CLOSED,
+    ): Long {
         val cycle = TradingCycle(
             accountNo = "00000000",
             stockCode = "005930",
@@ -97,9 +117,9 @@ class ReportServiceTest(
             midwayProfitPct = BigDecimal("3.0"),
             breakevenThresholdPct = BigDecimal("2.0"),
             stopLossPct = BigDecimal("-2.0"),
-            status = TradingCycleStatus.CLOSED,
+            status = status,
             closeReason = closeReason,
-            closedAt = createdAt.plusHours(1),
+            closedAt = if (status == TradingCycleStatus.CLOSED) createdAt.plusHours(1) else null,
         )
         val saved = cycleRepository.save(cycle)
         cycleRepository.flush()

@@ -39,8 +39,8 @@ export default function ReportPage() {
   const filteredRows = useMemo(() => {
     return allRows
       .filter((r) => {
-        if (pnlFilter === "win") return r.netProfit > 0;
-        if (pnlFilter === "loss") return r.netProfit < 0;
+        if (pnlFilter === "win") return r.netProfit !== null && r.netProfit > 0;
+        if (pnlFilter === "loss") return r.netProfit !== null && r.netProfit < 0;
         return true;
       })
       .filter(
@@ -235,12 +235,14 @@ interface Summary {
 }
 
 function computeSummary(rows: DailyReport[]): Summary {
-  const totalNet = rows.reduce((s, r) => s + r.netProfit, 0);
+  // 청산되지 않은 사이클은 netProfit이 null — 합계/승패 카운트에서 제외한다.
+  const closed = rows.filter((r) => r.netProfit !== null);
+  const totalNet = closed.reduce((s, r) => s + (r.netProfit ?? 0), 0);
   const totalFee = rows.reduce((s, r) => s + r.totalFee, 0);
   const totalTax = rows.reduce((s, r) => s + r.totalTax, 0);
-  const winCount = rows.filter((r) => r.netProfit > 0).length;
-  const lossCount = rows.filter((r) => r.netProfit < 0).length;
-  const drawCount = rows.length - winCount - lossCount;
+  const winCount = closed.filter((r) => (r.netProfit ?? 0) > 0).length;
+  const lossCount = closed.filter((r) => (r.netProfit ?? 0) < 0).length;
+  const drawCount = closed.length - winCount - lossCount;
   const decisive = winCount + lossCount;
   const reasonCounts = new Map<CloseReason, number>();
   for (const r of rows) {
@@ -480,7 +482,13 @@ function SortDropdown({
 }
 
 function sortFn(key: SortKey): (a: DailyReport, b: DailyReport) => number {
-  if (key === "profitRate") return (a, b) => b.profitRate - a.profitRate;
+  if (key === "profitRate")
+    return (a, b) => {
+      if (a.profitRate === null && b.profitRate === null) return 0;
+      if (a.profitRate === null) return 1;
+      if (b.profitRate === null) return -1;
+      return b.profitRate - a.profitRate;
+    };
   return (a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? "");
 }
 

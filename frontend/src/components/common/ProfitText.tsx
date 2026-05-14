@@ -1,7 +1,7 @@
 import { colorByPnL } from "../../lib/format";
 
 interface Props {
-  value: number;
+  value: number | null;
   format: (v: number) => string;
   className?: string;
   // value === 0 일 때 "-" 로 표기. 종료 직후 등 의미 없는 0 표현용.
@@ -14,7 +14,7 @@ export default function ProfitText({
   className = "",
   zeroAsDash = false,
 }: Props) {
-  if (zeroAsDash && value === 0) {
+  if (value === null || (zeroAsDash && value === 0)) {
     return <span className="text-zinc-500">-</span>;
   }
   return (

@@ -176,9 +176,9 @@ export interface DailyReport {
   avgSellPrice: number | null;
   totalFee: number;
   totalTax: number;
-  grossProfit: number;
-  netProfit: number;
-  profitRate: number;
+  grossProfit: number | null;
+  netProfit: number | null;
+  profitRate: number | null;
 }
 
 export interface StockSearchResult {

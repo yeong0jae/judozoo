@@ -20,7 +20,7 @@ data class DailyReportResult(
     val avgSellPrice: Long?,
     val totalFee: Long,
     val totalTax: Long,
-    val grossProfit: Long,
-    val netProfit: Long,
-    val profitRate: Double,
+    val grossProfit: Long?,
+    val netProfit: Long?,
+    val profitRate: Double?,
 )

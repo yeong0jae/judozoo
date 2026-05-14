@@ -2,6 +2,7 @@ package at.backend.report.application
 
 import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.cycle.TradingCycle
+import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
@@ -42,11 +43,15 @@ class ReportService(
         val totalFee = (buyExecutions + sellExecutions).sumOf { it.fee.toLong() }
         val totalTax = (buyExecutions + sellExecutions).sumOf { it.tax.toLong() }
 
-        val grossProfit = totalSoldAmount - totalBoughtAmount
-        val netProfit = grossProfit - totalFee - totalTax
-        val profitRate =
-            if (totalBoughtAmount == 0L) 0.0
-            else netProfit.toDouble() / totalBoughtAmount
+        // 청산되지 않은(=CLOSED 아닌) 사이클은 손익이 확정되지 않았으므로 null
+        val isClosed = cycle.status == TradingCycleStatus.CLOSED
+        val grossProfit: Long? = if (isClosed) totalSoldAmount - totalBoughtAmount else null
+        val netProfit: Long? = grossProfit?.let { it - totalFee - totalTax }
+        val profitRate: Double? = when {
+            netProfit == null -> null
+            totalBoughtAmount == 0L -> 0.0
+            else -> netProfit.toDouble() / totalBoughtAmount
+        }
 
         return DailyReportResult(
             cycleId = cycle.id,
