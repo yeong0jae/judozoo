@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.client.ClientHttpRequestInterceptor
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.web.client.RestClient
+import jakarta.websocket.ContainerProvider
 import org.springframework.web.socket.client.WebSocketClient
 import org.springframework.web.socket.client.standard.StandardWebSocketClient
 import java.time.Duration
@@ -119,7 +120,15 @@ class KisApiClientConfig {
     }
 
     @Bean
-    fun kisWebSocketClient(): WebSocketClient = StandardWebSocketClient()
+    fun kisWebSocketClient(): WebSocketClient {
+        // JSR-356 기본 텍스트 버퍼(8KB)로는 KIS 체결통보(H0STCNI9) 등 큰 메시지에서 1009로 끊겨
+        // 무한 재연결 루프에 빠진다. 1MB로 확장.
+        val container = ContainerProvider.getWebSocketContainer().apply {
+            defaultMaxTextMessageBufferSize = 1024 * 1024
+            defaultMaxBinaryMessageBufferSize = 1024 * 1024
+        }
+        return StandardWebSocketClient(container)
+    }
 
     @Bean
     fun kisRealtimeClient(
