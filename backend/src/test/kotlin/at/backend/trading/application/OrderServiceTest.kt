@@ -31,6 +31,7 @@ import java.math.BigDecimal
 @TestPropertySource(
     properties = [
         "trading.order.sell-retry-delay-millis=20",
+        "trading.order.egw-retry-base-delay-millis=20",
     ]
 )
 class OrderServiceTest(
@@ -145,6 +146,31 @@ class OrderServiceTest(
 
                 verify(exactly = 0) { kisRestClient.requestOrder(any(), any(), any()) }
                 orderRepository.findByCycleId(cycle.id).size shouldBe 0
+            }
+
+            test("매수 발송 EGW00201은 회차 내에서 재시도하고, 성공 시 Order에 odno가 저장된다") {
+                stubCurrentPrice(70_000)
+                var calls = 0
+                every { kisRestClient.requestOrder(any(), any(), any()) } answers {
+                    calls += 1
+                    if (calls == 1) throw KisOrderRejectedException(msgCd = "EGW00201", msg = "초당 거래건수 초과")
+                    KisOrderResponse(
+                        rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
+                        output = KisOrderResponse.Output(
+                            krxFwdgOrdOrgno = "00950",
+                            odno = "0000888888",
+                            ordTmd = "104518",
+                        ),
+                    )
+                }
+                val cycle = saveCycle()
+
+                orderService.placeOrder(cycle, attempt = 1)
+
+                calls shouldBe 2
+                val saved = orderRepository.findByCycleId(cycle.id).single()
+                saved.status shouldBe OrderStatus.PENDING
+                saved.orderNo shouldBe "0000888888"
             }
 
         }

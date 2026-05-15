@@ -47,6 +47,7 @@ trading:
     bar-poll-interval-millis: 5000
   order:
     sell-retry-delay-millis: 5000
+    egw-retry-base-delay-millis: 20
     reconcile-delay-millis: 600000
   cycle:
     buy-interval-unit-millis: 5

@@ -5,6 +5,7 @@ import at.backend.library.time.toInstantKst
 import at.backend.market.domain.Bar
 import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRestClient
+import at.backend.platform.kis.client.response.KisOrderResponse
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.event.RetryAccumulated
 import at.backend.trading.domain.order.Order
@@ -17,6 +18,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Component
+import org.springframework.web.client.HttpServerErrorException
 import kotlin.time.Duration.Companion.milliseconds
 
 @Component
@@ -26,6 +28,7 @@ class OrderService(
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
     @Value("\${trading.order.sell-retry-delay-millis}") private val sellRetryDelayMillis: Long,
+    @Value("\${trading.order.egw-retry-base-delay-millis}") private val egwRetryBaseDelayMs: Long,
 ) {
 
     private val log = KotlinLogging.logger {}
@@ -65,7 +68,7 @@ class OrderService(
         )
 
         try {
-            val output = kisRestClient.requestOrder(cycle.stockCode, OrderSide.BUY.name, qty).output!!
+            val output = submitBuyWithEgw00201Retry(cycle.stockCode, qty, cycle.id, attempt)
             order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
             orderRepository.save(order)
         } catch (e: Exception) {
@@ -74,6 +77,36 @@ class OrderService(
             val msgCd = (e as? KisOrderRejectedException)?.msgCd
             log.warn(e) { "매수 발송 실패 cycleId=${cycle.id}, attempt=$attempt, msgCd=$msgCd" }
         }
+    }
+
+    /**
+     * 매수 발송이 EGW00201(초당 거래건수 초과)로 거부되면 짧은 backoff 후 [EGW_RETRIES]회 재시도.
+     * KIS가 처리 자체를 안 한 거부라 중복 주문 위험은 없다. 회차 단위 스킵(3분 대기) 대신
+     * 동일 회차 내에서 빠르게 재발사해 매수량 손실을 막는다. 다른 거부(잔고 부족·중복 등)는 즉시 전파.
+     */
+    private suspend fun submitBuyWithEgw00201Retry(
+        stockCode: String,
+        qty: Int,
+        cycleId: Long,
+        attempt: Int,
+    ): KisOrderResponse.Output {
+        repeat(EGW_RETRIES) { i ->
+            try {
+                return kisRestClient.requestOrder(stockCode, OrderSide.BUY.name, qty).output!!
+            } catch (e: Exception) {
+                if (!isEgw00201(e)) throw e
+                val delayMs = (i + 1) * egwRetryBaseDelayMs
+                log.info { "매수 발송 EGW00201 → ${delayMs}ms 후 재시도 cycleId=$cycleId, attempt=$attempt (${i + 1}/$EGW_RETRIES)" }
+                delay(delayMs.milliseconds)
+            }
+        }
+        return kisRestClient.requestOrder(stockCode, OrderSide.BUY.name, qty).output!!
+    }
+
+    private fun isEgw00201(e: Throwable): Boolean = when (e) {
+        is KisOrderRejectedException -> e.msgCd == EGW_RATE_LIMIT_CODE
+        is HttpServerErrorException -> e.responseBodyAsString.contains(EGW_RATE_LIMIT_CODE)
+        else -> false
     }
 
     /**
@@ -159,5 +192,10 @@ class OrderService(
     private fun Signal.triggerLabel(): String = when (this) {
         is Signal.TpStage -> "TP_STAGE_$pct"
         else -> this::class.simpleName ?: "SELL"
+    }
+
+    companion object {
+        private const val EGW_RATE_LIMIT_CODE = "EGW00201"
+        private const val EGW_RETRIES = 2
     }
 }
