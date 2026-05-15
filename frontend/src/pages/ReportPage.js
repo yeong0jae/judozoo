@@ -24,9 +24,9 @@ export default function ReportPage() {
         return allRows
             .filter((r) => {
             if (pnlFilter === "win")
-                return r.netProfit > 0;
+                return r.netProfit !== null && r.netProfit > 0;
             if (pnlFilter === "loss")
-                return r.netProfit < 0;
+                return r.netProfit !== null && r.netProfit < 0;
             return true;
         })
             .filter((r) => reasonFilter.size === 0 ||
@@ -61,12 +61,14 @@ function UnclosedBanner({ count }) {
     return (_jsxs("div", { className: "bg-rose-950/50 border border-rose-800/60 rounded-lg px-4 py-3 text-sm text-rose-200", children: ["\uD83D\uDEA8 UNCLOSED \uAC70\uB798\uAC00 ", count, "\uAC74 \uC788\uC2B5\uB2C8\uB2E4 \u2014 KIS HTS\uC5D0\uC11C \uC218\uB3D9 \uC815\uB9AC\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4"] }));
 }
 function computeSummary(rows) {
-    const totalNet = rows.reduce((s, r) => s + r.netProfit, 0);
+    // 청산되지 않은 사이클은 netProfit이 null — 합계/승패 카운트에서 제외한다.
+    const closed = rows.filter((r) => r.netProfit !== null);
+    const totalNet = closed.reduce((s, r) => s + (r.netProfit ?? 0), 0);
     const totalFee = rows.reduce((s, r) => s + r.totalFee, 0);
     const totalTax = rows.reduce((s, r) => s + r.totalTax, 0);
-    const winCount = rows.filter((r) => r.netProfit > 0).length;
-    const lossCount = rows.filter((r) => r.netProfit < 0).length;
-    const drawCount = rows.length - winCount - lossCount;
+    const winCount = closed.filter((r) => (r.netProfit ?? 0) > 0).length;
+    const lossCount = closed.filter((r) => (r.netProfit ?? 0) < 0).length;
+    const drawCount = closed.length - winCount - lossCount;
     const decisive = winCount + lossCount;
     const reasonCounts = new Map();
     for (const r of rows) {
@@ -154,7 +156,15 @@ function SortDropdown({ value, onChange, }) {
 }
 function sortFn(key) {
     if (key === "profitRate")
-        return (a, b) => b.profitRate - a.profitRate;
+        return (a, b) => {
+            if (a.profitRate === null && b.profitRate === null)
+                return 0;
+            if (a.profitRate === null)
+                return 1;
+            if (b.profitRate === null)
+                return -1;
+            return b.profitRate - a.profitRate;
+        };
     return (a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? "");
 }
 // ============================================================

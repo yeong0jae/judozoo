@@ -31,6 +31,11 @@ class TradingCycle(
     @Column(nullable = false)
     val perBuyAmount: Long,
 
+    // 신규 사이클은 perBuyQty(개수)로 결정되며, 매수 시 그대로 KIS qty로 발사된다.
+    // 과거 사이클은 null이며, OrderService에서 perBuyAmount/현재가로 fallback 계산된다.
+    @Column
+    val perBuyQty: Int? = null,
+
     @Column(nullable = false)
     val buyIntervalMin: Int,
 

@@ -47,9 +47,10 @@ class OrderService(
             log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — 현재가 응답 파싱 실패" }
             return
         }
-        val qty = (cycle.perBuyAmount / currentPrice).toInt()
+        // 신규 사이클은 perBuyQty가 결정값. 과거 사이클은 perBuyAmount/currentPrice로 fallback.
+        val qty = cycle.perBuyQty ?: (cycle.perBuyAmount / currentPrice).toInt()
         if (qty <= 0) {
-            log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — perBuyAmount(${cycle.perBuyAmount})가 1주 가격($currentPrice)보다 작음" }
+            log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — qty=$qty (perBuyQty=${cycle.perBuyQty}, perBuyAmount=${cycle.perBuyAmount}, currentPrice=$currentPrice)" }
             return
         }
 

@@ -24,10 +24,12 @@ const DEFAULTS = {
     breakevenThresholdPct: 2,
     stopLossPct: -2,
 };
+const MAX_BUY_ATTEMPT = 3;
 const schema = z.object({
-    perBuyAmount: z
+    perBuyQty: z
         .number({ message: "숫자를 입력하세요" })
-        .min(10_000, "최소 10,000원"),
+        .int("정수를 입력하세요")
+        .min(1, "최소 1주"),
     buyIntervalMin: z.number().min(1).max(30).nullable().optional(),
     splitSellRatio: z.number().min(1).max(50).nullable().optional(),
     midwayProfitPct: z.number().min(0.1).max(10).nullable().optional(),
@@ -51,7 +53,7 @@ export default function CommandPage() {
     const { register, handleSubmit, watch, reset, formState: { errors }, } = useForm({
         resolver: zodResolver(schema),
         defaultValues: {
-            perBuyAmount: 1_000_000,
+            perBuyQty: 1,
             buyIntervalMin: null,
             splitSellRatio: null,
             midwayProfitPct: null,
@@ -60,7 +62,7 @@ export default function CommandPage() {
         },
     });
     const formValues = watch();
-    const perBuyAmount = formValues.perBuyAmount ?? 0;
+    const perBuyQty = formValues.perBuyQty ?? 0;
     // STOMP 구독: 시장 변경
     useStompSubscription("/topic/market", () => {
         qc.invalidateQueries({ queryKey: QK.marketStatus });
@@ -69,11 +71,10 @@ export default function CommandPage() {
     const balance = balanceQ.data;
     const block = status ? deriveBlock(status) : null;
     const currentPrice = priceQ.data?.currentPrice ?? 0;
-    const estimatedQty = currentPrice > 0 ? Math.floor(perBuyAmount / currentPrice) : 0;
-    const totalReserve = perBuyAmount * 3;
-    const totalActualBuyEstimate = currentPrice * estimatedQty;
-    const insufficientBalance = balance !== undefined && totalReserve > balance.availableBalance;
-    const belowOneShare = currentPrice > 0 && perBuyAmount > 0 && perBuyAmount < currentPrice;
+    const perBuyAmountEstimate = currentPrice * perBuyQty;
+    const totalQty = perBuyQty * MAX_BUY_ATTEMPT;
+    const totalReserveEstimate = perBuyAmountEstimate * MAX_BUY_ATTEMPT;
+    const insufficientBalance = balance !== undefined && totalReserveEstimate > balance.availableBalance;
     const duplicateActive = selectedStock !== null &&
         (activeQ.data ?? []).some((c) => c.stockCode === selectedStock.stockCode);
     const advancedDirty = useMemo(() => {
@@ -93,8 +94,7 @@ export default function CommandPage() {
     const submitDisabled = !!block ||
         !selectedStock ||
         insufficientBalance ||
-        belowOneShare ||
-        perBuyAmount < 10_000 ||
+        perBuyQty < 1 ||
         createCommand.isPending;
     const onSubmit = async (data) => {
         setServerError(null);
@@ -107,7 +107,7 @@ export default function CommandPage() {
         try {
             await createCommand.mutateAsync({
                 stockCode: selectedStock.stockCode,
-                perBuyAmount: data.perBuyAmount,
+                perBuyQty: data.perBuyQty,
                 buyIntervalMin: data.buyIntervalMin ?? null,
                 splitSellRatio: data.splitSellRatio != null ? data.splitSellRatio / 100 : null,
                 midwayProfitPct: data.midwayProfitPct ?? null,
@@ -147,15 +147,13 @@ export default function CommandPage() {
                                             setServerError(null);
                                         } }), selectedStock && (_jsx(PriceDisplay, { stock: selectedStock, currentPrice: currentPrice, asOf: priceQ.data?.asOf, loading: priceQ.isFetching, onRefresh: () => qc.invalidateQueries({
                                             queryKey: QK.stockPrice(selectedStock.stockCode),
-                                        }), onClear: () => setSelectedStock(null) })), duplicateActive && _jsx(ErrorMsg, { code: "DUPLICATE_COMMAND" }), serverError === "STOCK_NOT_FOUND" && (_jsx(ErrorMsg, { code: "STOCK_NOT_FOUND" }))] }), _jsxs(Field, { number: 2, label: "1\uD68C \uB9E4\uC218\uAE08\uC561", disabled: !selectedStock, error: !!errors.perBuyAmount ||
+                                        }), onClear: () => setSelectedStock(null) })), duplicateActive && _jsx(ErrorMsg, { code: "DUPLICATE_COMMAND" }), serverError === "STOCK_NOT_FOUND" && (_jsx(ErrorMsg, { code: "STOCK_NOT_FOUND" }))] }), _jsxs(Field, { number: 2, label: "1\uD68C \uB9E4\uC218 \uAC1C\uC218", disabled: !selectedStock, error: !!errors.perBuyQty ||
                                     insufficientBalance ||
-                                    belowOneShare ||
-                                    serverError === "PRICE_BELOW_ONE_SHARE" ||
-                                    serverError === "INSUFFICIENT_BALANCE", children: [_jsx(AmountInput, { ...register("perBuyAmount", { valueAsNumber: true }), disabled: !selectedStock }), selectedStock && (_jsx(AmountPreview, { perBuyAmount: perBuyAmount, totalReserve: totalReserve, estimatedQty: estimatedQty, actualBuyEstimate: totalActualBuyEstimate, currentPrice: currentPrice, availableBalance: balance?.availableBalance, insufficientBalance: insufficientBalance, belowOneShare: belowOneShare }))] }), _jsxs(Field, { number: 3, label: "\uACE0\uAE09 \uC124\uC815", children: [_jsxs("button", { type: "button", onClick: () => setAdvancedOpen((v) => !v), className: "text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1", children: [_jsx("span", { children: advancedOpen ? "▾" : "▸" }), _jsx("span", { children: advancedDirty.size === 0
+                                    serverError === "INSUFFICIENT_BALANCE", children: [_jsx(QtyInput, { ...register("perBuyQty", { valueAsNumber: true }), disabled: !selectedStock }), selectedStock && (_jsx(QtyPreview, { perBuyQty: perBuyQty, totalQty: totalQty, perBuyAmountEstimate: perBuyAmountEstimate, totalReserveEstimate: totalReserveEstimate, currentPrice: currentPrice, availableBalance: balance?.availableBalance, insufficientBalance: insufficientBalance }))] }), _jsxs(Field, { number: 3, label: "\uACE0\uAE09 \uC124\uC815", children: [_jsxs("button", { type: "button", onClick: () => setAdvancedOpen((v) => !v), className: "text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1", children: [_jsx("span", { children: advancedOpen ? "▾" : "▸" }), _jsx("span", { children: advancedDirty.size === 0
                                                     ? "기본값 사용 중"
                                                     : `${advancedDirty.size}개 항목 변경됨` })] }), advancedOpen && (_jsx(AdvancedSettings, { register: register, dirtyKeys: advancedDirty, onReset: () => {
                                             reset({
-                                                perBuyAmount: formValues.perBuyAmount,
+                                                perBuyQty: formValues.perBuyQty,
                                                 buyIntervalMin: null,
                                                 splitSellRatio: null,
                                                 midwayProfitPct: null,
@@ -234,10 +232,10 @@ function StockSearchInput({ query, setQuery, selected, results, loading, onSelec
 function PriceDisplay({ stock, currentPrice, asOf, loading, onRefresh, onClear, }) {
     return (_jsxs("div", { className: "bg-zinc-950 border border-zinc-800 rounded p-3 flex items-center justify-between", children: [_jsxs("div", { children: [_jsxs("div", { className: "text-sm font-medium", children: [stock.stockName, _jsx("span", { className: "text-xs text-zinc-500 ml-2", children: stock.stockCode })] }), _jsxs("div", { className: "text-xs text-zinc-400 mt-1", children: ["\uD604\uC7AC\uAC00", " ", _jsx("span", { className: "text-zinc-100 font-medium", children: loading ? "..." : `${formatPrice(currentPrice)}원` }), asOf && (_jsxs("span", { className: "ml-2 text-zinc-500", children: ["\uAE30\uC900 ", formatRelative(asOf)] }))] })] }), _jsxs("div", { className: "flex items-center gap-1", children: [_jsx("button", { type: "button", onClick: onRefresh, disabled: loading, className: "p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded disabled:opacity-40", title: "\uAC00\uACA9 \uAC31\uC2E0", children: "\u21BB" }), _jsx("button", { type: "button", onClick: onClear, className: "p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded", title: "\uB2E4\uC2DC \uC120\uD0DD", children: "\u00D7" })] })] }));
 }
-const AmountInput = forwardRef((props, ref) => (_jsxs("div", { className: "relative", children: [_jsx("input", { ref: ref, type: "number", step: 1, min: 0, ...props, className: "w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700 disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" }), _jsx("span", { className: "absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none", children: "\uC6D0" })] })));
-AmountInput.displayName = "AmountInput";
-function AmountPreview({ perBuyAmount, totalReserve, estimatedQty, actualBuyEstimate, currentPrice, availableBalance, insufficientBalance, belowOneShare, }) {
-    return (_jsxs("div", { className: "bg-zinc-950 border border-zinc-800 rounded p-3 text-sm space-y-1", children: [_jsxs("div", { className: "flex justify-between", children: [_jsx("span", { className: "text-zinc-500", children: "\uC608\uC0C1 \uB9E4\uC218 (1\uD68C)" }), _jsxs("span", { className: "text-zinc-200", children: [formatQty(estimatedQty), " \u00D7 ", formatPrice(currentPrice), " = ", _jsx("span", { className: "font-medium", children: formatKRW(actualBuyEstimate) })] })] }), _jsxs("div", { className: "flex justify-between", children: [_jsx("span", { className: "text-zinc-500", children: "3\uD68C \uCD1D \uC608\uC57D" }), _jsx("span", { className: "text-zinc-200 font-medium", children: formatKRW(totalReserve) })] }), _jsx("div", { className: "pt-1 mt-1 border-t border-zinc-800", children: belowOneShare ? (_jsx(ErrorMsg, { code: "PRICE_BELOW_ONE_SHARE", extra: `현재가 ${formatPrice(currentPrice)}원 이상 필요` })) : insufficientBalance && availableBalance !== undefined ? (_jsx(ErrorMsg, { code: "INSUFFICIENT_BALANCE", extra: `사용 가능 ${formatKRW(availableBalance)}` })) : perBuyAmount < 10_000 ? (_jsx("p", { className: "text-xs text-rose-300", children: "\uCD5C\uC18C 10,000\uC6D0" })) : (_jsx("p", { className: "text-xs text-emerald-400", children: "\u2713 \uC794\uACE0 \uD55C\uB3C4 \uB0B4" })) })] }));
+const QtyInput = forwardRef((props, ref) => (_jsxs("div", { className: "relative", children: [_jsx("input", { ref: ref, type: "number", step: 1, min: 1, ...props, className: "w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700 disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" }), _jsx("span", { className: "absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none", children: "\uC8FC" })] })));
+QtyInput.displayName = "QtyInput";
+function QtyPreview({ perBuyQty, totalQty, perBuyAmountEstimate, totalReserveEstimate, currentPrice, availableBalance, insufficientBalance, }) {
+    return (_jsxs("div", { className: "bg-zinc-950 border border-zinc-800 rounded p-3 text-sm space-y-1", children: [_jsxs("div", { className: "flex justify-between", children: [_jsx("span", { className: "text-zinc-500", children: "1\uD68C \uB9E4\uC218 (\uD604\uC7AC\uAC00 \uAE30\uC900)" }), _jsxs("span", { className: "text-zinc-200", children: [formatQty(perBuyQty), " \u00D7 ", formatPrice(currentPrice), " = ", _jsxs("span", { className: "font-medium", children: ["\u2248 ", formatKRW(perBuyAmountEstimate)] })] })] }), _jsxs("div", { className: "flex justify-between", children: [_jsx("span", { className: "text-zinc-500", children: "3\uD68C \uCD1D \uB9E4\uC218" }), _jsxs("span", { className: "text-zinc-200", children: [formatQty(totalQty), "\uC8FC", " ", _jsxs("span", { className: "text-zinc-500", children: ["(\u2248 ", _jsx("span", { className: "text-zinc-200 font-medium", children: formatKRW(totalReserveEstimate) }), ")"] })] })] }), _jsx("div", { className: "pt-1 mt-1 border-t border-zinc-800", children: perBuyQty < 1 ? (_jsx("p", { className: "text-xs text-rose-300", children: "\uCD5C\uC18C 1\uC8FC" })) : insufficientBalance && availableBalance !== undefined ? (_jsx(ErrorMsg, { code: "INSUFFICIENT_BALANCE", extra: `사용 가능 ${formatKRW(availableBalance)}` })) : (_jsx("p", { className: "text-xs text-emerald-400", children: "\u2713 \uC794\uACE0 \uD55C\uB3C4 \uB0B4 (\uCD94\uC815)" })) })] }));
 }
 function AdvancedSettings({ register, dirtyKeys, onReset, }) {
     return (_jsxs("div", { className: "mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-zinc-950 border border-zinc-800 rounded", children: [_jsx(NumField, { label: "\uB9E4\uC218 \uAC04\uACA9 (\uBD84)", defaultValue: DEFAULTS.buyIntervalMin, dirty: dirtyKeys.has("buyIntervalMin"), registration: register("buyIntervalMin", {

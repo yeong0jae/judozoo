@@ -73,10 +73,10 @@ class TradingServiceTest(
 
     private fun validInput(
         stockCode: String = "005930",
-        perBuyAmount: Long = 100_000L,
+        perBuyQty: Int = 1,
     ) = TradingInput(
         stockCode = stockCode,
-        perBuyAmount = perBuyAmount,
+        perBuyQty = perBuyQty,
         buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.5"),
         midwayProfitPct = BigDecimal("1.5"),
@@ -121,7 +121,8 @@ class TradingServiceTest(
                 saved.status shouldBe TradingCycleStatus.INITIATED
                 saved.stockCode shouldBe "005930"
                 saved.stockName shouldBe "삼성전자"
-                saved.perBuyAmount shouldBe 100_000L
+                saved.perBuyQty shouldBe 1
+                saved.perBuyAmount shouldBe 70_000L  // perBuyQty × stubCurrentPrice(70000)
                 saved.buyIntervalMin shouldBe 3
                 saved.splitSellRatio shouldBe BigDecimal("0.500")
                 saved.midwayProfitPct shouldBe BigDecimal("1.500")
@@ -137,9 +138,9 @@ class TradingServiceTest(
         }
 
         context("입력값 범위 오류") {
-            test("perBuyAmount가 0이면 INVALID_PARAMETER") {
+            test("perBuyQty가 0이면 INVALID_PARAMETER") {
                 val ex = shouldThrow<TradingValidationException> {
-                    tradingService.create(validInput(perBuyAmount = 0))
+                    tradingService.create(validInput(perBuyQty = 0))
                 }
                 ex.errorCode shouldBe ErrorCode.INVALID_PARAMETER
             }
@@ -156,23 +157,13 @@ class TradingServiceTest(
             }
         }
 
-        context("1주 가격 초과") {
-            test("현재가가 perBuyAmount를 초과하면 PRICE_BELOW_ONE_SHARE") {
-                stubCurrentPrice("200000")
-
-                val ex = shouldThrow<TradingValidationException> {
-                    tradingService.create(validInput(perBuyAmount = 100_000L))
-                }
-                ex.errorCode shouldBe ErrorCode.PRICE_BELOW_ONE_SHARE
-            }
-        }
-
         context("잔고 부족") {
-            test("perBuyAmount × MAX_BUY_ATTEMPT(3)이 잔고를 초과하면 INSUFFICIENT_BALANCE") {
-                stubBalance("100000")
+            test("perBuyQty × currentPrice × MAX_BUY_ATTEMPT가 잔고를 초과하면 INSUFFICIENT_BALANCE") {
+                stubBalance("100000")  // 잔고 10만원
 
                 val ex = shouldThrow<TradingValidationException> {
-                    tradingService.create(validInput(perBuyAmount = 200_000L))
+                    // 1주 × 70,000원 × 3회 = 210,000원 > 100,000원 → 부족
+                    tradingService.create(validInput(perBuyQty = 1))
                 }
                 ex.errorCode shouldBe ErrorCode.INSUFFICIENT_BALANCE
             }

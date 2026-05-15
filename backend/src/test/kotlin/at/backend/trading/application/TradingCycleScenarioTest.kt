@@ -97,9 +97,9 @@ class TradingCycleScenarioTest(
         stubSubmitOrderOk()
     }
 
-    private fun validInput(perBuyAmount: Long = 1_000_000, buyIntervalMin: Int = 1) = TradingInput(
+    private fun validInput(perBuyQty: Int = 10, buyIntervalMin: Int = 1) = TradingInput(
         stockCode = stockCode,
-        perBuyAmount = perBuyAmount,
+        perBuyQty = perBuyQty,
         buyIntervalMin = buyIntervalMin,
         splitSellRatio = BigDecimal("0.5"),
         midwayProfitPct = BigDecimal("3.0"),
@@ -242,7 +242,7 @@ class TradingCycleScenarioTest(
                     tradingService.create(
                         TradingInput(
                             stockCode = code,
-                            perBuyAmount = 1_000_000,
+                            perBuyQty = 10,
                             buyIntervalMin = 1,
                             splitSellRatio = BigDecimal("0.5"),
                             midwayProfitPct = BigDecimal("3.0"),

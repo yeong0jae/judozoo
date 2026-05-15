@@ -44,7 +44,7 @@ class TradingControllerTest : FunSpec({
 
             mockMvc.post("/api/trading") {
                 contentType = MediaType.APPLICATION_JSON
-                content = """{"stockCode":"005930","perBuyAmount":100000}"""
+                content = """{"stockCode":"005930","perBuyQty":1}"""
             }.andExpect {
                 status { isCreated() }
                 jsonPath("$.code") { value("SUCCESS") }
@@ -56,17 +56,17 @@ class TradingControllerTest : FunSpec({
         test("stockCode가 빈 문자열이면 400 INVALID_PARAMETER") {
             mockMvc.post("/api/trading") {
                 contentType = MediaType.APPLICATION_JSON
-                content = """{"stockCode":"","perBuyAmount":100000}"""
+                content = """{"stockCode":"","perBuyQty":1}"""
             }.andExpect {
                 status { isBadRequest() }
                 jsonPath("$.code") { value("INVALID_PARAMETER") }
             }
         }
 
-        test("perBuyAmount가 없거나 0이하이면 400 INVALID_PARAMETER") {
+        test("perBuyQty가 없거나 0이하이면 400 INVALID_PARAMETER") {
             mockMvc.post("/api/trading") {
                 contentType = MediaType.APPLICATION_JSON
-                content = """{"stockCode":"005930","perBuyAmount":-1}"""
+                content = """{"stockCode":"005930","perBuyQty":-1}"""
             }.andExpect {
                 status { isBadRequest() }
                 jsonPath("$.code") { value("INVALID_PARAMETER") }
@@ -147,6 +147,7 @@ class TradingControllerTest : FunSpec({
                 createdAt = now,
                 closedAt = null,
                 perBuyAmount = 100_000L,
+                perBuyQty = null,
                 buyIntervalMin = 3,
                 splitSellRatio = BigDecimal("0.5"),
                 midwayProfitPct = BigDecimal("1.5"),

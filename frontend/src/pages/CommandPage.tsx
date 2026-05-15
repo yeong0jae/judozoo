@@ -46,10 +46,13 @@ const DEFAULTS = {
   stopLossPct: -2,
 };
 
+const MAX_BUY_ATTEMPT = 3;
+
 const schema = z.object({
-  perBuyAmount: z
+  perBuyQty: z
     .number({ message: "숫자를 입력하세요" })
-    .min(10_000, "최소 10,000원"),
+    .int("정수를 입력하세요")
+    .min(1, "최소 1주"),
   buyIntervalMin: z.number().min(1).max(30).nullable().optional(),
   splitSellRatio: z.number().min(1).max(50).nullable().optional(),
   midwayProfitPct: z.number().min(0.1).max(10).nullable().optional(),
@@ -87,7 +90,7 @@ export default function CommandPage() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      perBuyAmount: 1_000_000,
+      perBuyQty: 1,
       buyIntervalMin: null,
       splitSellRatio: null,
       midwayProfitPct: null,
@@ -97,7 +100,7 @@ export default function CommandPage() {
   });
 
   const formValues = watch();
-  const perBuyAmount = formValues.perBuyAmount ?? 0;
+  const perBuyQty = formValues.perBuyQty ?? 0;
 
   // STOMP 구독: 시장 변경
   useStompSubscription("/topic/market", () => {
@@ -109,14 +112,11 @@ export default function CommandPage() {
   const block = status ? deriveBlock(status) : null;
 
   const currentPrice = priceQ.data?.currentPrice ?? 0;
-  const estimatedQty =
-    currentPrice > 0 ? Math.floor(perBuyAmount / currentPrice) : 0;
-  const totalReserve = perBuyAmount * 3;
-  const totalActualBuyEstimate = currentPrice * estimatedQty;
+  const perBuyAmountEstimate = currentPrice * perBuyQty;
+  const totalQty = perBuyQty * MAX_BUY_ATTEMPT;
+  const totalReserveEstimate = perBuyAmountEstimate * MAX_BUY_ATTEMPT;
   const insufficientBalance =
-    balance !== undefined && totalReserve > balance.availableBalance;
-  const belowOneShare =
-    currentPrice > 0 && perBuyAmount > 0 && perBuyAmount < currentPrice;
+    balance !== undefined && totalReserveEstimate > balance.availableBalance;
   const duplicateActive =
     selectedStock !== null &&
     (activeQ.data ?? []).some(
@@ -138,8 +138,7 @@ export default function CommandPage() {
     !!block ||
     !selectedStock ||
     insufficientBalance ||
-    belowOneShare ||
-    perBuyAmount < 10_000 ||
+    perBuyQty < 1 ||
     createCommand.isPending;
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
@@ -152,7 +151,7 @@ export default function CommandPage() {
     try {
       await createCommand.mutateAsync({
         stockCode: selectedStock.stockCode,
-        perBuyAmount: data.perBuyAmount,
+        perBuyQty: data.perBuyQty,
         buyIntervalMin: data.buyIntervalMin ?? null,
         splitSellRatio:
           data.splitSellRatio != null ? data.splitSellRatio / 100 : null,
@@ -235,30 +234,27 @@ export default function CommandPage() {
 
           <Field
             number={2}
-            label="1회 매수금액"
+            label="1회 매수 개수"
             disabled={!selectedStock}
             error={
-              !!errors.perBuyAmount ||
+              !!errors.perBuyQty ||
               insufficientBalance ||
-              belowOneShare ||
-              serverError === "PRICE_BELOW_ONE_SHARE" ||
               serverError === "INSUFFICIENT_BALANCE"
             }
           >
-            <AmountInput
-              {...register("perBuyAmount", { valueAsNumber: true })}
+            <QtyInput
+              {...register("perBuyQty", { valueAsNumber: true })}
               disabled={!selectedStock}
             />
             {selectedStock && (
-              <AmountPreview
-                perBuyAmount={perBuyAmount}
-                totalReserve={totalReserve}
-                estimatedQty={estimatedQty}
-                actualBuyEstimate={totalActualBuyEstimate}
+              <QtyPreview
+                perBuyQty={perBuyQty}
+                totalQty={totalQty}
+                perBuyAmountEstimate={perBuyAmountEstimate}
+                totalReserveEstimate={totalReserveEstimate}
                 currentPrice={currentPrice}
                 availableBalance={balance?.availableBalance}
                 insufficientBalance={insufficientBalance}
-                belowOneShare={belowOneShare}
               />
             )}
           </Field>
@@ -282,7 +278,7 @@ export default function CommandPage() {
                 dirtyKeys={advancedDirty}
                 onReset={() => {
                   reset({
-                    perBuyAmount: formValues.perBuyAmount,
+                    perBuyQty: formValues.perBuyQty,
                     buyIntervalMin: null,
                     splitSellRatio: null,
                     midwayProfitPct: null,
@@ -548,7 +544,7 @@ function PriceDisplay({
   );
 }
 
-const AmountInput = forwardRef<
+const QtyInput = forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement>
 >((props, ref) => (
@@ -557,67 +553,63 @@ const AmountInput = forwardRef<
       ref={ref}
       type="number"
       step={1}
-      min={0}
+      min={1}
       {...props}
       className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700 disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
     />
     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">
-      원
+      주
     </span>
   </div>
 ));
-AmountInput.displayName = "AmountInput";
+QtyInput.displayName = "QtyInput";
 
-function AmountPreview({
-  perBuyAmount,
-  totalReserve,
-  estimatedQty,
-  actualBuyEstimate,
+function QtyPreview({
+  perBuyQty,
+  totalQty,
+  perBuyAmountEstimate,
+  totalReserveEstimate,
   currentPrice,
   availableBalance,
   insufficientBalance,
-  belowOneShare,
 }: {
-  perBuyAmount: number;
-  totalReserve: number;
-  estimatedQty: number;
-  actualBuyEstimate: number;
+  perBuyQty: number;
+  totalQty: number;
+  perBuyAmountEstimate: number;
+  totalReserveEstimate: number;
   currentPrice: number;
   availableBalance?: number;
   insufficientBalance: boolean;
-  belowOneShare: boolean;
 }) {
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded p-3 text-sm space-y-1">
       <div className="flex justify-between">
-        <span className="text-zinc-500">예상 매수 (1회)</span>
+        <span className="text-zinc-500">1회 매수 (현재가 기준)</span>
         <span className="text-zinc-200">
-          {formatQty(estimatedQty)} × {formatPrice(currentPrice)}
+          {formatQty(perBuyQty)} × {formatPrice(currentPrice)}
           {" = "}
-          <span className="font-medium">{formatKRW(actualBuyEstimate)}</span>
+          <span className="font-medium">≈ {formatKRW(perBuyAmountEstimate)}</span>
         </span>
       </div>
       <div className="flex justify-between">
-        <span className="text-zinc-500">3회 총 예약</span>
-        <span className="text-zinc-200 font-medium">
-          {formatKRW(totalReserve)}
+        <span className="text-zinc-500">3회 총 매수</span>
+        <span className="text-zinc-200">
+          {formatQty(totalQty)}주{" "}
+          <span className="text-zinc-500">
+            (≈ <span className="text-zinc-200 font-medium">{formatKRW(totalReserveEstimate)}</span>)
+          </span>
         </span>
       </div>
       <div className="pt-1 mt-1 border-t border-zinc-800">
-        {belowOneShare ? (
-          <ErrorMsg
-            code="PRICE_BELOW_ONE_SHARE"
-            extra={`현재가 ${formatPrice(currentPrice)}원 이상 필요`}
-          />
+        {perBuyQty < 1 ? (
+          <p className="text-xs text-rose-300">최소 1주</p>
         ) : insufficientBalance && availableBalance !== undefined ? (
           <ErrorMsg
             code="INSUFFICIENT_BALANCE"
             extra={`사용 가능 ${formatKRW(availableBalance)}`}
           />
-        ) : perBuyAmount < 10_000 ? (
-          <p className="text-xs text-rose-300">최소 10,000원</p>
         ) : (
-          <p className="text-xs text-emerald-400">✓ 잔고 한도 내</p>
+          <p className="text-xs text-emerald-400">✓ 잔고 한도 내 (추정)</p>
         )}
       </div>
     </div>

@@ -61,7 +61,7 @@ class TradingServiceBroadcastTest(
                 tradingService.create(
                     TradingInput(
                         stockCode = "005930",
-                        perBuyAmount = 1_000_000,
+                        perBuyQty = 10,
                         buyIntervalMin = 1,
                         splitSellRatio = BigDecimal("0.5"),
                         midwayProfitPct = BigDecimal("3.0"),

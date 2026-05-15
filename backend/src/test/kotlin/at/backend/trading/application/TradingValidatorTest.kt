@@ -35,7 +35,7 @@ class TradingValidatorTest : FunSpec({
 
     val validInput = TradingInput(
         stockCode = "005930",
-        perBuyAmount = 100_000L,
+        perBuyQty = 1,
         buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.5"),
         midwayProfitPct = BigDecimal("1.5"),
@@ -61,15 +61,15 @@ class TradingValidatorTest : FunSpec({
     context("정상 검증 통과") {
         test("모든 조건 충족 시 종목명 반환") {
             stubAllPass()
-            val stockName = validator.validate(validInput, nowAt(10, 0))
+            val (stockName, _) = validator.validate(validInput, nowAt(10, 0))
             stockName shouldBe "삼성전자"
         }
     }
 
     context("입력값 범위 오류") {
-        test("perBuyAmount가 0이면 INVALID_PARAMETER") {
+        test("perBuyQty가 0이면 INVALID_PARAMETER") {
             val ex = shouldThrow<TradingValidationException> {
-                validator.validate(validInput.copy(perBuyAmount = 0), nowAt(10, 0))
+                validator.validate(validInput.copy(perBuyQty = 0), nowAt(10, 0))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
         }
@@ -114,23 +114,10 @@ class TradingValidatorTest : FunSpec({
         }
     }
 
-    context("1주 가격 초과") {
-        test("현재가가 perBuyAmount를 초과하면 PRICE_BELOW_ONE_SHARE") {
-            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
-            every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
-                output = KisCurrentPriceResponse.Output(stckPrpr = "200000")
-            )
-
-            val ex = shouldThrow<TradingValidationException> {
-                validator.validate(validInput, nowAt(10, 0))
-            }
-            ex.errorCode shouldBe TradingValidationException.ErrorCode.PRICE_BELOW_ONE_SHARE
-        }
-    }
-
-    context("잔고 부족") {
-        test("perBuyAmount × MAX_BUY_ATTEMPT(3)이 잔고를 초과하면 INSUFFICIENT_BALANCE") {
+context("잔고 부족") {
+        test("perBuyQty × currentPrice × MAX_BUY_ATTEMPT(3)이 잔고를 초과하면 INSUFFICIENT_BALANCE") {
             stubAllPass()
+            // 1주 × 70,000원 × 3회 = 210,000원 > 잔고 200,000원
             every { kisRestClient.getBalance() } returns KisBalanceResponse(
                 output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "200000"))
             )
@@ -174,7 +161,7 @@ class TradingValidatorTest : FunSpec({
 
         test("컷오프 직전이면 통과") {
             stubAllPass()
-            val stockName = validator.validate(validInput, nowAt(15, 13))
+            val (stockName, _) = validator.validate(validInput, nowAt(15, 13))
             stockName shouldBe "삼성전자"
         }
     }

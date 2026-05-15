@@ -141,6 +141,7 @@ export interface TradingDetail extends TradingSummary {
   createdAt: string;
   closedAt: string | null;
   perBuyAmount: number;
+  perBuyQty: number | null;
   buyIntervalMin: number;
   splitSellRatio: number;
   midwayProfitPct: number;
@@ -195,7 +196,7 @@ export interface StockPriceResult {
 // === REST requests / write responses ===
 export interface CreateTradingRequest {
   stockCode: string;
-  perBuyAmount: number;
+  perBuyQty: number;
   buyIntervalMin?: number | null;
   splitSellRatio?: number | null;
   midwayProfitPct?: number | null;

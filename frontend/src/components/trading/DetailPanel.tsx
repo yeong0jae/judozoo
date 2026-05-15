@@ -227,8 +227,11 @@ function BuyProgressSection({ detail }: { detail: TradingDetail }) {
         })}
       </div>
       <div className="text-xs text-zinc-500 mt-2">
-        1회 매수 {formatKRW(detail.perBuyAmount)} · 간격{" "}
-        {detail.buyIntervalMin}분
+        1회 매수{" "}
+        {detail.perBuyQty != null
+          ? `${detail.perBuyQty}주 (≈ ${formatKRW(detail.perBuyAmount)})`
+          : formatKRW(detail.perBuyAmount)}{" "}
+        · 간격 {detail.buyIntervalMin}분
       </div>
     </Section>
   );

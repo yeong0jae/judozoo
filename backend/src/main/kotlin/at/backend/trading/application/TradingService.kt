@@ -29,12 +29,15 @@ class TradingService(
     @Transactional
     fun create(input: TradingInput): TradingCreatedResult {
         val now = timeProvider.now()
-        val stockName = tradingValidator.validate(input, now)
+        val (stockName, currentPrice) = tradingValidator.validate(input, now)
+        // perBuyAmount는 NOT NULL 컬럼이라 신규 사이클도 추정치(개수 × 검증 시점 현재가)를 채워둔다.
+        // 실제 매수 qty는 OrderService가 perBuyQty를 그대로 사용한다.
         val cycle = TradingCycle(
             accountNo = kisProperties.accountNo,
             stockCode = input.stockCode,
             stockName = stockName,
-            perBuyAmount = input.perBuyAmount,
+            perBuyAmount = input.perBuyQty.toLong() * currentPrice,
+            perBuyQty = input.perBuyQty,
             buyIntervalMin = input.buyIntervalMin,
             splitSellRatio = input.splitSellRatio,
             midwayProfitPct = input.midwayProfitPct,

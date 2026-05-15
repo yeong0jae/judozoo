@@ -20,15 +20,16 @@ class TradingValidator(
     private val kisProperties: KisProperties,
 ) {
 
-    fun validate(input: TradingInput, now: LocalDateTime): String {
+    /** 검증 결과로 (종목명, 검증 시점 현재가)를 반환 — 생성 시 perBuyAmount 추정치로 활용한다. */
+    fun validate(input: TradingInput, now: LocalDateTime): Pair<String, Long> {
         val stockName = resolveStockName(input.stockCode)
-        validatePrice(input.stockCode, input.perBuyAmount)
-        validateBalance(input.perBuyAmount)
+        val currentPrice = kisRestClient.getCurrentPrice(input.stockCode).output.stckPrpr.toLong()
+        validateBalance(input.perBuyQty, currentPrice)
         validateNoDuplicate(input.stockCode)
         validateHoliday(now)
         validateTradingHours(now.toLocalTime())
         validateCutoff(input.buyIntervalMin, now.toLocalTime())
-        return stockName
+        return stockName to currentPrice
     }
 
     private fun resolveStockName(stockCode: String): String {
@@ -38,14 +39,10 @@ class TradingValidator(
             ?: throw TradingValidationException(TradingValidationException.ErrorCode.STOCK_NOT_FOUND)
     }
 
-    private fun validatePrice(stockCode: String, perBuyAmount: Long) {
-        val price = kisRestClient.getCurrentPrice(stockCode).output.stckPrpr.toLong()
-        if (price > perBuyAmount) throw TradingValidationException(TradingValidationException.ErrorCode.PRICE_BELOW_ONE_SHARE)
-    }
-
-    private fun validateBalance(perBuyAmount: Long) {
+    private fun validateBalance(perBuyQty: Int, currentPrice: Long) {
         val balance = kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
-        if (perBuyAmount * TradingCycle.MAX_BUY_ATTEMPT > balance) {
+        val required = perBuyQty.toLong() * currentPrice * TradingCycle.MAX_BUY_ATTEMPT
+        if (required > balance) {
             throw TradingValidationException(TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE)
         }
     }

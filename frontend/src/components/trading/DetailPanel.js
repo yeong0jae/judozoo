@@ -56,7 +56,9 @@ function BuyProgressSection({ detail }) {
                     const isNext = order === null && round === nextRound && nextBuyAt;
                     const view = roundView(order, isNext ? "next" : "idle");
                     return (_jsxs("div", { className: `border rounded p-3 ${view.boxCls}`, children: [_jsxs("div", { className: "text-xs text-zinc-500 mb-1", children: ["\uD68C\uCC28 ", round] }), _jsx("div", { className: `text-sm font-medium ${view.textCls}`, children: view.label }), view.subLabel && (_jsx("div", { className: "text-xs text-zinc-400 mt-1", children: view.subLabel })), isNext && nextBuyAt && (_jsxs("div", { className: "text-xs text-amber-300 mt-1", children: ["~", formatTime(nextBuyAt)] })), order?.lastError && (_jsx("div", { className: "text-xs text-rose-400 mt-1 truncate", title: order.lastError, children: order.lastError }))] }, round));
-                }) }), _jsxs("div", { className: "text-xs text-zinc-500 mt-2", children: ["1\uD68C \uB9E4\uC218 ", formatKRW(detail.perBuyAmount), " \u00B7 \uAC04\uACA9", " ", detail.buyIntervalMin, "\uBD84"] })] }));
+                }) }), _jsxs("div", { className: "text-xs text-zinc-500 mt-2", children: ["1\uD68C \uB9E4\uC218", " ", detail.perBuyQty != null
+                        ? `${detail.perBuyQty}주 (≈ ${formatKRW(detail.perBuyAmount)})`
+                        : formatKRW(detail.perBuyAmount), " ", "\u00B7 \uAC04\uACA9 ", detail.buyIntervalMin, "\uBD84"] })] }));
 }
 function roundView(order, fallback) {
     if (order === null) {
