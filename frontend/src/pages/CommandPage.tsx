@@ -26,7 +26,7 @@ import Skeleton from "../components/common/Skeleton";
 import { useToast } from "../components/toast/Toast";
 import {
   QK,
-  isStockCode,
+  STOCK_SEARCH_MIN_LEN,
   useAccountBalance,
   useActiveCommands,
   useStockPrice,
@@ -433,9 +433,10 @@ function StockSearchInput({
   if (selected) return null;
 
   const trimmed = query.trim();
-  const incompleteCode = trimmed !== "" && !isStockCode(trimmed);
+  const tooShort = trimmed !== "" && trimmed.length < STOCK_SEARCH_MIN_LEN;
   const visible = results.slice(0, 10);
-  const showDropdown = isStockCode(trimmed) && (loading || visible.length > 0);
+  const showDropdown =
+    trimmed.length >= STOCK_SEARCH_MIN_LEN && (loading || visible.length > 0);
 
   return (
     <div className="relative">
@@ -456,7 +457,7 @@ function StockSearchInput({
             onSelect(visible[activeIdx]);
           }
         }}
-        placeholder="🔍 종목 코드 6자리 입력 (예: 005930)"
+        placeholder="🔍 종목명 또는 코드 입력 (예: 삼성전자, 005930)"
         className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-700"
       />
       {showDropdown && (
@@ -481,7 +482,7 @@ function StockSearchInput({
         </div>
       )}
       <p className="text-xs text-zinc-500 mt-1">
-        {incompleteCode ? "6자리 종목 코드를 입력하세요" : "↑/↓로 이동, Enter로 선택"}
+        {tooShort ? "2자 이상 입력하세요" : "↑/↓로 이동, Enter로 선택"}
       </p>
     </div>
   );

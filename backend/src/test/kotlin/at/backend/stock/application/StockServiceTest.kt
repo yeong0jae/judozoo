@@ -3,11 +3,12 @@ package at.backend.stock.application
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
 import at.backend.common.test.KisRestClientMockConfig
+import at.backend.common.test.KisStockMasterClientMockConfig
 import at.backend.common.test.MutableTimeProvider
-import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisCurrentPriceResponse
-import at.backend.platform.kis.client.response.KisStockSearchResponse
+import at.backend.stock.domain.Market
+import at.backend.stock.domain.Stock
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
@@ -16,38 +17,44 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import java.time.LocalDateTime
 
-@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
+@Import(
+    KisRestClientMockConfig::class,
+    KisStockMasterClientMockConfig::class,
+    FixedTimeProviderConfig::class,
+)
 class StockServiceTest(
     @Autowired private val stockService: StockService,
     @Autowired private val kisRestClient: KisRestClient,
-    @Autowired private val kisRealQuotationClient: KisRealQuotationClient,
+    @Autowired private val stockCatalog: StockCatalog,
     @Autowired private val timeProvider: MutableTimeProvider,
 ) : IntegrationTestBase() {
 
     init {
         beforeEach {
-            clearMocks(kisRestClient, kisRealQuotationClient)
+            clearMocks(kisRestClient)
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
         }
 
         context("종목 검색") {
-            test("KIS 응답을 종목코드/종목명으로 매핑한다") {
-                every { kisRealQuotationClient.searchStock("005930") } returns KisStockSearchResponse.Output(
-                    pdno = "005930",
-                    prdtAbrvName = "삼성전자",
+            test("카탈로그에서 종목명/코드로 찾아 코드·이름으로 매핑한다") {
+                stockCatalog.replace(
+                    listOf(
+                        Stock("005930", "KR7005930003", "삼성전자", Market.KOSPI),
+                        Stock("207940", "KR7207940008", "삼성바이오로직스", Market.KOSPI),
+                    ),
                 )
 
-                val result = stockService.search("005930")
+                val result = stockService.search("삼성전자")
 
                 result shouldHaveSize 1
                 result[0].stockCode shouldBe "005930"
                 result[0].stockName shouldBe "삼성전자"
             }
 
-            test("존재하지 않는 코드면 빈 결과를 반환한다") {
-                every { kisRealQuotationClient.searchStock("000000") } returns null
+            test("일치하는 종목이 없으면 빈 결과를 반환한다") {
+                stockCatalog.replace(listOf(Stock("005930", "KR7005930003", "삼성전자", Market.KOSPI)))
 
-                stockService.search("000000") shouldHaveSize 0
+                stockService.search("없는종목") shouldHaveSize 0
             }
         }
 
