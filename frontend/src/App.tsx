@@ -11,6 +11,7 @@ import { StompProvider } from "./ws/StompProvider";
 import { NotificationProvider } from "./notifications/notifications";
 import NotificationsBridge from "./notifications/NotificationsBridge";
 import { SettingsProvider } from "./settings/settings";
+import { ThemeProvider } from "./theme/theme";
 import { useTabTitle } from "./hooks/useTabTitle";
 import { queryClient } from "./api/queryClient";
 import { QK } from "./api/queries";
@@ -28,16 +29,18 @@ const handleStompReconnect = () => {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SettingsProvider>
-        <StompProvider onReconnect={handleStompReconnect}>
-          <NotificationProvider>
-            <ToastProvider>
-              <NotificationsBridge />
-              <AppShell />
-            </ToastProvider>
-          </NotificationProvider>
-        </StompProvider>
-      </SettingsProvider>
+      <ThemeProvider>
+        <SettingsProvider>
+          <StompProvider onReconnect={handleStompReconnect}>
+            <NotificationProvider>
+              <ToastProvider>
+                <NotificationsBridge />
+                <AppShell />
+              </ToastProvider>
+            </NotificationProvider>
+          </StompProvider>
+        </SettingsProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

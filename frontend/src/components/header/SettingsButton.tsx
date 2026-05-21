@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSettings, type SettingsKey } from "../../settings/settings";
+import { useTheme, type ThemeMode } from "../../theme/theme";
 
 export default function SettingsButton() {
   const [open, setOpen] = useState(false);
@@ -50,6 +51,7 @@ function SettingsModal({
           </button>
         </div>
         <div className="space-y-3">
+          <ThemeRow />
           <Toggle
             label="OS 데스크톱 알림"
             hint="브라우저가 백그라운드여도 OS 알림으로 종료를 인지"
@@ -91,6 +93,36 @@ async function handleToggle(
     }
   }
   set(key, value);
+}
+
+function ThemeRow() {
+  const { mode, set } = useTheme();
+  const options: { value: ThemeMode; label: string }[] = [
+    { value: "light", label: "라이트" },
+    { value: "dark", label: "다크" },
+    { value: "system", label: "시스템" },
+  ];
+  return (
+    <div className="p-3 -mx-3">
+      <div className="text-sm mb-2">테마</div>
+      <div className="flex gap-1 p-1 rounded-lg bg-zinc-800 border border-zinc-700">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => set(o.value)}
+            className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              mode === o.value
+                ? "bg-blue-500 text-white"
+                : "text-zinc-300 hover:text-zinc-100"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Toggle({

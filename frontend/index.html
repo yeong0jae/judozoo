@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>주도주 자동 트레이딩</title>
+    <script>
+      // FOUC 방지 — React 렌더 전에 저장된 테마를 동기 적용.
+      // ThemeProvider와 동일한 키('at.theme')·로직 사용.
+      (function () {
+        try {
+          var m = localStorage.getItem("at.theme");
+          if (m !== "light" && m !== "dark" && m !== "system") m = "system";
+          var dark =
+            m === "dark" ||
+            (m === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
