@@ -73,7 +73,6 @@ export default function CommandPage() {
   const [selectedStock, setSelectedStock] =
     useState<StockSearchResult | null>(null);
   const [serverError, setServerError] = useState<ErrorCode | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const debouncedQuery = useDebounce(query, 250);
   const stockSearchQ = useStockSearch(debouncedQuery);
@@ -86,6 +85,7 @@ export default function CommandPage() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -171,7 +171,6 @@ export default function CommandPage() {
       setQuery("");
       setSelectedStock(null);
       reset();
-      setAdvancedOpen(false);
     } catch (e) {
       if (e instanceof ApiError) {
         setServerError(e.code as ErrorCode);
@@ -190,10 +189,9 @@ export default function CommandPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
-          <h2 className="text-lg font-semibold">새 매매 명령</h2>
+          <h2 className="text-xl font-bold">새 매매 명령</h2>
 
           <Field
-            number={1}
             label="종목"
             error={
               serverError === "STOCK_NOT_FOUND" ||
@@ -233,7 +231,6 @@ export default function CommandPage() {
           </Field>
 
           <Field
-            number={2}
             label="1회 매수 개수"
             disabled={!selectedStock}
             error={
@@ -259,35 +256,27 @@ export default function CommandPage() {
             )}
           </Field>
 
-          <Field number={3} label="고급 설정">
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((v) => !v)}
-              className="text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1"
-            >
-              <span>{advancedOpen ? "▾" : "▸"}</span>
-              <span>
-                {advancedDirty.size === 0
-                  ? "기본값 사용 중"
-                  : `${advancedDirty.size}개 항목 변경됨`}
-              </span>
-            </button>
-            {advancedOpen && (
-              <AdvancedSettings
-                register={register}
-                dirtyKeys={advancedDirty}
-                onReset={() => {
-                  reset({
-                    perBuyQty: formValues.perBuyQty,
-                    buyIntervalMin: null,
-                    splitSellRatio: null,
-                    midwayProfitPct: null,
-                    breakevenThresholdPct: null,
-                    stopLossPct: null,
-                  });
-                }}
-              />
-            )}
+          <Field label="고급 설정">
+            <div className="text-xs text-zinc-500">
+              {advancedDirty.size === 0
+                ? "기본값 사용 중"
+                : `${advancedDirty.size}개 항목 변경됨`}
+            </div>
+            <AdvancedSettings
+              values={formValues}
+              setValue={setValue}
+              dirtyKeys={advancedDirty}
+              onReset={() => {
+                reset({
+                  perBuyQty: formValues.perBuyQty,
+                  buyIntervalMin: null,
+                  splitSellRatio: null,
+                  midwayProfitPct: null,
+                  breakevenThresholdPct: null,
+                  stopLossPct: null,
+                });
+              }}
+            />
           </Field>
 
           <button
@@ -380,13 +369,11 @@ function BlockBanner({
 // ============================================================
 
 function Field({
-  number,
   label,
   children,
   error,
   disabled,
 }: {
-  number: number;
   label: string;
   children: React.ReactNode;
   error?: boolean;
@@ -395,13 +382,10 @@ function Field({
   return (
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       <label
-        className={`text-sm font-medium mb-2 flex items-center gap-2 ${
-          error ? "text-rose-700" : "text-zinc-200"
+        className={`block text-base font-semibold mb-2 ${
+          error ? "text-rose-700" : "text-zinc-100"
         }`}
       >
-        <span className="w-5 h-5 rounded-full bg-zinc-800 text-xs flex items-center justify-center text-zinc-400">
-          {number}
-        </span>
         {label}
       </label>
       <div className="space-y-2">{children}</div>
@@ -617,63 +601,90 @@ function QtyPreview({
   );
 }
 
+// 각 고급 옵션의 선택 가능한 값 — 자유 입력 대신 칩 선택.
+// 첫 칩이 아니라, DEFAULTS와 일치하는 칩이 "기본값" 표시 대상.
+const OPTIONS = {
+  buyIntervalMin: [1, 2, 3, 4, 5],
+  splitSellRatio: [10, 20, 30, 40],
+  midwayProfitPct: [1, 2, 3, 4, 5],
+  breakevenThresholdPct: [1, 2, 3, 4, 5],
+  stopLossPct: [-1, -2, -3, -4, -5],
+} as const;
+
+type AdvancedKey =
+  | "buyIntervalMin"
+  | "splitSellRatio"
+  | "midwayProfitPct"
+  | "breakevenThresholdPct"
+  | "stopLossPct";
+
 function AdvancedSettings({
-  register,
+  values,
+  setValue,
   dirtyKeys,
   onReset,
 }: {
-  register: ReturnType<typeof useForm<FormValues>>["register"];
+  values: FormValues;
+  setValue: ReturnType<typeof useForm<FormValues>>["setValue"];
   dirtyKeys: Set<string>;
   onReset: () => void;
 }) {
+  const pick = (key: AdvancedKey, v: number | null) =>
+    setValue(key, v, { shouldDirty: true });
+
   return (
-    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-zinc-950 border border-zinc-800 rounded">
-      <NumField
-        label="매수 간격 (분)"
+    <div className="mt-3 grid grid-cols-1 gap-4">
+      <ChipField
+        label="매수 간격"
+        hint="회차 간 대기 시간 (최대 3회 분할 매수)"
+        unit="분"
+        options={OPTIONS.buyIntervalMin}
         defaultValue={DEFAULTS.buyIntervalMin}
+        value={values.buyIntervalMin ?? null}
         dirty={dirtyKeys.has("buyIntervalMin")}
-        registration={register("buyIntervalMin", {
-          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-        })}
-        step={1}
+        onPick={(v) => pick("buyIntervalMin", v)}
       />
-      <NumField
-        label="분할 매도 비율 (%)"
+      <ChipField
+        label="분할 매도 비율"
+        hint="익절 단계마다 매도할 보유 비율"
+        unit="%"
+        options={OPTIONS.splitSellRatio}
         defaultValue={DEFAULTS.splitSellRatio}
+        value={values.splitSellRatio ?? null}
         dirty={dirtyKeys.has("splitSellRatio")}
-        registration={register("splitSellRatio", {
-          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-        })}
-        step={1}
+        onPick={(v) => pick("splitSellRatio", v)}
       />
-      <NumField
-        label="중도 익절 (%)"
+      <ChipField
+        label="중도 익절"
+        hint="매수 진행 중 도중 익절 발동 기준"
+        unit="%"
+        options={OPTIONS.midwayProfitPct}
         defaultValue={DEFAULTS.midwayProfitPct}
+        value={values.midwayProfitPct ?? null}
         dirty={dirtyKeys.has("midwayProfitPct")}
-        registration={register("midwayProfitPct", {
-          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-        })}
-        step={0.1}
+        onPick={(v) => pick("midwayProfitPct", v)}
       />
-      <NumField
-        label="본전 매도 기준 (%)"
+      <ChipField
+        label="본전 매도 기준"
+        hint="이만큼 올랐다 매입가로 되돌아오면 청산"
+        unit="%"
+        options={OPTIONS.breakevenThresholdPct}
         defaultValue={DEFAULTS.breakevenThresholdPct}
+        value={values.breakevenThresholdPct ?? null}
         dirty={dirtyKeys.has("breakevenThresholdPct")}
-        registration={register("breakevenThresholdPct", {
-          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-        })}
-        step={0.1}
+        onPick={(v) => pick("breakevenThresholdPct", v)}
       />
-      <NumField
-        label="손절 (%)"
+      <ChipField
+        label="손절"
+        hint="이만큼 떨어지면 즉시 청산"
+        unit="%"
+        options={OPTIONS.stopLossPct}
         defaultValue={DEFAULTS.stopLossPct}
+        value={values.stopLossPct ?? null}
         dirty={dirtyKeys.has("stopLossPct")}
-        registration={register("stopLossPct", {
-          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-        })}
-        step={0.1}
+        onPick={(v) => pick("stopLossPct", v)}
       />
-      <div className="md:col-span-2 flex justify-end">
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={onReset}
@@ -687,37 +698,62 @@ function AdvancedSettings({
   );
 }
 
-function NumField({
+function ChipField({
   label,
+  hint,
+  unit,
+  options,
   defaultValue,
+  value,
   dirty,
-  registration,
-  step,
+  onPick,
 }: {
   label: string;
+  hint?: string;
+  unit: string;
+  options: readonly number[];
   defaultValue: number;
+  value: number | null;
   dirty: boolean;
-  registration: ReturnType<ReturnType<typeof useForm<FormValues>>["register"]>;
-  step: number;
+  onPick: (v: number | null) => void;
 }) {
+  // 칩 active 판정 — 명시값이면 그 값, null이면 기본값 칩이 active.
+  const activeValue = value ?? defaultValue;
   return (
-    <label className="block">
-      <span
-        className={`text-xs flex items-center gap-1 mb-1 ${
-          dirty ? "text-amber-700" : "text-zinc-400"
+    <div>
+      <div
+        className={`text-sm font-medium flex items-center gap-1 ${
+          dirty ? "text-amber-700" : "text-zinc-200"
         }`}
       >
         {dirty && <span className="text-amber-600">●</span>}
         {label}
-      </span>
-      <input
-        type="number"
-        step={step}
-        placeholder={String(defaultValue)}
-        {...registration}
-        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-100 focus:outline-none focus:border-emerald-700"
-      />
-    </label>
+      </div>
+      {hint && <div className="text-xs text-zinc-500 mt-0.5 mb-2">{hint}</div>}
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => {
+          const isActive = opt === activeValue;
+          // 같은 칩을 다시 누르면 null로 비워 "기본값 사용" 상태로 복귀.
+          const handleClick = () =>
+            onPick(value !== null && value === opt ? null : opt);
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={handleClick}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                isActive
+                  ? "bg-emerald-700 text-white border-emerald-700"
+                  : "bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800"
+              }`}
+            >
+              {opt}
+              {unit}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
