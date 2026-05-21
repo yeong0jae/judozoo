@@ -13,41 +13,52 @@
     "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular,
     Menlo, monospace;
 
-  /* ─── 차콘 팔레트 (Linear/Vercel 풍 따뜻한 중성) ────────────────────────
-     Tailwind 기본 zinc(차가운 중성)와 emerald/rose 일부를 재매핑해,
-     페이지 코드의 bg-zinc-900 · border-zinc-800 · bg-emerald-700 · text-rose-300 등이
-     자동으로 새 톤을 가리키게 한다. */
-  --color-zinc-50: #fafaf9;
-  --color-zinc-100: #f5f5f4;
-  --color-zinc-200: #e7e5e4; /* 본문 텍스트 */
-  --color-zinc-300: #d6d3d1;
-  --color-zinc-400: #a8a29e; /* 보조 라벨 */
-  --color-zinc-500: #78716c; /* 부차 라벨 */
-  --color-zinc-600: #57534e;
-  --color-zinc-700: #44403c;
-  --color-zinc-800: #252528; /* 호버/구분선 */
-  --color-zinc-900: #161618; /* 카드 표면 */
-  --color-zinc-950: #0e0e10; /* 페이지 베이스 */
+  /* ─── 라이트 정석 Toss 팔레트 ─────────────────────────────────────────
+     Tailwind 기본 zinc/emerald/rose를 재매핑해, 페이지 코드의
+     bg-zinc-900 · border-zinc-800 · bg-emerald-700 · text-rose-400 등이
+     자동으로 라이트 톤을 가리키게 한다. 명도 스케일이 다크의 역전이라
+     `text-zinc-100`이 이제 진한 텍스트, `bg-zinc-950`이 가장 밝은 베이스. */
+  --color-zinc-50: #f9fafb;
+  --color-zinc-100: #191f28; /* 본문 텍스트 (Toss primary) */
+  --color-zinc-200: #333d4b;
+  --color-zinc-300: #4e5968; /* 부차 라벨 (Toss secondary) */
+  --color-zinc-400: #6b7684; /* tertiary */
+  --color-zinc-500: #8b95a1;
+  --color-zinc-600: #b0b8c1;
+  --color-zinc-700: #d1d6db;
+  --color-zinc-800: #e5e8eb; /* 카드 경계선 */
+  --color-zinc-900: #f7f8f9; /* 카드 표면 */
+  --color-zinc-950: #ffffff; /* 페이지 베이스 */
 
-  /* 액센트 — 매매 시작 버튼 톤업 */
-  --color-emerald-600: #0ea671; /* hover */
-  --color-emerald-700: #10b981; /* primary */
+  /* 액센트 — 매매 시작 / 강조 = Toss Blue */
+  --color-emerald-600: #1b64da; /* CTA hover */
+  --color-emerald-700: #3182f6; /* CTA primary */
 
-  /* 손익 — rose의 흙빛 제거, 깨끗한 빨강 */
-  --color-rose-300: #fca5a5;
-  --color-rose-400: #f87171;
-  --color-rose-500: #ef4444;
+  /* 이익 표시(작은 success 텍스트) — Toss green */
+  --color-emerald-300: #34c759;
+  --color-emerald-400: #16a34a;
+  --color-emerald-500: #16a34a;
 
-  /* 시멘틱 토큰 — text-profit, bg-surface, border-soft 등 옵트인 사용 */
-  --color-surface: #161618;
-  --color-surface-2: #1c1c1f;
-  --color-border-soft: rgba(255, 255, 255, 0.06);
-  --color-text-muted: #a8a29e;
-  --color-text-subtle: #78716c;
-  --color-profit: #10b981;
-  --color-loss: #ef4444;
-  --color-warning: #fbbf24;
-  --color-accent: #10b981;
+  /* 강조 배경(emerald-950/-900은 알파 합쳐 행 하이라이트 용도) */
+  --color-emerald-900: #e7f2ff;
+  --color-emerald-950: #e7f2ff;
+
+  /* 손익 빨강 — Toss red. rose-900/-950는 라이트 배너에서 쓰지 않으므로
+     기본값(다크) 유지. 어두운 알파 배경을 쓰던 컴포넌트는 라이트 패턴으로 직접 교체. */
+  --color-rose-400: #f04452;
+  --color-rose-500: #f04452;
+  --color-rose-700: #be1f2c;
+
+  /* 시멘틱 토큰 */
+  --color-surface: #f7f8f9;
+  --color-surface-2: #ffffff;
+  --color-border-soft: #e5e8eb;
+  --color-text-muted: #4e5968;
+  --color-text-subtle: #6b7684;
+  --color-profit: #16a34a;
+  --color-loss: #f04452;
+  --color-warning: #f59e0b;
+  --color-accent: #3182f6;
 }
 
 html,
@@ -57,16 +68,16 @@ body,
 }
 
 /* 루트 폰트 크기 — rem 기반 Tailwind 유틸(텍스트/패딩/간격/아이콘)이 비례 확대된다.
-   16px(기본) → 24px(+50%). 더 키우려면 이 값만 올리면 됨.
-   주의: 컨테이너 폭(max-w-7xl = 80rem)도 같이 1920px로 커진다. */
+   16px(기본) → 22px(+37.5%). 더 키우려면 이 값만 올리면 됨.
+   주의: 컨테이너 폭(max-w-7xl = 80rem)도 같이 1760px로 커진다. */
 html {
-  font-size: 24px;
+  font-size: 22px;
 }
 
 body {
   font-family: var(--font-sans);
-  background-color: #0e0e10;
-  color: #e7e5e4;
+  background-color: #ffffff;
+  color: #191f28;
   /* 트레이딩 화면 — 숫자 세로 정렬을 전역 기본값으로 */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;

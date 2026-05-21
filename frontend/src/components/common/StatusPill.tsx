@@ -1,11 +1,11 @@
 import type { TradingCycleStatus } from "../../types";
 
 const STATUS_MAP: Record<TradingCycleStatus, { label: string; cls: string }> = {
-  INITIATED: { label: "INITIATED", cls: "bg-zinc-700 text-zinc-300" },
-  BUYING: { label: "BUYING", cls: "bg-blue-900/60 text-blue-300" },
-  HOLDING: { label: "HOLDING", cls: "bg-emerald-900/60 text-emerald-300" },
-  LIQUIDATING: { label: "LIQUIDATING", cls: "bg-amber-900/60 text-amber-300" },
-  CLOSED: { label: "CLOSED", cls: "bg-zinc-800 text-zinc-500" },
+  INITIATED: { label: "INITIATED", cls: "bg-gray-100 text-gray-700" },
+  BUYING: { label: "BUYING", cls: "bg-blue-50 text-blue-700" },
+  HOLDING: { label: "HOLDING", cls: "bg-emerald-50 text-emerald-800" },
+  LIQUIDATING: { label: "LIQUIDATING", cls: "bg-amber-50 text-amber-800" },
+  CLOSED: { label: "CLOSED", cls: "bg-gray-100 text-gray-500" },
 };
 
 export default function StatusPill({ status }: { status: TradingCycleStatus }) {

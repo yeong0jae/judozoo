@@ -82,8 +82,8 @@ export default function MonitoringPage() {
           onClick: () => {
             const row = todayRowRefs.current[p.cycleId];
             row?.scrollIntoView({ behavior: "smooth", block: "center" });
-            row?.classList.add("bg-amber-900/40");
-            setTimeout(() => row?.classList.remove("bg-amber-900/40"), 1500);
+            row?.classList.add("bg-amber-100");
+            setTimeout(() => row?.classList.remove("bg-amber-100"), 1500);
           },
         },
       });
@@ -427,9 +427,9 @@ function TodayClosedTable({
                 row.closeReason === "NO_FILL");
             const bg =
               row.closeReason === "UNCLOSED"
-                ? "bg-rose-950/30"
+                ? "bg-rose-50"
                 : row.closeReason === "NO_FILL"
-                  ? "bg-amber-950/20"
+                  ? "bg-amber-50"
                   : "";
             return (
               <tr

@@ -91,7 +91,7 @@ export default function HoldingsPage() {
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     {h.hasActiveCycle ? (
                       <span
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-900/30 border border-amber-800/60 text-amber-300"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-amber-50 border border-amber-200 text-amber-800"
                         title="현재 매매 중인 종목이라 수동 매도가 막혀 있음"
                       >
                         매매 중
@@ -99,7 +99,7 @@ export default function HoldingsPage() {
                     ) : (
                       <button
                         onClick={() => setPendingSell(h)}
-                        className="px-3 py-1.5 rounded text-xs bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 text-rose-200 font-medium"
+                        className="px-3 py-1.5 rounded text-xs bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-medium"
                       >
                         시장가 매도
                       </button>

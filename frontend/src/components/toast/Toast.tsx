@@ -78,10 +78,10 @@ export function useToast(): ToastContextValue {
 }
 
 const TONE_CLS: Record<ToastTone, string> = {
-  success: "bg-emerald-950/90 border-emerald-800 text-emerald-100",
-  error: "bg-rose-950/90 border-rose-800 text-rose-100",
-  warning: "bg-amber-950/90 border-amber-800 text-amber-100",
-  info: "bg-zinc-900/95 border-zinc-700 text-zinc-100",
+  success: "bg-emerald-50 border-emerald-200 text-emerald-800",
+  error: "bg-rose-50 border-rose-200 text-rose-700",
+  warning: "bg-amber-50 border-amber-200 text-amber-800",
+  info: "bg-zinc-900 border-zinc-700 text-zinc-100",
 };
 
 function ToastContainer({
@@ -128,7 +128,7 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
           {toast.action && (
             <button
               onClick={toast.action.onClick}
-              className="mt-2 text-xs underline text-zinc-300 hover:text-white"
+              className="mt-2 text-xs underline text-zinc-300 hover:text-zinc-100"
             >
               {toast.action.label}
             </button>

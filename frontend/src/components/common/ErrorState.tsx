@@ -12,7 +12,7 @@ export default function ErrorState({
       <div className="text-4xl mb-3 opacity-60" aria-hidden="true">
         ⚠️
       </div>
-      <p className="text-sm text-rose-300 mb-4">{message}</p>
+      <p className="text-sm text-rose-700 mb-4">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}

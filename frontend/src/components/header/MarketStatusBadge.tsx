@@ -27,15 +27,15 @@ function deriveConditions(status: MarketStatus): Condition[] {
 }
 
 const DOT_CLS: Record<Tone, string> = {
-  ok: "bg-emerald-400",
-  warn: "bg-amber-400",
-  danger: "bg-rose-400",
+  ok: "bg-emerald-500",
+  warn: "bg-amber-500",
+  danger: "bg-rose-500",
 };
 
 const TEXT_CLS: Record<Tone, string> = {
-  ok: "text-emerald-300",
-  warn: "text-amber-300",
-  danger: "text-rose-300",
+  ok: "text-emerald-800",
+  warn: "text-amber-700",
+  danger: "text-rose-700",
 };
 
 export default function MarketStatusBadge({ status }: { status: MarketStatus }) {
@@ -84,8 +84,8 @@ export default function MarketStatusBadge({ status }: { status: MarketStatus }) 
                     c.tone === "ok"
                       ? "text-zinc-200"
                       : c.tone === "warn"
-                        ? "text-amber-300"
-                        : "text-rose-300"
+                        ? "text-amber-700"
+                        : "text-rose-700"
                   }
                 >
                   {c.label}

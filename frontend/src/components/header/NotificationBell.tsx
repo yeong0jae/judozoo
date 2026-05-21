@@ -99,7 +99,7 @@ export default function NotificationBell() {
                 markAllRead();
                 setOpen(false);
               }}
-              className="text-xs text-emerald-400 hover:text-emerald-300"
+              className="text-xs text-blue-600 hover:text-blue-700"
             >
               모니터링에서 모두 보기 →
             </Link>

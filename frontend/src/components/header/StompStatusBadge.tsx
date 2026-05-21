@@ -8,19 +8,19 @@ const META: Record<
 > = {
   connected: {
     label: "연결됨",
-    dot: "bg-emerald-400",
-    text: "text-emerald-300",
+    dot: "bg-emerald-500",
+    text: "text-emerald-800",
   },
   reconnecting: {
     label: "재연결 중",
-    dot: "bg-amber-400",
-    text: "text-amber-300",
+    dot: "bg-amber-500",
+    text: "text-amber-700",
     pulse: true,
   },
   disconnected: {
     label: "끊김",
-    dot: "bg-rose-400",
-    text: "text-rose-300",
+    dot: "bg-rose-500",
+    text: "text-rose-700",
   },
 };
 

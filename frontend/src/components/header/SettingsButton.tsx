@@ -116,7 +116,7 @@ function Toggle({
         aria-checked={value}
         onClick={() => onChange(!value)}
         className={`shrink-0 mt-0.5 w-10 h-6 rounded-full p-0.5 transition-colors ${
-          value ? "bg-emerald-600" : "bg-zinc-700"
+          value ? "bg-blue-500" : "bg-gray-300"
         }`}
       >
         <span

@@ -85,7 +85,7 @@ export function formatRelative(iso: string, now = new Date()): string {
 // === Color ===
 // 한국 거래소 관행: 양수 빨강, 음수 파랑
 export function colorByPnL(value: number): string {
-  if (value > 0) return "text-red-400";
-  if (value < 0) return "text-blue-400";
-  return "text-zinc-300";
+  if (value > 0) return "text-red-600";
+  if (value < 0) return "text-blue-600";
+  return "text-zinc-400";
 }

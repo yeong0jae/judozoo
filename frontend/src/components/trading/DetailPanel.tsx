@@ -53,8 +53,8 @@ function ActiveSellAlert({ orders }: { orders: OrderInfo[] }) {
 
   const critical = activeSell.retryCount >= 3;
   const cls = critical
-    ? "bg-rose-950/60 border-rose-800 text-rose-200"
-    : "bg-amber-950/40 border-amber-800/60 text-amber-200";
+    ? "bg-rose-50 border-rose-200 text-rose-700"
+    : "bg-amber-50 border-amber-200 text-amber-800";
 
   return (
     <div className={`border rounded-md px-4 py-3 text-sm ${cls}`}>
@@ -147,7 +147,7 @@ function SummaryHeader({
           {!isClosed && live && onCancel && (
             <button
               onClick={onCancel}
-              className="bg-rose-900/40 hover:bg-rose-900/60 border border-rose-800 text-rose-200 px-3 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap"
+              className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 px-3 py-1.5 rounded text-sm font-medium transition-colors whitespace-nowrap"
             >
               취소
             </button>
@@ -210,7 +210,7 @@ function BuyProgressSection({ detail }: { detail: TradingDetail }) {
                 </div>
               )}
               {isNext && nextBuyAt && (
-                <div className="text-xs text-amber-300 mt-1">
+                <div className="text-xs text-amber-700 mt-1">
                   ~{formatTime(nextBuyAt)}
                 </div>
               )}
@@ -250,14 +250,14 @@ function roundView(order: OrderInfo | null, fallback: "next" | "idle"): RoundVie
       return {
         label: "⏱ 다음 매수",
         subLabel: null,
-        boxCls: "border-amber-700/60 bg-amber-950/30",
+        boxCls: "border-amber-200 bg-amber-50",
         textCls: "",
       };
     }
     return {
       label: "대기",
       subLabel: null,
-      boxCls: "border-zinc-800 bg-zinc-950",
+      boxCls: "border-gray-200 bg-gray-50",
       textCls: "text-zinc-400",
     };
   }
@@ -266,7 +266,7 @@ function roundView(order: OrderInfo | null, fallback: "next" | "idle"): RoundVie
       return {
         label: "✓ 체결",
         subLabel: `${order.filledQty}주`,
-        boxCls: "border-emerald-700/60 bg-emerald-950/30",
+        boxCls: "border-emerald-200 bg-emerald-50",
         textCls: "",
       };
     case "PENDING":
@@ -274,35 +274,35 @@ function roundView(order: OrderInfo | null, fallback: "next" | "idle"): RoundVie
         ? {
             label: "△ 부분 체결",
             subLabel: `${order.filledQty}/${order.orderQty}주`,
-            boxCls: "border-amber-700/60 bg-amber-950/30",
-            textCls: "text-amber-200",
+            boxCls: "border-amber-200 bg-amber-50",
+            textCls: "text-amber-800",
           }
         : {
             label: "⏳ 발송됨",
             subLabel: `${order.orderQty}주 대기`,
-            boxCls: "border-sky-800/60 bg-sky-950/30",
-            textCls: "text-sky-200",
+            boxCls: "border-sky-200 bg-sky-50",
+            textCls: "text-sky-700",
           };
     case "FAILED":
       return {
         label: "✗ 발송 실패",
         subLabel: null,
-        boxCls: "border-rose-800/60 bg-rose-950/30",
-        textCls: "text-rose-200",
+        boxCls: "border-rose-200 bg-rose-50",
+        textCls: "text-rose-700",
       };
     case "CANCELLED":
       return {
         label: "− 취소됨",
         subLabel: order.filledQty > 0 ? `${order.filledQty}주 체결` : null,
-        boxCls: "border-zinc-700 bg-zinc-900",
+        boxCls: "border-gray-200 bg-gray-50",
         textCls: "text-zinc-400",
       };
     case "NEEDS_REVIEW":
       return {
         label: "⚠ 확인 필요",
         subLabel: null,
-        boxCls: "border-rose-800/60 bg-rose-950/30",
-        textCls: "text-rose-200",
+        boxCls: "border-rose-200 bg-rose-50",
+        textCls: "text-rose-700",
       };
     default:
       return {
@@ -395,7 +395,7 @@ function OrderHistory({ orders }: { orders: OrderInfo[] }) {
               return (
               <tr
                 key={o.id}
-                className={`border-t border-zinc-800 ${highlight ? "bg-rose-950/30" : ""}`}
+                className={`border-t border-zinc-800 ${highlight ? "bg-rose-50" : ""}`}
               >
                 <td className="px-2 py-2 text-zinc-400 whitespace-nowrap">
                   {formatDateTime(o.submittedAt)}
@@ -414,8 +414,8 @@ function OrderHistory({ orders }: { orders: OrderInfo[] }) {
                     <span
                       className={
                         o.retryCount >= 3
-                          ? "text-rose-300 font-medium"
-                          : "text-amber-300"
+                          ? "text-rose-700 font-medium"
+                          : "text-amber-700"
                       }
                       title={o.lastError ?? undefined}
                     >
@@ -512,7 +512,7 @@ function ArmCard({
 
 function ArmStatus({ armed, icon }: { armed: boolean; icon: string }) {
   return (
-    <span className={armed ? "text-amber-300 font-medium" : "text-zinc-500"}>
+    <span className={armed ? "text-amber-700 font-medium" : "text-zinc-500"}>
       {armed ? `${icon} 무장됨` : "⚪ 미무장"}
     </span>
   );
@@ -523,8 +523,8 @@ function Stage({ label, fired }: { label: string; fired: boolean }) {
     <span
       className={`px-2 py-0.5 rounded text-xs border ${
         fired
-          ? "bg-emerald-900/60 text-emerald-300 border-emerald-800"
-          : "bg-zinc-800 text-zinc-500 border-zinc-700"
+          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+          : "bg-gray-100 text-gray-500 border-gray-200"
       }`}
     >
       {label} {fired && "✓"}
@@ -537,8 +537,8 @@ function SideBadge({ side }: { side: "BUY" | "SELL" }) {
     <span
       className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
         side === "BUY"
-          ? "bg-blue-900/60 text-blue-300"
-          : "bg-rose-900/60 text-rose-300"
+          ? "bg-blue-50 text-blue-700"
+          : "bg-rose-50 text-rose-700"
       }`}
     >
       {side}
@@ -549,9 +549,9 @@ function SideBadge({ side }: { side: "BUY" | "SELL" }) {
 function OrderStatusText({ status }: { status: string }) {
   const cls =
     status === "FILLED"
-      ? "text-emerald-300"
+      ? "text-emerald-800"
       : status === "CANCELLED"
         ? "text-zinc-500"
-        : "text-amber-300";
+        : "text-amber-700";
   return <span className={cls}>{status}</span>;
 }

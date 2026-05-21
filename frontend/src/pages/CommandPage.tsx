@@ -366,8 +366,8 @@ function BlockBanner({
 }) {
   const cls =
     reason.tone === "danger"
-      ? "bg-rose-950/60 border-rose-800 text-rose-200"
-      : "bg-amber-950/60 border-amber-800 text-amber-200";
+      ? "bg-rose-50 border-rose-200 text-rose-700"
+      : "bg-amber-50 border-amber-200 text-amber-800";
   return (
     <div className={`border rounded-lg px-4 py-3 text-sm ${cls}`}>
       ⛔ {reason.message}
@@ -396,7 +396,7 @@ function Field({
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       <label
         className={`text-sm font-medium mb-2 flex items-center gap-2 ${
-          error ? "text-rose-300" : "text-zinc-200"
+          error ? "text-rose-700" : "text-zinc-200"
         }`}
       >
         <span className="w-5 h-5 rounded-full bg-zinc-800 text-xs flex items-center justify-center text-zinc-400">
@@ -603,7 +603,7 @@ function QtyPreview({
       </div>
       <div className="pt-1 mt-1 border-t border-zinc-800">
         {perBuyQty < 1 ? (
-          <p className="text-xs text-rose-300">최소 1주</p>
+          <p className="text-xs text-rose-700">최소 1주</p>
         ) : insufficientBalance && availableBalance !== undefined ? (
           <ErrorMsg
             code="INSUFFICIENT_BALANCE"
@@ -704,10 +704,10 @@ function NumField({
     <label className="block">
       <span
         className={`text-xs flex items-center gap-1 mb-1 ${
-          dirty ? "text-amber-300" : "text-zinc-400"
+          dirty ? "text-amber-700" : "text-zinc-400"
         }`}
       >
-        {dirty && <span className="text-amber-400">●</span>}
+        {dirty && <span className="text-amber-600">●</span>}
         {label}
       </span>
       <input
@@ -752,18 +752,18 @@ function BalancePanel({
           <Skeleton className="h-5 w-full" />
         </div>
       ) : error || !balance ? (
-        <div className="text-sm text-rose-300 space-y-2">
+        <div className="text-sm text-rose-700 space-y-2">
           <p>
             잔고 조회 실패
             {errorCode && (
-              <span className="text-xs text-rose-400 block mt-1">
+              <span className="text-xs text-rose-500 block mt-1">
                 ({errorCode})
               </span>
             )}
           </p>
           <button
             onClick={onRetry}
-            className="text-xs text-zinc-300 hover:text-white px-2 py-1 rounded bg-zinc-800 border border-zinc-700"
+            className="text-xs text-zinc-300 hover:text-zinc-100 px-2 py-1 rounded bg-zinc-800 border border-zinc-700"
           >
             다시 시도
           </button>
@@ -786,8 +786,8 @@ function BalancePanel({
               }
               valueClass={
                 insufficient
-                  ? "text-rose-300 font-semibold"
-                  : "text-emerald-300 font-semibold"
+                  ? "text-rose-700 font-semibold"
+                  : "text-emerald-800 font-semibold"
               }
             />
           </div>
@@ -829,7 +829,7 @@ function SystemPanel({
             <span
               className={`w-1.5 h-1.5 rounded-full ${c.ok ? "bg-emerald-400" : "bg-rose-400"}`}
             />
-            <span className={c.ok ? "text-zinc-300" : "text-rose-300"}>
+            <span className={c.ok ? "text-zinc-300" : "text-rose-700"}>
               {c.label}
             </span>
           </div>
@@ -869,7 +869,7 @@ function ActiveCommandsPreview({
                 key={c.cycleId}
                 to="/monitoring"
                 className={`flex items-center justify-between gap-2 p-2 rounded text-xs hover:bg-zinc-800 ${
-                  isHighlight ? "bg-rose-950/40 border border-rose-800/60" : ""
+                  isHighlight ? "bg-rose-50 border border-rose-200" : ""
                 }`}
               >
                 <span className="flex items-center gap-2 min-w-0">
@@ -912,9 +912,9 @@ function Row({
 
 function ErrorMsg({ code, extra }: { code: ErrorCode; extra?: string }) {
   return (
-    <p className="text-xs text-rose-300">
+    <p className="text-xs text-rose-700">
       · {errorMessage(code)}
-      {extra && <span className="ml-1 text-rose-400">({extra})</span>}
+      {extra && <span className="ml-1 text-rose-500">({extra})</span>}
     </p>
   );
 }

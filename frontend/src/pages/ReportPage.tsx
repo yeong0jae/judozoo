@@ -210,7 +210,7 @@ function DateNavigator({
 
 function UnclosedBanner({ count }: { count: number }) {
   return (
-    <div className="bg-rose-950/50 border border-rose-800/60 rounded-lg px-4 py-3 text-sm text-rose-200">
+    <div className="bg-rose-50 border border-rose-200 rounded-lg px-4 py-3 text-sm text-rose-700">
       🚨 UNCLOSED 거래가 {count}건 있습니다 — KIS HTS에서 수동 정리가
       필요합니다
     </div>
@@ -528,9 +528,9 @@ function ReportTable({
               (r.closeReason === "UNCLOSED" || r.closeReason === "NO_FILL");
             const bg =
               r.closeReason === "UNCLOSED"
-                ? "bg-rose-950/30"
+                ? "bg-rose-50"
                 : r.closeReason === "NO_FILL"
-                  ? "bg-amber-950/20"
+                  ? "bg-amber-50"
                   : "";
             return (
               <tr
