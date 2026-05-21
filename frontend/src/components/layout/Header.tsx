@@ -20,7 +20,7 @@ export default function Header() {
           to="/"
           className="text-base font-semibold text-white whitespace-nowrap"
         >
-          AT 자동매매
+          자동매매
         </Link>
         <nav className="flex items-center gap-1">
           <NavLink

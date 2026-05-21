@@ -1,11 +1,81 @@
 @import "tailwindcss";
 
-html, body, #root {
+/* 폰트 — UI는 Pretendard Variable, 숫자/코드는 JetBrains Mono Variable */
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  /* 폰트 패밀리 — Tailwind의 font-sans/font-mono 유틸이 이 토큰을 가리킨다 */
+  --font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono:
+    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular,
+    Menlo, monospace;
+
+  /* ─── 차콘 팔레트 (Linear/Vercel 풍 따뜻한 중성) ────────────────────────
+     Tailwind 기본 zinc(차가운 중성)와 emerald/rose 일부를 재매핑해,
+     페이지 코드의 bg-zinc-900 · border-zinc-800 · bg-emerald-700 · text-rose-300 등이
+     자동으로 새 톤을 가리키게 한다. */
+  --color-zinc-50: #fafaf9;
+  --color-zinc-100: #f5f5f4;
+  --color-zinc-200: #e7e5e4; /* 본문 텍스트 */
+  --color-zinc-300: #d6d3d1;
+  --color-zinc-400: #a8a29e; /* 보조 라벨 */
+  --color-zinc-500: #78716c; /* 부차 라벨 */
+  --color-zinc-600: #57534e;
+  --color-zinc-700: #44403c;
+  --color-zinc-800: #252528; /* 호버/구분선 */
+  --color-zinc-900: #161618; /* 카드 표면 */
+  --color-zinc-950: #0e0e10; /* 페이지 베이스 */
+
+  /* 액센트 — 매매 시작 버튼 톤업 */
+  --color-emerald-600: #0ea671; /* hover */
+  --color-emerald-700: #10b981; /* primary */
+
+  /* 손익 — rose의 흙빛 제거, 깨끗한 빨강 */
+  --color-rose-300: #fca5a5;
+  --color-rose-400: #f87171;
+  --color-rose-500: #ef4444;
+
+  /* 시멘틱 토큰 — text-profit, bg-surface, border-soft 등 옵트인 사용 */
+  --color-surface: #161618;
+  --color-surface-2: #1c1c1f;
+  --color-border-soft: rgba(255, 255, 255, 0.06);
+  --color-text-muted: #a8a29e;
+  --color-text-subtle: #78716c;
+  --color-profit: #10b981;
+  --color-loss: #ef4444;
+  --color-warning: #fbbf24;
+  --color-accent: #10b981;
+}
+
+html,
+body,
+#root {
   height: 100%;
 }
 
+/* 루트 폰트 크기 — rem 기반 Tailwind 유틸(텍스트/패딩/간격/아이콘)이 비례 확대된다.
+   16px(기본) → 24px(+50%). 더 키우려면 이 값만 올리면 됨.
+   주의: 컨테이너 폭(max-w-7xl = 80rem)도 같이 1920px로 커진다. */
+html {
+  font-size: 24px;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro KR", "Pretendard", system-ui, sans-serif;
-  background-color: #0a0a0a;
-  color: #e5e5e5;
+  font-family: var(--font-sans);
+  background-color: #0e0e10;
+  color: #e7e5e4;
+  /* 트레이딩 화면 — 숫자 세로 정렬을 전역 기본값으로 */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 가격·수량·종목코드 등 명시적으로 모노폰트가 필요한 곳에 옵트인 */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
