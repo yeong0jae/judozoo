@@ -3,3 +3,8 @@ dist
 .vite
 *.log
 .DS_Store
+
+# tsc는 noEmit으로 타입체크만, 빌드는 Vite(esbuild)가 담당
+src/**/*.js
+src/**/*.js.map
+tsconfig.tsbuildinfo
