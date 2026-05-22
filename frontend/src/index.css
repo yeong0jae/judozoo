@@ -90,11 +90,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* 가격·수량·종목코드 등 명시적으로 모노폰트가 필요한 곳에 옵트인 */
+/* 숫자 표시 유틸 — 본문과 같은 Pretendard, 다만 자릿수 정렬은 유지 (tabular-nums) */
 .num {
-  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
 }
 
 /* 주도주 후보 목록에 새 종목이 들어왔을 때 행을 8초간 amber로 하이라이트 후 fade */
