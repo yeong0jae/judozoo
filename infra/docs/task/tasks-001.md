@@ -20,50 +20,50 @@
 
 ## B. Terraform 디렉토리 (`infra/terraform/`)
 
-- [ ] `versions.tf` — required_version ≥ 1.6, google provider ~> 6.0
-- [ ] `backend.tf` — GCS backend, bucket=`trading-496508-tfstate`, prefix=`auto-trading/state`
-- [ ] `variables.tf` — project_id, region(asia-northeast3), zone(asia-northeast3-a), github_repository(`yeong0jae/autonomous-trading`), allowed_web_source_ranges, machine_type(e2-medium), boot_disk_size_gb(20)
-- [ ] `startup.sh` — Docker + compose plugin 설치 (레퍼런스와 동일)
-- [ ] `main.tf` — APIs 활성화
-- [ ] `main.tf` — `google_compute_address.frontend` (`auto-trading-frontend-ip`)
-- [ ] `main.tf` — VM SA `auto-trading-vm` + AR reader / Secret accessor 권한
-- [ ] `main.tf` — Firewall `auto-trading-allow-web` (tcp:3000, target_tag `auto-trading`)
-- [ ] `main.tf` — Firewall `auto-trading-allow-ssh-iap` (REDACTED_IP/20)
-- [ ] `main.tf` — `google_compute_instance.app` (`auto-trading-app`, tag `auto-trading`, startup-script)
-- [ ] `main.tf` — Artifact Registry `auto-trading` (DOCKER, asia-northeast3)
-- [ ] `main.tf` — Secret Manager 12개 컨테이너 (`AT_*`)
-- [ ] `main.tf` — Deployer SA `auto-trading-gha-deployer` + 5개 권한 + VM SA `iam.serviceAccountUser`
-- [ ] `main.tf` — WIF pool `auto-trading-pool` + provider `auto-trading-provider` (repo 조건 고정)
-- [ ] `main.tf` — Deployer SA에 `roles/iam.workloadIdentityUser` (attribute.repository 바인딩)
-- [ ] `outputs.tf` — vm_external_ip, vm_name, vm_zone, artifact_registry_repo, wif_provider, deployer_sa_email
-- [ ] `terraform.tfvars.example` 작성
+- [x] `versions.tf` — required_version ≥ 1.6, google provider ~> 6.0
+- [x] `backend.tf` — GCS backend, bucket=`trading-496508-tfstate`, prefix=`auto-trading/state`
+- [x] `variables.tf` — project_id, region(asia-northeast3), zone(asia-northeast3-a), github_repository(`yeong0jae/autonomous-trading`), allowed_web_source_ranges, machine_type(e2-medium), boot_disk_size_gb(20)
+- [x] `startup.sh` — Docker + compose plugin 설치 (레퍼런스와 동일)
+- [x] `main.tf` — APIs 활성화
+- [x] `main.tf` — `google_compute_address.frontend` (`auto-trading-frontend-ip`)
+- [x] `main.tf` — VM SA `auto-trading-vm` + AR reader / Secret accessor 권한
+- [x] `main.tf` — Firewall `auto-trading-allow-web` (tcp:3000, target_tag `auto-trading`)
+- [x] `main.tf` — Firewall `auto-trading-allow-ssh-iap` (REDACTED_IP/20)
+- [x] `main.tf` — `google_compute_instance.app` (`auto-trading-app`, tag `auto-trading`, startup-script)
+- [x] `main.tf` — Artifact Registry `auto-trading` (DOCKER, asia-northeast3)
+- [x] `main.tf` — Secret Manager 12개 컨테이너 (`AT_*`)
+- [x] `main.tf` — Deployer SA `auto-trading-gha-deployer` + 5개 권한 + VM SA `iam.serviceAccountUser`
+- [x] `main.tf` — WIF pool `auto-trading-pool` + provider `auto-trading-provider` (repo 조건 고정)
+- [x] `main.tf` — Deployer SA에 `roles/iam.workloadIdentityUser` (attribute.repository 바인딩)
+- [x] `outputs.tf` — vm_external_ip, vm_name, vm_zone, artifact_registry_repo, wif_provider, deployer_sa_email
+- [x] `terraform.tfvars.example` 작성
 
 ## C. 배포 스크립트 (`infra/deploy/`)
 
-- [ ] `remote_deploy.sh` 작성
-  - [ ] 12개 시크릿 → `backend/.env` 매핑 (`AT_*` → 원본 env명)
-  - [ ] `umask 077`로 권한 보호
-  - [ ] AR Docker login (access token 방식)
-  - [ ] `SPRING_PROFILES_ACTIVE=vts` 주입
-  - [ ] compose `pull` + `up -d` + `image prune -f`
+- [x] `remote_deploy.sh` 작성
+  - [x] 12개 시크릿 → `backend/.env` 매핑 (`AT_*` → 원본 env명)
+  - [x] `umask 077`로 권한 보호
+  - [x] AR Docker login (access token 방식)
+  - [x] `SPRING_PROFILES_ACTIVE=vts` 주입
+  - [x] compose `pull` + `up -d` + `image prune -f`
 
 ## D. GitHub Actions (`.github/workflows/deploy.yml`)
 
-- [ ] `on: push: branches: [main]`
-- [ ] `permissions: contents: read, id-token: write`
-- [ ] 환경변수 7개 (`vars.GCP_PROJECT_ID`, `vars.GCP_REGION`, `vars.AR_REPO`, `vars.VM_NAME`, `vars.VM_ZONE`, `vars.WIF_PROVIDER`, `vars.DEPLOY_SA`)
-- [ ] Step: checkout
-- [ ] Step: WIF auth
-- [ ] Step: setup-gcloud
-- [ ] Step: `gcloud auth configure-docker`
-- [ ] Step: backend / frontend 이미지 빌드·푸시 (`:${GITHUB_SHA}` + `:latest`)
-- [ ] Step: `gcloud compute scp` — `docker-compose.yml`, `docker-compose.prod.yml`, `infra/deploy/remote_deploy.sh` (IAP)
-- [ ] Step: `gcloud compute ssh` — `bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION}` (IAP)
-- [ ] Step: 헬스체크 — VM 내부에서 `curl localhost:3000/` 200 폴링 (최대 4분)
+- [x] `on: push: branches: [main]`
+- [x] `permissions: contents: read, id-token: write`
+- [x] 환경변수 7개 (`vars.GCP_PROJECT_ID`, `vars.GCP_REGION`, `vars.AR_REPO`, `vars.VM_NAME`, `vars.VM_ZONE`, `vars.WIF_PROVIDER`, `vars.DEPLOY_SA`)
+- [x] Step: checkout
+- [x] Step: WIF auth
+- [x] Step: setup-gcloud
+- [x] Step: `gcloud auth configure-docker`
+- [x] Step: backend / frontend 이미지 빌드·푸시 (`:${GITHUB_SHA}` + `:latest`)
+- [x] Step: `gcloud compute scp` — `docker-compose.yml`, `docker-compose.prod.yml`, `infra/deploy/remote_deploy.sh` (IAP)
+- [x] Step: `gcloud compute ssh` — `bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION}` (IAP)
+- [x] Step: 헬스체크 — VM 내부에서 `curl localhost:3000/` 200 폴링 (최대 4분)
 
 ## E. 기타
 
-- [ ] `.gitignore` 보강 (`infra/terraform/.terraform/`, `*.tfstate*`, `*.tfplan`, `terraform.tfvars`)
+- [x] `.gitignore` 보강 (`infra/terraform/.terraform/`, `*.tfstate*`, `*.tfplan`, `terraform.tfvars`)
 - [ ] `infra/docs/plan.md`에 추후 변경사항 동기화 (예: real 프로파일 전환 시점)
 
 ## F. 사용자 1회성 작업 (모두 🧑)
