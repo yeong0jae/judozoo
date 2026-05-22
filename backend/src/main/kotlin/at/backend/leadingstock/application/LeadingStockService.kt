@@ -40,16 +40,22 @@ class LeadingStockService(
         val candidates = marketClient.fetchTopTradingValueStocks(50)
         log.info("Fetched {} candidates from trading value ranking", candidates.size)
 
+        // 거래대금 1~3위는 ETF/등락률 무관 항상 포함 — 시장 톤 기준점
+        val topThree = candidates.take(TOP_RANK_ALWAYS_INCLUDED)
+
         val phase1Filters = FilterChain(
             listOf(
-                EtfExclusionFilter(),                // ETF/ETN 제외 — 개별 종목만
+                EtfExclusionFilter(),                // ETF/ETN 제외
                 TradingValueRankFilter(criteria),
                 DailyPriceChangeFilter(criteria),
             ),
         )
         val survivors = phase1Filters.apply(candidates)
-        log.info("Phase 1 survivors: {}", survivors.size)
-        return survivors
+
+        // 거래대금 순 정렬 유지 + 중복 제거 (top3가 survivors와 겹치면 자연 dedupe)
+        val merged = (topThree + survivors).distinctBy { it.stockCode }
+        log.info("Phase 1 survivors: {} (top3 forced + {} filter-pass)", merged.size, survivors.size)
+        return merged
     }
 
     /** 특정 종목에 대해 모든 필터(A~H) 평가 — 상세 보기에서 사용 */
@@ -87,5 +93,9 @@ class LeadingStockService(
 
         val results = allFilters.map { it.evaluate(stock) }
         return stock to results
+    }
+
+    companion object {
+        private const val TOP_RANK_ALWAYS_INCLUDED = 3
     }
 }

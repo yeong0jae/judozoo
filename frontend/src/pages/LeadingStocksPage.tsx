@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useInvestorTrend,
@@ -174,9 +174,9 @@ function CandidatesTable({
   const navigate = useNavigate();
   return (
     <table className="w-full text-sm">
-      <thead className="bg-zinc-950 text-zinc-500 text-xs uppercase tracking-wider">
+      <thead className="bg-zinc-950 text-zinc-500 text-xs">
         <tr>
-          <th className="px-4 py-2.5 text-left w-12">순위</th>
+          <th className="px-4 py-2.5 text-left whitespace-nowrap">순위</th>
           <th className="px-4 py-2.5 text-left">종목</th>
           <th className="px-4 py-2.5 text-right">현재가</th>
           <th className="px-4 py-2.5 text-right">등락률</th>
@@ -185,19 +185,23 @@ function CandidatesTable({
         </tr>
       </thead>
       <tbody>
-        {stocks.map((s) => {
+        {stocks.length > 0 && (
+          <GroupHeader label="거래대금 1, 2, 3위" />
+        )}
+        {stocks.map((s, idx) => {
           const code = shortCode(s.stockCode);
           const isNew = newCodes.has(s.stockCode);
           const isSelected = selectedCode === s.stockCode;
           return (
-            <tr
-              key={s.stockCode}
-              className={`border-t border-zinc-800 hover:bg-zinc-800/40 cursor-pointer ${
-                isNew ? "leading-stock-new" : ""
-              } ${
-                isSelected
-                  ? "bg-emerald-900 border-l-2 border-l-emerald-700"
-                  : ""
+            <Fragment key={s.stockCode}>
+              {idx === 3 && <GroupHeader label="주도주 후보" />}
+              <tr
+                className={`border-t border-zinc-800 hover:bg-zinc-800/40 cursor-pointer ${
+                  isNew ? "leading-stock-new" : ""
+                } ${
+                  isSelected
+                    ? "bg-emerald-900 border-l-2 border-l-emerald-700"
+                    : ""
               }`}
               onClick={() => onOpen(s.stockCode)}
             >
@@ -239,10 +243,25 @@ function CandidatesTable({
                 </button>
               </td>
             </tr>
+            </Fragment>
           );
         })}
       </tbody>
     </table>
+  );
+}
+
+function GroupHeader({ label, hint }: { label: string; hint?: string }) {
+  return (
+    <tr aria-hidden className="bg-zinc-950 border-t border-zinc-800">
+      {/* 표 좌측 끝(순위 컬럼 자리)에서 라벨 시작 — 1·2·3 번호 컬럼과 좌측 정렬 일치 */}
+      <td colSpan={6} className="px-4 py-3">
+        <span className="text-sm font-semibold text-zinc-200">{label}</span>
+        {hint && (
+          <span className="ml-2 text-xs text-zinc-500 font-normal">{hint}</span>
+        )}
+      </td>
+    </tr>
   );
 }
 
