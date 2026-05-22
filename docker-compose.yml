@@ -1,0 +1,48 @@
+# base: 로컬 개발/CI/프로덕션 공통.
+# - 로컬: docker compose up --build  (이 파일만 사용)
+# - 프로덕션: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# backend/.env 가 있어야 backend가 부팅됨 (KIS/KIWOOM 시크릿 + DB_PASSWORD).
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: trading
+      TZ: Asia/Seoul
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - trading
+
+  backend:
+    build: ./backend
+    # 컨테이너 기본 UTC → LocalDateTime.now()가 9h 어긋남. KST 고정.
+    environment:
+      TZ: Asia/Seoul
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-vts}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+      DB_USERNAME: root
+    env_file:
+      - ./backend/.env
+    expose:
+      - "8080"
+    depends_on:
+      - mysql
+    networks:
+      - trading
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - trading
+
+volumes:
+  mysql-data:
+
+networks:
+  trading:
+    driver: bridge
