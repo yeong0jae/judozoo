@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useLeadingStockCandidates, useLeadingStockDetail } from "../api/queries";
-import type { CandidateStockItem, FilterResultItem } from "../types";
+import {
+  useInvestorTrend,
+  useLeadingStockCandidates,
+  useLeadingStockDetail,
+} from "../api/queries";
+import type {
+  CandidateStockItem,
+  FilterResultItem,
+  InvestorTrendDay,
+} from "../types";
 import {
   formatKoreanMoney,
   formatPct,
@@ -292,7 +300,10 @@ function DetailPanel({
         ) : detailQ.isError ? (
           <p className="text-sm text-rose-700">상세 정보를 불러올 수 없습니다</p>
         ) : detail ? (
-          <FilterResultsList results={detail.filterResults} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <FilterResultsList results={detail.filterResults} />
+            <InvestorTrendSection stockCode={shortCode(stockCode)} />
+          </div>
         ) : null}
       </div>
     </div>
@@ -326,5 +337,115 @@ function FilterResultsList({ results }: { results: FilterResultItem[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ============================================================
+// 외국인·기관 자금 흐름
+// ============================================================
+
+function InvestorTrendSection({ stockCode }: { stockCode: string }) {
+  const { data, isLoading, isError } = useInvestorTrend(stockCode);
+
+  if (isLoading) {
+    return (
+      <section>
+        <h3 className="text-sm font-semibold text-zinc-200 mb-2">
+          외국인·기관 자금 흐름
+        </h3>
+        <Skeleton className="h-24 w-full" />
+      </section>
+    );
+  }
+  if (isError || !data || data.length === 0) return null;
+
+  const today = data[0];
+  const last5 = data.slice(0, 5);
+  const sum = (sel: (d: InvestorTrendDay) => number) =>
+    last5.reduce((acc, d) => acc + sel(d), 0);
+
+  return (
+    <section>
+      <h3 className="text-sm font-semibold text-zinc-200 mb-3">
+        외국인·기관 자금 흐름
+      </h3>
+      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-4">
+        <FlowGroup
+          label={`오늘 ${today.date.slice(5)}`}
+          rows={[
+            { name: "외국인", total: today.foreignNet, nxt: today.foreignNetNxt },
+            { name: "기관", total: today.institutionNet, nxt: today.institutionNetNxt },
+            { name: "개인", total: today.individualNet, nxt: today.individualNetNxt },
+          ]}
+        />
+        <div className="border-t border-zinc-800" />
+        <FlowGroup
+          label={`최근 ${last5.length}일 누적`}
+          rows={[
+            { name: "외국인", total: sum((d) => d.foreignNet), nxt: sum((d) => d.foreignNetNxt) },
+            { name: "기관", total: sum((d) => d.institutionNet), nxt: sum((d) => d.institutionNetNxt) },
+            { name: "개인", total: sum((d) => d.individualNet), nxt: sum((d) => d.individualNetNxt) },
+          ]}
+        />
+      </div>
+    </section>
+  );
+}
+
+function FlowGroup({
+  label,
+  rows,
+}: {
+  label: string;
+  rows: Array<{ name: string; total: number; nxt: number }>;
+}) {
+  return (
+    <div>
+      <div className="text-xs text-zinc-500 mb-2">{label}</div>
+      {/* 3열 표: 라벨 / 전체(SOR통합) / NXT 단독 */}
+      <div className="grid grid-cols-[auto_1fr_1fr] gap-x-6 gap-y-1.5 text-sm">
+        <span></span>
+        <span className="text-xs text-zinc-500 text-right">전체</span>
+        <span className="text-xs text-zinc-500 text-right">NXT</span>
+        {rows.map((r) => (
+          <FlowRow key={r.name} {...r} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FlowRow({
+  name,
+  total,
+  nxt,
+}: {
+  name: string;
+  total: number;
+  nxt: number;
+}) {
+  return (
+    <>
+      <span className="text-zinc-400">{name}</span>
+      <SignedAmount millionWon={total} />
+      <SignedAmount millionWon={nxt} />
+    </>
+  );
+}
+
+function SignedAmount({ millionWon }: { millionWon: number }) {
+  // 한국 거래소 관행 — 양수(매수) 빨강 / 음수(매도) 파랑
+  const tone =
+    millionWon > 0
+      ? "text-red-600"
+      : millionWon < 0
+        ? "text-blue-600"
+        : "text-zinc-500";
+  const sign = millionWon > 0 ? "+" : "";
+  return (
+    <span className={`${tone} num font-medium text-right`}>
+      {sign}
+      {formatKoreanMoney(millionWon * 1_000_000)}
+    </span>
   );
 }

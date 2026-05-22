@@ -6,6 +6,7 @@ import type {
   DailyReport,
   DailyTrading,
   Holding,
+  InvestorTrendDay,
   KospiIndex,
   LeadingStockDetailResponse,
   MarketStatus,
@@ -28,6 +29,8 @@ export const QK = {
   leadingStockCandidates: ["leading-stocks", "candidates"] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
+  investorTrend: (code: string) =>
+    ["leading-stocks", "investors", code] as const,
   kospiIndex: ["market", "kospi"] as const,
 };
 
@@ -125,6 +128,18 @@ export function useKospiIndex() {
     queryKey: QK.kospiIndex,
     queryFn: () => apiFetch<KospiIndex>("/api/market/kospi"),
     refetchInterval: 30_000, // 헤더용 — 30초마다
+  });
+}
+
+export function useInvestorTrend(code: string | null) {
+  return useQuery({
+    queryKey: code ? QK.investorTrend(code) : ["leading-stocks", "investors", "null"],
+    queryFn: () =>
+      apiFetch<InvestorTrendDay[]>(
+        `/api/leading-stocks/candidates/${code}/investors`,
+      ),
+    enabled: code !== null,
+    staleTime: 5 * 60_000, // 일자별 데이터 — 5분 신선도
   });
 }
 

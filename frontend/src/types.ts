@@ -306,3 +306,14 @@ export interface LeadingStockDetailResponse {
   priceChangeRate: number;
   filterResults: FilterResultItem[];
 }
+
+/** 단위: 백만원. 양수=순매수, 음수=순매도. NXT 컬럼은 NXT 거래소 단독. */
+export interface InvestorTrendDay {
+  date: string; // yyyy-MM-dd
+  individualNet: number;
+  foreignNet: number;
+  institutionNet: number;
+  individualNetNxt: number;
+  foreignNetNxt: number;
+  institutionNetNxt: number;
+}

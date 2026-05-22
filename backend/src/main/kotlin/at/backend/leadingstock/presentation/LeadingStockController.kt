@@ -1,9 +1,11 @@
 package at.backend.leadingstock.presentation
 
+import at.backend.leadingstock.application.InvestorTrendService
 import at.backend.leadingstock.application.LeadingStockService
 import at.backend.leadingstock.presentation.response.CandidateStockItem
 import at.backend.leadingstock.presentation.response.CandidateStocksResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
+import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
 import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/leading-stocks")
 class LeadingStockController(
     private val leadingStockService: LeadingStockService,
+    private val investorTrendService: InvestorTrendService,
     private val timeProvider: TimeProvider,
 ) {
 
@@ -39,6 +42,25 @@ class LeadingStockController(
                 totalCount = items.size,
                 stocks = items,
             ),
+        )
+    }
+
+    /** 종목별 일자별 외국인·기관·개인 순매수 추이 (단위: 백만원). */
+    @GetMapping("/candidates/{stockCode}/investors")
+    fun getInvestorTrend(@PathVariable stockCode: String): ApiResponse<List<InvestorTrendDayItem>> {
+        val trend = investorTrendService.getTrend(stockCode)
+        return ApiResponse.ok(
+            trend.map {
+                InvestorTrendDayItem(
+                    date = it.date,
+                    individualNet = it.individualNet,
+                    foreignNet = it.foreignNet,
+                    institutionNet = it.institutionNet,
+                    individualNetNxt = it.individualNetNxt,
+                    foreignNetNxt = it.foreignNetNxt,
+                    institutionNetNxt = it.institutionNetNxt,
+                )
+            },
         )
     }
 
