@@ -11,7 +11,11 @@ import java.util.concurrent.TimeUnit
  * Caffeine 기반 인메모리 캐시.
  *
  * - 전역 기본: 60초 TTL, 최대 100개 엔트리
- * - candidateStocks: 주도주 후보 리스트 — 프론트가 3초 폴링해도 키움 API를 직접 두드리지 않도록 5초 TTL
+ * - candidateStocks: 주도주 후보 리스트 — 5초 TTL, 단일 엔트리
+ * - kospiIndex: KOSPI 종합지수 — 5초 TTL, 단일 엔트리
+ *
+ * 캐시별 maximumSize=1 이유: 각 캐시가 한 종류 결과만 담는 단일 슬롯.
+ * 다른 서비스가 같은 캐시 이름을 공유하면 서로 갈아치우므로 캐시별 분리 필수.
  */
 @Configuration
 class CacheConfig {
@@ -27,6 +31,13 @@ class CacheConfig {
         }
         manager.registerCustomCache(
             "candidateStocks",
+            Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.SECONDS)
+                .maximumSize(1)
+                .build(),
+        )
+        manager.registerCustomCache(
+            "kospiIndex",
             Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.SECONDS)
                 .maximumSize(1)

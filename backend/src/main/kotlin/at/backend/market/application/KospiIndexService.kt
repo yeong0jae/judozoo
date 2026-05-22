@@ -15,7 +15,7 @@ class KospiIndexService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @Cacheable("candidateStocks") // 5s TTL 캐시 재사용
+    @Cacheable("kospiIndex") // 5s TTL — 후보 캐시와 분리 (이전엔 같은 이름 공유로 서로 evict)
     fun getKospi(): KospiIndexResult {
         val snap = indexClient.fetchIndex(KOSPI_CODE)
         if (snap == null) {
