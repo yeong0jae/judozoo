@@ -37,6 +37,16 @@ export default function LeadingStocksPage() {
   const data = candidatesQ.data;
   const stocks = data?.stocks ?? [];
 
+  // 페이지 진입 시 첫 종목 기본 선택, 선택 종목이 리스트에서 사라지면 다시 첫 종목으로
+  useEffect(() => {
+    if (stocks.length === 0) return;
+    if (openCode === null || !stocks.some((s) => s.stockCode === openCode)) {
+      setOpenCode(stocks[0].stockCode);
+    }
+    // openCode를 deps에 넣지 않음 — 사용자 클릭 시마다 재실행되는 걸 막기 위해 stocks(데이터)에만 반응
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stocks]);
+
   // 새로 진입한 종목 추적 — 행 8초 하이라이트용. 첫 로드는 마킹 제외.
   const prevCodesRef = useRef<Set<string>>(new Set());
   const [newCodes, setNewCodes] = useState<Set<string>>(new Set());
@@ -105,10 +115,7 @@ export default function LeadingStocksPage() {
 
         {openCode && (
           <aside className="lg:sticky lg:top-6">
-            <DetailPanel
-              stockCode={openCode}
-              onClose={() => setOpenCode(null)}
-            />
+            <DetailPanel stockCode={openCode} />
           </aside>
         )}
       </div>
@@ -269,44 +276,29 @@ function GroupHeader({ label, hint }: { label: string; hint?: string }) {
 // Detail panel (우측 인라인)
 // ============================================================
 
-function DetailPanel({
-  stockCode,
-  onClose,
-}: {
-  stockCode: string;
-  onClose: () => void;
-}) {
+function DetailPanel({ stockCode }: { stockCode: string }) {
   const detailQ = useLeadingStockDetail(stockCode);
   const detail = detailQ.data;
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-        <div>
-          <div className="text-lg font-semibold">
-            {detail?.stockName ?? "…"}
-            <span className="text-xs text-zinc-500 ml-2 num">
-              {shortCode(stockCode)}
-            </span>
-          </div>
-          {detail && (
-            <div className="text-sm text-zinc-400 mt-0.5">
-              <span className="num">{formatPrice(detail.currentPrice)}</span>{" "}
-              <ProfitText
-                value={detail.priceChangeRate / 100}
-                format={formatPct}
-                className="num ml-1"
-              />
-            </div>
-          )}
+      <header className="px-6 py-4 border-b border-zinc-800">
+        <div className="text-lg font-semibold">
+          {detail?.stockName ?? "…"}
+          <span className="text-xs text-zinc-500 ml-2 num">
+            {shortCode(stockCode)}
+          </span>
         </div>
-        <button
-          onClick={onClose}
-          className="text-zinc-500 hover:text-zinc-200 text-xl"
-          aria-label="닫기"
-        >
-          ×
-        </button>
+        {detail && (
+          <div className="text-sm text-zinc-400 mt-0.5">
+            <span className="num">{formatPrice(detail.currentPrice)}</span>{" "}
+            <ProfitText
+              value={detail.priceChangeRate / 100}
+              format={formatPct}
+              className="num ml-1"
+            />
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
