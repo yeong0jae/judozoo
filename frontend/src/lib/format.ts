@@ -6,6 +6,29 @@ export function formatKRW(value: number): string {
 // 기존 호출부 호환
 export const formatKrw = formatKRW;
 
+// 한국식 단위 (조/억) — 거래대금처럼 큰 숫자에 사용.
+// 1_073_000_000_000_000 → "1,073조원" / 304_436_200_000 → "3,044억원"
+export function formatKoreanMoney(value: number): string {
+  const amount = Math.round(value);
+  const absAmount = Math.abs(amount);
+  const sign = amount < 0 ? "-" : "";
+  const nf = new Intl.NumberFormat("ko-KR");
+  const JO = 1_000_000_000_000;
+  const EOK = 100_000_000;
+  if (absAmount >= JO) {
+    const jo = Math.floor(absAmount / JO);
+    const eok = Math.floor((absAmount % JO) / EOK);
+    return eok > 0
+      ? `${sign}${nf.format(jo)}조 ${nf.format(eok)}억원`
+      : `${sign}${nf.format(jo)}조원`;
+  }
+  if (absAmount >= EOK) {
+    const eok = Math.floor(absAmount / EOK);
+    return `${sign}${nf.format(eok)}억원`;
+  }
+  return `${sign}${nf.format(absAmount)}원`;
+}
+
 export function formatPrice(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(Math.round(value));
 }

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLeadingStockCandidates, useLeadingStockDetail } from "../api/queries";
 import type { CandidateStockItem, FilterResultItem } from "../types";
 import {
-  formatKRW,
+  formatKoreanMoney,
   formatPct,
   formatPrice,
   formatRelative,
@@ -11,6 +11,7 @@ import {
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
+import FlashOnChange from "../components/common/FlashOnChange";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -28,6 +29,37 @@ export default function LeadingStocksPage() {
   const data = candidatesQ.data;
   const stocks = data?.stocks ?? [];
 
+  // 새로 진입한 종목 추적 — 행 8초 하이라이트용. 첫 로드는 마킹 제외.
+  const prevCodesRef = useRef<Set<string>>(new Set());
+  const [newCodes, setNewCodes] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const current = new Set(stocks.map((s) => s.stockCode));
+    if (prevCodesRef.current.size > 0) {
+      const justArrived = [...current].filter(
+        (c) => !prevCodesRef.current.has(c),
+      );
+      if (justArrived.length > 0) {
+        setNewCodes((prev) => {
+          const next = new Set(prev);
+          justArrived.forEach((c) => next.add(c));
+          return next;
+        });
+        const timeouts = justArrived.map((c) =>
+          setTimeout(() => {
+            setNewCodes((prev) => {
+              const next = new Set(prev);
+              next.delete(c);
+              return next;
+            });
+          }, 8000),
+        );
+        // 컴포넌트 언마운트 시 타이머 정리
+        return () => timeouts.forEach(clearTimeout);
+      }
+    }
+    prevCodesRef.current = current;
+  }, [stocks]);
+
   return (
     <div className="space-y-6">
       <Header
@@ -36,29 +68,42 @@ export default function LeadingStocksPage() {
         loading={candidatesQ.isFetching}
       />
 
-      <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        {candidatesQ.isLoading ? (
-          <div className="p-6 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : stocks.length === 0 ? (
-          <EmptyState message="조건을 통과한 후보가 없습니다" />
-        ) : (
-          <CandidatesTable
-            stocks={stocks}
-            onOpen={(code) => setOpenCode(code)}
-          />
-        )}
-      </section>
+      {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
+      <div
+        className={
+          openCode
+            ? "grid grid-cols-1 lg:grid-cols-2 gap-6 items-start"
+            : ""
+        }
+      >
+        <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+          {candidatesQ.isLoading ? (
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : stocks.length === 0 ? (
+            <EmptyState message="조건을 통과한 후보가 없습니다" />
+          ) : (
+            <CandidatesTable
+              stocks={stocks}
+              newCodes={newCodes}
+              selectedCode={openCode}
+              onOpen={(code) => setOpenCode(code)}
+            />
+          )}
+        </section>
 
-      {openCode && (
-        <DetailModal
-          stockCode={openCode}
-          onClose={() => setOpenCode(null)}
-        />
-      )}
+        {openCode && (
+          <aside className="lg:sticky lg:top-6">
+            <DetailPanel
+              stockCode={openCode}
+              onClose={() => setOpenCode(null)}
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
@@ -79,13 +124,21 @@ function Header({
   return (
     <div className="flex items-baseline justify-between">
       <div>
-        <h2 className="text-xl font-bold">주도주 후보</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          주도주 후보
+          {/* 라이브 인디케이터: 폴링 중엔 ping, 대기 시 pulse — 갱신 중임을 일정하게 시그널 */}
+          <span
+            className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
+              loading ? "animate-ping" : "animate-pulse"
+            }`}
+            aria-label={loading ? "갱신 중" : "대기"}
+          />
+        </h2>
         <p className="text-xs text-zinc-500 mt-0.5">
           거래대금 상위 + 당일 등락률 필터 통과 종목 · 5초 자동 갱신
         </p>
       </div>
       <div className="text-xs text-zinc-500 flex items-center gap-2">
-        {loading && <span className="text-emerald-700">갱신 중…</span>}
         {queriedAt && <span>조회 {formatRelative(queriedAt)}</span>}
         {typeof totalCount === "number" && (
           <span className="text-zinc-300 font-medium">{totalCount}건</span>
@@ -101,9 +154,13 @@ function Header({
 
 function CandidatesTable({
   stocks,
+  newCodes,
+  selectedCode,
   onOpen,
 }: {
   stocks: CandidateStockItem[];
+  newCodes: Set<string>;
+  selectedCode: string | null;
   onOpen: (stockCode: string) => void;
 }) {
   const navigate = useNavigate();
@@ -122,10 +179,18 @@ function CandidatesTable({
       <tbody>
         {stocks.map((s) => {
           const code = shortCode(s.stockCode);
+          const isNew = newCodes.has(s.stockCode);
+          const isSelected = selectedCode === s.stockCode;
           return (
             <tr
               key={s.stockCode}
-              className="border-t border-zinc-800 hover:bg-zinc-800/40 cursor-pointer"
+              className={`border-t border-zinc-800 hover:bg-zinc-800/40 cursor-pointer ${
+                isNew ? "leading-stock-new" : ""
+              } ${
+                isSelected
+                  ? "bg-emerald-900 border-l-2 border-l-emerald-700"
+                  : ""
+              }`}
               onClick={() => onOpen(s.stockCode)}
             >
               <td className="px-4 py-3 text-zinc-400">{s.rank}</td>
@@ -134,13 +199,22 @@ function CandidatesTable({
                 <div className="text-xs text-zinc-500 num">{code}</div>
               </td>
               <td className="px-4 py-3 text-right num">
-                {formatPrice(s.currentPrice)}
+                {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
+                <FlashOnChange value={s.currentPrice} duration={1000}>
+                  {formatPrice(s.currentPrice)}
+                </FlashOnChange>
               </td>
               <td className="px-4 py-3 text-right num">
-                <ProfitText value={s.priceChangeRate} format={formatPct} />
+                {/* 키움은 등락률을 이미 % 단위로 주고, formatPct는 분수→% 변환이라 /100 해서 맞춤 */}
+                <FlashOnChange value={s.priceChangeRate} duration={1000}>
+                  <ProfitText
+                    value={s.priceChangeRate / 100}
+                    format={formatPct}
+                  />
+                </FlashOnChange>
               </td>
               <td className="px-4 py-3 text-right num text-zinc-300">
-                {formatKRW(s.accumulatedTradingValue)}
+                {formatKoreanMoney(s.accumulatedTradingValue)}
               </td>
               <td className="px-4 py-3 text-right">
                 <button
@@ -165,10 +239,10 @@ function CandidatesTable({
 }
 
 // ============================================================
-// Detail modal
+// Detail panel (우측 인라인)
 // ============================================================
 
-function DetailModal({
+function DetailPanel({
   stockCode,
   onClose,
 }: {
@@ -179,55 +253,47 @@ function DetailModal({
   const detail = detailQ.data;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-          <div>
-            <div className="text-lg font-semibold">
-              {detail?.stockName ?? "…"}
-              <span className="text-xs text-zinc-500 ml-2 num">
-                {shortCode(stockCode)}
-              </span>
-            </div>
-            {detail && (
-              <div className="text-sm text-zinc-400 mt-0.5">
-                <span className="num">{formatPrice(detail.currentPrice)}</span>{" "}
-                <ProfitText
-                  value={detail.priceChangeRate}
-                  format={formatPct}
-                  className="num ml-1"
-                />
-              </div>
-            )}
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+        <div>
+          <div className="text-lg font-semibold">
+            {detail?.stockName ?? "…"}
+            <span className="text-xs text-zinc-500 ml-2 num">
+              {shortCode(stockCode)}
+            </span>
           </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 text-xl"
-            aria-label="닫기"
-          >
-            ×
-          </button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {detailQ.isLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
+          {detail && (
+            <div className="text-sm text-zinc-400 mt-0.5">
+              <span className="num">{formatPrice(detail.currentPrice)}</span>{" "}
+              <ProfitText
+                value={detail.priceChangeRate / 100}
+                format={formatPct}
+                className="num ml-1"
+              />
             </div>
-          ) : detailQ.isError ? (
-            <p className="text-sm text-rose-700">상세 정보를 불러올 수 없습니다</p>
-          ) : detail ? (
-            <FilterResultsList results={detail.filterResults} />
-          ) : null}
+          )}
         </div>
+        <button
+          onClick={onClose}
+          className="text-zinc-500 hover:text-zinc-200 text-xl"
+          aria-label="닫기"
+        >
+          ×
+        </button>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {detailQ.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : detailQ.isError ? (
+          <p className="text-sm text-rose-700">상세 정보를 불러올 수 없습니다</p>
+        ) : detail ? (
+          <FilterResultsList results={detail.filterResults} />
+        ) : null}
       </div>
     </div>
   );

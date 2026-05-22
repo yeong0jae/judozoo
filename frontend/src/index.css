@@ -97,6 +97,19 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* 주도주 후보 목록에 새 종목이 들어왔을 때 행을 8초간 amber로 하이라이트 후 fade */
+@keyframes leading-stock-new {
+  from {
+    background-color: rgba(251, 191, 36, 0.28); /* amber-400 / 28% */
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.leading-stock-new {
+  animation: leading-stock-new 8s ease-out;
+}
+
 /* ─── 다크 모드 — Toss 다크 톤 ──────────────────────────────────────────
    `<html class="dark">` 일 때 활성. Tailwind v4 유틸은 모두 var(--color-X-N)을
    가리키므로, 토큰만 갈아끼우면 페이지 마크업을 안 건드리고 전환된다. */
