@@ -1,6 +1,7 @@
 import { Link, NavLink } from "react-router-dom";
 import NotificationBell from "../header/NotificationBell";
 import MarketStatusBadge from "../header/MarketStatusBadge";
+import KospiIndexBadge from "../header/KospiIndexBadge";
 import StompStatusBadge from "../header/StompStatusBadge";
 import SettingsButton from "../header/SettingsButton";
 import TodayProfitSummary from "../header/TodayProfitSummary";
@@ -67,6 +68,7 @@ export default function Header() {
         <div className="flex-1" />
         <TodayProfitSummary />
         <div className="flex items-center gap-1">
+          <KospiIndexBadge />
           <NotificationBell />
           {status && <MarketStatusBadge status={status} />}
           <StompStatusBadge />

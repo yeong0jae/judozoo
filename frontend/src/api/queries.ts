@@ -6,6 +6,7 @@ import type {
   DailyReport,
   DailyTrading,
   Holding,
+  KospiIndex,
   LeadingStockDetailResponse,
   MarketStatus,
   StockPriceResult,
@@ -27,6 +28,7 @@ export const QK = {
   leadingStockCandidates: ["leading-stocks", "candidates"] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
+  kospiIndex: ["market", "kospi"] as const,
 };
 
 export function useMarketStatus() {
@@ -115,6 +117,14 @@ export function useLeadingStockCandidates() {
     queryFn: () =>
       apiFetch<CandidateStocksResponse>("/api/leading-stocks/candidates"),
     refetchInterval: 5_000,
+  });
+}
+
+export function useKospiIndex() {
+  return useQuery({
+    queryKey: QK.kospiIndex,
+    queryFn: () => apiFetch<KospiIndex>("/api/market/kospi"),
+    refetchInterval: 30_000, // 헤더용 — 30초마다
   });
 }
 
