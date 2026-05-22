@@ -368,6 +368,9 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
     <section>
       <h3 className="text-sm font-semibold text-zinc-200 mb-3">
         외국인·기관 자금 흐름
+        <span className="ml-2 text-xs font-normal text-zinc-500">
+          5분 단위 갱신
+        </span>
       </h3>
       <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-4">
         <FlowGroup
