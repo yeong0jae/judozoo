@@ -15,7 +15,7 @@ export default function Header() {
   const { data: status } = useMarketStatus();
   return (
     <header className="border-b border-zinc-800 bg-zinc-950">
-      <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-6">
+      <div className="max-w-[110rem] mx-auto px-6 py-3 flex items-center gap-6">
         <Link
           to="/"
           className="text-base font-semibold text-zinc-100 whitespace-nowrap"

@@ -52,7 +52,7 @@ function AppShell() {
     <div className="min-h-full flex flex-col">
       <Header />
       <StompDisconnectionBanner />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6">
+      <main className="flex-1 max-w-[110rem] mx-auto w-full px-6 py-6">
         <Routes>
           <Route path="/" element={<Navigate to="/monitoring" replace />} />
           <Route path="/leading-stocks" element={<LeadingStocksPage />} />

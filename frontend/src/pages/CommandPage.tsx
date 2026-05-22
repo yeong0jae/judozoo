@@ -647,7 +647,7 @@ function AdvancedSettings({
     setValue(key, v, { shouldDirty: true });
 
   return (
-    <div className="mt-3 grid grid-cols-1 gap-4">
+    <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
       <ChipField
         label="매수 간격"
         hint="회차 간 대기 시간 (최대 3회 분할 매수)"
@@ -699,7 +699,7 @@ function AdvancedSettings({
         onPick={(v) => pick("stopLossPct", v)}
         formatOption={(v) => `-${v}%`}
       />
-      <div className="flex justify-end">
+      <div className="lg:col-span-2 flex justify-end">
         <button
           type="button"
           onClick={onReset}
