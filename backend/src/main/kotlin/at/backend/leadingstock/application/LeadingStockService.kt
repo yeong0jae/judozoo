@@ -2,6 +2,7 @@ package at.backend.leadingstock.application
 
 import at.backend.leadingstock.application.filter.DailyHighPositionFilter
 import at.backend.leadingstock.application.filter.DailyPriceChangeFilter
+import at.backend.leadingstock.application.filter.EtfExclusionFilter
 import at.backend.leadingstock.application.filter.FilterChain
 import at.backend.leadingstock.application.filter.FilterEvaluationResult
 import at.backend.leadingstock.application.filter.MarketCapFilter
@@ -41,6 +42,7 @@ class LeadingStockService(
 
         val phase1Filters = FilterChain(
             listOf(
+                EtfExclusionFilter(),                // ETF/ETN 제외 — 개별 종목만
                 TradingValueRankFilter(criteria),
                 DailyPriceChangeFilter(criteria),
             ),
