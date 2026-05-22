@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import CommandPage from "./pages/CommandPage";
 import HoldingsPage from "./pages/HoldingsPage";
+import LeadingStocksPage from "./pages/LeadingStocksPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
 import Header from "./components/layout/Header";
@@ -54,6 +55,7 @@ function AppShell() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6">
         <Routes>
           <Route path="/" element={<Navigate to="/monitoring" replace />} />
+          <Route path="/leading-stocks" element={<LeadingStocksPage />} />
           <Route path="/command" element={<CommandPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />
           <Route path="/holdings" element={<HoldingsPage />} />

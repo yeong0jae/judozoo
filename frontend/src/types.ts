@@ -267,3 +267,35 @@ export type MarketPayload =
   | { type: "HOLIDAY"; isHoliday: boolean; ts: string };
 
 export type AccountPayload = { type: "BALANCE_INVALIDATED"; ts: string };
+
+// === 주도주 (Leading Stocks) ===
+
+export interface CandidateStockItem {
+  rank: number;
+  stockCode: string;
+  stockName: string;
+  currentPrice: number;
+  priceChangeRate: number;
+  accumulatedTradingValue: number;
+}
+
+export interface CandidateStocksResponse {
+  queriedAt: string;
+  totalCount: number;
+  stocks: CandidateStockItem[];
+}
+
+export interface FilterResultItem {
+  filterName: string;
+  criteriaDescription: string;
+  actualValue: string;
+  passed: boolean;
+}
+
+export interface LeadingStockDetailResponse {
+  stockCode: string;
+  stockName: string;
+  currentPrice: number;
+  priceChangeRate: number;
+  filterResults: FilterResultItem[];
+}

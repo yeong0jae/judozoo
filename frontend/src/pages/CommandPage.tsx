@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -74,6 +74,19 @@ export default function CommandPage() {
   const [selectedStock, setSelectedStock] =
     useState<StockSearchResult | null>(null);
   const [serverError, setServerError] = useState<ErrorCode | null>(null);
+
+  // 주도주 페이지 등에서 ?stockCode=XXXXXX&stockName=… 으로 prefill 진입한 경우
+  // 한 번 읽어 selectedStock에 세팅하고 URL을 정리한다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const code = searchParams.get("stockCode");
+    const name = searchParams.get("stockName");
+    if (code && name && !selectedStock) {
+      setSelectedStock({ stockCode: code, stockName: name });
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const debouncedQuery = useDebounce(query, 250);
   const stockSearchQ = useStockSearch(debouncedQuery);

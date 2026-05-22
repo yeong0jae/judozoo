@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import type {
   AccountBalance,
+  CandidateStocksResponse,
   DailyReport,
   DailyTrading,
   Holding,
+  LeadingStockDetailResponse,
   MarketStatus,
   StockPriceResult,
   StockSearchResult,
@@ -22,6 +24,9 @@ export const QK = {
   stockSearch: (q: string) => ["stocks", "search", q] as const,
   stockPrice: (code: string) => ["stocks", "price", code] as const,
   dailyReport: (date: string) => ["reports", "daily", date] as const,
+  leadingStockCandidates: ["leading-stocks", "candidates"] as const,
+  leadingStockDetail: (code: string) =>
+    ["leading-stocks", "detail", code] as const,
 };
 
 export function useMarketStatus() {
@@ -99,5 +104,29 @@ export function useDailyReport(date: string) {
     queryKey: QK.dailyReport(date),
     queryFn: () =>
       apiFetch<DailyReport[]>(`/api/reports/daily?date=${date}`),
+  });
+}
+
+// === 주도주 (Leading Stocks) ===
+// 백엔드의 candidateStocks 캐시(5s TTL)와 같은 호흡으로 폴링
+export function useLeadingStockCandidates() {
+  return useQuery({
+    queryKey: QK.leadingStockCandidates,
+    queryFn: () =>
+      apiFetch<CandidateStocksResponse>("/api/leading-stocks/candidates"),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useLeadingStockDetail(code: string | null) {
+  return useQuery({
+    queryKey: code
+      ? QK.leadingStockDetail(code)
+      : ["leading-stocks", "detail", "null"],
+    queryFn: () =>
+      apiFetch<LeadingStockDetailResponse>(
+        `/api/leading-stocks/candidates/${code}`,
+      ),
+    enabled: code !== null,
   });
 }

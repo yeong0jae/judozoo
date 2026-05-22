@@ -24,6 +24,14 @@ export default function Header() {
         </Link>
         <nav className="flex items-center gap-1">
           <NavLink
+            to="/leading-stocks"
+            className={({ isActive }) =>
+              `${navItem} ${isActive ? activeItem : inactiveItem}`
+            }
+          >
+            주도주
+          </NavLink>
+          <NavLink
             to="/command"
             className={({ isActive }) =>
               `${navItem} ${isActive ? activeItem : inactiveItem}`
