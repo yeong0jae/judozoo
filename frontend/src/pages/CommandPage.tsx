@@ -43,7 +43,7 @@ const DEFAULTS = {
   splitSellRatio: 20,
   midwayProfitPct: 3,
   breakevenThresholdPct: 2,
-  stopLossPct: -2,
+  stopLossPct: 2, // 양수로 저장, 표시만 -X%
 };
 
 const MAX_BUY_ATTEMPT = 3;
@@ -57,7 +57,8 @@ const schema = z.object({
   splitSellRatio: z.number().min(1).max(50).nullable().optional(),
   midwayProfitPct: z.number().min(0.1).max(10).nullable().optional(),
   breakevenThresholdPct: z.number().min(0.1).max(10).nullable().optional(),
-  stopLossPct: z.number().max(-0.1).min(-10).nullable().optional(),
+  // 백엔드 계약: 양수 입력(내부에서 음수 변환). 표시만 -X%, 전송은 +X.
+  stopLossPct: z.number().min(0.1).max(10).nullable().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -608,7 +609,7 @@ const OPTIONS = {
   splitSellRatio: [10, 20, 30, 40],
   midwayProfitPct: [1, 2, 3, 4, 5],
   breakevenThresholdPct: [1, 2, 3, 4, 5],
-  stopLossPct: [-1, -2, -3, -4, -5],
+  stopLossPct: [1, 2, 3, 4, 5], // 양수 저장, ChipField가 표시만 "-X%"
 } as const;
 
 type AdvancedKey =
@@ -683,6 +684,7 @@ function AdvancedSettings({
         value={values.stopLossPct ?? null}
         dirty={dirtyKeys.has("stopLossPct")}
         onPick={(v) => pick("stopLossPct", v)}
+        formatOption={(v) => `-${v}%`}
       />
       <div className="flex justify-end">
         <button
@@ -707,6 +709,7 @@ function ChipField({
   value,
   dirty,
   onPick,
+  formatOption,
 }: {
   label: string;
   hint?: string;
@@ -716,7 +719,10 @@ function ChipField({
   value: number | null;
   dirty: boolean;
   onPick: (v: number | null) => void;
+  /** 표시 텍스트 커스터마이즈 (e.g. 양수 저장, "-X%"로 표시). 기본은 `${opt}${unit}`. */
+  formatOption?: (opt: number) => string;
 }) {
+  const display = (opt: number) => formatOption?.(opt) ?? `${opt}${unit}`;
   // 칩 active 판정 — 명시값이면 그 값, null이면 기본값 칩이 active.
   const activeValue = value ?? defaultValue;
   return (
@@ -747,8 +753,7 @@ function ChipField({
                   : "bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800"
               }`}
             >
-              {opt}
-              {unit}
+              {display(opt)}
             </button>
           );
         })}
