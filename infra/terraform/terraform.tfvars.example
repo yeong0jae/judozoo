@@ -1,0 +1,14 @@
+# 실제 값은 terraform.tfvars 로 복사해 사용 (terraform.tfvars 는 .gitignore 처리됨).
+# 모든 값은 variables.tf 에 기본값이 있으므로, 바꿀 항목만 덮어쓰면 됨.
+
+# project_id        = "trading-496508"
+# region            = "asia-northeast3"
+# zone              = "asia-northeast3-a"
+# github_repository = "yeong0jae/autonomous-trading"
+
+# 프론트 접근을 본인 IP로 제한하려면:
+# allowed_web_source_ranges = ["<내-공인-IP>/32"]
+
+# 머신 사양을 키우려면:
+# machine_type      = "e2-standard-2"
+# boot_disk_size_gb = 30

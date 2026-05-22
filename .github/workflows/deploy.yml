@@ -1,0 +1,66 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+# WIF용 OIDC 토큰 발급 권한
+permissions:
+  contents: read
+  id-token: write
+
+# 값은 GitHub Actions Variables(Settings → Secrets and variables → Actions → Variables)에서 주입.
+# 비밀 아님(식별자) — Secrets 아니라 Variables 사용.
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
+  AR_REPO: ${{ vars.AR_REPO }}
+  VM_NAME: ${{ vars.VM_NAME }}
+  VM_ZONE: ${{ vars.VM_ZONE }}
+  WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}
+  DEPLOY_SA: ${{ vars.DEPLOY_SA }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build & push images
+        run: |
+          set -euo pipefail
+          docker build -t "${AR_REPO}/backend:${GITHUB_SHA}"  -t "${AR_REPO}/backend:latest"  ./backend
+          docker build -t "${AR_REPO}/frontend:${GITHUB_SHA}" -t "${AR_REPO}/frontend:latest" ./frontend
+          docker push "${AR_REPO}/backend:${GITHUB_SHA}"
+          docker push "${AR_REPO}/backend:latest"
+          docker push "${AR_REPO}/frontend:${GITHUB_SHA}"
+          docker push "${AR_REPO}/frontend:latest"
+
+      - name: Sync compose + deploy script to VM
+        run: |
+          gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" \
+            docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh \
+            "${VM_NAME}:~/"
+
+      - name: Deploy on VM
+        run: |
+          gcloud compute ssh "${VM_NAME}" --tunnel-through-iap --zone "${VM_ZONE}" \
+            --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION}"
+
+      # 방화벽이 프론트(3000)를 특정 IP로만 열 수 있으므로 러너에서 외부로 치지 않고
+      # 이미 열린 IAP SSH로 VM 내부에서 localhost 검사 (방화벽과 무관).
+      - name: Health check (VM 내부)
+        run: |
+          gcloud compute ssh "${VM_NAME}" --tunnel-through-iap --zone "${VM_ZONE}" \
+            --command 'set -e; for i in $(seq 1 24); do if curl -fsS http://localhost:3000/ >/dev/null; then echo "health OK ($i)"; exit 0; fi; echo "not ready, retry $i"; sleep 10; done; echo "health check failed"; exit 1'
