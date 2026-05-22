@@ -36,6 +36,27 @@ stock:
     kospi-url: https://new.real.download.dws.co.kr/common/master/kospi_code.mst.zip
     kosdaq-url: https://new.real.download.dws.co.kr/common/master/kosdaq_code.mst.zip
 
+# 주도주 후보 발굴 — 키움 OpenAPI (자동매매 주문은 여전히 KIS 사용)
+kiwoom:
+  api:
+    base-url: https://api.kiwoom.com
+    app-key: ${KIWOOM_APP_KEY:}
+    app-secret: ${KIWOOM_APP_SECRET:}
+
+leading-stock:
+  criteria:
+    min-market-cap: 3000                   # 3,000억원 (억원 단위)
+    max-trading-value-rank: 30             # 거래대금 상위 30위
+    min-daily-price-change-rate: 5.0       # 당일 등락률 5% 이상
+    max-high-position-drop-rate: -5.0      # 60봉 고가 대비 -5% 이내
+    min-minute-volume-increase-rate: 500.0 # 1분봉 거래대금 증가율 500%
+    min-minute-trading-value: 5000000000   # 1분봉 거래대금 50억
+    max-minute-fluctuation-rate: 4.0       # 1분봉 등락률 4% 이하
+    min-program-net-buy: -10000            # 프로그램 순매수 -100억 이상 (백만원 단위)
+    max-prev-close-change-rate: 25.0       # 전일 종가 대비 25% 이하
+    max-opening-price-change-rate: 7.0     # 시초가 대비 7% 이하
+    max-theme-rank: 5                      # 테마 그룹 상위 5위
+
 trading:
   default-buy-interval-min: 3              # 분 단위
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)

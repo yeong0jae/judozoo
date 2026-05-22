@@ -27,6 +27,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
 
+    // cache — 키움 후보 리스트 단기 TTL 캐싱 (LeadingStockService)
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("com.github.ben-manes.caffeine:caffeine")
+
     // jpa
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
