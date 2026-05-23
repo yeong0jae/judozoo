@@ -1,6 +1,6 @@
 package at.backend.library.web
 
-import at.backend.platform.kis.client.KisOrderRejectedException
+import at.backend.trading.application.broker.BrokerOrderRejectedException
 import at.backend.trading.domain.AlreadyClosedException
 import at.backend.trading.domain.TradingValidationException
 import at.backend.library.exception.EntityNotFoundException
@@ -36,11 +36,11 @@ class GlobalExceptionHandler {
     fun handleMethodArgumentNotValid(ex: MethodArgumentNotValidException) =
         ApiResponse.error("INVALID_PARAMETER", 400)
 
-    @ExceptionHandler(KisOrderRejectedException::class)
+    @ExceptionHandler(BrokerOrderRejectedException::class)
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
-    fun handleKisOrderRejected(ex: KisOrderRejectedException): ApiResponse<Nothing> {
-        log.warn(ex) { "KIS 주문 거부 ${ex.message}" }
-        return ApiResponse.error(ex.msgCd, 502)
+    fun handleBrokerOrderRejected(ex: BrokerOrderRejectedException): ApiResponse<Nothing> {
+        log.warn(ex) { "브로커 주문 거부 ${ex.message}" }
+        return ApiResponse.error(ex.code, 502)
     }
 
     @ExceptionHandler(Exception::class)

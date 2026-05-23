@@ -1,7 +1,7 @@
 package at.backend.market.application
 
 import at.backend.market.domain.PriceTick
-import at.backend.platform.kis.client.KisWebSocketClient
+import at.backend.trading.application.broker.BrokerTradingClient
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class PriceTickDataStream(
-    private val webSocketClient: KisWebSocketClient,
+    private val broker: BrokerTradingClient,
     private val applicationScope: CoroutineScope,
 ) {
 
@@ -22,11 +22,11 @@ class PriceTickDataStream(
     @PostConstruct
     fun start() {
         applicationScope.launch {
-            webSocketClient.priceTicks.collect { _priceTicks.tryEmit(it) }
+            broker.priceTicks.collect { _priceTicks.tryEmit(it) }
         }
     }
 
-    fun subscribe(stockCode: String) = webSocketClient.subscribePrice(stockCode)
+    fun subscribe(stockCode: String) = broker.subscribePrice(stockCode)
 
-    fun unsubscribe(stockCode: String) = webSocketClient.unsubscribePrice(stockCode)
+    fun unsubscribe(stockCode: String) = broker.unsubscribePrice(stockCode)
 }

@@ -2,6 +2,7 @@ package at.backend.platform.kiwoom.config
 
 import at.backend.platform.kiwoom.client.KiwoomAuthClient
 import at.backend.platform.kiwoom.client.KiwoomExecutionWebSocketClient
+import at.backend.platform.kiwoom.client.KiwoomPriceTickWebSocketClient
 import at.backend.platform.kiwoom.client.KiwoomTradingClient
 import kotlinx.coroutines.CoroutineScope
 import org.springframework.context.annotation.Bean
@@ -40,6 +41,22 @@ class KiwoomTradingClientConfig {
         applicationScope: CoroutineScope,
     ): KiwoomExecutionWebSocketClient =
         KiwoomExecutionWebSocketClient(
+            wsUrl = tradingProperties.wsUrl,
+            authClient = authClient,
+            webSocketClient = webSocketClient,
+            objectMapper = objectMapper,
+            applicationScope = applicationScope,
+        )
+
+    @Bean
+    fun kiwoomPriceTickWebSocketClient(
+        tradingProperties: KiwoomTradingProperties,
+        authClient: KiwoomAuthClient,
+        webSocketClient: WebSocketClient,
+        objectMapper: ObjectMapper,
+        applicationScope: CoroutineScope,
+    ): KiwoomPriceTickWebSocketClient =
+        KiwoomPriceTickWebSocketClient(
             wsUrl = tradingProperties.wsUrl,
             authClient = authClient,
             webSocketClient = webSocketClient,

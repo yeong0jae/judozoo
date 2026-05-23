@@ -2,6 +2,7 @@ package at.backend.platform.kis.adapter
 
 import at.backend.library.time.atKstInstant
 import at.backend.market.domain.Bar
+import at.backend.market.domain.PriceTick
 import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
@@ -94,6 +95,17 @@ class KisBrokerAdapter(
 
     override fun subscribeExecutionNotices() {
         kisWebSocketClient.subscribeExecutionNotice()
+    }
+
+    override val priceTicks: SharedFlow<PriceTick>
+        get() = kisWebSocketClient.priceTicks
+
+    override fun subscribePrice(stockCode: String) {
+        kisWebSocketClient.subscribePrice(stockCode)
+    }
+
+    override fun unsubscribePrice(stockCode: String) {
+        kisWebSocketClient.unsubscribePrice(stockCode)
     }
 
     companion object {

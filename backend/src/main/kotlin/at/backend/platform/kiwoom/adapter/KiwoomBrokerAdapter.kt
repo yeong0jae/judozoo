@@ -1,8 +1,10 @@
 package at.backend.platform.kiwoom.adapter
 
 import at.backend.market.domain.Bar
+import at.backend.market.domain.PriceTick
 import at.backend.platform.kiwoom.client.KiwoomExecutionWebSocketClient
 import at.backend.platform.kiwoom.client.KiwoomOrderRejectedException
+import at.backend.platform.kiwoom.client.KiwoomPriceTickWebSocketClient
 import at.backend.platform.kiwoom.client.KiwoomTradingClient
 import at.backend.platform.kiwoom.config.KiwoomTradingProperties
 import at.backend.trading.application.broker.BrokerOrderRejectedException
@@ -33,6 +35,7 @@ import java.time.format.DateTimeFormatter
 class KiwoomBrokerAdapter(
     private val tradingClient: KiwoomTradingClient,
     private val executionWsClient: KiwoomExecutionWebSocketClient,
+    private val priceTickWsClient: KiwoomPriceTickWebSocketClient,
     private val tradingProperties: KiwoomTradingProperties,
 ) : BrokerTradingClient {
 
@@ -113,5 +116,16 @@ class KiwoomBrokerAdapter(
 
     override fun subscribeExecutionNotices() {
         executionWsClient.subscribe()
+    }
+
+    override val priceTicks: SharedFlow<PriceTick>
+        get() = priceTickWsClient.priceTicks
+
+    override fun subscribePrice(stockCode: String) {
+        priceTickWsClient.subscribe(stockCode)
+    }
+
+    override fun unsubscribePrice(stockCode: String) {
+        priceTickWsClient.unsubscribe(stockCode)
     }
 }

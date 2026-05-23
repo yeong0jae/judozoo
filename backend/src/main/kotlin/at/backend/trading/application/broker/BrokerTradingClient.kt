@@ -1,6 +1,7 @@
 package at.backend.trading.application.broker
 
 import at.backend.market.domain.Bar
+import at.backend.market.domain.PriceTick
 import at.backend.trading.domain.order.ExecutionNotice
 import at.backend.trading.domain.order.OrderSide
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,6 +28,10 @@ interface BrokerTradingClient {
 
     val executionNotices: SharedFlow<ExecutionNotice>
     fun subscribeExecutionNotices()
+
+    val priceTicks: SharedFlow<PriceTick>
+    fun subscribePrice(stockCode: String)
+    fun unsubscribePrice(stockCode: String)
 }
 
 data class PlacedOrder(val orderNo: String, val orgno: String)
