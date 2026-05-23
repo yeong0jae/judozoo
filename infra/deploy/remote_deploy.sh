@@ -11,8 +11,8 @@ IMAGE_TAG="${1:?IMAGE_TAG required}"
 AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
 
-# 초기 KIS 프로파일. real 전환 시 GitHub Actions에서 인자로 받게 리팩토링.
-SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-vts}"
+# broker,env 2축 profile. Phase 11에서 GHA matrix가 broker별로 주입.
+SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-kis,vts}"
 
 cd "$HOME"
 mkdir -p backend

@@ -2,7 +2,7 @@ spring:
   application:
     name: backend
   profiles:
-    active: vts
+    active: kis,vts
   datasource:
     url: jdbc:mysql://localhost:33061/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME}

@@ -12,10 +12,12 @@ import at.backend.trading.application.broker.StockInfo
 import at.backend.trading.domain.order.ExecutionNotice
 import at.backend.trading.domain.order.OrderSide
 import kotlinx.coroutines.flow.SharedFlow
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import java.time.LocalDate
 
 @Component
+@Profile("kis")
 class KisBrokerAdapter(
     private val kisRestClient: KisRestClient,
     private val kisRealQuotationClient: KisRealQuotationClient,

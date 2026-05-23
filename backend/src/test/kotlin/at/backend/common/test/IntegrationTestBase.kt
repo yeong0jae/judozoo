@@ -9,7 +9,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.MySQLContainer
 
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("test", "kis")
 abstract class IntegrationTestBase : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)

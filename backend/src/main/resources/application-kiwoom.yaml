@@ -1,0 +1,2 @@
+# Phase 10-A placeholder. Kiwoom trading 자격증명·계좌 매핑은 10-B에서 추가.
+# 10-A에서는 KiwoomBrokerAdapter가 stub이라 이 profile만 켜고 broker 호출을 안 하면 부팅 가능.
