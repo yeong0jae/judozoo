@@ -1,13 +1,13 @@
 package at.backend.stock.application
 
 import at.backend.library.time.TimeProvider
-import at.backend.platform.kis.client.KisRestClient
+import at.backend.trading.application.broker.BrokerTradingClient
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 
 @Service
 class StockService(
-    private val kisRestClient: KisRestClient,
+    private val broker: BrokerTradingClient,
     private val stockCatalog: StockCatalog,
     private val timeProvider: TimeProvider,
 ) {
@@ -17,7 +17,7 @@ class StockService(
             .map { StockSearchResult(stockCode = it.shortCode, stockName = it.name) }
 
     fun getPrice(stockCode: String): StockPriceResult {
-        val price = kisRestClient.getCurrentPrice(stockCode).output.stckPrpr.toLong()
+        val price = broker.currentPrice(stockCode)
         return StockPriceResult(stockCode = stockCode, currentPrice = price, asOf = timeProvider.now())
     }
 
