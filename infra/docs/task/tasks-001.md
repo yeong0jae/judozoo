@@ -82,4 +82,3 @@
 - [x] 🧑 VM 외부 IP `:3000/` 에서 프론트 페이지 렌더링 (`http://REDACTED_IP:3000/` → 200 OK)
 - [x] 🧑 프론트의 `/api/...` 호출이 백엔드(8080)에 도달 (nginx → backend JSON envelope 회수로 검증)
 - [x] 🧑 backend 로그에 `Activated profile: vts` 확인 (`gcloud compute ssh ... -- sudo docker logs ...`)
-- [ ] 🧑 VM 재시작 후에도 MySQL 데이터 유지 (`mysql-data` named volume) — named volume 존재·InnoDB 파일까지 확인, 실제 reboot 테스트는 미수행
