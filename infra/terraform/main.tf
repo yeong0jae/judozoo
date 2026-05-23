@@ -21,7 +21,7 @@ resource "google_project_service" "apis" {
 # ---------------------------------------------------------------------------
 locals {
   instances = {
-    "kis-vts"     = { name_suffix = "" }
+    "kis-vts"     = { name_suffix = "-kis-vts" }
     "kis-real"    = { name_suffix = "-kis-real" }
     "kiwoom-real" = { name_suffix = "-kiwoom-real" }
   }
