@@ -74,12 +74,12 @@
 - [x] 🧑 `cd infra/terraform && terraform init && terraform apply`
 - [x] 🧑 12개 시크릿 값 주입 (`echo -n "<value>" | gcloud secrets versions add AT_* --data-file=-`)
 - [x] 🧑 GitHub Actions Variables 7개 등록 (Settings → Secrets and variables → Actions → Variables) — `terraform output` 결과 그대로 복사
-- [ ] 🧑 `main` 브랜치에 push → Actions 실행 확인
+- [x] 🧑 `main` 브랜치에 push → Actions 실행 확인 (run 26322607448, 4m31s 통과)
 
 ## G. 배포 후 검증 (모두 🧑)
 
-- [ ] 🧑 GitHub Actions `deploy` 워크플로우가 끝까지 통과
-- [ ] 🧑 VM 외부 IP `:3000/` 에서 프론트 페이지 렌더링
-- [ ] 🧑 프론트의 `/api/...` 호출이 백엔드(8080)에 도달 (브라우저 네트워크 탭 200)
-- [ ] 🧑 backend 로그에 `Activated profile: vts` 확인 (`gcloud compute ssh ... -- sudo docker logs ...`)
-- [ ] 🧑 VM 재시작 후에도 MySQL 데이터 유지 (`mysql-data` named volume)
+- [x] 🧑 GitHub Actions `deploy` 워크플로우가 끝까지 통과
+- [x] 🧑 VM 외부 IP `:3000/` 에서 프론트 페이지 렌더링 (`http://REDACTED_IP:3000/` → 200 OK)
+- [x] 🧑 프론트의 `/api/...` 호출이 백엔드(8080)에 도달 (nginx → backend JSON envelope 회수로 검증)
+- [x] 🧑 backend 로그에 `Activated profile: vts` 확인 (`gcloud compute ssh ... -- sudo docker logs ...`)
+- [ ] 🧑 VM 재시작 후에도 MySQL 데이터 유지 (`mysql-data` named volume) — named volume 존재·InnoDB 파일까지 확인, 실제 reboot 테스트는 미수행
