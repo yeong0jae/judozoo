@@ -49,9 +49,12 @@ Goal: 단일 KIS-vts VM 운영에서 KIS-vts / KIS-real / Kiwoom-real **3대 동
 
 ### Verification
 
-- [ ] `main` push 한 번에 3 VM 동시 배포
-- [ ] 각 VM 헬스체크 통과
-- [ ] 각 VM backend 로그에 의도한 profile 활성 (`kis,vts` / `kis,real` / `kiwoom,real`)
+- [x] `main` push 한 번에 3 VM 동시 배포 (build 1회 + deploy matrix×3)
+- [x] 각 VM 헬스체크 통과 (workflow run 26332930632, build + 3 deploy 모두 success)
+- [x] 각 VM backend 로그에 의도한 profile 활성:
+  - `auto-trading-app`: `"kis", "vts"`
+  - `auto-trading-app-kis-real`: `"kis", "real"`
+  - `auto-trading-app-kiwoom-real`: `"kiwoom", "real"`
 
 ---
 
