@@ -1,6 +1,6 @@
 package at.backend.trading.application
 
-import at.backend.platform.kis.client.KisWebSocketClient
+import at.backend.trading.application.broker.BrokerTradingClient
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.CoroutineScope
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class ExecutionNoticeListener(
-    private val webSocketClient: KisWebSocketClient,
+    private val broker: BrokerTradingClient,
     private val handler: ExecutionNoticeHandler,
     private val applicationScope: CoroutineScope,
 ) {
@@ -21,9 +21,9 @@ class ExecutionNoticeListener(
 
     @PostConstruct
     fun start() {
-        webSocketClient.subscribeExecutionNotice()
+        broker.subscribeExecutionNotices()
         job = applicationScope.launch {
-            webSocketClient.executionNotices.collect { notice ->
+            broker.executionNotices.collect { notice ->
                 runCatching { handler.handle(notice) }
                     .onFailure { log.error(it) { "체결 통보 처리 실패 orderNo=${notice.orderNo}" } }
             }

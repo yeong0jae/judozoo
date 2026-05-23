@@ -17,45 +17,38 @@ Goal: KIS 직접 호출을 `BrokerTradingClient` 인터페이스 뒤로 숨긴�
 
 ## 사전 작업
 
-- [ ] `feature/broker-abstraction` 브랜치 생성
-- [ ] 현재 main의 통합 테스트 전부 green 확인 (회귀 기준점)
+- [x] 현재 main의 통합 테스트 전부 green 확인 (회귀 기준점)
 
 ## 인터페이스 도출
 
-- [ ] `trading.application.broker.BrokerTradingClient` 정의 — 아래 호출부 6개에서 필요한 메서드 모음
-  - 주문 발주 / 취소 / 정정
-  - 체결 조회 / 미체결 조회
-  - 잔고 조회 (`inquire-balance` 등)
-  - 휴장 여부 (`chk-holiday`) — 어느 broker에도 필요
-  - 실시간 시세·체결 통지 구독 (`KisWebSocketClient`의 표면) — 인터페이스 모양은 broker-중립
-- [ ] 메서드 시그니처를 trading.domain 값 객체 기준으로 작성 (KIS 응답 그대로 노출 ❌)
+- [x] `trading.application.broker.BrokerTradingClient` 정의 — accountNo / currentPrice / availableCash / searchStock / isMarketOpen / placeOrder / cancelOrder + `executionNotices: SharedFlow<ExecutionNotice>` / subscribeExecutionNotices
+- [x] 메서드 시그니처를 trading.domain 값 객체 기준으로 작성 — `PlacedOrder`, `StockInfo`, `BrokerOrderRejectedException` 신설, 기존 `OrderSide` / `ExecutionNotice`(domain) 재사용
 
 ## KisBrokerAdapter 구현
 
-- [ ] `platform.kis.adapter.KisBrokerAdapter : BrokerTradingClient`
-  - 내부에 `KisRestClient`, `KisAuthService`, `KisWebSocketClient`, `KisRateLimiter` 주입
-  - 각 메서드는 기존 KIS 호출 위임 + 응답 → domain 값 객체 변환
-- [ ] 기존 `platform.kis.*`는 변경 금지 (이번 phase 범위 밖)
+- [x] `platform.kis.adapter.KisBrokerAdapter : BrokerTradingClient` — `KisRestClient` / `KisRealQuotationClient` / `KisWebSocketClient` / `KisProperties` 주입, 응답 → 값 객체 변환, `KisOrderRejectedException` → `BrokerOrderRejectedException` 변환
+- [x] 기존 `platform.kis.*`는 변경 금지 (이번 phase 범위 밖) — 유지
 
 ## 호출부 교체 (6개 파일)
 
-호출부 식별 결과 (`grep -rln "platform.kis"`):
+- [x] `trading.application.OrderService` — KIS 직접 의존 제거, broker 의존, `isEgw00201`이 `BrokerOrderRejectedException.code` 검사
+- [x] `trading.application.TradingService` — `KisProperties.accountNo` → `broker.accountNo`
+- [x] `trading.application.TradingQueryService` — `kisRestClient.getCurrentPrice(...)` → `broker.currentPrice(...)`, accountNo 동일
+- [x] `trading.application.TradingValidator` — searchStock / availableCash / isMarketOpen / currentPrice 전부 broker 위임
+- [x] `trading.application.ExecutionNoticeListener` — `KisWebSocketClient` → broker.executionNotices + subscribeExecutionNotices
+- [x] `trading.application.UnclosedCycleStartupHook` — `KisProperties` → broker.accountNo
 
-- [ ] `trading.application.OrderService` — KIS 직접 의존 → `BrokerTradingClient`로
-- [ ] `trading.application.TradingService` — 동일
-- [ ] `trading.application.TradingQueryService` — 동일
-- [ ] `trading.application.TradingValidator` — 동일
-- [ ] `trading.application.ExecutionNoticeListener` — WebSocket 통지 수신부, broker-중립 표면으로
-- [ ] `trading.application.UnclosedCycleStartupHook` — 동일
+## 테스트 영향
 
-각 파일 교체 후 해당 통합 테스트가 green 유지되는지 즉시 확인.
+- [x] `TradingValidatorTest` — broker 모킹으로 재작성 (StockInfo / isMarketOpen / currentPrice / availableCash)
+- [x] 통합 테스트 무수정 — `KisRestClientMockConfig`가 `@Primary`로 `KisRestClient`를 mock으로 주입 → `KisBrokerAdapter`가 그 mock에 위임 → 기존 stub 그대로 통과
 
 ## Verification
 
-- [ ] `grep -rln "platform.kis" backend/src/main/kotlin/at/backend/trading/` 결과 0건
-- [ ] `./gradlew test` 전체 green
+- [x] `grep -rln "platform.kis" backend/src/main/kotlin/at/backend/trading/` 결과 0건
+- [x] `./gradlew test` 전체 green (1m 25s)
+- [x] 통합 테스트 9개 (Phase 4 시나리오) 전부 green
 - [ ] 로컬 `docker compose up` → `vts` profile 부팅, 모든 화면 동작 (수동 smoke)
-- [ ] 통합 테스트 9개 (Phase 4 시나리오) 전부 green
 
 ## Definition of Done
 

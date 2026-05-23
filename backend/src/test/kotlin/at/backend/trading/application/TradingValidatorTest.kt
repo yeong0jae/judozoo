@@ -1,14 +1,9 @@
 package at.backend.trading.application
 
+import at.backend.trading.application.broker.BrokerTradingClient
+import at.backend.trading.application.broker.StockInfo
 import at.backend.trading.domain.TradingInput
 import at.backend.trading.domain.TradingValidationException
-import at.backend.platform.kis.client.KisRealQuotationClient
-import at.backend.platform.kis.client.KisRestClient
-import at.backend.platform.kis.client.response.KisBalanceResponse
-import at.backend.platform.kis.client.response.KisCurrentPriceResponse
-import at.backend.platform.kis.client.response.KisHolidayResponse
-import at.backend.platform.kis.client.response.KisStockSearchResponse
-import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.kotest.assertions.throwables.shouldThrow
@@ -21,17 +16,15 @@ import java.time.LocalDateTime
 
 class TradingValidatorTest : FunSpec({
 
-    val kisRestClient = mockk<KisRestClient>()
-    val kisRealQuotationClient = mockk<KisRealQuotationClient>()
-    val tradingCycleRepository = mockk<TradingCycleJpaRepository>()
-    val kisProperties = mockk<KisProperties>().apply {
+    val broker = mockk<BrokerTradingClient>().apply {
         every { accountNo } returns "00000000"
     }
+    val tradingCycleRepository = mockk<TradingCycleJpaRepository>()
 
     fun nowAt(hour: Int, minute: Int): LocalDateTime =
         LocalDateTime.of(2026, 1, 2, hour, minute)
 
-    val validator = TradingValidator(kisRestClient, kisRealQuotationClient, tradingCycleRepository, kisProperties)
+    val validator = TradingValidator(broker, tradingCycleRepository)
 
     val validInput = TradingInput(
         stockCode = "005930",
@@ -44,18 +37,12 @@ class TradingValidatorTest : FunSpec({
     )
 
     fun stubAllPass() {
-        every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
-        every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
-            output = KisCurrentPriceResponse.Output(stckPrpr = "70000")
-        )
-        every { kisRestClient.getBalance() } returns KisBalanceResponse(
-            output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
-        )
+        every { broker.searchStock(any()) } returns StockInfo(code = "005930", name = "삼성전자")
+        every { broker.currentPrice(any()) } returns 70_000L
+        every { broker.availableCash() } returns 1_000_000L
+        every { broker.isMarketOpen(any()) } returns true
         every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
         every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns emptyList()
-        every { kisRealQuotationClient.checkHoliday(any()) } returns KisHolidayResponse(
-            output = listOf(KisHolidayResponse.Output(opndYn = "Y"))
-        )
     }
 
     context("정상 검증 통과") {
@@ -104,8 +91,8 @@ class TradingValidatorTest : FunSpec({
     }
 
     context("종목 미존재") {
-        test("KIS 검색 결과의 종목명이 비어있으면 STOCK_NOT_FOUND") {
-            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "999999", prdtAbrvName = "")
+        test("브로커 검색 결과가 null이면 STOCK_NOT_FOUND") {
+            every { broker.searchStock(any()) } returns null
 
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
@@ -114,13 +101,11 @@ class TradingValidatorTest : FunSpec({
         }
     }
 
-context("잔고 부족") {
+    context("잔고 부족") {
         test("perBuyQty × currentPrice × MAX_BUY_ATTEMPT(3)이 잔고를 초과하면 INSUFFICIENT_BALANCE") {
             stubAllPass()
             // 1주 × 70,000원 × 3회 = 210,000원 > 잔고 200,000원
-            every { kisRestClient.getBalance() } returns KisBalanceResponse(
-                output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "200000"))
-            )
+            every { broker.availableCash() } returns 200_000L
 
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
@@ -131,14 +116,7 @@ context("잔고 부족") {
 
     context("동일 종목 활성 사이클 중복") {
         test("같은 종목의 활성 사이클이 존재하면 DUPLICATE_COMMAND") {
-            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
-            every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
-                output = KisCurrentPriceResponse.Output(stckPrpr = "70000")
-            )
-            every { kisRestClient.getBalance() } returns KisBalanceResponse(
-                output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
-            )
-            every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
+            stubAllPass()
             val existingCycle = mockk<TradingCycle>()
             every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns listOf(existingCycle)
 
@@ -167,19 +145,9 @@ context("잔고 부족") {
     }
 
     context("휴장일") {
-        test("KIS 영업일 조회에서 bzdy_yn=N이면 HOLIDAY") {
-            every { kisRealQuotationClient.searchStock(any()) } returns KisStockSearchResponse.Output(pdno = "005930", prdtAbrvName = "삼성전자")
-            every { kisRestClient.getCurrentPrice(any()) } returns KisCurrentPriceResponse(
-                output = KisCurrentPriceResponse.Output(stckPrpr = "70000")
-            )
-            every { kisRestClient.getBalance() } returns KisBalanceResponse(
-                output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "1000000"))
-            )
-            every { tradingCycleRepository.findByAccountNoAndStatusIn(any(), any()) } returns emptyList()
-            every { tradingCycleRepository.findByAccountNoAndStockCodeAndStatusIn(any(), any(), any()) } returns emptyList()
-            every { kisRealQuotationClient.checkHoliday(any()) } returns KisHolidayResponse(
-                output = listOf(KisHolidayResponse.Output(opndYn = "N"))
-            )
+        test("브로커가 휴장이라고 응답하면 HOLIDAY") {
+            stubAllPass()
+            every { broker.isMarketOpen(any()) } returns false
 
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))

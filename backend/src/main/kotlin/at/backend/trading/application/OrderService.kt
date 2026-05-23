@@ -3,9 +3,9 @@ package at.backend.trading.application
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
 import at.backend.market.domain.Bar
-import at.backend.platform.kis.client.KisOrderRejectedException
-import at.backend.platform.kis.client.KisRestClient
-import at.backend.platform.kis.client.response.KisOrderResponse
+import at.backend.trading.application.broker.BrokerOrderRejectedException
+import at.backend.trading.application.broker.BrokerTradingClient
+import at.backend.trading.application.broker.PlacedOrder
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.event.RetryAccumulated
 import at.backend.trading.domain.order.Order
@@ -24,7 +24,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Component
 class OrderService(
     private val orderRepository: OrderJpaRepository,
-    private val kisRestClient: KisRestClient,
+    private val broker: BrokerTradingClient,
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
     @Value("\${trading.order.sell-retry-delay-millis}") private val sellRetryDelayMillis: Long,
@@ -39,15 +39,11 @@ class OrderService(
      */
     suspend fun placeOrder(cycle: TradingCycle, attempt: Int) {
         val currentPrice = try {
-            kisRestClient.getCurrentPrice(cycle.stockCode).output.stckPrpr.toIntOrNull()
+            broker.currentPrice(cycle.stockCode).toInt()
         } catch (e: Exception) {
-            // KIS 일시 거부(EGW00201 등) 시 회차 스킵 — 사이클 전체가 죽지 않도록.
+            // 브로커 일시 거부(EGW00201 등) 시 회차 스킵 — 사이클 전체가 죽지 않도록.
             // PRD 매수 §7: 회차별 발송 실패는 스킵, 다음 회차는 예정 시각에 정상 시도.
             log.warn(e) { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — 현재가 조회 실패" }
-            return
-        }
-        if (currentPrice == null) {
-            log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — 현재가 응답 파싱 실패" }
             return
         }
         // 신규 사이클은 perBuyQty가 결정값. 과거 사이클은 perBuyAmount/currentPrice로 fallback.
@@ -68,14 +64,14 @@ class OrderService(
         )
 
         try {
-            val output = submitBuyWithEgw00201Retry(cycle.stockCode, qty, cycle.id, attempt)
-            order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
+            val placed = submitBuyWithEgw00201Retry(cycle.stockCode, qty, cycle.id, attempt)
+            order.acknowledge(placed.orderNo, placed.orgno)
             orderRepository.save(order)
         } catch (e: Exception) {
             order.markFailed(e.message)
             orderRepository.save(order)
-            val msgCd = (e as? KisOrderRejectedException)?.msgCd
-            log.warn(e) { "매수 발송 실패 cycleId=${cycle.id}, attempt=$attempt, msgCd=$msgCd" }
+            val code = (e as? BrokerOrderRejectedException)?.code
+            log.warn(e) { "매수 발송 실패 cycleId=${cycle.id}, attempt=$attempt, code=$code" }
         }
     }
 
@@ -89,10 +85,10 @@ class OrderService(
         qty: Int,
         cycleId: Long,
         attempt: Int,
-    ): KisOrderResponse.Output {
+    ): PlacedOrder {
         repeat(EGW_RETRIES) { i ->
             try {
-                return kisRestClient.requestOrder(stockCode, OrderSide.BUY.name, qty).output!!
+                return broker.placeOrder(stockCode, OrderSide.BUY, qty)
             } catch (e: Exception) {
                 if (!isEgw00201(e)) throw e
                 val delayMs = (i + 1) * egwRetryBaseDelayMs
@@ -100,11 +96,11 @@ class OrderService(
                 delay(delayMs.milliseconds)
             }
         }
-        return kisRestClient.requestOrder(stockCode, OrderSide.BUY.name, qty).output!!
+        return broker.placeOrder(stockCode, OrderSide.BUY, qty)
     }
 
     private fun isEgw00201(e: Throwable): Boolean = when (e) {
-        is KisOrderRejectedException -> e.msgCd == EGW_RATE_LIMIT_CODE
+        is BrokerOrderRejectedException -> e.code == EGW_RATE_LIMIT_CODE
         is HttpServerErrorException -> e.responseBodyAsString.contains(EGW_RATE_LIMIT_CODE)
         else -> false
     }
@@ -145,9 +141,8 @@ class OrderService(
             )
 
             try {
-                val output =
-                    kisRestClient.requestOrder(cycle.stockCode, OrderSide.SELL.name, effectiveQty).output!!
-                order.acknowledge(output.odno, output.krxFwdgOrdOrgno)
+                val placed = broker.placeOrder(cycle.stockCode, OrderSide.SELL, effectiveQty)
+                order.acknowledge(placed.orderNo, placed.orgno)
                 orderRepository.save(order)
                 return
             } catch (e: Exception) {
@@ -181,7 +176,7 @@ class OrderService(
             val orgno = order.fwdgOrdOrgno
             val odno = order.orderNo
             if (orgno != null && odno != null) {
-                runCatching { kisRestClient.cancelRemainder(orgno, odno) }
+                runCatching { broker.cancelOrder(orgno, odno) }
                     .onFailure { log.warn(it) { "$label 잔량 취소 실패 cycleId=$cycleId, orderId=${order.id}" } }
             }
             order.markCancelled()

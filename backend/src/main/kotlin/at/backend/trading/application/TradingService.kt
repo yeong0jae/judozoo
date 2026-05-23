@@ -3,7 +3,7 @@ package at.backend.trading.application
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
-import at.backend.platform.kis.config.KisProperties
+import at.backend.trading.application.broker.BrokerTradingClient
 import at.backend.trading.application.result.TradingCancelResult
 import at.backend.trading.application.result.TradingCreatedResult
 import at.backend.trading.domain.TradingInput
@@ -23,7 +23,7 @@ class TradingService(
     private val timeProvider: TimeProvider,
     private val cycleOrchestrator: CycleOrchestrator,
     private val eventPublisher: ApplicationEventPublisher,
-    private val kisProperties: KisProperties,
+    private val broker: BrokerTradingClient,
 ) {
 
     @Transactional
@@ -33,7 +33,7 @@ class TradingService(
         // perBuyAmount는 NOT NULL 컬럼이라 신규 사이클도 추정치(개수 × 검증 시점 현재가)를 채워둔다.
         // 실제 매수 qty는 OrderService가 perBuyQty를 그대로 사용한다.
         val cycle = TradingCycle(
-            accountNo = kisProperties.accountNo,
+            accountNo = broker.accountNo,
             stockCode = input.stockCode,
             stockName = stockName,
             perBuyAmount = input.perBuyQty.toLong() * currentPrice,

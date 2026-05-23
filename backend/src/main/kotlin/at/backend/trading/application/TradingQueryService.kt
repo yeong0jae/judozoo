@@ -2,9 +2,8 @@ package at.backend.trading.application
 
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.library.time.TimeProvider
-import at.backend.platform.kis.client.KisRestClient
-import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.TradingProperties
+import at.backend.trading.application.broker.BrokerTradingClient
 import at.backend.trading.application.result.DailyTradingResult
 import at.backend.trading.application.result.TradingDetailResult
 import at.backend.trading.application.result.TradingSummaryResult
@@ -24,20 +23,19 @@ class TradingQueryService(
     private val tradingCycleRepository: TradingCycleJpaRepository,
     private val orderRepository: OrderJpaRepository,
     private val executionRepository: ExecutionJpaRepository,
-    private val kisRestClient: KisRestClient,
+    private val broker: BrokerTradingClient,
     private val tradingProperties: TradingProperties,
     private val timeProvider: TimeProvider,
-    private val kisProperties: KisProperties,
 ) {
 
     fun findActive(): List<TradingSummaryResult> =
-        tradingCycleRepository.findByAccountNoAndStatusIn(kisProperties.accountNo, TradingCycleStatus.OPEN)
+        tradingCycleRepository.findByAccountNoAndStatusIn(broker.accountNo, TradingCycleStatus.OPEN)
             .map { toSummary(it) }
 
     fun findToday(): List<DailyTradingResult> {
         val startOfDay = timeProvider.today().atStartOfDay()
         val endOfDay = startOfDay.plusDays(1)
-        return tradingCycleRepository.findByAccountNoAndCreatedAtBetween(kisProperties.accountNo, startOfDay, endOfDay)
+        return tradingCycleRepository.findByAccountNoAndCreatedAtBetween(broker.accountNo, startOfDay, endOfDay)
             .filter { it.status == TradingCycleStatus.CLOSED }   // "오늘 종료" 미니 섹션 — 진행 중 사이클은 위쪽 활성 명령에 노출됨
             .map { toDailyTrading(it) }
     }
@@ -142,7 +140,7 @@ class TradingQueryService(
     }
 
     private fun fetchCurrentPrice(stockCode: String): Long =
-        kisRestClient.getCurrentPrice(stockCode).output.stckPrpr.toLong()
+        broker.currentPrice(stockCode)
 
     private fun profitRate(currentPrice: Long, averageBuyPrice: Long): Double =
         if (averageBuyPrice == 0L) 0.0
