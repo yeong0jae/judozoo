@@ -54,8 +54,8 @@ KIS 직접 호출을 인터페이스 뒤로 숨기고 행동은 보존. `trading
 ## Phase 10: Kiwoom 어댑터 + Profile 와이어링
 `platform.kiwoom.trading.*` 신설 — Kiwoom REST 클라이언트, 주문/잔고/체결 모듈, WireMock 인프라 테스트. `KiwoomBrokerAdapter`로 Phase 9 인터페이스 구현. `application-{kis,kiwoom,vts,real}.yml` 분리, broker 어댑터를 `@Profile`로 분기. 부팅 시 broker·env 각각 정확히 1개 active인지 fail-fast 검증.
 
-## Phase 11: 2-인스턴스 배포
-Terraform `google_compute_instance` / `google_compute_address` / firewall을 `for_each = toset(["kis","kiwoom"])`로 변환 + `terraform state mv`로 destroy 0건 마이그레이션. Secret Manager에 `AT_KIWOOM_ACCOUNT_NO` 등 누락 시크릿 추가, Kiwoom 콘솔에 새 VM IP 등록. GHA workflow를 `strategy.matrix.broker: [kis, kiwoom]`로 변환, `SPRING_PROFILES_ACTIVE=${BROKER},${ENV}` 주입. 두 VM 동시 배포 + 각각 헬스체크.
+## Phase 11: 3-인스턴스 배포
+KIS 모의(`kis-vts`) + KIS 실제(`kis-real`) + Kiwoom 실제(`kiwoom-real`) 동시 운영. Terraform `google_compute_instance` / `google_compute_address` / firewall을 `for_each = toset(["kis-vts","kis-real","kiwoom-real"])`로 변환 + `terraform state mv`로 기존 KIS-vts VM destroy 0건 마이그레이션. Secret Manager에 `AT_KIWOOM_ACCOUNT_NO` 등 누락 시크릿 추가, Kiwoom 콘솔에 `kiwoom-real` VM의 외부 IP 등록(`kis-*`는 KIS만 부르므로 등록 불필요). GHA workflow를 `strategy.matrix.target` 3-entry로 변환 — 각 target이 자기 `(broker, env, vm, account)`를 포함, `SPRING_PROFILES_ACTIVE=${BROKER},${ENV}` 주입. 3 VM 동시 배포 + 각각 헬스체크. MySQL named volume은 VM별 독립.
 
 ## Phase 12: leadingstock 회귀 안전망
 `leadingstock` 도메인 단위 테스트 보강. 필터 14개 (DailyHighPosition / DailyPriceChange / EtfExclusion / MarketCap / MinuteCandleFluctuation / MinuteCandleVolume / OpeningPrice / PrevDayClose / PriceAboveOpen / ProgramNetBuy / ThemeRank / TradingValueRank 등) 각 경계 조건, `FilterChain` 결합 시나리오, `LeadingStockService` / `InvestorTrendService` 흐름. 도메인 룰이라 Spring·MockK 의존 없는 Kotest FunSpec(한글 description). 후속 Kiwoom·trading 변경 시 회귀 가드 역할.
@@ -99,7 +99,7 @@ Phase 0
                      Phase 10 (Kiwoom 어댑터 + Profile)
                          │
                          ▼
-                     Phase 11 (2-인스턴스 배포)
+                     Phase 11 (3-인스턴스 배포)
                          │
                          ▼
                      Phase 12 (leadingstock 회귀 안전망)
