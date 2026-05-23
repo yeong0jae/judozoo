@@ -14,7 +14,8 @@ interface BrokerTradingClient {
     fun isMarketOpen(date: LocalDate): Boolean
 
     fun placeOrder(stockCode: String, side: OrderSide, qty: Int): PlacedOrder
-    fun cancelOrder(orgno: String, odno: String)
+    /** Kiwoom은 stockCode + odno만 필요, KIS는 orgno + odno만 필요 — adapter가 자기에게 필요한 인자만 사용. */
+    fun cancelOrder(stockCode: String, orgno: String, odno: String)
 
     val executionNotices: SharedFlow<ExecutionNotice>
     fun subscribeExecutionNotices()

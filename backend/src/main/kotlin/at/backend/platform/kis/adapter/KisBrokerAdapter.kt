@@ -50,7 +50,8 @@ class KisBrokerAdapter(
         throw BrokerOrderRejectedException(code = e.msgCd, message = e.message ?: "주문 거부")
     }
 
-    override fun cancelOrder(orgno: String, odno: String) {
+    override fun cancelOrder(stockCode: String, orgno: String, odno: String) {
+        // KIS는 stockCode 무관 — orgno + odno만 사용
         kisRestClient.cancelRemainder(orgno, odno)
     }
 

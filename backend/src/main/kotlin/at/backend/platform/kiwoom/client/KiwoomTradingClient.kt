@@ -1,0 +1,142 @@
+package at.backend.platform.kiwoom.client
+
+import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.web.client.RestClient
+
+/**
+ * Kiwoom 트레이딩 REST. `/api/dostk/...` 경로에 api-id 헤더로 분기.
+ * 응답은 항상 HTTP 200 + JSON body로 오며, `return_code != 0`이면 거부 → [KiwoomOrderRejectedException].
+ *
+ * 사용 api-id:
+ *   - ka10001 (stkinfo) — 현재가·종목명 (재사용: leadingstock의 KiwoomMarketClient도 사용)
+ *   - kt00004 (acnt)    — 계좌 평가/예수금
+ *   - kt10000 (ordr)    — 매수 주문
+ *   - kt10001 (ordr)    — 매도 주문
+ *   - kt10003 (ordr)    — 주문 취소
+ */
+class KiwoomTradingClient(
+    private val restClient: RestClient,
+    private val authClient: KiwoomAuthClient,
+    private val dmstStexTp: String,
+) {
+    private val log = KotlinLogging.logger {}
+
+    /** 현재가·종목명 동시 조회. 종목 미존재 시 null. */
+    fun fetchStockInfo(stockCode: String): StockInfoOutput? {
+        val resp = post(
+            endpoint = "/api/dostk/stkinfo",
+            apiId = "ka10001",
+            body = mapOf("stk_cd" to stockCode),
+            type = StockInfoResponse::class.java,
+        )
+        if (resp.return_code != 0) {
+            log.warn { "Kiwoom ka10001 거부: code=${resp.return_code}, msg=${resp.return_msg}" }
+            return null
+        }
+        val name = resp.stk_nm?.takeIf { it.isNotBlank() } ?: return null
+        return StockInfoOutput(stockName = name, currentPrice = parsePrice(resp.cur_prc))
+    }
+
+    /** D+2 예수금. */
+    fun fetchAvailableCash(): Long {
+        val resp = post(
+            endpoint = "/api/dostk/acnt",
+            apiId = "kt00004",
+            body = mapOf(
+                "qry_tp" to "0",
+                "dmst_stex_tp" to "KRX",
+            ),
+            type = AccountEvaluationResponse::class.java,
+        )
+        if (resp.return_code != 0) {
+            throw KiwoomOrderRejectedException(resp.return_code.toString(), "Kiwoom 잔고 조회 거부 ${resp.return_msg ?: ""}")
+        }
+        return resp.d2_entra?.toLongOrNull() ?: 0L
+    }
+
+    fun placeBuyOrder(stockCode: String, qty: Int): String = placeOrder(apiId = "kt10000", stockCode = stockCode, qty = qty, label = "Kiwoom 매수")
+
+    fun placeSellOrder(stockCode: String, qty: Int): String = placeOrder(apiId = "kt10001", stockCode = stockCode, qty = qty, label = "Kiwoom 매도")
+
+    private fun placeOrder(apiId: String, stockCode: String, qty: Int, label: String): String {
+        val resp = post(
+            endpoint = "/api/dostk/ordr",
+            apiId = apiId,
+            body = mapOf(
+                "dmst_stex_tp" to dmstStexTp,
+                "stk_cd" to stockCode,
+                "ord_qty" to qty.toString(),
+                "ord_uv" to "",
+                "trde_tp" to "3",          // 시장가
+                "cond_uv" to "",
+            ),
+            type = OrderResponse::class.java,
+        )
+        if (resp.return_code != 0) {
+            throw KiwoomOrderRejectedException(resp.return_code.toString(), "$label 거부 ${resp.return_msg ?: ""}")
+        }
+        return resp.ord_no ?: throw KiwoomOrderRejectedException("EMPTY_ORD_NO", "$label 응답에 주문번호 없음")
+    }
+
+    fun cancelOrder(stockCode: String, originalOrderNo: String) {
+        val resp = post(
+            endpoint = "/api/dostk/ordr",
+            apiId = "kt10003",
+            body = mapOf(
+                "dmst_stex_tp" to dmstStexTp,
+                "orig_ord_no" to originalOrderNo,
+                "stk_cd" to stockCode,
+                "cncl_qty" to "0",          // 잔량 전부 취소
+            ),
+            type = OrderResponse::class.java,
+        )
+        if (resp.return_code != 0) {
+            throw KiwoomOrderRejectedException(resp.return_code.toString(), "Kiwoom 취소 거부 ${resp.return_msg ?: ""}")
+        }
+    }
+
+    private fun <T : Any> post(endpoint: String, apiId: String, body: Map<String, Any>, type: Class<T>): T {
+        val token = authClient.getAccessToken()
+        log.info { "Kiwoom 호출 → POST $endpoint api-id=$apiId" }
+        val response = restClient.post()
+            .uri(endpoint)
+            .header("Content-Type", "application/json;charset=UTF-8")
+            .header("authorization", "Bearer $token")
+            .header("api-id", apiId)
+            .body(body)
+            .retrieve()
+            .body(type)
+            ?: error("Kiwoom 응답 빈 본문: api-id=$apiId")
+        log.info { "Kiwoom 응답 ← POST $endpoint api-id=$apiId" }
+        return response
+    }
+
+    /** Kiwoom 가격: +/- 부호(전일대비 방향) 제거 후 절대값 Long. */
+    private fun parsePrice(value: String?): Long {
+        if (value.isNullOrBlank()) return 0L
+        val cleaned = value.trim().removePrefix("+").removePrefix("-")
+        return cleaned.toLongOrNull() ?: 0L
+    }
+
+    data class StockInfoOutput(val stockName: String, val currentPrice: Long)
+
+    data class StockInfoResponse(
+        val stk_cd: String? = null,
+        val stk_nm: String? = null,
+        val cur_prc: String? = null,
+        val return_code: Int = 0,
+        val return_msg: String? = null,
+    )
+
+    data class AccountEvaluationResponse(
+        val d2_entra: String? = null,
+        val return_code: Int = 0,
+        val return_msg: String? = null,
+    )
+
+    data class OrderResponse(
+        val ord_no: String? = null,
+        val return_code: Int = 0,
+        val return_msg: String? = null,
+    )
+}

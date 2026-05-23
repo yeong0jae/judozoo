@@ -62,7 +62,7 @@ class CycleOrchestrator(
             log.warn { "취소 대상 사이클이 활성 상태가 아님 cycleId=$cycleId" }
             return
         }
-        orderService.cancelInFlightBuys(cycleId)
+        orderService.cancelInFlightBuys(cycleId, runner.stockCode)
         applicationScope.launch {
             runCatching { runner.requestCancellation() }
                 .onFailure { log.warn(it) { "사이클 취소 처리 실패 cycleId=$cycleId" } }

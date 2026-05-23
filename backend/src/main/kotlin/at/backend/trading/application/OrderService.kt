@@ -122,7 +122,7 @@ class OrderService(
         while (true) {
             val nowInstant = timeProvider.now().toInstantKst()
             if (!signal.isAlive(currentPrice, buyPrice, currentBar, nowInstant)) {
-                cancelInFlightSells(cycle.id)
+                cancelInFlightSells(cycle.id, cycle.stockCode)
                 return
             }
 
@@ -163,20 +163,20 @@ class OrderService(
         }
     }
 
-    fun cancelInFlightBuys(cycleId: Long) {
-        cancelInFlight(orderRepository.findInFlightBuys(cycleId), cycleId, "매수")
+    fun cancelInFlightBuys(cycleId: Long, stockCode: String) {
+        cancelInFlight(stockCode, orderRepository.findInFlightBuys(cycleId), cycleId, "매수")
     }
 
-    private fun cancelInFlightSells(cycleId: Long) {
-        cancelInFlight(orderRepository.findInFlightSells(cycleId), cycleId, "매도")
+    private fun cancelInFlightSells(cycleId: Long, stockCode: String) {
+        cancelInFlight(stockCode, orderRepository.findInFlightSells(cycleId), cycleId, "매도")
     }
 
-    private fun cancelInFlight(orders: List<Order>, cycleId: Long, label: String) {
+    private fun cancelInFlight(stockCode: String, orders: List<Order>, cycleId: Long, label: String) {
         for (order in orders) {
             val orgno = order.fwdgOrdOrgno
             val odno = order.orderNo
             if (orgno != null && odno != null) {
-                runCatching { broker.cancelOrder(orgno, odno) }
+                runCatching { broker.cancelOrder(stockCode, orgno, odno) }
                     .onFailure { log.warn(it) { "$label 잔량 취소 실패 cycleId=$cycleId, orderId=${order.id}" } }
             }
             order.markCancelled()

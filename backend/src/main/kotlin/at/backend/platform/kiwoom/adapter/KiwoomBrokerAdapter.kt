@@ -1,46 +1,70 @@
 package at.backend.platform.kiwoom.adapter
 
+import at.backend.platform.kiwoom.client.KiwoomExecutionWebSocketClient
+import at.backend.platform.kiwoom.client.KiwoomOrderRejectedException
+import at.backend.platform.kiwoom.client.KiwoomTradingClient
+import at.backend.platform.kiwoom.config.KiwoomTradingProperties
+import at.backend.trading.application.broker.BrokerOrderRejectedException
 import at.backend.trading.application.broker.BrokerTradingClient
 import at.backend.trading.application.broker.PlacedOrder
 import at.backend.trading.application.broker.StockInfo
 import at.backend.trading.domain.order.ExecutionNotice
 import at.backend.trading.domain.order.OrderSide
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 /**
- * Phase 10-A stub. 모든 메서드는 NotImplementedError를 던진다.
- * 10-B에서 KiwoomTradingClient + KiwoomExecutionNoticeClient 위에 실구현으로 교체.
+ * Phase 10-B 실구현. Kiwoom OpenAPI 트레이딩 + 실시간 주문체결 통보 위에서 동작.
  *
- * 이 빈은 `kiwoom` profile에서만 활성화되며, BrokerActivationGuard가 잘못된 조합을
- * 컨텍스트 시작 단계에서 차단한다. 부팅은 성공하지만 broker 호출이 일어나는 순간 실패.
+ * 휴장 여부: Kiwoom에 전용 API가 없어 평일(Mon~Fri) 단순 체크로만 사전 차단.
+ * 공휴일은 매수 거부 응답에 위임(매수 1건 fail → 사이클 자동 종료 후 사용자 인지).
  */
 @Component
 @Profile("kiwoom")
-class KiwoomBrokerAdapter : BrokerTradingClient {
+class KiwoomBrokerAdapter(
+    private val tradingClient: KiwoomTradingClient,
+    private val executionWsClient: KiwoomExecutionWebSocketClient,
+    private val tradingProperties: KiwoomTradingProperties,
+) : BrokerTradingClient {
 
     override val accountNo: String
-        get() = notYet("accountNo")
+        get() = tradingProperties.accountNo
 
-    override fun currentPrice(stockCode: String): Long = notYet("currentPrice")
-    override fun availableCash(): Long = notYet("availableCash")
-    override fun searchStock(stockCode: String): StockInfo? = notYet("searchStock")
-    override fun isMarketOpen(date: LocalDate): Boolean = notYet("isMarketOpen")
-    override fun placeOrder(stockCode: String, side: OrderSide, qty: Int): PlacedOrder = notYet("placeOrder")
-    override fun cancelOrder(orgno: String, odno: String) {
-        notYet("cancelOrder")
+    override fun currentPrice(stockCode: String): Long =
+        tradingClient.fetchStockInfo(stockCode)?.currentPrice ?: 0L
+
+    override fun availableCash(): Long = tradingClient.fetchAvailableCash()
+
+    override fun searchStock(stockCode: String): StockInfo? {
+        val info = tradingClient.fetchStockInfo(stockCode) ?: return null
+        return StockInfo(code = stockCode, name = info.stockName)
     }
 
-    override val executionNotices: SharedFlow<ExecutionNotice> = MutableSharedFlow<ExecutionNotice>().asSharedFlow()
+    override fun isMarketOpen(date: LocalDate): Boolean =
+        date.dayOfWeek != DayOfWeek.SATURDAY && date.dayOfWeek != DayOfWeek.SUNDAY
+
+    override fun placeOrder(stockCode: String, side: OrderSide, qty: Int): PlacedOrder = try {
+        val ordNo = when (side) {
+            OrderSide.BUY -> tradingClient.placeBuyOrder(stockCode, qty)
+            OrderSide.SELL -> tradingClient.placeSellOrder(stockCode, qty)
+        }
+        // Kiwoom은 KIS의 orgno(원장 번호) 개념 미사용 — orderNo 단독으로 취소 가능. orgno는 빈 문자열.
+        PlacedOrder(orderNo = ordNo, orgno = "")
+    } catch (e: KiwoomOrderRejectedException) {
+        throw BrokerOrderRejectedException(code = e.code, message = e.message ?: "주문 거부")
+    }
+
+    override fun cancelOrder(stockCode: String, orgno: String, odno: String) {
+        tradingClient.cancelOrder(stockCode = stockCode, originalOrderNo = odno)
+    }
+
+    override val executionNotices: SharedFlow<ExecutionNotice>
+        get() = executionWsClient.executionNotices
 
     override fun subscribeExecutionNotices() {
-        notYet("subscribeExecutionNotices")
+        executionWsClient.subscribe()
     }
-
-    private fun notYet(method: String): Nothing =
-        throw NotImplementedError("KiwoomBrokerAdapter.$method — Phase 10-B에서 구현 예정")
 }

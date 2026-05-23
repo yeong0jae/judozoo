@@ -41,39 +41,37 @@ Goal: Phase 9가 만든 `BrokerTradingClient` 자리에 Kiwoom 어댑터를 끼�
 
 ## Phase 10-B: Kiwoom 트레이딩 클라이언트 구현
 
-> 사용자 입력 필요: Kiwoom OpenAPI 주문/잔고/취소/체결 통지의 정확한 api-id와 요청·응답 스펙
+확보된 Kiwoom api-id 매핑:
+- currentPrice / searchStock → `ka10001` (stkinfo)
+- availableCash → `kt00004` (acnt, `d2_entra`)
+- placeOrder BUY → `kt10000` (ordr)
+- placeOrder SELL → `kt10001` (ordr)
+- cancelOrder → `kt10003` (ordr, `cncl_qty:'0'` = 잔량 전부)
+- executionNotices → WebSocket `wss://api.kiwoom.com:10000/api/dostk/websocket` type `00` (주문체결)
+- isMarketOpen → Kiwoom API 없음 → 평일(Mon~Fri) 단순 체크로 사전 차단, 공휴일은 거부 응답에 위임
 
 ### 작업
 
-- [ ] `platform.kiwoom.config.KiwoomTradingProperties` 신설 — Kiwoom 계좌 정보(accountNo 등)
-- [ ] `application-kiwoom.yaml`에 Kiwoom trading creds 매핑 추가
-- [ ] Secret Manager: `AT_KIWOOM_ACCOUNT_NO` 등 누락 시크릿 추가
-- [ ] `platform.kiwoom.client.KiwoomTradingClient` 신설 (REST):
-  - 현재가 / 잔고 / 종목 검색 / 휴장 / 주문 발주 / 주문 취소
-- [ ] `platform.kiwoom.client.KiwoomExecutionNoticeClient` 신설 — 실시간 체결 통지 (WebSocket 또는 polling)
+- [x] `platform.kiwoom.config.KiwoomTradingProperties` 신설 — `kiwoom.trading.account-no/ws-url/dmst-stex-tp`
+- [x] `application-kiwoom.yaml`에 Kiwoom trading 매핑 추가
+- [x] `platform.kiwoom.client.KiwoomTradingClient` 신설 (REST): ka10001/kt00004/kt10000/kt10001/kt10003
+- [x] `platform.kiwoom.client.KiwoomExecutionWebSocketClient` 신설 — LOGIN→REG type=00, 평문 JSON, PINGPONG echo, 백오프 재연결
+- [x] `KiwoomBrokerAdapter` 실구현으로 교체 (stub → 실제 위임)
+- [x] `BrokerTradingClient.cancelOrder` 시그니처에 `stockCode` 추가 (Kiwoom kt10003은 stk_cd 필수), KIS·OrderService·CycleOrchestrator 일괄 수정
 - [ ] WireMock 인프라 테스트 — 성공·거부·timeout 시나리오
-- [ ] `KiwoomBrokerAdapter` 실구현으로 교체 (stub → 실제 위임)
-- [ ] 로컬 `SPRING_PROFILES_ACTIVE=kiwoom,real` 부팅 — access token 발급 + 종목 검색·잔고 조회 smoke
+- [ ] 로컬 `SPRING_PROFILES_ACTIVE=kiwoom,real` 부팅 smoke (Kiwoom 콘솔 IP 화이트리스트 + KIWOOM_ACCOUNT_NO 필요)
+- [ ] Secret Manager: `AT_KIWOOM_ACCOUNT_NO` 추가 (Phase 11 배포 시점에)
 
 ### Verification
 
-- [ ] WireMock 테스트 전 시나리오 green
-- [ ] 로컬 Kiwoom-real 부팅 성공 (Kiwoom 콘솔 IP 화이트리스트 전제)
-- [ ] 기존 KIS-vts 테스트 회귀 0건
+- [x] 기존 KIS-vts 테스트 회귀 0건 (`./gradlew test` 1m 15s green)
+- [ ] WireMock 테스트 전 시나리오 green (후속)
+- [ ] 로컬 Kiwoom-real 부팅 성공 (후속)
 
 ### DoD
 
 - 3개 profile 조합 모두 부팅 가능 (KIS-vts/real 변화 없음, Kiwoom-real 신규)
 - Kiwoom 트레이딩 API가 `BrokerTradingClient` 인터페이스 뒤에서 동작
-
-### Open Questions (사용자 확인 필요)
-
-- Kiwoom 주문 발주 api-id (ka????)
-- Kiwoom 잔고 조회 api-id
-- Kiwoom 주문 취소 api-id
-- Kiwoom 체결 통지 — REST polling 가능? WebSocket 스펙?
-- Kiwoom에서 종목명 검색 — `ka10001` 재사용? 다른 api-id?
-- Kiwoom 휴장 여부 조회 api-id
 
 ---
 
