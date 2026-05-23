@@ -15,11 +15,25 @@ resource "google_project_service" "apis" {
 }
 
 # ---------------------------------------------------------------------------
+# 인스턴스 정의 — 3개 broker × env 조합
+#   - kis-vts: 기존 유일 VM. name_suffix 빈 문자열로 두어 기존 GCP 리소스명 보존 → state mv만으로 destroy 0.
+#   - kis-real / kiwoom-real: Phase 11에서 신규 추가.
+# ---------------------------------------------------------------------------
+locals {
+  instances = {
+    "kis-vts"     = { name_suffix = "" }
+    "kis-real"    = { name_suffix = "-kis-real" }
+    "kiwoom-real" = { name_suffix = "-kiwoom-real" }
+  }
+}
+
+# ---------------------------------------------------------------------------
 # 고정 외부 IP (프론트 공개용 / KIS·KIWOOM IP 허용목록 대비)
 # ---------------------------------------------------------------------------
 resource "google_compute_address" "frontend" {
-  name   = "auto-trading-frontend-ip"
-  region = var.region
+  for_each = local.instances
+  name     = "auto-trading-frontend-ip${each.value.name_suffix}"
+  region   = var.region
 
   depends_on = [google_project_service.apis]
 }
@@ -83,7 +97,8 @@ resource "google_compute_firewall" "ssh_iap" {
 # VM (Ubuntu, Docker/Compose 설치 startup-script)
 # ---------------------------------------------------------------------------
 resource "google_compute_instance" "app" {
-  name         = "auto-trading-app"
+  for_each     = local.instances
+  name         = "auto-trading-app${each.value.name_suffix}"
   machine_type = var.machine_type
   zone         = var.zone
   tags         = ["auto-trading"]
@@ -98,7 +113,7 @@ resource "google_compute_instance" "app" {
   network_interface {
     network = "default"
     access_config {
-      nat_ip = google_compute_address.frontend.address
+      nat_ip = google_compute_address.frontend[each.key].address
     }
   }
 
@@ -144,6 +159,7 @@ locals {
     "AT_VTS_KIS_ACCOUNT_PRODUCT_CODE",
     "AT_KIWOOM_APP_KEY",
     "AT_KIWOOM_APP_SECRET",
+    "AT_KIWOOM_ACCOUNT_NO",
   ])
 }
 

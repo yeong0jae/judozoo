@@ -1,0 +1,70 @@
+# tasks-013 — Phase 11: 3-인스턴스 배포 인프라
+
+Goal: 단일 KIS-vts VM 운영에서 KIS-vts / KIS-real / Kiwoom-real **3대 동시 운영**으로 전환. 기존 KIS-vts VM destroy 0건 (state mv로 보존).
+
+> 11-A → 11-B로 나눠 진행. 11-A는 Terraform·인프라 변경, 11-B는 배포 파이프라인.
+
+---
+
+## 설계 원칙
+
+- **3개 키**: `kis-vts` / `kis-real` / `kiwoom-real`. `for_each = local.instances`로 VM·IP를 한 번에 관리.
+- **state mv로 기존 자원 보존**: `google_compute_instance.app` → `app["kis-vts"]`, `google_compute_address.frontend` → `frontend["kis-vts"]`. **이름은 그대로** (kis-vts는 suffix 없음) — `REDACTED_IP` 외부 IP 유지.
+- **방화벽은 공유**: 모든 VM이 `auto-trading` target_tag 공유 → `web`/`ssh_iap` 룰 그대로.
+- **MySQL named volume 인스턴스별 독립**: 각 VM에 별개 named volume 자연스럽게 생성 (compose project 분리 안 해도 VM 자체가 분리).
+
+---
+
+## Phase 11-A: Terraform + Secret Manager 구조
+
+### 작업
+
+- [x] `infra/terraform/main.tf` — `google_compute_instance.app` / `google_compute_address.frontend`를 `for_each = local.instances`로 변환 (kis-vts는 name_suffix `""`로 기존 이름 보존)
+- [x] `infra/terraform/main.tf` — `locals.app_secrets`에 `AT_KIWOOM_ACCOUNT_NO` 추가
+- [x] `infra/terraform/outputs.tf` — scalar → map outputs (`vm_external_ips`, `vm_names`, `vm_zones`)
+- [x] `terraform state mv` 2건 (frontend / app) → `["kis-vts"]` re-index
+- [x] `terraform apply` — 5 added, 0 changed, 0 destroyed:
+  - 신규 IP: `kis-real=REDACTED_IP` / `kiwoom-real=REDACTED_IP`
+  - 신규 VM: `auto-trading-app-kis-real` / `auto-trading-app-kiwoom-real`
+  - 신규 Secret: `AT_KIWOOM_ACCOUNT_NO`
+- [x] `AT_KIWOOM_ACCOUNT_NO`에 placeholder `0000000000` 주입 (실거래 시작 전 실 계좌번호로 갱신)
+- [ ] 🧑 Kiwoom 콘솔에 `kiwoom-real` VM 외부 IP `REDACTED_IP` 화이트리스트 추가
+
+### Verification
+
+- [x] `terraform plan` 후 destroy 0건
+- [x] 기존 KIS-vts VM (`auto-trading-app`) 그대로 동작 — `REDACTED_IP` 외부 IP 유지
+- [x] 새 VM 2대 SSH 도달 가능 (Docker + Compose 설치 확인)
+
+---
+
+## Phase 11-B: 배포 파이프라인 (GHA matrix)
+
+### 작업
+
+- [x] `infra/deploy/remote_deploy.sh` — `KIWOOM_ACCOUNT_NO=$(fetch AT_KIWOOM_ACCOUNT_NO)` 라인 추가, `SPRING_PROFILES_ACTIVE`를 4번째 인자로 받음 (default `kis,vts`)
+- [x] `.github/workflows/deploy.yml` — `build` job + `deploy` job(`strategy.matrix.target` 3-entry: kis-vts/kis-real/kiwoom-real). build 1회, deploy 3개 VM 동시
+- [x] GHA Variables 등록 — `VM_NAME_KIS_VTS`/`VM_NAME_KIS_REAL`/`VM_NAME_KIWOOM_REAL` (VM_ZONE은 공유라 singular 유지)
+- [ ] 🧑 기존 `VM_NAME` Variable 제거 (matrix 전환 후 미사용)
+
+### Verification
+
+- [ ] `main` push 한 번에 3 VM 동시 배포
+- [ ] 각 VM 헬스체크 통과
+- [ ] 각 VM backend 로그에 의도한 profile 활성 (`kis,vts` / `kis,real` / `kiwoom,real`)
+
+---
+
+## DoD
+
+- KIS-vts: `REDACTED_IP`에서 기존 동작 그대로
+- KIS-real: 새 IP에서 부팅 + `kis,real` profile + REAL_KIS_* 자격증명 사용
+- Kiwoom-real: 새 IP에서 부팅 + `kiwoom,real` profile + Kiwoom IP 화이트리스트 통과
+
+---
+
+## 안전 노트
+
+- `terraform state mv`는 잘못하면 자원 orphan 위험. 매 명령 전 `terraform state list`로 현재 상태 확인.
+- `terraform apply` 실행 시 새 VM 2대 비용 발생 (e2-medium × 2 ≈ $60/month).
+- 새 외부 IP가 Kiwoom 콘솔 화이트리스트에 등록되기 전엔 Kiwoom 호출 모두 실패.

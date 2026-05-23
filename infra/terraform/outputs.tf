@@ -1,14 +1,16 @@
-output "vm_external_ip" {
-  description = "프론트 접속용 고정 외부 IP"
-  value       = google_compute_address.frontend.address
+output "vm_external_ips" {
+  description = "프론트 접속용 고정 외부 IP — 인스턴스 키별"
+  value       = { for k, addr in google_compute_address.frontend : k => addr.address }
 }
 
-output "vm_name" {
-  value = google_compute_instance.app.name
+output "vm_names" {
+  description = "VM 인스턴스명 — 인스턴스 키별 (GitHub Variables VM_NAME_* 값)"
+  value       = { for k, vm in google_compute_instance.app : k => vm.name }
 }
 
-output "vm_zone" {
-  value = google_compute_instance.app.zone
+output "vm_zones" {
+  description = "VM zone — 인스턴스 키별 (GitHub Variables VM_ZONE_* 값)"
+  value       = { for k, vm in google_compute_instance.app : k => vm.zone }
 }
 
 output "artifact_registry_repo" {
