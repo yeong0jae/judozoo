@@ -200,7 +200,7 @@ resource "google_service_account_iam_member" "deployer_actas_vm" {
 
 resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "auto-trading-pool"
-  display_name              = "autonomous-trading GitHub Actions pool"
+  display_name              = "Auto-trading GHA pool"
 
   depends_on = [google_project_service.apis]
 }

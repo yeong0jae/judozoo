@@ -70,10 +70,10 @@
 
 > 외부 시스템·자격증명이 필요해 코드로 자동화하지 않는 항목.
 
-- [ ] 🧑 GCS state 버킷 `gs://trading-496508-tfstate` 존재 확인 (없으면 `gsutil mb -l asia-northeast3 ...` + `gsutil versioning set on ...`)
-- [ ] 🧑 `cd infra/terraform && terraform init && terraform apply`
-- [ ] 🧑 12개 시크릿 값 주입 (`echo -n "<value>" | gcloud secrets versions add AT_* --data-file=-`)
-- [ ] 🧑 GitHub Actions Variables 7개 등록 (Settings → Secrets and variables → Actions → Variables) — `terraform output` 결과 그대로 복사
+- [x] 🧑 GCS state 버킷 `gs://trading-496508-tfstate` 존재 확인 (없으면 `gsutil mb -l asia-northeast3 ...` + `gsutil versioning set on ...`)
+- [x] 🧑 `cd infra/terraform && terraform init && terraform apply`
+- [x] 🧑 12개 시크릿 값 주입 (`echo -n "<value>" | gcloud secrets versions add AT_* --data-file=-`)
+- [x] 🧑 GitHub Actions Variables 7개 등록 (Settings → Secrets and variables → Actions → Variables) — `terraform output` 결과 그대로 복사
 - [ ] 🧑 `main` 브랜치에 push → Actions 실행 확인
 
 ## G. 배포 후 검증 (모두 🧑)
