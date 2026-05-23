@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # VM에서 실행되는 배포 스크립트. GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출.
-# 사용: bash ~/remote_deploy.sh <IMAGE_TAG> <AR_REPO> <REGION>
+# 사용: bash ~/remote_deploy.sh <IMAGE_TAG> <AR_REPO> <REGION> [<SPRING_PROFILES_ACTIVE>]
 #
 # 전제:
 #  - VM 인스턴스 SA가 secretmanager.secretAccessor + artifactregistry.reader 보유
@@ -10,9 +10,7 @@ set -euo pipefail
 IMAGE_TAG="${1:?IMAGE_TAG required}"
 AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
-
-# broker,env 2축 profile. Phase 11에서 GHA matrix가 broker별로 주입.
-SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-kis,vts}"
+SPRING_PROFILES_ACTIVE="${4:-kis,vts}"   # GHA matrix가 인스턴스별로 주입 (kis,vts | kis,real | kiwoom,real)
 
 cd "$HOME"
 mkdir -p backend
@@ -40,6 +38,7 @@ VTS_KIS_ACCOUNT_NO=$(fetch AT_VTS_KIS_ACCOUNT_NO)
 VTS_KIS_ACCOUNT_PRODUCT_CODE=$(fetch AT_VTS_KIS_ACCOUNT_PRODUCT_CODE)
 KIWOOM_APP_KEY=$(fetch AT_KIWOOM_APP_KEY)
 KIWOOM_APP_SECRET=$(fetch AT_KIWOOM_APP_SECRET)
+KIWOOM_ACCOUNT_NO=$(fetch AT_KIWOOM_ACCOUNT_NO)
 EOF
 
 # Artifact Registry pull 인증: VM 인스턴스 SA(metadata)로 토큰 발급 → docker login.

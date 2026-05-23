@@ -15,13 +15,12 @@ env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REGION: ${{ vars.GCP_REGION }}
   AR_REPO: ${{ vars.AR_REPO }}
-  VM_NAME: ${{ vars.VM_NAME }}
   VM_ZONE: ${{ vars.VM_ZONE }}
   WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}
   DEPLOY_SA: ${{ vars.DEPLOY_SA }}
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,20 +46,52 @@ jobs:
           docker push "${AR_REPO}/frontend:${GITHUB_SHA}"
           docker push "${AR_REPO}/frontend:latest"
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false                 # 한 인스턴스 실패해도 다른 인스턴스 배포 계속
+      matrix:
+        target:
+          - key: kis-vts
+            profile: "kis,vts"
+            vm_var: VM_NAME_KIS_VTS
+          - key: kis-real
+            profile: "kis,real"
+            vm_var: VM_NAME_KIS_REAL
+          - key: kiwoom-real
+            profile: "kiwoom,real"
+            vm_var: VM_NAME_KIWOOM_REAL
+    name: deploy ${{ matrix.target.key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Resolve VM name
+        id: vm
+        run: echo "name=${{ vars[matrix.target.vm_var] }}" >> "$GITHUB_OUTPUT"
+
       - name: Sync compose + deploy script to VM
         run: |
           gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" \
             docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh \
-            "${VM_NAME}:~/"
+            "${{ steps.vm.outputs.name }}:~/"
 
       - name: Deploy on VM
         run: |
-          gcloud compute ssh "${VM_NAME}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION}"
+          gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
+            --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION} '${{ matrix.target.profile }}'"
 
       # 방화벽이 프론트(3000)를 특정 IP로만 열 수 있으므로 러너에서 외부로 치지 않고
       # 이미 열린 IAP SSH로 VM 내부에서 localhost 검사 (방화벽과 무관).
       - name: Health check (VM 내부)
         run: |
-          gcloud compute ssh "${VM_NAME}" --tunnel-through-iap --zone "${VM_ZONE}" \
+          gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
             --command 'set -e; for i in $(seq 1 24); do if curl -fsS http://localhost:3000/ >/dev/null; then echo "health OK ($i)"; exit 0; fi; echo "not ready, retry $i"; sleep 10; done; echo "health check failed"; exit 1'
