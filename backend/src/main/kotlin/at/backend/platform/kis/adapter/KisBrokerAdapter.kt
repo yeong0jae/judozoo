@@ -7,6 +7,7 @@ import at.backend.platform.kis.client.KisWebSocketClient
 import at.backend.platform.kis.config.KisProperties
 import at.backend.trading.application.broker.BrokerOrderRejectedException
 import at.backend.trading.application.broker.BrokerTradingClient
+import at.backend.trading.application.broker.Holding
 import at.backend.trading.application.broker.PlacedOrder
 import at.backend.trading.application.broker.StockInfo
 import at.backend.trading.domain.order.ExecutionNotice
@@ -33,6 +34,18 @@ class KisBrokerAdapter(
 
     override fun availableCash(): Long =
         kisRestClient.getBalance().output2.first().prvsRcdlExccAmt.toLong()
+
+    override fun holdings(): List<Holding> =
+        kisRestClient.getBalance().output1.mapNotNull { row ->
+            val qty = row.hldgQty.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+            Holding(
+                stockCode = row.pdno,
+                stockName = row.prdtName,
+                qty = qty,
+                avgBuyPrice = row.pchsAvgPric.toBigDecimal().toLong(),
+                currentPrice = row.prpr.toLongOrNull() ?: 0L,
+            )
+        }
 
     override fun searchStock(stockCode: String): StockInfo? {
         val output = kisRealQuotationClient.searchStock(stockCode) ?: return null

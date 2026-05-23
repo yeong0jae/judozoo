@@ -6,6 +6,7 @@ import at.backend.platform.kiwoom.client.KiwoomTradingClient
 import at.backend.platform.kiwoom.config.KiwoomTradingProperties
 import at.backend.trading.application.broker.BrokerOrderRejectedException
 import at.backend.trading.application.broker.BrokerTradingClient
+import at.backend.trading.application.broker.Holding
 import at.backend.trading.application.broker.PlacedOrder
 import at.backend.trading.application.broker.StockInfo
 import at.backend.trading.domain.order.ExecutionNotice
@@ -37,6 +38,22 @@ class KiwoomBrokerAdapter(
         tradingClient.fetchStockInfo(stockCode)?.currentPrice ?: 0L
 
     override fun availableCash(): Long = tradingClient.fetchAvailableCash()
+
+    override fun holdings(): List<Holding> = tradingClient.fetchHoldingsRaw().mapNotNull { row ->
+        val qty = row.rmnd_qty.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+        Holding(
+            // Kiwoom kt00004는 "A005930" 같이 prefix 붙여 보냄 — 다른 곳과 일관성 위해 prefix 제거
+            stockCode = row.stk_cd.removePrefix("A"),
+            stockName = row.stk_nm,
+            qty = qty,
+            avgBuyPrice = parseKiwoomLong(row.avg_prc),
+            currentPrice = parseKiwoomLong(row.cur_prc),
+        )
+    }
+
+    /** Kiwoom 가격/금액은 +/- 부호 접두 가능 — 부호 제거 후 절대값. */
+    private fun parseKiwoomLong(s: String): Long =
+        s.trim().removePrefix("+").removePrefix("-").toLongOrNull() ?: 0L
 
     override fun searchStock(stockCode: String): StockInfo? {
         val info = tradingClient.fetchStockInfo(stockCode) ?: return null

@@ -38,7 +38,13 @@ class KiwoomTradingClient(
     }
 
     /** D+2 예수금. */
-    fun fetchAvailableCash(): Long {
+    fun fetchAvailableCash(): Long = fetchAccountEvaluation().d2_entra?.toLongOrNull() ?: 0L
+
+    /** 보유 종목 평가 — kt00004의 stk_acnt_evlt_prst. */
+    fun fetchHoldingsRaw(): List<AccountEvaluationResponse.StockHolding> =
+        fetchAccountEvaluation().stk_acnt_evlt_prst ?: emptyList()
+
+    private fun fetchAccountEvaluation(): AccountEvaluationResponse {
         val resp = post(
             endpoint = "/api/dostk/acnt",
             apiId = "kt00004",
@@ -51,7 +57,7 @@ class KiwoomTradingClient(
         if (resp.return_code != 0) {
             throw KiwoomOrderRejectedException(resp.return_code.toString(), "Kiwoom 잔고 조회 거부 ${resp.return_msg ?: ""}")
         }
-        return resp.d2_entra?.toLongOrNull() ?: 0L
+        return resp
     }
 
     fun placeBuyOrder(stockCode: String, qty: Int): String = placeOrder(apiId = "kt10000", stockCode = stockCode, qty = qty, label = "Kiwoom 매수")
@@ -130,9 +136,19 @@ class KiwoomTradingClient(
 
     data class AccountEvaluationResponse(
         val d2_entra: String? = null,
+        val stk_acnt_evlt_prst: List<StockHolding>? = null,
         val return_code: Int = 0,
         val return_msg: String? = null,
-    )
+    ) {
+        /** Kiwoom 보유 종목 응답 한 행. stk_cd는 "A005930" 같이 prefix가 붙어 올 수 있음. */
+        data class StockHolding(
+            val stk_cd: String,
+            val stk_nm: String,
+            val rmnd_qty: String,
+            val avg_prc: String,
+            val cur_prc: String,
+        )
+    }
 
     data class OrderResponse(
         val ord_no: String? = null,

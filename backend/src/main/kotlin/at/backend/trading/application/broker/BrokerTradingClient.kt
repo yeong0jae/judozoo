@@ -10,6 +10,7 @@ interface BrokerTradingClient {
 
     fun currentPrice(stockCode: String): Long
     fun availableCash(): Long
+    fun holdings(): List<Holding>
     fun searchStock(stockCode: String): StockInfo?
     fun isMarketOpen(date: LocalDate): Boolean
 
@@ -24,5 +25,13 @@ interface BrokerTradingClient {
 data class PlacedOrder(val orderNo: String, val orgno: String)
 
 data class StockInfo(val code: String, val name: String)
+
+data class Holding(
+    val stockCode: String,
+    val stockName: String,
+    val qty: Int,
+    val avgBuyPrice: Long,
+    val currentPrice: Long,
+)
 
 class BrokerOrderRejectedException(val code: String, message: String) : RuntimeException(message)
