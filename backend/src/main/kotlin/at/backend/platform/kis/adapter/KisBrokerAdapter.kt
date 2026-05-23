@@ -1,5 +1,7 @@
 package at.backend.platform.kis.adapter
 
+import at.backend.library.time.atKstInstant
+import at.backend.market.domain.Bar
 import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
@@ -15,7 +17,10 @@ import at.backend.trading.domain.order.OrderSide
 import kotlinx.coroutines.flow.SharedFlow
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 @Component
 @Profile("kis")
@@ -56,6 +61,22 @@ class KisBrokerAdapter(
     override fun isMarketOpen(date: LocalDate): Boolean =
         kisRealQuotationClient.checkHoliday(date).output.firstOrNull()?.opndYn == "Y"
 
+    override fun fetchBars(stockCode: String): List<Bar> =
+        kisRestClient.getBars(stockCode).output2.mapNotNull { row ->
+            val date = runCatching { LocalDate.parse(row.stckBsopDate, DATE_FMT) }.getOrNull() ?: return@mapNotNull null
+            val time = runCatching { LocalTime.parse(row.stckCntgHour, TIME_FMT) }.getOrNull() ?: return@mapNotNull null
+            val openPrice = row.stckOprc.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+            val closePrice = row.stckPrpr.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+            val endTime = date.atKstInstant(time)
+            Bar(
+                stockCode = stockCode,
+                openPrice = openPrice,
+                closePrice = closePrice,
+                startTime = endTime.minus(BAR_DURATION),
+                endTime = endTime,
+            )
+        }
+
     override fun placeOrder(stockCode: String, side: OrderSide, qty: Int): PlacedOrder = try {
         val output = kisRestClient.requestOrder(stockCode, side.name, qty).output!!
         PlacedOrder(orderNo = output.odno, orgno = output.krxFwdgOrdOrgno)
@@ -73,5 +94,11 @@ class KisBrokerAdapter(
 
     override fun subscribeExecutionNotices() {
         kisWebSocketClient.subscribeExecutionNotice()
+    }
+
+    companion object {
+        private val DATE_FMT: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
+        private val TIME_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
+        private val BAR_DURATION: Duration = Duration.ofMinutes(3)
     }
 }

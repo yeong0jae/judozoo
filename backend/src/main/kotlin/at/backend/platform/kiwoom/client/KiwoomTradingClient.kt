@@ -2,6 +2,8 @@ package at.backend.platform.kiwoom.client
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.web.client.RestClient
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * Kiwoom 트레이딩 REST. `/api/dostk/...` 경로에 api-id 헤더로 분기.
@@ -84,6 +86,26 @@ class KiwoomTradingClient(
         return resp.ord_no ?: throw KiwoomOrderRejectedException("EMPTY_ORD_NO", "$label 응답에 주문번호 없음")
     }
 
+    /** 분봉 차트 조회. tic_scope="3"으로 3분봉 받음. 최신 → 과거 순. */
+    fun fetchMinuteBars(stockCode: String): List<MinuteBarItem> {
+        val resp = post(
+            endpoint = "/api/dostk/chart",
+            apiId = "ka10080",
+            body = mapOf(
+                "stk_cd" to stockCode,
+                "tic_scope" to "3",
+                "upd_stkpc_tp" to "1",
+                "base_dt" to LocalDate.now().format(YYYYMMDD),
+            ),
+            type = MinuteBarsResponse::class.java,
+        )
+        if (resp.return_code != 0) {
+            log.warn { "Kiwoom ka10080 거부: code=${resp.return_code}, msg=${resp.return_msg}" }
+            return emptyList()
+        }
+        return resp.stk_min_pole_chart_qry ?: emptyList()
+    }
+
     fun cancelOrder(stockCode: String, originalOrderNo: String) {
         val resp = post(
             endpoint = "/api/dostk/ordr",
@@ -155,4 +177,24 @@ class KiwoomTradingClient(
         val return_code: Int = 0,
         val return_msg: String? = null,
     )
+
+    data class MinuteBarsResponse(
+        val stk_min_pole_chart_qry: List<MinuteBarItem>? = null,
+        val return_code: Int = 0,
+        val return_msg: String? = null,
+    )
+
+    /** ka10080 응답 분봉 1개. 가격 필드는 모두 +/- 부호 접두 가능 (전일대비 방향 표시). */
+    data class MinuteBarItem(
+        val cntr_tm: String,       // YYYYMMDDHHmmss
+        val open_pric: String,
+        val high_pric: String,
+        val low_pric: String,
+        val cur_prc: String,       // 종가 (해당 봉 마감 가격)
+        val trde_qty: String,
+    )
+
+    companion object {
+        private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
+    }
 }

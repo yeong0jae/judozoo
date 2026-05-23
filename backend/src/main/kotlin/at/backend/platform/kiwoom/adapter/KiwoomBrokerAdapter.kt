@@ -1,5 +1,6 @@
 package at.backend.platform.kiwoom.adapter
 
+import at.backend.market.domain.Bar
 import at.backend.platform.kiwoom.client.KiwoomExecutionWebSocketClient
 import at.backend.platform.kiwoom.client.KiwoomOrderRejectedException
 import at.backend.platform.kiwoom.client.KiwoomTradingClient
@@ -15,7 +16,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Phase 10-B 실구현. Kiwoom OpenAPI 트레이딩 + 실시간 주문체결 통보 위에서 동작.
@@ -55,6 +60,12 @@ class KiwoomBrokerAdapter(
     private fun parseKiwoomLong(s: String): Long =
         s.trim().removePrefix("+").removePrefix("-").toLongOrNull() ?: 0L
 
+    companion object {
+        private val CNTR_TM_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
+        private val BAR_DURATION: Duration = Duration.ofMinutes(3)
+    }
+
     override fun searchStock(stockCode: String): StockInfo? {
         val info = tradingClient.fetchStockInfo(stockCode) ?: return null
         return StockInfo(code = stockCode, name = info.stockName)
@@ -62,6 +73,25 @@ class KiwoomBrokerAdapter(
 
     override fun isMarketOpen(date: LocalDate): Boolean =
         date.dayOfWeek != DayOfWeek.SATURDAY && date.dayOfWeek != DayOfWeek.SUNDAY
+
+    override fun fetchBars(stockCode: String): List<Bar> =
+        tradingClient.fetchMinuteBars(stockCode).mapNotNull { row ->
+            val endTime = runCatching {
+                LocalDateTime.parse(row.cntr_tm, CNTR_TM_FMT).atZone(KST).toInstant()
+            }.getOrNull() ?: return@mapNotNull null
+            val openPrice = parseKiwoomInt(row.open_pric) ?: return@mapNotNull null
+            val closePrice = parseKiwoomInt(row.cur_prc) ?: return@mapNotNull null
+            Bar(
+                stockCode = stockCode,
+                openPrice = openPrice,
+                closePrice = closePrice,
+                startTime = endTime.minus(BAR_DURATION),
+                endTime = endTime,
+            )
+        }
+
+    private fun parseKiwoomInt(s: String): Int? =
+        s.trim().removePrefix("+").removePrefix("-").toIntOrNull()?.takeIf { it > 0 }
 
     override fun placeOrder(stockCode: String, side: OrderSide, qty: Int): PlacedOrder = try {
         val ordNo = when (side) {
