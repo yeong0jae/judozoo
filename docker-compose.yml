@@ -6,11 +6,18 @@ services:
   mysql:
     image: mysql:8.4
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: trading
       TZ: Asia/Seoul
+    env_file:
+      - ./backend/.env       # MYSQL_ROOT_PASSWORD 주입 (DB_PASSWORD와 동일 값)
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     networks:
       - trading
 
@@ -27,14 +34,15 @@ services:
     expose:
       - "8080"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     networks:
       - trading
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
       - backend
     networks:

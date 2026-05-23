@@ -16,7 +16,7 @@
 - [x] `frontend/nginx.conf` 작성 — `listen 3000`, SPA fallback, `/api`·`/ws` → `backend:8080` proxy (WS upgrade 헤더 포함)
 - [x] 루트 `docker-compose.yml` 작성 — mysql + backend + frontend, 호스트는 3000만 노출
 - [x] 루트 `docker-compose.prod.yml` 작성 — `build: !reset null`, AR 이미지 + `pull_policy: always` + `restart: unless-stopped`
-- [ ] 🧑 로컬에서 `docker compose up --build` 동작 확인 (mysql/backend/frontend 모두 healthy, `localhost:3000` 접속 + `/api` 호출 OK) — `backend/.env`에 KIS 시크릿이 채워져 있어야 backend가 부팅됨
+- [x] 로컬에서 `docker compose up --build` 동작 확인 (mysql healthy, backend Spring Boot 부팅, frontend nginx 200, `/api`→backend 프록시 OK) — 검증 과정에서 두 가지 수정 발생: ① mysql DB 비번 인터폴레이션 미작동 → mysql 서비스에 `env_file` + `MYSQL_ROOT_PASSWORD` 신설, ② backend가 mysql ready 전에 connect → mysql `healthcheck` + `depends_on.condition: service_healthy`
 
 ## B. Terraform 디렉토리 (`infra/terraform/`)
 

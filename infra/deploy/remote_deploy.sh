@@ -23,9 +23,12 @@ fetch() {
   gcloud secrets versions access latest --secret="$1"
 }
 
+DB_PASSWORD_VALUE="$(fetch AT_DB_PASSWORD)"
+
 umask 077
 cat > backend/.env <<EOF
-DB_PASSWORD=$(fetch AT_DB_PASSWORD)
+DB_PASSWORD=${DB_PASSWORD_VALUE}
+MYSQL_ROOT_PASSWORD=${DB_PASSWORD_VALUE}    # docker-compose.yml mysql 서비스가 이 변수명을 읽음
 KIS_HTS_ID=$(fetch AT_KIS_HTS_ID)
 REAL_KIS_APP_KEY=$(fetch AT_REAL_KIS_APP_KEY)
 REAL_KIS_APP_SECRET=$(fetch AT_REAL_KIS_APP_SECRET)
