@@ -1,5 +1,6 @@
+# kis-vts 인스턴스 — KIS 모의투자 + leadingstock용 Kiwoom 모의
 kis:
-  rate-limit-per-second: 1         # 모의투자는 초당 1건으로 운영 (2건/초도 EGW00201 발생 관측) — 실전 20건/초
+  rate-limit-per-second: 1         # 모의투자는 초당 1건 (2건/초도 EGW00201 발생)
   app-key: ${VTS_KIS_APP_KEY}
   app-secret: ${VTS_KIS_APP_SECRET}
   account-no: ${VTS_KIS_ACCOUNT_NO}
@@ -15,8 +16,12 @@ kis:
     cancel: VTTC0013U
     balance: VTTC8434R
     execution-notice: H0STCNI9
+  # VTS 미지원 quotation API(search-stock-info, chk-holiday)는 실거래 자격증명으로 호출
+  real-quotation:
+    app-key: ${REAL_KIS_APP_KEY}
+    app-secret: ${REAL_KIS_APP_SECRET}
+    base-url: https://openapi.koreainvestment.com:9443
 
-# Kiwoom mock — leadingstock·trading 모두 mockapi.kiwoom.com 사용
 kiwoom:
   api:
     base-url: https://mockapi.kiwoom.com

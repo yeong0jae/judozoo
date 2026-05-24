@@ -1,0 +1,11 @@
+# kiwoom-real 인스턴스 — Kiwoom 실전 (trading + leadingstock 모두 api.kiwoom.com)
+# KIS 설정은 사용되지 않으므로(@Profile("kis") 빈만 활성) 생략
+kiwoom:
+  api:
+    base-url: https://api.kiwoom.com
+    app-key: ${REAL_KIWOOM_APP_KEY:}
+    app-secret: ${REAL_KIWOOM_APP_SECRET:}
+  trading:
+    account-no: ${REAL_KIWOOM_ACCOUNT_NO:}
+    ws-url: wss://api.kiwoom.com:10000/api/dostk/websocket
+    dmst-stex-tp: KRX

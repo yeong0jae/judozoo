@@ -54,16 +54,16 @@ jobs:
       matrix:
         target:
           - key: kis-vts
-            profile: "kis,vts"
+            profile: kis-vts
             vm_var: VM_NAME_KIS_VTS
           - key: kis-real
-            profile: "kis,real"
+            profile: kis-real
             vm_var: VM_NAME_KIS_REAL
           - key: kiwoom-real
-            profile: "kiwoom,real"
+            profile: kiwoom-real
             vm_var: VM_NAME_KIWOOM_REAL
           - key: kiwoom-vts
-            profile: "kiwoom,vts"
+            profile: kiwoom-vts
             vm_var: VM_NAME_KIWOOM_VTS
     name: deploy ${{ matrix.target.key }}
     steps:

@@ -1,4 +1,6 @@
+# kis-real 인스턴스 — KIS 실전 + leadingstock용 Kiwoom 실전
 kis:
+  rate-limit-per-second: 20
   app-key: ${REAL_KIS_APP_KEY}
   app-secret: ${REAL_KIS_APP_SECRET}
   account-no: ${REAL_KIS_ACCOUNT_NO}
@@ -14,8 +16,12 @@ kis:
     cancel: TTTC0013U
     balance: TTTC8434R
     execution-notice: H0STCNI0
+  # 메인 KisRestClient도 REAL_KIS 키로 동작 — KisTokenRegistry가 같은 appKey 캐시 공유
+  real-quotation:
+    app-key: ${REAL_KIS_APP_KEY}
+    app-secret: ${REAL_KIS_APP_SECRET}
+    base-url: https://openapi.koreainvestment.com:9443
 
-# Kiwoom real — leadingstock·trading 모두 api.kiwoom.com 사용
 kiwoom:
   api:
     base-url: https://api.kiwoom.com

@@ -10,7 +10,7 @@ set -euo pipefail
 IMAGE_TAG="${1:?IMAGE_TAG required}"
 AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
-SPRING_PROFILES_ACTIVE="${4:-kis,vts}"   # GHA matrix가 인스턴스별로 주입 (kis,vts | kis,real | kiwoom,real)
+SPRING_PROFILES_ACTIVE="${4:-kis-vts}"   # GHA matrix가 인스턴스별로 주입 (kis-vts | kis-real | kiwoom-vts | kiwoom-real)
 
 cd "$HOME"
 mkdir -p backend

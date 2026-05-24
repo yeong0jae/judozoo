@@ -1,0 +1,11 @@
+# kiwoom-vts 인스턴스 — Kiwoom 모의 (trading + leadingstock 모두 mockapi.kiwoom.com)
+# KIS 설정은 사용되지 않으므로(@Profile("kis") 빈만 활성) 생략 — KisProperties는 default(빈 값)로 binding
+kiwoom:
+  api:
+    base-url: https://mockapi.kiwoom.com
+    app-key: ${VTS_KIWOOM_APP_KEY:}
+    app-secret: ${VTS_KIWOOM_APP_SECRET:}
+  trading:
+    account-no: ${VTS_KIWOOM_ACCOUNT_NO:}
+    ws-url: wss://mockapi.kiwoom.com:10000/api/dostk/websocket
+    dmst-stex-tp: KRX
