@@ -15,3 +15,14 @@ kis:
     cancel: VTTC0013U
     balance: VTTC8434R
     execution-notice: H0STCNI9
+
+# Kiwoom mock — leadingstock·trading 모두 mockapi.kiwoom.com 사용
+kiwoom:
+  api:
+    base-url: https://mockapi.kiwoom.com
+    app-key: ${VTS_KIWOOM_APP_KEY:}
+    app-secret: ${VTS_KIWOOM_APP_SECRET:}
+  trading:
+    account-no: ${VTS_KIWOOM_ACCOUNT_NO:}
+    ws-url: wss://mockapi.kiwoom.com:10000/api/dostk/websocket
+    dmst-stex-tp: KRX

@@ -24,6 +24,7 @@ locals {
     "kis-vts"     = { name_suffix = "-kis-vts" }
     "kis-real"    = { name_suffix = "-kis-real" }
     "kiwoom-real" = { name_suffix = "-kiwoom-real" }
+    "kiwoom-vts"  = { name_suffix = "-kiwoom-vts" }
   }
 }
 
@@ -160,6 +161,9 @@ locals {
     "AT_KIWOOM_APP_KEY",
     "AT_KIWOOM_APP_SECRET",
     "AT_KIWOOM_ACCOUNT_NO",
+    "AT_VTS_KIWOOM_APP_KEY",
+    "AT_VTS_KIWOOM_APP_SECRET",
+    "AT_VTS_KIWOOM_ACCOUNT_NO",
   ])
 }
 

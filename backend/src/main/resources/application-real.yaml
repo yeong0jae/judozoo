@@ -14,3 +14,14 @@ kis:
     cancel: TTTC0013U
     balance: TTTC8434R
     execution-notice: H0STCNI0
+
+# Kiwoom real — leadingstock·trading 모두 api.kiwoom.com 사용
+kiwoom:
+  api:
+    base-url: https://api.kiwoom.com
+    app-key: ${KIWOOM_APP_KEY:}
+    app-secret: ${KIWOOM_APP_SECRET:}
+  trading:
+    account-no: ${KIWOOM_ACCOUNT_NO:}
+    ws-url: wss://api.kiwoom.com:10000/api/dostk/websocket
+    dmst-stex-tp: KRX

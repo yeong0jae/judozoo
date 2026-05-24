@@ -62,6 +62,9 @@ jobs:
           - key: kiwoom-real
             profile: "kiwoom,real"
             vm_var: VM_NAME_KIWOOM_REAL
+          - key: kiwoom-vts
+            profile: "kiwoom,vts"
+            vm_var: VM_NAME_KIWOOM_VTS
     name: deploy ${{ matrix.target.key }}
     steps:
       - uses: actions/checkout@v4

@@ -7,10 +7,7 @@ import jakarta.annotation.PostConstruct
 /**
  * broker × env profile 조합 검증. 잘못된 조합으로 띄우면 컨텍스트 시작 실패.
  *
- * 유효 조합:
- *   - kis,vts
- *   - kis,real
- *   - kiwoom (real 동반 가능, vts 불가)
+ * 유효 조합: kis,vts / kis,real / kiwoom,vts / kiwoom,real — 2×2 모두 유효.
  *
  * 두 broker가 동시 active인 경우 Spring이 BrokerTradingClient 빈을 2개 발견해 자체적으로
  * UnsatisfiedDependencyException을 던지지만, 명시적 검증이 디버깅 메시지가 명확하다.
@@ -34,13 +31,8 @@ class BrokerActivationGuard(
         // test profile은 application-test.yaml이 KIS 값을 직접 제공하므로 env 검증을 면제한다.
         if ("test" in active) return
 
-        when (broker) {
-            "kis" -> require(envs.size == 1) {
-                "kis broker는 env profile(vts/real) 정확히 1개 필요 (활성: $envs)"
-            }
-            "kiwoom" -> require("vts" !in envs) {
-                "kiwoom broker는 vts profile과 조합 불가 (Kiwoom 모의 미운영)"
-            }
+        require(envs.size == 1) {
+            "$broker broker는 env profile(vts/real) 정확히 1개 필요 (활성: $envs)"
         }
     }
 

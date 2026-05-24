@@ -1,5 +1,3 @@
-kiwoom:
-  trading:
-    account-no: ${KIWOOM_ACCOUNT_NO}
-    ws-url: wss://api.kiwoom.com:10000/api/dostk/websocket
-    dmst-stex-tp: KRX            # 주문 거래소 라우팅 — KRX | NXT | SOR
+# kiwoom broker 선택 profile. 실제 자격증명·host는 vts/real env profile에서 binding.
+# 이 파일은 빈 placeholder로 남겨두어 `--spring.profiles.active=kiwoom,...` 활성화 시
+# Spring이 application-kiwoom.yaml을 찾을 수 있도록 보장.
