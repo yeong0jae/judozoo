@@ -24,7 +24,6 @@ export default function Header() {
         >
           자동매매
         </Link>
-        <InstanceBadge />
         <nav className="flex items-center gap-1">
           <NavLink
             to="/leading-stocks"
@@ -70,6 +69,7 @@ export default function Header() {
         <div className="flex-1" />
         <TodayProfitSummary />
         <div className="flex items-center gap-1">
+          <InstanceBadge />
           <KospiIndexBadge />
           <NotificationBell />
           {status && <MarketStatusBadge status={status} />}
