@@ -1,4 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
+import InstanceBadge from "../header/InstanceBadge";
 import NotificationBell from "../header/NotificationBell";
 import MarketStatusBadge from "../header/MarketStatusBadge";
 import KospiIndexBadge from "../header/KospiIndexBadge";
@@ -23,6 +24,7 @@ export default function Header() {
         >
           자동매매
         </Link>
+        <InstanceBadge />
         <nav className="flex items-center gap-1">
           <NavLink
             to="/leading-stocks"

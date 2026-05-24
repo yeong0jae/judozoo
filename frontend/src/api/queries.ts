@@ -17,6 +17,7 @@ import type {
 } from "../types";
 
 export const QK = {
+  instanceInfo: ["system", "instance"] as const,
   marketStatus: ["market", "status"] as const,
   accountBalance: ["account", "balance"] as const,
   holdings: ["account", "holdings"] as const,
@@ -33,6 +34,22 @@ export const QK = {
     ["leading-stocks", "investors", code] as const,
   kospiIndex: ["market", "kospi"] as const,
 };
+
+export interface InstanceInfo {
+  broker: string;
+  env: string;
+  label: string;
+}
+
+export function useInstanceInfo() {
+  // 부팅 시점에 결정되어 런타임 중 변경 안 됨 → 영구 캐시.
+  return useQuery({
+    queryKey: QK.instanceInfo,
+    queryFn: () => apiFetch<InstanceInfo>("/api/system/instance"),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+}
 
 export function useMarketStatus() {
   return useQuery({
