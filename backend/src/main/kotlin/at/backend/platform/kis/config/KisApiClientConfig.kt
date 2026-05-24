@@ -3,6 +3,7 @@ package at.backend.platform.kis.config
 import at.backend.platform.kis.KisAccessTokenProvider
 import at.backend.platform.kis.KisApprovalKeyProvider
 import at.backend.platform.kis.KisRateLimiter
+import at.backend.platform.kis.KisTokenRegistry
 import at.backend.platform.kis.client.KisAuthClient
 import at.backend.platform.kis.client.KisRealQuotationClient
 import at.backend.platform.kis.client.KisRestClient
@@ -37,6 +38,13 @@ class KisApiClientConfig {
         )
 
     @Bean
+    fun kisAccessTokenProvider(
+        properties: KisProperties,
+        kisAuthClient: KisAuthClient,
+        registry: KisTokenRegistry,
+    ): KisAccessTokenProvider = KisAccessTokenProvider(properties.appKey, kisAuthClient, registry)
+
+    @Bean
     fun kisRestClient(
         properties: KisProperties,
         tokenProvider: KisAccessTokenProvider,
@@ -67,6 +75,7 @@ class KisApiClientConfig {
     fun kisRealQuotationClient(
         properties: KisRealQuotationProperties,
         rateLimiter: KisRateLimiter,
+        registry: KisTokenRegistry,
     ): KisRealQuotationClient {
         val authClient = KisAuthClient(
             appKey = properties.appKey,
@@ -76,7 +85,8 @@ class KisApiClientConfig {
                 .requestFactory(SimpleClientHttpRequestFactory())
                 .build(),
         )
-        val tokenProvider = KisAccessTokenProvider(authClient)
+        // 같은 appKey면 메인 KisAccessTokenProvider와 KisTokenRegistry 슬롯을 공유 → 토큰 1회만 발급
+        val tokenProvider = KisAccessTokenProvider(properties.appKey, authClient, registry)
         return KisRealQuotationClient(
             restClient = RestClient.builder()
                 .baseUrl(properties.baseUrl)
