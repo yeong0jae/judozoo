@@ -1,9 +1,8 @@
 package at.backend.platform.kiwoom.config
 
 import at.backend.platform.kiwoom.client.KiwoomAuthClient
-import at.backend.platform.kiwoom.client.KiwoomExecutionWebSocketClient
-import at.backend.platform.kiwoom.client.KiwoomPriceTickWebSocketClient
 import at.backend.platform.kiwoom.client.KiwoomTradingClient
+import at.backend.platform.kiwoom.client.KiwoomWebSocketClient
 import kotlinx.coroutines.CoroutineScope
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -32,31 +31,19 @@ class KiwoomTradingClientConfig {
             dmstStexTp = tradingProperties.dmstStexTp,
         )
 
+    /**
+     * 주문체결(type=00) + 실시간 시세(type=0B)를 하나의 WS 연결에서 처리한다.
+     * mockapi.kiwoom.com이 토큰당 WS 1개만 허용하기 때문에 두 connection을 띄우면 핑퐁 재연결 발생.
+     */
     @Bean
-    fun kiwoomExecutionWebSocketClient(
-        tradingProperties: KiwoomTradingProperties,
-        authClient: KiwoomAuthClient,
-        webSocketClient: WebSocketClient,             // KisApiClientConfig가 만든 일반 WS 클라이언트 재사용 (버퍼 1MB)
-        objectMapper: ObjectMapper,
-        applicationScope: CoroutineScope,
-    ): KiwoomExecutionWebSocketClient =
-        KiwoomExecutionWebSocketClient(
-            wsUrl = tradingProperties.wsUrl,
-            authClient = authClient,
-            webSocketClient = webSocketClient,
-            objectMapper = objectMapper,
-            applicationScope = applicationScope,
-        )
-
-    @Bean
-    fun kiwoomPriceTickWebSocketClient(
+    fun kiwoomWebSocketClient(
         tradingProperties: KiwoomTradingProperties,
         authClient: KiwoomAuthClient,
         webSocketClient: WebSocketClient,
         objectMapper: ObjectMapper,
         applicationScope: CoroutineScope,
-    ): KiwoomPriceTickWebSocketClient =
-        KiwoomPriceTickWebSocketClient(
+    ): KiwoomWebSocketClient =
+        KiwoomWebSocketClient(
             wsUrl = tradingProperties.wsUrl,
             authClient = authClient,
             webSocketClient = webSocketClient,

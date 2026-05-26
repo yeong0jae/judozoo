@@ -1,6 +1,8 @@
 package at.backend.platform.kiwoom.client
 
 import at.backend.market.domain.PriceTick
+import at.backend.trading.domain.order.ExecutionNotice
+import at.backend.trading.domain.order.OrderSide
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.CoroutineScope
@@ -24,17 +26,18 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Kiwoom 실시간 시세 (주식체결, type=0B) 수신. 종목별 동적 구독/해지.
+ * Kiwoom 단일 WebSocket. 주문체결(type=00) + 실시간 시세(type=0B)를 같은 connection으로 수신.
+ *
+ * Kiwoom 모의(mockapi.kiwoom.com)는 토큰당 WS 1개만 허용 — 두 connection을 띄우면 두 번째가
+ * 첫 번째를 kick out(SYSTEM 메시지 + code=1000 close) → 무한 재연결 핑퐁. 한 연결에서 REG 메시지의
+ * data 배열에 여러 {item, type} 페어를 넣어 동시 구독.
  *
  * 연결 시퀀스:
- *   1. WebSocket TLS 연결
- *   2. LOGIN
- *   3. 구독 누적된 종목들에 대해 REG type=0B 전송 (재연결 시에도 동일)
- *
- * 추후 종목 추가는 `subscribePrice(code)` → REG (refresh=1로 누적 유지),
- * 해지는 `unsubscribePrice(code)` → REMOVE.
+ *   1. WebSocket 연결 → LOGIN
+ *   2. LOGIN 성공 시 현재까지 누적된 구독(execution flag, price code 집합)을 한 번에 REG
+ *   3. 이후 subscribePrice/unsubscribePrice는 REG/REMOVE 메시지로 증분 갱신
  */
-class KiwoomPriceTickWebSocketClient(
+class KiwoomWebSocketClient(
     private val wsUrl: String,
     private val authClient: KiwoomAuthClient,
     private val webSocketClient: WebSocketClient,
@@ -46,26 +49,44 @@ class KiwoomPriceTickWebSocketClient(
     private val currentSession = AtomicReference<WebSocketSession?>(null)
     private val connecting = AtomicBoolean(false)
     private val loggedIn = AtomicBoolean(false)
-    private val subscribed = ConcurrentHashMap.newKeySet<String>()
+
+    /** 주문체결(type=00) 구독 여부 — 켜지면 LOGIN 후 자동 REG. */
+    private val executionSubscribed = AtomicBoolean(false)
+
+    /** 시세(type=0B) 구독 종목코드 집합 — LOGIN 후 자동 REG, 종목 추가/제거 시 증분 갱신. */
+    private val priceSubscriptions = ConcurrentHashMap.newKeySet<String>()
 
     @Volatile
     private var reconnectAttempt: Int = 0
 
+    private val _executionNotices = MutableSharedFlow<ExecutionNotice>(extraBufferCapacity = 256)
+    val executionNotices: SharedFlow<ExecutionNotice> = _executionNotices.asSharedFlow()
+
     private val _priceTicks = MutableSharedFlow<PriceTick>(extraBufferCapacity = 1024)
     val priceTicks: SharedFlow<PriceTick> = _priceTicks.asSharedFlow()
 
-    fun subscribe(stockCode: String) {
-        if (!subscribed.add(stockCode)) return
+    fun subscribeExecution() {
+        if (!executionSubscribed.compareAndSet(false, true)) return
         val session = currentSession.get()
         if (session != null && session.isOpen && loggedIn.get()) {
-            sendReg(session, listOf(stockCode))
+            sendReg(session, executionItems = true, priceCodes = emptyList())
         } else {
             connect()
         }
     }
 
-    fun unsubscribe(stockCode: String) {
-        if (!subscribed.remove(stockCode)) return
+    fun subscribePrice(stockCode: String) {
+        if (!priceSubscriptions.add(stockCode)) return
+        val session = currentSession.get()
+        if (session != null && session.isOpen && loggedIn.get()) {
+            sendReg(session, executionItems = false, priceCodes = listOf(stockCode))
+        } else {
+            connect()
+        }
+    }
+
+    fun unsubscribePrice(stockCode: String) {
+        if (!priceSubscriptions.remove(stockCode)) return
         currentSession.get()?.takeIf { it.isOpen && loggedIn.get() }
             ?.let { sendRemove(it, listOf(stockCode)) }
     }
@@ -73,17 +94,17 @@ class KiwoomPriceTickWebSocketClient(
     private fun connect() {
         if (!connecting.compareAndSet(false, true)) return
         try {
-            log.info { "Kiwoom 시세 WS 연결 시도 → $wsUrl" }
+            log.info { "Kiwoom WS 연결 시도 → $wsUrl" }
             webSocketClient.execute(handler, wsUrl)
                 .whenComplete { _, err ->
                     if (err != null) {
-                        log.warn(err) { "Kiwoom 시세 WS 연결 실패, 백오프 재연결 예약" }
+                        log.warn(err) { "Kiwoom WS 연결 실패, 백오프 재연결 예약" }
                         connecting.set(false)
                         scheduleReconnect()
                     }
                 }
         } catch (e: Exception) {
-            log.warn(e) { "Kiwoom 시세 WS execute 호출 자체 실패" }
+            log.warn(e) { "Kiwoom WS execute 호출 자체 실패" }
             connecting.set(false)
             scheduleReconnect()
         }
@@ -91,7 +112,7 @@ class KiwoomPriceTickWebSocketClient(
 
     internal val handler: WebSocketHandler = object : WebSocketHandler {
         override fun afterConnectionEstablished(session: WebSocketSession) {
-            log.info { "Kiwoom 시세 WS 연결됨: sessionId=${session.id}" }
+            log.info { "Kiwoom WS 연결됨: sessionId=${session.id}" }
             currentSession.set(session)
             connecting.set(false)
             reconnectAttempt = 0
@@ -107,22 +128,23 @@ class KiwoomPriceTickWebSocketClient(
                 "LOGIN" -> handleLoginResponse(session, node)
                 "PING" -> session.sendMessage(TextMessage(payload))
                 "REG" -> if (node.path("return_code").asInt(-1) != 0) {
-                    log.warn { "Kiwoom 시세 WS REG 실패 msg=${node.path("return_msg").asText()}" }
+                    log.warn { "Kiwoom WS REG 실패 msg=${node.path("return_msg").asText()}" }
                 }
                 "REAL" -> handleRealFrame(node)
+                "SYSTEM" -> log.warn { "Kiwoom WS SYSTEM 메시지(중복 세션 kick 가능) — 본문=$payload" }
             }
         }
 
         override fun handleTransportError(session: WebSocketSession, exception: Throwable) {
-            log.warn(exception) { "Kiwoom 시세 WS 전송 오류" }
+            log.warn(exception) { "Kiwoom WS 전송 오류" }
         }
 
         override fun afterConnectionClosed(session: WebSocketSession, closeStatus: CloseStatus) {
-            log.warn { "Kiwoom 시세 WS 끊김 status=$closeStatus, 재연결 예약" }
+            log.warn { "Kiwoom WS 끊김 status=$closeStatus, 재연결 예약" }
             currentSession.compareAndSet(session, null)
             connecting.set(false)
             loggedIn.set(false)
-            if (subscribed.isNotEmpty()) scheduleReconnect()
+            if (executionSubscribed.get() || priceSubscriptions.isNotEmpty()) scheduleReconnect()
         }
 
         override fun supportsPartialMessages(): Boolean = false
@@ -130,21 +152,30 @@ class KiwoomPriceTickWebSocketClient(
 
     private fun handleLoginResponse(session: WebSocketSession, node: JsonNode) {
         if (node.path("return_code").asInt(-1) != 0) {
-            log.warn { "Kiwoom 시세 WS LOGIN 실패 msg=${node.path("return_msg").asText()}" }
+            log.warn { "Kiwoom WS LOGIN 실패 msg=${node.path("return_msg").asText()}" }
             session.close()
             return
         }
-        log.info { "Kiwoom 시세 WS LOGIN 성공 — REG 전송 (codes=${subscribed.size})" }
+        log.info { "Kiwoom WS LOGIN 성공 — execution=${executionSubscribed.get()}, prices=${priceSubscriptions.size}" }
         loggedIn.set(true)
-        if (subscribed.isNotEmpty()) sendReg(session, subscribed.toList())
+        sendReg(session, executionItems = executionSubscribed.get(), priceCodes = priceSubscriptions.toList())
     }
 
-    private fun sendReg(session: WebSocketSession, codes: List<String>) {
+    /** 활성화된 구독을 한 REG 메시지에 묶어 발사. data 배열에 type별 entry 추가. */
+    private fun sendReg(session: WebSocketSession, executionItems: Boolean, priceCodes: List<String>) {
+        val data = mutableListOf<Map<String, Any>>()
+        if (executionItems) {
+            data += mapOf("item" to listOf(""), "type" to listOf(EXECUTION_TYPE))
+        }
+        if (priceCodes.isNotEmpty()) {
+            data += mapOf("item" to priceCodes, "type" to listOf(PRICE_TICK_TYPE))
+        }
+        if (data.isEmpty()) return
         val msg = mapOf(
             "trnm" to "REG",
             "grp_no" to "1",
             "refresh" to "1",
-            "data" to listOf(mapOf("item" to codes, "type" to listOf(PRICE_TICK_TYPE))),
+            "data" to data,
         )
         session.sendMessage(TextMessage(objectMapper.writeValueAsString(msg)))
     }
@@ -162,15 +193,39 @@ class KiwoomPriceTickWebSocketClient(
         val data = node.path("data")
         if (!data.isArray) return
         for (item in data) {
-            if (item.path("type").asText() != PRICE_TICK_TYPE) continue
-            val stockCode = item.path("item").asText().takeIf { it.isNotBlank() } ?: continue
-            // values["10"] = 현재가 (with +/- 부호)
-            val priceText = item.path("values").path("10").asText()
-            val price = parseSignedInt(priceText) ?: continue
-            _priceTicks.tryEmit(
-                PriceTick(stockCode = stockCode, price = price, timestamp = Instant.now())
-            )
+            when (item.path("type").asText()) {
+                EXECUTION_TYPE -> parseExecutionNotice(item)?.let { _executionNotices.tryEmit(it) }
+                PRICE_TICK_TYPE -> parsePriceTick(item)?.let { _priceTicks.tryEmit(it) }
+            }
         }
+    }
+
+    private fun parseExecutionNotice(item: JsonNode): ExecutionNotice? {
+        val values = item.path("values")
+        if (values.path("913").asText() != "체결") return null
+        val orderNo = values.path("9203").asText().takeIf { it.isNotBlank() } ?: return null
+        val stockCode = values.path("9001").asText().takeIf { it.isNotBlank() } ?: return null
+        val side = when (values.path("907").asText()) {
+            "1" -> OrderSide.SELL
+            "2" -> OrderSide.BUY
+            else -> return null
+        }
+        val price = parseSignedInt(values.path("910").asText()) ?: return null
+        val qty = values.path("911").asText().toIntOrNull()?.takeIf { it > 0 } ?: return null
+        return ExecutionNotice(
+            orderNo = orderNo,
+            stockCode = stockCode,
+            side = side,
+            executedQty = qty,
+            executedPrice = price,
+            timestamp = Instant.now(),
+        )
+    }
+
+    private fun parsePriceTick(item: JsonNode): PriceTick? {
+        val stockCode = item.path("item").asText().takeIf { it.isNotBlank() } ?: return null
+        val price = parseSignedInt(item.path("values").path("10").asText()) ?: return null
+        return PriceTick(stockCode = stockCode, price = price, timestamp = Instant.now())
     }
 
     private fun parseSignedInt(s: String): Int? {
@@ -189,10 +244,13 @@ class KiwoomPriceTickWebSocketClient(
 
     @PreDestroy
     fun shutdown() {
+        executionSubscribed.set(false)
+        priceSubscriptions.clear()
         runCatching { currentSession.getAndSet(null)?.close() }
     }
 
     companion object {
+        private const val EXECUTION_TYPE = "00"
         private const val PRICE_TICK_TYPE = "0B"
         private val BACKOFF_DELAYS_SEC = longArrayOf(1, 2, 5, 5)
     }

@@ -2,10 +2,9 @@ package at.backend.platform.kiwoom.adapter
 
 import at.backend.market.domain.Bar
 import at.backend.market.domain.PriceTick
-import at.backend.platform.kiwoom.client.KiwoomExecutionWebSocketClient
 import at.backend.platform.kiwoom.client.KiwoomOrderRejectedException
-import at.backend.platform.kiwoom.client.KiwoomPriceTickWebSocketClient
 import at.backend.platform.kiwoom.client.KiwoomTradingClient
+import at.backend.platform.kiwoom.client.KiwoomWebSocketClient
 import at.backend.platform.kiwoom.config.KiwoomTradingProperties
 import at.backend.trading.application.broker.BrokerOrderRejectedException
 import at.backend.trading.application.broker.BrokerTradingClient
@@ -34,8 +33,7 @@ import java.time.format.DateTimeFormatter
 @Profile("kiwoom")
 class KiwoomBrokerAdapter(
     private val tradingClient: KiwoomTradingClient,
-    private val executionWsClient: KiwoomExecutionWebSocketClient,
-    private val priceTickWsClient: KiwoomPriceTickWebSocketClient,
+    private val webSocketClient: KiwoomWebSocketClient,
     private val tradingProperties: KiwoomTradingProperties,
 ) : BrokerTradingClient {
 
@@ -112,20 +110,20 @@ class KiwoomBrokerAdapter(
     }
 
     override val executionNotices: SharedFlow<ExecutionNotice>
-        get() = executionWsClient.executionNotices
+        get() = webSocketClient.executionNotices
 
     override fun subscribeExecutionNotices() {
-        executionWsClient.subscribe()
+        webSocketClient.subscribeExecution()
     }
 
     override val priceTicks: SharedFlow<PriceTick>
-        get() = priceTickWsClient.priceTicks
+        get() = webSocketClient.priceTicks
 
     override fun subscribePrice(stockCode: String) {
-        priceTickWsClient.subscribe(stockCode)
+        webSocketClient.subscribePrice(stockCode)
     }
 
     override fun unsubscribePrice(stockCode: String) {
-        priceTickWsClient.unsubscribe(stockCode)
+        webSocketClient.unsubscribePrice(stockCode)
     }
 }
