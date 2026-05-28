@@ -5,6 +5,7 @@ import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.leadingstock.domain.MinuteCandle
 import at.backend.platform.kiwoom.config.KiwoomApiProperties
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import java.time.LocalDate
@@ -26,60 +27,58 @@ class KiwoomMarketClient(
         return cleaned.toLongOrNull() ?: 0L
     }
 
-    /** 거래대금 상위 종목 조회 (ka10032) */
+    /**
+     * 거래대금 상위 종목 조회 (ka10032).
+     * 5초 캐시로 findCandidateStocks(5초 폴링)와 evaluateStock(상세 클릭)이 동일 응답을 공유 —
+     * 상세 클릭당 Kiwoom 호출을 줄여 rate limit 회피.
+     * 빈 응답·오류는 throw — @Cacheable이 빈 결과를 저장해 후속 폴링이 5초 동안 빈 리스트를
+     * 반환하는 사고를 막는다.
+     */
+    @Cacheable("topTradingValueStocks")
     fun fetchTopTradingValueStocks(count: Int = 50): List<LeadingStockSnapshot> {
-        try {
-            val token = authClient.getAccessToken()
-            log.info("Fetching top {} trading value stocks from Kiwoom API", count)
+        val token = authClient.getAccessToken()
+        log.info("Fetching top {} trading value stocks from Kiwoom API", count)
 
-            val response = kiwoomRestClient.post()
-                .uri("/api/dostk/rkinfo")
-                .header("authorization", "Bearer $token")
-                .header("Content-Type", "application/json;charset=UTF-8")
-                .header("api-id", "ka10032")
-                .body(
-                    mapOf(
-                        "mrkt_tp" to "000",      // 000:전체
-                        "mang_stk_incls" to "0", // 0:관리종목 미포함
-                        "stex_tp" to "3",        // 3:KRX+NXT 통합
-                    ),
-                )
-                .retrieve()
-                .body(TradingVolumeResponse::class.java)
-                ?: throw IllegalStateException("Trading volume response is null")
+        val response = kiwoomRestClient.post()
+            .uri("/api/dostk/rkinfo")
+            .header("authorization", "Bearer $token")
+            .header("Content-Type", "application/json;charset=UTF-8")
+            .header("api-id", "ka10032")
+            .body(
+                mapOf(
+                    "mrkt_tp" to "000",      // 000:전체
+                    "mang_stk_incls" to "0", // 0:관리종목 미포함
+                    "stex_tp" to "3",        // 3:KRX+NXT 통합
+                ),
+            )
+            .retrieve()
+            .body(TradingVolumeResponse::class.java)
+            ?: throw IllegalStateException("Kiwoom trading value response is null")
 
-            if (response.return_code != null && response.return_code != 0) {
-                log.error(
-                    "Kiwoom trading value ranking error. Code: {}, Message: {}",
-                    response.return_code,
-                    response.return_msg,
-                )
-                return emptyList()
-            }
-            val items = response.trde_prica_upper
-            if (items == null) {
-                log.error("Kiwoom trading value ranking returned no list. Message: {}", response.return_msg)
-                return emptyList()
-            }
-
-            return items.mapIndexed { index, item ->
-                // trde_prica는 백만원 단위
-                val tradingValueInMillion = item.trde_prica.toLongOrNull() ?: 0
-                val tradingValueInWon = tradingValueInMillion * 1_000_000
-
-                LeadingStockSnapshot(
-                    stockCode = item.stk_cd,
-                    stockName = item.stk_nm,
-                    currentPrice = parseKiwoomPrice(item.cur_prc),
-                    priceChangeRate = item.flu_rt.toDoubleOrNull() ?: 0.0,
-                    tradingValueRank = item.now_rank.toIntOrNull() ?: (index + 1),
-                    accumulatedTradingValue = tradingValueInWon,
-                )
-            }.take(count)
-        } catch (e: Exception) {
-            log.error("Failed to fetch top trading stocks", e)
-            return emptyList()
+        if (response.return_code != null && response.return_code != 0) {
+            throw IllegalStateException(
+                "Kiwoom trading value ranking error. code=${response.return_code} msg=${response.return_msg}",
+            )
         }
+        val items = response.trde_prica_upper
+            ?: throw IllegalStateException(
+                "Kiwoom trading value ranking returned no list. msg=${response.return_msg}",
+            )
+
+        return items.mapIndexed { index, item ->
+            // trde_prica는 백만원 단위
+            val tradingValueInMillion = item.trde_prica.toLongOrNull() ?: 0
+            val tradingValueInWon = tradingValueInMillion * 1_000_000
+
+            LeadingStockSnapshot(
+                stockCode = item.stk_cd,
+                stockName = item.stk_nm,
+                currentPrice = parseKiwoomPrice(item.cur_prc),
+                priceChangeRate = item.flu_rt.toDoubleOrNull() ?: 0.0,
+                tradingValueRank = item.now_rank.toIntOrNull() ?: (index + 1),
+                accumulatedTradingValue = tradingValueInWon,
+            )
+        }.take(count)
     }
 
     /** 등락률 상위 종목 조회 (ka10027) */

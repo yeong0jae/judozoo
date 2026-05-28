@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit
  *
  * - 전역 기본: 60초 TTL, 최대 100개 엔트리
  * - candidateStocks: 주도주 후보 리스트 — 5초 TTL, 단일 엔트리
+ * - topTradingValueStocks: 거래대금 상위 raw 리스트 — 5초 TTL, 단일 엔트리
+ *     (후보 폴링과 상세 평가가 동일 응답 공유 → Kiwoom 호출/rate limit 압력 ↓)
  * - kospiIndex: KOSPI 종합지수 — 5초 TTL, 단일 엔트리
  *
  * 캐시별 maximumSize=1 이유: 각 캐시가 한 종류 결과만 담는 단일 슬롯.
@@ -31,6 +33,13 @@ class CacheConfig {
         }
         manager.registerCustomCache(
             "candidateStocks",
+            Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.SECONDS)
+                .maximumSize(1)
+                .build(),
+        )
+        manager.registerCustomCache(
+            "topTradingValueStocks",
             Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.SECONDS)
                 .maximumSize(1)
