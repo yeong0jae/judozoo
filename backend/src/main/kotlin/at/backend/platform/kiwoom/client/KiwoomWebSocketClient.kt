@@ -211,7 +211,8 @@ class KiwoomWebSocketClient(
             else -> return null
         }
         val price = parseSignedInt(values.path("910").asText()) ?: return null
-        val qty = values.path("911").asText().toIntOrNull()?.takeIf { it > 0 } ?: return null
+        // 915=단위체결량(이번 체결분). 911(체결량)은 누적값이라 누적 가산하면 분할 체결 시 중복된다.
+        val qty = values.path("915").asText().toIntOrNull()?.takeIf { it > 0 } ?: return null
         return ExecutionNotice(
             orderNo = orderNo,
             stockCode = stockCode,

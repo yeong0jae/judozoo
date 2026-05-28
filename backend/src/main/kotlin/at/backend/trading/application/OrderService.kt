@@ -28,6 +28,7 @@ class OrderService(
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
     @Value("\${trading.order.sell-retry-delay-millis}") private val sellRetryDelayMillis: Long,
+    @Value("\${trading.order.sell-max-retries}") private val sellMaxRetries: Int,
     @Value("\${trading.order.egw-retry-base-delay-millis}") private val egwRetryBaseDelayMs: Long,
 ) {
 
@@ -109,7 +110,8 @@ class OrderService(
      * 매도 시그널 처리. 시그널이 살아있는 동안 재시도 루프.
      * - B-3 충돌 방지: in-flight 매도 미체결 수량을 차감해 effectiveQty 산출
      * - 발송 성공 시 종료 (체결 확정은 WS 통보 핸들러 책임)
-     * - 발송 실패 시 [sellRetryDelayMillis] 후 재시도
+     * - 발송 실패 시 [sellRetryDelayMillis] 후 재시도, [sellMaxRetries]회 초과 시 중단
+     *   (예: "매도가능수량 부족"처럼 잔량이 회복되지 않는 거부가 무한 재시도되며 API 한도까지 소진하는 것 방지)
      */
     suspend fun placeSell(
         cycle: TradingCycle,
@@ -119,6 +121,7 @@ class OrderService(
         currentPrice: Int,
         currentBar: Bar?,
     ) {
+        var attempts = 0
         while (true) {
             val nowInstant = timeProvider.now().toInstantKst()
             if (!signal.isAlive(currentPrice, buyPrice, currentBar, nowInstant)) {
@@ -157,7 +160,12 @@ class OrderService(
                         ts = timeProvider.now().toInstantKst(),
                     )
                 )
-                log.warn(e) { "매도 발송 실패 cycleId=${cycle.id}, signal=${signal::class.simpleName}, retry=${order.retryCount}" }
+                attempts++
+                if (attempts >= sellMaxRetries) {
+                    log.error(e) { "매도 발송 재시도 한도($sellMaxRetries) 초과 — 중단 cycleId=${cycle.id}, signal=${signal::class.simpleName}, qty=$effectiveQty" }
+                    return
+                }
+                log.warn(e) { "매도 발송 실패 cycleId=${cycle.id}, signal=${signal::class.simpleName}, retry=$attempts/$sellMaxRetries" }
                 delay(sellRetryDelayMillis.milliseconds)
             }
         }

@@ -57,6 +57,7 @@ trading:
     bar-poll-interval-millis: 10000
   order:
     sell-retry-delay-millis: 5000
+    sell-max-retries: 5                    # 매도 발송 거부 시 최대 재시도 횟수 — 초과 시 중단(무한 재시도 방지)
     egw-retry-base-delay-millis: 1500      # 매수 EGW00201 재시도 backoff 단위
   cycle:
     buy-interval-unit-millis: 60000
