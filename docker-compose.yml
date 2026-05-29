@@ -48,8 +48,52 @@ services:
     networks:
       - trading
 
+  # 로그 수집/저장/조회 스택 (Alloy 스크레이프 → Loki → Grafana)
+  loki:
+    image: grafana/loki:3.4.2
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - trading
+
+  alloy:
+    image: grafana/alloy:v1.7.5
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    networks:
+      - trading
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "${GRAFANA_HOST_PORT:-3001}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+    networks:
+      - trading
+
 volumes:
   mysql-data:
+  loki-data:
+  alloy-data:
+  grafana-data:
 
 networks:
   trading:
