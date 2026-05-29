@@ -2,9 +2,7 @@ import { useInstanceInfo } from "../../api/queries";
 
 /** broker × env 조합별 dot/text 색. 인스턴스 혼동 방지가 1순위. */
 const META: Record<string, { dot: string; text: string }> = {
-  "kis:vts": { dot: "bg-blue-500", text: "text-blue-700" },
   "kis:real": { dot: "bg-emerald-500", text: "text-emerald-800" },
-  "kiwoom:vts": { dot: "bg-purple-500", text: "text-purple-700" },
   "kiwoom:real": { dot: "bg-amber-500", text: "text-amber-700" },
 };
 

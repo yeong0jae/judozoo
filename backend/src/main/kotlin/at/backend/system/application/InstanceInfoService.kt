@@ -20,9 +20,7 @@ class InstanceInfoService(
     }
 
     private fun label(broker: String, env: String): String = when (broker to env) {
-        "kis" to "vts" -> "KIS 모의"
         "kis" to "real" -> "KIS 실전"
-        "kiwoom" to "vts" -> "Kiwoom 모의"
         "kiwoom" to "real" -> "Kiwoom 실전"
         else -> "$broker / $env"
     }
@@ -31,6 +29,6 @@ class InstanceInfoService(
 
     companion object {
         private val BROKER_PROFILES = listOf("kis", "kiwoom")
-        private val ENV_PROFILES = listOf("vts", "real")
+        private val ENV_PROFILES = listOf("real")
     }
 }

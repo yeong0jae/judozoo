@@ -3,11 +3,9 @@ spring:
     name: backend
   profiles:
     # 단일 profile 활성화로 충분 — group이 broker × env 두 축 profile로 확장한다.
-    active: kis-vts
+    active: kis-real
     group:
-      kis-vts: kis,vts
       kis-real: kis,real
-      kiwoom-vts: kiwoom,vts
       kiwoom-real: kiwoom,real
   datasource:
     url: jdbc:mysql://localhost:33061/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
