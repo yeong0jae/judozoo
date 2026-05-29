@@ -77,8 +77,11 @@ jobs:
 
       - name: Sync compose + deploy script to VM
         run: |
-          gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" \
-            docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh \
+          # 이전 실패 배포에서 docker가 root 소유 빈 디렉토리로 만들어둔 observability 잔재 제거 후 재동기화
+          gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
+            --command 'sudo rm -rf ~/observability'
+          gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" --recurse \
+            docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh observability \
             "${{ steps.vm.outputs.name }}:~/"
 
       - name: Deploy on VM

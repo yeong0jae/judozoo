@@ -10,7 +10,7 @@ set -euo pipefail
 IMAGE_TAG="${1:?IMAGE_TAG required}"
 AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
-SPRING_PROFILES_ACTIVE="${4:-kis-vts}"   # GHA matrix가 인스턴스별로 주입 (kis-vts | kis-real | kiwoom-vts | kiwoom-real)
+SPRING_PROFILES_ACTIVE="${4:-kis-real}"   # GHA matrix가 인스턴스별로 주입 (kis-real | kiwoom-real)
 
 cd "$HOME"
 mkdir -p backend
@@ -32,16 +32,9 @@ REAL_KIS_APP_KEY=$(fetch AT_REAL_KIS_APP_KEY)
 REAL_KIS_APP_SECRET=$(fetch AT_REAL_KIS_APP_SECRET)
 REAL_KIS_ACCOUNT_NO=$(fetch AT_REAL_KIS_ACCOUNT_NO)
 REAL_KIS_ACCOUNT_PRODUCT_CODE=$(fetch AT_REAL_KIS_ACCOUNT_PRODUCT_CODE)
-VTS_KIS_APP_KEY=$(fetch AT_VTS_KIS_APP_KEY)
-VTS_KIS_APP_SECRET=$(fetch AT_VTS_KIS_APP_SECRET)
-VTS_KIS_ACCOUNT_NO=$(fetch AT_VTS_KIS_ACCOUNT_NO)
-VTS_KIS_ACCOUNT_PRODUCT_CODE=$(fetch AT_VTS_KIS_ACCOUNT_PRODUCT_CODE)
 REAL_KIWOOM_APP_KEY=$(fetch AT_KIWOOM_APP_KEY)
 REAL_KIWOOM_APP_SECRET=$(fetch AT_KIWOOM_APP_SECRET)
 REAL_KIWOOM_ACCOUNT_NO=$(fetch AT_KIWOOM_ACCOUNT_NO)
-VTS_KIWOOM_APP_KEY=$(fetch AT_VTS_KIWOOM_APP_KEY)
-VTS_KIWOOM_APP_SECRET=$(fetch AT_VTS_KIWOOM_APP_SECRET)
-VTS_KIWOOM_ACCOUNT_NO=$(fetch AT_VTS_KIWOOM_ACCOUNT_NO)
 EOF
 
 # Artifact Registry pull 인증: VM 인스턴스 SA(metadata)로 토큰 발급 → docker login.
