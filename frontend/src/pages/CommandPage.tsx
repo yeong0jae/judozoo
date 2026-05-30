@@ -587,7 +587,7 @@ function QtyPreview({
 // 각 고급 옵션의 선택 가능한 값 — 자유 입력 대신 칩 선택.
 // 첫 칩이 아니라, DEFAULTS와 일치하는 칩이 "기본값" 표시 대상.
 const OPTIONS = {
-  splitSellRatio: [10, 20, 30, 40],
+  splitSellRatio: [10, 20, 30],
   breakevenThresholdPct: [1, 2, 3, 4, 5],
   stopLossPct: [1, 2, 3, 4, 5], // 양수 저장, ChipField가 표시만 "-X%"
 } as const;
