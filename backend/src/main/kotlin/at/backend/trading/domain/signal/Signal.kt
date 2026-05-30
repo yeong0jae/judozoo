@@ -18,10 +18,6 @@ sealed class Signal {
         override val priority = 1
     }
 
-    data object MidwayTakeProfit : Signal() {
-        override val priority = 2
-    }
-
     data class TpStage(val pct: Int) : Signal() {
         override val priority = 2
 

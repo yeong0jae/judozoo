@@ -38,13 +38,10 @@ class ExecutionNoticeHandlerTest(
             stockCode = "005930",
             stockName = "삼성전자",
             perBuyAmount = 1_000_000L,
-            buyIntervalMin = 3,
             splitSellRatio = BigDecimal("0.5"),
-            midwayProfitPct = BigDecimal("3.0"),
             breakevenThresholdPct = BigDecimal("2.0"),
             stopLossPct = BigDecimal("-2.0"),
             status = TradingCycleStatus.BUYING,
-            buyAttempt = 1,
         )
     )
 

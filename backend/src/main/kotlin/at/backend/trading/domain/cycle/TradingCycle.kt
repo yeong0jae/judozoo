@@ -36,14 +36,8 @@ class TradingCycle(
     @Column
     val perBuyQty: Int? = null,
 
-    @Column(nullable = false)
-    val buyIntervalMin: Int,
-
     @Column(nullable = false, precision = 4, scale = 3)
     val splitSellRatio: BigDecimal,
-
-    @Column(nullable = false, precision = 5, scale = 3)
-    val midwayProfitPct: BigDecimal,
 
     @Column(nullable = false, precision = 5, scale = 3)
     val breakevenThresholdPct: BigDecimal,
@@ -54,9 +48,6 @@ class TradingCycle(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     var status: TradingCycleStatus = TradingCycleStatus.INITIATED,
-
-    @Column(nullable = false)
-    var buyAttempt: Int = 0,
 
     @Column(nullable = false)
     var tpStagesFired: Int = 0,
@@ -78,7 +69,6 @@ class TradingCycle(
 
     init {
         require(stopLossPct < BigDecimal.ZERO) { "손절 비율은 음수여야 합니다: $stopLossPct" }
-        require(midwayProfitPct > BigDecimal.ZERO) { "중도 익절 비율은 양수여야 합니다: $midwayProfitPct" }
         require(tpStagesFired in 0..0b111) { "TP 단계 비트플래그는 0~7이어야 합니다: $tpStagesFired" }
     }
 
@@ -98,17 +88,6 @@ class TradingCycle(
             "Initiated 상태에서만 매수 시작 가능: $status"
         }
         status = TradingCycleStatus.BUYING
-        buyAttempt = 1
-    }
-
-    fun incrementBuyAttempt() {
-        require(status == TradingCycleStatus.BUYING) {
-            "Buying 상태에서만 회차 증가 가능: $status"
-        }
-        require(buyAttempt < MAX_BUY_ATTEMPT) {
-            "매수 회차는 ${MAX_BUY_ATTEMPT}회를 초과할 수 없습니다: $buyAttempt"
-        }
-        buyAttempt += 1
     }
 
     fun transitionToHolding() {
@@ -117,6 +96,10 @@ class TradingCycle(
         }
         status = TradingCycleStatus.HOLDING
     }
+
+    /** 아직 매수 집행 전(INITIATED/BUYING)인 사이클이 예약한 현금. 체결 후(HOLDING~)는 0. */
+    fun reservedCash(): Long =
+        if (status == TradingCycleStatus.INITIATED || status == TradingCycleStatus.BUYING) perBuyAmount else 0
 
     fun armBreakeven() {
         require(status == TradingCycleStatus.HOLDING) {
@@ -165,16 +148,12 @@ class TradingCycle(
 
     fun canTransitionTo(
         nextStatus: TradingCycleStatus,
-        nextBuyAttempt: Int? = null,
         nextCloseReason: CloseReason? = null,
     ): Boolean = when (status) {
         TradingCycleStatus.INITIATED ->
-            nextStatus == TradingCycleStatus.BUYING && nextBuyAttempt == 1
+            nextStatus == TradingCycleStatus.BUYING
 
         TradingCycleStatus.BUYING -> when (nextStatus) {
-            TradingCycleStatus.BUYING ->
-                nextBuyAttempt != null && nextBuyAttempt == buyAttempt + 1 && nextBuyAttempt <= 3
-
             TradingCycleStatus.HOLDING -> true
             TradingCycleStatus.LIQUIDATING -> true
             TradingCycleStatus.CLOSED ->
@@ -210,7 +189,6 @@ class TradingCycle(
         when (status) {
             TradingCycleStatus.BUYING -> {
                 if (isStopLossTriggered(price, buyPrice)) signals += Signal.StopLoss
-                if (buyAttempt < 3 && isMidwayTakeProfitTriggered(price, buyPrice)) signals += Signal.MidwayTakeProfit
             }
 
             TradingCycleStatus.HOLDING -> {
@@ -228,9 +206,6 @@ class TradingCycle(
 
     fun isStopLossTriggered(currentPrice: Int, buyPrice: Int): Boolean =
         currentPrice <= (buyPrice * (1.0 + stopLossPct.toDouble() / 100.0)).toInt()
-
-    fun isMidwayTakeProfitTriggered(currentPrice: Int, buyPrice: Int): Boolean =
-        currentPrice >= ceil(buyPrice * (1.0 + midwayProfitPct.toDouble() / 100.0)).toInt()
 
     fun isTpStageTriggered(currentPrice: Int, stagePct: Int, buyPrice: Int): Boolean {
         val bit = stagePctToBit(stagePct)
@@ -277,9 +252,5 @@ class TradingCycle(
         3 -> 0b010
         5 -> 0b100
         else -> throw IllegalArgumentException("유효하지 않은 stagePct: $stagePct")
-    }
-
-    companion object {
-        const val MAX_BUY_ATTEMPT = 3
     }
 }

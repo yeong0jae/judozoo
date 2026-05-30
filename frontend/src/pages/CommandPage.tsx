@@ -39,23 +39,17 @@ import { ApiError } from "../api/client";
 import { useStompSubscription } from "../ws/useStompSubscription";
 
 const DEFAULTS = {
-  buyIntervalMin: 3,
   splitSellRatio: 20,
-  midwayProfitPct: 3,
   breakevenThresholdPct: 2,
   stopLossPct: 2, // 양수로 저장, 표시만 -X%
 };
-
-const MAX_BUY_ATTEMPT = 3;
 
 const schema = z.object({
   perBuyQty: z
     .number({ message: "숫자를 입력하세요" })
     .int("정수를 입력하세요")
     .min(1, "최소 1주"),
-  buyIntervalMin: z.number().min(1).max(30).nullable().optional(),
   splitSellRatio: z.number().min(1).max(50).nullable().optional(),
-  midwayProfitPct: z.number().min(0.1).max(10).nullable().optional(),
   breakevenThresholdPct: z.number().min(0.1).max(10).nullable().optional(),
   // 백엔드 계약: 양수 입력(내부에서 음수 변환). 표시만 -X%, 전송은 +X.
   stopLossPct: z.number().min(0.1).max(10).nullable().optional(),
@@ -105,9 +99,7 @@ export default function CommandPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       perBuyQty: 1,
-      buyIntervalMin: null,
       splitSellRatio: null,
-      midwayProfitPct: null,
       breakevenThresholdPct: null,
       stopLossPct: null,
     },
@@ -127,10 +119,8 @@ export default function CommandPage() {
 
   const currentPrice = priceQ.data?.currentPrice ?? 0;
   const perBuyAmountEstimate = currentPrice * perBuyQty;
-  const totalQty = perBuyQty * MAX_BUY_ATTEMPT;
-  const totalReserveEstimate = perBuyAmountEstimate * MAX_BUY_ATTEMPT;
   const insufficientBalance =
-    balance !== undefined && totalReserveEstimate > balance.availableBalance;
+    balance !== undefined && perBuyAmountEstimate > balance.availableBalance;
   const duplicateActive =
     selectedStock !== null &&
     (activeQ.data ?? []).some(
@@ -139,9 +129,7 @@ export default function CommandPage() {
 
   const advancedDirty = useMemo(() => {
     const dirty = new Set<string>();
-    if (formValues.buyIntervalMin != null) dirty.add("buyIntervalMin");
     if (formValues.splitSellRatio != null) dirty.add("splitSellRatio");
-    if (formValues.midwayProfitPct != null) dirty.add("midwayProfitPct");
     if (formValues.breakevenThresholdPct != null)
       dirty.add("breakevenThresholdPct");
     if (formValues.stopLossPct != null) dirty.add("stopLossPct");
@@ -166,10 +154,8 @@ export default function CommandPage() {
       await createCommand.mutateAsync({
         stockCode: selectedStock.stockCode,
         perBuyQty: data.perBuyQty,
-        buyIntervalMin: data.buyIntervalMin ?? null,
         splitSellRatio:
           data.splitSellRatio != null ? data.splitSellRatio / 100 : null,
-        midwayProfitPct: data.midwayProfitPct ?? null,
         breakevenThresholdPct: data.breakevenThresholdPct ?? null,
         stopLossPct: data.stopLossPct ?? null,
       });
@@ -260,9 +246,7 @@ export default function CommandPage() {
             {selectedStock && (
               <QtyPreview
                 perBuyQty={perBuyQty}
-                totalQty={totalQty}
                 perBuyAmountEstimate={perBuyAmountEstimate}
-                totalReserveEstimate={totalReserveEstimate}
                 currentPrice={currentPrice}
                 availableBalance={balance?.availableBalance}
                 insufficientBalance={insufficientBalance}
@@ -283,9 +267,7 @@ export default function CommandPage() {
               onReset={() => {
                 reset({
                   perBuyQty: formValues.perBuyQty,
-                  buyIntervalMin: null,
                   splitSellRatio: null,
-                  midwayProfitPct: null,
                   breakevenThresholdPct: null,
                   stopLossPct: null,
                 });
@@ -565,17 +547,13 @@ QtyInput.displayName = "QtyInput";
 
 function QtyPreview({
   perBuyQty,
-  totalQty,
   perBuyAmountEstimate,
-  totalReserveEstimate,
   currentPrice,
   availableBalance,
   insufficientBalance,
 }: {
   perBuyQty: number;
-  totalQty: number;
   perBuyAmountEstimate: number;
-  totalReserveEstimate: number;
   currentPrice: number;
   availableBalance?: number;
   insufficientBalance: boolean;
@@ -588,15 +566,6 @@ function QtyPreview({
           {formatQty(perBuyQty)} × {formatPrice(currentPrice)}
           {" = "}
           <span className="font-medium">≈ {formatKRW(perBuyAmountEstimate)}</span>
-        </span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-zinc-500">3회 총 매수</span>
-        <span className="text-zinc-200">
-          {formatQty(totalQty)}주{" "}
-          <span className="text-zinc-500">
-            (≈ <span className="text-zinc-200 font-medium">{formatKRW(totalReserveEstimate)}</span>)
-          </span>
         </span>
       </div>
       <div className="pt-1 mt-1 border-t border-zinc-800">
@@ -618,17 +587,13 @@ function QtyPreview({
 // 각 고급 옵션의 선택 가능한 값 — 자유 입력 대신 칩 선택.
 // 첫 칩이 아니라, DEFAULTS와 일치하는 칩이 "기본값" 표시 대상.
 const OPTIONS = {
-  buyIntervalMin: [1, 2, 3, 4, 5],
   splitSellRatio: [10, 20, 30, 40],
-  midwayProfitPct: [1, 2, 3, 4, 5],
   breakevenThresholdPct: [1, 2, 3, 4, 5],
   stopLossPct: [1, 2, 3, 4, 5], // 양수 저장, ChipField가 표시만 "-X%"
 } as const;
 
 type AdvancedKey =
-  | "buyIntervalMin"
   | "splitSellRatio"
-  | "midwayProfitPct"
   | "breakevenThresholdPct"
   | "stopLossPct";
 
@@ -649,16 +614,6 @@ function AdvancedSettings({
   return (
     <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
       <ChipField
-        label="매수 간격"
-        hint="회차 간 대기 시간 (최대 3회 분할 매수)"
-        unit="분"
-        options={OPTIONS.buyIntervalMin}
-        defaultValue={DEFAULTS.buyIntervalMin}
-        value={values.buyIntervalMin ?? null}
-        dirty={dirtyKeys.has("buyIntervalMin")}
-        onPick={(v) => pick("buyIntervalMin", v)}
-      />
-      <ChipField
         label="분할 매도 비율"
         hint="익절 단계마다 매도할 보유 비율"
         unit="%"
@@ -667,16 +622,6 @@ function AdvancedSettings({
         value={values.splitSellRatio ?? null}
         dirty={dirtyKeys.has("splitSellRatio")}
         onPick={(v) => pick("splitSellRatio", v)}
-      />
-      <ChipField
-        label="중도 익절"
-        hint="매수 진행 중 도중 익절 발동 기준"
-        unit="%"
-        options={OPTIONS.midwayProfitPct}
-        defaultValue={DEFAULTS.midwayProfitPct}
-        value={values.midwayProfitPct ?? null}
-        dirty={dirtyKeys.has("midwayProfitPct")}
-        onPick={(v) => pick("midwayProfitPct", v)}
       />
       <ChipField
         label="본전 매도 기준"

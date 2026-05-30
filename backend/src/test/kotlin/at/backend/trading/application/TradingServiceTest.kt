@@ -77,9 +77,7 @@ class TradingServiceTest(
     ) = TradingInput(
         stockCode = stockCode,
         perBuyQty = perBuyQty,
-        buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.5"),
-        midwayProfitPct = BigDecimal("1.5"),
         breakevenThresholdPct = BigDecimal("0.5"),
         stopLossPct = BigDecimal("2.0"),
     )
@@ -95,9 +93,7 @@ class TradingServiceTest(
             stockCode = stockCode,
             stockName = stockName,
             perBuyAmount = perBuyAmount,
-            buyIntervalMin = 3,
             splitSellRatio = BigDecimal("0.5"),
-            midwayProfitPct = BigDecimal("1.5"),
             breakevenThresholdPct = BigDecimal("0.5"),
             stopLossPct = BigDecimal("-2.0"),
             status = status,
@@ -123,9 +119,7 @@ class TradingServiceTest(
                 saved.stockName shouldBe "삼성전자"
                 saved.perBuyQty shouldBe 1
                 saved.perBuyAmount shouldBe 70_000L  // perBuyQty × stubCurrentPrice(70000)
-                saved.buyIntervalMin shouldBe 3
                 saved.splitSellRatio shouldBe BigDecimal("0.500")
-                saved.midwayProfitPct shouldBe BigDecimal("1.500")
                 saved.breakevenThresholdPct shouldBe BigDecimal("0.500")
             }
 
@@ -158,11 +152,11 @@ class TradingServiceTest(
         }
 
         context("잔고 부족") {
-            test("perBuyQty × currentPrice × MAX_BUY_ATTEMPT가 잔고를 초과하면 INSUFFICIENT_BALANCE") {
-                stubBalance("100000")  // 잔고 10만원
+            test("perBuyQty × currentPrice가 잔고를 초과하면 INSUFFICIENT_BALANCE") {
+                stubBalance("50000")  // 잔고 5만원
 
                 val ex = shouldThrow<TradingValidationException> {
-                    // 1주 × 70,000원 × 3회 = 210,000원 > 100,000원 → 부족
+                    // 1주 × 70,000원 = 70,000원 > 50,000원 → 부족
                     tradingService.create(validInput(perBuyQty = 1))
                 }
                 ex.errorCode shouldBe ErrorCode.INSUFFICIENT_BALANCE

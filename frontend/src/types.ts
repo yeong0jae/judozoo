@@ -21,7 +21,6 @@ export type CloseReason =
 
 export type SignalType =
   | "STOP_LOSS"
-  | "MIDWAY_TP"
   | "TP_2PCT"
   | "TP_3PCT"
   | "TP_5PCT"
@@ -81,11 +80,6 @@ export interface LiquidateHoldingResult {
   krxFwdgOrdOrgno: string;
 }
 
-export interface BuyAttemptInfo {
-  completed: number;
-  total: number; // 항상 3
-}
-
 export interface TradingSummary {
   cycleId: number;
   stockCode: string;
@@ -96,7 +90,6 @@ export interface TradingSummary {
   profitRate: number; // 소수 (0.025 = 2.5%)
   profitAmount: number;
   holdingQty: number;
-  buyAttempt: BuyAttemptInfo;
 }
 
 export interface TpStagesInfo {
@@ -142,9 +135,7 @@ export interface TradingDetail extends TradingSummary {
   closedAt: string | null;
   perBuyAmount: number;
   perBuyQty: number | null;
-  buyIntervalMin: number;
   splitSellRatio: number;
-  midwayProfitPct: number;
   breakevenThresholdPct: number;
   stopLossPct: number; // 백엔드는 양의 magnitude로 반환 (.negate())
   activeSell: unknown | null; // 백엔드 항상 null. Phase 6 이후 정의.
@@ -197,9 +188,7 @@ export interface StockPriceResult {
 export interface CreateTradingRequest {
   stockCode: string;
   perBuyQty: number;
-  buyIntervalMin?: number | null;
   splitSellRatio?: number | null;
-  midwayProfitPct?: number | null;
   breakevenThresholdPct?: number | null;
   stopLossPct?: number | null;
 }

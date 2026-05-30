@@ -9,7 +9,6 @@ import {
   formatPct,
   formatPrice,
   formatQty,
-  formatTime,
 } from "../../lib/format";
 import StatusPill from "../common/StatusPill";
 import ProfitText from "../common/ProfitText";
@@ -159,79 +158,37 @@ function SummaryHeader({
 }
 
 function BuyProgressSection({ detail }: { detail: TradingDetail }) {
-  // 회차별 주문은 trigger=BUY_N으로 매칭. cycle.buyAttempt(시도 회차)에 의존하지 않고
-  // 실제 Order.status/filledQty로부터 상태 도출 — 발송 직후 PENDING을 "체결"로 오해하지 않게.
-  const buyOrders = detail.orders.filter((o) => o.side === "BUY");
-  const orderByRound = new Map<number, OrderInfo>();
-  for (const o of buyOrders) {
-    const m = o.trigger.match(/^BUY_(\d+)$/);
-    if (m) orderByRound.set(parseInt(m[1], 10), o);
-  }
-
-  const lastBuy = buyOrders.sort((a, b) =>
-    b.submittedAt.localeCompare(a.submittedAt),
-  )[0];
-  const isActive = detail.status === "INITIATED" || detail.status === "BUYING";
-  // 다음 매수 예정 회차 = 아직 주문 없는 가장 작은 회차 번호
-  const nextRound = (() => {
-    for (let r = 1; r <= detail.buyAttempt.total; r++) {
-      if (!orderByRound.has(r)) return r;
-    }
-    return null;
-  })();
-  const nextBuyAt: Date | null =
-    lastBuy && nextRound !== null && isActive
-      ? new Date(
-          new Date(lastBuy.submittedAt).getTime() +
-            detail.buyIntervalMin * 60_000,
-        )
-      : null;
+  // 단일 매수: trigger="BUY" 주문 1건의 실제 status/filledQty로 상태 도출 —
+  // 발송 직후 PENDING을 "체결"로 오해하지 않게.
+  const buyOrder =
+    detail.orders
+      .filter((o) => o.side === "BUY")
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0] ?? null;
+  const view = roundView(buyOrder, "idle");
 
   return (
     <Section title="매수 진행">
-      <div className="grid grid-cols-3 gap-3">
-        {Array.from({ length: detail.buyAttempt.total }).map((_, i) => {
-          const round = i + 1;
-          const order = orderByRound.get(round) ?? null;
-          const isNext = order === null && round === nextRound && nextBuyAt;
-          const view = roundView(order, isNext ? "next" : "idle");
-          return (
-            <div
-              key={round}
-              className={`border rounded p-3 ${view.boxCls}`}
-            >
-              <div className="text-xs text-zinc-500 mb-1">회차 {round}</div>
-              <div className={`text-sm font-medium ${view.textCls}`}>
-                {view.label}
-              </div>
-              {view.subLabel && (
-                <div className="text-xs text-zinc-400 mt-1">
-                  {view.subLabel}
-                </div>
-              )}
-              {isNext && nextBuyAt && (
-                <div className="text-xs text-amber-700 mt-1">
-                  ~{formatTime(nextBuyAt)}
-                </div>
-              )}
-              {order?.lastError && (
-                <div
-                  className="text-xs text-rose-400 mt-1 truncate"
-                  title={order.lastError}
-                >
-                  {order.lastError}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <div className={`border rounded p-3 ${view.boxCls}`}>
+        <div className={`text-sm font-medium ${view.textCls}`}>
+          {view.label}
+        </div>
+        {view.subLabel && (
+          <div className="text-xs text-zinc-400 mt-1">{view.subLabel}</div>
+        )}
+        {buyOrder?.lastError && (
+          <div
+            className="text-xs text-rose-400 mt-1 truncate"
+            title={buyOrder.lastError}
+          >
+            {buyOrder.lastError}
+          </div>
+        )}
       </div>
       <div className="text-xs text-zinc-500 mt-2">
         1회 매수{" "}
         {detail.perBuyQty != null
           ? `${detail.perBuyQty}주 (≈ ${formatKRW(detail.perBuyAmount)})`
-          : formatKRW(detail.perBuyAmount)}{" "}
-        · 간격 {detail.buyIntervalMin}분
+          : formatKRW(detail.perBuyAmount)}
       </div>
     </Section>
   );
@@ -360,9 +317,8 @@ function SplitSellSection({ detail }: { detail: TradingDetail }) {
         </span>
       </div>
       <div className="text-xs text-zinc-500 mt-2">
-        분할 비율 {(detail.splitSellRatio * 100).toFixed(0)}% / 회 · 중도 익절
-        +{detail.midwayProfitPct}% · 본전 +{detail.breakevenThresholdPct}% ·
-        손절 -{detail.stopLossPct}%
+        분할 비율 {(detail.splitSellRatio * 100).toFixed(0)}% / 회 · 본전 +
+        {detail.breakevenThresholdPct}% · 손절 -{detail.stopLossPct}%
       </div>
     </Section>
   );

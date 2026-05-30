@@ -12,10 +12,7 @@ data class TradingSummaryResult(
     val profitRate: Double,
     val profitAmount: Long,
     val holdingQty: Int,
-    val buyAttempt: BuyAttemptInfo,
 ) {
-    data class BuyAttemptInfo(val completed: Int, val total: Int = 3)
-
     companion object {
         fun from(
             cycle: TradingCycle,
@@ -34,7 +31,6 @@ data class TradingSummaryResult(
             profitRate = profitRate,
             profitAmount = profitAmount,
             holdingQty = holdingQty,
-            buyAttempt = BuyAttemptInfo(completed = cycle.buyAttempt),
         )
     }
 }

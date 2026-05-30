@@ -3,7 +3,6 @@ package at.backend.trading.application
 import at.backend.trading.application.broker.BrokerTradingClient
 import at.backend.trading.domain.TradingInput
 import at.backend.trading.domain.TradingValidationException
-import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import org.springframework.stereotype.Component
@@ -24,7 +23,7 @@ class TradingValidator(
         validateNoDuplicate(input.stockCode)
         validateHoliday(now)
         validateTradingHours(now.toLocalTime())
-        validateCutoff(input.buyIntervalMin, now.toLocalTime())
+        validateCutoff(now.toLocalTime())
         return stockName to currentPrice
     }
 
@@ -36,7 +35,7 @@ class TradingValidator(
 
     private fun validateBalance(perBuyQty: Int, currentPrice: Long) {
         val balance = broker.availableCash()
-        val required = perBuyQty.toLong() * currentPrice * TradingCycle.MAX_BUY_ATTEMPT
+        val required = perBuyQty.toLong() * currentPrice
         if (required > balance) {
             throw TradingValidationException(TradingValidationException.ErrorCode.INSUFFICIENT_BALANCE)
         }
@@ -49,9 +48,8 @@ class TradingValidator(
         if (existing.isNotEmpty()) throw TradingValidationException(TradingValidationException.ErrorCode.DUPLICATE_COMMAND)
     }
 
-    private fun validateCutoff(buyIntervalMin: Int, now: LocalTime) {
-        val cutoff = CUTOFF_BASE.minusMinutes((buyIntervalMin * 2).toLong())
-        if (now.isAfter(cutoff)) throw TradingValidationException(TradingValidationException.ErrorCode.CUTOFF_PASSED)
+    private fun validateCutoff(now: LocalTime) {
+        if (now.isAfter(CUTOFF_BASE)) throw TradingValidationException(TradingValidationException.ErrorCode.CUTOFF_PASSED)
     }
 
     private fun validateHoliday(now: LocalDateTime) {

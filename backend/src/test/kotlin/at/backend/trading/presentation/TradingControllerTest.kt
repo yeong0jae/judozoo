@@ -26,9 +26,7 @@ class TradingControllerTest : FunSpec({
     val tradingService = mockk<TradingService>()
     val tradingQueryService = mockk<TradingQueryService>()
     val tradingProperties = TradingProperties(
-        defaultBuyIntervalMin = 3,
         defaultSplitSellRatio = BigDecimal("0.2"),
-        defaultMidwayProfitPct = BigDecimal("3"),
         defaultBreakevenThresholdPct = BigDecimal("2"),
         defaultStopLossPct = BigDecimal("2"),
         sellCostRate = BigDecimal("0.0025"),
@@ -137,7 +135,6 @@ class TradingControllerTest : FunSpec({
                 profitRate = 0.0,
                 profitAmount = 0L,
                 holdingQty = 0,
-                buyAttempt = TradingSummaryResult.BuyAttemptInfo(completed = 0),
                 totalBoughtQty = 0,
                 tpStages = TradingDetailResult.TpStagesInfo(fired2pct = false, fired3pct = false, fired5pct = false),
                 splitSellProgress = TradingDetailResult.SplitSellProgressInfo(soldPct = 0),
@@ -148,9 +145,7 @@ class TradingControllerTest : FunSpec({
                 closedAt = null,
                 perBuyAmount = 100_000L,
                 perBuyQty = null,
-                buyIntervalMin = 3,
                 splitSellRatio = BigDecimal("0.5"),
-                midwayProfitPct = BigDecimal("1.5"),
                 breakevenThresholdPct = BigDecimal("0.5"),
                 stopLossPct = BigDecimal("2.0"),
                 activeSell = null,
@@ -166,8 +161,6 @@ class TradingControllerTest : FunSpec({
                 jsonPath("$.data.stockName") { value("삼성전자") }
                 jsonPath("$.data.status") { value("INITIATED") }
                 jsonPath("$.data.currentPrice") { value(70000) }
-                jsonPath("$.data.buyAttempt.completed") { value(0) }
-                jsonPath("$.data.buyAttempt.total") { value(3) }
                 jsonPath("$.data.tpStages.fired2pct") { value(false) }
                 jsonPath("$.data.tpStages.fired3pct") { value(false) }
                 jsonPath("$.data.tpStages.fired5pct") { value(false) }

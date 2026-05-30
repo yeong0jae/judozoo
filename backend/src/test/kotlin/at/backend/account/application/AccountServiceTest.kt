@@ -58,20 +58,16 @@ class AccountServiceTest(
         stockCode: String = "005930",
         perBuyAmount: Long = 100_000L,
         status: TradingCycleStatus = TradingCycleStatus.INITIATED,
-        buyAttempt: Int = 0,
     ) = tradingCycleRepository.save(
         TradingCycle(
             accountNo = "00000000",
             stockCode = stockCode,
             stockName = "삼성전자",
             perBuyAmount = perBuyAmount,
-            buyIntervalMin = 3,
             splitSellRatio = BigDecimal("0.5"),
-            midwayProfitPct = BigDecimal("1.5"),
             breakevenThresholdPct = BigDecimal("0.5"),
             stopLossPct = BigDecimal("-2.0"),
             status = status,
-            buyAttempt = buyAttempt,
         )
     )
 
@@ -94,43 +90,33 @@ class AccountServiceTest(
         }
 
         context("INITIATED 사이클") {
-            test("매수 회차 0이면 perBuyAmount × 3 만큼 예약된다") {
+            test("매수 집행 전이면 perBuyAmount 전액이 예약된다") {
                 stubCashBalance("1000000")
-                saveCycle(perBuyAmount = 100_000L, status = TradingCycleStatus.INITIATED, buyAttempt = 0)
+                saveCycle(perBuyAmount = 100_000L, status = TradingCycleStatus.INITIATED)
 
                 val result = accountService.getBalance()
 
-                result.reservedAmount shouldBe 300_000L
-                result.availableBalance shouldBe 700_000L
+                result.reservedAmount shouldBe 100_000L
+                result.availableBalance shouldBe 900_000L
             }
         }
 
         context("BUYING 사이클") {
-            test("1회차 완료 시 잔여 매수 회차(2)만큼만 예약된다") {
+            test("매수 진행 중이면 perBuyAmount 전액이 예약된다") {
                 stubCashBalance("1000000")
-                saveCycle(perBuyAmount = 100_000L, status = TradingCycleStatus.BUYING, buyAttempt = 1)
+                saveCycle(perBuyAmount = 100_000L, status = TradingCycleStatus.BUYING)
 
                 val result = accountService.getBalance()
 
-                result.reservedAmount shouldBe 200_000L
-                result.availableBalance shouldBe 800_000L
-            }
-
-            test("3회차까지 완료되면 예약금이 0이다") {
-                stubCashBalance("1000000")
-                saveCycle(perBuyAmount = 100_000L, status = TradingCycleStatus.BUYING, buyAttempt = 3)
-
-                val result = accountService.getBalance()
-
-                result.reservedAmount shouldBe 0L
-                result.availableBalance shouldBe 1_000_000L
+                result.reservedAmount shouldBe 100_000L
+                result.availableBalance shouldBe 900_000L
             }
         }
 
         context("HOLDING 사이클") {
-            test("3회차까지 완료된 보유 사이클은 예약금에 포함되지 않는다") {
+            test("체결 완료된 보유 사이클은 예약금에 포함되지 않는다") {
                 stubCashBalance("1000000")
-                saveCycle(perBuyAmount = 100_000L, status = TradingCycleStatus.HOLDING, buyAttempt = 3)
+                saveCycle(perBuyAmount = 100_000L, status = TradingCycleStatus.HOLDING)
 
                 val result = accountService.getBalance()
 
@@ -141,7 +127,7 @@ class AccountServiceTest(
         context("비활성 사이클은 예약금에서 제외된다") {
             test("LIQUIDATING 사이클은 예약금에 포함되지 않는다") {
                 stubCashBalance("1000000")
-                saveCycle(status = TradingCycleStatus.LIQUIDATING, buyAttempt = 1)
+                saveCycle(status = TradingCycleStatus.LIQUIDATING)
 
                 val result = accountService.getBalance()
 
@@ -151,7 +137,7 @@ class AccountServiceTest(
 
             test("CLOSED 사이클은 예약금에 포함되지 않는다") {
                 stubCashBalance("1000000")
-                saveCycle(status = TradingCycleStatus.CLOSED, buyAttempt = 1)
+                saveCycle(status = TradingCycleStatus.CLOSED)
 
                 val result = accountService.getBalance()
 
@@ -161,15 +147,15 @@ class AccountServiceTest(
         }
 
         context("여러 활성 사이클") {
-            test("활성 사이클의 잔여 매수 금액이 합산되어 예약된다") {
+            test("활성 사이클의 예약 금액이 합산된다") {
                 stubCashBalance("1000000")
-                saveCycle(stockCode = "005930", perBuyAmount = 100_000L, status = TradingCycleStatus.INITIATED, buyAttempt = 0)
-                saveCycle(stockCode = "035420", perBuyAmount = 200_000L, status = TradingCycleStatus.BUYING, buyAttempt = 1)
+                saveCycle(stockCode = "005930", perBuyAmount = 100_000L, status = TradingCycleStatus.INITIATED)
+                saveCycle(stockCode = "035420", perBuyAmount = 200_000L, status = TradingCycleStatus.BUYING)
 
                 val result = accountService.getBalance()
 
-                result.reservedAmount shouldBe 700_000L
-                result.availableBalance shouldBe 300_000L
+                result.reservedAmount shouldBe 300_000L
+                result.availableBalance shouldBe 700_000L
             }
         }
 

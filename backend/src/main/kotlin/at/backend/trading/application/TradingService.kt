@@ -38,9 +38,7 @@ class TradingService(
             stockName = stockName,
             perBuyAmount = input.perBuyQty.toLong() * currentPrice,
             perBuyQty = input.perBuyQty,
-            buyIntervalMin = input.buyIntervalMin,
             splitSellRatio = input.splitSellRatio,
-            midwayProfitPct = input.midwayProfitPct,
             breakevenThresholdPct = input.breakevenThresholdPct,
             stopLossPct = input.stopLossPct.negate(),
         )

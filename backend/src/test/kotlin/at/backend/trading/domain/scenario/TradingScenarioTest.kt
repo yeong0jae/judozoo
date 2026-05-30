@@ -27,31 +27,26 @@ class TradingScenarioTest : FunSpec({
 
     fun cycle(
         status: TradingCycleStatus = TradingCycleStatus.HOLDING,
-        buyAttempt: Int = 3,
         tpStagesFired: Int = 0b000,
         breakevenArmed: Boolean = false,
         trendBreakArmed: Boolean = false,
         stopLossPct: BigDecimal = BigDecimal("-2.0"),
-        midwayProfitPct: BigDecimal = BigDecimal("3.0"),
     ) = TradingCycle(
         accountNo = "00000000",
         stockCode = stockCode,
         stockName = "SK하이닉스",
         perBuyAmount = 1_000_000,
-        buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.20"),
-        midwayProfitPct = midwayProfitPct,
         breakevenThresholdPct = BigDecimal("2.0"),
         stopLossPct = stopLossPct,
         status = status,
-        buyAttempt = buyAttempt,
         tpStagesFired = tpStagesFired,
         breakevenArmed = breakevenArmed,
         trendBreakArmed = trendBreakArmed,
     )
 
     context("시나리오 1: 정상 사이클") {
-        test("3회 매수 체결 후 매수가 산정") {
+        test("복수 체결 후 매수가 산정") {
             val executions = listOf(
                 execution(10_000, 10, 150),
                 execution(10_100, 10, 152),
@@ -63,11 +58,9 @@ class TradingScenarioTest : FunSpec({
             buyPrice shouldBe 10_091
         }
 
-        test("Buying(3) → Holding 전이 유효") {
-            cycle(
-                status = TradingCycleStatus.BUYING,
-                buyAttempt = 3
-            ).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
+        test("Buying → Holding 전이 유효") {
+            cycle(status = TradingCycleStatus.BUYING)
+                .canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
         }
 
         test("Holding 상태에서 +2% 도달 → TpStage(2) 발동") {
@@ -123,28 +116,6 @@ class TradingScenarioTest : FunSpec({
 
         test("Liquidating → Closed(TAKE_PROFIT) 전이 유효") {
             cycle(status = TradingCycleStatus.LIQUIDATING).canTransitionTo(TradingCycleStatus.CLOSED) shouldBe true
-        }
-    }
-
-    context("시나리오 2: 중도 익절") {
-        test("Buying(2) 상태에서 +3.5% 도달 → MidwayTakeProfit 발동") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 2)
-                .detectSignals(
-                    tick(10_350),
-                    holdingQty = 10,
-                    buyPrice = 10_000
-                ) shouldContainExactly listOf(Signal.MidwayTakeProfit)
-        }
-
-        test("MidwayTakeProfit 발동 후 Buying→Holding 전이 유효") {
-            cycle(
-                status = TradingCycleStatus.BUYING,
-                buyAttempt = 2
-            ).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
-        }
-
-        test("Holding 진입 후 잔여 수량 보유 유지") {
-            cycle().detectSignals(tick(10_200), holdingQty = 10, buyPrice = 10_000) shouldContain Signal.TpStage(2)
         }
     }
 
@@ -278,14 +249,14 @@ class TradingScenarioTest : FunSpec({
         }
     }
 
-    context("시나리오 7: NO_FILL — 3회 매수 완료 후 보유=0") {
-        test("3회 완료 후 holdingQty=0이면 Buying→Closed(NO_FILL) 직행 허용") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
+    context("시나리오 7: NO_FILL — 매수 후 보유=0") {
+        test("보유=0이면 Buying→Closed(NO_FILL) 직행 허용") {
+            cycle(status = TradingCycleStatus.BUYING)
                 .canTransitionTo(TradingCycleStatus.CLOSED, nextCloseReason = CloseReason.NO_FILL) shouldBe true
         }
 
         test("holdingQty=0이면 detectSignals는 빈 리스트") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
+            cycle(status = TradingCycleStatus.BUYING)
                 .detectSignals(tick(9_000), holdingQty = 0, buyPrice = 10_000).shouldBeEmpty()
         }
     }
@@ -297,7 +268,7 @@ class TradingScenarioTest : FunSpec({
         }
 
         test("첫 체결 발생(holdingQty>0) 시점부터 평가 시작") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 1)
+            cycle(status = TradingCycleStatus.BUYING)
                 .detectSignals(tick(9_800), holdingQty = 5, buyPrice = 10_000) shouldContain Signal.StopLoss
         }
     }

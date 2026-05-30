@@ -29,9 +29,7 @@ class TradingValidatorTest : FunSpec({
     val validInput = TradingInput(
         stockCode = "005930",
         perBuyQty = 1,
-        buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.5"),
-        midwayProfitPct = BigDecimal("1.5"),
         breakevenThresholdPct = BigDecimal("0.5"),
         stopLossPct = BigDecimal("2.0"),
     )
@@ -57,13 +55,6 @@ class TradingValidatorTest : FunSpec({
         test("perBuyQty가 0이면 INVALID_PARAMETER") {
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput.copy(perBuyQty = 0), nowAt(10, 0))
-            }
-            ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
-        }
-
-        test("buyIntervalMin이 0이면 INVALID_PARAMETER") {
-            val ex = shouldThrow<TradingValidationException> {
-                validator.validate(validInput.copy(buyIntervalMin = 0), nowAt(10, 0))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.INVALID_PARAMETER
         }
@@ -102,10 +93,10 @@ class TradingValidatorTest : FunSpec({
     }
 
     context("잔고 부족") {
-        test("perBuyQty × currentPrice × MAX_BUY_ATTEMPT(3)이 잔고를 초과하면 INSUFFICIENT_BALANCE") {
+        test("perBuyQty × currentPrice가 잔고를 초과하면 INSUFFICIENT_BALANCE") {
             stubAllPass()
-            // 1주 × 70,000원 × 3회 = 210,000원 > 잔고 200,000원
-            every { broker.availableCash() } returns 200_000L
+            // 1주 × 70,000원 = 70,000원 > 잔고 50,000원
+            every { broker.availableCash() } returns 50_000L
 
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(10, 0))
@@ -128,18 +119,17 @@ class TradingValidatorTest : FunSpec({
     }
 
     context("컷오프 초과") {
-        test("현재 시각이 컷오프(15:14) 이후면 CUTOFF_PASSED — buyIntervalMin=3") {
+        test("현재 시각이 컷오프(15:20) 이후면 CUTOFF_PASSED") {
             stubAllPass()
-            // cutoff = 15:20 - 3*2 = 15:14
             val ex = shouldThrow<TradingValidationException> {
-                validator.validate(validInput, nowAt(15, 15))
+                validator.validate(validInput, nowAt(15, 21))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.CUTOFF_PASSED
         }
 
         test("컷오프 직전이면 통과") {
             stubAllPass()
-            val (stockName, _) = validator.validate(validInput, nowAt(15, 13))
+            val (stockName, _) = validator.validate(validInput, nowAt(15, 19))
             stockName shouldBe "삼성전자"
         }
     }

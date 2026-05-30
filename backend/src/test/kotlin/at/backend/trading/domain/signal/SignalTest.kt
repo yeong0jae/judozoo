@@ -20,15 +20,6 @@ class SignalTest : FunSpec({
             Signal.Cancel.isAlive(currentPrice = 9_000, buyPrice, currentBar = null, clock = now) shouldBe true
         }
 
-        test("MidwayTakeProfit은 항상 alive") {
-            Signal.MidwayTakeProfit.isAlive(
-                currentPrice = 10_500,
-                buyPrice,
-                currentBar = null,
-                clock = now
-            ) shouldBe true
-        }
-
         test("TpStage는 항상 alive") {
             Signal.TpStage(2).isAlive(currentPrice = 10_200, buyPrice, currentBar = null, clock = now) shouldBe true
         }

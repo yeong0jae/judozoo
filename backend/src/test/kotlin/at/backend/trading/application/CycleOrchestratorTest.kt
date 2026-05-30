@@ -41,20 +41,16 @@ class CycleOrchestratorTest(
     private fun saveCycle(
         stockCode: String = "005930",
         status: TradingCycleStatus = TradingCycleStatus.INITIATED,
-        buyIntervalMin: Int = 1,
     ): TradingCycle = cycleRepository.save(
         TradingCycle(
             accountNo = "00000000",
             stockCode = stockCode,
             stockName = "삼성전자",
             perBuyAmount = 1_000_000L,
-            buyIntervalMin = buyIntervalMin,
             splitSellRatio = BigDecimal("0.5"),
-            midwayProfitPct = BigDecimal("3.0"),
             breakevenThresholdPct = BigDecimal("2.0"),
             stopLossPct = BigDecimal("-2.0"),
             status = status,
-            buyAttempt = 0,
         )
     )
 
@@ -170,8 +166,8 @@ class CycleOrchestratorTest(
                 verify(exactly = 0) { kisRestClient.cancelRemainder(any(), any()) }
             }
 
-            test("BUYING 단계 취소 시 매수 회차가 즉시 중단되어 보유분 없으면 CLOSED(CANCELLED)로 종료된다") {
-                val cycle = saveCycle(buyIntervalMin = 200)
+            test("BUYING 단계 취소 시 매수가 즉시 중단되어 보유분 없으면 CLOSED(CANCELLED)로 종료된다") {
+                val cycle = saveCycle()
                 orchestrator.start(cycle)
                 runBlocking {
                     waitFor(timeoutMillis = 3000) {

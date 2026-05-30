@@ -13,9 +13,7 @@ class ExecutionTest : FunSpec({
         stockCode = "000660",
         stockName = "SK하이닉스",
         perBuyAmount = 1_000_000,
-        buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.20"),
-        midwayProfitPct = BigDecimal("3.0"),
         breakevenThresholdPct = BigDecimal("2.0"),
         stopLossPct = BigDecimal("-2.0"),
     )

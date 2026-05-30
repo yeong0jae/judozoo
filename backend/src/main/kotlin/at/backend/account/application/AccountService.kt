@@ -20,7 +20,7 @@ class AccountService(
         val cashBalance = broker.availableCash()
         val reservedAmount = tradingCycleRepository.findByAccountNoAndStatusIn(
             broker.accountNo, TradingCycleStatus.ACTIVE
-        ).sumOf { it.perBuyAmount * (MAX_BUY_ATTEMPT - it.buyAttempt) }
+        ).sumOf { it.reservedCash() }
         return AccountBalanceResult(
             cashBalance = cashBalance,
             reservedAmount = reservedAmount,
@@ -101,8 +101,4 @@ class AccountService(
         val orderNo: String,
         val krxFwdgOrdOrgno: String,
     )
-
-    companion object {
-        private const val MAX_BUY_ATTEMPT = 3
-    }
 }

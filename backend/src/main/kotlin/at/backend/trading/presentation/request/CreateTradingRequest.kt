@@ -9,18 +9,14 @@ import java.math.BigDecimal
 data class CreateTradingRequest(
     @field:NotBlank val stockCode: String,
     @field:Positive val perBuyQty: Int,
-    val buyIntervalMin: Int? = null,
     val splitSellRatio: BigDecimal? = null,
-    val midwayProfitPct: BigDecimal? = null,
     val breakevenThresholdPct: BigDecimal? = null,
     val stopLossPct: BigDecimal? = null,
 ) {
     fun toTradingInput(defaults: TradingProperties) = TradingInput(
         stockCode = stockCode,
         perBuyQty = perBuyQty,
-        buyIntervalMin = buyIntervalMin ?: defaults.defaultBuyIntervalMin,
         splitSellRatio = splitSellRatio ?: defaults.defaultSplitSellRatio,
-        midwayProfitPct = midwayProfitPct ?: defaults.defaultMidwayProfitPct,
         breakevenThresholdPct = breakevenThresholdPct ?: defaults.defaultBreakevenThresholdPct,
         stopLossPct = stopLossPct ?: defaults.defaultStopLossPct,
     )

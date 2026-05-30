@@ -9,30 +9,22 @@ class TradingCycleTransitionTest : FunSpec({
 
     fun cycle(
         status: TradingCycleStatus,
-        buyAttempt: Int = 0,
     ) = TradingCycle(
         accountNo = "00000000",
         stockCode = "000660",
         stockName = "SK하이닉스",
         perBuyAmount = 1_000_000,
-        buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.20"),
-        midwayProfitPct = BigDecimal("3.0"),
         breakevenThresholdPct = BigDecimal("2.0"),
         stopLossPct = BigDecimal("-2.0"),
         status = status,
-        buyAttempt = buyAttempt,
     )
 
     context("Initiated 상태 전이") {
         val initiated = cycle(TradingCycleStatus.INITIATED)
 
-        test("Buying(1)으로 전이 허용") {
-            initiated.canTransitionTo(TradingCycleStatus.BUYING, nextBuyAttempt = 1) shouldBe true
-        }
-
-        test("Buying(2)로 직접 전이 불허 — 1차부터 시작해야 함") {
-            initiated.canTransitionTo(TradingCycleStatus.BUYING, nextBuyAttempt = 2) shouldBe false
+        test("Buying으로 전이 허용") {
+            initiated.canTransitionTo(TradingCycleStatus.BUYING) shouldBe true
         }
 
         test("Holding으로 직접 전이 불허") {
@@ -45,56 +37,39 @@ class TradingCycleTransitionTest : FunSpec({
     }
 
     context("Buying 상태 전이") {
-        test("다음 회차(+1)로 전이 허용") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(
-                TradingCycleStatus.BUYING,
-                nextBuyAttempt = 2
-            ) shouldBe true
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(
-                TradingCycleStatus.BUYING,
-                nextBuyAttempt = 3
-            ) shouldBe true
-        }
+        val buying = cycle(TradingCycleStatus.BUYING)
 
-        test("회차 건너뜀 불허") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(
-                TradingCycleStatus.BUYING,
-                nextBuyAttempt = 3
-            ) shouldBe false
-        }
-
-        test("Holding으로 전이 허용 — 3회 완료 또는 중도 익절") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
+        test("Holding으로 전이 허용 — 체결 완료") {
+            buying.canTransitionTo(TradingCycleStatus.HOLDING) shouldBe true
         }
 
         test("Liquidating으로 전이 허용 — 손절/취소") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(TradingCycleStatus.LIQUIDATING) shouldBe true
+            buying.canTransitionTo(TradingCycleStatus.LIQUIDATING) shouldBe true
         }
 
         test("Closed(NO_FILL)로 직행 허용 — 보유=0") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(
+            buying.canTransitionTo(
                 TradingCycleStatus.CLOSED,
                 nextCloseReason = CloseReason.NO_FILL
             ) shouldBe true
         }
 
         test("Closed(CANCELLED)로 직행 허용 — 보유=0 취소") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 2).canTransitionTo(
+            buying.canTransitionTo(
                 TradingCycleStatus.CLOSED,
                 nextCloseReason = CloseReason.CANCELLED
             ) shouldBe true
         }
 
         test("Closed(TAKE_PROFIT)로 직행 불허") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 3).canTransitionTo(
+            buying.canTransitionTo(
                 TradingCycleStatus.CLOSED,
                 nextCloseReason = CloseReason.TAKE_PROFIT
             ) shouldBe false
         }
 
         test("Initiated로 역전이 불허") {
-            cycle(TradingCycleStatus.BUYING, buyAttempt = 1).canTransitionTo(TradingCycleStatus.INITIATED) shouldBe false
+            buying.canTransitionTo(TradingCycleStatus.INITIATED) shouldBe false
         }
     }
 
@@ -114,7 +89,7 @@ class TradingCycleTransitionTest : FunSpec({
         }
 
         test("Buying으로 역전이 불허") {
-            holding.canTransitionTo(TradingCycleStatus.BUYING, nextBuyAttempt = 1) shouldBe false
+            holding.canTransitionTo(TradingCycleStatus.BUYING) shouldBe false
         }
     }
 
@@ -135,7 +110,7 @@ class TradingCycleTransitionTest : FunSpec({
 
         test("어떤 상태로도 전이 불허 — 종료 상태") {
             closed.canTransitionTo(TradingCycleStatus.INITIATED) shouldBe false
-            closed.canTransitionTo(TradingCycleStatus.BUYING, nextBuyAttempt = 1) shouldBe false
+            closed.canTransitionTo(TradingCycleStatus.BUYING) shouldBe false
             closed.canTransitionTo(TradingCycleStatus.HOLDING) shouldBe false
             closed.canTransitionTo(TradingCycleStatus.CLOSED) shouldBe false
         }
@@ -157,11 +132,8 @@ private fun TradingCycle.copy(
     stockCode = stockCode,
     stockName = stockName,
     perBuyAmount = perBuyAmount,
-    buyIntervalMin = buyIntervalMin,
     splitSellRatio = splitSellRatio,
-    midwayProfitPct = midwayProfitPct,
     breakevenThresholdPct = breakevenThresholdPct,
     stopLossPct = stopLossPct,
     status = status,
-    buyAttempt = buyAttempt,
 )

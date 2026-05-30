@@ -37,7 +37,7 @@ import { useCancelCommand } from "../api/mutations";
 import { useStompSubscription } from "../ws/useStompSubscription";
 import { ApiError } from "../api/client";
 
-type SortKey = "profit" | "status" | "name" | "buyProgress";
+type SortKey = "profit" | "status" | "name";
 const STATUS_ORDER: Record<TradingCycleStatus, number> = {
   LIQUIDATING: 0,
   HOLDING: 1,
@@ -316,9 +316,6 @@ function sortFn(key: SortKey): (a: TradingSummary, b: TradingSummary) => number 
       return (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     case "name":
       return (a, b) => a.stockName.localeCompare(b.stockName);
-    case "buyProgress":
-      return (a, b) =>
-        b.buyAttempt.completed - a.buyAttempt.completed;
   }
 }
 
@@ -340,7 +337,6 @@ function SortDropdown({
         <option value="profit">수익률</option>
         <option value="status">상태</option>
         <option value="name">종목명</option>
-        <option value="buyProgress">매수 진행</option>
       </select>
     </div>
   );
@@ -522,10 +518,6 @@ function ActiveRow({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5 min-w-[70px]">
-          <BuyAttemptDots
-            completed={cmd.buyAttempt.completed}
-            total={cmd.buyAttempt.total}
-          />
           <div className="text-xs text-zinc-400 flex items-center gap-1">
             {formatQty(cmd.holdingQty)}
             {cmd.status === "LIQUIDATING" && (
@@ -535,33 +527,6 @@ function ActiveRow({
         </div>
       </div>
     </button>
-  );
-}
-
-function BuyAttemptDots({
-  completed,
-  total,
-}: {
-  completed: number;
-  total: number;
-}) {
-  // dot은 시도 회차(attempt)를 표시 — 체결 여부는 상세 패널에서 확인.
-  // 발송 직후 "체결"로 오해하지 않게 amber 색상 사용.
-  return (
-    <div
-      className="flex gap-1"
-      title={`매수 ${completed}/${total} 회차 시도 (체결 여부는 상세 참조)`}
-      aria-label={`매수 ${completed}/${total} 회차 시도`}
-    >
-      {Array.from({ length: total }).map((_, i) => (
-        <span
-          key={i}
-          className={`w-2 h-2 rounded-full ${
-            i < completed ? "bg-amber-400" : "bg-zinc-700"
-          }`}
-        />
-      ))}
-    </div>
   );
 }
 

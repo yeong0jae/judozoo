@@ -23,21 +23,16 @@ class TradingCycleTest : FunSpec({
         tpStagesFired: Int = 0b000,
         breakevenArmed: Boolean = false,
         trendBreakArmed: Boolean = false,
-        buyAttempt: Int = 3,
         stopLossPct: BigDecimal = BigDecimal("-2.0"),
-        midwayProfitPct: BigDecimal = BigDecimal("3.0"),
     ) = TradingCycle(
         accountNo = "00000000",
         stockCode = "000660",
         stockName = "SK하이닉스",
         perBuyAmount = 1_000_000,
-        buyIntervalMin = 3,
         splitSellRatio = BigDecimal("0.20"),
-        midwayProfitPct = midwayProfitPct,
         breakevenThresholdPct = BigDecimal("2.0"),
         stopLossPct = stopLossPct,
         status = status,
-        buyAttempt = buyAttempt,
         breakevenArmed = breakevenArmed,
         trendBreakArmed = trendBreakArmed,
         tpStagesFired = tpStagesFired,
@@ -56,11 +51,6 @@ class TradingCycleTest : FunSpec({
             shouldThrow<IllegalArgumentException> { cycle(stopLossPct = BigDecimal("0.02")) }
         }
 
-        test("중도 익절 비율이 0 이하이면 예외") {
-            shouldThrow<IllegalArgumentException> { cycle(midwayProfitPct = BigDecimal("0.0")) }
-            shouldThrow<IllegalArgumentException> { cycle(midwayProfitPct = BigDecimal("-1.0")) }
-        }
-
         test("분할 매도 수량 산출 시 보유 수량이 음수이면 예외") {
             shouldThrow<IllegalArgumentException> { cycle().splitSellQty(-1) }
         }
@@ -74,17 +64,6 @@ class TradingCycleTest : FunSpec({
 
         test("현재가가 손절가 위이면 미발동") {
             cycle().isStopLossTriggered(9_801, buyPrice) shouldBe false
-        }
-    }
-
-    context("중도 익절 조건 평가") {
-        test("현재가가 목표가 이상이면 발동") {
-            cycle().isMidwayTakeProfitTriggered(10_300, buyPrice) shouldBe true
-            cycle().isMidwayTakeProfitTriggered(10_500, buyPrice) shouldBe true
-        }
-
-        test("현재가가 목표가 미만이면 미발동") {
-            cycle().isMidwayTakeProfitTriggered(10_299, buyPrice) shouldBe false
         }
     }
 
@@ -160,9 +139,8 @@ class TradingCycleTest : FunSpec({
             TradingCycle(
                 accountNo = "00000000",
                 stockCode = "000660", stockName = "SK하이닉스",
-                perBuyAmount = 1_000_000, buyIntervalMin = 3,
+                perBuyAmount = 1_000_000,
                 splitSellRatio = BigDecimal("1.0"),
-                midwayProfitPct = BigDecimal("3.0"),
                 breakevenThresholdPct = BigDecimal("2.0"),
                 stopLossPct = BigDecimal("-2.0"),
             ).splitSellQty(5) shouldBe Pair(5, 0)
@@ -259,18 +237,8 @@ class TradingCycleTest : FunSpec({
 
     context("Buying 상태 시그널 감지") {
         test("매수 진행 중 손절가 이하 시 StopLoss 반환") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 2)
+            cycle(status = TradingCycleStatus.BUYING)
                 .detectSignals(tick(9_800), holdingQty, buyPrice) shouldContainExactly listOf(Signal.StopLoss)
-        }
-
-        test("매수 진행 중 중도 익절 조건 충족 시 MidwayTakeProfit 반환") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 2)
-                .detectSignals(tick(10_300), holdingQty, buyPrice) shouldContainExactly listOf(Signal.MidwayTakeProfit)
-        }
-
-        test("3회차 완료 후에는 MidwayTakeProfit 미발동") {
-            cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
-                .detectSignals(tick(10_300), holdingQty, buyPrice).none { it is Signal.MidwayTakeProfit } shouldBe true
         }
     }
 
@@ -303,43 +271,22 @@ class TradingCycleTest : FunSpec({
     }
 
     context("매수 시작") {
-        test("Initiated 상태에서 호출하면 Buying 1회차로 전이된다") {
-            val target = cycle(status = TradingCycleStatus.INITIATED, buyAttempt = 0)
+        test("Initiated 상태에서 호출하면 Buying으로 전이된다") {
+            val target = cycle(status = TradingCycleStatus.INITIATED)
             target.startBuying()
             target.status shouldBe TradingCycleStatus.BUYING
-            target.buyAttempt shouldBe 1
         }
 
         test("Initiated가 아닌 상태에서 호출하면 예외") {
             shouldThrow<IllegalArgumentException> {
-                cycle(status = TradingCycleStatus.BUYING, buyAttempt = 1).startBuying()
-            }
-        }
-    }
-
-    context("매수 회차 증가") {
-        test("Buying 상태에서 호출하면 회차가 1 증가한다") {
-            val target = cycle(status = TradingCycleStatus.BUYING, buyAttempt = 1)
-            target.incrementBuyAttempt()
-            target.buyAttempt shouldBe 2
-        }
-
-        test("회차가 3이면 더 증가하지 않는다 (예외)") {
-            shouldThrow<IllegalArgumentException> {
-                cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3).incrementBuyAttempt()
-            }
-        }
-
-        test("Buying이 아닌 상태에서 호출하면 예외") {
-            shouldThrow<IllegalArgumentException> {
-                cycle(status = TradingCycleStatus.HOLDING).incrementBuyAttempt()
+                cycle(status = TradingCycleStatus.BUYING).startBuying()
             }
         }
     }
 
     context("Holding 전이") {
         test("Buying 상태에서 호출하면 Holding으로 전이된다") {
-            val target = cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
+            val target = cycle(status = TradingCycleStatus.BUYING)
             target.transitionToHolding()
             target.status shouldBe TradingCycleStatus.HOLDING
         }
@@ -411,7 +358,7 @@ class TradingCycleTest : FunSpec({
         val at = java.time.LocalDateTime.of(2026, 5, 5, 10, 0)
 
         test("Buying 상태에서 NO_FILL로 종료할 수 있다") {
-            val target = cycle(status = TradingCycleStatus.BUYING, buyAttempt = 3)
+            val target = cycle(status = TradingCycleStatus.BUYING)
             target.close(CloseReason.NO_FILL, at)
             target.status shouldBe TradingCycleStatus.CLOSED
             target.closeReason shouldBe CloseReason.NO_FILL

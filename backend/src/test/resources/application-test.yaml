@@ -37,9 +37,7 @@ kis:
     execution-notice: H0STCNI0
 
 trading:
-  default-buy-interval-min: 3              # 분 단위
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
-  default-midway-profit-pct: 3             # 퍼센트 숫자 (3 = 3%)
   default-breakeven-threshold-pct: 2       # 퍼센트 숫자 (2 = 2%)
   default-stop-loss-pct: 2                 # 퍼센트 숫자, 양수 입력 (2 → 내부 -2%)
   sell-cost-rate: 0.0025                   # 소수 비율 (0.0025 = 0.25%)
@@ -50,5 +48,5 @@ trading:
     egw-retry-base-delay-millis: 20
     reconcile-delay-millis: 600000
   cycle:
-    buy-interval-unit-millis: 5
+    buy-fill-wait-millis: 1000
     holding-poll-interval-millis: 10

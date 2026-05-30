@@ -49,13 +49,10 @@ class OrderServiceTest(
             stockCode = "005930",
             stockName = "삼성전자",
             perBuyAmount = 1_000_000L,
-            buyIntervalMin = 3,
             splitSellRatio = BigDecimal("0.5"),
-            midwayProfitPct = BigDecimal("3.0"),
             breakevenThresholdPct = BigDecimal("2.0"),
             stopLossPct = BigDecimal("-2.0"),
             status = TradingCycleStatus.HOLDING,
-            buyAttempt = 3,
         )
     )
 
@@ -89,7 +86,7 @@ class OrderServiceTest(
                 stubSubmitOrder(odno = "0000111111")
                 val cycle = saveCycle()
 
-                orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle)
 
                 val saved = orderRepository.findByCycleId(cycle.id).single()
                 saved.orderNo shouldBe "0000111111"
@@ -105,7 +102,7 @@ class OrderServiceTest(
                 stubCurrentPrice(2_000_000)
                 val cycle = saveCycle()
 
-                orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle)
 
                 verify(exactly = 0) { kisRestClient.requestOrder(any(), any(), any()) }
                 orderRepository.findByCycleId(cycle.id).size shouldBe 0
@@ -117,7 +114,7 @@ class OrderServiceTest(
                         KisOrderRejectedException(msgCd = "EGW00201", msg = "초당 거래건수 초과")
                 val cycle = saveCycle()
 
-                orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle)
 
                 val saved = orderRepository.findByCycleId(cycle.id).single()
                 saved.status shouldBe OrderStatus.FAILED
@@ -129,7 +126,7 @@ class OrderServiceTest(
                 every { kisRestClient.requestOrder(any(), any(), any()) } throws RestClientException("응답 파싱 실패")
                 val cycle = saveCycle()
 
-                orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle)
 
                 val saved = orderRepository.findByCycleId(cycle.id).single()
                 saved.status shouldBe OrderStatus.FAILED
@@ -142,7 +139,7 @@ class OrderServiceTest(
                 val cycle = saveCycle()
 
                 // 예외 전파 없이 정상 리턴해야 함
-                orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle)
 
                 verify(exactly = 0) { kisRestClient.requestOrder(any(), any(), any()) }
                 orderRepository.findByCycleId(cycle.id).size shouldBe 0
@@ -165,7 +162,7 @@ class OrderServiceTest(
                 }
                 val cycle = saveCycle()
 
-                orderService.placeOrder(cycle, attempt = 1)
+                orderService.placeOrder(cycle)
 
                 calls shouldBe 2
                 val saved = orderRepository.findByCycleId(cycle.id).single()

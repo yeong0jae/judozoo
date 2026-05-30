@@ -97,12 +97,10 @@ class TradingCycleScenarioTest(
         stubSubmitOrderOk()
     }
 
-    private fun validInput(perBuyQty: Int = 10, buyIntervalMin: Int = 1) = TradingInput(
+    private fun validInput(perBuyQty: Int = 10) = TradingInput(
         stockCode = stockCode,
         perBuyQty = perBuyQty,
-        buyIntervalMin = buyIntervalMin,
         splitSellRatio = BigDecimal("0.5"),
-        midwayProfitPct = BigDecimal("3.0"),
         breakevenThresholdPct = BigDecimal("2.0"),
         stopLossPct = BigDecimal("2.0"),
     )
@@ -191,7 +189,7 @@ class TradingCycleScenarioTest(
             while (true) {
                 fillAllPendingBuys(cycleId, fillPrice)
                 val buys = orderRepository.findByCycleId(cycleId).filter { it.side == OrderSide.BUY }
-                if (buys.size == 3 && buys.all { it.filledQty > 0 }) break
+                if (buys.isNotEmpty() && buys.all { it.filledQty > 0 }) break
                 delay(20)
             }
         }
@@ -243,9 +241,7 @@ class TradingCycleScenarioTest(
                         TradingInput(
                             stockCode = code,
                             perBuyQty = 10,
-                            buyIntervalMin = 1,
                             splitSellRatio = BigDecimal("0.5"),
-                            midwayProfitPct = BigDecimal("3.0"),
                             breakevenThresholdPct = BigDecimal("2.0"),
                             stopLossPct = BigDecimal("2.0"),
                         )
@@ -278,35 +274,8 @@ class TradingCycleScenarioTest(
                 cycleRepository.findById(cycles[2].id).get().status shouldBe TradingCycleStatus.HOLDING
             }
 
-            test("BUYING 중도 익절: 1회차 체결 후 +3% 도달 시 매수 시퀀스 종료 → HOLDING 진입 → 분할 매도 발사") {
-                val created = tradingService.create(validInput(buyIntervalMin = 120))
-
-                run {
-                    waitUntilOrders(created.id) { orders ->
-                        orders.any { it.side == OrderSide.BUY && it.orderNo != null }
-                    }
-                    fillAllPendingBuys(created.id, fillPrice = 70_000)
-
-                    // 시그널 평가 기준 buyPrice = 70_000 × (1 + 0.0025) = 70_175 (sell-cost-rate 반영).
-                    // +3% 라인은 70_175 × 1.03 ≈ 72_281이라 73_000 tick → MidwayTakeProfit 발동
-                    // → buyJob 취소 → HOLDING 전이 → 첫 HOLDING tick에서 TpStage 평가 → SELL 발사까지 한 번에
-                    emitTicksUntil(price = 73_000) {
-                        val statusOk = cycleRepository.findById(created.id).get().status == TradingCycleStatus.HOLDING
-                        val hasSell = orderRepository.findByCycleId(created.id)
-                            .any { it.side == OrderSide.SELL && it.orderNo != null }
-                        statusOk && hasSell
-                    }
-                }
-
-                val refreshed = cycleRepository.findById(created.id).get()
-                refreshed.status shouldBe TradingCycleStatus.HOLDING
-
-                val buys = orderRepository.findByCycleId(created.id).filter { it.side == OrderSide.BUY }
-                buys.size shouldBe 1
-            }
-
-            test("BUYING 손절: 1회차 체결 후 -2% 도달 시 LIQUIDATING + 전량 매도 → CLOSED(STOP_LOSS)") {
-                val created = tradingService.create(validInput(buyIntervalMin = 120))
+            test("손절: 체결 후 -2% 도달 시 LIQUIDATING + 전량 매도 → CLOSED(STOP_LOSS)") {
+                val created = tradingService.create(validInput())
 
                 run {
                     waitUntilOrders(created.id) { orders ->
@@ -333,7 +302,7 @@ class TradingCycleScenarioTest(
             }
 
             test("취소: BUYING 단계 cancel 시 회차 즉시 차단 + 보유분 없으면 CLOSED(CANCELLED)") {
-                val created = tradingService.create(validInput(buyIntervalMin = 30))
+                val created = tradingService.create(validInput())
 
                 run {
                     waitUntilOrders(created.id) { orders ->
@@ -352,7 +321,7 @@ class TradingCycleScenarioTest(
             }
 
             test("취소: 1차 체결 후 cancel 시 보유분 청산 매도 발사 → CLOSED(CANCELLED)") {
-                val created = tradingService.create(validInput(buyIntervalMin = 30))
+                val created = tradingService.create(validInput())
 
                 waitUntilOrders(created.id) { orders ->
                     orders.any { it.side == OrderSide.BUY && it.orderNo != null }
@@ -387,9 +356,7 @@ class TradingCycleScenarioTest(
                             stockCode = "00593$i",
                             stockName = "테스트$i",
                             perBuyAmount = 1_000_000,
-                            buyIntervalMin = 1,
                             splitSellRatio = BigDecimal("0.5"),
-                            midwayProfitPct = BigDecimal("3.0"),
                             breakevenThresholdPct = BigDecimal("2.0"),
                             stopLossPct = BigDecimal("-2.0"),
                             status = status,
@@ -468,7 +435,7 @@ class TradingCycleScenarioTest(
                 refreshed.closeReason shouldBe CloseReason.BREAKEVEN
             }
 
-            test("부분 체결/NO_FILL: 매수 3회 모두 발송 실패 시 CLOSED(NO_FILL)로 종료") {
+            test("NO_FILL: 매수 발송 실패 시 CLOSED(NO_FILL)로 종료") {
                 stubSubmitOrderFail()
 
                 val created = tradingService.create(validInput())
@@ -480,7 +447,7 @@ class TradingCycleScenarioTest(
                 refreshed.closeReason shouldBe CloseReason.NO_FILL
 
                 val buyOrders = orderRepository.findByCycleId(created.id).filter { it.side == OrderSide.BUY }
-                buyOrders.size shouldBe 3
+                buyOrders.size shouldBe 1
                 buyOrders.all { it.filledQty == 0 } shouldBe true
             }
         }

@@ -45,9 +45,7 @@ leading-stock:
     max-theme-rank: 5                      # 테마 그룹 상위 N위
 
 trading:
-  default-buy-interval-min: 3              # 분 단위
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
-  default-midway-profit-pct: 3             # 퍼센트 숫자 (3 = 3%)
   default-breakeven-threshold-pct: 2       # 퍼센트 숫자 (2 = 2%)
   default-stop-loss-pct: 2                 # 퍼센트 숫자, 양수 입력 (2 → 내부 -2%)
   sell-cost-rate: 0.0025                   # 소수 비율 (0.0025 = 0.25%)
@@ -58,5 +56,5 @@ trading:
     sell-max-retries: 5                    # 매도 발송 거부 시 최대 재시도 횟수 — 초과 시 중단(무한 재시도 방지)
     egw-retry-base-delay-millis: 1500      # 매수 EGW00201 재시도 backoff 단위
   cycle:
-    buy-interval-unit-millis: 60000
+    buy-fill-wait-millis: 30000            # 단일 매수 발송 후 체결 통보 대기 한도 (초과 시 NO_FILL)
     holding-poll-interval-millis: 50

@@ -16,7 +16,6 @@ import at.backend.trading.domain.order.OrderStatus
 import at.backend.trading.infrastructure.repository.ExecutionJpaRepository
 import at.backend.trading.infrastructure.repository.OrderJpaRepository
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
-import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.mockk.clearMocks
 import io.mockk.every
@@ -42,20 +41,17 @@ class TradingCycleRunnerTest(
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private fun saveCycle(buyIntervalMin: Int = 3, perBuyAmount: Long = 1_000_000): TradingCycle =
+    private fun saveCycle(perBuyAmount: Long = 1_000_000): TradingCycle =
         cycleRepository.save(
             TradingCycle(
                 accountNo = "00000000",
                 stockCode = "005930",
                 stockName = "삼성전자",
                 perBuyAmount = perBuyAmount,
-                buyIntervalMin = buyIntervalMin,
                 splitSellRatio = BigDecimal("0.5"),
-                midwayProfitPct = BigDecimal("3.0"),
                 breakevenThresholdPct = BigDecimal("2.0"),
                 stopLossPct = BigDecimal("-2.0"),
                 status = TradingCycleStatus.INITIATED,
-                buyAttempt = 0,
             )
         )
 
@@ -71,7 +67,7 @@ class TradingCycleRunnerTest(
         timeProvider = timeProvider,
         eventPublisher = org.springframework.context.ApplicationEventPublisher { },
         sellCostRate = 0.0025,
-        buyIntervalUnit = 5.milliseconds,
+        buyFillWaitMillis = 500,
         holdingPollIntervalMillis = 10,
     )
 
@@ -136,8 +132,8 @@ class TradingCycleRunnerTest(
             timeProvider.current = FixedTimeProviderConfig.DEFAULT_NOW
         }
 
-        context("매수 회차 흐름") {
-            test("3회 매수 모두 정상 체결되면 HOLDING으로 전이된다") {
+        context("매수 흐름") {
+            test("매수 체결되면 HOLDING으로 전이된다") {
                 stubCurrentPrice(70_000)
                 stubSubmitOrderOk()
                 val cycle = saveCycle()
@@ -146,7 +142,7 @@ class TradingCycleRunnerTest(
                 target.start()
                 withTimeout(2000.milliseconds) {
                     var orders = emptyList<Order>()
-                    while (orders.size < 3) {
+                    while (orders.isEmpty()) {
                         delay(20.milliseconds)
                         orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
                         orders.filter { it.filledQty == 0 }.forEach { simulateFill(it, it.orderQty) }
@@ -157,10 +153,9 @@ class TradingCycleRunnerTest(
 
                 val refreshed = cycleRepository.findById(cycle.id).get()
                 refreshed.status shouldBe TradingCycleStatus.HOLDING
-                refreshed.buyAttempt shouldBe 3
             }
 
-            test("모든 회차 발송 실패면 CLOSED(NO_FILL)로 종료된다") {
+            test("매수 발송 실패면 CLOSED(NO_FILL)로 종료된다") {
                 stubCurrentPrice(70_000)
                 stubSubmitOrderFail()
                 val cycle = saveCycle()
@@ -175,43 +170,19 @@ class TradingCycleRunnerTest(
                 refreshed.closeReason shouldBe CloseReason.NO_FILL
             }
 
-            test("발송 실패 회차도 회차 카운트는 진행되어 다음 회차가 시도된다") {
+            test("체결 통보가 도착하지 않으면 fill-wait 후 NO_FILL로 종료된다") {
                 stubCurrentPrice(70_000)
-                var attempt = 0
-                every { kisRestClient.requestOrder(any(), any(), any()) } answers {
-                    attempt += 1
-                    if (attempt == 1) {
-                        throw RestClientException("4xx")
-                    } else {
-                        KisOrderResponse(
-                            rtCd = "0", msgCd = "APBK0013", msg1 = "OK",
-                            output = KisOrderResponse.Output(
-                                krxFwdgOrdOrgno = "00950",
-                                odno = "ODNO_$attempt",
-                                ordTmd = "100000",
-                            ),
-                        )
-                    }
-                }
+                stubSubmitOrderOk()
                 val cycle = saveCycle()
                 val target = runner(cycle)
 
+                // 발송은 성공하지만 체결을 시뮬레이션하지 않음 → fill-wait 초과 후 NO_FILL
                 target.start()
-                withTimeout(2000.milliseconds) {
-                    var orders = emptyList<Order>()
-                    while (orders.size < 3) {
-                        delay(20.milliseconds)
-                        orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
-                        orders.filter { it.status == OrderStatus.PENDING && it.filledQty == 0 }
-                            .forEach { simulateFill(it, it.orderQty) }
-                    }
-                }
-                waitUntilCycle(cycle.id) { it.status == TradingCycleStatus.HOLDING }
+                waitUntilCycle(cycle.id, timeoutMillis = 3000) { it.status == TradingCycleStatus.CLOSED }
                 target.cancel()
 
-                val orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
-                orders shouldHaveSize 3
-                attempt shouldBe 3
+                val refreshed = cycleRepository.findById(cycle.id).get()
+                refreshed.closeReason shouldBe CloseReason.NO_FILL
             }
         }
 
@@ -220,7 +191,7 @@ class TradingCycleRunnerTest(
                 target.start()
                 withTimeout(2000.milliseconds) {
                     var orders = emptyList<Order>()
-                    while (orders.size < 3) {
+                    while (orders.isEmpty()) {
                         delay(10.milliseconds)
                         orders = orderRepository.findByCycleId(cycle.id).filter { it.side == OrderSide.BUY }
                         orders.filter { it.filledQty == 0 }
@@ -238,7 +209,7 @@ class TradingCycleRunnerTest(
             test("StopLoss 가격 진입 시 매도 주문이 발사되고 LIQUIDATING/STOP_LOSS로 종료된다") {
                 stubCurrentPrice(70_000)
                 stubSubmitOrderOk()
-                val cycle = saveCycle(buyIntervalMin = 1)
+                val cycle = saveCycle()
                 val target = runner(cycle)
                 reachHoldingFullyFilled(cycle, target, fillPrice = 70_000)
 
@@ -260,7 +231,7 @@ class TradingCycleRunnerTest(
             test("Breakeven 임계 가격 도달 시 breakevenArmed가 true로 갱신된다") {
                 stubCurrentPrice(70_000)
                 stubSubmitOrderOk()
-                val cycle = saveCycle(buyIntervalMin = 1)
+                val cycle = saveCycle()
                 val target = runner(cycle)
                 reachHoldingFullyFilled(cycle, target, fillPrice = 70_000)
 

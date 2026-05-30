@@ -15,7 +15,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.Duration.Companion.milliseconds
 
 @Component
 class CycleOrchestrator(
@@ -29,7 +28,7 @@ class CycleOrchestrator(
     private val timeProvider: TimeProvider,
     private val tradingProperties: TradingProperties,
     private val eventPublisher: org.springframework.context.ApplicationEventPublisher,
-    @Value("\${trading.cycle.buy-interval-unit-millis}") private val buyIntervalUnitMillis: Long,
+    @Value("\${trading.cycle.buy-fill-wait-millis}") private val buyFillWaitMillis: Long,
     @Value("\${trading.cycle.holding-poll-interval-millis}") private val holdingPollIntervalMillis: Long,
 ) {
 
@@ -90,7 +89,7 @@ class CycleOrchestrator(
         timeProvider = timeProvider,
         eventPublisher = eventPublisher,
         sellCostRate = tradingProperties.sellCostRate.toDouble(),
-        buyIntervalUnit = buyIntervalUnitMillis.milliseconds,
+        buyFillWaitMillis = buyFillWaitMillis,
         holdingPollIntervalMillis = holdingPollIntervalMillis,
     )
 }

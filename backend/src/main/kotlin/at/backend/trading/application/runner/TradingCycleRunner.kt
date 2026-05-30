@@ -23,16 +23,14 @@ import kotlinx.coroutines.flow.filter
 import org.springframework.context.ApplicationEventPublisher
 import java.math.BigDecimal
 import java.math.RoundingMode
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * 트레이딩 사이클 1건의 백그라운드 실행 단위.
  *
- * - 명령별로 1개 코루틴이 매수 회차 → HOLDING → 매도 시그널 → 종료까지 진행한다.
+ * - 명령별로 1개 코루틴이 단일 매수 → HOLDING → 매도 시그널 → 종료까지 진행한다.
  * - 외부에서는 [start] / [requestCancellation] / [awaitCompletion] 만 호출한다.
- * - 도메인 상태 전이는 [TradingCycle] 메서드(`startBuying` / `incrementBuyAttempt` / `transitionToHolding`
+ * - 도메인 상태 전이는 [TradingCycle] 메서드(`startBuying` / `transitionToHolding`
  *   / `armBreakeven` / `armTrendBreak` / `markTpStageFired` / `requestCancel` / `close`)로 위임 — runner는 흐름 제어만.
  */
 class TradingCycleRunner(
@@ -47,7 +45,7 @@ class TradingCycleRunner(
     private val timeProvider: TimeProvider,
     eventPublisher: ApplicationEventPublisher,
     private val sellCostRate: Double,
-    private val buyIntervalUnit: Duration = 1.minutes,
+    private val buyFillWaitMillis: Long = 30_000,
     private val holdingPollIntervalMillis: Long = 50,
 ) {
 
@@ -135,23 +133,29 @@ class TradingCycleRunner(
             cycle.startBuying()
             cycleRepository.save(cycle)
             events.stateChanged(TradingCycleStatus.BUYING)
-            orderService.placeOrder(cycle, attempt = 1)
-
-            repeat(TradingCycle.MAX_BUY_ATTEMPT - 1) { i ->
-                delay(buyIntervalUnit * cycle.buyIntervalMin)
-                cycle.incrementBuyAttempt()
-                cycleRepository.save(cycle)
-                orderService.placeOrder(cycle, attempt = i + 2)
-            }
+            orderService.placeOrder(cycle)
+            awaitBuyFill()
         } finally {
             finalizeBuySequence()
         }
     }
 
+    /** 단일 매수 발송 후 체결 통보 도착까지 최대 [buyFillWaitMillis] 폴링. 취소 시 delay가 끊겨 finalize로 진행. */
+    private suspend fun awaitBuyFill() {
+        var waited = 0L
+        while (waited < buyFillWaitMillis) {
+            if (buyFilledQty() > 0) return
+            delay(BUY_FILL_POLL_MILLIS.milliseconds)
+            waited += BUY_FILL_POLL_MILLIS
+        }
+    }
+
+    private fun buyFilledQty(): Int = orderRepository.findByCycleId(cycleId)
+        .filter { it.side == OrderSide.BUY }
+        .sumOf { it.filledQty }
+
     private fun finalizeBuySequence() {
-        val totalFilled = orderRepository.findByCycleId(cycleId)
-            .filter { it.side == OrderSide.BUY }
-            .sumOf { it.filledQty }
+        val totalFilled = buyFilledQty()
 
         when {
             totalFilled == 0 && cycle.status == TradingCycleStatus.LIQUIDATING -> {
@@ -241,8 +245,7 @@ class TradingCycleRunner(
     }
 
     /**
-     * BUYING 중 tick 처리 — MidwayTakeProfit / StopLoss만 평가.
-     * - MidwayTakeProfit: buyJob 취소 → finalizeBuySequence가 HOLDING 전이 → handleAfterBuy 첫 tick에서 TpStage 평가
+     * BUYING 중 tick 처리 — StopLoss만 평가.
      * - StopLoss: LIQUIDATING 전이 + 보유분 즉시 매도
      * 같은 시그널이 다음 tick에서 재발동하지 않도록 buyJob 취소 여부로 가드.
      */
@@ -255,16 +258,9 @@ class TradingCycleRunner(
 
         val signal = cycle.detectSignals(tick, state.holdingQty, state.buyPrice).firstOrNull() ?: return
         when (signal) {
-            is Signal.MidwayTakeProfit -> applyMidwayTakeProfit(signal, currentBuyJob, tick.price)
             is Signal.StopLoss -> applyBuyingStopLoss(signal, currentBuyJob, state, tick)
             else -> Unit
         }
-    }
-
-    private fun applyMidwayTakeProfit(signal: Signal, buyJob: Job, price: Int) {
-        log.info { "중도 익절 발동 cycleId=$cycleId, price=$price" }
-        events.signalFired(signal)
-        buyJob.cancel()
     }
 
     private suspend fun applyBuyingStopLoss(signal: Signal, buyJob: Job, state: HoldingState, tick: PriceTick) {
@@ -399,7 +395,6 @@ class TradingCycleRunner(
         Signal.Breakeven -> CloseReason.BREAKEVEN
         Signal.TrendBreak -> CloseReason.TREND_BREAK
         Signal.Cancel -> CloseReason.CANCELLED
-        Signal.MidwayTakeProfit -> CloseReason.TAKE_PROFIT
         is Signal.TpStage -> CloseReason.TAKE_PROFIT
     }
 
@@ -456,5 +451,6 @@ class TradingCycleRunner(
 
     companion object {
         private const val TREND_BREAK_ARM_PCT = 0.05
+        private const val BUY_FILL_POLL_MILLIS = 100L
     }
 }

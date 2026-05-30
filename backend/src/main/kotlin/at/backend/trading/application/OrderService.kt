@@ -38,19 +38,18 @@ class OrderService(
      * 매수 회차 1건 발송. 응답 정상이면 [Order.kisOrderNo]/[Order.krxFwdgOrdOrgno] 갱신.
      * 발송 실패는 회차 스킵 — 호출자(BUYING 사이클)는 다음 회차로 진행.
      */
-    suspend fun placeOrder(cycle: TradingCycle, attempt: Int) {
+    suspend fun placeOrder(cycle: TradingCycle) {
         val currentPrice = try {
             broker.currentPrice(cycle.stockCode).toInt()
         } catch (e: Exception) {
-            // 브로커 일시 거부(EGW00201 등) 시 회차 스킵 — 사이클 전체가 죽지 않도록.
-            // PRD 매수 §7: 회차별 발송 실패는 스킵, 다음 회차는 예정 시각에 정상 시도.
-            log.warn(e) { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — 현재가 조회 실패" }
+            // 브로커 일시 거부(EGW00201 등) 시 매수 스킵 — 사이클 전체가 죽지 않도록.
+            log.warn(e) { "매수 스킵 cycleId=${cycle.id} — 현재가 조회 실패" }
             return
         }
         // 신규 사이클은 perBuyQty가 결정값. 과거 사이클은 perBuyAmount/currentPrice로 fallback.
         val qty = cycle.perBuyQty ?: (cycle.perBuyAmount / currentPrice).toInt()
         if (qty <= 0) {
-            log.warn { "매수 스킵 cycleId=${cycle.id}, attempt=$attempt — qty=$qty (perBuyQty=${cycle.perBuyQty}, perBuyAmount=${cycle.perBuyAmount}, currentPrice=$currentPrice)" }
+            log.warn { "매수 스킵 cycleId=${cycle.id} — qty=$qty (perBuyQty=${cycle.perBuyQty}, perBuyAmount=${cycle.perBuyAmount}, currentPrice=$currentPrice)" }
             return
         }
 
@@ -58,34 +57,32 @@ class OrderService(
             Order(
                 cycleId = cycle.id,
                 side = OrderSide.BUY,
-                trigger = "BUY_$attempt",
+                trigger = "BUY",
                 orderQty = qty,
                 status = OrderStatus.PENDING,
             )
         )
 
         try {
-            val placed = submitBuyWithEgw00201Retry(cycle.stockCode, qty, cycle.id, attempt)
+            val placed = submitBuyWithEgw00201Retry(cycle.stockCode, qty, cycle.id)
             order.acknowledge(placed.orderNo, placed.orgno)
             orderRepository.save(order)
         } catch (e: Exception) {
             order.markFailed(e.message)
             orderRepository.save(order)
             val code = (e as? BrokerOrderRejectedException)?.code
-            log.warn(e) { "매수 발송 실패 cycleId=${cycle.id}, attempt=$attempt, code=$code" }
+            log.warn(e) { "매수 발송 실패 cycleId=${cycle.id}, code=$code" }
         }
     }
 
     /**
      * 매수 발송이 EGW00201(초당 거래건수 초과)로 거부되면 짧은 backoff 후 [EGW_RETRIES]회 재시도.
-     * KIS가 처리 자체를 안 한 거부라 중복 주문 위험은 없다. 회차 단위 스킵(3분 대기) 대신
-     * 동일 회차 내에서 빠르게 재발사해 매수량 손실을 막는다. 다른 거부(잔고 부족·중복 등)는 즉시 전파.
+     * KIS가 처리 자체를 안 한 거부라 중복 주문 위험은 없다. 다른 거부(잔고 부족·중복 등)는 즉시 전파.
      */
     private suspend fun submitBuyWithEgw00201Retry(
         stockCode: String,
         qty: Int,
         cycleId: Long,
-        attempt: Int,
     ): PlacedOrder {
         repeat(EGW_RETRIES) { i ->
             try {
@@ -93,7 +90,7 @@ class OrderService(
             } catch (e: Exception) {
                 if (!isEgw00201(e)) throw e
                 val delayMs = (i + 1) * egwRetryBaseDelayMs
-                log.info { "매수 발송 EGW00201 → ${delayMs}ms 후 재시도 cycleId=$cycleId, attempt=$attempt (${i + 1}/$EGW_RETRIES)" }
+                log.info { "매수 발송 EGW00201 → ${delayMs}ms 후 재시도 cycleId=$cycleId (${i + 1}/$EGW_RETRIES)" }
                 delay(delayMs.milliseconds)
             }
         }
