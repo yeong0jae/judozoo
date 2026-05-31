@@ -18,11 +18,11 @@ function deriveSummary(status: MarketStatus): { label: string; tone: Tone } {
 function deriveConditions(status: MarketStatus): Condition[] {
   return [
     {
-      label: "거래시간 09:00–15:30",
+      label: "거래시간 09:00–20:00",
       tone: status.tradingHoursOpen ? "ok" : "warn",
     },
     { label: "휴장 아님", tone: status.isHoliday ? "warn" : "ok" },
-    { label: "컷오프 전 (15:20)", tone: status.cutoffPassed ? "warn" : "ok" },
+    { label: "컷오프 전 (19:50)", tone: status.cutoffPassed ? "warn" : "ok" },
   ];
 }
 

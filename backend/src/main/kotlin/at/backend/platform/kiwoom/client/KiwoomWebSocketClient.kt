@@ -168,7 +168,8 @@ class KiwoomWebSocketClient(
             data += mapOf("item" to listOf(""), "type" to listOf(EXECUTION_TYPE))
         }
         if (priceCodes.isNotEmpty()) {
-            data += mapOf("item" to priceCodes, "type" to listOf(PRICE_TICK_TYPE))
+            // _AL 접미사 = SOR 통합 시세 (KRX+NXT). NXT 애프터마켓 15:40~20:00 포함.
+            data += mapOf("item" to priceCodes.map { "${it}_AL" }, "type" to listOf(PRICE_TICK_TYPE))
         }
         if (data.isEmpty()) return
         val msg = mapOf(
@@ -184,7 +185,9 @@ class KiwoomWebSocketClient(
         val msg = mapOf(
             "trnm" to "REMOVE",
             "grp_no" to "1",
-            "data" to listOf(mapOf("item" to codes, "type" to listOf(PRICE_TICK_TYPE))),
+            "data" to listOf(
+                mapOf("item" to codes.map { "${it}_AL" }, "type" to listOf(PRICE_TICK_TYPE)),
+            ),
         )
         session.sendMessage(TextMessage(objectMapper.writeValueAsString(msg)))
     }
@@ -224,7 +227,8 @@ class KiwoomWebSocketClient(
     }
 
     private fun parsePriceTick(item: JsonNode): PriceTick? {
-        val stockCode = item.path("item").asText().takeIf { it.isNotBlank() } ?: return null
+        // SOR 통합 구독은 item 필드를 "005930_AL" 형태로 돌려주므로 내부 stockCode(6자리)로 환원.
+        val stockCode = item.path("item").asText().removeSuffix("_AL").takeIf { it.isNotBlank() } ?: return null
         val price = parseSignedInt(item.path("values").path("10").asText()) ?: return null
         return PriceTick(stockCode = stockCode, price = price, timestamp = Instant.now())
     }

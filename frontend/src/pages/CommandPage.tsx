@@ -813,9 +813,9 @@ function SystemPanel({
     );
   }
   const conditions = [
-    { label: "거래시간 09:00–15:30", ok: status.tradingHoursOpen },
+    { label: "거래시간 09:00–20:00", ok: status.tradingHoursOpen },
     { label: "휴장 아님", ok: !status.isHoliday },
-    { label: "컷오프 전 (15:20)", ok: !status.cutoffPassed },
+    { label: "컷오프 전 (19:50)", ok: !status.cutoffPassed },
   ];
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">

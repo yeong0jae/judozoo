@@ -281,7 +281,7 @@ class KisWebSocketClient(
     private class AesKey(val key: ByteArray, val iv: ByteArray)
 
     companion object {
-        private const val TR_PRICE = "H0STCNT0"
+        private const val TR_PRICE = "H0UNCNT0"  // KRX+NXT 통합 시세 (NXT 애프터마켓 15:40~20:00 포함)
         private val BACKOFF_DELAYS_SEC = longArrayOf(1, 2, 5, 5)
     }
 }

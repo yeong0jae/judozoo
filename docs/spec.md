@@ -191,7 +191,7 @@ PRD §매수가 산정 기준 — 매수 비용 + 예상 매도 비용 반영 �
 ## 9. 스케줄러
 
 - **부팅 훅**: `MarketDayStartupHook`가 ApplicationReadyEvent 시 KIS 휴장일 조회 → `HolidayChanged` 이벤트 1회 발행 (프론트엔드 영업일 표시용)
-- **컷오프**: `TradingService.create()`에서 KST 시각 vs 고정 `15:20` 비교, 초과 시 `CUTOFF_PASSED` — 장 마감 직전 신규 명령 차단
+- **컷오프**: `TradingService.create()`에서 KST 시각 vs 고정 `19:50` 비교, 초과 시 `CUTOFF_PASSED` — NXT 애프터마켓 마감(20:00) 직전 신규 명령 차단
 - **자동 강제 청산 없음** — 장 마감 시 사용자가 수동으로 청산하거나 다음 영업일로 이월
 
 ---

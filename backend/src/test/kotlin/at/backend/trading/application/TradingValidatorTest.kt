@@ -119,17 +119,17 @@ class TradingValidatorTest : FunSpec({
     }
 
     context("컷오프 초과") {
-        test("현재 시각이 컷오프(15:20) 이후면 CUTOFF_PASSED") {
+        test("현재 시각이 컷오프(19:50) 이후면 CUTOFF_PASSED") {
             stubAllPass()
             val ex = shouldThrow<TradingValidationException> {
-                validator.validate(validInput, nowAt(15, 21))
+                validator.validate(validInput, nowAt(19, 51))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.CUTOFF_PASSED
         }
 
         test("컷오프 직전이면 통과") {
             stubAllPass()
-            val (stockName, _) = validator.validate(validInput, nowAt(15, 19))
+            val (stockName, _) = validator.validate(validInput, nowAt(19, 49))
             stockName shouldBe "삼성전자"
         }
     }
