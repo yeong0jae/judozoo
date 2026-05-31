@@ -6,6 +6,6 @@ enum class CloseReason {
     BREAKEVEN,    // 본전 매도
     TREND_BREAK,  // 추세 꺾임
     CANCELLED,    // 사용자 취소
-    NO_FILL,      // 3회 매수 시도했는데 체결 수량 0
+    NO_FILL,      // 매수 발송 후 fill-wait 내에 체결 수량 0
     UNCLOSED,     // 시스템 재시작으로 강제 마감
 }

@@ -71,7 +71,7 @@ class TradingCycleRunner(
         job = applicationScope.launch {
             log.info { "TradingCycleRunner 시작 cycleId=$cycleId" }
             try {
-                // BUYING 단계부터 tick/signal 수집 — 중도 익절·BUYING 손절 평가용
+                // BUYING 단계부터 tick/signal 수집 — BUYING 손절 평가용
                 val tickJob = launch {
                     priceTickDataStream.priceTicks
                         .filter { it.stockCode == cycle.stockCode }
@@ -104,7 +104,7 @@ class TradingCycleRunner(
     /**
      * 외부(orchestrator) 취소 요청.
      * - in-memory cycle을 LIQUIDATING으로 전이시켜 finalize 분기를 CANCELLED로 유도
-     * - 매수 코루틴 즉시 취소 → 다음 회차 미발사, race 차단
+     * - 매수 코루틴 즉시 취소 → fill-wait 중단, race 차단
      * - HOLDING 전이된 경우를 위해 Signal.Cancel을 채널에 push (handleAfterBuy가 청산 처리)
      */
     suspend fun requestCancellation() {

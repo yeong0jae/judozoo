@@ -73,10 +73,10 @@ Hibernate `ddl-auto=update`. destructive 변경은 v1 운영 진입 시점에 �
 ### 4.1 상태 / 전이
 
 ```
-Initiated ─(1차 매수 시도 시작)─▶ Buying
-Buying ─(3회완료+보유>0 OR 중도익절+보유>0)─▶ Holding
+Initiated ─(매수 시도 시작)─▶ Buying
+Buying ─(체결+보유>0)─▶ Holding
 Buying ─(손절/취소+보유>0)─▶ Liquidating
-Buying ─(3회완료+보유=0 OR 취소+보유=0)─▶ Closed (NO_FILL / CANCELLED)
+Buying ─(fill-wait 초과+보유=0 OR 취소+보유=0)─▶ Closed (NO_FILL / CANCELLED)
 Holding ─(TpStage 부분매도, 잔여>0)─▶ Holding (자기루프)
 Holding ─(BE/TB/LU/MC 잔여 전량매도)─▶ Liquidating
 Liquidating ─(매도완료 보유=0)─▶ Closed (close_reason은 발동 시그널)
@@ -99,7 +99,7 @@ sealed class Signal {
   data object MarketClose : Signal()    // priority 0 (최우선)
   data object Cancel      : Signal()    // priority 0
   data object StopLoss    : Signal()    // priority 1
-  // priority 2: MidwayTakeProfit, TpStage(pct), Breakeven, TrendBreak, LimitUp
+  // priority 2: TpStage(pct), Breakeven, TrendBreak, LimitUp
 }
 ```
 
@@ -108,7 +108,6 @@ sealed class Signal {
 | 시그널 | 조건 | 발동 가능 상태 |
 |---|---|---|
 | StopLoss | 현재가 ≤ 매수가 × (1 + stopLossPct) | Buying / Holding (보유>0) |
-| MidwayTakeProfit | 현재가 ≥ 매수가 × (1 + midwayProfitPct) | Buying (회차<3, 보유>0) |
 | TpStage(2/3/5) | 현재가 ≥ 매수가 × (1+N/100) AND 비트 미발동 | Holding |
 | Breakeven | breakeven_armed AND 현재가 ≤ 매수가 | Holding |
 | TrendBreak | trend_break_armed AND 현재 3분봉 종가 < 1전봉 시가 | Holding 잔여. 봉 종료 시 isAlive=false → 다음 봉 재충족 시 재발동 |
@@ -131,8 +130,8 @@ KIS 3분봉 응답에서 직전봉 없으면 (`bars.size<2`) TrendBreak 보류. 
 
 ## 6. 주문 실행 (`OrderExecutor`)
 
-### 6.1 매수 회차
-시장가 발송 → 5초 settlement 대기 → Filled / Partial(잔량 취소) / Pending. **발송 실패는 회차 스킵**, BUYING 유지하며 다음 회차 정상 시도. `Initiated → Buying` 전이는 1차 시도 *시작* 시점 (발송 성공/실패 무관).
+### 6.1 매수 발송
+시장가 1건 발송 → `buy-fill-wait-millis`(기본 30s) 동안 체결 통보 폴링. **발송 실패는 그대로 fill-wait 진입** → 체결 0이면 NO_FILL 종료. `Initiated → Buying` 전이는 발송 시점 (성공/실패 무관).
 
 ### 6.2 매도 (재시도 루프)
 isAlive 가드 → **B-3 충돌 방지** (effectiveQty = intentQty - 진행중 매도 미체결분) → 발송 → 5초 대기 → Filled 시 종료, 타임아웃 시 reconcile, 그 외 5초 delay 후 재시도. `retry_count` / `last_error` / `RETRY` 이벤트로 가시성 확보.
@@ -153,7 +152,7 @@ PRD §매수가 산정 기준 — 매수 비용 + 예상 매도 비용 반영 �
 모든 시그널 트리거가 이 단일 매수가를 기준으로 평가. 새 체결마다 재계산 후 cycle in-memory + DB UPDATE.
 
 ### 6.5 NO_FILL
-3회 매수 시도 후 누적 체결 = 0이면 Liquidating 거치지 않고 즉시 Closed(NO_FILL). `STATE` 이벤트 발송.
+매수 발송 후 fill-wait 종료 시점 누적 체결 = 0이면 Liquidating 거치지 않고 즉시 Closed(NO_FILL). `STATE` 이벤트 발송.
 
 ---
 
@@ -191,9 +190,8 @@ PRD §매수가 산정 기준 — 매수 비용 + 예상 매도 비용 반영 �
 
 ## 9. 스케줄러
 
-- **명령별 타이머**: `TradingCycle` 코루틴 안에서 `delay(buyIntervalMin.minutes)`로 회차 트리거
 - **부팅 훅**: `MarketDayStartupHook`가 ApplicationReadyEvent 시 KIS 휴장일 조회 → `HolidayChanged` 이벤트 1회 발행 (프론트엔드 영업일 표시용)
-- **컷오프**: `TradingService.create()`에서 KST 시각 vs `15:20 - buyIntervalMin × 2` 비교, 초과 시 `CUTOFF_PASSED` — 매수 시퀀스 완주 불가능 시각 차단
+- **컷오프**: `TradingService.create()`에서 KST 시각 vs 고정 `15:20` 비교, 초과 시 `CUTOFF_PASSED` — 장 마감 직전 신규 명령 차단
 - **자동 강제 청산 없음** — 장 마감 시 사용자가 수동으로 청산하거나 다음 영업일로 이월
 
 ---

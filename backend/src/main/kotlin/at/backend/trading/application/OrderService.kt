@@ -35,8 +35,8 @@ class OrderService(
     private val log = KotlinLogging.logger {}
 
     /**
-     * 매수 회차 1건 발송. 응답 정상이면 [Order.kisOrderNo]/[Order.krxFwdgOrdOrgno] 갱신.
-     * 발송 실패는 회차 스킵 — 호출자(BUYING 사이클)는 다음 회차로 진행.
+     * 단일 매수 발송. 응답 정상이면 [Order.kisOrderNo]/[Order.krxFwdgOrdOrgno] 갱신.
+     * 발송 실패는 스킵 — 호출자(TradingCycleRunner)가 fill-wait 후 NO_FILL로 종료.
      */
     suspend fun placeOrder(cycle: TradingCycle) {
         val currentPrice = try {
