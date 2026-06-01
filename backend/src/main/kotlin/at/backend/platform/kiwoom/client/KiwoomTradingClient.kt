@@ -28,7 +28,8 @@ class KiwoomTradingClient(
         val resp = post(
             endpoint = "/api/dostk/stkinfo",
             apiId = "ka10001",
-            body = mapOf("stk_cd" to stockCode),
+            // _AL 접미사 = SOR 통합 시세 (KRX+NXT). NXT 애프터마켓 시간대에도 통합 현재가 반환.
+            body = mapOf("stk_cd" to "${stockCode}_AL"),
             type = StockInfoResponse::class.java,
         )
         if (resp.return_code != 0) {
