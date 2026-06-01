@@ -38,7 +38,7 @@ class KiwoomProgramClient(
                 .body(ProgramTradingResponse::class.java)
                 ?: return null
 
-            val item = response.stk_daly_prm_trde_trnsn.firstOrNull() ?: return null
+            val item = response.stk_daly_prm_trde_trnsn?.firstOrNull() ?: return null
 
             return ProgramTradingData(
                 stockCode = stockCode,
@@ -77,7 +77,8 @@ class KiwoomProgramClient(
     // --- Response DTOs ---
 
     data class ProgramTradingResponse(
-        val stk_daly_prm_trde_trnsn: List<ProgramTradingItem>,
+        // 응답에서 missing 가능 (실 운영 로그에서 KotlinInvalidNullException 확인됨) — nullable + 사용처에서 null-safe 처리.
+        val stk_daly_prm_trde_trnsn: List<ProgramTradingItem>? = null,
     )
 
     data class ProgramTradingItem(
