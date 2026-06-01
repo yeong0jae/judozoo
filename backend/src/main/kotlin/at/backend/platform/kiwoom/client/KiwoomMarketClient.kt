@@ -156,7 +156,8 @@ class KiwoomMarketClient(
                 .header("authorization", "Bearer $token")
                 .header("Content-Type", "application/json;charset=UTF-8")
                 .header("api-id", "ka10001")
-                .body(mapOf("stk_cd" to stockCode))
+                // _AL 접미사 = SOR 통합 시세 (KRX+NXT). NXT 애프터마켓 시간대에도 통합 현재가 반환.
+                .body(mapOf("stk_cd" to "${stockCode}_AL"))
                 .retrieve()
                 .body(StockDetailResponse::class.java)
                 ?: return null
@@ -180,37 +181,45 @@ class KiwoomMarketClient(
         }
     }
 
-    /** 일별 주가 조회 (ka10086) */
+    /** 일봉 차트 조회 (ka10081) — _AL 접미사로 SOR 통합 시세, base_dt 기준 과거 봉 N개 반환 */
     fun fetchDailyCandles(stockCode: String, count: Int = 60): List<DailyCandle> {
         try {
             val token = authClient.getAccessToken()
             log.info("Fetching {} daily candles for stock {}", count, stockCode)
 
             val response = kiwoomRestClient.post()
-                .uri("/api/dostk/mrkcond")
+                .uri("/api/dostk/chart")
                 .header("authorization", "Bearer $token")
                 .header("Content-Type", "application/json;charset=UTF-8")
-                .header("api-id", "ka10086")
+                .header("api-id", "ka10081")
                 .body(
                     mapOf(
-                        "stk_cd" to stockCode,
-                        "qry_dt" to LocalDate.now().toString().replace("-", ""),
-                        "indc_tp" to "0",
+                        // _AL 접미사 = SOR 통합 시세 (KRX+NXT)
+                        "stk_cd" to "${stockCode}_AL",
+                        "base_dt" to LocalDate.now().toString().replace("-", ""),
+                        "upd_stkpc_tp" to "1",
                     ),
                 )
                 .retrieve()
                 .body(DailyCandlesResponse::class.java)
                 ?: return emptyList()
 
-            return response.daly_stkpc.take(count).map { candle ->
+            val items = response.stk_dt_pole_chart_qry ?: return emptyList()
+            val dateFmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")
+            return items.take(count).map { candle ->
+                val close = parseKiwoomPrice(candle.cur_prc)
+                // pred_pre는 부호 포함 정수 (그날 종가 - 전일종가). 전일종가 기준으로 등락률 계산.
+                val predPre = candle.pred_pre.trim().toLongOrNull() ?: 0L
+                val prevClose = close - predPre
+                val changeRate = if (prevClose > 0) predPre.toDouble() / prevClose * 100.0 else 0.0
                 DailyCandle(
-                    date = LocalDate.parse(candle.date, java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")),
+                    date = LocalDate.parse(candle.dt, dateFmt),
                     openPrice = parseKiwoomPrice(candle.open_pric),
                     highPrice = parseKiwoomPrice(candle.high_pric),
                     lowPrice = parseKiwoomPrice(candle.low_pric),
-                    closePrice = parseKiwoomPrice(candle.close_pric),
+                    closePrice = close,
                     volume = parseKiwoomPrice(candle.trde_qty),
-                    changeRate = candle.flu_rt.toDoubleOrNull() ?: 0.0,
+                    changeRate = changeRate,
                 )
             }
         } catch (e: Exception) {
@@ -219,33 +228,44 @@ class KiwoomMarketClient(
         }
     }
 
-    /** 분봉 조회 (trading 코드 기준 — 키움 신 OpenAPI path는 추후 확인 필요할 수 있음) */
+    /** 분봉 차트 조회 (ka10080) — _AL 접미사로 SOR 통합 시세, 1분봉 기준 */
     fun fetchMinuteCandles(stockCode: String): List<MinuteCandle> {
         try {
             val token = authClient.getAccessToken()
             log.info("Fetching minute candles for stock {}", stockCode)
 
-            val response = kiwoomRestClient.get()
-                .uri { builder ->
-                    builder.path("/v1/stock/{stockCode}/candles/minute")
-                        .queryParam("count", 60)
-                        .build(stockCode)
-                }
-                .header("Authorization", "Bearer $token")
-                .header("Content-Type", "application/json")
+            val response = kiwoomRestClient.post()
+                .uri("/api/dostk/chart")
+                .header("authorization", "Bearer $token")
+                .header("Content-Type", "application/json;charset=UTF-8")
+                .header("api-id", "ka10080")
+                .body(
+                    mapOf(
+                        // _AL 접미사 = SOR 통합 시세 (KRX+NXT)
+                        "stk_cd" to "${stockCode}_AL",
+                        "tic_scope" to "1",
+                        "upd_stkpc_tp" to "1",
+                        "base_dt" to LocalDate.now().toString().replace("-", ""),
+                    ),
+                )
                 .retrieve()
                 .body(MinuteCandlesResponse::class.java)
                 ?: return emptyList()
 
-            return response.candles.map { candle ->
+            val items = response.stk_min_pole_chart_qry ?: return emptyList()
+            val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+            return items.map { candle ->
+                val close = parseKiwoomPrice(candle.cur_prc)
+                val volume = parseKiwoomPrice(candle.trde_qty)
                 MinuteCandle(
-                    dateTime = LocalDateTime.parse(candle.dateTime),
-                    openPrice = candle.openPrice,
-                    highPrice = candle.highPrice,
-                    lowPrice = candle.lowPrice,
-                    closePrice = candle.closePrice,
-                    volume = candle.volume,
-                    tradingValue = candle.tradingValue,
+                    dateTime = LocalDateTime.parse(candle.cntr_tm, dateTimeFmt),
+                    openPrice = parseKiwoomPrice(candle.open_pric),
+                    highPrice = parseKiwoomPrice(candle.high_pric),
+                    lowPrice = parseKiwoomPrice(candle.low_pric),
+                    closePrice = close,
+                    volume = volume,
+                    // ka10080 응답엔 거래대금 필드 없음 — 종가 × 거래량으로 근사 (단일 분봉이라 가격 변동 작아 충분)
+                    tradingValue = close * volume,
                 )
             }
         } catch (e: Exception) {
@@ -309,27 +329,34 @@ class KiwoomMarketClient(
         val low_pric: String,
     )
 
-    data class DailyCandlesResponse(val daly_stkpc: List<DailyCandleItem>)
+    data class DailyCandlesResponse(
+        val stk_dt_pole_chart_qry: List<DailyCandleItem>? = null,
+        val return_code: Int? = null,
+        val return_msg: String? = null,
+    )
 
     data class DailyCandleItem(
-        val date: String,
+        val dt: String,             // YYYYMMDD
         val open_pric: String,
         val high_pric: String,
         val low_pric: String,
-        val close_pric: String,
+        val cur_prc: String,        // 종가 (부호 포함, parseKiwoomPrice에서 절대값으로)
         val trde_qty: String,
-        val flu_rt: String,
+        val pred_pre: String,       // 부호 포함 (그날 종가 - 전일종가)
     )
 
-    data class MinuteCandlesResponse(val candles: List<MinuteCandleItem>)
+    data class MinuteCandlesResponse(
+        val stk_min_pole_chart_qry: List<MinuteCandleItem>? = null,
+        val return_code: Int? = null,
+        val return_msg: String? = null,
+    )
 
     data class MinuteCandleItem(
-        val dateTime: String,
-        val openPrice: Long,
-        val highPrice: Long,
-        val lowPrice: Long,
-        val closePrice: Long,
-        val volume: Long,
-        val tradingValue: Long,
+        val cntr_tm: String,        // YYYYMMDDHHmmss
+        val open_pric: String,
+        val high_pric: String,
+        val low_pric: String,
+        val cur_prc: String,        // 종가 (부호 포함)
+        val trde_qty: String,
     )
 }

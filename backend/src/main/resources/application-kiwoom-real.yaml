@@ -8,4 +8,4 @@ kiwoom:
   trading:
     account-no: ${REAL_KIWOOM_ACCOUNT_NO:}
     ws-url: wss://api.kiwoom.com:10000/api/dostk/websocket
-    dmst-stex-tp: KRX
+    dmst-stex-tp: SOR              # KRX+NXT 통합 라우팅 (NXT 애프터마켓 시간대 주문 자동 라우팅)
