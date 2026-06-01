@@ -35,7 +35,10 @@ class KiwoomMarketClient(
      * 반환하는 사고를 막는다.
      */
     @Cacheable("topTradingValueStocks")
-    fun fetchTopTradingValueStocks(count: Int = 50): List<LeadingStockSnapshot> {
+    fun fetchTopTradingValueStocks(count: Int = 50): List<LeadingStockSnapshot> =
+        withKiwoomTokenRetry { fetchTopTradingValueStocksOnce(count) }
+
+    private fun fetchTopTradingValueStocksOnce(count: Int): List<LeadingStockSnapshot> {
         val token = authClient.getAccessToken()
         log.info("Fetching top {} trading value stocks from Kiwoom API", count)
 
@@ -80,6 +83,23 @@ class KiwoomMarketClient(
             )
         }.take(count)
     }
+
+    /**
+     * Kiwoom 응답이 토큰 무효(8005)면 토큰 캐시를 무효화하고 1회 재시도.
+     * 같은 app key를 여러 인스턴스가 공유할 때 다른 쪽이 새 토큰을 발급하면 이쪽 토큰이 즉시 무효화되는 케이스 대응.
+     */
+    private inline fun <T> withKiwoomTokenRetry(block: () -> T): T = try {
+        block()
+    } catch (e: IllegalStateException) {
+        if (isInvalidTokenError(e.message)) {
+            log.warn("Kiwoom 토큰 무효(8005) 감지 — 캐시 무효화 후 1회 재시도")
+            authClient.invalidate()
+            block()
+        } else throw e
+    }
+
+    private fun isInvalidTokenError(msg: String?): Boolean =
+        msg?.let { it.contains("8005") || it.contains("Token이 유효하지 않") } == true
 
     /** 등락률 상위 종목 조회 (ka10027) */
     fun fetchTopPriceChangeRateStocks(count: Int = 50): List<LeadingStockSnapshot> {

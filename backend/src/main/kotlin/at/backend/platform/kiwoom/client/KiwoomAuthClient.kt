@@ -22,6 +22,15 @@ class KiwoomAuthClient(
     @Volatile
     private var tokenExpiresAt: Instant = Instant.MIN
 
+    /** API 응답에서 토큰 무효(8005)가 확인됐을 때 호출. 다음 [getAccessToken]이 새 토큰을 발급한다. */
+    fun invalidate() {
+        lock.withLock {
+            accessToken = null
+            tokenExpiresAt = Instant.MIN
+            log.warn("Kiwoom 토큰 캐시 무효화")
+        }
+    }
+
     fun getAccessToken(): String {
         val token = accessToken
         if (token != null && Instant.now().isBefore(tokenExpiresAt)) {
