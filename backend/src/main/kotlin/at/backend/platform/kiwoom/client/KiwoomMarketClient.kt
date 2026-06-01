@@ -206,14 +206,18 @@ class KiwoomMarketClient(
 
             val items = response.stk_dt_pole_chart_qry ?: return emptyList()
             val dateFmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")
-            return items.take(count).map { candle ->
+            return items.take(count).mapNotNull { candle ->
+                // dt가 비어있거나 파싱 실패한 항목은 skip — ka10081 응답 끝쪽에 빈 패딩 항목 가능
+                val date = candle.dt.trim().takeIf { it.isNotBlank() }
+                    ?.let { runCatching { LocalDate.parse(it, dateFmt) }.getOrNull() }
+                    ?: return@mapNotNull null
                 val close = parseKiwoomPrice(candle.cur_prc)
                 // pred_pre는 부호 포함 정수 (그날 종가 - 전일종가). 전일종가 기준으로 등락률 계산.
                 val predPre = candle.pred_pre.trim().toLongOrNull() ?: 0L
                 val prevClose = close - predPre
                 val changeRate = if (prevClose > 0) predPre.toDouble() / prevClose * 100.0 else 0.0
                 DailyCandle(
-                    date = LocalDate.parse(candle.dt, dateFmt),
+                    date = date,
                     openPrice = parseKiwoomPrice(candle.open_pric),
                     highPrice = parseKiwoomPrice(candle.high_pric),
                     lowPrice = parseKiwoomPrice(candle.low_pric),
@@ -254,11 +258,15 @@ class KiwoomMarketClient(
 
             val items = response.stk_min_pole_chart_qry ?: return emptyList()
             val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            return items.map { candle ->
+            return items.mapNotNull { candle ->
+                // cntr_tm이 비어있거나 파싱 실패한 항목은 skip — 응답 끝쪽 빈 패딩 가능
+                val dateTime = candle.cntr_tm.trim().takeIf { it.isNotBlank() }
+                    ?.let { runCatching { LocalDateTime.parse(it, dateTimeFmt) }.getOrNull() }
+                    ?: return@mapNotNull null
                 val close = parseKiwoomPrice(candle.cur_prc)
                 val volume = parseKiwoomPrice(candle.trde_qty)
                 MinuteCandle(
-                    dateTime = LocalDateTime.parse(candle.cntr_tm, dateTimeFmt),
+                    dateTime = dateTime,
                     openPrice = parseKiwoomPrice(candle.open_pric),
                     highPrice = parseKiwoomPrice(candle.high_pric),
                     lowPrice = parseKiwoomPrice(candle.low_pric),
