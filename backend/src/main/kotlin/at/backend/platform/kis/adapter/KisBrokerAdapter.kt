@@ -44,12 +44,14 @@ class KisBrokerAdapter(
     override fun holdings(): List<Holding> =
         kisRestClient.getBalance().output1.mapNotNull { row ->
             val qty = row.hldgQty.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+            // 잔고 응답(prpr)은 KRX 종가만 반환 — NXT 시간대를 위해 UN 통합 시세(inquire-price)로 재조회.
+            val quotePrice = runCatching { currentPrice(row.pdno) }.getOrNull()?.takeIf { it > 0L }
             Holding(
                 stockCode = row.pdno,
                 stockName = row.prdtName,
                 qty = qty,
                 avgBuyPrice = row.pchsAvgPric.toBigDecimal().toLong(),
-                currentPrice = row.prpr.toLongOrNull() ?: 0L,
+                currentPrice = quotePrice ?: row.prpr.toLongOrNull() ?: 0L,
             )
         }
 

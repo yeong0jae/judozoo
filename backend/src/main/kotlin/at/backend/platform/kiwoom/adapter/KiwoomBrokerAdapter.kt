@@ -47,13 +47,16 @@ class KiwoomBrokerAdapter(
 
     override fun holdings(): List<Holding> = tradingClient.fetchHoldingsRaw().mapNotNull { row ->
         val qty = row.rmnd_qty.toIntOrNull()?.takeIf { it > 0 } ?: return@mapNotNull null
+        // Kiwoom kt00004는 "A005930" 같이 prefix 붙여 보냄 — 다른 곳과 일관성 위해 prefix 제거
+        val code = row.stk_cd.removePrefix("A")
+        // 잔고 응답(cur_prc)은 KRX 종가만 반환 — NXT 시간대를 위해 종목 시세(ka10001)로 재조회.
+        val quotePrice = runCatching { currentPrice(code) }.getOrNull()?.takeIf { it > 0L }
         Holding(
-            // Kiwoom kt00004는 "A005930" 같이 prefix 붙여 보냄 — 다른 곳과 일관성 위해 prefix 제거
-            stockCode = row.stk_cd.removePrefix("A"),
+            stockCode = code,
             stockName = row.stk_nm,
             qty = qty,
             avgBuyPrice = parseKiwoomLong(row.avg_prc),
-            currentPrice = parseKiwoomLong(row.cur_prc),
+            currentPrice = quotePrice ?: parseKiwoomLong(row.cur_prc),
         )
     }
 
