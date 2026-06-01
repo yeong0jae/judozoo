@@ -149,11 +149,11 @@ class TradingValidatorTest : FunSpec({
     context("거래 시간 외") {
         // 장 마감 후(>15:30)는 컷오프(check 6)가 먼저 실행되어 CUTOFF_PASSED로 처리됨
         // OUT_OF_TRADING_HOURS는 장 시작 전(pre-market) 케이스만 실질적으로 발생
-        test("장 시작 전(08:59)이면 OUT_OF_TRADING_HOURS") {
+        test("장 시작 전(07:59)이면 OUT_OF_TRADING_HOURS") {
             stubAllPass()
 
             val ex = shouldThrow<TradingValidationException> {
-                validator.validate(validInput, nowAt(8, 59))
+                validator.validate(validInput, nowAt(7, 59))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.OUT_OF_TRADING_HOURS
         }

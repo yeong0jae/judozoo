@@ -10,7 +10,7 @@ const messages: Record<string, string> = {
   DUPLICATE_COMMAND: "같은 종목으로 진행 중인 명령이 있습니다",
   CUTOFF_PASSED: "신규 명령 마감 — 19:50 컷오프를 지났습니다",
   HOLIDAY: "휴장일에는 명령을 받을 수 없습니다",
-  OUT_OF_TRADING_HOURS: "거래시간이 아닙니다 (09:00~20:00)",
+  OUT_OF_TRADING_HOURS: "거래시간이 아닙니다 (08:00~20:00)",
 
   // HTTP / 일반 오류
   ALREADY_CLOSED: "이미 종료된 명령입니다",

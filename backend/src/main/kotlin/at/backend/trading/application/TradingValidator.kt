@@ -65,7 +65,7 @@ class TradingValidator(
     }
 
     companion object {
-        private val TRADING_START = LocalTime.of(9, 0)
+        private val TRADING_START = LocalTime.of(8, 0)       // NXT 프리마켓(08:00~08:50) 포함
         private val TRADING_END = LocalTime.of(20, 0)        // KRX 마감 후 NXT 애프터마켓(~20:00) 포함
         private val CUTOFF_BASE = LocalTime.of(19, 50)       // 마감 10분 전 신규 명령 차단
     }

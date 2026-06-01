@@ -813,7 +813,7 @@ function SystemPanel({
     );
   }
   const conditions = [
-    { label: "거래시간 09:00–20:00", ok: status.tradingHoursOpen },
+    { label: "거래시간 08:00–20:00", ok: status.tradingHoursOpen },
     { label: "휴장 아님", ok: !status.isHoliday },
     { label: "컷오프 전 (19:50)", ok: !status.cutoffPassed },
   ];
