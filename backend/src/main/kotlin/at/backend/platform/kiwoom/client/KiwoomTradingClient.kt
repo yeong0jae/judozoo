@@ -28,8 +28,9 @@ class KiwoomTradingClient(
         val resp = post(
             endpoint = "/api/dostk/stkinfo",
             apiId = "ka10001",
-            // _AL 접미사 = SOR 통합 시세 (KRX+NXT). NXT 애프터마켓 시간대에도 통합 현재가 반환.
-            body = mapOf("stk_cd" to "${stockCode}_AL"),
+            // ka10001은 _AL 접미사 붙이면 broker가 빈 응답을 반환 — KRX 기본 stk_cd로 호출.
+            // NXT 시간대 현재가는 별도 WS _AL 시세에서 보강해야 함.
+            body = mapOf("stk_cd" to stockCode),
             type = StockInfoResponse::class.java,
         )
         if (resp.return_code != 0) {
