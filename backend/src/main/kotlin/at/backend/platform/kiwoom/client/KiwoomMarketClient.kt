@@ -195,8 +195,8 @@ class KiwoomMarketClient(
                 .header("api-id", "ka10081")
                 .body(
                     mapOf(
-                        // _AL 접미사 = SOR 통합 시세 (KRX+NXT)
-                        "stk_cd" to "${stockCode}_AL",
+                        // ka10081은 ka10001과 동일하게 _AL 시 빈 응답 가능성 — KRX 기본 stk_cd로 호출
+                        "stk_cd" to stockCode,
                         "base_dt" to LocalDate.now().toString().replace("-", ""),
                         "upd_stkpc_tp" to "1",
                     ),
@@ -246,8 +246,8 @@ class KiwoomMarketClient(
                 .header("api-id", "ka10080")
                 .body(
                     mapOf(
-                        // _AL 접미사 = SOR 통합 시세 (KRX+NXT)
-                        "stk_cd" to "${stockCode}_AL",
+                        // ka10080도 ka10001과 동일하게 _AL 시 빈 응답 가능성 — KRX 기본 stk_cd로 호출
+                        "stk_cd" to stockCode,
                         "tic_scope" to "1",
                         "upd_stkpc_tp" to "1",
                         "base_dt" to LocalDate.now().toString().replace("-", ""),
