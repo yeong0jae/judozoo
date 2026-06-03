@@ -615,7 +615,7 @@ function AdvancedSettings({
     <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
       <ChipField
         label="분할 매도 비율"
-        hint="익절 단계마다 매도할 보유 비율"
+        hint="익절 단계마다 매도할 비율"
         unit="%"
         options={OPTIONS.splitSellRatio}
         defaultValue={DEFAULTS.splitSellRatio}
@@ -624,8 +624,8 @@ function AdvancedSettings({
         onPick={(v) => pick("splitSellRatio", v)}
       />
       <ChipField
-        label="본전 매도 기준"
-        hint="이만큼 올랐다 매입가로 되돌아오면 청산"
+        label="본전 매도 발동 기준"
+        hint="이만큼 상승한 후 하락하면 손절이 아닌 본전에 매도"
         unit="%"
         options={OPTIONS.breakevenThresholdPct}
         defaultValue={DEFAULTS.breakevenThresholdPct}
@@ -635,7 +635,7 @@ function AdvancedSettings({
       />
       <ChipField
         label="손절"
-        hint="이만큼 떨어지면 즉시 청산"
+        hint="이만큼 떨어지면 즉시 전량 매도"
         unit="%"
         options={OPTIONS.stopLossPct}
         defaultValue={DEFAULTS.stopLossPct}
