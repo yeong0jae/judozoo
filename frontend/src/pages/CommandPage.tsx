@@ -615,7 +615,7 @@ function AdvancedSettings({
     <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
       <ChipField
         label="분할 매도 비율"
-        hint="익절 단계마다 매도할 비율"
+        hint="익절 단계 2%/3%/5% 마다 매도할 비율"
         unit="%"
         options={OPTIONS.splitSellRatio}
         defaultValue={DEFAULTS.splitSellRatio}
