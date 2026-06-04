@@ -25,14 +25,17 @@ class KiwoomTradingClient(
 
     /** 현재가·종목명 동시 조회. 종목 미존재 시 null. */
     fun fetchStockInfo(stockCode: String): StockInfoOutput? {
-        val resp = post(
-            endpoint = "/api/dostk/stkinfo",
-            apiId = "ka10001",
-            // ka10001은 _AL 접미사 붙이면 broker가 빈 응답을 반환 — KRX 기본 stk_cd로 호출.
-            // NXT 시간대 현재가는 별도 WS _AL 시세에서 보강해야 함.
-            body = mapOf("stk_cd" to stockCode),
-            type = StockInfoResponse::class.java,
-        )
+        // _AL(SOR 통합) 우선 — NXT 애프터마켓 시간대에도 통합 현재가 반환. 빈 응답이면 KRX 기본으로 폴백.
+        val alResp = requestStockInfo("${stockCode}_AL")
+        val resp = if (alResp.return_code == 0 && !alResp.stk_nm.isNullOrBlank() && !alResp.cur_prc.isNullOrBlank()) {
+            alResp
+        } else {
+            log.warn {
+                "Kiwoom ka10001 _AL 빈 응답 → KRX 폴백: stk_cd=${stockCode}_AL " +
+                    "code=${alResp.return_code} msg=${alResp.return_msg} nm=${alResp.stk_nm} prc=${alResp.cur_prc}"
+            }
+            requestStockInfo(stockCode)
+        }
         if (resp.return_code != 0) {
             log.warn { "Kiwoom ka10001 거부: code=${resp.return_code}, msg=${resp.return_msg}" }
             return null
@@ -40,6 +43,14 @@ class KiwoomTradingClient(
         val name = resp.stk_nm?.takeIf { it.isNotBlank() } ?: return null
         return StockInfoOutput(stockName = name, currentPrice = parsePrice(resp.cur_prc))
     }
+
+    private fun requestStockInfo(stkCd: String): StockInfoResponse =
+        post(
+            endpoint = "/api/dostk/stkinfo",
+            apiId = "ka10001",
+            body = mapOf("stk_cd" to stkCd),
+            type = StockInfoResponse::class.java,
+        )
 
     /** D+2 예수금. */
     fun fetchAvailableCash(): Long = fetchAccountEvaluation().d2_entra?.toLongOrNull() ?: 0L

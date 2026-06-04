@@ -148,20 +148,18 @@ class KiwoomMarketClient(
     /** 종목 기본 정보 조회 (ka10001) */
     fun fetchStockDetail(stockCode: String): LeadingStockSnapshot? {
         try {
-            val token = authClient.getAccessToken()
             log.info("Fetching stock detail for {} from Kiwoom API", stockCode)
 
-            val response = kiwoomRestClient.post()
-                .uri("/api/dostk/stkinfo")
-                .header("authorization", "Bearer $token")
-                .header("Content-Type", "application/json;charset=UTF-8")
-                .header("api-id", "ka10001")
-                // ka10001은 _AL 접미사 붙이면 broker가 빈 응답을 반환 — KRX 기본 stk_cd로 호출.
-                // NXT 시간대 현재가는 별도 WS _AL 시세에서 보강해야 함.
-                .body(mapOf("stk_cd" to stockCode))
-                .retrieve()
-                .body(StockDetailResponse::class.java)
-                ?: return null
+            // _AL(SOR 통합) 우선 — NXT 애프터마켓 시간대 통합 현재가 반영. 빈 응답이면 KRX 기본으로 폴백.
+            val alResp = requestStockDetail("${stockCode}_AL")
+            val response = alResp?.takeIf { it.stk_nm.isNotBlank() && it.cur_prc.isNotBlank() }
+                ?: run {
+                    log.warn(
+                        "Kiwoom ka10001 _AL 빈 응답 → KRX 폴백: stk_cd={}_AL nm={} prc={}",
+                        stockCode, alResp?.stk_nm, alResp?.cur_prc,
+                    )
+                    requestStockDetail(stockCode)
+                } ?: return null
 
             return LeadingStockSnapshot(
                 stockCode = response.stk_cd,
@@ -180,6 +178,18 @@ class KiwoomMarketClient(
             log.error("Failed to fetch stock detail for {}", stockCode, e)
             return null
         }
+    }
+
+    private fun requestStockDetail(stkCd: String): StockDetailResponse? {
+        val token = authClient.getAccessToken()
+        return kiwoomRestClient.post()
+            .uri("/api/dostk/stkinfo")
+            .header("authorization", "Bearer $token")
+            .header("Content-Type", "application/json;charset=UTF-8")
+            .header("api-id", "ka10001")
+            .body(mapOf("stk_cd" to stkCd))
+            .retrieve()
+            .body(StockDetailResponse::class.java)
     }
 
     /** 일봉 차트 조회 (ka10081) — _AL 접미사로 SOR 통합 시세, base_dt 기준 과거 봉 N개 반환 */
