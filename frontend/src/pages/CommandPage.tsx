@@ -335,12 +335,6 @@ function deriveBlock(s: MarketStatus): {
       message: errorMessage("OUT_OF_TRADING_HOURS"),
       tone: "warn",
     };
-  if (s.cutoffPassed)
-    return {
-      code: "CUTOFF_PASSED",
-      message: errorMessage("CUTOFF_PASSED"),
-      tone: "warn",
-    };
   return null;
 }
 
@@ -815,7 +809,6 @@ function SystemPanel({
   const conditions = [
     { label: "거래시간 08:00–20:00", ok: status.tradingHoursOpen },
     { label: "휴장 아님", ok: !status.isHoliday },
-    { label: "컷오프 전 (19:50)", ok: !status.cutoffPassed },
   ];
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">

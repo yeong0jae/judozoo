@@ -2,13 +2,12 @@
 // 참고: backend/src/main/kotlin/at/backend/trading/domain/TradingValidationException.kt
 
 const messages: Record<string, string> = {
-  // 8개 trading validation errorCodes
+  // trading validation errorCodes
   INVALID_PARAMETER: "입력값을 확인해주세요",
   STOCK_NOT_FOUND: "해당 종목을 찾을 수 없습니다",
   PRICE_BELOW_ONE_SHARE: "1주 가격에 미달합니다",
   INSUFFICIENT_BALANCE: "잔고가 부족합니다",
   DUPLICATE_COMMAND: "같은 종목으로 진행 중인 명령이 있습니다",
-  CUTOFF_PASSED: "신규 명령 마감 — 19:50 컷오프를 지났습니다",
   HOLIDAY: "휴장일에는 명령을 받을 수 없습니다",
   OUT_OF_TRADING_HOURS: "거래시간이 아닙니다 (08:00~20:00)",
 

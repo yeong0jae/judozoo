@@ -36,7 +36,6 @@ export type ErrorCode =
   | "PRICE_BELOW_ONE_SHARE"
   | "INSUFFICIENT_BALANCE"
   | "DUPLICATE_COMMAND"
-  | "CUTOFF_PASSED"
   | "HOLIDAY"
   | "OUT_OF_TRADING_HOURS"
   | "ALREADY_CLOSED"
@@ -53,7 +52,6 @@ export interface ApiResponse<T> {
 export interface MarketStatus {
   isHoliday: boolean;
   tradingHoursOpen: boolean;
-  cutoffPassed: boolean;
 }
 
 export interface AccountBalance {

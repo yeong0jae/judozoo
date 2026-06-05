@@ -118,22 +118,6 @@ class TradingValidatorTest : FunSpec({
         }
     }
 
-    context("컷오프 초과") {
-        test("현재 시각이 컷오프(19:50) 이후면 CUTOFF_PASSED") {
-            stubAllPass()
-            val ex = shouldThrow<TradingValidationException> {
-                validator.validate(validInput, nowAt(19, 51))
-            }
-            ex.errorCode shouldBe TradingValidationException.ErrorCode.CUTOFF_PASSED
-        }
-
-        test("컷오프 직전이면 통과") {
-            stubAllPass()
-            val (stockName, _) = validator.validate(validInput, nowAt(19, 49))
-            stockName shouldBe "삼성전자"
-        }
-    }
-
     context("휴장일") {
         test("브로커가 휴장이라고 응답하면 HOLIDAY") {
             stubAllPass()
@@ -147,13 +131,20 @@ class TradingValidatorTest : FunSpec({
     }
 
     context("거래 시간 외") {
-        // 장 마감 후(>15:30)는 컷오프(check 6)가 먼저 실행되어 CUTOFF_PASSED로 처리됨
-        // OUT_OF_TRADING_HOURS는 장 시작 전(pre-market) 케이스만 실질적으로 발생
         test("장 시작 전(07:59)이면 OUT_OF_TRADING_HOURS") {
             stubAllPass()
 
             val ex = shouldThrow<TradingValidationException> {
                 validator.validate(validInput, nowAt(7, 59))
+            }
+            ex.errorCode shouldBe TradingValidationException.ErrorCode.OUT_OF_TRADING_HOURS
+        }
+
+        test("매매 종료(20:00) 이후면 OUT_OF_TRADING_HOURS") {
+            stubAllPass()
+
+            val ex = shouldThrow<TradingValidationException> {
+                validator.validate(validInput, nowAt(20, 1))
             }
             ex.errorCode shouldBe TradingValidationException.ErrorCode.OUT_OF_TRADING_HOURS
         }

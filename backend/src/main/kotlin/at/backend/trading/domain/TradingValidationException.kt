@@ -8,7 +8,6 @@ class TradingValidationException(val errorCode: ErrorCode) : RuntimeException(er
         PRICE_BELOW_ONE_SHARE,
         INSUFFICIENT_BALANCE,
         DUPLICATE_COMMAND,
-        CUTOFF_PASSED,
         HOLIDAY,
         OUT_OF_TRADING_HOURS,
     }
