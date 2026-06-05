@@ -3,6 +3,8 @@ package at.backend.platform.kiwoom.client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.web.client.RestClient
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
@@ -84,7 +86,7 @@ class KiwoomTradingClient(
             endpoint = "/api/dostk/ordr",
             apiId = apiId,
             body = mapOf(
-                "dmst_stex_tp" to dmstStexTp,
+                "dmst_stex_tp" to resolveStex(LocalTime.now(KST), dmstStexTp),
                 "stk_cd" to stockCode,
                 "ord_qty" to qty.toString(),
                 "ord_uv" to "",
@@ -124,7 +126,7 @@ class KiwoomTradingClient(
             endpoint = "/api/dostk/ordr",
             apiId = "kt10003",
             body = mapOf(
-                "dmst_stex_tp" to dmstStexTp,
+                "dmst_stex_tp" to resolveStex(LocalTime.now(KST), dmstStexTp),
                 "orig_ord_no" to originalOrderNo,
                 "stk_cd" to stockCode,
                 "cncl_qty" to "0",          // 잔량 전부 취소
@@ -209,5 +211,16 @@ class KiwoomTradingClient(
 
     companion object {
         private val YYYYMMDD: DateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE
+        private val KST: ZoneId = ZoneId.of("Asia/Seoul")
+        private val REGULAR_OPEN: LocalTime = LocalTime.of(9, 0)     // KRX·NXT 동시 개장(정규 접속매매) 시작
+        private val REGULAR_CLOSE: LocalTime = LocalTime.of(15, 30)  // 정규장 마감 — 이후는 NXT 애프터마켓 단독
+
+        /**
+         * 주문 거래소 구분을 주문 시각으로 결정한다.
+         * 정규 접속매매(09:00~15:30)만 KRX·NXT가 동시 개장해 SOR 최선집행이 유효하다.
+         * 그 밖(NXT 프리마켓 08:00~09:00, 애프터마켓 15:30~20:00)은 NXT 단독이라 SOR이 거부되므로 NXT를 명시한다.
+         */
+        internal fun resolveStex(now: LocalTime, regularHoursStex: String): String =
+            if (now >= REGULAR_OPEN && now < REGULAR_CLOSE) regularHoursStex else "NXT"
     }
 }
