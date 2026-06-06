@@ -10,6 +10,7 @@ import type {
   KospiIndex,
   LeadingStockDetailResponse,
   MarketStatus,
+  RegimeSnapshot,
   StockPriceResult,
   StockSearchResult,
   TradingDetail,
@@ -33,6 +34,7 @@ export const QK = {
   investorTrend: (code: string) =>
     ["leading-stocks", "investors", code] as const,
   kospiIndex: ["market", "kospi"] as const,
+  regime: ["market", "regime"] as const,
 };
 
 export interface InstanceInfo {
@@ -56,6 +58,13 @@ export function useMarketStatus() {
     queryKey: QK.marketStatus,
     queryFn: () => apiFetch<MarketStatus>("/api/market/status"),
     refetchInterval: 10 * 60_000,
+  });
+}
+
+export function useRegime() {
+  return useQuery({
+    queryKey: QK.regime,
+    queryFn: () => apiFetch<RegimeSnapshot | null>("/api/market/regime"),
   });
 }
 
