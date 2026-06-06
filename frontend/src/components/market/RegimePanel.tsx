@@ -29,12 +29,30 @@ const TONE_LABEL: Record<Tone, string> = {
   neutral: "혼조 / 관망",
 };
 
-function Arrow({ value }: { value: number }) {
+function GapRow({
+  label,
+  value,
+  warn,
+}: {
+  label: string;
+  value: number;
+  warn?: string;
+}) {
   const up = value >= 0;
   return (
-    <span className={up ? "text-emerald-400" : "text-rose-400"}>
-      {up ? "↗" : "↘"} {fmtPct(value)}
-    </span>
+    <div className="flex items-center justify-between">
+      <span className="text-zinc-400">{label}</span>
+      <span className="flex items-center gap-2">
+        {warn && <span className="text-xs text-amber-500">{warn}</span>}
+        <span
+          className={`font-semibold tabular-nums ${
+            up ? "text-emerald-400" : "text-rose-400"
+          }`}
+        >
+          {up ? "↗" : "↘"} {fmtPct(value)}
+        </span>
+      </span>
+    </div>
   );
 }
 
@@ -67,22 +85,22 @@ export default function RegimePanel() {
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-        <span className="text-zinc-500">전일종가</span>
-        <Arrow value={snap.gap1} />
-        <span className="text-zinc-300">
-          아침 NXT{snap.gap1Locked ? "" : " (잠정)"}
-        </span>
+      <div className="mt-3 space-y-1.5 text-sm">
+        <GapRow
+          label={`전일 종가 대비 아침 NXT${snap.gap1Locked ? " (08:15)" : " (잠정)"}`}
+          value={snap.gap1}
+        />
         {snap.gap2 !== null ? (
-          <>
-            <Arrow value={snap.gap2} />
-            <span className="text-zinc-300">본장</span>
-            {!snap.gap2Reliable && (
-              <span className="text-xs text-amber-500">· 신뢰낮음</span>
-            )}
-          </>
+          <GapRow
+            label="아침 NXT 대비 본장 (현재)"
+            value={snap.gap2}
+            warn={!snap.gap2Reliable ? "신뢰낮음" : undefined}
+          />
         ) : (
-          <span className="text-xs text-zinc-600">· 본장 전</span>
+          <div className="flex items-center justify-between text-zinc-600">
+            <span>아침 NXT 대비 본장 (현재)</span>
+            <span className="text-xs">본장 시작 전</span>
+          </div>
         )}
       </div>
     </div>
