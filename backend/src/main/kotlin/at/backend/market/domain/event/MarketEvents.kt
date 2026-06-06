@@ -1,5 +1,6 @@
 package at.backend.market.domain.event
 
+import at.backend.market.domain.regime.RegimeSnapshot
 import java.time.Instant
 
 /**
@@ -10,4 +11,8 @@ import java.time.Instant
 data class HolidayChanged(
     val isHoliday: Boolean,
     val ts: Instant,
+)
+
+data class RegimeUpdated(
+    val snapshot: RegimeSnapshot,
 )
