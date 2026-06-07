@@ -233,10 +233,10 @@ class KiwoomMarketClient(
     }
 
     /** 분봉 차트 조회 (ka10080) — _AL 접미사로 SOR 통합 시세, 1분봉 기준 */
-    fun fetchMinuteCandles(stockCode: String): List<MinuteCandle> {
+    fun fetchMinuteCandles(stockCode: String, baseDate: LocalDate = LocalDate.now()): List<MinuteCandle> {
         try {
             val token = authClient.getAccessToken()
-            log.info("Fetching minute candles for stock {}", stockCode)
+            log.info("Fetching minute candles for stock {} (base {})", stockCode, baseDate)
 
             val response = kiwoomRestClient.post()
                 .uri("/api/dostk/chart")
@@ -249,7 +249,7 @@ class KiwoomMarketClient(
                         "stk_cd" to stockCode,
                         "tic_scope" to "1",
                         "upd_stkpc_tp" to "1",
-                        "base_dt" to LocalDate.now().toString().replace("-", ""),
+                        "base_dt" to baseDate.toString().replace("-", ""),
                     ),
                 )
                 .retrieve()
