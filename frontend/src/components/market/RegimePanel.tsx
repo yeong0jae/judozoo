@@ -29,28 +29,17 @@ const TONE_LABEL: Record<Tone, string> = {
   neutral: "보합",
 };
 
-function GapRow({
-  label,
-  value,
-  warn,
-}: {
-  label: string;
-  value: number;
-  warn?: string;
-}) {
+function GapRow({ label, value }: { label: string; value: number }) {
   const up = value >= 0;
   return (
     <div className="flex items-center justify-between">
       <span className="text-zinc-400">{label}</span>
-      <span className="flex items-center gap-2">
-        {warn && <span className="text-xs text-amber-500">{warn}</span>}
-        <span
-          className={`font-semibold tabular-nums ${
-            up ? "text-emerald-400" : "text-rose-400"
-          }`}
-        >
-          {up ? "↗" : "↘"} {fmtPct(value)}
-        </span>
+      <span
+        className={`font-semibold tabular-nums ${
+          up ? "text-emerald-400" : "text-rose-400"
+        }`}
+      >
+        {up ? "↗" : "↘"} {fmtPct(value)}
       </span>
     </div>
   );
@@ -95,11 +84,7 @@ export default function RegimePanel() {
           value={snap.gap1}
         />
         {snap.gap2 !== null ? (
-          <GapRow
-            label="아침 NXT 대비 본장 (현재)"
-            value={snap.gap2}
-            warn={!snap.gap2Reliable ? "신뢰낮음" : undefined}
-          />
+          <GapRow label="아침 NXT 대비 본장 (현재)" value={snap.gap2} />
         ) : (
           <div className="flex items-center justify-between text-zinc-600">
             <span>아침 NXT 대비 본장 (현재)</span>
