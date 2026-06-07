@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { RegimeDaily } from "../../types";
 
 const SEGMENTS = [
@@ -32,24 +32,28 @@ function niceTicks(mn: number, mx: number): number[] {
 }
 
 export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(760);
   const [hover, setHover] = useState<{ di: number; si: number } | null>(null);
+  const obsRef = useRef<ResizeObserver | null>(null);
 
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
+  // 콜백 ref — 차트 div가 실제로 마운트될 때 옵저버를 붙인다(로딩 후 마운트되는 케이스 대응).
+  const measureRef = useCallback((node: HTMLDivElement | null) => {
+    obsRef.current?.disconnect();
+    if (!node) return;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0].contentRect.width;
       if (w > 0) setWidth(w);
     });
-    ro.observe(el);
-    return () => ro.disconnect();
+    ro.observe(node);
+    obsRef.current = ro;
   }, []);
 
   if (records.length === 0) {
     return (
-      <div className="flex h-[260px] items-center justify-center text-sm text-zinc-600">
+      <div
+        ref={measureRef}
+        className="flex h-[260px] w-full items-center justify-center text-sm text-zinc-600"
+      >
         데이터 누적 중…
       </div>
     );
@@ -64,7 +68,6 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
     ] as (number | null)[],
   }));
 
-  // viewBox 폭 = 실제 컨테이너 폭(1단위=1px) → 글씨 왜곡 없이 폭 전체를 채운다.
   const W = width;
   const H = 260;
   const padL = 40;
@@ -90,7 +93,7 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
   const groupW = bw * 3 + gap * 2;
 
   return (
-    <div ref={wrapRef} className="w-full">
+    <div ref={measureRef} className="w-full">
       <svg
         width={W}
         height={H}
