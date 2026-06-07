@@ -34,6 +34,14 @@ export default function Header() {
             주도주
           </NavLink>
           <NavLink
+            to="/market-flow"
+            className={({ isActive }) =>
+              `${navItem} ${isActive ? activeItem : inactiveItem}`
+            }
+          >
+            시장 흐름
+          </NavLink>
+          <NavLink
             to="/command"
             className={({ isActive }) =>
               `${navItem} ${isActive ? activeItem : inactiveItem}`

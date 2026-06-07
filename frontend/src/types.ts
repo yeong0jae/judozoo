@@ -64,6 +64,13 @@ export interface RegimeSnapshot {
   asOf: string;
 }
 
+// 시장 흐름 선그래프용 당일 시계열 한 점
+export interface RegimePoint {
+  asOf: string;
+  gap1: number;
+  gap2: number | null;
+}
+
 export interface AccountBalance {
   cashBalance: number;
   reservedAmount: number;

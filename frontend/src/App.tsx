@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import CommandPage from "./pages/CommandPage";
 import HoldingsPage from "./pages/HoldingsPage";
 import LeadingStocksPage from "./pages/LeadingStocksPage";
+import MarketFlowPage from "./pages/MarketFlowPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
 import Header from "./components/layout/Header";
@@ -56,6 +57,7 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Navigate to="/monitoring" replace />} />
           <Route path="/leading-stocks" element={<LeadingStocksPage />} />
+          <Route path="/market-flow" element={<MarketFlowPage />} />
           <Route path="/command" element={<CommandPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />
           <Route path="/holdings" element={<HoldingsPage />} />

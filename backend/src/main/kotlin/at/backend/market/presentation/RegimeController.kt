@@ -16,4 +16,8 @@ class RegimeController(
 
     @GetMapping("/api/market/regime")
     fun regime() = ApiResponse.ok(service.latest())
+
+    /** 당일 시계열 — 선그래프 초기 로드용. */
+    @GetMapping("/api/market/regime/series")
+    fun series() = ApiResponse.ok(service.series())
 }

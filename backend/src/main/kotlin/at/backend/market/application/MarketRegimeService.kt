@@ -5,6 +5,7 @@ import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.library.time.TimeProvider
 import at.backend.market.domain.regime.BasketConstituent
 import at.backend.market.domain.regime.MorningBasket
+import at.backend.market.domain.regime.RegimePoint
 import at.backend.market.domain.regime.RegimeSnapshot
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import org.springframework.stereotype.Service
@@ -26,13 +27,33 @@ class MarketRegimeService(
     private val etfFilter = EtfExclusionFilter()
     private val anchor = AtomicReference<DailyAnchor?>(null)
     private val latest = AtomicReference<RegimeSnapshot?>(null)
+    private val series = AtomicReference(DailySeries(LocalDate.MIN, mutableListOf()))
 
     /** 마지막으로 산출한 스냅샷 — REST 초기 응답용. 폴 전/시간 밖이면 null. */
     fun latest(): RegimeSnapshot? = latest.get()
 
-    /** 현재 바스켓으로 산출하고 최신 스냅샷으로 보관한다(폴러가 호출). */
+    /** 당일 시계열 — 선그래프용. 날짜가 바뀌면 빈 목록. */
+    fun series(): List<RegimePoint> {
+        val cur = series.get()
+        if (cur.date != timeProvider.today()) return emptyList()
+        return synchronized(cur.points) { cur.points.toList() }
+    }
+
+    /** 현재 바스켓으로 산출하고 최신 스냅샷·당일 시계열로 보관한다(폴러가 호출). */
     fun refresh(basket: List<LeadingStockSnapshot>): RegimeSnapshot =
-        compute(basket).also { latest.set(it) }
+        compute(basket).also {
+            latest.set(it)
+            appendSeries(it)
+        }
+
+    private fun appendSeries(snap: RegimeSnapshot) {
+        val today = timeProvider.today()
+        val target = series.get().takeIf { it.date == today }
+            ?: DailySeries(today, mutableListOf()).also { series.set(it) }
+        synchronized(target.points) {
+            target.points.add(RegimePoint(snap.asOf, snap.gap1, snap.gap2))
+        }
+    }
 
     /** 거래대금 상위에서 ETF/ETN 제외 후 Top [size] 바스켓 후보. */
     fun fetchBasket(size: Int, fetchCount: Int): List<LeadingStockSnapshot> =
@@ -74,4 +95,6 @@ class MarketRegimeService(
         BasketConstituent(s.stockCode, s.priceChangeRate, s.accumulatedTradingValue)
 
     private data class DailyAnchor(val date: LocalDate, val basket: MorningBasket)
+
+    private data class DailySeries(val date: LocalDate, val points: MutableList<RegimePoint>)
 }
