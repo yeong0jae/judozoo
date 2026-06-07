@@ -26,7 +26,7 @@ const TONE_TEXT: Record<Tone, string> = {
 const TONE_LABEL: Record<Tone, string> = {
   up: "본장 상승 흐름",
   down: "본장 하락 흐름",
-  neutral: "혼조 / 관망",
+  neutral: "보합",
 };
 
 function GapRow({
@@ -80,9 +80,13 @@ export default function RegimePanel() {
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-zinc-300">시장 레짐</h2>
-        <span className={`text-sm font-semibold ${TONE_TEXT[tone]}`}>
-          {TONE_LABEL[tone]}
-        </span>
+        {snap.gap2 === null ? (
+          <span className="text-sm text-zinc-600">본장 전</span>
+        ) : (
+          <span className={`text-sm font-semibold ${TONE_TEXT[tone]}`}>
+            {TONE_LABEL[tone]}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 space-y-1.5 text-sm">
