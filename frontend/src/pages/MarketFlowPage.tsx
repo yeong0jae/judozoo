@@ -26,11 +26,11 @@ export default function MarketFlowPage() {
           하루를 세 구간으로 나눠 <b className="text-zinc-400">직전 시점 대비</b> 변동을
           보여줍니다. 거래대금 상위 30종목(ETF 제외)의 등락률 기준.
           <br />
-          오전 NXT = 전일종가→08:15(아침 NXT) · 오전장 = 08:15→10:00 · 오후 마감 =
-          10:00→15:30. 막대에 마우스를 올리면 상세가 나옵니다.
+          오전 NXT = 전일종가→08:15(아침 NXT) · 오전장 = 08:15→10:00 · 오후장 =
+          10:00→15:30 · 애프터마켓 = 15:30→20:00(NXT). 막대에 마우스를 올리면 상세가 나옵니다.
         </p>
         <RegimeDailyChart records={dailyQ.data ?? []} />
-        <div className="mt-2 flex gap-4 text-xs text-zinc-500">
+        <div className="mt-2 flex flex-wrap gap-4 text-xs text-zinc-500">
           <span>
             <Swatch color="#38bdf8" />오전 NXT
           </span>
@@ -38,7 +38,10 @@ export default function MarketFlowPage() {
             <Swatch color="#a78bfa" />오전장
           </span>
           <span>
-            <Swatch color="#fbbf24" />오후 마감
+            <Swatch color="#fbbf24" />오후장
+          </span>
+          <span>
+            <Swatch color="#f472b6" />애프터마켓
           </span>
         </div>
       </div>

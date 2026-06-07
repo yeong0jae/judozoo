@@ -63,6 +63,7 @@ class RegimeBootstrapSeeder(
                     gap2High = gap2High,
                     gap2Low = gap2Low,
                     gap2At1000 = gap2At1000,
+                    gap2At1530 = gap2Close, // 시드: 종가 = 15:30 (과거 NXT 애프터마켓 없음 → 20:00은 null)
                 ),
             )
             seeded++

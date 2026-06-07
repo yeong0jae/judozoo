@@ -12,7 +12,6 @@ import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -44,24 +43,14 @@ class MarketRegimeService(
             recordDaily(it)
         }
 
-    /** 본장(gap2 존재) 동안 당일 결과를 upsert — 종가=최신, 10:00 통과 시 중간값 고정. */
+    /** 본장(gap2 존재) 동안 당일 결과를 upsert — 종가=최신, 10:00·15:30·20:00 통과 시 고정. */
     private fun recordDaily(snap: RegimeSnapshot) {
         val gap2 = snap.gap2 ?: return // 본장 전엔 기록하지 않음
-        val afterMidpoint = timeProvider.now().toLocalTime() >= MIDPOINT
+        val now = timeProvider.now().toLocalTime()
         val date = timeProvider.today()
-        val existing = dailyRepository.findById(date).orElse(null)
-        val record = if (existing != null) {
-            existing.apply { update(snap.gap1, gap2, afterMidpoint) }
-        } else {
-            RegimeDailyRecord(
-                date = date,
-                gap1 = snap.gap1,
-                gap2Close = gap2,
-                gap2High = gap2,
-                gap2Low = gap2,
-                gap2At1000 = if (afterMidpoint) gap2 else null,
-            )
-        }
+        val record = dailyRepository.findById(date).orElse(null)
+            ?: RegimeDailyRecord(date = date, gap1 = snap.gap1, gap2Close = gap2, gap2High = gap2, gap2Low = gap2)
+        record.update(snap.gap1, gap2, now)
         dailyRepository.save(record)
     }
 
@@ -105,8 +94,4 @@ class MarketRegimeService(
         BasketConstituent(s.stockCode, s.priceChangeRate, s.accumulatedTradingValue)
 
     private data class DailyAnchor(val date: LocalDate, val basket: MorningBasket)
-
-    companion object {
-        private val MIDPOINT = LocalTime.of(10, 0) // 오전장 구간 분기 시점
-    }
 }

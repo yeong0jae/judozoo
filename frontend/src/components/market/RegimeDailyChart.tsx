@@ -4,7 +4,8 @@ import type { RegimeDaily } from "../../types";
 const SEGMENTS = [
   { key: "오전 NXT", color: "#38bdf8", from: "전일종가", to: "08:15" },
   { key: "오전장", color: "#a78bfa", from: "08:15", to: "10:00" },
-  { key: "오후 마감", color: "#fbbf24", from: "10:00", to: "15:30" },
+  { key: "오후장", color: "#fbbf24", from: "10:00", to: "15:30" },
+  { key: "애프터마켓", color: "#f472b6", from: "15:30", to: "20:00" },
 ] as const;
 
 function fmtDate(iso: string): string {
@@ -59,14 +60,18 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
     );
   }
 
-  const data = [...records].reverse().map((d) => ({
-    date: d.date,
-    segs: [
-      d.gap1,
-      d.gap2At1000,
-      d.gap2At1000 === null ? null : relative(d.gap2At1000, d.gap2Close),
-    ] as (number | null)[],
-  }));
+  const data = [...records].reverse().map((d) => {
+    const close1530 = d.gap2At1530 ?? d.gap2Close; // 구 시드행(1530 없음)은 종가로 폴백
+    return {
+      date: d.date,
+      segs: [
+        d.gap1, // 오전 NXT
+        d.gap2At1000, // 오전장
+        d.gap2At1000 === null ? null : relative(d.gap2At1000, close1530), // 오후장
+        d.gap2At2000 === null ? null : relative(close1530, d.gap2At2000), // 애프터마켓
+      ] as (number | null)[],
+    };
+  });
 
   const W = width;
   const H = 260;
@@ -88,9 +93,9 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
   const y0 = y(0);
   const plotW = W - padL - padR;
   const band = plotW / data.length;
-  const bw = Math.min(22, band * 0.24);
-  const gap = Math.min(4, band * 0.04);
-  const groupW = bw * 3 + gap * 2;
+  const bw = Math.min(16, band * 0.18);
+  const gap = Math.min(3, band * 0.03);
+  const groupW = bw * 4 + gap * 3;
 
   return (
     <div ref={measureRef} className="w-full">
