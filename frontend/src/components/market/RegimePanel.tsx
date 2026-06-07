@@ -69,7 +69,7 @@ export default function RegimePanel() {
   if (!snap) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-500">
-        시장 레짐 — 집계 전 (본장 시간 08:05~15:30에 표시)
+        시장 흐름 — 집계 전 (본장 시간 08:05~15:30에 표시)
       </div>
     );
   }
@@ -79,7 +79,7 @@ export default function RegimePanel() {
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-300">시장 레짐</h2>
+        <h2 className="text-sm font-semibold text-zinc-300">시장 흐름</h2>
         {snap.gap2 === null ? (
           <span className="text-sm text-zinc-600">본장 전</span>
         ) : (
