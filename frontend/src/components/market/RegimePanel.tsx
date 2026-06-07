@@ -106,7 +106,7 @@ export default function RegimePanel() {
         />
         {snap.gap2 !== null ? (
           <GapRow
-            label={closed ? "아침 NXT 대비 종가" : "아침 NXT 대비 본장 (현재)"}
+            label={closed ? "아침 NXT 대비 본장 (마감)" : "아침 NXT 대비 본장 (현재)"}
             value={snap.gap2}
           />
         ) : (
@@ -116,6 +116,10 @@ export default function RegimePanel() {
           </div>
         )}
       </div>
+
+      <p className="mt-2 text-[11px] text-zinc-600">
+        거래대금 상위 30종목(ETF 제외) 등락률
+      </p>
     </div>
   );
 }
