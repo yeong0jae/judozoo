@@ -20,18 +20,25 @@ export default function MarketFlowPage() {
       <RegimePanel />
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
         <h2 className="mb-1 text-sm font-semibold text-zinc-300">
-          최근 10일 — 오전 NXT 변동 vs 오후 KRX 마감
+          최근 10일 — 구간별 변동
         </h2>
-        <p className="mb-2 text-xs text-zinc-600">
-          오전 NXT 변동(전일종가→아침NXT) 과 오후 KRX 마감(아침NXT→종가) 비교
+        <p className="mb-3 text-xs leading-relaxed text-zinc-600">
+          하루를 세 구간으로 나눠 <b className="text-zinc-400">직전 시점 대비</b> 변동을
+          보여줍니다. 거래대금 상위 30종목(ETF 제외)의 등락률 기준.
+          <br />
+          오전 NXT = 전일종가→08:15(아침 NXT) · 오전장 = 08:15→10:00 · 오후 마감 =
+          10:00→15:30. 막대에 마우스를 올리면 상세가 나옵니다.
         </p>
         <RegimeDailyChart records={dailyQ.data ?? []} />
         <div className="mt-2 flex gap-4 text-xs text-zinc-500">
           <span>
-            <Swatch color="#38bdf8" />오전 NXT 변동
+            <Swatch color="#38bdf8" />오전 NXT
           </span>
           <span>
-            <Swatch color="#34d399" />오후 KRX 마감 + / <Swatch color="#fb7185" />−
+            <Swatch color="#a78bfa" />오전장
+          </span>
+          <span>
+            <Swatch color="#fbbf24" />오후 마감
           </span>
         </div>
       </div>

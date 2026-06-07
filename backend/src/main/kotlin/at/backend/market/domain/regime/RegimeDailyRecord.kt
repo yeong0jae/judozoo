@@ -35,12 +35,18 @@ class RegimeDailyRecord(
 
     @Column(nullable = false)
     var gap2Low: Double,
+
+    /** 10:00 시점 본장 갭(아침 NXT 대비) — 오전장 구간 산출용. 10:00 전이면 null. */
+    @Column
+    var gap2At1000: Double? = null,
 ) : BaseEntity() {
 
-    fun update(gap1: Double, gap2: Double) {
+    /** 본장 갱신 — 종가=최신, 고/저 누적, 10:00 통과 시 중간값 1회 고정. */
+    fun update(gap1: Double, gap2: Double, captureMidpoint: Boolean) {
         this.gap1 = gap1
         this.gap2Close = gap2
         if (gap2 > gap2High) gap2High = gap2
         if (gap2 < gap2Low) gap2Low = gap2
+        if (captureMidpoint && gap2At1000 == null) gap2At1000 = gap2
     }
 }

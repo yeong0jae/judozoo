@@ -64,11 +64,12 @@ export interface RegimeSnapshot {
   asOf: string;
 }
 
-// 시장 흐름 멀티데이 — 하루치 결과
+// 시장 흐름 멀티데이 — 하루치 결과 (구간: 전일종가→08:15→10:00→15:30)
 export interface RegimeDaily {
   date: string;
-  gap1: number;
-  gap2Close: number;
+  gap1: number; // 전일종가→08:15 (오전 NXT)
+  gap2At1000: number | null; // 08:15→10:00 (오전장) — 10:00 전이면 null
+  gap2Close: number; // 08:15→15:30 (vs 아침 NXT)
   gap2High: number;
   gap2Low: number;
 }
