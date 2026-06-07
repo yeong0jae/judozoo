@@ -64,11 +64,13 @@ export interface RegimeSnapshot {
   asOf: string;
 }
 
-// 시장 흐름 선그래프용 당일 시계열 한 점
-export interface RegimePoint {
-  asOf: string;
+// 시장 흐름 멀티데이 — 하루치 결과
+export interface RegimeDaily {
+  date: string;
   gap1: number;
-  gap2: number | null;
+  gap2Close: number;
+  gap2High: number;
+  gap2Low: number;
 }
 
 export interface AccountBalance {

@@ -36,7 +36,7 @@ class MarketRegimeServiceTest : FunSpec({
                 snap("999999", "KODEX 레버리지", 5.0, 500), // ETF — 제외
                 snap("000660", "SK하이닉스", 1.0, 80),
             )
-            val service = MarketRegimeService(client, time)
+            val service = MarketRegimeService(client, time, mockk(relaxed = true))
 
             val basket = service.fetchBasket(size = 2, fetchCount = 50)
 
@@ -47,7 +47,7 @@ class MarketRegimeServiceTest : FunSpec({
     context("두 갭 산출") {
         test("앵커 고정 전엔 gap1은 잠정·gap2는 없음, 고정 후엔 gap1 고정·gap2 산출") {
             val client = mockk<KiwoomMarketClient>()
-            val service = MarketRegimeService(client, time)
+            val service = MarketRegimeService(client, time, mockk(relaxed = true))
             val morning = listOf(snap("005930", "삼성전자", 2.0, 100))
 
             // 앵커 고정 전 — gap1은 현재 가중평균(잠정), gap2 없음

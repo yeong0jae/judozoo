@@ -1,41 +1,39 @@
-import { useEffect, useState } from "react";
-import { useRegimeSeries } from "../api/queries";
-import { useStompSubscription } from "../ws/useStompSubscription";
-import type { RegimePoint, RegimeSnapshot } from "../types";
+import { useRegimeDaily } from "../api/queries";
 import RegimePanel from "../components/market/RegimePanel";
-import RegimeChart from "../components/market/RegimeChart";
+import RegimeDailyChart from "../components/market/RegimeDailyChart";
+
+function Swatch({ color }: { color: string }) {
+  return (
+    <span
+      className="mr-1 inline-block h-2.5 w-2.5 rounded-sm align-middle"
+      style={{ background: color }}
+    />
+  );
+}
 
 export default function MarketFlowPage() {
-  const seriesQ = useRegimeSeries();
-  const [points, setPoints] = useState<RegimePoint[]>([]);
-
-  useEffect(() => {
-    if (seriesQ.data) setPoints(seriesQ.data);
-  }, [seriesQ.data]);
-
-  // 실시간으로 들어오는 스냅샷을 시계열에 이어붙임 (중복 asOf는 무시)
-  useStompSubscription<RegimeSnapshot>("/topic/regime", (snap) => {
-    setPoints((prev) =>
-      prev.some((p) => p.asOf === snap.asOf)
-        ? prev
-        : [...prev, { asOf: snap.asOf, gap1: snap.gap1, gap2: snap.gap2 }],
-    );
-  });
-
-  const chartPoints = points
-    .filter((p) => p.gap2 !== null)
-    .map((p) => ({ t: Date.parse(p.asOf), gap2: p.gap2 as number }));
-  const gap1 = points.length ? points[points.length - 1].gap1 : null;
+  const dailyQ = useRegimeDaily();
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-zinc-100">시장 흐름</h1>
       <RegimePanel />
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-        <h2 className="mb-2 text-sm font-semibold text-zinc-300">
-          당일 본장 흐름 — 아침 NXT(08:15) 대비
+        <h2 className="mb-1 text-sm font-semibold text-zinc-300">
+          최근 10일 — 아침 갭 vs 본장 결과
         </h2>
-        <RegimeChart points={chartPoints} gap1={gap1} />
+        <p className="mb-2 text-xs text-zinc-600">
+          아침 갭(전일종가→아침NXT) 과 본장 결과(아침NXT→종가) 비교
+        </p>
+        <RegimeDailyChart records={dailyQ.data ?? []} />
+        <div className="mt-2 flex gap-4 text-xs text-zinc-500">
+          <span>
+            <Swatch color="#38bdf8" />아침 갭
+          </span>
+          <span>
+            <Swatch color="#34d399" />본장 + / <Swatch color="#fb7185" />본장 −
+          </span>
+        </div>
       </div>
     </div>
   );

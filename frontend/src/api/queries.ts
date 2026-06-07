@@ -10,7 +10,7 @@ import type {
   KospiIndex,
   LeadingStockDetailResponse,
   MarketStatus,
-  RegimePoint,
+  RegimeDaily,
   RegimeSnapshot,
   StockPriceResult,
   StockSearchResult,
@@ -36,7 +36,7 @@ export const QK = {
     ["leading-stocks", "investors", code] as const,
   kospiIndex: ["market", "kospi"] as const,
   regime: ["market", "regime"] as const,
-  regimeSeries: ["market", "regime", "series"] as const,
+  regimeDaily: ["market", "regime", "daily"] as const,
 };
 
 export interface InstanceInfo {
@@ -70,10 +70,11 @@ export function useRegime() {
   });
 }
 
-export function useRegimeSeries() {
+export function useRegimeDaily() {
   return useQuery({
-    queryKey: QK.regimeSeries,
-    queryFn: () => apiFetch<RegimePoint[]>("/api/market/regime/series"),
+    queryKey: QK.regimeDaily,
+    queryFn: () => apiFetch<RegimeDaily[]>("/api/market/regime/daily"),
+    refetchInterval: 30_000, // 오늘 막대(종가)가 본장 중 갱신되도록
   });
 }
 

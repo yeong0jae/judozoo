@@ -5,8 +5,9 @@ import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.library.time.TimeProvider
 import at.backend.market.domain.regime.BasketConstituent
 import at.backend.market.domain.regime.MorningBasket
-import at.backend.market.domain.regime.RegimePoint
+import at.backend.market.domain.regime.RegimeDailyRecord
 import at.backend.market.domain.regime.RegimeSnapshot
+import at.backend.market.infrastructure.repository.RegimeDailyRecordJpaRepository
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -23,36 +24,33 @@ import java.util.concurrent.atomic.AtomicReference
 class MarketRegimeService(
     private val marketClient: KiwoomMarketClient,
     private val timeProvider: TimeProvider,
+    private val dailyRepository: RegimeDailyRecordJpaRepository,
 ) {
     private val etfFilter = EtfExclusionFilter()
     private val anchor = AtomicReference<DailyAnchor?>(null)
     private val latest = AtomicReference<RegimeSnapshot?>(null)
-    private val series = AtomicReference(DailySeries(LocalDate.MIN, mutableListOf()))
 
     /** 마지막으로 산출한 스냅샷 — REST 초기 응답용. 폴 전/시간 밖이면 null. */
     fun latest(): RegimeSnapshot? = latest.get()
 
-    /** 당일 시계열 — 선그래프용. 날짜가 바뀌면 빈 목록. */
-    fun series(): List<RegimePoint> {
-        val cur = series.get()
-        if (cur.date != timeProvider.today()) return emptyList()
-        return synchronized(cur.points) { cur.points.toList() }
-    }
+    /** 최근 10일 결과 (최신순) — 멀티데이 비교 차트용. */
+    fun recentDaily(): List<RegimeDailyRecord> = dailyRepository.findTop10ByOrderByDateDesc()
 
-    /** 현재 바스켓으로 산출하고 최신 스냅샷·당일 시계열로 보관한다(폴러가 호출). */
+    /** 현재 바스켓으로 산출하고 최신 스냅샷 보관 + 당일 결과를 영속한다(폴러가 호출). */
     fun refresh(basket: List<LeadingStockSnapshot>): RegimeSnapshot =
         compute(basket).also {
             latest.set(it)
-            appendSeries(it)
+            recordDaily(it)
         }
 
-    private fun appendSeries(snap: RegimeSnapshot) {
-        val today = timeProvider.today()
-        val target = series.get().takeIf { it.date == today }
-            ?: DailySeries(today, mutableListOf()).also { series.set(it) }
-        synchronized(target.points) {
-            target.points.add(RegimePoint(snap.asOf, snap.gap1, snap.gap2))
-        }
+    /** 본장(gap2 존재) 동안 당일 결과를 upsert — 종가=최신, 고/저 누적. */
+    private fun recordDaily(snap: RegimeSnapshot) {
+        val gap2 = snap.gap2 ?: return // 본장 전엔 기록하지 않음
+        val date = timeProvider.today()
+        val existing = dailyRepository.findById(date).orElse(null)
+        val record = existing?.apply { update(snap.gap1, gap2) }
+            ?: RegimeDailyRecord(date, snap.gap1, gap2, gap2, gap2)
+        dailyRepository.save(record)
     }
 
     /** 거래대금 상위에서 ETF/ETN 제외 후 Top [size] 바스켓 후보. */
@@ -95,6 +93,4 @@ class MarketRegimeService(
         BasketConstituent(s.stockCode, s.priceChangeRate, s.accumulatedTradingValue)
 
     private data class DailyAnchor(val date: LocalDate, val basket: MorningBasket)
-
-    private data class DailySeries(val date: LocalDate, val points: MutableList<RegimePoint>)
 }
