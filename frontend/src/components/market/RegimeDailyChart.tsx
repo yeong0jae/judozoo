@@ -1,12 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { RegimeDaily } from "../../types";
-
-const SEGMENTS = [
-  { key: "오전 NXT", color: "#38bdf8", from: "전일종가", to: "08:15" },
-  { key: "오전장", color: "#a78bfa", from: "08:15", to: "10:00" },
-  { key: "오후장", color: "#fbbf24", from: "10:00", to: "15:30" },
-  { key: "애프터마켓", color: "#f472b6", from: "15:30", to: "20:00" },
-] as const;
+import { REGIME_SEGMENTS, regimeSegments } from "../../lib/regimeSegments";
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -15,10 +9,6 @@ function fmtDate(iso: string): string {
 
 function fmtPct(v: number, digits = 2): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(digits)}%`;
-}
-
-function relative(from: number, to: number): number {
-  return ((1 + to / 100) / (1 + from / 100) - 1) * 100;
 }
 
 function niceTicks(mn: number, mx: number): number[] {
@@ -32,12 +22,23 @@ function niceTicks(mn: number, mx: number): number[] {
   return ticks;
 }
 
-export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }) {
+/**
+ * 한 줄(최대 [columns]일) 구간별 막대. records는 시간순(오래된 게 왼쪽).
+ * [domain]은 두 줄이 같은 척도를 쓰도록 외부에서 주입.
+ */
+export default function RegimeDailyChart({
+  records,
+  domain,
+  columns,
+}: {
+  records: RegimeDaily[];
+  domain: { mn: number; mx: number };
+  columns: number;
+}) {
   const [width, setWidth] = useState(760);
   const [hover, setHover] = useState<{ di: number; si: number } | null>(null);
   const obsRef = useRef<ResizeObserver | null>(null);
 
-  // 콜백 ref — 차트 div가 실제로 마운트될 때 옵저버를 붙인다(로딩 후 마운트되는 케이스 대응).
   const measureRef = useCallback((node: HTMLDivElement | null) => {
     obsRef.current?.disconnect();
     if (!node) return;
@@ -49,50 +50,20 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
     obsRef.current = ro;
   }, []);
 
-  if (records.length === 0) {
-    return (
-      <div
-        ref={measureRef}
-        className="flex h-[260px] w-full items-center justify-center text-sm text-zinc-600"
-      >
-        데이터 누적 중…
-      </div>
-    );
-  }
-
-  const data = [...records].reverse().map((d) => {
-    const close1530 = d.gap2At1530 ?? d.gap2Close; // 구 시드행(1530 없음)은 종가로 폴백
-    return {
-      date: d.date,
-      segs: [
-        d.gap1, // 오전 NXT
-        d.gap2At1000, // 오전장
-        d.gap2At1000 === null ? null : relative(d.gap2At1000, close1530), // 오후장
-        d.gap2At2000 === null ? null : relative(close1530, d.gap2At2000), // 애프터마켓
-      ] as (number | null)[],
-    };
-  });
+  const data = records.map((d) => ({ date: d.date, segs: regimeSegments(d) }));
 
   const W = width;
-  const H = 260;
+  const H = 180;
   const padL = 40;
   const padR = 14;
-  const padT = 16;
-  const padB = 30;
+  const padT = 12;
+  const padB = 24;
 
-  const all = data
-    .flatMap((d) => d.segs.filter((v): v is number => v !== null))
-    .concat(0);
-  let mn = Math.min(...all);
-  let mx = Math.max(...all);
-  const sp = mx - mn || 1;
-  mn -= sp * 0.12;
-  mx += sp * 0.12;
-
+  const { mn, mx } = domain;
   const y = (v: number) => padT + (1 - (v - mn) / (mx - mn)) * (H - padT - padB);
   const y0 = y(0);
   const plotW = W - padL - padR;
-  const band = plotW / data.length;
+  const band = plotW / columns;
   const bw = Math.min(16, band * 0.18);
   const gap = Math.min(3, band * 0.03);
   const groupW = bw * 4 + gap * 3;
@@ -115,7 +86,7 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
               y2={y(t)}
               stroke={t === 0 ? "#3f3f46" : "#1f1f23"}
             />
-            <text x={padL - 6} y={y(t) + 3} textAnchor="end" fontSize={11} fill="#71717a">
+            <text x={padL - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="#71717a">
               {fmtPct(t, t % 1 === 0 ? 0 : 1)}
             </text>
           </g>
@@ -133,7 +104,7 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
                     y={y(Math.max(0, v))}
                     width={bw}
                     height={Math.abs(y(v) - y0)}
-                    fill={SEGMENTS[si].color}
+                    fill={REGIME_SEGMENTS[si].color}
                     rx={1}
                     opacity={hover && (hover.di !== di || hover.si !== si) ? 0.4 : 1}
                     onMouseEnter={() => setHover({ di, si })}
@@ -142,9 +113,9 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
               )}
               <text
                 x={padL + band * di + band / 2}
-                y={H - 10}
+                y={H - 8}
                 textAnchor="middle"
-                fontSize={11}
+                fontSize={10}
                 fill="#71717a"
               >
                 {fmtDate(d.date)}
@@ -158,7 +129,7 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
             const d = data[hover.di];
             const v = d.segs[hover.si];
             if (v === null) return null;
-            const seg = SEGMENTS[hover.si];
+            const seg = REGIME_SEGMENTS[hover.si];
             const startX = padL + band * hover.di + (band - groupW) / 2;
             const bx = startX + hover.si * (bw + gap) + bw / 2;
             const tw = 160;

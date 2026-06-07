@@ -8,6 +8,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.annotation.Profile
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
+import java.time.LocalDate
 import java.time.LocalTime
 
 /**
@@ -27,23 +28,25 @@ class RegimeBootstrapSeeder(
 
     @EventListener(ApplicationReadyEvent::class)
     fun seed() {
-        if (dailyRepository.count() > 0) return // 이미 데이터 있으면 시드하지 않음
+        if (dailyRepository.count() >= 20) return // 20일 채워졌으면 시드하지 않음
         runCatching { doSeed() }.onFailure { log.warn(it) { "레짐 부트스트랩 시드 실패" } }
     }
 
     private fun doSeed() {
         val code = "005930" // 삼성전자
-        val daily = marketClient.fetchDailyCandles(code, 30).sortedBy { it.date }
+        val today = LocalDate.now()
+        val daily = marketClient.fetchDailyCandles(code, 40).sortedBy { it.date }
         if (daily.size < 2) {
             log.warn { "레짐 시드: 일봉 부족(${daily.size}) — 생략" }
             return
         }
         var seeded = 0
-        for (i in daily.indices.drop(1).takeLast(10)) {
+        for (i in daily.indices.drop(1).takeLast(20)) {
             val day = daily[i]
             val prevClose = daily[i - 1].closePrice
             val open = day.openPrice
-            if (prevClose <= 0 || open <= 0 || dailyRepository.existsById(day.date)) continue
+            if (prevClose <= 0 || open <= 0) continue
+            if (!day.date.isBefore(today) || dailyRepository.existsById(day.date)) continue
 
             val gap1 = (open - prevClose).toDouble() / prevClose * 100 // 전일종가→시가 (≈오전 NXT)
             val gap2Close = (day.closePrice - open).toDouble() / open * 100 // 시가→종가

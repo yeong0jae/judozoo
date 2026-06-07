@@ -33,8 +33,8 @@ class MarketRegimeService(
     /** 마지막으로 산출한 스냅샷 — REST 초기 응답용. 폴 전/시간 밖이면 null. */
     fun latest(): RegimeSnapshot? = latest.get()
 
-    /** 최근 10일 결과 (최신순) — 멀티데이 비교 차트용. */
-    fun recentDaily(): List<RegimeDailyRecord> = dailyRepository.findTop10ByOrderByDateDesc()
+    /** 최근 20일 결과 (최신순) — 멀티데이 비교 차트용. */
+    fun recentDaily(): List<RegimeDailyRecord> = dailyRepository.findTop20ByOrderByDateDesc()
 
     /** 현재 바스켓으로 산출하고 최신 스냅샷 보관 + 당일 결과를 영속한다(폴러가 호출). */
     fun refresh(basket: List<LeadingStockSnapshot>): RegimeSnapshot =
