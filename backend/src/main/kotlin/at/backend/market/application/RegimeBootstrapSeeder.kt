@@ -49,10 +49,13 @@ class RegimeBootstrapSeeder(
             val gap1 = (open - prevClose).toDouble() / prevClose * 100 // 전일종가→시가 (≈오전 NXT)
             val gap2At1530 = pct(day.closePrice) // 시가→종가(15:30)
 
-            val minutes = marketClient.fetchMinuteCandles(code, day.date)
-                .filter { it.dateTime.toLocalDate() == day.date }
-            val p1000 = minutes.filter { it.dateTime.toLocalTime() >= TEN }.minByOrNull { it.dateTime }?.closePrice
-            val p2000 = minutes.filter { it.dateTime.toLocalTime() >= AFTER }.maxByOrNull { it.dateTime }?.closePrice
+            // 10:00은 정규장(KRX), 20:00은 NXT 애프터마켓(_NX 코드라야 15:30~20:00 봉이 온다)
+            val p1000 = marketClient.fetchMinuteCandles(code, day.date)
+                .filter { it.dateTime.toLocalDate() == day.date && it.dateTime.toLocalTime() >= TEN }
+                .minByOrNull { it.dateTime }?.closePrice
+            val p2000 = marketClient.fetchMinuteCandles("${code}_NX", day.date)
+                .filter { it.dateTime.toLocalDate() == day.date && it.dateTime.toLocalTime() >= AFTER }
+                .maxByOrNull { it.dateTime }?.closePrice
             val gap2At1000 = p1000?.takeIf { it > 0 }?.let { pct(it) }
             val gap2At2000 = p2000?.takeIf { it > 0 }?.let { pct(it) }
 
