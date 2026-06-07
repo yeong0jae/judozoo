@@ -45,18 +45,20 @@ class RegimeBootstrapSeeder(
             val open = day.openPrice
             if (prevClose <= 0 || open <= 0 || !day.date.isBefore(today)) continue
 
-            val pct = { p: Long -> (p - open).toDouble() / open * 100 }
-            val gap1 = (open - prevClose).toDouble() / prevClose * 100 // 전일종가→시가 (≈오전 NXT)
-            val gap2At1530 = pct(day.closePrice) // 시가→종가(15:30)
-
-            // 10:00은 정규장(KRX), 20:00은 NXT 애프터마켓(_NX 코드라야 15:30~20:00 봉이 온다)
+            // NXT 분봉(_NX)엔 프리마켓(08:15)·애프터마켓(20:00)이 포함. 정규장 10:00은 KRX.
+            val nxMinutes = marketClient.fetchMinuteCandles("${code}_NX", day.date)
+                .filter { it.dateTime.toLocalDate() == day.date }
+            val p0815 = nxMinutes.filter { it.dateTime.toLocalTime() >= NXT_OPEN }.minByOrNull { it.dateTime }?.closePrice
+            val p2000 = nxMinutes.filter { it.dateTime.toLocalTime() >= AFTER }.maxByOrNull { it.dateTime }?.closePrice
             val p1000 = marketClient.fetchMinuteCandles(code, day.date)
                 .filter { it.dateTime.toLocalDate() == day.date && it.dateTime.toLocalTime() >= TEN }
                 .minByOrNull { it.dateTime }?.closePrice
-            val p2000 = marketClient.fetchMinuteCandles("${code}_NX", day.date)
-                .filter { it.dateTime.toLocalDate() == day.date && it.dateTime.toLocalTime() >= AFTER }
-                .maxByOrNull { it.dateTime }?.closePrice
+
+            val anchor = p0815?.takeIf { it > 0 } ?: open // 08:15 NXT 실값, 없으면 시가 근사
+            val pct = { p: Long -> (p - anchor).toDouble() / anchor * 100 }
+            val gap1 = (anchor - prevClose).toDouble() / prevClose * 100 // 전일종가→08:15 NXT
             val gap2At1000 = p1000?.takeIf { it > 0 }?.let { pct(it) }
+            val gap2At1530 = pct(day.closePrice) // 08:15→15:30(KRX 종가)
             val gap2At2000 = p2000?.takeIf { it > 0 }?.let { pct(it) }
 
             dailyRepository.save(
@@ -73,10 +75,11 @@ class RegimeBootstrapSeeder(
             )
             seeded++
         }
-        log.info { "레짐 부트스트랩 시드 완료 — 삼성전자 ${seeded}일 (08:15은 시가 근사)" }
+        log.info { "레짐 부트스트랩 시드 완료 — 삼성전자 ${seeded}일 (08:15 NXT 실값/없으면 시가)" }
     }
 
     companion object {
+        private val NXT_OPEN = LocalTime.of(8, 15) // 아침 NXT 기준 시점
         private val TEN = LocalTime.of(10, 0)
         private val AFTER = LocalTime.of(15, 40) // 정규장 마감 이후(NXT 애프터마켓) 마지막 체결 ≈ 20:00
     }
