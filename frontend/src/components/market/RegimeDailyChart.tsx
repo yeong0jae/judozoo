@@ -53,11 +53,11 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
   }));
 
   const W = 760;
-  const H = 300;
-  const padL = 44;
-  const padR = 14;
-  const padT = 16;
-  const padB = 30;
+  const H = 230;
+  const padL = 40;
+  const padR = 12;
+  const padT = 14;
+  const padB = 26;
 
   const all = data
     .flatMap((d) => d.segs.filter((v): v is number => v !== null))
@@ -80,6 +80,7 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className="w-full"
+      style={{ maxWidth: 560 }}
       role="img"
       onMouseLeave={() => setHover(null)}
     >
@@ -92,7 +93,7 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
             y2={y(t)}
             stroke={t === 0 ? "#3f3f46" : "#1f1f23"}
           />
-          <text x={padL - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="#71717a">
+          <text x={padL - 6} y={y(t) + 3} textAnchor="end" fontSize={9} fill="#71717a">
             {fmtPct(t, t % 1 === 0 ? 0 : 1)}
           </text>
         </g>
@@ -119,9 +120,9 @@ export default function RegimeDailyChart({ records }: { records: RegimeDaily[] }
             )}
             <text
               x={padL + band * di + band / 2}
-              y={H - 10}
+              y={H - 9}
               textAnchor="middle"
-              fontSize={10}
+              fontSize={9}
               fill="#71717a"
             >
               {fmtDate(d.date)}
