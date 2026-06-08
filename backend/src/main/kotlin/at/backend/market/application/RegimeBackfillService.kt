@@ -47,9 +47,11 @@ class RegimeBackfillService(
                 return@forEach
             }
 
+            Thread.sleep(1000) // ka10080 rate limit 회피
             val nxtCandles = marketClient.fetchMinuteCandles("${code}_NX", date)
                 .filter { it.dateTime.toLocalDate() == date }
                 .sortedBy { it.dateTime }
+            Thread.sleep(1000)
             val regularCandles = marketClient.fetchMinuteCandles(code, date)
                 .filter { it.dateTime.toLocalDate() == date }
                 .sortedBy { it.dateTime }
