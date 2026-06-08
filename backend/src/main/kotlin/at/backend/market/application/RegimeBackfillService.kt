@@ -35,16 +35,17 @@ class RegimeBackfillService(
         var prevGap2At2000: Double? = null
 
         tradingDays.forEach { date ->
-            if (dailyRepository.existsById(date)) {
-                log.info("backfill: {} already exists, skipping", date)
-                val existing = dailyRepository.findById(date).orElse(null)
-                prevGap2At1400 = existing?.gap2At1400
-                prevGap2At2000 = existing?.gap2At2000
+            val existing = dailyRepository.findById(date).orElse(null)
+
+            // 체크포인트가 모두 채워진 레코드는 skip
+            if (existing != null &&
+                existing.gap2At1100 != null && existing.gap2At1400 != null && existing.gap2At2000 != null
+            ) {
+                log.info("backfill: {} already complete, skipping", date)
+                prevGap2At1400 = existing.gap2At1400
+                prevGap2At2000 = existing.gap2At2000
                 return@forEach
             }
-
-            val prevClose = prevTradingDayClose(date, closePriceByDate)
-                ?: run { log.warn("backfill: no prevClose for {}, skipping", date); return@forEach }
 
             val nxtCandles = marketClient.fetchMinuteCandles("${code}_NX", date)
                 .filter { it.dateTime.toLocalDate() == date }
@@ -59,34 +60,47 @@ class RegimeBackfillService(
             fun priceAt(candles: List<MinuteCandle>, time: LocalTime) =
                 candles.firstOrNull { it.dateTime.toLocalTime() >= time }?.closePrice
 
-            val rawGap1 = (anchorPrice.toDouble() / prevClose - 1) * 100
-            val gap1 = if (prevGap2At1400 != null && prevGap2At2000 != null) {
-                val prevAfterMarket = ((1 + prevGap2At2000!! / 100) / (1 + prevGap2At1400!! / 100) - 1) * 100
-                ((1 + rawGap1 / 100) / (1 + prevAfterMarket / 100) - 1) * 100
-            } else rawGap1
-
-            val allAfterAnchor = (nxtCandles + regularCandles).filter { it.dateTime.toLocalTime() >= anchorTime }
-            val gap2Close = regularCandles.lastOrNull()?.closePrice?.let { gapRate(it) }
-                ?: allAfterAnchor.lastOrNull()?.closePrice?.let { gapRate(it) } ?: 0.0
-            val gap2High = allAfterAnchor.maxOfOrNull { gapRate(it.closePrice) } ?: gap2Close
-            val gap2Low = allAfterAnchor.minOfOrNull { gapRate(it.closePrice) } ?: gap2Close
             val gap2At1100 = priceAt(regularCandles, LocalTime.of(11, 0))?.let { gapRate(it) }
             val gap2At1400 = priceAt(regularCandles, LocalTime.of(14, 0))?.let { gapRate(it) }
             val gap2At2000 = priceAt(nxtCandles, LocalTime.of(20, 0))?.let { gapRate(it) }
 
-            dailyRepository.save(
-                RegimeDailyRecord(
-                    date = date,
-                    gap1 = gap1,
-                    gap2Close = gap2Close,
-                    gap2High = gap2High,
-                    gap2Low = gap2Low,
-                    gap2At1100 = gap2At1100,
-                    gap2At1400 = gap2At1400,
-                    gap2At2000 = gap2At2000,
+            if (existing != null) {
+                // 기존 레코드의 null 체크포인트만 채움
+                if (existing.gap2At1100 == null) existing.gap2At1100 = gap2At1100
+                if (existing.gap2At1400 == null) existing.gap2At1400 = gap2At1400
+                if (existing.gap2At2000 == null) existing.gap2At2000 = gap2At2000
+                dailyRepository.save(existing)
+                log.info("backfill: patched {} checkpoints", date)
+            } else {
+                val prevClose = prevTradingDayClose(date, closePriceByDate)
+                    ?: run { log.warn("backfill: no prevClose for {}, skipping", date); return@forEach }
+
+                val rawGap1 = (anchorPrice.toDouble() / prevClose - 1) * 100
+                val gap1 = if (prevGap2At1400 != null && prevGap2At2000 != null) {
+                    val prevAfterMarket = ((1 + prevGap2At2000!! / 100) / (1 + prevGap2At1400!! / 100) - 1) * 100
+                    ((1 + rawGap1 / 100) / (1 + prevAfterMarket / 100) - 1) * 100
+                } else rawGap1
+
+                val allAfterAnchor = (nxtCandles + regularCandles).filter { it.dateTime.toLocalTime() >= anchorTime }
+                val gap2Close = regularCandles.lastOrNull()?.closePrice?.let { gapRate(it) }
+                    ?: allAfterAnchor.lastOrNull()?.closePrice?.let { gapRate(it) } ?: 0.0
+                val gap2High = allAfterAnchor.maxOfOrNull { gapRate(it.closePrice) } ?: gap2Close
+                val gap2Low = allAfterAnchor.minOfOrNull { gapRate(it.closePrice) } ?: gap2Close
+
+                dailyRepository.save(
+                    RegimeDailyRecord(
+                        date = date,
+                        gap1 = gap1,
+                        gap2Close = gap2Close,
+                        gap2High = gap2High,
+                        gap2Low = gap2Low,
+                        gap2At1100 = gap2At1100,
+                        gap2At1400 = gap2At1400,
+                        gap2At2000 = gap2At2000,
+                    )
                 )
-            )
-            log.info("backfill: saved {} gap1={} gap2Close={}", date, "%.2f".format(gap1), "%.2f".format(gap2Close))
+                log.info("backfill: saved {} gap1={} gap2Close={}", date, "%.2f".format(gap1), "%.2f".format(gap2Close))
+            }
 
             prevGap2At1400 = gap2At1400
             prevGap2At2000 = gap2At2000
