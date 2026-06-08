@@ -23,7 +23,7 @@ class RegimeBackfillService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun backfill(stockCode: String? = null, days: Int? = null) {
+    fun backfill(stockCode: String? = null, days: Int? = null, force: Boolean = false) {
         val code = stockCode ?: props.backfillStockCode
         val n = days ?: props.backfillDays
         val tradingDays = recentTradingDays(n)
@@ -37,8 +37,8 @@ class RegimeBackfillService(
         tradingDays.forEach { date ->
             val existing = dailyRepository.findById(date).orElse(null)
 
-            // 체크포인트가 모두 채워진 레코드는 skip
-            if (existing != null &&
+            // 체크포인트가 모두 채워진 레코드는 skip (force=true면 무시하고 재패치)
+            if (!force && existing != null &&
                 existing.gap2At1100 != null && existing.gap2At1400 != null && existing.gap2At2000 != null
             ) {
                 log.info("backfill: {} already complete, skipping", date)

@@ -25,13 +25,14 @@ class RegimeController(
     @GetMapping("/api/market/regime/daily")
     fun daily() = ApiResponse.ok(service.recentDaily())
 
-    /** 과거 N일치 regime_daily 초기화 (DB 비어 있을 때 1회 호출). */
+    /** 과거 N일치 regime_daily 초기화. force=true 시 기존 체크포인트도 재패치. */
     @PostMapping("/api/admin/regime/backfill")
     fun backfill(
         @RequestParam(defaultValue = "000660") stockCode: String,
         @RequestParam(defaultValue = "20") days: Int,
+        @RequestParam(defaultValue = "false") force: Boolean,
     ): ApiResponse<String> {
-        backfillService.backfill(stockCode, days)
-        return ApiResponse.ok("backfill completed: $days days")
+        backfillService.backfill(stockCode, days, force)
+        return ApiResponse.ok("backfill completed: $days days (force=$force)")
     }
 }
