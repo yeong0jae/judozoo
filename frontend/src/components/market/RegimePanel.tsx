@@ -101,7 +101,7 @@ export default function RegimePanel() {
 
       <div className="mt-3 space-y-1.5 text-sm">
         <GapRow
-          label={`전일 종가 대비 아침 NXT${snap.gap1Locked ? " (08:15)" : " (잠정)"}`}
+          label={`전일 20:00 대비 아침 NXT${snap.gap1Locked ? " (08:15)" : " (잠정)"}`}
           value={snap.gap1}
         />
         {snap.gap2 !== null ? (

@@ -37,11 +37,26 @@ class MarketRegimeService(
     fun recentDaily(): List<RegimeDailyRecord> = dailyRepository.findTop20ByOrderByDateDesc()
 
     /** 현재 바스켓으로 산출하고 최신 스냅샷 보관 + 당일 결과를 영속한다(폴러가 호출). */
-    fun refresh(basket: List<LeadingStockSnapshot>): RegimeSnapshot =
-        compute(basket).also {
-            latest.set(it)
-            recordDaily(it)
-        }
+    fun refresh(basket: List<LeadingStockSnapshot>): RegimeSnapshot {
+        val snap = compute(basket).let { it.copy(gap1 = adjustGap1To20(it.gap1)) }
+        latest.set(snap)
+        recordDaily(snap)
+        return snap
+    }
+
+    /** 아침 NXT(gap1)를 전일 종가(15:30) 기준 → 전일 20:00(NXT 마감) 기준으로 보정. */
+    private fun adjustGap1To20(rawGap1: Double): Double {
+        val prevAfter = prevAfterMarket() ?: return rawGap1
+        return ((1 + rawGap1 / 100) / (1 + prevAfter / 100) - 1) * 100
+    }
+
+    /** 직전 거래일의 오후 NXT(15:30→20:00) 변동. 데이터 없으면 null. */
+    private fun prevAfterMarket(): Double? {
+        val prev = dailyRepository.findTopByDateBeforeOrderByDateDesc(timeProvider.today()) ?: return null
+        val c1530 = prev.gap2At1530 ?: return null
+        val c2000 = prev.gap2At2000 ?: return null
+        return ((1 + c2000 / 100) / (1 + c1530 / 100) - 1) * 100
+    }
 
     /** 본장(gap2 존재) 동안 당일 결과를 upsert — 종가=최신, 10:00·15:30·20:00 통과 시 고정. */
     private fun recordDaily(snap: RegimeSnapshot) {
