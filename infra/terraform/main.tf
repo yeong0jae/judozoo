@@ -69,7 +69,7 @@ resource "google_compute_firewall" "web" {
 
   allow {
     protocol = "tcp"
-    ports    = ["3000"]
+    ports    = ["3000", "3001"]
   }
 
   source_ranges = var.allowed_web_source_ranges
@@ -78,8 +78,8 @@ resource "google_compute_firewall" "web" {
   depends_on = [google_project_service.apis]
 }
 
-resource "google_compute_firewall" "ssh_iap" {
-  name    = "auto-trading-allow-ssh-iap"
+resource "google_compute_firewall" "ssh" {
+  name    = "auto-trading-allow-ssh"
   network = "default"
 
   allow {
@@ -87,8 +87,8 @@ resource "google_compute_firewall" "ssh_iap" {
     ports    = ["22"]
   }
 
-  # IAP TCP forwarding 전용 대역
-  source_ranges = ["REDACTED_IP/20"]
+  # IAP TCP forwarding 전용 대역 + 허용된 IP 대역
+  source_ranges = concat(["REDACTED_IP/20"], var.allowed_web_source_ranges)
   target_tags   = ["auto-trading"]
 
   depends_on = [google_project_service.apis]
