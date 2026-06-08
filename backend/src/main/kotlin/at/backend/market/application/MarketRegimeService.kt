@@ -5,8 +5,10 @@ import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.library.time.TimeProvider
 import at.backend.market.domain.regime.BasketConstituent
 import at.backend.market.domain.regime.MorningBasket
+import at.backend.market.domain.regime.RegimeAnchorConstituent
 import at.backend.market.domain.regime.RegimeDailyRecord
 import at.backend.market.domain.regime.RegimeSnapshot
+import at.backend.market.infrastructure.repository.RegimeAnchorJpaRepository
 import at.backend.market.infrastructure.repository.RegimeDailyRecordJpaRepository
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import org.springframework.stereotype.Service
@@ -15,16 +17,17 @@ import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * 시장 레짐(아침 NXT 두 갭) 관측값 산출.
+ * 시장 레짐(오전 NXT 두 갭) 관측값 산출.
  *
  * 거래대금 상위에서 ETF/ETN을 제외해 Top N 바스켓을 구성하고, 08:15에 앵커를 고정한 뒤
- * 본장 동안 Gap2를 실시간 계산한다. 앵커는 당일 1회만 고정하며 인메모리로 보관한다.
+ * 본장 동안 Gap2를 실시간 계산한다. 앵커는 인메모리 캐시 + DB 영속(장중 재시작 복구)으로 보관한다.
  */
 @Service
 class MarketRegimeService(
     private val marketClient: KiwoomMarketClient,
     private val timeProvider: TimeProvider,
     private val dailyRepository: RegimeDailyRecordJpaRepository,
+    private val anchorRepository: RegimeAnchorJpaRepository,
 ) {
     private val etfFilter = EtfExclusionFilter()
     private val anchor = AtomicReference<DailyAnchor?>(null)
@@ -44,7 +47,7 @@ class MarketRegimeService(
         return snap
     }
 
-    /** 아침 NXT(gap1)를 전일 종가(15:30) 기준 → 전일 20:00(NXT 마감) 기준으로 보정. */
+    /** 오전 NXT(gap1)를 전일 종가(15:30) 기준 → 전일 20:00(NXT 마감) 기준으로 보정. */
     private fun adjustGap1To20(rawGap1: Double): Double {
         val prevAfter = prevAfterMarket() ?: return rawGap1
         return ((1 + rawGap1 / 100) / (1 + prevAfter / 100) - 1) * 100
@@ -75,12 +78,16 @@ class MarketRegimeService(
             .filter { etfFilter.filter(it) }
             .take(size)
 
-    /** 08:15 앵커 고정 — 당일 1회만(이미 오늘 앵커가 있으면 그대로 둔다). */
+    /** 08:15 앵커 고정 — 당일 1회만(메모리/DB에 이미 있으면 그대로 둔다). DB에도 영속해 재시작에 대비. */
     fun captureAnchor(basket: List<LeadingStockSnapshot>) {
         if (basket.isEmpty()) return
         val today = timeProvider.today()
-        if (anchor.get()?.date == today) return
-        anchor.set(DailyAnchor(today, MorningBasket(basket.map(::toConstituent))))
+        if (anchor.get()?.date == today || anchorRepository.existsByDate(today)) return
+        val constituents = basket.map(::toConstituent)
+        anchor.set(DailyAnchor(today, MorningBasket(constituents)))
+        anchorRepository.saveAll(
+            constituents.map { RegimeAnchorConstituent(today, it.stockCode, it.rateAt0815, it.weight) },
+        )
     }
 
     /** 현재 바스켓으로 레짐 한 시점을 계산한다. */
@@ -102,8 +109,16 @@ class MarketRegimeService(
         )
     }
 
-    private fun anchorForToday(): MorningBasket? =
-        anchor.get()?.takeIf { it.date == timeProvider.today() }?.basket
+    /** 오늘 앵커 — 메모리 우선, 없으면(재시작 등) DB에서 복원해 캐시를 채운다. */
+    private fun anchorForToday(): MorningBasket? {
+        val today = timeProvider.today()
+        anchor.get()?.takeIf { it.date == today }?.let { return it.basket }
+        val rows = anchorRepository.findByDate(today)
+        if (rows.isEmpty()) return null
+        val basket = MorningBasket(rows.map { BasketConstituent(it.stockCode, it.rateAt0815, it.weight) })
+        anchor.set(DailyAnchor(today, basket))
+        return basket
+    }
 
     private fun toConstituent(s: LeadingStockSnapshot) =
         BasketConstituent(s.stockCode, s.priceChangeRate, s.accumulatedTradingValue)
