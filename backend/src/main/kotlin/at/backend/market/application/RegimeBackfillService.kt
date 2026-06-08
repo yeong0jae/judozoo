@@ -69,10 +69,10 @@ class RegimeBackfillService(
             val gap2At2000 = priceAt(nxtCandles, LocalTime.of(20, 0))?.let { gapRate(it) }
 
             if (existing != null) {
-                // 기존 레코드의 null 체크포인트만 채움
-                if (existing.gap2At1100 == null) existing.gap2At1100 = gap2At1100
-                if (existing.gap2At1400 == null) existing.gap2At1400 = gap2At1400
-                if (existing.gap2At2000 == null) existing.gap2At2000 = gap2At2000
+                // force면 무조건 덮어쓰고, 아니면 null 체크포인트만 채움
+                if (force || existing.gap2At1100 == null) existing.gap2At1100 = gap2At1100
+                if (force || existing.gap2At1400 == null) existing.gap2At1400 = gap2At1400
+                if (force || existing.gap2At2000 == null) existing.gap2At2000 = gap2At2000
                 dailyRepository.save(existing)
                 log.info("backfill: patched {} checkpoints", date)
             } else {
