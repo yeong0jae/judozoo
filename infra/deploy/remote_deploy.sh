@@ -56,3 +56,10 @@ sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-comp
 sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate --no-deps loki alloy grafana
 sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 sudo docker image prune -f
+
+# 헬스체크 — IAP SSH 터널을 별도로 한 번 더 열지 않도록 배포와 같은 세션에서 검사.
+for i in $(seq 1 24); do
+  if curl -fsS http://localhost:3000/ >/dev/null; then echo "health OK ($i)"; exit 0; fi
+  echo "not ready, retry $i"; sleep 10
+done
+echo "health check failed"; exit 1

@@ -96,14 +96,9 @@ jobs:
             docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh observability \
             "${{ steps.vm.outputs.name }}:~/"
 
+      # Deploy + 헬스체크를 한 SSH 세션에서 — remote_deploy.sh 마지막이 VM 내부 localhost:3000을 검사.
+      # (방화벽이 프론트 3000을 특정 IP로만 열 수 있어 러너에서 외부로 치지 않음)
       - name: Deploy on VM
         run: |
           gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
             --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION} '${{ matrix.target.profile }}'"
-
-      # 방화벽이 프론트(3000)를 특정 IP로만 열 수 있으므로 러너에서 외부로 치지 않고
-      # 이미 열린 IAP SSH로 VM 내부에서 localhost 검사 (방화벽과 무관).
-      - name: Health check (VM 내부)
-        run: |
-          gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command 'set -e; for i in $(seq 1 24); do if curl -fsS http://localhost:3000/ >/dev/null; then echo "health OK ($i)"; exit 0; fi; echo "not ready, retry $i"; sleep 10; done; echo "health check failed"; exit 1'
