@@ -8,6 +8,9 @@ interface RegimeDailyRecordJpaRepository : JpaRepository<RegimeDailyRecord, Loca
     /** 최근 20일 (최신순). */
     fun findTop20ByOrderByDateDesc(): List<RegimeDailyRecord>
 
+    /** 가장 최근 1일 — 폴러 윈도우 밖(재시작/마감 후) 초기 표시 fallback. */
+    fun findFirstByOrderByDateDesc(): RegimeDailyRecord?
+
     /** 직전 거래일 기록 — 오전 NXT를 전일 20:00 기준으로 보정할 때 사용. */
     fun findTopByDateBeforeOrderByDateDesc(date: LocalDate): RegimeDailyRecord?
 }

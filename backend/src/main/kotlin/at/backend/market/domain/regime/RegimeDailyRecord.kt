@@ -5,6 +5,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -45,6 +46,16 @@ class RegimeDailyRecord(
     @Column
     var gap2At2000: Double? = null,
 ) : BaseEntity() {
+
+    /** 영속된 당일 결과를 스냅샷으로 — 폴러 윈도우 밖(재시작/마감 후) 표시용. [asOf]는 외부에서 주입. */
+    fun toSnapshot(asOf: Instant): RegimeSnapshot = RegimeSnapshot(
+        gap1 = gap1,
+        gap1Locked = true,
+        gap2 = gap2Close,
+        gap2Coverage = null,
+        gap2Reliable = true,
+        asOf = asOf,
+    )
 
     /** 매 폴 갱신 — 종가=최신, 고/저 누적, 각 시각(11:00·14:00·20:00) 통과 시 1회 고정. */
     fun update(gap1: Double, gap2: Double, now: LocalTime) {

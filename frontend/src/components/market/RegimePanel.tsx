@@ -7,7 +7,7 @@ function fmtPct(v: number): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
-const CLOSE_MIN = 15 * 60 + 30; // 본장 마감 15:30 (KST)
+const CLOSE_MIN = 20 * 60; // NXT 애프터마켓 마감 20:00 (KST)
 
 function kstNowMinutes(): number {
   const t = new Date().toLocaleTimeString("en-GB", {
@@ -66,7 +66,7 @@ export default function RegimePanel() {
 
   useStompSubscription<RegimeSnapshot>("/topic/regime", setSnap);
 
-  // 15:30 이후 '마감' 전환 — 데이터 갱신이 멈춰도 시간으로 바뀌도록 주기적 재평가
+  // 20:00 이후 '마감' 전환 — 데이터 갱신이 멈춰도 시간으로 바뀌도록 주기적 재평가
   const [, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000);
@@ -76,7 +76,7 @@ export default function RegimePanel() {
   if (!snap) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-500">
-        시장 흐름 — 집계 전 (본장 시간 08:05~15:30에 표시)
+        시장 흐름 — 집계 전 (08:05 이후 표시)
       </div>
     );
   }

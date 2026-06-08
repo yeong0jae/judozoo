@@ -14,6 +14,7 @@ import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -33,8 +34,14 @@ class MarketRegimeService(
     private val anchor = AtomicReference<DailyAnchor?>(null)
     private val latest = AtomicReference<RegimeSnapshot?>(null)
 
-    /** 마지막으로 산출한 스냅샷 — REST 초기 응답용. 폴 전/시간 밖이면 null. */
+    /**
+     * 마지막으로 산출한 스냅샷 — REST 초기 응답용.
+     * 인메모리 값이 없으면(재시작/폴러 윈도우 밖) DB의 최근 당일 레코드로 fallback해
+     * 다음 세션 전까지 직전 결과를 계속 보여준다.
+     */
     fun latest(): RegimeSnapshot? = latest.get()
+        ?: dailyRepository.findFirstByOrderByDateDesc()
+            ?.let { it.toSnapshot(it.updatedAt.atZone(ZoneId.systemDefault()).toInstant()) }
 
     /** 최근 20일 결과 (최신순) — 멀티데이 비교 차트용. */
     fun recentDaily(): List<RegimeDailyRecord> = dailyRepository.findTop20ByOrderByDateDesc()
