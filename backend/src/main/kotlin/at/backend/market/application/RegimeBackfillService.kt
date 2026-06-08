@@ -66,13 +66,17 @@ class RegimeBackfillService(
 
             val gap2At1100 = priceAt(regularCandles, LocalTime.of(11, 0))?.let { gapRate(it) }
             val gap2At1400 = priceAt(regularCandles, LocalTime.of(14, 0))?.let { gapRate(it) }
-            val gap2At2000 = priceAt(nxtCandles, LocalTime.of(20, 0))?.let { gapRate(it) }
+            // NXT 애프터마켓 마감 캔들은 19:59 등으로 찍혀 ">= 20:00"에 안 걸림 →
+            // 애프터마켓 구간(>= 16:00)의 마지막 NXT 캔들을 20:00 종가로 사용.
+            val gap2At2000 = nxtCandles.lastOrNull { it.dateTime.toLocalTime() >= LocalTime.of(16, 0) }
+                ?.closePrice?.let { gapRate(it) }
 
             if (existing != null) {
-                // force면 무조건 덮어쓰고, 아니면 null 체크포인트만 채움
-                if (force || existing.gap2At1100 == null) existing.gap2At1100 = gap2At1100
-                if (force || existing.gap2At1400 == null) existing.gap2At1400 = gap2At1400
-                if (force || existing.gap2At2000 == null) existing.gap2At2000 = gap2At2000
+                // force면 덮어쓰되 새 값이 null이면 기존 값 보존(라이브 캡처값 유실 방지),
+                // force가 아니면 비어 있는 체크포인트만 채움
+                if (gap2At1100 != null && (force || existing.gap2At1100 == null)) existing.gap2At1100 = gap2At1100
+                if (gap2At1400 != null && (force || existing.gap2At1400 == null)) existing.gap2At1400 = gap2At1400
+                if (gap2At2000 != null && (force || existing.gap2At2000 == null)) existing.gap2At2000 = gap2At2000
                 dailyRepository.save(existing)
                 log.info("backfill: patched {} checkpoints", date)
             } else {
