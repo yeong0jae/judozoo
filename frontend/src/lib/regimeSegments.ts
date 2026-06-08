@@ -3,9 +3,9 @@ import type { RegimeDaily } from "../types";
 // 4구간 메타 — 직전 시점 대비. prev = 이 구간의 기준(직전 시점) 라벨.
 export const REGIME_SEGMENTS = [
   { key: "오전 NXT", prev: "전일 20:00", color: "#38bdf8", from: "전일 20:00", to: "08:15" },
-  { key: "오전 정규장", prev: "오전 NXT", color: "#a78bfa", from: "08:15", to: "10:00" },
-  { key: "오후 정규장", prev: "오전 정규장", color: "#fbbf24", from: "10:00", to: "15:30" },
-  { key: "오후 NXT", prev: "오후 정규장", color: "#f472b6", from: "15:30", to: "20:00" },
+  { key: "오전 정규장", prev: "오전 NXT", color: "#a78bfa", from: "08:15", to: "11:00" },
+  { key: "오후 정규장", prev: "오전 정규장", color: "#fbbf24", from: "11:00", to: "14:00" },
+  { key: "오후 NXT", prev: "오후 정규장", color: "#f472b6", from: "14:00", to: "20:00" },
 ] as const;
 
 export type RegimeRow = { date: string; segs: (number | null)[] };
@@ -25,9 +25,9 @@ export function computeRows(chrono: RegimeDaily[]): RegimeRow[] {
     date: d.date,
     segs: [
       d.gap1, // 오전 NXT (전일 20:00 → 08:15)
-      d.gap2At1000, // 08:15 → 10:00
-      d.gap2At1000 !== null && d.gap2At1530 !== null ? rel(d.gap2At1000, d.gap2At1530) : null,
-      d.gap2At1530 !== null && d.gap2At2000 !== null ? rel(d.gap2At1530, d.gap2At2000) : null,
+      d.gap2At1100, // 08:15 → 11:00
+      d.gap2At1100 !== null && d.gap2At1400 !== null ? rel(d.gap2At1100, d.gap2At1400) : null,
+      d.gap2At1400 !== null && d.gap2At2000 !== null ? rel(d.gap2At1400, d.gap2At2000) : null,
     ],
   }));
 }

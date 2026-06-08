@@ -64,12 +64,12 @@ export interface RegimeSnapshot {
   asOf: string;
 }
 
-// 시장 흐름 멀티데이 — 하루치 결과 (구간: 전일종가→08:15→10:00→15:30→20:00)
+// 시장 흐름 멀티데이 — 하루치 결과 (구간: 전일종가→08:15→11:00→14:00→20:00)
 export interface RegimeDaily {
   date: string;
   gap1: number; // 전일종가→08:15 (오전 NXT)
-  gap2At1000: number | null; // 08:15 대비 10:00
-  gap2At1530: number | null; // 08:15 대비 15:30 (KRX 마감)
+  gap2At1100: number | null; // 08:15 대비 11:00
+  gap2At1400: number | null; // 08:15 대비 14:00 (오후 정규장)
   gap2At2000: number | null; // 08:15 대비 20:00 (NXT 애프터마켓)
   gap2Close: number; // 08:15 대비 최신 (구 시드행 폴백용)
 }
