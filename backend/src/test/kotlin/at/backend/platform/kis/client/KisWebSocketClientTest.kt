@@ -103,7 +103,7 @@ class KisWebSocketClientTest : FunSpec({
     val mapper = JsonMapper()
 
     context("구독 메시지 포맷") {
-        test("subscribePrice는 H0STCNT0 + tr_type=1 페이로드를 전송한다") {
+        test("subscribePrice는 H0UNCNT0 + tr_type=1 페이로드를 전송한다") {
             val (client, _, sent) = fixture(mapper)
             client.subscribePrice("005930")
 
@@ -112,7 +112,7 @@ class KisWebSocketClientTest : FunSpec({
             payload["header"]["approval_key"].asText() shouldBe "fake-approval-key"
             payload["header"]["custtype"].asText() shouldBe "P"
             payload["header"]["tr_type"].asText() shouldBe "1"
-            payload["body"]["input"]["tr_id"].asText() shouldBe "H0STCNT0"
+            payload["body"]["input"]["tr_id"].asText() shouldBe "H0UNCNT0"
             payload["body"]["input"]["tr_key"].asText() shouldBe "005930"
         }
 
@@ -126,7 +126,7 @@ class KisWebSocketClientTest : FunSpec({
             sent shouldHaveSize 1
             val payload = mapper.readTree(sent[0])
             payload["header"]["tr_type"].asText() shouldBe "2"
-            payload["body"]["input"]["tr_id"].asText() shouldBe "H0STCNT0"
+            payload["body"]["input"]["tr_id"].asText() shouldBe "H0UNCNT0"
         }
 
         test("subscribeExecutionNotice는 properties.htsId를 tr_key로 H0STCNI0 페이로드를 전송한다") {
@@ -180,9 +180,9 @@ class KisWebSocketClientTest : FunSpec({
 
     context("실시간 프레임 파싱") {
         // 필드 인덱스는 KIS 공식 문서 기반 추정. 실서버 응답 일치 검증은 Phase 7 sanity check.
-        test("H0STCNT0 평문 프레임에서 PriceTick을 추출한다") {
+        test("H0UNCNT0 평문 프레임에서 PriceTick을 추출한다") {
             val (client, session, _) = fixture(mapper)
-            val frame = "0|H0STCNT0|001|005930^_^70000"
+            val frame = "0|H0UNCNT0|001|005930^_^70000"
 
             val tick = coroutineScope {
                 val deferred = async { withTimeout(1000.milliseconds) { client.priceTicks.first() } }
@@ -287,9 +287,9 @@ class KisWebSocketClientTest : FunSpec({
             notice.executedPrice shouldBe 80_000
         }
 
-        test("필드 수가 부족한 H0STCNT0 프레임은 예외 없이 무시된다") {
+        test("필드 수가 부족한 H0UNCNT0 프레임은 예외 없이 무시된다") {
             val (client, session, sent) = fixture(mapper)
-            val frame = "0|H0STCNT0|001|005930"
+            val frame = "0|H0UNCNT0|001|005930"
 
             client.handler.handleMessage(session, TextMessage(frame))
             sent shouldHaveSize 0
