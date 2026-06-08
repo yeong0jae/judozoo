@@ -58,6 +58,8 @@ trading:
       end-time: "20:05"                    # NXT 애프터마켓 마감(20:00) 직후까지 — 20:00 체크포인트 캡처
       basket-size: 30                      # 바스켓 종목 수 (ETF/ETN 제외 후)
       fetch-count: 50                      # 랭킹 조회 수 (ETF 제외 여유분)
+      backfill-stock-code: "000660"        # 과거 N일치 초기화 기준 종목 (SK하이닉스)
+      backfill-days: 20                    # 초기화할 일수
   order:
     sell-retry-delay-millis: 5000
     sell-max-retries: 5                    # 매도 발송 거부 시 최대 재시도 횟수 — 초과 시 중단(무한 재시도 방지)

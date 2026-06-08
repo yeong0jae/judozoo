@@ -19,13 +19,16 @@ import java.time.LocalTime
 class RegimeBackfillService(
     private val marketClient: KiwoomMarketClient,
     private val dailyRepository: RegimeDailyRecordJpaRepository,
+    private val props: RegimeProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun backfill(stockCode: String = "000660", days: Int = 20) {
-        val tradingDays = recentTradingDays(days)
+    fun backfill(stockCode: String? = null, days: Int? = null) {
+        val code = stockCode ?: props.backfillStockCode
+        val n = days ?: props.backfillDays
+        val tradingDays = recentTradingDays(n)
 
-        val closePriceByDate = marketClient.fetchDailyCandles(stockCode, days + 10)
+        val closePriceByDate = marketClient.fetchDailyCandles(code, n + 10)
             .associate { it.date to it.closePrice }
 
         var prevGap2At1400: Double? = null
@@ -43,9 +46,9 @@ class RegimeBackfillService(
             val prevClose = prevTradingDayClose(date, closePriceByDate)
                 ?: run { log.warn("backfill: no prevClose for {}, skipping", date); return@forEach }
 
-            val nxtCandles = marketClient.fetchMinuteCandles("${stockCode}_NX", date)
+            val nxtCandles = marketClient.fetchMinuteCandles("${code}_NX", date)
                 .filter { it.dateTime.toLocalDate() == date }
-            val regularCandles = marketClient.fetchMinuteCandles(stockCode, date)
+            val regularCandles = marketClient.fetchMinuteCandles(code, date)
                 .filter { it.dateTime.toLocalDate() == date }
 
             val anchorTime = LocalTime.of(8, 15)

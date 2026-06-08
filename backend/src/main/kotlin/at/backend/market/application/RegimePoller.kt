@@ -13,11 +13,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
-import java.time.LocalTime
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -36,17 +34,12 @@ class RegimePoller(
     private val timeProvider: TimeProvider,
     private val applicationScope: CoroutineScope,
     private val eventPublisher: ApplicationEventPublisher,
-    @Value("\${trading.market.regime.poll-interval-millis}") private val pollIntervalMillis: Long,
-    @Value("\${trading.market.regime.start-time}") openTime: String,
-    @Value("\${trading.market.regime.anchor-time}") anchorTime: String,
-    @Value("\${trading.market.regime.end-time}") closeTime: String,
-    @Value("\${trading.market.regime.basket-size}") private val basketSize: Int,
-    @Value("\${trading.market.regime.fetch-count}") private val fetchCount: Int,
+    private val props: RegimeProperties,
 ) {
     private val log = KotlinLogging.logger {}
-    private val openAt = LocalTime.parse(openTime)
-    private val anchorAt = LocalTime.parse(anchorTime)
-    private val closeAt = LocalTime.parse(closeTime)
+    private val openAt = props.startTime
+    private val anchorAt = props.anchorTime
+    private val closeAt = props.endTime
     private val pollingJob = AtomicReference<Job?>(null)
 
     private companion object {
@@ -58,7 +51,7 @@ class RegimePoller(
         val job = applicationScope.launch {
             while (isActive) {
                 runCatching { pollOnce() }.onFailure { log.warn(it) { "레짐 폴링 실패" } }
-                delay(pollIntervalMillis.milliseconds)
+                delay(props.pollIntervalMillis.milliseconds)
             }
         }
         pollingJob.set(job)
@@ -75,7 +68,7 @@ class RegimePoller(
         if (now < openAt || now > closeAt) return                 // 집계 시간 밖
         if (!broker.isMarketOpen(timeProvider.today())) return     // 휴장일
 
-        val basket = service.fetchBasket(basketSize, fetchCount)
+        val basket = service.fetchBasket(props.basketSize, props.fetchCount)
         // 08:15 캡처 윈도우 안에서만 앵커 고정 — 윈도우 밖(늦은 재시작)엔 새로 잡지 않고 DB에서 복원
         if (now >= anchorAt && now < anchorAt.plusMinutes(ANCHOR_WINDOW_MINUTES)) {
             service.captureAnchor(basket)
