@@ -1,7 +1,6 @@
 package at.backend.trading.application
 
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.KisWebSocketClientMockConfig
 import at.backend.platform.kis.client.KisWebSocketClient
 import at.backend.trading.domain.cycle.TradingCycle
@@ -18,12 +17,10 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
-@Import(KisWebSocketClientMockConfig::class, KisRestClientMockConfig::class)
 class ExecutionNoticeHandlerTest(
     @Autowired private val handler: ExecutionNoticeHandler,
     @Autowired private val orderRepository: OrderJpaRepository,

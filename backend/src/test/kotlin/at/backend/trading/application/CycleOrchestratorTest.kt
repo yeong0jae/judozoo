@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 import kotlin.time.Duration.Companion.milliseconds
 
-@Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class, FixedTimeProviderConfig::class)
+@Import(FixedTimeProviderConfig::class)
 class CycleOrchestratorTest(
     @Autowired private val orchestrator: CycleOrchestrator,
     @Autowired private val cycleRepository: TradingCycleJpaRepository,

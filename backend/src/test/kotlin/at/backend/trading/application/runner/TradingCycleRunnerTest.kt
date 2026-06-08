@@ -26,7 +26,7 @@ import org.springframework.web.client.RestClientException
 import java.math.BigDecimal
 import kotlin.time.Duration.Companion.milliseconds
 
-@Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class, FixedTimeProviderConfig::class)
+@Import(FixedTimeProviderConfig::class)
 class TradingCycleRunnerTest(
     @Autowired private val orderService: OrderService,
     @Autowired private val cycleRepository: TradingCycleJpaRepository,

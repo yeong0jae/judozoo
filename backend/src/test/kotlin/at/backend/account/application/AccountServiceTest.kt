@@ -1,7 +1,6 @@
 package at.backend.account.application
 
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBalanceResponse
@@ -15,10 +14,8 @@ import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.verify
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 
-@Import(KisRestClientMockConfig::class)
 class AccountServiceTest(
     @Autowired private val accountService: AccountService,
     @Autowired private val tradingCycleRepository: TradingCycleJpaRepository,

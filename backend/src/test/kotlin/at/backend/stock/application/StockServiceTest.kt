@@ -2,7 +2,6 @@ package at.backend.stock.application
 
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.KisStockMasterClientMockConfig
 import at.backend.common.test.MutableTimeProvider
 import at.backend.platform.kis.client.KisRestClient
@@ -18,7 +17,6 @@ import org.springframework.context.annotation.Import
 import java.time.LocalDateTime
 
 @Import(
-    KisRestClientMockConfig::class,
     KisStockMasterClientMockConfig::class,
     FixedTimeProviderConfig::class,
 )

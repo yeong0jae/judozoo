@@ -2,7 +2,6 @@ package at.backend.trading.application
 
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.MutableTimeProvider
 import at.backend.platform.kis.client.KisOrderRejectedException
 import at.backend.platform.kis.client.KisRestClient
@@ -27,7 +26,7 @@ import org.springframework.test.context.TestPropertySource
 import org.springframework.web.client.RestClientException
 import java.math.BigDecimal
 
-@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class)
+@Import(FixedTimeProviderConfig::class)
 @TestPropertySource(
     properties = [
         "trading.order.sell-retry-delay-millis=20",

@@ -1,7 +1,6 @@
 package at.backend.market.application
 
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.KisWebSocketClientMockConfig
 import at.backend.market.domain.PriceTick
 import at.backend.platform.kis.client.KisWebSocketClient
@@ -14,10 +13,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.annotation.Import
 import java.time.Instant
 
-@Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class)
 class PriceTickDataStreamTest(
     @Autowired private val priceTickDataStream: PriceTickDataStream,
     @Autowired private val webSocketClient: KisWebSocketClient,

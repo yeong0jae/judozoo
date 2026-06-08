@@ -30,7 +30,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 
-@Import(KisRestClientMockConfig::class, KisWebSocketClientMockConfig::class, FixedTimeProviderConfig::class)
+@Import(FixedTimeProviderConfig::class)
 class TradingCycleScenarioTest(
     @Autowired private val tradingService: TradingService,
     @Autowired private val cycleRepository: TradingCycleJpaRepository,

@@ -1,7 +1,6 @@
 package at.backend.market.application
 
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.platform.kis.client.KisRestClient
 import at.backend.platform.kis.client.response.KisBarResponse
 import io.kotest.matchers.shouldBe
@@ -14,10 +13,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.annotation.Import
 import org.springframework.test.context.TestPropertySource
 
-@Import(KisRestClientMockConfig::class)
 @TestPropertySource(properties = ["trading.market.bar-poll-interval-millis=30"])
 class BarPollerTest(
     @Autowired private val barPoller: BarPoller,

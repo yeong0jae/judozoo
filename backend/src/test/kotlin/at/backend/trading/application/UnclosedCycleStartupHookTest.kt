@@ -2,7 +2,6 @@ package at.backend.trading.application
 
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.MessagingTemplateMockConfig
 import at.backend.common.test.MutableTimeProvider
 import at.backend.trading.domain.cycle.CloseReason
@@ -19,7 +18,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate
 import java.math.BigDecimal
 
 @Import(
-    KisRestClientMockConfig::class,
     FixedTimeProviderConfig::class,
     MessagingTemplateMockConfig::class,
 )

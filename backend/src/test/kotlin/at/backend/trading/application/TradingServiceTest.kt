@@ -3,7 +3,6 @@ package at.backend.trading.application
 import at.backend.common.test.CycleOrchestratorMockConfig
 import at.backend.common.test.FixedTimeProviderConfig
 import at.backend.common.test.IntegrationTestBase
-import at.backend.common.test.KisRestClientMockConfig
 import at.backend.common.test.MutableTimeProvider
 import at.backend.library.exception.EntityNotFoundException
 import at.backend.platform.kis.client.KisRestClient
@@ -28,7 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import java.math.BigDecimal
 
-@Import(KisRestClientMockConfig::class, FixedTimeProviderConfig::class, CycleOrchestratorMockConfig::class)
+@Import(FixedTimeProviderConfig::class, CycleOrchestratorMockConfig::class)
 class TradingServiceTest(
     @Autowired private val tradingService: TradingService,
     @Autowired private val tradingCycleRepository: TradingCycleJpaRepository,
