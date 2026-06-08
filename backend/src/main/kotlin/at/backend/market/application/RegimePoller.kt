@@ -49,6 +49,10 @@ class RegimePoller(
     private val closeAt = LocalTime.parse(closeTime)
     private val pollingJob = AtomicReference<Job?>(null)
 
+    private companion object {
+        const val ANCHOR_WINDOW_MINUTES = 10L // 08:15~08:25에만 앵커 캡처
+    }
+
     @PostConstruct
     fun start() {
         val job = applicationScope.launch {
@@ -72,7 +76,10 @@ class RegimePoller(
         if (!broker.isMarketOpen(timeProvider.today())) return     // 휴장일
 
         val basket = service.fetchBasket(basketSize, fetchCount)
-        if (now >= anchorAt) service.captureAnchor(basket)         // 08:15 도달 시 앵커 고정
+        // 08:15 캡처 윈도우 안에서만 앵커 고정 — 윈도우 밖(늦은 재시작)엔 새로 잡지 않고 DB에서 복원
+        if (now >= anchorAt && now < anchorAt.plusMinutes(ANCHOR_WINDOW_MINUTES)) {
+            service.captureAnchor(basket)
+        }
         val snapshot = service.refresh(basket)
         eventPublisher.publishEvent(RegimeUpdated(snapshot))
     }
