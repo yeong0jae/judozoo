@@ -49,8 +49,10 @@ class RegimeBackfillService(
 
             val nxtCandles = marketClient.fetchMinuteCandles("${code}_NX", date)
                 .filter { it.dateTime.toLocalDate() == date }
+                .sortedBy { it.dateTime }
             val regularCandles = marketClient.fetchMinuteCandles(code, date)
                 .filter { it.dateTime.toLocalDate() == date }
+                .sortedBy { it.dateTime }
 
             val anchorTime = LocalTime.of(8, 15)
             val anchorPrice = nxtCandles.firstOrNull { it.dateTime.toLocalTime() >= anchorTime }?.closePrice

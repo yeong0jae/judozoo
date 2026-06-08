@@ -5,5 +5,6 @@
 
 ## 미정산
 - [ ] (예시) diffusion ResNet 블록이 gradient flow를 왜 쉽게 만드는가 — @main/abc1234 — added 2026-06-08
+- [ ] github actions 배포 실행 중 deploy on VM 단계에서 일어나는 일 — @main/b0fdf2b — added 2026-06-08
 
 ## 정산 완료
