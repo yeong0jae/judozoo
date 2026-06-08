@@ -53,15 +53,15 @@ class MarketRegimeService(
         return ((1 + rawGap1 / 100) / (1 + prevAfter / 100) - 1) * 100
     }
 
-    /** 직전 거래일의 오후 NXT(15:30→20:00) 변동. 데이터 없으면 null. */
+    /** 직전 거래일의 오후 NXT(14:00→20:00) 변동. 데이터 없으면 null. */
     private fun prevAfterMarket(): Double? {
         val prev = dailyRepository.findTopByDateBeforeOrderByDateDesc(timeProvider.today()) ?: return null
-        val c1530 = prev.gap2At1530 ?: return null
+        val c1400 = prev.gap2At1400 ?: return null
         val c2000 = prev.gap2At2000 ?: return null
-        return ((1 + c2000 / 100) / (1 + c1530 / 100) - 1) * 100
+        return ((1 + c2000 / 100) / (1 + c1400 / 100) - 1) * 100
     }
 
-    /** 본장(gap2 존재) 동안 당일 결과를 upsert — 종가=최신, 10:00·15:30·20:00 통과 시 고정. */
+    /** 본장(gap2 존재) 동안 당일 결과를 upsert — 종가=최신, 11:00·14:00·20:00 통과 시 고정. */
     private fun recordDaily(snap: RegimeSnapshot) {
         val gap2 = snap.gap2 ?: return // 본장 전엔 기록하지 않음
         val now = timeProvider.now().toLocalTime()
