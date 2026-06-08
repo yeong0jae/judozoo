@@ -6,7 +6,7 @@ import io.kotest.matchers.shouldBe
 
 class MorningBasketTest : FunSpec({
 
-    context("아침 NXT 바스켓 — Gap1") {
+    context("오전 NXT 바스켓 — Gap1") {
         test("전일 종가 대비 08:15 등락률을 거래대금 가중으로 평균한다") {
             val basket = MorningBasket(
                 listOf(
@@ -19,7 +19,7 @@ class MorningBasketTest : FunSpec({
         }
     }
 
-    context("아침 NXT 바스켓 — Gap2") {
+    context("오전 NXT 바스켓 — Gap2") {
         test("08:15 대비 현재 등락으로 산출하고 모두 살아있으면 신뢰한다") {
             val basket = MorningBasket(listOf(BasketConstituent("A", rateAt0815 = 2.0, weight = 100)))
 

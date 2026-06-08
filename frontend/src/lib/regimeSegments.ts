@@ -2,8 +2,8 @@ import type { RegimeDaily } from "../types";
 
 // 4구간 메타 — 직전 시점 대비. prev = 이 구간의 기준(직전 시점) 라벨.
 export const REGIME_SEGMENTS = [
-  { key: "아침 NXT", prev: "전일 20:00", color: "#38bdf8", from: "전일 20:00", to: "08:15" },
-  { key: "오전 정규장", prev: "아침 NXT", color: "#a78bfa", from: "08:15", to: "10:00" },
+  { key: "오전 NXT", prev: "전일 20:00", color: "#38bdf8", from: "전일 20:00", to: "08:15" },
+  { key: "오전 정규장", prev: "오전 NXT", color: "#a78bfa", from: "08:15", to: "10:00" },
   { key: "오후 정규장", prev: "오전 정규장", color: "#fbbf24", from: "10:00", to: "15:30" },
   { key: "오후 NXT", prev: "오후 정규장", color: "#f472b6", from: "15:30", to: "20:00" },
 ] as const;
@@ -17,14 +17,14 @@ function rel(from: number, to: number): number {
 
 /**
  * 시간순(오래된 게 앞) 입력 → 각 날의 4구간 변동(%).
- * gap1(아침 NXT)은 백엔드에서 이미 **전일 20:00(NXT 마감) 기준**으로 산출됨.
+ * gap1(오전 NXT)은 백엔드에서 이미 **전일 20:00(NXT 마감) 기준**으로 산출됨.
  * 각 구간은 해당 시각이 지나야 값이 생긴다(없으면 null).
  */
 export function computeRows(chrono: RegimeDaily[]): RegimeRow[] {
   return chrono.map((d) => ({
     date: d.date,
     segs: [
-      d.gap1, // 아침 NXT (전일 20:00 → 08:15)
+      d.gap1, // 오전 NXT (전일 20:00 → 08:15)
       d.gap2At1000, // 08:15 → 10:00
       d.gap2At1000 !== null && d.gap2At1530 !== null ? rel(d.gap2At1000, d.gap2At1530) : null,
       d.gap2At1530 !== null && d.gap2At2000 !== null ? rel(d.gap2At1530, d.gap2At2000) : null,

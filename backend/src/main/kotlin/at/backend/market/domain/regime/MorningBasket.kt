@@ -1,7 +1,7 @@
 package at.backend.market.domain.regime
 
 /**
- * 08:15 아침 NXT 바스켓의 구성원 한 종목.
+ * 08:15 오전 NXT 바스켓의 구성원 한 종목.
  *
  * - [rateAt0815]: 전일 종가 대비 등락률(%) — 08:15 시점에 고정.
  * - [weight]: 거래대금 — 08:15 시점에 고정한 가중치.
@@ -13,7 +13,7 @@ data class BasketConstituent(
 )
 
 /**
- * 08:15에 고정한 아침 NXT 바스켓(거래대금 상위 ex-ETF Top N).
+ * 08:15에 고정한 오전 NXT 바스켓(거래대금 상위 ex-ETF Top N).
  *
  * 두 갭을 거래대금 가중으로 산출한다. 외부 의존 없이 받은 값으로만 계산한다.
  * - Gap1: 전일 종가 → 08:15 NXT (고정값)

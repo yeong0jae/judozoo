@@ -25,7 +25,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * 시장 레짐을 주기적으로 폴링해 산출·발행한다.
  *
  * 08:00~08:05는 NXT 거래대금 순위가 튀어 노이즈가 크므로 [openAt](08:05)부터 수집한다.
- * [anchorAt](08:15)에 아침 NXT 바스켓을 고정하고, [closeAt](본장 마감)까지 Gap2를 갱신한다.
+ * [anchorAt](08:15)에 오전 NXT 바스켓을 고정하고, [closeAt](본장 마감)까지 Gap2를 갱신한다.
  * 테스트 컨텍스트에서는 실제 네트워크를 때리지 않도록 제외한다.
  */
 @Component

@@ -101,17 +101,17 @@ export default function RegimePanel() {
 
       <div className="mt-3 space-y-1.5 text-sm">
         <GapRow
-          label={`전일 20:00 대비 아침 NXT${snap.gap1Locked ? " (08:15)" : " (잠정)"}`}
+          label={`전일 20:00 대비 오전 NXT${snap.gap1Locked ? " (08:15)" : " (잠정)"}`}
           value={snap.gap1}
         />
         {snap.gap2 !== null ? (
           <GapRow
-            label={closed ? "아침 NXT 대비 본장 (마감)" : "아침 NXT 대비 본장 (현재)"}
+            label={closed ? "오전 NXT 대비 본장 (마감)" : "오전 NXT 대비 본장 (현재)"}
             value={snap.gap2}
           />
         ) : (
           <div className="flex items-center justify-between text-zinc-600">
-            <span>아침 NXT 대비 본장 (현재)</span>
+            <span>오전 NXT 대비 본장 (현재)</span>
             <span className="text-xs">본장 시작 전</span>
           </div>
         )}

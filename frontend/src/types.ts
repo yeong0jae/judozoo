@@ -54,9 +54,9 @@ export interface MarketStatus {
   tradingHoursOpen: boolean;
 }
 
-// 시장 레짐 관측 스냅샷 (아침 NXT 두 갭)
+// 시장 레짐 관측 스냅샷 (오전 NXT 두 갭)
 export interface RegimeSnapshot {
-  gap1: number; // 전일종가 대비 아침 NXT 갭(%)
+  gap1: number; // 전일종가 대비 오전 NXT 갭(%)
   gap1Locked: boolean; // 08:15 고정 여부 (false=프리마켓 잠정)
   gap2: number | null; // 08:15 대비 본장 갭(%) — 본장 전이면 null
   gap2Coverage: number | null;
