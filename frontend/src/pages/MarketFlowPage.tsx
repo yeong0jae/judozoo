@@ -1,7 +1,7 @@
 import { useRegimeDaily } from "../api/queries";
 import RegimePanel from "../components/market/RegimePanel";
 import RegimeDailyChart from "../components/market/RegimeDailyChart";
-import { REGIME_SEGMENTS, regimeSegments } from "../lib/regimeSegments";
+import { REGIME_SEGMENTS, computeRows } from "../lib/regimeSegments";
 
 function fmtPct(v: number): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
@@ -11,10 +11,11 @@ export default function MarketFlowPage() {
   const dailyQ = useRegimeDaily();
   const records = dailyQ.data ?? [];
   const chrono = [...records].reverse(); // 최신순 → 시간순(오래된 게 왼쪽)
+  const rows = computeRows(chrono);
 
   // 두 줄이 같은 척도를 쓰도록 전체 도메인 산출
-  const allVals = chrono
-    .flatMap(regimeSegments)
+  const allVals = rows
+    .flatMap((r) => r.segs)
     .filter((v): v is number => v !== null)
     .concat(0);
   let mn = Math.min(...allVals);
@@ -24,13 +25,13 @@ export default function MarketFlowPage() {
   mx += sp * 0.12;
   const domain = { mn, mx };
 
-  const row1 = chrono.slice(0, 10);
-  const row2 = chrono.slice(10, 20);
+  const row1 = rows.slice(0, 10);
+  const row2 = rows.slice(10, 20);
 
   // 구간별 통계 (상승일수 / 평균)
   const stats = REGIME_SEGMENTS.map((seg, si) => {
-    const vals = chrono
-      .map((d) => regimeSegments(d)[si])
+    const vals = rows
+      .map((r) => r.segs[si])
       .filter((v): v is number => v !== null);
     const up = vals.filter((v) => v > 0).length;
     const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
@@ -47,16 +48,17 @@ export default function MarketFlowPage() {
         </h2>
         <p className="mb-3 text-xs leading-relaxed text-zinc-600">
           하루를 네 구간으로 나눠 <b className="text-zinc-400">직전 시점 대비</b> 변동을
-          보여줍니다. 거래대금 상위 30종목(ETF 제외) 등락률 기준. 막대에 마우스를 올리면 상세.
+          보여줍니다 (전일 20:00 → 08:15 → 10:00 → 15:30 → 20:00). 거래대금 상위
+          30종목(ETF 제외) 등락률 기준. 막대에 마우스를 올리면 상세.
         </p>
 
-        {chrono.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="py-10 text-center text-sm text-zinc-600">데이터 누적 중…</div>
         ) : (
           <div className="space-y-1">
-            <RegimeDailyChart records={row1} domain={domain} columns={10} />
+            <RegimeDailyChart rows={row1} domain={domain} columns={10} />
             {row2.length > 0 && (
-              <RegimeDailyChart records={row2} domain={domain} columns={10} />
+              <RegimeDailyChart rows={row2} domain={domain} columns={10} />
             )}
           </div>
         )}
@@ -73,7 +75,7 @@ export default function MarketFlowPage() {
           ))}
         </div>
 
-        {chrono.length > 0 && (
+        {rows.length > 0 && (
           <div className="mt-4 space-y-1.5 border-t border-zinc-800 pt-3 text-sm text-zinc-400">
             {stats.map(({ seg, n, up, avg }) => (
               <p key={seg.key}>

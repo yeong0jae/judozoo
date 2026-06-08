@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import type { RegimeDaily } from "../../types";
-import { REGIME_SEGMENTS, regimeSegments } from "../../lib/regimeSegments";
+import { REGIME_SEGMENTS, type RegimeRow } from "../../lib/regimeSegments";
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -27,11 +26,11 @@ function niceTicks(mn: number, mx: number): number[] {
  * [domain]은 두 줄이 같은 척도를 쓰도록 외부에서 주입.
  */
 export default function RegimeDailyChart({
-  records,
+  rows,
   domain,
   columns,
 }: {
-  records: RegimeDaily[];
+  rows: RegimeRow[];
   domain: { mn: number; mx: number };
   columns: number;
 }) {
@@ -50,7 +49,7 @@ export default function RegimeDailyChart({
     obsRef.current = ro;
   }, []);
 
-  const data = records.map((d) => ({ date: d.date, segs: regimeSegments(d) }));
+  const data = rows;
 
   const W = width;
   const H = 180;
