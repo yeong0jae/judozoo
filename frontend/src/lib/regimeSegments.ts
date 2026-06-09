@@ -11,7 +11,7 @@ export const REGIME_SEGMENTS = [
 export type RegimeRow = { date: string; segs: (number | null)[] };
 
 /** 같은 기준(08:15) 대비 두 값에서 from→to 변동(%) */
-function rel(from: number, to: number): number {
+export function rel(from: number, to: number): number {
   return ((1 + to / 100) / (1 + from / 100) - 1) * 100;
 }
 
