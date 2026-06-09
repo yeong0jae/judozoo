@@ -7,6 +7,7 @@ function fmtPct(v: number): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
 }
 
+const OPEN_MIN = 9 * 60; // 정규장 개장 09:00 (KST) — 이 전엔 '본장 (현재)' 미표시
 const CLOSE_MIN = 20 * 60; // NXT 애프터마켓 마감 20:00 (KST)
 
 function kstNowMinutes(): number {
@@ -81,8 +82,11 @@ export default function RegimePanel() {
     );
   }
 
-  const closed = kstNowMinutes() >= CLOSE_MIN;
-  const tone = gap2Tone(snap.gap2);
+  const nowMin = kstNowMinutes();
+  const closed = nowMin >= CLOSE_MIN;
+  // 본장(08:15 대비) 갭은 09:00 정규장 개장부터 표시 — 그 전 NXT 프리마켓 구간은 숨김.
+  const gap2 = nowMin < OPEN_MIN ? null : snap.gap2;
+  const tone = gap2Tone(gap2);
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
@@ -90,7 +94,7 @@ export default function RegimePanel() {
         <h2 className="text-sm font-semibold text-zinc-300">시장 흐름</h2>
         {closed ? (
           <span className="text-sm text-zinc-500">마감</span>
-        ) : snap.gap2 === null ? (
+        ) : gap2 === null ? (
           <span className="text-sm text-zinc-600">본장 전</span>
         ) : (
           <span className={`text-sm font-semibold ${TONE_TEXT[tone]}`}>
@@ -104,10 +108,10 @@ export default function RegimePanel() {
           label={`전일 20:00 대비 오전 NXT${snap.gap1Locked ? " (08:15)" : " (잠정)"}`}
           value={snap.gap1}
         />
-        {snap.gap2 !== null ? (
+        {gap2 !== null ? (
           <GapRow
             label={closed ? "오전 NXT 대비 본장 (마감)" : "오전 NXT 대비 본장 (현재)"}
-            value={snap.gap2}
+            value={gap2}
           />
         ) : (
           <div className="flex items-center justify-between text-zinc-600">
