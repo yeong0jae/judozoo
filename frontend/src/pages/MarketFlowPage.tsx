@@ -48,7 +48,7 @@ export default function MarketFlowPage() {
         </h2>
         <p className="mb-3 text-xs leading-relaxed text-zinc-600">
           하루를 네 구간으로 나눠 <b className="text-zinc-400">직전 시점 대비</b> 변동을
-          보여줍니다 (전일 20:00 → 08:15 → 10:00 → 15:30 → 20:00). 거래대금 상위
+          보여줍니다 (전일 20:00 → 08:15 → 11:00 → 14:00 → 20:00). 거래대금 상위
           30종목(ETF 제외) 등락률 기준. 막대에 마우스를 올리면 상세.
         </p>
 
