@@ -20,7 +20,6 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
-import RegimePanel from "../components/market/RegimePanel";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -86,8 +85,6 @@ export default function LeadingStocksPage() {
         queriedAt={data?.queriedAt}
         loading={candidatesQ.isFetching}
       />
-
-      <RegimePanel />
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
       <div
