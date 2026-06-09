@@ -64,17 +64,19 @@ class LeadingStockController(
         )
     }
 
-    /** 종목 상세 — 전체 필터(A~H) 평가 결과 */
+    /** 종목 상세 — 전체 필터(A~H) 평가 결과 + 상대거래량 */
     @GetMapping("/candidates/{stockCode}")
     fun getStockDetail(@PathVariable stockCode: String): ApiResponse<LeadingStockDetailResponse> {
-        val (stock, filterResults) = leadingStockService.evaluateStock(stockCode)
+        val eval = leadingStockService.evaluateStock(stockCode)
+        val stock = eval.stock
         return ApiResponse.ok(
             LeadingStockDetailResponse(
                 stockCode = stock.stockCode,
                 stockName = stock.stockName,
                 currentPrice = stock.currentPrice,
                 priceChangeRate = stock.priceChangeRate,
-                filterResults = filterResults.map {
+                relativeVolume = eval.relativeVolume,
+                filterResults = eval.filterResults.map {
                     FilterResultItem(
                         filterName = it.filterName,
                         criteriaDescription = it.criteriaDescription,

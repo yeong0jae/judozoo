@@ -12,7 +12,9 @@ import at.backend.leadingstock.application.filter.PriceAboveOpenFilter
 import at.backend.leadingstock.application.filter.ProgramNetBuyFilter
 import at.backend.leadingstock.application.filter.StockFilter
 import at.backend.leadingstock.application.filter.TradingValueRankFilter
+import at.backend.leadingstock.domain.DailyCandles
 import at.backend.leadingstock.domain.LeadingStockSnapshot
+import at.backend.library.time.TimeProvider
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import at.backend.platform.kiwoom.client.KiwoomProgramClient
 import at.backend.platform.kiwoom.client.KiwoomThemeClient
@@ -26,6 +28,7 @@ class LeadingStockService(
     private val programClient: KiwoomProgramClient,
     @Suppress("unused") private val themeClient: KiwoomThemeClient,
     private val criteria: LeadingStockCriteriaProperties,
+    private val timeProvider: TimeProvider,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -58,8 +61,8 @@ class LeadingStockService(
         return merged
     }
 
-    /** 특정 종목에 대해 모든 필터(A~H) 평가 — 상세 보기에서 사용 */
-    fun evaluateStock(stockCode: String): Pair<LeadingStockSnapshot, List<FilterEvaluationResult>> {
+    /** 특정 종목에 대해 모든 필터(A~H) 평가 + 상대거래량 — 상세 보기에서 사용 */
+    fun evaluateStock(stockCode: String): StockEvaluation {
         log.info("Evaluating stock: {}", stockCode)
 
         val topTradingStocks = marketClient.fetchTopTradingValueStocks(50)
@@ -92,10 +95,20 @@ class LeadingStockService(
         )
 
         val results = allFilters.map { it.evaluate(stock) }
-        return stock to results
+        val relativeVolume = DailyCandles(dailyCandles)
+            .relativeVolume(timeProvider.today(), RVOL_LOOKBACK_DAYS)
+        return StockEvaluation(stock, results, relativeVolume)
     }
 
     companion object {
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
+        private const val RVOL_LOOKBACK_DAYS = 20
     }
 }
+
+/** 종목 상세 평가 결과 — 필터 평가 + 상대거래량(RVOL, 데이터 없으면 null). */
+data class StockEvaluation(
+    val stock: LeadingStockSnapshot,
+    val filterResults: List<FilterEvaluationResult>,
+    val relativeVolume: Double?,
+)

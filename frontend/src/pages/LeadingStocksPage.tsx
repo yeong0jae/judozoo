@@ -297,6 +297,20 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
               format={formatPct}
               className="num ml-1"
             />
+            {detail.relativeVolume != null && (
+              <span
+                className={`num ml-2 text-xs ${
+                  detail.relativeVolume >= 2
+                    ? "text-amber-400"
+                    : detail.relativeVolume >= 1
+                      ? "text-zinc-300"
+                      : "text-zinc-600"
+                }`}
+                title="당일 누적 거래량 / 직전 20거래일 평균 (장 초반엔 낮게 나옴)"
+              >
+                RVOL {detail.relativeVolume.toFixed(1)}배
+              </span>
+            )}
           </div>
         )}
       </header>

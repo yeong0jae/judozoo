@@ -26,6 +26,7 @@ data class LeadingStockDetailResponse(
     val stockName: String,
     val currentPrice: Long,
     val priceChangeRate: Double,
+    val relativeVolume: Double?, // 풀데이 RVOL — 당일 누적/직전 20일 평균 거래량. 데이터 없으면 null
     val filterResults: List<FilterResultItem>,
 )
 
