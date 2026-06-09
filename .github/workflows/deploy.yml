@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
 
+# 같은 VM에 동시 배포 시 완료 순서 역전·파일 동기화 레이스를 막기 위해 직렬화.
+# 진행 중 배포는 끝까지 두고, 그 사이 쌓인 푸시는 가장 최신 것만 이어서 배포된다.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 # WIF용 OIDC 토큰 발급 권한
 permissions:
   contents: read
