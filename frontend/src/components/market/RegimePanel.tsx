@@ -9,7 +9,6 @@ function fmtPct(v: number): string {
 }
 
 const OPEN_MIN = 9 * 60; // 정규장 개장 09:00 (KST) — 이 전엔 본장 구간 미표시
-const CLOSE_MIN = 20 * 60; // NXT 애프터마켓 마감 20:00 (KST)
 
 function kstNowMinutes(): number {
   const t = new Date().toLocaleTimeString("en-GB", {
@@ -23,28 +22,6 @@ function kstNowMinutes(): number {
 function kstToday(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
 }
-
-type Tone = "up" | "down" | "neutral";
-
-// 관측(예측 아님): 08:15 대비 본장이 오르나 떨어지나로 현재 톤을 표시.
-function gap2Tone(gap2: number | null): Tone {
-  if (gap2 === null) return "neutral";
-  if (gap2 > 0.3) return "up";
-  if (gap2 < -0.3) return "down";
-  return "neutral";
-}
-
-const TONE_TEXT: Record<Tone, string> = {
-  up: "text-emerald-400",
-  down: "text-rose-400",
-  neutral: "text-zinc-400",
-};
-
-const TONE_LABEL: Record<Tone, string> = {
-  up: "본장 상승 흐름",
-  down: "본장 하락 흐름",
-  neutral: "보합",
-};
 
 type SegEntry = { value: number; live: boolean } | null;
 
@@ -141,7 +118,7 @@ export default function RegimePanel() {
 
   useStompSubscription<RegimeSnapshot>("/topic/regime", setSnap);
 
-  // 20:00 이후 '마감' 전환 — 데이터 갱신이 멈춰도 시간으로 바뀌도록 주기적 재평가
+  // 09:00 게이트·구간 진행 전환을 데이터 갱신 없이 시간만으로 반영하도록 주기적 재평가
   const [, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000);
@@ -157,28 +134,15 @@ export default function RegimePanel() {
   }
 
   const nowMin = kstNowMinutes();
-  const closed = nowMin >= CLOSE_MIN;
   // 본장(08:15 대비) 갭은 09:00 정규장 개장부터 표시 — 그 전 NXT 프리마켓 구간은 숨김.
   const liveGap2 = nowMin < OPEN_MIN ? null : snap.gap2;
-  const tone = gap2Tone(liveGap2);
 
   const today = (dailyQ.data ?? []).find((r) => r.date === kstToday()) ?? null;
   const segments = computeSegments(snap, today, liveGap2);
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-300">시장 흐름</h2>
-        {closed ? (
-          <span className="text-sm text-zinc-500">마감</span>
-        ) : liveGap2 === null ? (
-          <span className="text-sm text-zinc-600">본장 전</span>
-        ) : (
-          <span className={`text-sm font-semibold ${TONE_TEXT[tone]}`}>
-            {TONE_LABEL[tone]}
-          </span>
-        )}
-      </div>
+      <h2 className="text-sm font-semibold text-zinc-300">시장 흐름</h2>
 
       <div className="mt-3 space-y-1.5 text-sm">
         {REGIME_SEGMENTS.map((seg, i) => (
