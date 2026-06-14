@@ -74,6 +74,13 @@ html {
   font-size: 20px;
 }
 
+/* 모바일(sm 미만)에선 base를 16px로 낮춰 폰 화면에 맞게 전체 비례 축소 */
+@media (max-width: 640px) {
+  html {
+    font-size: 16px;
+  }
+}
+
 /* 페이지 베이스/본문 색상 — 라이트 기본값. .dark에서 오버라이드 */
 :root {
   --page-bg: #ffffff;

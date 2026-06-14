@@ -308,42 +308,46 @@ function CandidatesCards({
             {idx === 0 && <CardGroupHeader label="거래대금 1, 2, 3위" />}
             {idx === 3 && <CardGroupHeader label="주도주 후보" />}
             <div
-              className={`border-t border-zinc-800 px-4 py-3 flex items-center gap-3 cursor-pointer ${
+              className={`border-t border-zinc-800 px-4 py-3 flex flex-col gap-1 cursor-pointer ${
                 isNew ? "leading-stock-new" : ""
               } ${isSelected ? "bg-emerald-900 border-l-2 border-l-emerald-700" : ""}`}
               onClick={() => onOpen(s.stockCode)}
             >
-              <span className="text-zinc-400 text-sm w-6 shrink-0">{s.rank}</span>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium truncate">{s.stockName}</div>
-                <div className="text-xs text-zinc-500 num">
-                  {code} · {formatKoreanMoney(s.accumulatedTradingValue)}
-                </div>
-              </div>
-              <div className="text-right shrink-0 num">
+              {/* 1행: 순위 · 종목명 · 현재가 */}
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-400 text-sm w-5 shrink-0">{s.rank}</span>
+                <span className="font-medium truncate flex-1 min-w-0">
+                  {s.stockName}
+                </span>
                 <FlashOnChange value={s.currentPrice} duration={1000}>
-                  {formatPrice(s.currentPrice)}
+                  <span className="num shrink-0">{formatPrice(s.currentPrice)}</span>
                 </FlashOnChange>
+              </div>
+              {/* 2행: 코드·거래대금 · 등락률 · 매매 */}
+              <div className="flex items-center gap-2 pl-7">
+                <span className="text-xs text-zinc-500 num whitespace-nowrap truncate flex-1 min-w-0">
+                  {code} · {formatKoreanMoney(s.accumulatedTradingValue)}
+                </span>
                 <FlashOnChange value={s.priceChangeRate} duration={1000}>
                   <ProfitText
                     value={s.priceChangeRate / 100}
                     format={formatPct}
-                    className="block text-xs"
+                    className="num text-xs shrink-0"
                   />
                 </FlashOnChange>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(
+                      `/command?stockCode=${code}&stockName=${encodeURIComponent(s.stockName)}`,
+                    );
+                  }}
+                  className="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
+                >
+                  매매
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(
-                    `/command?stockCode=${code}&stockName=${encodeURIComponent(s.stockName)}`,
-                  );
-                }}
-                className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
-              >
-                매매
-              </button>
             </div>
           </Fragment>
         );
