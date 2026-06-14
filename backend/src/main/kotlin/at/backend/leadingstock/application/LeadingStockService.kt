@@ -14,9 +14,11 @@ import at.backend.leadingstock.application.filter.StockFilter
 import at.backend.leadingstock.application.filter.TradingValueRankFilter
 import at.backend.leadingstock.domain.DailyCandles
 import at.backend.leadingstock.domain.LeadingStockSnapshot
+import at.backend.leadingstock.domain.MinuteCandle
 import at.backend.leadingstock.domain.MinuteCandles
 import at.backend.leadingstock.domain.SwingHighSignal
 import at.backend.library.time.TimeProvider
+import java.time.LocalTime
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import at.backend.platform.kiwoom.client.KiwoomProgramClient
 import at.backend.platform.kiwoom.client.KiwoomThemeClient
@@ -100,15 +102,32 @@ class LeadingStockService(
         val relativeVolume = DailyCandles(dailyCandles)
             .relativeVolume(timeProvider.today(), RVOL_LOOKBACK_DAYS)
 
-        val swingHighSignal = MinuteCandles(marketClient.fetchMinuteCandles(stockCode))
+        val swingHighSignal = MinuteCandles(fetchDailyMinuteCandles(stockCode))
             .lastSwingHighSignal(stock.currentPrice, criteria.swingHighPullbackRate)
 
         return StockEvaluation(stock, results, relativeVolume, swingHighSignal)
     }
 
+    /**
+     * 당일 분봉을 KRX 정규장 + NXT 장전·장후로 합쳐 반환한다.
+     * 정규장(09:00~15:30)은 본장(KRX) 가격을 쓰고, 그 밖 구간만 NXT(`_NX`)로 확장한다.
+     * NXT 호출이 실패하면 빈 리스트로 떨어져 KRX 정규장만으로 자연 degrade된다.
+     */
+    private fun fetchDailyMinuteCandles(stockCode: String): List<MinuteCandle> {
+        val regular = marketClient.fetchMinuteCandles(stockCode)
+        val nxtOutsideRegular = marketClient.fetchMinuteCandles("${stockCode}_NX")
+            .filter {
+                val time = it.dateTime.toLocalTime()
+                time < REGULAR_OPEN || time > REGULAR_CLOSE
+            }
+        return regular + nxtOutsideRegular
+    }
+
     companion object {
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val RVOL_LOOKBACK_DAYS = 20
+        private val REGULAR_OPEN: LocalTime = LocalTime.of(9, 0)
+        private val REGULAR_CLOSE: LocalTime = LocalTime.of(15, 30)
     }
 }
 
