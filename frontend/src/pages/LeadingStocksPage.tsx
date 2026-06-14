@@ -428,7 +428,10 @@ function BreakoutSignalSection({ signal }: { signal: SwingHighSignal | null }) {
   if (!signal) return null;
 
   const broke = signal.gapRate <= 0;
-  const peakTime = signal.peakAt.slice(11, 16); // HH:mm
+  // 키움 분봉 cntr_tm이 HTS 표시보다 1분 이르게 라벨링됨 — HTS 기준으로 +1분 보정
+  const peakDate = new Date(signal.peakAt);
+  peakDate.setMinutes(peakDate.getMinutes() + 1);
+  const peakTime = peakDate.toTimeString().slice(0, 5); // HH:mm
 
   return (
     <section>
