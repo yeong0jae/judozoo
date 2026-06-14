@@ -9,6 +9,7 @@ import type {
   CandidateStockItem,
   FilterResultItem,
   InvestorTrendDay,
+  SwingHighSignal,
 } from "../types";
 import {
   formatKoreanMoney,
@@ -311,22 +312,6 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
                 RVOL {detail.relativeVolume.toFixed(1)}배
               </span>
             )}
-            {detail.swingHighGapRate != null && (
-              <span
-                className={`num ml-2 text-xs ${
-                  detail.swingHighGapRate <= 0
-                    ? "text-emerald-400"
-                    : detail.swingHighGapRate < 1
-                      ? "text-amber-400"
-                      : "text-zinc-500"
-                }`}
-                title="직전 장중 스윙 고점(눌림 2%) 돌파까지 남은 상승률"
-              >
-                {detail.swingHighGapRate <= 0
-                  ? "전고점 돌파"
-                  : `전고점까지 ${detail.swingHighGapRate.toFixed(1)}%`}
-              </span>
-            )}
           </div>
         )}
       </header>
@@ -343,7 +328,10 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
         ) : detail ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <FilterResultsList results={detail.filterResults} />
-            <InvestorTrendSection stockCode={shortCode(stockCode)} />
+            <div className="space-y-6">
+              <InvestorTrendSection stockCode={shortCode(stockCode)} />
+              <BreakoutSignalSection signal={detail.swingHighSignal} />
+            </div>
           </div>
         ) : null}
       </div>
@@ -431,6 +419,46 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
             { name: "개인", total: sum((d) => d.individualNet), nxt: sum((d) => d.individualNetNxt) },
           ]}
         />
+      </div>
+    </section>
+  );
+}
+
+function BreakoutSignalSection({ signal }: { signal: SwingHighSignal | null }) {
+  if (!signal) return null;
+
+  const broke = signal.gapRate <= 0;
+  const peakTime = signal.peakAt.slice(11, 16); // HH:mm
+
+  return (
+    <section>
+      <h3 className="text-sm font-semibold text-zinc-200 mb-3">
+        주도주 돌파 매매 시그널
+        <span className="ml-2 text-xs font-normal text-zinc-500">
+          직전 장중 스윙 고점(눌림 2%) 기준
+        </span>
+      </h3>
+      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm text-zinc-400">
+            {broke ? "전고점 돌파" : "전고점까지"}
+          </span>
+          <span
+            className={`num text-lg font-semibold ${
+              broke
+                ? "text-emerald-400"
+                : signal.gapRate < 1
+                  ? "text-amber-400"
+                  : "text-zinc-200"
+            }`}
+          >
+            {broke ? `+${(-signal.gapRate).toFixed(1)}%` : `${signal.gapRate.toFixed(1)}%`}
+          </span>
+        </div>
+        <div className="mt-2 flex items-baseline justify-between text-xs text-zinc-500">
+          <span>전고점 {formatPrice(signal.peakPrice)}</span>
+          <span className="num">{peakTime} 형성</span>
+        </div>
       </div>
     </section>
   );

@@ -31,7 +31,7 @@ class MinuteCandlesTest : FunSpec({
                     candle(10, high = 1045, low = 1025),
                 ),
             )
-            candles.gapRateToLastSwingHigh(currentPrice = 1040, pullbackRate = 2.0)!! shouldBe
+            candles.lastSwingHighSignal(currentPrice = 1040, pullbackRate = 2.0)!!.gapRate shouldBe
                 (0.9615 plusOrMinus 0.001)
         }
 
@@ -46,8 +46,10 @@ class MinuteCandlesTest : FunSpec({
                     candle(20, high = 1070, low = 1050), // 1080 대비 눌림 → 1080 확정
                 ),
             )
-            candles.gapRateToLastSwingHigh(currentPrice = 1070, pullbackRate = 2.0)!! shouldBe
-                ((1080 - 1070).toDouble() / 1070 * 100 plusOrMinus 0.001)
+            val signal = candles.lastSwingHighSignal(currentPrice = 1070, pullbackRate = 2.0)!!
+            signal.peakPrice shouldBe 1080
+            signal.peakAt shouldBe base.plusMinutes(15)
+            signal.gapRate shouldBe ((1080 - 1070).toDouble() / 1070 * 100 plusOrMinus 0.001)
         }
 
         test("현재가가 직전 고점을 넘었으면 음수를 돌려준다") {
@@ -58,7 +60,7 @@ class MinuteCandlesTest : FunSpec({
                     candle(10, high = 1020, low = 1020), // 1050 확정
                 ),
             )
-            candles.gapRateToLastSwingHigh(currentPrice = 1060, pullbackRate = 2.0)!! shouldBe
+            candles.lastSwingHighSignal(currentPrice = 1060, pullbackRate = 2.0)!!.gapRate shouldBe
                 ((1050 - 1060).toDouble() / 1060 * 100 plusOrMinus 0.001)
         }
 
@@ -71,7 +73,7 @@ class MinuteCandlesTest : FunSpec({
                     candle(10, high = 1048, low = 1040),
                 ),
             )
-            candles.gapRateToLastSwingHigh(currentPrice = 1045, pullbackRate = 2.0) shouldBe null
+            candles.lastSwingHighSignal(currentPrice = 1045, pullbackRate = 2.0) shouldBe null
         }
 
         test("계속 오르기만 하면 확정 고점이 없어 null") {
@@ -82,11 +84,11 @@ class MinuteCandlesTest : FunSpec({
                     candle(10, high = 1060, low = 1050),
                 ),
             )
-            candles.gapRateToLastSwingHigh(currentPrice = 1060, pullbackRate = 2.0) shouldBe null
+            candles.lastSwingHighSignal(currentPrice = 1060, pullbackRate = 2.0) shouldBe null
         }
 
         test("분봉이 없으면 null") {
-            MinuteCandles(emptyList()).gapRateToLastSwingHigh(currentPrice = 1000, pullbackRate = 2.0) shouldBe null
+            MinuteCandles(emptyList()).lastSwingHighSignal(currentPrice = 1000, pullbackRate = 2.0) shouldBe null
         }
 
         test("입력이 시간 역순이어도 정렬해 동일하게 판정한다") {
@@ -97,7 +99,7 @@ class MinuteCandlesTest : FunSpec({
                     candle(0, high = 1000, low = 1000),
                 ),
             )
-            candles.gapRateToLastSwingHigh(currentPrice = 1040, pullbackRate = 2.0)!! shouldBe
+            candles.lastSwingHighSignal(currentPrice = 1040, pullbackRate = 2.0)!!.gapRate shouldBe
                 (0.9615 plusOrMinus 0.001)
         }
     }

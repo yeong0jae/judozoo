@@ -312,8 +312,15 @@ export interface LeadingStockDetailResponse {
   currentPrice: number;
   priceChangeRate: number;
   relativeVolume: number | null; // 풀데이 RVOL — 당일 누적/직전 20일 평균 거래량. 없으면 null
-  swingHighGapRate: number | null; // 직전 스윙 고점까지 남은 상승률(%). 음수면 이미 돌파. 없으면 null
+  swingHighSignal: SwingHighSignal | null; // 직전 스윙 고점 돌파 시그널. 없으면 null
   filterResults: FilterResultItem[];
+}
+
+/** 직전 스윙 고점 돌파 매매 시그널. gapRate 양수=남은 상승률(%), 음수=이미 돌파. */
+export interface SwingHighSignal {
+  peakPrice: number;
+  peakAt: string; // 전고점이 형성된 분봉 시각 (ISO LocalDateTime)
+  gapRate: number;
 }
 
 /** 단위: 백만원. 양수=순매수, 음수=순매도. NXT 컬럼은 NXT 거래소 단독. */

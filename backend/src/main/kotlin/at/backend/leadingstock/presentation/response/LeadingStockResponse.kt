@@ -27,8 +27,15 @@ data class LeadingStockDetailResponse(
     val currentPrice: Long,
     val priceChangeRate: Double,
     val relativeVolume: Double?, // 풀데이 RVOL — 당일 누적/직전 20일 평균 거래량. 데이터 없으면 null
-    val swingHighGapRate: Double?, // 직전 스윙 고점까지 남은 상승률(%). 음수면 이미 돌파. 데이터 없으면 null
+    val swingHighSignal: SwingHighSignalItem?, // 직전 스윙 고점 돌파 시그널. 데이터 없으면 null
     val filterResults: List<FilterResultItem>,
+)
+
+/** 직전 스윙 고점 돌파 매매 시그널. gapRate 양수=남은 상승률, 음수=이미 돌파. */
+data class SwingHighSignalItem(
+    val peakPrice: Long,
+    val peakAt: LocalDateTime, // 전고점이 형성된 분봉 시각
+    val gapRate: Double,
 )
 
 data class FilterResultItem(

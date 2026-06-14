@@ -7,6 +7,7 @@ import at.backend.leadingstock.presentation.response.CandidateStocksResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
+import at.backend.leadingstock.presentation.response.SwingHighSignalItem
 import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
 import org.springframework.web.bind.annotation.GetMapping
@@ -76,7 +77,13 @@ class LeadingStockController(
                 currentPrice = stock.currentPrice,
                 priceChangeRate = stock.priceChangeRate,
                 relativeVolume = eval.relativeVolume,
-                swingHighGapRate = eval.swingHighGapRate,
+                swingHighSignal = eval.swingHighSignal?.let {
+                    SwingHighSignalItem(
+                        peakPrice = it.peakPrice,
+                        peakAt = it.peakAt,
+                        gapRate = it.gapRate,
+                    )
+                },
                 filterResults = eval.filterResults.map {
                     FilterResultItem(
                         filterName = it.filterName,
