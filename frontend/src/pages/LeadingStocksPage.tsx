@@ -105,12 +105,20 @@ export default function LeadingStocksPage() {
           ) : stocks.length === 0 ? (
             <EmptyState message="조건을 통과한 후보가 없습니다" />
           ) : (
-            <CandidatesTable
-              stocks={stocks}
-              newCodes={newCodes}
-              selectedCode={openCode}
-              onOpen={(code) => setOpenCode(code)}
-            />
+            <>
+              <CandidatesTable
+                stocks={stocks}
+                newCodes={newCodes}
+                selectedCode={openCode}
+                onOpen={(code) => setOpenCode(code)}
+              />
+              <CandidatesCards
+                stocks={stocks}
+                newCodes={newCodes}
+                selectedCode={openCode}
+                onOpen={(code) => setOpenCode(code)}
+              />
+            </>
           )}
         </section>
 
@@ -138,7 +146,7 @@ function Header({
   loading: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between">
+    <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
       <div>
         <h2 className="text-xl font-bold flex items-center gap-2">
           주도주 후보
@@ -181,7 +189,7 @@ function CandidatesTable({
 }) {
   const navigate = useNavigate();
   return (
-    <table className="w-full text-sm">
+    <table className="hidden md:table w-full text-sm">
       <thead className="bg-zinc-950 text-zinc-500 text-xs">
         <tr>
           <th className="px-4 py-2.5 text-left whitespace-nowrap">순위</th>
@@ -274,6 +282,85 @@ function GroupHeader({ label, hint }: { label: string; hint?: string }) {
 }
 
 // ============================================================
+// Candidates cards (모바일)
+// ============================================================
+
+function CandidatesCards({
+  stocks,
+  newCodes,
+  selectedCode,
+  onOpen,
+}: {
+  stocks: CandidateStockItem[];
+  newCodes: Set<string>;
+  selectedCode: string | null;
+  onOpen: (stockCode: string) => void;
+}) {
+  const navigate = useNavigate();
+  return (
+    <div className="md:hidden">
+      {stocks.map((s, idx) => {
+        const code = shortCode(s.stockCode);
+        const isNew = newCodes.has(s.stockCode);
+        const isSelected = selectedCode === s.stockCode;
+        return (
+          <Fragment key={s.stockCode}>
+            {idx === 0 && <CardGroupHeader label="거래대금 1, 2, 3위" />}
+            {idx === 3 && <CardGroupHeader label="주도주 후보" />}
+            <div
+              className={`border-t border-zinc-800 px-4 py-3 flex items-center gap-3 cursor-pointer ${
+                isNew ? "leading-stock-new" : ""
+              } ${isSelected ? "bg-emerald-900 border-l-2 border-l-emerald-700" : ""}`}
+              onClick={() => onOpen(s.stockCode)}
+            >
+              <span className="text-zinc-400 text-sm w-6 shrink-0">{s.rank}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium truncate">{s.stockName}</div>
+                <div className="text-xs text-zinc-500 num">
+                  {code} · {formatKoreanMoney(s.accumulatedTradingValue)}
+                </div>
+              </div>
+              <div className="text-right shrink-0 num">
+                <FlashOnChange value={s.currentPrice} duration={1000}>
+                  {formatPrice(s.currentPrice)}
+                </FlashOnChange>
+                <FlashOnChange value={s.priceChangeRate} duration={1000}>
+                  <ProfitText
+                    value={s.priceChangeRate / 100}
+                    format={formatPct}
+                    className="block text-xs"
+                  />
+                </FlashOnChange>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(
+                    `/command?stockCode=${code}&stockName=${encodeURIComponent(s.stockName)}`,
+                  );
+                }}
+                className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
+              >
+                매매
+              </button>
+            </div>
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function CardGroupHeader({ label }: { label: string }) {
+  return (
+    <div className="bg-zinc-950 border-t border-zinc-800 px-4 py-2.5">
+      <span className="text-sm font-semibold text-zinc-200">{label}</span>
+    </div>
+  );
+}
+
+// ============================================================
 // Detail panel (우측 인라인)
 // ============================================================
 
@@ -282,8 +369,8 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
   const detail = detailQ.data;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
-      <header className="px-6 py-4 border-b border-zinc-800">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col lg:max-h-[calc(100vh-8rem)]">
+      <header className="px-4 sm:px-6 py-4 border-b border-zinc-800">
         <div className="text-lg font-semibold">
           {detail?.stockName ?? "…"}
           <span className="text-xs text-zinc-500 ml-2 num">
@@ -316,7 +403,7 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 lg:overflow-y-auto p-4 sm:p-6">
         {detailQ.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (

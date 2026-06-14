@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import InstanceBadge from "../header/InstanceBadge";
 import NotificationBell from "../header/NotificationBell";
@@ -8,83 +9,128 @@ import SettingsButton from "../header/SettingsButton";
 import TodayProfitSummary from "../header/TodayProfitSummary";
 import { useMarketStatus } from "../../api/queries";
 
-const navItem =
-  "px-3 py-1.5 rounded-md text-sm font-medium transition-colors hover:bg-zinc-800";
+const NAV = [
+  { to: "/leading-stocks", label: "주도주" },
+  { to: "/market-flow", label: "시장 흐름" },
+  { to: "/command", label: "매매 명령" },
+  { to: "/monitoring", label: "모니터링" },
+  { to: "/holdings", label: "보유 주식" },
+  { to: "/report", label: "실적" },
+];
+
+const navBase = "rounded-md text-sm font-medium transition-colors hover:bg-zinc-800";
 const activeItem = "bg-emerald-900 text-emerald-700";
 const inactiveItem = "text-zinc-300";
 
 export default function Header() {
   const { data: status } = useMarketStatus();
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header className="border-b border-zinc-800 bg-zinc-950">
-      <div className="max-w-[110rem] mx-auto px-6 py-3 flex items-center gap-6">
+      <div className="max-w-[110rem] mx-auto px-4 sm:px-6 py-3 flex items-center gap-4 md:gap-6">
         <Link
           to="/"
           className="text-base font-semibold text-zinc-100 whitespace-nowrap"
         >
           자동매매
         </Link>
-        <nav className="flex items-center gap-1">
-          <NavLink
-            to="/leading-stocks"
-            className={({ isActive }) =>
-              `${navItem} ${isActive ? activeItem : inactiveItem}`
-            }
-          >
-            주도주
-          </NavLink>
-          <NavLink
-            to="/market-flow"
-            className={({ isActive }) =>
-              `${navItem} ${isActive ? activeItem : inactiveItem}`
-            }
-          >
-            시장 흐름
-          </NavLink>
-          <NavLink
-            to="/command"
-            className={({ isActive }) =>
-              `${navItem} ${isActive ? activeItem : inactiveItem}`
-            }
-          >
-            매매 명령
-          </NavLink>
-          <NavLink
-            to="/monitoring"
-            className={({ isActive }) =>
-              `${navItem} ${isActive ? activeItem : inactiveItem}`
-            }
-          >
-            모니터링
-          </NavLink>
-          <NavLink
-            to="/holdings"
-            className={({ isActive }) =>
-              `${navItem} ${isActive ? activeItem : inactiveItem}`
-            }
-          >
-            보유 주식
-          </NavLink>
-          <NavLink
-            to="/report"
-            className={({ isActive }) =>
-              `${navItem} ${isActive ? activeItem : inactiveItem}`
-            }
-          >
-            실적
-          </NavLink>
+
+        {/* 데스크톱 네비 */}
+        <nav className="hidden md:flex items-center gap-1">
+          {NAV.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive }) =>
+                `${navBase} px-3 py-1.5 ${isActive ? activeItem : inactiveItem}`
+              }
+            >
+              {n.label}
+            </NavLink>
+          ))}
         </nav>
+
         <div className="flex-1" />
-        <TodayProfitSummary />
-        <div className="flex items-center gap-1">
-          <InstanceBadge />
-          <KospiIndexBadge />
-          <NotificationBell />
+
+        {/* 데스크톱 우측 클러스터 */}
+        <div className="hidden md:flex items-center gap-4">
+          <TodayProfitSummary />
+          <div className="flex items-center gap-1">
+            <InstanceBadge />
+            <KospiIndexBadge />
+            <NotificationBell />
+            {status && <MarketStatusBadge status={status} />}
+            <StompStatusBadge />
+            <SettingsButton />
+          </div>
+        </div>
+
+        {/* 모바일: 핵심 배지 + 햄버거 */}
+        <div className="flex md:hidden items-center gap-1">
           {status && <MarketStatusBadge status={status} />}
-          <StompStatusBadge />
-          <SettingsButton />
+          <NotificationBell />
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
+            aria-expanded={menuOpen}
+            className="p-2 rounded-md text-zinc-300 hover:bg-zinc-800"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              {menuOpen ? (
+                <>
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="6" y1="18" x2="18" y2="6" />
+                </>
+              ) : (
+                <>
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </>
+              )}
+            </svg>
+          </button>
         </div>
       </div>
+
+      {/* 모바일 드로어 */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-zinc-800 px-4 py-3 space-y-3">
+          <nav
+            className="flex flex-col gap-1"
+            onClick={() => setMenuOpen(false)}
+          >
+            {NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                className={({ isActive }) =>
+                  `${navBase} px-3 py-2.5 ${isActive ? activeItem : inactiveItem}`
+                }
+              >
+                {n.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="flex items-center flex-wrap gap-2 pt-3 border-t border-zinc-800">
+            <TodayProfitSummary />
+            <InstanceBadge />
+            <KospiIndexBadge />
+            <StompStatusBadge />
+            <SettingsButton />
+          </div>
+        </div>
+      )}
     </header>
   );
 }
