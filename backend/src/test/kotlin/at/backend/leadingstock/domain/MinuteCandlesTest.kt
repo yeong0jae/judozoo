@@ -61,6 +61,19 @@ class MinuteCandlesTest : FunSpec({
             signal.peakAt shouldBe base.plusMinutes(6)
         }
 
+        test("같은 고가가 이어지는 쌍고점은 첫 봉을 피벗으로 잡는다") {
+            // 분2·분3이 동일 고가 108(쌍고점) → 첫 봉(분2)이 피벗
+            val candles = MinuteCandles(
+                listOf(
+                    candle(0, 100), candle(1, 102), candle(2, 108), candle(3, 108),
+                    candle(4, 103), candle(5, 101),
+                ),
+            )
+            val signal = candles.lastSwingHighSignal(currentPrice = 104, pivotWindow = 2)!!
+            signal.peakPrice shouldBe 108
+            signal.peakAt shouldBe base.plusMinutes(2)
+        }
+
         test("현재가보다 낮은 피벗만 있으면 머리 위 저항이 없어 null") {
             val candles = MinuteCandles(
                 listOf(
