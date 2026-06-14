@@ -312,6 +312,7 @@ export interface LeadingStockDetailResponse {
   currentPrice: number;
   priceChangeRate: number;
   relativeVolume: number | null; // 풀데이 RVOL — 당일 누적/직전 20일 평균 거래량. 없으면 null
+  swingHighGapRate: number | null; // 직전 스윙 고점까지 남은 상승률(%). 음수면 이미 돌파. 없으면 null
   filterResults: FilterResultItem[];
 }
 

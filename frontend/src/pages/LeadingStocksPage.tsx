@@ -311,6 +311,22 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
                 RVOL {detail.relativeVolume.toFixed(1)}배
               </span>
             )}
+            {detail.swingHighGapRate != null && (
+              <span
+                className={`num ml-2 text-xs ${
+                  detail.swingHighGapRate <= 0
+                    ? "text-emerald-400"
+                    : detail.swingHighGapRate < 1
+                      ? "text-amber-400"
+                      : "text-zinc-500"
+                }`}
+                title="직전 장중 스윙 고점(눌림 2%) 돌파까지 남은 상승률"
+              >
+                {detail.swingHighGapRate <= 0
+                  ? "전고점 돌파"
+                  : `전고점까지 ${detail.swingHighGapRate.toFixed(1)}%`}
+              </span>
+            )}
           </div>
         )}
       </header>
