@@ -18,7 +18,6 @@ import at.backend.leadingstock.domain.MinuteCandle
 import at.backend.leadingstock.domain.MinuteCandles
 import at.backend.leadingstock.domain.SwingHighSignal
 import at.backend.library.time.TimeProvider
-import java.time.LocalTime
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import at.backend.platform.kiwoom.client.KiwoomProgramClient
 import at.backend.platform.kiwoom.client.KiwoomThemeClient
@@ -102,36 +101,26 @@ class LeadingStockService(
         val relativeVolume = DailyCandles(dailyCandles)
             .relativeVolume(timeProvider.today(), RVOL_LOOKBACK_DAYS)
 
-        val swingHighSignal = MinuteCandles(fetchDailyMinuteCandles(stockCode))
+        val swingHighSignal = MinuteCandles(latestSessionMinuteCandles(stockCode))
             .lastSwingHighSignal(stock.currentPrice, criteria.swingHighPullbackRate)
 
         return StockEvaluation(stock, results, relativeVolume, swingHighSignal)
     }
 
     /**
-     * 당일 분봉을 KRX 정규장 + NXT 장전·장후로 합쳐 반환한다.
-     * 정규장(09:00~15:30)은 본장(KRX) 가격을 쓰고, 그 밖 구간만 NXT(`_NX`)로 확장한다.
-     * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로 반드시 당일로 필터링한다.
-     * NXT 호출이 실패하면 빈 리스트로 떨어져 KRX 정규장만으로 자연 degrade된다.
+     * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
+     * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로, 데이터에 존재하는 최신 거래일로 필터링해야
+     * 전고점이 다른 날 봉에서 잡히지 않는다(장중엔 당일, 장 마감 후엔 직전 세션).
      */
-    private fun fetchDailyMinuteCandles(stockCode: String): List<MinuteCandle> {
-        val today = timeProvider.today()
-        val regular = marketClient.fetchMinuteCandles(stockCode)
-            .filter { it.dateTime.toLocalDate() == today }
-        val nxtOutsideRegular = marketClient.fetchMinuteCandles("${stockCode}_NX")
-            .filter { it.dateTime.toLocalDate() == today }
-            .filter {
-                val time = it.dateTime.toLocalTime()
-                time < REGULAR_OPEN || time > REGULAR_CLOSE
-            }
-        return regular + nxtOutsideRegular
+    private fun latestSessionMinuteCandles(stockCode: String): List<MinuteCandle> {
+        val candles = marketClient.fetchMinuteCandles(stockCode)
+        val latestDay = candles.maxOfOrNull { it.dateTime.toLocalDate() } ?: return emptyList()
+        return candles.filter { it.dateTime.toLocalDate() == latestDay }
     }
 
     companion object {
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val RVOL_LOOKBACK_DAYS = 20
-        private val REGULAR_OPEN: LocalTime = LocalTime.of(9, 0)
-        private val REGULAR_CLOSE: LocalTime = LocalTime.of(15, 30)
     }
 }
 
