@@ -102,7 +102,7 @@ class LeadingStockService(
             .relativeVolume(timeProvider.today(), RVOL_LOOKBACK_DAYS)
 
         val swingHighSignal = MinuteCandles(latestSessionMinuteCandles(stockCode))
-            .lastSwingHighSignal(stock.currentPrice, criteria.swingHighPullbackRate)
+            .lastSwingHighSignal(stock.currentPrice, criteria.swingHighPivotWindow)
 
         return StockEvaluation(stock, results, relativeVolume, swingHighSignal)
     }

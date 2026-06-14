@@ -9,98 +9,100 @@ class MinuteCandlesTest : FunSpec({
 
     val base = LocalDateTime.of(2026, 6, 12, 9, 0)
 
-    // high/low만 의미 있는 봉 — open/close/volume은 판정에 영향 없음
-    fun candle(minute: Int, high: Long, low: Long) =
+    // 피벗 판정은 고가만 사용 — 나머지 필드는 영향 없음
+    fun candle(minute: Int, high: Long) =
         MinuteCandle(
             dateTime = base.plusMinutes(minute.toLong()),
-            openPrice = low,
+            openPrice = high,
             highPrice = high,
-            lowPrice = low,
+            lowPrice = high,
             closePrice = high,
             volume = 0,
             tradingValue = 0,
         )
 
-    context("직전 스윙 고점까지 남은 상승률") {
-        test("고점 찍고 눌림폭 이상 빠진 봉우리를 직전 고점으로 확정한다") {
-            // 1050까지 오른 뒤 1025로 -2.4% 눌림 → 고점 1050 확정, 현재가 1040이면 (1050-1040)/1040
+    context("직전 스윙 고점 (프랙탈 피벗, 좌우 2봉)") {
+        test("좌우 봉보다 높은 봉우리를 전고점으로 잡는다") {
+            // 분2의 105가 좌우 2봉보다 높음 → 피벗, 현재가 104면 (105-104)/104
             val candles = MinuteCandles(
                 listOf(
-                    candle(0, high = 1000, low = 1000),
-                    candle(5, high = 1050, low = 1045),
-                    candle(10, high = 1045, low = 1025),
+                    candle(0, 100), candle(1, 102), candle(2, 105), candle(3, 103), candle(4, 101),
                 ),
             )
-            candles.lastSwingHighSignal(currentPrice = 1040, pullbackRate = 2.0)!!.gapRate shouldBe
-                (0.9615 plusOrMinus 0.001)
+            val signal = candles.lastSwingHighSignal(currentPrice = 104, pivotWindow = 2)!!
+            signal.peakPrice shouldBe 105
+            signal.peakAt shouldBe base.plusMinutes(2)
+            signal.gapRate shouldBe ((105 - 104).toDouble() / 104 * 100 plusOrMinus 0.001)
         }
 
-        test("가장 최근에 확정된 봉우리를 기준으로 삼는다") {
-            // 1050 봉우리 확정 후 다시 1080까지 올랐다가 1050으로 눌림 → 최근 고점 1080 사용
+        test("현재가보다 높은 피벗이 여럿이면 더 최근 것을 고른다") {
+            // 분2(105)·분6(108) 둘 다 피벗·현재가 위 → 더 최근인 분6 선택
             val candles = MinuteCandles(
                 listOf(
-                    candle(0, high = 1000, low = 1000),
-                    candle(5, high = 1050, low = 1050),
-                    candle(10, high = 1020, low = 1020), // 1050 대비 눌림 → 1050 확정
-                    candle(15, high = 1080, low = 1060),
-                    candle(20, high = 1070, low = 1050), // 1080 대비 눌림 → 1080 확정
+                    candle(0, 100), candle(1, 102), candle(2, 105), candle(3, 103),
+                    candle(4, 101), candle(5, 104), candle(6, 108), candle(7, 106), candle(8, 102),
                 ),
             )
-            val signal = candles.lastSwingHighSignal(currentPrice = 1070, pullbackRate = 2.0)!!
-            signal.peakPrice shouldBe 1080
-            signal.peakAt shouldBe base.plusMinutes(15)
-            signal.gapRate shouldBe ((1080 - 1070).toDouble() / 1070 * 100 plusOrMinus 0.001)
+            val signal = candles.lastSwingHighSignal(currentPrice = 104, pivotWindow = 2)!!
+            signal.peakPrice shouldBe 108
+            signal.peakAt shouldBe base.plusMinutes(6)
         }
 
-        test("현재가가 직전 고점을 넘었으면 음수를 돌려준다") {
+        test("더 최근 피벗이 더 낮아도 그것을 고른다") {
+            // 분2(108)이 더 높지만, 현재가 위 가장 최근 피벗은 분6(106)
             val candles = MinuteCandles(
                 listOf(
-                    candle(0, high = 1000, low = 1000),
-                    candle(5, high = 1050, low = 1050),
-                    candle(10, high = 1020, low = 1020), // 1050 확정
+                    candle(0, 100), candle(1, 102), candle(2, 108), candle(3, 103),
+                    candle(4, 101), candle(5, 104), candle(6, 106), candle(7, 105), candle(8, 102),
                 ),
             )
-            candles.lastSwingHighSignal(currentPrice = 1060, pullbackRate = 2.0)!!.gapRate shouldBe
-                ((1050 - 1060).toDouble() / 1060 * 100 plusOrMinus 0.001)
+            val signal = candles.lastSwingHighSignal(currentPrice = 104, pivotWindow = 2)!!
+            signal.peakPrice shouldBe 106
+            signal.peakAt shouldBe base.plusMinutes(6)
         }
 
-        test("눌림폭에 못 미치는 잔흔들림만 있으면 확정 고점이 없어 null") {
-            // 1050 후 1040(-0.95%)만 눌림 → 2% 미달, 봉우리 미확정
+        test("현재가보다 낮은 피벗만 있으면 머리 위 저항이 없어 null") {
             val candles = MinuteCandles(
                 listOf(
-                    candle(0, high = 1000, low = 1000),
-                    candle(5, high = 1050, low = 1045),
-                    candle(10, high = 1048, low = 1040),
+                    candle(0, 100), candle(1, 102), candle(2, 105), candle(3, 103), candle(4, 101),
                 ),
             )
-            candles.lastSwingHighSignal(currentPrice = 1045, pullbackRate = 2.0) shouldBe null
+            candles.lastSwingHighSignal(currentPrice = 110, pivotWindow = 2) shouldBe null
         }
 
-        test("계속 오르기만 하면 확정 고점이 없어 null") {
+        test("끝자락 상승 꼬리는 우측 봉이 부족해 확정되지 않는다") {
+            // 분5(108)·분6(110)이 더 높지만 끝자락이라 미확정 → 확정된 분2(105)로 폴백
             val candles = MinuteCandles(
                 listOf(
-                    candle(0, high = 1000, low = 1000),
-                    candle(5, high = 1030, low = 1020),
-                    candle(10, high = 1060, low = 1050),
+                    candle(0, 100), candle(1, 102), candle(2, 105), candle(3, 103),
+                    candle(4, 104), candle(5, 108), candle(6, 110),
                 ),
             )
-            candles.lastSwingHighSignal(currentPrice = 1060, pullbackRate = 2.0) shouldBe null
+            val signal = candles.lastSwingHighSignal(currentPrice = 104, pivotWindow = 2)!!
+            signal.peakPrice shouldBe 105
+            signal.peakAt shouldBe base.plusMinutes(2)
+        }
+
+        test("봉 수가 좌우 윈도우를 채우지 못하면 null") {
+            val candles = MinuteCandles(
+                listOf(candle(0, 100), candle(1, 102), candle(2, 105), candle(3, 103)),
+            )
+            candles.lastSwingHighSignal(currentPrice = 104, pivotWindow = 2) shouldBe null
         }
 
         test("분봉이 없으면 null") {
-            MinuteCandles(emptyList()).lastSwingHighSignal(currentPrice = 1000, pullbackRate = 2.0) shouldBe null
+            MinuteCandles(emptyList()).lastSwingHighSignal(currentPrice = 1000, pivotWindow = 2) shouldBe null
         }
 
         test("입력이 시간 역순이어도 정렬해 동일하게 판정한다") {
             val candles = MinuteCandles(
                 listOf(
-                    candle(10, high = 1045, low = 1025),
-                    candle(5, high = 1050, low = 1045),
-                    candle(0, high = 1000, low = 1000),
+                    candle(4, 101), candle(3, 103), candle(2, 105), candle(1, 102), candle(0, 100),
                 ),
             )
-            candles.lastSwingHighSignal(currentPrice = 1040, pullbackRate = 2.0)!!.gapRate shouldBe
-                (0.9615 plusOrMinus 0.001)
+            val signal = candles.lastSwingHighSignal(currentPrice = 104, pivotWindow = 2)!!
+            signal.peakPrice shouldBe 105
+            signal.peakAt shouldBe base.plusMinutes(2)
         }
     }
 })
