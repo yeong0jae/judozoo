@@ -111,11 +111,15 @@ class LeadingStockService(
     /**
      * 당일 분봉을 KRX 정규장 + NXT 장전·장후로 합쳐 반환한다.
      * 정규장(09:00~15:30)은 본장(KRX) 가격을 쓰고, 그 밖 구간만 NXT(`_NX`)로 확장한다.
+     * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로 반드시 당일로 필터링한다.
      * NXT 호출이 실패하면 빈 리스트로 떨어져 KRX 정규장만으로 자연 degrade된다.
      */
     private fun fetchDailyMinuteCandles(stockCode: String): List<MinuteCandle> {
+        val today = timeProvider.today()
         val regular = marketClient.fetchMinuteCandles(stockCode)
+            .filter { it.dateTime.toLocalDate() == today }
         val nxtOutsideRegular = marketClient.fetchMinuteCandles("${stockCode}_NX")
+            .filter { it.dateTime.toLocalDate() == today }
             .filter {
                 val time = it.dateTime.toLocalTime()
                 time < REGULAR_OPEN || time > REGULAR_CLOSE
