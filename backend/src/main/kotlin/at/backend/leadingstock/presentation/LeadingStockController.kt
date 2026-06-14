@@ -76,6 +76,7 @@ class LeadingStockController(
                 currentPrice = stock.currentPrice,
                 priceChangeRate = stock.priceChangeRate,
                 relativeVolume = eval.relativeVolume,
+                swingHighGapRate = eval.swingHighGapRate,
                 filterResults = eval.filterResults.map {
                     FilterResultItem(
                         filterName = it.filterName,

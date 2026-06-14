@@ -27,6 +27,7 @@ data class LeadingStockDetailResponse(
     val currentPrice: Long,
     val priceChangeRate: Double,
     val relativeVolume: Double?, // 풀데이 RVOL — 당일 누적/직전 20일 평균 거래량. 데이터 없으면 null
+    val swingHighGapRate: Double?, // 직전 스윙 고점까지 남은 상승률(%). 음수면 이미 돌파. 데이터 없으면 null
     val filterResults: List<FilterResultItem>,
 )
 

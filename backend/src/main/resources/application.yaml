@@ -43,6 +43,7 @@ leading-stock:
     max-prev-close-change-rate: 25.0       # 전일 종가 대비 25% 이하
     max-opening-price-change-rate: 7.0     # 시초가 대비 7% 이하
     max-theme-rank: 5                      # 테마 그룹 상위 N위
+    swing-high-pullback-rate: 2.0          # 스윙 고점 확정 눌림폭 2%
 
 trading:
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)

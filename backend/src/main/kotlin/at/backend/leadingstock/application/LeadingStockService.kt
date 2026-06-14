@@ -14,6 +14,7 @@ import at.backend.leadingstock.application.filter.StockFilter
 import at.backend.leadingstock.application.filter.TradingValueRankFilter
 import at.backend.leadingstock.domain.DailyCandles
 import at.backend.leadingstock.domain.LeadingStockSnapshot
+import at.backend.leadingstock.domain.MinuteCandles
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import at.backend.platform.kiwoom.client.KiwoomProgramClient
@@ -97,7 +98,11 @@ class LeadingStockService(
         val results = allFilters.map { it.evaluate(stock) }
         val relativeVolume = DailyCandles(dailyCandles)
             .relativeVolume(timeProvider.today(), RVOL_LOOKBACK_DAYS)
-        return StockEvaluation(stock, results, relativeVolume)
+
+        val swingHighGapRate = MinuteCandles(marketClient.fetchMinuteCandles(stockCode))
+            .gapRateToLastSwingHigh(stock.currentPrice, criteria.swingHighPullbackRate)
+
+        return StockEvaluation(stock, results, relativeVolume, swingHighGapRate)
     }
 
     companion object {
@@ -106,9 +111,13 @@ class LeadingStockService(
     }
 }
 
-/** 종목 상세 평가 결과 — 필터 평가 + 상대거래량(RVOL, 데이터 없으면 null). */
+/**
+ * 종목 상세 평가 결과 — 필터 평가 + 상대거래량(RVOL) + 직전 스윙 고점까지 남은 상승률(%).
+ * 데이터 없으면 각각 null.
+ */
 data class StockEvaluation(
     val stock: LeadingStockSnapshot,
     val filterResults: List<FilterEvaluationResult>,
     val relativeVolume: Double?,
+    val swingHighGapRate: Double?,
 )
