@@ -87,8 +87,6 @@ export default function LeadingStocksPage() {
         totalCount={data?.totalCount}
         queriedAt={data?.queriedAt}
         loading={candidatesQ.isFetching}
-        minChangeRate={minChangeRate}
-        onChangeRate={setMinChangeRate}
       />
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
@@ -100,6 +98,10 @@ export default function LeadingStocksPage() {
         }
       >
         <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+          {/* 등락률 임계값 선택 — 리스트 우측 상단 */}
+          <div className="flex justify-end px-4 py-2 border-b border-zinc-800">
+            <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
+          </div>
           {candidatesQ.isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -144,14 +146,10 @@ function Header({
   totalCount,
   queriedAt,
   loading,
-  minChangeRate,
-  onChangeRate,
 }: {
   totalCount: number | undefined;
   queriedAt: string | undefined;
   loading: boolean;
-  minChangeRate: number;
-  onChangeRate: (rate: number) => void;
 }) {
   return (
     <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
@@ -167,17 +165,14 @@ function Header({
           />
         </h2>
         <p className="text-xs text-zinc-500 mt-0.5">
-          거래대금 상위 + 당일 등락률 {minChangeRate}% 이상 종목 · 5초 자동 갱신
+          거래대금 상위 + 당일 등락률 필터 통과 종목 · 5초 자동 갱신
         </p>
       </div>
-      <div className="flex flex-col items-end gap-1.5">
-        <ChangeRateSelector value={minChangeRate} onChange={onChangeRate} />
-        <div className="text-xs text-zinc-500 flex items-center gap-2">
-          {queriedAt && <span>조회 {formatRelative(queriedAt)}</span>}
-          {typeof totalCount === "number" && (
-            <span className="text-zinc-300 font-medium">{totalCount}건</span>
-          )}
-        </div>
+      <div className="text-xs text-zinc-500 flex items-center gap-2">
+        {queriedAt && <span>조회 {formatRelative(queriedAt)}</span>}
+        {typeof totalCount === "number" && (
+          <span className="text-zinc-300 font-medium">{totalCount}건</span>
+        )}
       </div>
     </div>
   );
