@@ -19,5 +19,4 @@ data class LeadingStockCriteriaProperties(
     val maxPrevCloseChangeRate: Double = 25.0,      // 전일 종가 대비(%)
     val maxOpeningPriceChangeRate: Double = 7.0,    // 시초가 대비(%)
     val maxThemeRank: Int = 5,                      // 테마 그룹 상위 N위
-    val swingHighPivotWindow: Int = 5,              // 스윙 고점 프랙탈 피벗 좌우 봉 수
 )

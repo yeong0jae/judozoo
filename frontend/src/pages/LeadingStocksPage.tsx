@@ -573,7 +573,7 @@ function BreakoutSignalSection({ signal }: { signal: SwingHighSignal | null }) {
       <h3 className="text-sm font-semibold text-zinc-200 mb-3">
         주도주 돌파 매매 시그널
         <span className="ml-2 text-xs font-normal text-zinc-500">
-          좌우 5분 봉우리(피벗) 기준
+          당일 고가 기준
         </span>
       </h3>
       <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
