@@ -178,8 +178,8 @@ function Header({
   );
 }
 
-// 당일 등락률 임계값 선택지 — -7 ~ +7 (0 포함)
-const CHANGE_RATE_OPTIONS = Array.from({ length: 15 }, (_, i) => i - 7);
+// 당일 등락률 임계값 선택지 — -7 ~ +7 중 홀수 구간 + 0
+const CHANGE_RATE_OPTIONS = [-7, -5, -3, 0, 3, 5, 7];
 
 /** 당일 등락률 임계값 선택 — -7~7% 세그먼트 버튼 */
 function ChangeRateSelector({
