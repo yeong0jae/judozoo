@@ -37,23 +37,28 @@ class LeadingStockService(
 
     /**
      * Phase 1 필터만 적용한 후보 종목 (거래대금 순위 + 당일 등락률).
+     * 당일 등락률 임계값은 호출자(사용자 선택)가 지정하며, 캐시 키도 이 값으로 분리한다.
      * candidateStocks 캐시(5s TTL)로 짧은 폴링 시 키움 API 직접 호출 회피.
      */
-    @Cacheable("candidateStocks")
-    fun findCandidateStocks(): List<LeadingStockSnapshot> {
-        log.info("Fetching candidate stocks (Phase 1 only)")
+    @Cacheable("candidateStocks", key = "#minDailyPriceChangeRate")
+    fun findCandidateStocks(minDailyPriceChangeRate: Double): List<LeadingStockSnapshot> {
+        log.info("Fetching candidate stocks (Phase 1 only), 등락률 >= {}%", minDailyPriceChangeRate)
 
         val candidates = marketClient.fetchTopTradingValueStocks(50)
         log.info("Fetched {} candidates from trading value ranking", candidates.size)
 
-        // 거래대금 1~3위는 ETF/등락률 무관 항상 포함 — 시장 톤 기준점
-        val topThree = candidates.take(TOP_RANK_ALWAYS_INCLUDED)
+        val etfExclusion = EtfExclusionFilter()
 
+        // 개별종목 거래대금 1~3위는 등락률 무관 항상 포함 — 시장 톤 기준점 (ETF/ETN은 제외)
+        val topThree = candidates.filter(etfExclusion::filter).take(TOP_RANK_ALWAYS_INCLUDED)
+
+        // 사용자 지정 등락률만 덮어쓴 임계값으로 Phase 1 필터 구성
+        val effectiveCriteria = criteria.copy(minDailyPriceChangeRate = minDailyPriceChangeRate)
         val phase1Filters = FilterChain(
             listOf(
-                EtfExclusionFilter(),                // ETF/ETN 제외
-                TradingValueRankFilter(criteria),
-                DailyPriceChangeFilter(criteria),
+                etfExclusion,                        // ETF/ETN 제외
+                TradingValueRankFilter(effectiveCriteria),
+                DailyPriceChangeFilter(effectiveCriteria),
             ),
         )
         val survivors = phase1Filters.apply(candidates)

@@ -29,7 +29,8 @@ export const QK = {
   stockSearch: (q: string) => ["stocks", "search", q] as const,
   stockPrice: (code: string) => ["stocks", "price", code] as const,
   dailyReport: (date: string) => ["reports", "daily", date] as const,
-  leadingStockCandidates: ["leading-stocks", "candidates"] as const,
+  leadingStockCandidates: (minChangeRate: number) =>
+    ["leading-stocks", "candidates", minChangeRate] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -150,11 +151,13 @@ export function useDailyReport(date: string) {
 
 // === 주도주 (Leading Stocks) ===
 // 백엔드의 candidateStocks 캐시(5s TTL)와 같은 호흡으로 폴링
-export function useLeadingStockCandidates() {
+export function useLeadingStockCandidates(minChangeRate: number) {
   return useQuery({
-    queryKey: QK.leadingStockCandidates,
+    queryKey: QK.leadingStockCandidates(minChangeRate),
     queryFn: () =>
-      apiFetch<CandidateStocksResponse>("/api/leading-stocks/candidates"),
+      apiFetch<CandidateStocksResponse>(
+        `/api/leading-stocks/candidates?minChangeRate=${minChangeRate}`,
+      ),
     refetchInterval: 5_000,
   });
 }

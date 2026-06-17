@@ -1,6 +1,7 @@
 package at.backend.leadingstock.presentation
 
 import at.backend.leadingstock.application.InvestorTrendService
+import at.backend.leadingstock.application.LeadingStockCriteriaProperties
 import at.backend.leadingstock.application.LeadingStockService
 import at.backend.leadingstock.presentation.response.CandidateStockItem
 import at.backend.leadingstock.presentation.response.CandidateStocksResponse
@@ -13,6 +14,7 @@ import at.backend.library.web.ApiResponse
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -20,13 +22,21 @@ import org.springframework.web.bind.annotation.RestController
 class LeadingStockController(
     private val leadingStockService: LeadingStockService,
     private val investorTrendService: InvestorTrendService,
+    private val criteria: LeadingStockCriteriaProperties,
     private val timeProvider: TimeProvider,
 ) {
 
-    /** Phase 1 후보 리스트 (거래대금 순위 + 등락률 필터만 통과) */
+    /**
+     * Phase 1 후보 리스트 (거래대금 순위 + 등락률 필터만 통과).
+     * minChangeRate: 당일 등락률 임계값(%). 사용자가 1~7 중 선택, 미지정 시 설정 기본값.
+     */
     @GetMapping("/candidates")
-    fun getCandidateStocks(): ApiResponse<CandidateStocksResponse> {
-        val candidates = leadingStockService.findCandidateStocks()
+    fun getCandidateStocks(
+        @RequestParam(required = false) minChangeRate: Int?,
+    ): ApiResponse<CandidateStocksResponse> {
+        val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
+            ?: criteria.minDailyPriceChangeRate
+        val candidates = leadingStockService.findCandidateStocks(rate)
         val items = candidates.mapIndexed { i, s ->
             CandidateStockItem(
                 rank = i + 1,
@@ -94,5 +104,10 @@ class LeadingStockController(
                 },
             ),
         )
+    }
+
+    companion object {
+        private const val MIN_CHANGE_RATE = 1
+        private const val MAX_CHANGE_RATE = 7
     }
 }

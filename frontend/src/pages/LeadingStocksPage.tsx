@@ -32,7 +32,9 @@ function shortCode(stockCode: string): string {
 }
 
 export default function LeadingStocksPage() {
-  const candidatesQ = useLeadingStockCandidates();
+  // 당일 등락률 임계값(%) — 사용자가 1~7 중 선택. 기본 7%.
+  const [minChangeRate, setMinChangeRate] = useState(7);
+  const candidatesQ = useLeadingStockCandidates(minChangeRate);
   const [openCode, setOpenCode] = useState<string | null>(null);
 
   const data = candidatesQ.data;
@@ -85,6 +87,8 @@ export default function LeadingStocksPage() {
         totalCount={data?.totalCount}
         queriedAt={data?.queriedAt}
         loading={candidatesQ.isFetching}
+        minChangeRate={minChangeRate}
+        onChangeRate={setMinChangeRate}
       />
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
@@ -140,10 +144,14 @@ function Header({
   totalCount,
   queriedAt,
   loading,
+  minChangeRate,
+  onChangeRate,
 }: {
   totalCount: number | undefined;
   queriedAt: string | undefined;
   loading: boolean;
+  minChangeRate: number;
+  onChangeRate: (rate: number) => void;
 }) {
   return (
     <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
@@ -159,14 +167,52 @@ function Header({
           />
         </h2>
         <p className="text-xs text-zinc-500 mt-0.5">
-          거래대금 상위 + 당일 등락률 필터 통과 종목 · 5초 자동 갱신
+          거래대금 상위 + 당일 등락률 {minChangeRate}% 이상 종목 · 5초 자동 갱신
         </p>
       </div>
-      <div className="text-xs text-zinc-500 flex items-center gap-2">
-        {queriedAt && <span>조회 {formatRelative(queriedAt)}</span>}
-        {typeof totalCount === "number" && (
-          <span className="text-zinc-300 font-medium">{totalCount}건</span>
-        )}
+      <div className="flex flex-col items-end gap-1.5">
+        <ChangeRateSelector value={minChangeRate} onChange={onChangeRate} />
+        <div className="text-xs text-zinc-500 flex items-center gap-2">
+          {queriedAt && <span>조회 {formatRelative(queriedAt)}</span>}
+          {typeof totalCount === "number" && (
+            <span className="text-zinc-300 font-medium">{totalCount}건</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 당일 등락률 임계값 선택 — 1~7% 세그먼트 버튼 */
+function ChangeRateSelector({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (rate: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-zinc-500">등락률</span>
+      <div className="inline-flex rounded-md overflow-hidden border border-zinc-700">
+        {[1, 2, 3, 4, 5, 6, 7].map((rate) => (
+          <button
+            key={rate}
+            type="button"
+            onClick={() => onChange(rate)}
+            className={`px-2 py-0.5 text-xs font-medium border-l border-zinc-700 first:border-l-0 transition-colors ${
+              rate === value
+                ? "bg-emerald-600 text-white"
+                : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
+            }`}
+            aria-pressed={rate === value}
+          >
+            {rate}
+          </button>
+        ))}
+        <span className="px-1.5 py-0.5 text-xs text-zinc-500 bg-zinc-900 border-l border-zinc-700">
+          %
+        </span>
       </div>
     </div>
   );
