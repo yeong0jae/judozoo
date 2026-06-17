@@ -28,7 +28,7 @@ class LeadingStockController(
 
     /**
      * Phase 1 후보 리스트 (거래대금 순위 + 등락률 필터만 통과).
-     * minChangeRate: 당일 등락률 임계값(%). 사용자가 1~7 중 선택, 미지정 시 설정 기본값.
+     * minChangeRate: 당일 등락률 임계값(%). 사용자가 -7~7 중 선택, 미지정 시 설정 기본값.
      */
     @GetMapping("/candidates")
     fun getCandidateStocks(
@@ -107,7 +107,7 @@ class LeadingStockController(
     }
 
     companion object {
-        private const val MIN_CHANGE_RATE = 1
+        private const val MIN_CHANGE_RATE = -7
         private const val MAX_CHANGE_RATE = 7
     }
 }

@@ -183,7 +183,10 @@ function Header({
   );
 }
 
-/** 당일 등락률 임계값 선택 — 1~7% 세그먼트 버튼 */
+// 당일 등락률 임계값 선택지 — -7 ~ +7 (0 포함)
+const CHANGE_RATE_OPTIONS = Array.from({ length: 15 }, (_, i) => i - 7);
+
+/** 당일 등락률 임계값 선택 — -7~7% 세그먼트 버튼 */
 function ChangeRateSelector({
   value,
   onChange,
@@ -192,10 +195,10 @@ function ChangeRateSelector({
   onChange: (rate: number) => void;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 flex-wrap justify-end">
       <span className="text-xs text-zinc-500">등락률</span>
-      <div className="inline-flex rounded-md overflow-hidden border border-zinc-700">
-        {[1, 2, 3, 4, 5, 6, 7].map((rate) => (
+      <div className="inline-flex flex-wrap rounded-md overflow-hidden border border-zinc-700">
+        {CHANGE_RATE_OPTIONS.map((rate) => (
           <button
             key={rate}
             type="button"
@@ -207,7 +210,7 @@ function ChangeRateSelector({
             }`}
             aria-pressed={rate === value}
           >
-            {rate}
+            {rate > 0 ? `+${rate}` : rate}
           </button>
         ))}
         <span className="px-1.5 py-0.5 text-xs text-zinc-500 bg-zinc-900 border-l border-zinc-700">
