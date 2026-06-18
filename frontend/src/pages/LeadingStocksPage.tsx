@@ -465,7 +465,10 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
             <FilterResultsList results={detail.filterResults} />
             <div className="space-y-6">
               <InvestorTrendSection stockCode={shortCode(stockCode)} />
-              <BreakoutSignalSection signal={detail.swingHighSignal} />
+              <BreakoutSignalSection
+                signal={detail.swingHighSignal}
+                currentPrice={detail.currentPrice}
+              />
             </div>
           </div>
         ) : null}
@@ -559,7 +562,38 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   );
 }
 
-function BreakoutSignalSection({ signal }: { signal: SwingHighSignal | null }) {
+// 전고점 형성 후 경과 시간을 사람이 읽기 좋게 — 신선한 고점일수록 돌파 매매에 유효
+function formatElapsed(ms: number): string {
+  const min = Math.floor(ms / 60000);
+  if (min <= 0) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h}시간 전` : `${h}시간 ${m}분 전`;
+}
+
+// 잔여 상승률(%)로 돌파 임박도를 라벨/색으로 구분
+function breakoutStatus(gapRate: number): {
+  label: string;
+  chip: string;
+  gap: string;
+} {
+  if (gapRate <= 0)
+    return { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
+  if (gapRate < 0.5)
+    return { label: "임박", chip: "bg-amber-500/20 text-amber-300", gap: "text-amber-300" };
+  if (gapRate < 1.5)
+    return { label: "근접", chip: "bg-amber-500/15 text-amber-400", gap: "text-amber-400" };
+  return { label: "관망", chip: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-200" };
+}
+
+function BreakoutSignalSection({
+  signal,
+  currentPrice,
+}: {
+  signal: SwingHighSignal | null;
+  currentPrice: number;
+}) {
   if (!signal) return null;
 
   const broke = signal.gapRate <= 0;
@@ -567,6 +601,10 @@ function BreakoutSignalSection({ signal }: { signal: SwingHighSignal | null }) {
   const peakDate = new Date(signal.peakAt);
   peakDate.setMinutes(peakDate.getMinutes() + 1);
   const peakTime = peakDate.toTimeString().slice(0, 5); // HH:mm
+  const elapsed = formatElapsed(Date.now() - peakDate.getTime());
+
+  const gapWon = signal.peakPrice - currentPrice; // 돌파까지 더 올라야 하는 금액 (돌파 시 음수)
+  const status = breakoutStatus(signal.gapRate);
 
   return (
     <section>
@@ -577,25 +615,36 @@ function BreakoutSignalSection({ signal }: { signal: SwingHighSignal | null }) {
         </span>
       </h3>
       <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
+        {/* 돌파선(전고점) + 임박도 칩 */}
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-zinc-400">
-            {broke ? "전고점 돌파" : "전고점까지"}
-          </span>
-          <span
-            className={`num text-lg font-semibold ${
-              broke
-                ? "text-emerald-400"
-                : signal.gapRate < 1
-                  ? "text-amber-400"
-                  : "text-zinc-200"
-            }`}
-          >
-            {broke ? `+${(-signal.gapRate).toFixed(1)}%` : `${signal.gapRate.toFixed(1)}%`}
+          <span className="text-sm text-zinc-400">돌파선</span>
+          <span className="flex items-baseline gap-2">
+            <span className="num text-lg font-semibold text-zinc-100">
+              {formatPrice(signal.peakPrice)}
+            </span>
+            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${status.chip}`}>
+              {status.label}
+            </span>
           </span>
         </div>
-        <div className="mt-2 flex items-baseline justify-between text-xs text-zinc-500">
-          <span>전고점 {formatPrice(signal.peakPrice)}</span>
-          <span className="num">{peakTime} 형성</span>
+        <div className="mt-1 text-xs text-zinc-500 num">
+          {peakTime} 형성 · {elapsed}
+        </div>
+
+        <div className="my-3 border-t border-zinc-800" />
+
+        {/* 현재가 → 돌파까지 거리(원/%) */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm text-zinc-400">현재가</span>
+          <span className="num text-zinc-300">{formatPrice(currentPrice)}</span>
+        </div>
+        <div className="mt-2 flex items-baseline justify-between">
+          <span className="text-sm text-zinc-400">{broke ? "돌파" : "돌파까지"}</span>
+          <span className={`num font-semibold ${status.gap}`}>
+            {broke
+              ? `+${formatPrice(-gapWon)}원 (+${(-signal.gapRate).toFixed(1)}%)`
+              : `+${formatPrice(gapWon)}원 (${signal.gapRate.toFixed(1)}%)`}
+          </span>
         </div>
       </div>
     </section>
