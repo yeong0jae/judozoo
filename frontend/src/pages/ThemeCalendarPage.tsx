@@ -95,7 +95,7 @@ export default function ThemeCalendarPage() {
       {isLoading ? (
         <Skeleton className="h-96 w-full" />
       ) : (
-        <div className="grid grid-cols-7 gap-px bg-zinc-800 border border-zinc-800 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-7 gap-px bg-zinc-800 border border-zinc-800 rounded-lg">
           {WEEKDAYS.map((w, i) => (
             <div
               key={w}
@@ -134,15 +134,11 @@ function DayCell({
   isToday: boolean;
 }) {
   const extra = themes.length - CELL_THEMES;
-  // 셀 hover 시 전체 테마를 네이티브 툴팁으로 — "+N"에 가려진 나머지 확인용
-  const fullList =
-    themes.length > 0
-      ? themes
-          .map((t) => `${t.rank}. ${t.name} ${t.fluRt > 0 ? "+" : ""}${t.fluRt.toFixed(2)}%`)
-          .join("\n")
-      : undefined;
+  const rateColor = (r: number) =>
+    r > 0 ? "text-red-400" : r < 0 ? "text-blue-400" : "text-zinc-500";
+  const fmtRate = (r: number) => `${r > 0 ? "+" : ""}${r.toFixed(2)}`;
   return (
-    <div className="bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1" title={fullList}>
+    <div className="group relative bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1">
       <span
         className={`text-xs num ${
           isToday
@@ -154,24 +150,28 @@ function DayCell({
       </span>
       <div className="flex flex-col gap-0.5">
         {themes.slice(0, CELL_THEMES).map((t) => (
-          <span
-            key={t.rank}
-            className="text-xs truncate"
-            title={`${t.name} ${t.fluRt > 0 ? "+" : ""}${t.fluRt.toFixed(2)}%`}
-          >
+          <span key={t.rank} className="text-xs truncate">
             <span className="text-zinc-300">{t.name}</span>{" "}
-            <span
-              className={`num ${
-                t.fluRt > 0 ? "text-red-400" : t.fluRt < 0 ? "text-blue-400" : "text-zinc-500"
-              }`}
-            >
-              {t.fluRt > 0 ? "+" : ""}
-              {t.fluRt.toFixed(1)}
-            </span>
+            <span className={`num ${rateColor(t.fluRt)}`}>{fmtRate(t.fluRt)}</span>
           </span>
         ))}
         {extra > 0 && <span className="text-[10px] text-zinc-600">+{extra}</span>}
       </div>
+
+      {/* hover 시 그날 전체 테마 팝오버 — "+N"에 가려진 나머지까지 */}
+      {themes.length > 0 && (
+        <div className="hidden group-hover:block absolute left-0 top-full z-50 mt-1 w-56 max-h-72 overflow-auto rounded-md border border-zinc-700 bg-zinc-950 p-2 shadow-lg">
+          {themes.map((t) => (
+            <div key={t.rank} className="flex items-baseline justify-between gap-2 py-0.5 text-xs">
+              <span className="text-zinc-300 truncate">
+                <span className="text-zinc-600 num mr-1">{t.rank}</span>
+                {t.name}
+              </span>
+              <span className={`num shrink-0 ${rateColor(t.fluRt)}`}>{fmtRate(t.fluRt)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
