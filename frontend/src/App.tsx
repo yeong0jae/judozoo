@@ -6,6 +6,7 @@ import LeadingStocksPage from "./pages/LeadingStocksPage";
 import MarketFlowPage from "./pages/MarketFlowPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
+import ThemeCalendarPage from "./pages/ThemeCalendarPage";
 import Header from "./components/layout/Header";
 import StompDisconnectionBanner from "./components/layout/StompDisconnectionBanner";
 import { ToastProvider } from "./components/toast/Toast";
@@ -57,6 +58,7 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Navigate to="/monitoring" replace />} />
           <Route path="/leading-stocks" element={<LeadingStocksPage />} />
+          <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
           <Route path="/market-flow" element={<MarketFlowPage />} />
           <Route path="/command" element={<CommandPage />} />
           <Route path="/monitoring" element={<MonitoringPage />} />

@@ -11,6 +11,7 @@ import { useMarketStatus } from "../../api/queries";
 
 const NAV = [
   { to: "/leading-stocks", label: "주도주" },
+  { to: "/theme-calendar", label: "테마 캘린더" },
   { to: "/market-flow", label: "시장 흐름" },
   { to: "/command", label: "매매 명령" },
   { to: "/monitoring", label: "모니터링" },

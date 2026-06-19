@@ -14,6 +14,7 @@ import type {
   RegimeSnapshot,
   StockPriceResult,
   StockSearchResult,
+  ThemeCalendarResponse,
   TradingDetail,
   TradingSummary,
 } from "../types";
@@ -38,6 +39,8 @@ export const QK = {
   kospiIndex: ["market", "kospi"] as const,
   regime: ["market", "regime"] as const,
   regimeDaily: ["market", "regime", "daily"] as const,
+  themeCalendar: (from: string, to: string) =>
+    ["themes", "calendar", from, to] as const,
 };
 
 export interface InstanceInfo {
@@ -192,5 +195,16 @@ export function useLeadingStockDetail(code: string | null) {
         `/api/leading-stocks/candidates/${code}`,
       ),
     enabled: code !== null,
+  });
+}
+
+export function useThemeCalendar(from: string, to: string) {
+  return useQuery({
+    queryKey: QK.themeCalendar(from, to),
+    queryFn: () =>
+      apiFetch<ThemeCalendarResponse>(
+        `/api/themes/calendar?from=${from}&to=${to}`,
+      ),
+    staleTime: 60_000, // 일자별 적재 데이터 — 자주 안 바뀜
   });
 }

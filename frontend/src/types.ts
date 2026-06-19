@@ -301,6 +301,22 @@ export interface CandidateStocksResponse {
   stocks: CandidateStockItem[];
 }
 
+// === 테마 캘린더 ===
+export interface ThemeItem {
+  rank: number;
+  name: string;
+  fluRt: number; // 당일 등락률(%)
+}
+
+export interface ThemeDayItem {
+  date: string; // YYYY-MM-DD
+  themes: ThemeItem[];
+}
+
+export interface ThemeCalendarResponse {
+  days: ThemeDayItem[];
+}
+
 export interface FilterResultItem {
   filterName: string;
   criteriaDescription: string;
