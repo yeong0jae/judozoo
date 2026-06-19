@@ -588,9 +588,9 @@ function breakoutStatus(gapRate: number): {
 } {
   if (gapRate <= 0)
     return { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
-  if (gapRate < 0.5)
+  if (gapRate < 1.0)
     return { label: "임박", chip: "bg-amber-500/20 text-amber-300", gap: "text-amber-300" };
-  if (gapRate < 1.5)
+  if (gapRate < 2.0)
     return { label: "근접", chip: "bg-amber-500/15 text-amber-400", gap: "text-amber-400" };
   return { label: "관망", chip: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-200" };
 }
@@ -650,8 +650,8 @@ function BreakoutSignalSection({
           <span className="text-sm text-zinc-400">{broke ? "돌파" : "돌파까지"}</span>
           <span className={`num font-semibold ${status.gap}`}>
             {broke
-              ? `+${formatPrice(-gapWon)}원 (+${(-signal.gapRate).toFixed(1)}%)`
-              : `+${formatPrice(gapWon)}원 (${signal.gapRate.toFixed(1)}%)`}
+              ? `${formatPrice(-gapWon)}원 (+${(-signal.gapRate).toFixed(1)}%)`
+              : `${formatPrice(gapWon)}원 (${signal.gapRate.toFixed(1)}%)`}
           </span>
         </div>
       </div>
