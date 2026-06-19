@@ -233,16 +233,16 @@ function ThemeChips({ themes, themeCount }: { themes: string[]; themeCount: numb
   if (themes.length === 0) return null;
   const extra = themeCount - themes.length;
   return (
-    <div className="flex flex-wrap items-center gap-1 mt-1">
+    <div className="flex flex-wrap items-center gap-1.5">
       {themes.map((t) => (
         <span
           key={t}
-          className="text-[10px] leading-none px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700"
+          className="text-sm px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700"
         >
           {t}
         </span>
       ))}
-      {extra > 0 && <span className="text-[10px] text-zinc-500">+{extra}</span>}
+      {extra > 0 && <span className="text-sm text-zinc-500">+{extra}</span>}
     </div>
   );
 }
@@ -294,9 +294,11 @@ function CandidatesTable({
             >
               <td className="px-4 py-3 text-zinc-400">{s.rank}</td>
               <td className="px-4 py-3">
-                <div className="font-medium">{s.stockName}</div>
+                <div className="flex items-center flex-wrap gap-2">
+                  <span className="font-medium">{s.stockName}</span>
+                  <ThemeChips themes={s.themes} themeCount={s.themeCount} />
+                </div>
                 <div className="text-xs text-zinc-500 num">{code}</div>
-                <ThemeChips themes={s.themes} themeCount={s.themeCount} />
               </td>
               <td className="px-4 py-3 text-right num">
                 {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
