@@ -32,8 +32,15 @@ function shortCode(stockCode: string): string {
 }
 
 export default function LeadingStocksPage() {
-  // 당일 등락률 임계값(%) — 사용자가 1~7 중 선택. 기본 7%.
-  const [minChangeRate, setMinChangeRate] = useState(7);
+  // 당일 등락률 임계값(%) — 사용자 선택. 새로고침해도 유지되도록 localStorage에 보관, 기본 7%.
+  const [minChangeRate, setMinChangeRate] = useState(() => {
+    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
+    const saved = Number(raw);
+    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
+  });
+  useEffect(() => {
+    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(minChangeRate));
+  }, [minChangeRate]);
   const candidatesQ = useLeadingStockCandidates(minChangeRate);
   const [openCode, setOpenCode] = useState<string | null>(null);
 
@@ -180,6 +187,7 @@ function Header({
 
 // 당일 등락률 임계값 선택지 — -7 ~ +7 중 홀수 구간 + 0
 const CHANGE_RATE_OPTIONS = [-7, -5, -3, 0, 3, 5, 7];
+const MIN_CHANGE_RATE_KEY = "leadingStock.minChangeRate";
 
 /** 당일 등락률 임계값 선택 — -7~7% 세그먼트 버튼 */
 function ChangeRateSelector({
