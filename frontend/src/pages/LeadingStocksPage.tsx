@@ -453,11 +453,12 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col lg:max-h-[calc(100vh-8rem)]">
       <header className="px-4 sm:px-6 py-4 border-b border-zinc-800">
-        <div className="text-lg font-semibold">
-          {detail?.stockName ?? "…"}
-          <span className="text-xs text-zinc-500 ml-2 num">
-            {shortCode(stockCode)}
-          </span>
+        <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+          <span className="text-lg font-semibold">{detail?.stockName ?? "…"}</span>
+          <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
+          {detail && (
+            <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
+          )}
         </div>
         {detail && (
           <div className="text-sm text-zinc-400 mt-0.5">

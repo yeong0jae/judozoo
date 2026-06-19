@@ -90,6 +90,7 @@ class LeadingStockController(
                 currentPrice = stock.currentPrice,
                 priceChangeRate = stock.priceChangeRate,
                 relativeVolume = eval.relativeVolume,
+                themes = leadingStockService.themesOf(stock.stockCode),
                 swingHighSignal = eval.swingHighSignal?.let {
                     SwingHighSignalItem(
                         peakPrice = it.peakPrice,

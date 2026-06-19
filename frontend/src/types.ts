@@ -331,6 +331,7 @@ export interface LeadingStockDetailResponse {
   priceChangeRate: number;
   relativeVolume: number | null; // 풀데이 RVOL — 당일 누적/직전 20일 평균 거래량. 없으면 null
   swingHighSignal: SwingHighSignal | null; // 직전 스윙 고점 돌파 시그널. 없으면 null
+  themes: string[]; // 종목이 속한 전체 테마명
   filterResults: FilterResultItem[];
 }
 

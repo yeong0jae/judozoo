@@ -30,6 +30,7 @@ data class LeadingStockDetailResponse(
     val priceChangeRate: Double,
     val relativeVolume: Double?, // 풀데이 RVOL — 당일 누적/직전 20일 평균 거래량. 데이터 없으면 null
     val swingHighSignal: SwingHighSignalItem?, // 직전 스윙 고점 돌파 시그널. 데이터 없으면 null
+    val themes: List<String>, // 종목이 속한 전체 테마명
     val filterResults: List<FilterResultItem>,
 )
 
