@@ -237,12 +237,12 @@ function ThemeChips({ themes, themeCount }: { themes: string[]; themeCount: numb
       {themes.map((t) => (
         <span
           key={t}
-          className="text-sm px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700"
+          className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700"
         >
           {t}
         </span>
       ))}
-      {extra > 0 && <span className="text-sm text-zinc-500">+{extra}</span>}
+      {extra > 0 && <span className="text-xs text-zinc-500">+{extra}</span>}
     </div>
   );
 }
