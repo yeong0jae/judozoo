@@ -4,6 +4,7 @@ import at.backend.platform.kiwoom.config.KiwoomApiProperties
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import kotlin.math.abs
 
 /**
  * 키움 업종 지수 조회. 종합(KOSPI), 코스닥 등 업종 코드 단위.
@@ -44,7 +45,8 @@ class KiwoomIndexClient(
 
             return IndexSnapshot(
                 indsCd = indsCd,
-                currentValue = parseSignedDouble(response.cur_prc),
+                // cur_prc 앞 부호는 등락 방향 표식 — 지수 레벨은 음수일 수 없으므로 크기(절댓값)만 사용
+                currentValue = abs(parseSignedDouble(response.cur_prc)),
                 changeRate = parseSignedDouble(response.flu_rt),
             )
         } catch (e: Exception) {
