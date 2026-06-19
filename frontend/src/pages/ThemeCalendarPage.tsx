@@ -134,8 +134,15 @@ function DayCell({
   isToday: boolean;
 }) {
   const extra = themes.length - CELL_THEMES;
+  // 셀 hover 시 전체 테마를 네이티브 툴팁으로 — "+N"에 가려진 나머지 확인용
+  const fullList =
+    themes.length > 0
+      ? themes
+          .map((t) => `${t.rank}. ${t.name} ${t.fluRt > 0 ? "+" : ""}${t.fluRt.toFixed(2)}%`)
+          .join("\n")
+      : undefined;
   return (
-    <div className="bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1">
+    <div className="bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1" title={fullList}>
       <span
         className={`text-xs num ${
           isToday
