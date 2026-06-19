@@ -472,11 +472,11 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <FilterResultsList results={detail.filterResults} />
             <div className="space-y-6">
-              <InvestorTrendSection stockCode={shortCode(stockCode)} />
               <BreakoutSignalSection
                 signal={detail.swingHighSignal}
                 currentPrice={detail.currentPrice}
               />
+              <InvestorTrendSection stockCode={shortCode(stockCode)} />
             </div>
           </div>
         ) : null}
