@@ -1,17 +1,20 @@
 package at.backend.account.application
 
 import at.backend.library.exception.EntityNotFoundException
+import at.backend.trading.TradingProperties
 import at.backend.trading.application.broker.BrokerTradingClient
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.domain.order.OrderSide
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
+import kotlin.math.roundToLong
 
 @Service
 class AccountService(
     private val broker: BrokerTradingClient,
     private val tradingCycleRepository: TradingCycleJpaRepository,
+    private val tradingProperties: TradingProperties,
 ) {
 
     private val log = KotlinLogging.logger {}
@@ -36,10 +39,13 @@ class AccountService(
         val activeStockCodes = tradingCycleRepository.findByAccountNoAndStatusIn(
             broker.accountNo, TradingCycleStatus.OPEN
         ).mapTo(mutableSetOf()) { it.stockCode }
+        // 매도 시 발생할 수수료·세금(sellCostRate)을 반영한 손익분기가 — 엔진 calculateBuyPrice와 동일 컨벤션
+        val sellCostRate = tradingProperties.sellCostRate.toDouble()
         return broker.holdings().map { h ->
-            val evalProfit = (h.currentPrice - h.avgBuyPrice) * h.qty
+            val breakEvenPrice = h.avgBuyPrice * (1.0 + sellCostRate)
+            val evalProfit = ((h.currentPrice - breakEvenPrice) * h.qty).roundToLong()
             val evalProfitRate = if (h.avgBuyPrice > 0L) {
-                (h.currentPrice - h.avgBuyPrice).toDouble() / h.avgBuyPrice
+                (h.currentPrice - breakEvenPrice) / h.avgBuyPrice
             } else 0.0
             HoldingResult(
                 stockCode = h.stockCode,

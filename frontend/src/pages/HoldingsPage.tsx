@@ -42,7 +42,12 @@ export default function HoldingsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">보유 주식 ({holdings.length})</h2>
+        <div>
+          <h2 className="text-lg font-semibold">보유 주식 ({holdings.length})</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            평가손익·수익률은 매도 수수료·세금을 반영한 금액입니다
+          </p>
+        </div>
         <button
           onClick={() => holdingsQ.refetch()}
           disabled={holdingsQ.isFetching}

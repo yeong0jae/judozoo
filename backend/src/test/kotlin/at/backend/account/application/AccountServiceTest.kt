@@ -174,7 +174,7 @@ class AccountServiceTest(
                 result.map { it.stockCode } shouldBe listOf("005930")
             }
 
-            test("평가손익과 평가손익률은 현재가와 매입평균가에서 산출된다") {
+            test("평가손익과 평가손익률은 매도 비용(수수료·세금)을 반영한 손익분기가 기준으로 산출된다") {
                 stubHoldings(
                     holding(pdno = "005930", hldgQty = "10", pchsAvgPric = "70000", prpr = "71000"),
                 )
@@ -184,8 +184,9 @@ class AccountServiceTest(
                 result.qty shouldBe 10
                 result.avgBuyPrice shouldBe 70_000L
                 result.currentPrice shouldBe 71_000L
-                result.evalProfit shouldBe 10_000L
-                result.evalProfitRate shouldBe (1_000.0 / 70_000.0)
+                // 손익분기가 = 70,000 * (1 + 0.0025) = 70,175 → 순손익 (71,000 - 70,175) * 10 = 8,250
+                result.evalProfit shouldBe 8_250L
+                result.evalProfitRate shouldBe ((71_000.0 - 70_175.0) / 70_000.0)
             }
 
             test("OPEN 상태(LIQUIDATING 포함) 사이클이 있는 종목은 hasActiveCycle=true") {
