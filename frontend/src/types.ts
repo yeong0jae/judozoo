@@ -291,6 +291,8 @@ export interface CandidateStockItem {
   currentPrice: number;
   priceChangeRate: number;
   accumulatedTradingValue: number;
+  themes: string[]; // 대표 테마명 (상위 N개)
+  themeCount: number; // 전체 테마 수 ("+N" 표기용)
 }
 
 export interface CandidateStocksResponse {

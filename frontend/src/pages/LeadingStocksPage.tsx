@@ -228,6 +228,25 @@ function ChangeRateSelector({
 // Candidates table
 // ============================================================
 
+/** 종목의 대표 테마 칩. 전체 테마가 더 많으면 "+N" 표기. */
+function ThemeChips({ themes, themeCount }: { themes: string[]; themeCount: number }) {
+  if (themes.length === 0) return null;
+  const extra = themeCount - themes.length;
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-1">
+      {themes.map((t) => (
+        <span
+          key={t}
+          className="text-[10px] leading-none px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700"
+        >
+          {t}
+        </span>
+      ))}
+      {extra > 0 && <span className="text-[10px] text-zinc-500">+{extra}</span>}
+    </div>
+  );
+}
+
 function CandidatesTable({
   stocks,
   newCodes,
@@ -277,6 +296,7 @@ function CandidatesTable({
               <td className="px-4 py-3">
                 <div className="font-medium">{s.stockName}</div>
                 <div className="text-xs text-zinc-500 num">{code}</div>
+                <ThemeChips themes={s.themes} themeCount={s.themeCount} />
               </td>
               <td className="px-4 py-3 text-right num">
                 {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
@@ -399,6 +419,10 @@ function CandidatesCards({
                 >
                   매매
                 </button>
+              </div>
+              {/* 3행: 테마 칩 */}
+              <div className="pl-7">
+                <ThemeChips themes={s.themes} themeCount={s.themeCount} />
               </div>
             </div>
           </Fragment>

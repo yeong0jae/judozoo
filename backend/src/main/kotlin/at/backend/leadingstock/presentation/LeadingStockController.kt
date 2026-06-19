@@ -38,6 +38,7 @@ class LeadingStockController(
             ?: criteria.minDailyPriceChangeRate
         val candidates = leadingStockService.findCandidateStocks(rate)
         val items = candidates.mapIndexed { i, s ->
+            val themes = leadingStockService.themesOf(s.stockCode)
             CandidateStockItem(
                 rank = i + 1,
                 stockCode = s.stockCode,
@@ -45,6 +46,8 @@ class LeadingStockController(
                 currentPrice = s.currentPrice,
                 priceChangeRate = s.priceChangeRate,
                 accumulatedTradingValue = s.accumulatedTradingValue,
+                themes = themes.take(MAX_THEME_CHIPS),
+                themeCount = themes.size,
             )
         }
         return ApiResponse.ok(
@@ -109,5 +112,6 @@ class LeadingStockController(
     companion object {
         private const val MIN_CHANGE_RATE = -7
         private const val MAX_CHANGE_RATE = 7
+        private const val MAX_THEME_CHIPS = 2
     }
 }

@@ -17,6 +17,8 @@ data class CandidateStockItem(
     val currentPrice: Long,
     val priceChangeRate: Double,
     val accumulatedTradingValue: Long,
+    val themes: List<String>,   // 대표 테마명(상위 N개)
+    val themeCount: Int,        // 종목이 속한 전체 테마 수 ("+N" 표기용)
 )
 
 // --- 종목 상세 API ---

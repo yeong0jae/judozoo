@@ -8,33 +8,62 @@ import org.springframework.web.client.RestClient
 @Component
 class KiwoomThemeClient(
     private val kiwoomRestClient: RestClient,
-    private val properties: KiwoomApiProperties,
+    @Suppress("unused") private val properties: KiwoomApiProperties,
     private val authClient: KiwoomAuthClient,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun fetchThemeRankForStock(stockCode: String): Int? {
+    /**
+     * 종목이 속한 테마명 목록 (ka90001, 종목검색=qry_tp 2).
+     * flu_pl_amt_tp=3(상위등락률)로 정렬해 그날 강한 테마가 앞에 온다. 실패 시 빈 리스트.
+     */
+    fun fetchThemesForStock(stockCode: String): List<String> {
+        val shortCode = stockCode.substringBefore("_").take(6)
         try {
             val token = authClient.getAccessToken()
-            log.info("Fetching theme rank for stock {}", stockCode)
-
-            val response = kiwoomRestClient.get()
-                .uri("/v1/stock/{stockCode}/theme", stockCode)
-                .header("Authorization", "Bearer $token")
-                .header("Content-Type", "application/json")
+            val response = kiwoomRestClient.post()
+                .uri("/api/dostk/thme")
+                .header("authorization", "Bearer $token")
+                .header("Content-Type", "application/json;charset=UTF-8")
+                .header("api-id", "ka90001")
+                .body(
+                    mapOf(
+                        "qry_tp" to "2",        // 0:전체, 1:테마, 2:종목검색
+                        "stk_cd" to shortCode,
+                        "date_tp" to "1",        // 등락 기준 n일전
+                        "thema_nm" to "",
+                        "flu_pl_amt_tp" to "3",  // 3:상위등락률
+                        "stex_tp" to "1",        // 1:KRX
+                    ),
+                )
                 .retrieve()
-                .body(ThemeRankResponse::class.java)
-                ?: return null
+                .body(ThemeGroupResponse::class.java)
+                ?: return emptyList()
 
-            return response.rank
+            if (response.return_code != null && response.return_code != 0) {
+                log.error(
+                    "Kiwoom theme error stk={}. code={}, msg={}",
+                    shortCode, response.return_code, response.return_msg,
+                )
+                return emptyList()
+            }
+            return response.thema_grp.orEmpty()
+                .mapNotNull { it.thema_nm?.takeIf(String::isNotBlank) }
         } catch (e: Exception) {
-            log.error("Failed to fetch theme rank for {}", stockCode, e)
-            return null
+            log.error("Failed to fetch themes for {}", shortCode, e)
+            return emptyList()
         }
     }
 
-    data class ThemeRankResponse(
-        val rank: Int,
-        val themeName: String? = null,
+    data class ThemeGroupResponse(
+        val thema_grp: List<ThemeGroup>? = null,
+        val return_code: Int? = null,
+        val return_msg: String? = null,
+    )
+
+    data class ThemeGroup(
+        val thema_grp_cd: String? = null,
+        val thema_nm: String? = null,
+        val flu_rt: String? = null,
     )
 }
