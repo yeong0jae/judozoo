@@ -551,18 +551,18 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
         <FlowGroup
           label={`오늘 ${today.date.slice(5)}`}
           rows={[
+            { name: "개인", total: today.individualNet, nxt: today.individualNetNxt },
             { name: "외국인", total: today.foreignNet, nxt: today.foreignNetNxt },
             { name: "기관", total: today.institutionNet, nxt: today.institutionNetNxt },
-            { name: "개인", total: today.individualNet, nxt: today.individualNetNxt },
           ]}
         />
         <div className="border-t border-zinc-800" />
         <FlowGroup
           label={`최근 ${last5.length}일 누적`}
           rows={[
+            { name: "개인", total: sum((d) => d.individualNet), nxt: sum((d) => d.individualNetNxt) },
             { name: "외국인", total: sum((d) => d.foreignNet), nxt: sum((d) => d.foreignNetNxt) },
             { name: "기관", total: sum((d) => d.institutionNet), nxt: sum((d) => d.institutionNetNxt) },
-            { name: "개인", total: sum((d) => d.individualNet), nxt: sum((d) => d.individualNetNxt) },
           ]}
         />
       </div>
