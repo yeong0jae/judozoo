@@ -27,7 +27,8 @@ class ThemeDailyRecord(
     @Column(nullable = false)
     val date: LocalDate,
 
-    @Column(nullable = false)
+    // 컬럼명 rank는 MySQL 8.0 예약어(RANK())라 DDL 생성이 실패함 → theme_rank로 매핑
+    @Column(name = "theme_rank", nullable = false)
     val rank: Int,
 
     @Column(name = "theme_grp_cd", nullable = false)
