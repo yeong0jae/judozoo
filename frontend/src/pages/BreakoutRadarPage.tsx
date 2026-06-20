@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
-import { formatPrice, formatRelative } from "../lib/format";
+import { formatKoreanMoney, formatPrice, formatRelative } from "../lib/format";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import ChangeRateSelector, {
@@ -87,6 +87,7 @@ export default function BreakoutRadarPage() {
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
                   <th className="px-4 py-2.5 text-right">현재가</th>
+                  <th className="px-4 py-2.5 text-right">거래대금</th>
                   <th className="px-4 py-2.5 text-right">돌파선</th>
                   <th className="px-4 py-2.5 text-right">돌파까지</th>
                   <th className="px-4 py-2.5 text-right">상태</th>
@@ -109,6 +110,10 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
   const code = shortCode(s.stockCode);
   const st = radarStatus(s.gapRate);
   const gapWon = s.dayHigh - s.currentPrice;
+  // 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링됨 — HTS 기준 +1분 보정
+  const peak = new Date(s.peakAt);
+  peak.setMinutes(peak.getMinutes() + 1);
+  const peakTime = peak.toTimeString().slice(0, 5);
   return (
     <tr className="border-t border-zinc-800 hover:bg-zinc-800/40">
       <td className="px-4 py-3">
@@ -129,7 +134,13 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
         <div className="text-xs text-zinc-500 num">{code}</div>
       </td>
       <td className="px-4 py-3 text-right num text-zinc-300">{formatPrice(s.currentPrice)}</td>
-      <td className="px-4 py-3 text-right num text-zinc-300">{formatPrice(s.dayHigh)}</td>
+      <td className="px-4 py-3 text-right num text-zinc-400">
+        {formatKoreanMoney(s.tradingValue)}
+      </td>
+      <td className="px-4 py-3 text-right">
+        <div className="num text-zinc-300">{formatPrice(s.dayHigh)}</div>
+        <div className="num text-xs text-zinc-500">{peakTime} 형성</div>
+      </td>
       <td className={`px-4 py-3 text-right num font-semibold ${st.gap}`}>
         {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
       </td>

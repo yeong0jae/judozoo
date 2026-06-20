@@ -234,6 +234,7 @@ class KiwoomMarketClient(
     }
 
     /** 분봉 차트 조회 (ka10080) — _AL 접미사로 SOR 통합 시세, 1분봉 기준 */
+    @Cacheable("minuteCandles", unless = "#result.isEmpty()")
     fun fetchMinuteCandles(stockCode: String, baseDate: LocalDate = LocalDate.now()): List<MinuteCandle> {
         try {
             val token = authClient.getAccessToken()

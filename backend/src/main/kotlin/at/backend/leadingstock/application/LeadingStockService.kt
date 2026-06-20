@@ -120,20 +120,21 @@ class LeadingStockService(
 
     /**
      * 돌파 임박 레이더 — 후보를 당일 고가 돌파에 가까운 순으로 정렬.
-     * 후보별 ka10001(stockDetail, 5s 캐시)로 당일 고가·현재가를 받아 gap%를 계산한다(분봉 미사용).
+     * 후보별 분봉(dayHighSignal, 상세와 동일 로직)으로 돌파선·형성시각·gap%를 구하고,
+     * 현재가·거래대금은 후보 스냅샷에서 가져온다. 분봉은 30s 캐시.
      */
     fun breakoutRadar(minDailyPriceChangeRate: Double): List<BreakoutRadarStock> =
         findCandidateStocks(minDailyPriceChangeRate).mapNotNull { c ->
-            val detail = marketClient.fetchStockDetail(c.stockCode) ?: return@mapNotNull null
-            val high = detail.highPrice
-            val current = detail.currentPrice
-            if (high <= 0 || current <= 0) return@mapNotNull null
+            val signal = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
+                .dayHighSignal(c.currentPrice) ?: return@mapNotNull null
             BreakoutRadarStock(
                 stockCode = c.stockCode,
                 stockName = c.stockName,
-                currentPrice = current,
-                dayHigh = high,
-                gapRate = (high - current).toDouble() / current * 100,
+                currentPrice = c.currentPrice,
+                dayHigh = signal.peakPrice,
+                peakAt = signal.peakAt,
+                gapRate = signal.gapRate,
+                tradingValue = c.accumulatedTradingValue,
             )
         }.sortedBy { it.gapRate }
 
@@ -160,7 +161,9 @@ data class BreakoutRadarStock(
     val stockName: String,
     val currentPrice: Long,
     val dayHigh: Long,
+    val peakAt: java.time.LocalDateTime, // 돌파선(고가) 형성 분봉 시각
     val gapRate: Double, // 돌파까지 남은 상승률(%), 고가 도달 시 0
+    val tradingValue: Long, // 당일 누적 거래대금(원)
 )
 
 /**

@@ -46,9 +46,16 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
-            "stockDetail", // 종목 기본정보(ka10001) — 돌파 레이더가 후보별로 호출, 상세와 공유
+            "stockDetail", // 종목 기본정보(ka10001) — 상세 평가에서 후보별 호출
             Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.SECONDS)
+                .maximumSize(60)
+                .build(),
+        )
+        manager.registerCustomCache(
+            "minuteCandles", // 분봉(ka10080) — 돌파 레이더가 후보별로 호출, 상세 시그널과 공유
+            Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
                 .maximumSize(60)
                 .build(),
         )

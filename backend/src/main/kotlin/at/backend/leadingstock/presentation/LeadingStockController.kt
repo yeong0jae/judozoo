@@ -78,7 +78,9 @@ class LeadingStockController(
                 stockName = s.stockName,
                 currentPrice = s.currentPrice,
                 dayHigh = s.dayHigh,
+                peakAt = s.peakAt,
                 gapRate = s.gapRate,
+                tradingValue = s.tradingValue,
                 themes = themes.take(MAX_THEME_CHIPS),
                 themeCount = themes.size,
             )
