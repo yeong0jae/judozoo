@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import InstanceBadge from "../header/InstanceBadge";
 import NotificationBell from "../header/NotificationBell";
 import MarketStatusBadge from "../header/MarketStatusBadge";
@@ -10,9 +10,9 @@ import TodayProfitSummary from "../header/TodayProfitSummary";
 import { useMarketStatus } from "../../api/queries";
 
 const NAV = [
-  { to: "/leading-stocks", label: "주도주" },
-  { to: "/breakout-radar", label: "돌파 레이더" },
-  { to: "/volume-spike", label: "거래대금 스파이크" },
+  { to: "/leading-stocks", label: "주도주 후보 조회" },
+  { to: "/breakout-radar", label: "주도주 돌파 레이더" },
+  { to: "/volume-spike", label: "주도주 거래대금 스파이크" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   // 당분간 숨김 (라우트/페이지는 유지, 필요 시 주석 해제)
   // { to: "/market-flow", label: "시장 흐름" },
@@ -33,13 +33,6 @@ export default function Header() {
   return (
     <header className="border-b border-zinc-800 bg-zinc-950">
       <div className="max-w-[110rem] mx-auto px-4 sm:px-6 py-3 flex items-center gap-4 md:gap-6">
-        <Link
-          to="/"
-          className="text-base font-semibold text-zinc-100 whitespace-nowrap"
-        >
-          자동매매
-        </Link>
-
         {/* 데스크톱 네비 */}
         <nav className="hidden md:flex items-center gap-1">
           {NAV.map((n) => (
