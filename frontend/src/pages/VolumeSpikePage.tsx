@@ -84,10 +84,10 @@ export default function VolumeSpikePage() {
               <thead className="text-zinc-500 text-xs">
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
+                  <th className="px-4 py-2.5 text-right">배율</th>
+                  <th className="px-4 py-2.5 text-right">1분 거래대금</th>
                   <th className="px-4 py-2.5 text-right">현재가</th>
                   <th className="px-4 py-2.5 text-right">등락률</th>
-                  <th className="px-4 py-2.5 text-right">1분 거래대금</th>
-                  <th className="px-4 py-2.5 text-right">배율</th>
                 </tr>
               </thead>
               <tbody>
@@ -128,17 +128,17 @@ function SpikeRow({ s }: { s: VolumeSpikeItem }) {
           </div>
         </div>
       </td>
+      <td className={`px-4 py-3.5 text-right num font-semibold ${ratioColor(s.spikeRatio)}`}>
+        {s.spikeRatio.toFixed(1)}배
+      </td>
+      <td className="px-4 py-3.5 text-right num text-zinc-400">
+        {formatKoreanMoney(s.minuteTradingValue)}
+      </td>
       <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
         <NumWon value={s.currentPrice} />
       </td>
       <td className="px-4 py-3.5 text-right">
         <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
-      </td>
-      <td className="px-4 py-3.5 text-right num text-zinc-400">
-        {formatKoreanMoney(s.minuteTradingValue)}
-      </td>
-      <td className={`px-4 py-3.5 text-right num font-semibold ${ratioColor(s.spikeRatio)}`}>
-        {s.spikeRatio.toFixed(1)}배
       </td>
     </motion.tr>
   );

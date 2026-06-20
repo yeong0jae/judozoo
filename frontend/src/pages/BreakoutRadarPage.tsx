@@ -90,12 +90,12 @@ export default function BreakoutRadarPage() {
               <thead className="text-zinc-500 text-xs">
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
-                  <th className="px-4 py-2.5 text-right">현재가</th>
-                  <th className="px-4 py-2.5 text-right">등락률</th>
-                  <th className="px-4 py-2.5 text-right">거래대금</th>
                   <th className="px-4 py-2.5 text-right">돌파선</th>
                   <th className="px-4 py-2.5 text-right">돌파까지</th>
                   <th className="px-4 py-2.5 text-right">상태</th>
+                  <th className="px-4 py-2.5 text-right">현재가</th>
+                  <th className="px-4 py-2.5 text-right">등락률</th>
+                  <th className="px-4 py-2.5 text-right">거래대금</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,15 +155,6 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
           </div>
         </div>
       </td>
-      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
-        <NumWon value={s.currentPrice} />
-      </td>
-      <td className="px-4 py-3.5 text-right">
-        <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
-      </td>
-      <td className="px-4 py-3.5 text-right num text-zinc-400">
-        {formatKoreanMoney(s.tradingValue)}
-      </td>
       <td className="px-4 py-3.5 text-right">
         <div className="num text-zinc-300">{formatPrice(s.dayHigh)}</div>
         <div className="num text-xs text-zinc-500">{peakTime} 형성</div>
@@ -181,6 +172,15 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
         >
           {st.label}
         </motion.span>
+      </td>
+      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
+        <NumWon value={s.currentPrice} />
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
+      </td>
+      <td className="px-4 py-3.5 text-right num text-zinc-400">
+        {formatKoreanMoney(s.tradingValue)}
       </td>
     </motion.tr>
   );
