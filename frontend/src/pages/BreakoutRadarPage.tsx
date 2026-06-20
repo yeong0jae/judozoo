@@ -161,7 +161,15 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
         {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
       </td>
       <td className="px-4 py-3 text-right">
-        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${st.cls}`}>{st.label}</span>
+        <motion.span
+          key={st.label}
+          initial={{ scale: 1.25 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 18 }}
+          className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${st.cls}`}
+        >
+          {st.label}
+        </motion.span>
       </td>
     </motion.tr>
   );

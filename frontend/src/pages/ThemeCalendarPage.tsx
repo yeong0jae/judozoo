@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useThemeCalendar } from "../api/queries";
 import { useCaptureThemes } from "../api/mutations";
 import type { ThemeDayItem, ThemeItem } from "../types";
@@ -63,14 +64,15 @@ export default function ThemeCalendarPage() {
             매 거래일 마감 시점 당일 거래대금 상위 테마 · 순환 흐름 파악용
           </p>
         </div>
-        <button
+        <motion.button
           onClick={() => capture.mutate()}
           disabled={capture.isPending}
+          whileTap={{ scale: 0.95 }}
           className="px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 disabled:opacity-50"
           title="오늘치 테마를 즉시 적재"
         >
           {capture.isPending ? "캡처 중..." : "오늘 캡처"}
-        </button>
+        </motion.button>
       </div>
 
       {/* 왼쪽: 캘린더(6.5) / 오른쪽: 선택일 상세(3.5) */}
@@ -78,23 +80,25 @@ export default function ThemeCalendarPage() {
         <div className="space-y-4">
           {/* 월 이동 */}
           <div className="flex items-center justify-center gap-4">
-            <button
+            <motion.button
               onClick={() => shiftMonth(-1)}
+              whileTap={{ scale: 0.85 }}
               className="px-2 py-1 rounded hover:bg-zinc-800 text-zinc-400"
               aria-label="이전 달"
             >
               ‹
-            </button>
+            </motion.button>
             <span className="text-sm font-medium tabular-nums w-28 text-center">
               {monthLabel}
             </span>
-            <button
+            <motion.button
               onClick={() => shiftMonth(1)}
+              whileTap={{ scale: 0.85 }}
               className="px-2 py-1 rounded hover:bg-zinc-800 text-zinc-400"
               aria-label="다음 달"
             >
               ›
-            </button>
+            </motion.button>
           </div>
 
           {isLoading ? (
@@ -129,16 +133,26 @@ export default function ThemeCalendarPage() {
           )}
         </div>
 
-        {selectedDate ? (
-          <DayDetail
-            date={selectedDate}
-            themes={byDate.get(selectedDate)?.themes ?? []}
-          />
-        ) : (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-500">
-            날짜를 선택하면 그날 테마별 주도 종목이 표시됩니다
-          </div>
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={selectedDate ?? "none"}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {selectedDate ? (
+              <DayDetail
+                date={selectedDate}
+                themes={byDate.get(selectedDate)?.themes ?? []}
+              />
+            ) : (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-500">
+                날짜를 선택하면 그날 테마별 주도 종목이 표시됩니다
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -204,8 +218,9 @@ function DayCell({
 }) {
   const extra = themes.length - CELL_THEMES;
   return (
-    <div
+    <motion.div
       onClick={onSelect}
+      whileTap={{ scale: 0.97 }}
       className={`group relative bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-zinc-800/60 ${
         isSelected ? "ring-1 ring-inset ring-emerald-600" : ""
       }`}
@@ -245,6 +260,6 @@ function DayCell({
           ))}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
