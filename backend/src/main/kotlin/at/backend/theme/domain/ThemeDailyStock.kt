@@ -38,6 +38,10 @@ class ThemeDailyStock(
 
     @Column(nullable = false)
     val tradingValue: Long,
+
+    // 캡처 시점 당일 등락률(%). 기능 추가 전 적재분은 null.
+    @Column
+    val priceChangeRate: Double? = null,
 ) : BaseEntity() {
 
     @Id

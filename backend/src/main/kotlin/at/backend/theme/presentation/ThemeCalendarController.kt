@@ -37,7 +37,7 @@ class ThemeCalendarController(
                             name = tw.record.themeName,
                             tradingValue = tw.record.tradingValue,
                             stocks = tw.stocks.map {
-                                ThemeStockItem(it.stockCode, it.stockName, it.tradingValue)
+                                ThemeStockItem(it.stockCode, it.stockName, it.tradingValue, it.priceChangeRate)
                             },
                         )
                     },

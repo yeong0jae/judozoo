@@ -22,4 +22,5 @@ data class ThemeStockItem(
     val stockCode: String,
     val stockName: String,
     val tradingValue: Long,
+    val priceChangeRate: Double?, // 캡처 시점 당일 등락률(%). 과거 적재분은 null.
 )

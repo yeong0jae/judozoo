@@ -168,6 +168,16 @@ function DayDetail({ date, themes }: { date: string; themes: ThemeItem[] }) {
                   <span key={s.stockCode} className="text-xs text-zinc-400">
                     {s.stockName}{" "}
                     <span className="num text-zinc-500">{formatKoreanMoney(s.tradingValue)}</span>
+                    {s.priceChangeRate !== null && (
+                      <span
+                        className={`num ml-1 ${
+                          s.priceChangeRate >= 0 ? "text-red-400" : "text-blue-400"
+                        }`}
+                      >
+                        {s.priceChangeRate >= 0 ? "+" : ""}
+                        {s.priceChangeRate.toFixed(2)}%
+                      </span>
+                    )}
                   </span>
                 ))}
               </div>

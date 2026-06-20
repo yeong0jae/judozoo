@@ -35,8 +35,14 @@ class ThemeCalendarService(
         marketClient.fetchTopTradingValueStocks(CAPTURE_STOCK_COUNT).forEach { stock ->
             if (stock.accumulatedTradingValue <= 0) return@forEach
             themeClient.fetchThemesForStock(stock.stockCode).forEach { theme ->
-                byTheme.getOrPut(theme) { mutableListOf() }
-                    .add(Contributor(stock.stockCode, stock.stockName, stock.accumulatedTradingValue))
+                byTheme.getOrPut(theme) { mutableListOf() }.add(
+                    Contributor(
+                        stock.stockCode,
+                        stock.stockName,
+                        stock.accumulatedTradingValue,
+                        stock.priceChangeRate,
+                    ),
+                )
             }
         }
         if (byTheme.isEmpty()) {
@@ -71,6 +77,7 @@ class ThemeCalendarService(
                     stockCode = c.code,
                     stockName = c.name,
                     tradingValue = c.tradingValue,
+                    priceChangeRate = c.priceChangeRate,
                 )
             }
         }
@@ -90,7 +97,12 @@ class ThemeCalendarService(
         return records.map { ThemeWithStocks(it, stocksByParent[it.id].orEmpty()) }
     }
 
-    private data class Contributor(val code: String, val name: String, val tradingValue: Long)
+    private data class Contributor(
+        val code: String,
+        val name: String,
+        val tradingValue: Long,
+        val priceChangeRate: Double,
+    )
 
     data class ThemeWithStocks(
         val record: ThemeDailyRecord,
