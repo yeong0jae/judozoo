@@ -22,6 +22,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
+import StockAvatar from "../components/common/StockAvatar";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -108,7 +109,7 @@ export default function LeadingStocksPage() {
             : ""
         }
       >
-        <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+        <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
           {/* 등락률 임계값 선택 — 리스트 우측 상단 */}
           <div className="flex justify-end px-4 py-2 border-b border-zinc-800">
             <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
@@ -204,7 +205,7 @@ function ThemeChips({ themes, themeCount }: { themes: string[]; themeCount: numb
       {themes.map((t) => (
         <span
           key={t}
-          className="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700"
+          className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400"
         >
           {t}
         </span>
@@ -228,13 +229,13 @@ function CandidatesTable({
   const navigate = useNavigate();
   return (
     <table className="hidden md:table w-full text-sm">
-      <thead className="bg-zinc-950 text-zinc-500 text-xs">
+      <thead className="text-zinc-500 text-xs">
         <tr>
-          <th className="px-4 py-2.5 text-left whitespace-nowrap">순위</th>
-          <th className="px-4 py-2.5 text-left">종목</th>
-          <th className="px-4 py-2.5 text-right">현재가</th>
-          <th className="px-4 py-2.5 text-right">등락률</th>
-          <th className="px-4 py-2.5 text-right">거래대금</th>
+          <th className="pl-4 py-2.5 text-left whitespace-nowrap font-medium">순위</th>
+          <th className="px-2 py-2.5 text-left font-medium">종목</th>
+          <th className="px-4 py-2.5 text-right font-medium">현재가</th>
+          <th className="px-4 py-2.5 text-right font-medium">등락률</th>
+          <th className="px-4 py-2.5 text-right font-medium">거래대금</th>
           <th className="px-4 py-2.5 w-24"></th>
         </tr>
       </thead>
@@ -250,30 +251,31 @@ function CandidatesTable({
             <Fragment key={s.stockCode}>
               {idx === 3 && <GroupHeader label="주도주 후보" />}
               <tr
-                className={`border-t border-zinc-800 hover:bg-zinc-800/40 cursor-pointer ${
+                className={`border-t border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors ${
                   isNew ? "leading-stock-new" : ""
-                } ${
-                  isSelected
-                    ? "bg-emerald-900 border-l-2 border-l-emerald-700"
-                    : ""
-              }`}
-              onClick={() => onOpen(s.stockCode)}
-            >
-              <td className="px-4 py-3 text-zinc-400">{s.rank}</td>
-              <td className="px-4 py-3">
-                <div className="flex items-center flex-wrap gap-2">
-                  <span className="font-medium">{s.stockName}</span>
-                  <ThemeChips themes={s.themes} themeCount={s.themeCount} />
+                } ${isSelected ? "bg-emerald-900" : ""}`}
+                onClick={() => onOpen(s.stockCode)}
+              >
+              <td className="pl-4 py-3.5 text-zinc-500 num w-10">{s.rank}</td>
+              <td className="px-2 py-3.5">
+                <div className="flex items-center gap-3">
+                  <StockAvatar name={s.stockName} code={code} />
+                  <div className="min-w-0">
+                    <div className="flex items-center flex-wrap gap-1.5">
+                      <span className="font-semibold text-zinc-100">{s.stockName}</span>
+                      <ThemeChips themes={s.themes} themeCount={s.themeCount} />
+                    </div>
+                    <div className="text-xs text-zinc-500 num mt-0.5">{code}</div>
+                  </div>
                 </div>
-                <div className="text-xs text-zinc-500 num">{code}</div>
               </td>
-              <td className="px-4 py-3 text-right num">
+              <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
                 {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
                 <FlashOnChange value={s.currentPrice} duration={1000}>
                   <NumWon value={s.currentPrice} />
                 </FlashOnChange>
               </td>
-              <td className="px-4 py-3 text-right num">
+              <td className="px-4 py-3.5 text-right num font-medium">
                 {/* 키움은 등락률을 이미 % 단위로 주고, formatPct는 분수→% 변환이라 /100 해서 맞춤 */}
                 <FlashOnChange value={s.priceChangeRate} duration={1000}>
                   <ProfitText
@@ -282,10 +284,10 @@ function CandidatesTable({
                   />
                 </FlashOnChange>
               </td>
-              <td className="px-4 py-3 text-right num text-zinc-300">
+              <td className="px-4 py-3.5 text-right num text-zinc-400">
                 {formatKoreanMoney(s.accumulatedTradingValue)}
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 py-3.5 text-right">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -294,7 +296,7 @@ function CandidatesTable({
                       `/command?stockCode=${code}&stockName=${encodeURIComponent(s.stockName)}`,
                     );
                   }}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
                 >
                   매매
                 </button>
@@ -310,10 +312,10 @@ function CandidatesTable({
 
 function GroupHeader({ label, hint }: { label: string; hint?: string }) {
   return (
-    <tr aria-hidden className="bg-zinc-950 border-t border-zinc-800">
+    <tr aria-hidden className="bg-white/[0.02]">
       {/* 표 좌측 끝(순위 컬럼 자리)에서 라벨 시작 — 1·2·3 번호 컬럼과 좌측 정렬 일치 */}
-      <td colSpan={6} className="px-4 py-3">
-        <span className="text-sm font-semibold text-zinc-200">{label}</span>
+      <td colSpan={6} className="px-4 pt-4 pb-2">
+        <span className="text-xs font-semibold text-zinc-400">{label}</span>
         {hint && (
           <span className="ml-2 text-xs text-zinc-500 font-normal">{hint}</span>
         )}
@@ -349,23 +351,24 @@ function CandidatesCards({
             {idx === 0 && <CardGroupHeader label="거래대금 1, 2, 3위" />}
             {idx === 3 && <CardGroupHeader label="주도주 후보" />}
             <div
-              className={`border-t border-zinc-800 px-4 py-3 flex flex-col gap-1 cursor-pointer ${
+              className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
                 isNew ? "leading-stock-new" : ""
-              } ${isSelected ? "bg-emerald-900 border-l-2 border-l-emerald-700" : ""}`}
+              } ${isSelected ? "bg-emerald-900" : ""}`}
               onClick={() => onOpen(s.stockCode)}
             >
-              {/* 1행: 순위 · 종목명 · 현재가 */}
+              {/* 1행: 아바타 · 종목명 · 현재가 */}
               <div className="flex items-center gap-2">
-                <span className="text-zinc-400 text-sm w-5 shrink-0">{s.rank}</span>
-                <span className="font-medium truncate flex-1 min-w-0">
+                <span className="text-zinc-500 text-xs num w-4 shrink-0">{s.rank}</span>
+                <StockAvatar name={s.stockName} code={code} size={26} />
+                <span className="font-semibold truncate flex-1 min-w-0">
                   {s.stockName}
                 </span>
                 <FlashOnChange value={s.currentPrice} duration={1000}>
-                  <NumWon value={s.currentPrice} className="num shrink-0" />
+                  <NumWon value={s.currentPrice} className="num shrink-0 font-medium" />
                 </FlashOnChange>
               </div>
               {/* 2행: 코드·거래대금 · 등락률 · 매매 */}
-              <div className="flex items-center gap-2 pl-7">
+              <div className="flex items-center gap-2 pl-[3.25rem]">
                 <span className="text-xs text-zinc-500 num whitespace-nowrap truncate flex-1 min-w-0">
                   {code} · {formatKoreanMoney(s.accumulatedTradingValue)}
                 </span>
