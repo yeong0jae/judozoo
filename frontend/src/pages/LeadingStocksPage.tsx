@@ -111,7 +111,7 @@ export default function LeadingStocksPage() {
       >
         <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
           {/* 등락률 임계값 선택 — 리스트 우측 상단 */}
-          <div className="flex justify-end px-4 py-2 border-b border-zinc-800">
+          <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
             <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
           </div>
           {candidatesQ.isLoading ? (
@@ -421,14 +421,17 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
   const detail = detailQ.data;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden flex flex-col lg:max-h-[calc(100vh-8rem)]">
-      <header className="px-4 sm:px-6 py-4 border-b border-zinc-800">
-        <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-          <span className="text-lg font-semibold">{detail?.stockName ?? "…"}</span>
-          <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
-          {detail && (
-            <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
-          )}
+    <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden flex flex-col lg:max-h-[calc(100vh-8rem)]">
+      <header className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
+        <div className="flex items-center gap-3">
+          <StockAvatar name={detail?.stockName ?? "?"} code={shortCode(stockCode)} size={36} />
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+            <span className="text-lg font-semibold">{detail?.stockName ?? "…"}</span>
+            <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
+            {detail && (
+              <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
+            )}
+          </div>
         </div>
         {detail && (
           <div className="text-sm text-zinc-400 mt-0.5">
@@ -544,7 +547,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
           5분 단위 갱신
         </span>
       </h3>
-      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4 space-y-4">
+      <div className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4 space-y-4">
         <FlowGroup
           label={`오늘 ${today.date.slice(5)}`}
           rows={[
@@ -619,7 +622,7 @@ function BreakoutSignalSection({
           당일 고가 기준
         </span>
       </h3>
-      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-4">
+      <div className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4">
         {/* 돌파선(전고점) + 임박도 칩 */}
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-zinc-400">돌파선</span>

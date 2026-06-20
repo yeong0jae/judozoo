@@ -68,7 +68,7 @@ export default function ThemeCalendarPage() {
           onClick={() => capture.mutate()}
           disabled={capture.isPending}
           whileTap={{ scale: 0.95 }}
-          className="px-3 py-1.5 rounded text-xs bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 disabled:opacity-50"
+          className="px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 border border-white/[0.06] disabled:opacity-50"
           title="오늘치 테마를 즉시 적재"
         >
           {capture.isPending ? "캡처 중..." : "오늘 캡처"}
@@ -104,7 +104,7 @@ export default function ThemeCalendarPage() {
           {isLoading ? (
             <Skeleton className="h-96 w-full" />
           ) : (
-            <div className="grid grid-cols-7 gap-px bg-zinc-800 border border-zinc-800 rounded-lg">
+            <div className="grid grid-cols-7 gap-px bg-white/[0.06] border border-white/[0.04] rounded-2xl">
               {WEEKDAYS.map((w, i) => (
                 <div
                   key={w}
@@ -147,7 +147,7 @@ export default function ThemeCalendarPage() {
                 themes={byDate.get(selectedDate)?.themes ?? []}
               />
             ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-500">
+              <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl p-4 text-sm text-zinc-500">
                 날짜를 선택하면 그날 테마별 주도 종목이 표시됩니다
               </div>
             )}
@@ -160,14 +160,14 @@ export default function ThemeCalendarPage() {
 
 function DayDetail({ date, themes }: { date: string; themes: ThemeItem[] }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+    <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl p-4">
       <h3 className="text-sm font-semibold text-zinc-200 mb-3">{date} 테마별 주도 종목</h3>
       {themes.length === 0 ? (
         <p className="text-sm text-zinc-500">이 날짜에 적재된 테마가 없습니다</p>
       ) : (
         <div className="space-y-3">
           {themes.map((t) => (
-            <div key={t.rank} className="border-b border-zinc-800 pb-3 last:border-0 last:pb-0">
+            <div key={t.rank} className="border-b border-white/[0.06] pb-3 last:border-0 last:pb-0">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-sm font-medium text-zinc-200">
                   <span className="text-zinc-600 num mr-1.5">{t.rank}</span>

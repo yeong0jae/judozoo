@@ -7,6 +7,7 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
+import StockAvatar from "../components/common/StockAvatar";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -64,9 +65,9 @@ export default function VolumeSpikePage() {
         </div>
       </div>
 
-      <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+      <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {/* 등락률 임계값 선택 — 후보 풀 조절 */}
-        <div className="flex justify-end px-4 py-2 border-b border-zinc-800">
+        <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
           <ChangeRateSelector value={minChangeRate} onChange={setRate} />
         </div>
         {spikeQ.isLoading ? (
@@ -80,7 +81,7 @@ export default function VolumeSpikePage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-950 text-zinc-500 text-xs">
+              <thead className="text-zinc-500 text-xs">
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
                   <th className="px-4 py-2.5 text-right">현재가</th>
@@ -121,25 +122,30 @@ function SpikeRow({ s }: { s: VolumeSpikeItem }) {
         layout: { type: "spring", stiffness: 600, damping: 42 },
         opacity: { duration: 0.2 },
       }}
-      className="border-t border-zinc-800 hover:bg-zinc-800/40"
+      className="border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors"
     >
-      <td className="px-4 py-3">
-        <div className="font-medium">{s.stockName}</div>
-        <div className="text-xs text-zinc-500 num">{code}</div>
+      <td className="px-4 py-3.5">
+        <div className="flex items-center gap-3">
+          <StockAvatar name={s.stockName} code={code} />
+          <div className="min-w-0">
+            <div className="font-semibold text-zinc-100">{s.stockName}</div>
+            <div className="text-xs text-zinc-500 num mt-0.5">{code}</div>
+          </div>
+        </div>
       </td>
-      <td className="px-4 py-3 text-right num text-zinc-300">
+      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
         <NumWon value={s.currentPrice} />
       </td>
-      <td className="px-4 py-3 text-right">
-        <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num" />
+      <td className="px-4 py-3.5 text-right">
+        <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
       </td>
-      <td className="px-4 py-3 text-right num text-zinc-300">
+      <td className="px-4 py-3.5 text-right num text-zinc-400">
         {formatKoreanMoney(s.minuteTradingValue)}
       </td>
-      <td className={`px-4 py-3 text-right num font-semibold ${ratioColor(s.spikeRatio)}`}>
+      <td className={`px-4 py-3.5 text-right num font-semibold ${ratioColor(s.spikeRatio)}`}>
         {s.spikeRatio.toFixed(1)}배
       </td>
-      <td className="px-4 py-3 text-right num text-zinc-500">{time}</td>
+      <td className="px-4 py-3.5 text-right num text-zinc-500">{time}</td>
     </motion.tr>
   );
 }

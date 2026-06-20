@@ -22,16 +22,16 @@ const NAV = [
   // { to: "/report", label: "실적" },
 ];
 
-const navBase = "rounded-md text-sm font-medium transition-colors hover:bg-zinc-800";
-const activeItem = "bg-emerald-900 text-emerald-700";
-const inactiveItem = "text-zinc-300";
+const navBase = "rounded-lg text-sm font-medium transition-colors";
+const activeItem = "bg-white/[0.06] text-zinc-100";
+const inactiveItem = "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.03]";
 
 export default function Header() {
   const { data: status } = useMarketStatus();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950">
+    <header className="border-b border-white/[0.04] bg-zinc-950">
       <div className="max-w-[110rem] mx-auto px-4 sm:px-6 py-3 flex items-center gap-4 md:gap-6">
         {/* 데스크톱 네비 */}
         <nav className="hidden md:flex items-center gap-1">
@@ -72,7 +72,7 @@ export default function Header() {
             onClick={() => setMenuOpen((o) => !o)}
             aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
             aria-expanded={menuOpen}
-            className="p-2 rounded-md text-zinc-300 hover:bg-zinc-800"
+            className="p-2 rounded-md text-zinc-300 hover:bg-white/[0.06]"
           >
             <svg
               width="20"
@@ -102,7 +102,7 @@ export default function Header() {
 
       {/* 모바일 드로어 */}
       {menuOpen && (
-        <div className="md:hidden border-t border-zinc-800 px-4 py-3 space-y-3">
+        <div className="md:hidden border-t border-white/[0.04] px-4 py-3 space-y-3">
           <nav
             className="flex flex-col gap-1"
             onClick={() => setMenuOpen(false)}
@@ -119,7 +119,7 @@ export default function Header() {
               </NavLink>
             ))}
           </nav>
-          <div className="flex items-center flex-wrap gap-2 pt-3 border-t border-zinc-800">
+          <div className="flex items-center flex-wrap gap-2 pt-3 border-t border-white/[0.04]">
             <TodayProfitSummary />
             <InstanceBadge />
             <KospiIndexBadge />
