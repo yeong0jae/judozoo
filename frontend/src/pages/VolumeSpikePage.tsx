@@ -1,15 +1,12 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useVolumeSpikes } from "../api/queries";
 import type { VolumeSpikeItem } from "../types";
-import {
-  formatKoreanMoney,
-  formatPct,
-  formatPrice,
-  formatRelative,
-} from "../lib/format";
+import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
+import NumWon from "../components/common/NumWon";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -94,9 +91,11 @@ export default function VolumeSpikePage() {
                 </tr>
               </thead>
               <tbody>
-                {stocks.map((s) => (
-                  <SpikeRow key={s.stockCode} s={s} />
-                ))}
+                <AnimatePresence mode="popLayout">
+                  {stocks.map((s) => (
+                    <SpikeRow key={s.stockCode} s={s} />
+                  ))}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>
@@ -113,12 +112,24 @@ function SpikeRow({ s }: { s: VolumeSpikeItem }) {
   t.setMinutes(t.getMinutes() + 1);
   const time = t.toTimeString().slice(0, 5);
   return (
-    <tr className="border-t border-zinc-800 hover:bg-zinc-800/40">
+    <motion.tr
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        layout: { type: "spring", stiffness: 600, damping: 42 },
+        opacity: { duration: 0.2 },
+      }}
+      className="border-t border-zinc-800 hover:bg-zinc-800/40"
+    >
       <td className="px-4 py-3">
         <div className="font-medium">{s.stockName}</div>
         <div className="text-xs text-zinc-500 num">{code}</div>
       </td>
-      <td className="px-4 py-3 text-right num text-zinc-300">{formatPrice(s.currentPrice)}</td>
+      <td className="px-4 py-3 text-right num text-zinc-300">
+        <NumWon value={s.currentPrice} />
+      </td>
       <td className="px-4 py-3 text-right">
         <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num" />
       </td>
@@ -129,6 +140,6 @@ function SpikeRow({ s }: { s: VolumeSpikeItem }) {
         {s.spikeRatio.toFixed(1)}배
       </td>
       <td className="px-4 py-3 text-right num text-zinc-500">{time}</td>
-    </tr>
+    </motion.tr>
   );
 }

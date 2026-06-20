@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
 import { formatKoreanMoney, formatPrice, formatRelative } from "../lib/format";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
+import NumWon from "../components/common/NumWon";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -94,9 +96,11 @@ export default function BreakoutRadarPage() {
                 </tr>
               </thead>
               <tbody>
-                {stocks.map((s) => (
-                  <RadarRow key={s.stockCode} s={s} />
-                ))}
+                <AnimatePresence mode="popLayout">
+                  {stocks.map((s) => (
+                    <RadarRow key={s.stockCode} s={s} />
+                  ))}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>
@@ -115,7 +119,17 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
   peak.setMinutes(peak.getMinutes() + 1);
   const peakTime = peak.toTimeString().slice(0, 5);
   return (
-    <tr className="border-t border-zinc-800 hover:bg-zinc-800/40">
+    <motion.tr
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        layout: { type: "spring", stiffness: 600, damping: 42 },
+        opacity: { duration: 0.2 },
+      }}
+      className="border-t border-zinc-800 hover:bg-zinc-800/40"
+    >
       <td className="px-4 py-3">
         <div className="flex items-center flex-wrap gap-2">
           <span className="font-medium">{s.stockName}</span>
@@ -133,7 +147,9 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
         </div>
         <div className="text-xs text-zinc-500 num">{code}</div>
       </td>
-      <td className="px-4 py-3 text-right num text-zinc-300">{formatPrice(s.currentPrice)}</td>
+      <td className="px-4 py-3 text-right num text-zinc-300">
+        <NumWon value={s.currentPrice} />
+      </td>
       <td className="px-4 py-3 text-right num text-zinc-400">
         {formatKoreanMoney(s.tradingValue)}
       </td>
@@ -147,6 +163,6 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
       <td className="px-4 py-3 text-right">
         <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${st.cls}`}>{st.label}</span>
       </td>
-    </tr>
+    </motion.tr>
   );
 }

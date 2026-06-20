@@ -21,6 +21,7 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
+import NumWon from "../components/common/NumWon";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -269,7 +270,7 @@ function CandidatesTable({
               <td className="px-4 py-3 text-right num">
                 {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
                 <FlashOnChange value={s.currentPrice} duration={1000}>
-                  {formatPrice(s.currentPrice)}
+                  <NumWon value={s.currentPrice} />
                 </FlashOnChange>
               </td>
               <td className="px-4 py-3 text-right num">
@@ -360,7 +361,7 @@ function CandidatesCards({
                   {s.stockName}
                 </span>
                 <FlashOnChange value={s.currentPrice} duration={1000}>
-                  <span className="num shrink-0">{formatPrice(s.currentPrice)}</span>
+                  <NumWon value={s.currentPrice} className="num shrink-0" />
                 </FlashOnChange>
               </div>
               {/* 2행: 코드·거래대금 · 등락률 · 매매 */}
@@ -428,7 +429,7 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
         </div>
         {detail && (
           <div className="text-sm text-zinc-400 mt-0.5">
-            <span className="num">{formatPrice(detail.currentPrice)}</span>{" "}
+            <NumWon value={detail.currentPrice} className="num" />{" "}
             <ProfitText
               value={detail.priceChangeRate / 100}
               format={formatPct}
