@@ -1,17 +1,19 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type FlowPoint = {
   date: string; // YYYY-MM-DD
   time: string; // "08:15" 등
   value: number; // 그 구간 등락률(%, 직전 시점 대비)
   dayStart: boolean; // 그날 첫 포인트(08:15)면 true → 구분선·날짜 라벨
+  label: string; // 구간 이름(오전 NXT 등)
+  range: string; // "08:15 → 11:00" 등
 };
 
-const STEP = 18; // 포인트 간 가로 간격(px)
-const H = 340;
-const PAD_T = 16;
-const PAD_B = 28;
-const Y_AXIS_W = 56;
+const STEP = 30; // 포인트 간 가로 간격(px)
+const H = 480;
+const PAD_T = 20;
+const PAD_B = 36;
+const Y_AXIS_W = 68;
 const LINE = "#34d399"; // emerald
 
 function ticksOf(mn: number, mx: number, n = 6): number[] {
@@ -22,6 +24,7 @@ function ticksOf(mn: number, mx: number, n = 6): number[] {
 /** 누적 시장 흐름을 하나의 연속 선으로 — 가로 스크롤, y축 고정. */
 export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<number | null>(null);
 
   // 진입 시 최신(오른쪽 끝)으로 스크롤
   useEffect(() => {
@@ -54,9 +57,9 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
           <text
             key={i}
             x={Y_AXIS_W - 8}
-            y={y(t) + 3}
+            y={y(t) + 4}
             textAnchor="end"
-            className="fill-zinc-600 text-[10px]"
+            className="fill-zinc-500 text-xs"
           >
             {t >= 0 ? "+" : ""}
             {t.toFixed(1)}%
@@ -66,7 +69,12 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
 
       {/* 스크롤되는 플롯 */}
       <div ref={scrollRef} className="overflow-x-auto">
-        <svg width={width} height={H} className="block">
+        <svg
+          width={width}
+          height={H}
+          className="block"
+          onMouseLeave={() => setHover(null)}
+        >
           {/* 가로 그리드 */}
           {ticks.map((t, i) => (
             <line
@@ -92,9 +100,9 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
                 />
                 <text
                   x={x(i)}
-                  y={H - 10}
+                  y={H - 12}
                   textAnchor="middle"
-                  className="fill-zinc-500 text-[10px]"
+                  className="fill-zinc-400 text-xs"
                 >
                   {p.date.slice(5).replace("-", "/")}
                 </text>
@@ -106,21 +114,82 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
             points={polyline}
             fill="none"
             stroke={LINE}
-            strokeWidth={1.5}
+            strokeWidth={2}
             strokeLinejoin="round"
           />
-          {/* 포인트 + 네이티브 툴팁 */}
+          {/* 포인트 (visible) */}
           {points.map((p, i) => (
-            <circle key={i} cx={x(i)} cy={y(p.value)} r={2.5} fill={LINE}>
-              <title>
-                {p.date.slice(5).replace("-", "/")} {p.time} ·{" "}
-                {p.value >= 0 ? "+" : ""}
-                {p.value.toFixed(2)}%
-              </title>
-            </circle>
+            <circle
+              key={i}
+              cx={x(i)}
+              cy={y(p.value)}
+              r={hover === i ? 4.5 : 3}
+              fill={LINE}
+            />
           ))}
+          {/* 넓은 hover 히트 영역 */}
+          {points.map((p, i) => (
+            <circle
+              key={`h${i}`}
+              cx={x(i)}
+              cy={y(p.value)}
+              r={STEP / 2 + 2}
+              fill="transparent"
+              onMouseEnter={() => setHover(i)}
+            />
+          ))}
+          {/* hover 정보 패널 */}
+          {hover !== null && (
+            <FlowTooltip
+              p={points[hover]}
+              px={x(hover)}
+              py={y(points[hover].value)}
+              width={width}
+            />
+          )}
         </svg>
       </div>
     </div>
+  );
+}
+
+/** 포인트 hover 시 뜨는 작은 정보 패널 (SVG 내부). */
+function FlowTooltip({
+  p,
+  px,
+  py,
+  width,
+}: {
+  p: FlowPoint;
+  px: number;
+  py: number;
+  width: number;
+}) {
+  const tw = 172;
+  const th = 62;
+  const tx = Math.max(2, Math.min(px - tw / 2, width - tw - 2));
+  let ty = py - th - 10;
+  if (ty < PAD_T) ty = py + 10;
+  const date = `${p.date.slice(5).replace("-", "/")} ${p.time}`;
+  return (
+    <g pointerEvents="none">
+      <rect x={tx} y={ty} width={tw} height={th} rx={6} fill="#18181b" stroke="#3f3f46" />
+      <text x={tx + 12} y={ty + 19} fontSize={12} fill="#a1a1aa">
+        {date} · {p.label}
+      </text>
+      <text x={tx + 12} y={ty + 35} fontSize={11} fill="#71717a">
+        {p.range}
+      </text>
+      <text
+        x={tx + 12}
+        y={ty + 53}
+        fontSize={14}
+        fontWeight="bold"
+        fill={p.value >= 0 ? "#f87171" : "#60a5fa"}
+      >
+        {p.value >= 0 ? "+" : ""}
+        {p.value.toFixed(2)}%
+      </text>
+    </g>
   );
 }

@@ -1,6 +1,6 @@
 import { useRegimeDaily } from "../api/queries";
 import RegimeFlowChart, { type FlowPoint } from "../components/market/RegimeFlowChart";
-import { computeRows } from "../lib/regimeSegments";
+import { REGIME_SEGMENTS, computeRows } from "../lib/regimeSegments";
 
 const TIMES = ["08:15", "11:00", "14:00", "20:00"];
 
@@ -15,11 +15,14 @@ function buildFlowPoints(chrono: ReturnType<typeof computeRows>): FlowPoint[] {
     for (let i = 0; i < 4; i++) {
       const seg = row.segs[i];
       if (seg === null || seg === undefined) return pts; // 미도달 → 종료
+      const meta = REGIME_SEGMENTS[i];
       pts.push({
         date: row.date,
         time: TIMES[i],
         value: seg,
         dayStart: i === 0,
+        label: meta.key,
+        range: `${meta.from} → ${meta.to}`,
       });
     }
   }
