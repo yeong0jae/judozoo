@@ -10,8 +10,8 @@ import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.MySQLContainer
 
 @SpringBootTest
-@ActiveProfiles("test", "kis")
-@Import(KisWebSocketClientMockConfig::class, KisRestClientMockConfig::class)
+@ActiveProfiles("test")
+@Import(KiwoomWebSocketClientMockConfig::class, KiwoomTradingClientMockConfig::class)
 abstract class IntegrationTestBase : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)

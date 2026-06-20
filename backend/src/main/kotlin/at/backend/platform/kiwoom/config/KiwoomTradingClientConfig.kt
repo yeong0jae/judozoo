@@ -3,11 +3,13 @@ package at.backend.platform.kiwoom.config
 import at.backend.platform.kiwoom.client.KiwoomAuthClient
 import at.backend.platform.kiwoom.client.KiwoomTradingClient
 import at.backend.platform.kiwoom.client.KiwoomWebSocketClient
+import jakarta.websocket.ContainerProvider
 import kotlinx.coroutines.CoroutineScope
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.client.RestClient
 import org.springframework.web.socket.client.WebSocketClient
+import org.springframework.web.socket.client.standard.StandardWebSocketClient
 import tools.jackson.databind.ObjectMapper
 
 /**
@@ -16,6 +18,18 @@ import tools.jackson.databind.ObjectMapper
  */
 @Configuration
 class KiwoomTradingClientConfig {
+
+    /**
+     * JSR-356 기본 텍스트 버퍼(8KB)로는 체결통보 등 큰 메시지에서 1009로 끊겨 무한 재연결에 빠진다 → 1MB로 확장.
+     */
+    @Bean
+    fun webSocketClient(): WebSocketClient {
+        val container = ContainerProvider.getWebSocketContainer().apply {
+            defaultMaxTextMessageBufferSize = 1024 * 1024
+            defaultMaxBinaryMessageBufferSize = 1024 * 1024
+        }
+        return StandardWebSocketClient(container)
+    }
 
     @Bean
     fun kiwoomTradingClient(

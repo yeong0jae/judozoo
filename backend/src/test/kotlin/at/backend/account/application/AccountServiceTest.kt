@@ -2,9 +2,8 @@ package at.backend.account.application
 
 import at.backend.common.test.IntegrationTestBase
 import at.backend.library.exception.EntityNotFoundException
-import at.backend.platform.kis.client.KisRestClient
-import at.backend.platform.kis.client.response.KisBalanceResponse
-import at.backend.platform.kis.client.response.KisOrderResponse
+import at.backend.platform.kiwoom.client.KiwoomTradingClient
+import at.backend.platform.kiwoom.client.KiwoomTradingClient.AccountEvaluationResponse.StockHolding
 import at.backend.trading.domain.cycle.TradingCycle
 import at.backend.trading.domain.cycle.TradingCycleStatus
 import at.backend.trading.infrastructure.repository.TradingCycleJpaRepository
@@ -19,36 +18,29 @@ import java.math.BigDecimal
 class AccountServiceTest(
     @Autowired private val accountService: AccountService,
     @Autowired private val tradingCycleRepository: TradingCycleJpaRepository,
-    @Autowired private val kisRestClient: KisRestClient,
+    @Autowired private val kiwoomTradingClient: KiwoomTradingClient,
 ) : IntegrationTestBase() {
 
     private fun stubCashBalance(amount: String) {
-        every { kisRestClient.getBalance() } returns KisBalanceResponse(
-            output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = amount))
-        )
+        every { kiwoomTradingClient.fetchAvailableCash() } returns amount.toLong()
     }
 
-    private fun stubHoldings(vararg holdings: KisBalanceResponse.Holding) {
-        every { kisRestClient.getBalance() } returns KisBalanceResponse(
-            output1 = holdings.toList(),
-            output2 = listOf(KisBalanceResponse.Output(prvsRcdlExccAmt = "0")),
-        )
+    private fun stubHoldings(vararg holdings: StockHolding) {
+        every { kiwoomTradingClient.fetchHoldingsRaw() } returns holdings.toList()
     }
 
     private fun holding(
-        pdno: String = "005930",
-        prdtName: String = "삼성전자",
-        hldgQty: String = "10",
-        pchsAvgPric: String = "70000",
-        prpr: String = "71000",
-    ) = KisBalanceResponse.Holding(
-        pdno = pdno,
-        prdtName = prdtName,
-        hldgQty = hldgQty,
-        pchsAvgPric = pchsAvgPric,
-        prpr = prpr,
-        evluPflsAmt = "0",
-        evluPflsRt = "0",
+        stkCd: String = "005930",
+        stkNm: String = "삼성전자",
+        rmndQty: String = "10",
+        avgPrc: String = "70000",
+        curPrc: String = "71000",
+    ) = StockHolding(
+        stk_cd = stkCd,
+        stk_nm = stkNm,
+        rmnd_qty = rmndQty,
+        avg_prc = avgPrc,
+        cur_prc = curPrc,
     )
 
     private fun saveCycle(
@@ -70,7 +62,7 @@ class AccountServiceTest(
 
     init {
         beforeEach {
-            clearMocks(kisRestClient)
+            clearMocks(kiwoomTradingClient)
             tradingCycleRepository.deleteAll()
         }
 
@@ -157,7 +149,7 @@ class AccountServiceTest(
         }
 
         context("보유 주식 조회") {
-            test("KIS 잔고가 비어있으면 빈 목록을 반환한다") {
+            test("잔고가 비어있으면 빈 목록을 반환한다") {
                 stubHoldings()
 
                 accountService.getHoldings() shouldBe emptyList()
@@ -165,8 +157,8 @@ class AccountServiceTest(
 
             test("보유 수량이 0인 행은 결과에서 제외된다") {
                 stubHoldings(
-                    holding(pdno = "005930", hldgQty = "10"),
-                    holding(pdno = "035420", hldgQty = "0"),
+                    holding(stkCd = "005930", rmndQty = "10"),
+                    holding(stkCd = "035420", rmndQty = "0"),
                 )
 
                 val result = accountService.getHoldings()
@@ -176,7 +168,7 @@ class AccountServiceTest(
 
             test("평가손익과 평가손익률은 매도 비용(수수료·세금)을 반영한 손익분기가 기준으로 산출된다") {
                 stubHoldings(
-                    holding(pdno = "005930", hldgQty = "10", pchsAvgPric = "70000", prpr = "71000"),
+                    holding(stkCd = "005930", rmndQty = "10", avgPrc = "70000", curPrc = "71000"),
                 )
 
                 val result = accountService.getHoldings().single()
@@ -191,9 +183,9 @@ class AccountServiceTest(
 
             test("OPEN 상태(LIQUIDATING 포함) 사이클이 있는 종목은 hasActiveCycle=true") {
                 stubHoldings(
-                    holding(pdno = "005930"),
-                    holding(pdno = "035420"),
-                    holding(pdno = "000660"),
+                    holding(stkCd = "005930"),
+                    holding(stkCd = "035420"),
+                    holding(stkCd = "000660"),
                 )
                 saveCycle(stockCode = "005930", status = TradingCycleStatus.BUYING)
                 saveCycle(stockCode = "035420", status = TradingCycleStatus.LIQUIDATING)
@@ -206,7 +198,7 @@ class AccountServiceTest(
             }
 
             test("CLOSED 사이클만 있는 종목은 hasActiveCycle=false") {
-                stubHoldings(holding(pdno = "005930"))
+                stubHoldings(holding(stkCd = "005930"))
                 saveCycle(stockCode = "005930", status = TradingCycleStatus.CLOSED)
 
                 accountService.getHoldings().single().hasActiveCycle shouldBe false
@@ -215,12 +207,7 @@ class AccountServiceTest(
 
         context("보유 전량 시장가 매도") {
             fun stubSellOk(odno: String = "0000999999") {
-                every { kisRestClient.requestOrder(any(), any(), any()) } returns KisOrderResponse(
-                    rtCd = "0", msgCd = "OK", msg1 = "OK",
-                    output = KisOrderResponse.Output(
-                        odno = odno, krxFwdgOrdOrgno = "00950", ordTmd = "104518",
-                    ),
-                )
+                every { kiwoomTradingClient.placeSellOrder(any(), any()) } returns odno
             }
 
             test("보유 종목이 없으면 EntityNotFoundException을 던진다") {
@@ -232,15 +219,15 @@ class AccountServiceTest(
             }
 
             test("보유 수량 0인 종목도 EntityNotFoundException을 던진다") {
-                stubHoldings(holding(pdno = "005930", hldgQty = "0"))
+                stubHoldings(holding(stkCd = "005930", rmndQty = "0"))
 
                 shouldThrow<EntityNotFoundException> {
                     accountService.liquidate("005930")
                 }
             }
 
-            test("보유 종목을 보유 수량만큼 시장가 매도로 발송하고 KIS 주문번호를 반환한다") {
-                stubHoldings(holding(pdno = "005930", hldgQty = "7"))
+            test("보유 종목을 보유 수량만큼 시장가 매도로 발송하고 주문번호를 반환한다") {
+                stubHoldings(holding(stkCd = "005930", rmndQty = "7"))
                 stubSellOk(odno = "0000777777")
 
                 val result = accountService.liquidate("005930")
@@ -248,18 +235,19 @@ class AccountServiceTest(
                 result.stockCode shouldBe "005930"
                 result.qty shouldBe 7
                 result.orderNo shouldBe "0000777777"
-                result.krxFwdgOrdOrgno shouldBe "00950"
-                verify { kisRestClient.requestOrder("005930", "SELL", 7) }
+                // Kiwoom은 orgno(원장 번호) 개념 미사용 — 빈 문자열
+                result.krxFwdgOrdOrgno shouldBe ""
+                verify { kiwoomTradingClient.placeSellOrder("005930", 7) }
             }
 
             test("활성 사이클이 있는 종목이어도 API 레벨에선 매도 발송한다 (UI 가드가 1차 방어선)") {
-                stubHoldings(holding(pdno = "005930", hldgQty = "5"))
+                stubHoldings(holding(stkCd = "005930", rmndQty = "5"))
                 stubSellOk()
                 saveCycle(stockCode = "005930", status = TradingCycleStatus.LIQUIDATING)
 
                 accountService.liquidate("005930").qty shouldBe 5
 
-                verify { kisRestClient.requestOrder("005930", "SELL", 5) }
+                verify { kiwoomTradingClient.placeSellOrder("005930", 5) }
             }
         }
     }
