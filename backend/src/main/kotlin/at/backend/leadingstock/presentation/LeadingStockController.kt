@@ -96,10 +96,14 @@ class LeadingStockController(
         )
     }
 
-    /** 분봉 거래대금 스파이크 — 최신 1분봉 거래대금이 직전 평균 대비 급증한 종목. */
+    /** 분봉 거래대금 스파이크 — 주도주 후보 중 최신 1분봉 거래대금이 직전 평균 대비 급증한 종목. */
     @GetMapping("/volume-spikes")
-    fun getVolumeSpikes(): ApiResponse<VolumeSpikeResponse> {
-        val items = leadingStockService.volumeSpikes().map { s ->
+    fun getVolumeSpikes(
+        @RequestParam(required = false) minChangeRate: Int?,
+    ): ApiResponse<VolumeSpikeResponse> {
+        val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
+            ?: criteria.minDailyPriceChangeRate
+        val items = leadingStockService.volumeSpikes(rate).map { s ->
             VolumeSpikeItem(
                 stockCode = s.stockCode,
                 stockName = s.stockName,

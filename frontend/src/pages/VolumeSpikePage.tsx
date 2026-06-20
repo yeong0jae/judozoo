@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useVolumeSpikes } from "../api/queries";
 import type { VolumeSpikeItem } from "../types";
 import {
@@ -9,6 +10,11 @@ import {
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
+import ChangeRateSelector, {
+  CHANGE_RATE_OPTIONS,
+} from "../components/common/ChangeRateSelector";
+
+const MIN_CHANGE_RATE_KEY = "volumeSpike.minChangeRate";
 
 function shortCode(stockCode: string): string {
   const idx = stockCode.indexOf("_");
@@ -23,7 +29,17 @@ function ratioColor(r: number): string {
 }
 
 export default function VolumeSpikePage() {
-  const spikeQ = useVolumeSpikes();
+  const [minChangeRate, setMinChangeRate] = useState(() => {
+    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
+    const saved = Number(raw);
+    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
+  });
+  const setRate = (r: number) => {
+    setMinChangeRate(r);
+    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(r));
+  };
+
+  const spikeQ = useVolumeSpikes(minChangeRate);
   const data = spikeQ.data;
   const stocks = data?.stocks ?? [];
 
@@ -40,7 +56,7 @@ export default function VolumeSpikePage() {
             />
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            최신 1분봉 거래대금이 직전 평균 대비 급증한 종목 · 5초 자동 갱신
+            주도주 후보 중 최신 1분봉 거래대금이 직전 평균 대비 급증한 종목 · 5초 자동 갱신
           </p>
         </div>
         <div className="text-xs text-zinc-500 flex items-center gap-2">
@@ -52,6 +68,10 @@ export default function VolumeSpikePage() {
       </div>
 
       <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+        {/* 등락률 임계값 선택 — 후보 풀 조절 */}
+        <div className="flex justify-end px-4 py-2 border-b border-zinc-800">
+          <ChangeRateSelector value={minChangeRate} onChange={setRate} />
+        </div>
         {spikeQ.isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (

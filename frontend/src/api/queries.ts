@@ -36,7 +36,8 @@ export const QK = {
     ["leading-stocks", "candidates", minChangeRate] as const,
   breakoutRadar: (minChangeRate: number) =>
     ["leading-stocks", "breakout-radar", minChangeRate] as const,
-  volumeSpikes: ["leading-stocks", "volume-spikes"] as const,
+  volumeSpikes: (minChangeRate: number) =>
+    ["leading-stocks", "volume-spikes", minChangeRate] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -181,11 +182,13 @@ export function useBreakoutRadar(minChangeRate: number) {
   });
 }
 
-export function useVolumeSpikes() {
+export function useVolumeSpikes(minChangeRate: number) {
   return useQuery({
-    queryKey: QK.volumeSpikes,
+    queryKey: QK.volumeSpikes(minChangeRate),
     queryFn: () =>
-      apiFetch<VolumeSpikeResponse>("/api/leading-stocks/volume-spikes"),
+      apiFetch<VolumeSpikeResponse>(
+        `/api/leading-stocks/volume-spikes?minChangeRate=${minChangeRate}`,
+      ),
     refetchInterval: 5_000,
   });
 }
