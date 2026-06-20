@@ -1,17 +1,15 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import InstanceBadge from "../header/InstanceBadge";
 import NotificationBell from "../header/NotificationBell";
 import MarketStatusBadge from "../header/MarketStatusBadge";
 import KospiIndexBadge from "../header/KospiIndexBadge";
 import StompStatusBadge from "../header/StompStatusBadge";
 import SettingsButton from "../header/SettingsButton";
-import TodayProfitSummary from "../header/TodayProfitSummary";
 import { useMarketStatus } from "../../api/queries";
 
 const NAV = [
   { to: "/leading-stocks", label: "주도주 후보 조회" },
-  { to: "/breakout-radar", label: "주도주 돌파 레이더" },
+  { to: "/breakout-radar", label: "주도주 돌파 시그널" },
   { to: "/volume-spike", label: "주도주 거래대금 스파이크" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   // 당분간 숨김 (라우트/페이지는 유지, 필요 시 주석 해제)
@@ -52,9 +50,7 @@ export default function Header() {
 
         {/* 데스크톱 우측 클러스터 */}
         <div className="hidden md:flex items-center gap-4">
-          <TodayProfitSummary />
           <div className="flex items-center gap-1">
-            <InstanceBadge />
             <KospiIndexBadge />
             <NotificationBell />
             {status && <MarketStatusBadge status={status} />}
@@ -120,8 +116,6 @@ export default function Header() {
             ))}
           </nav>
           <div className="flex items-center flex-wrap gap-2 pt-3 border-t border-white/[0.04]">
-            <TodayProfitSummary />
-            <InstanceBadge />
             <KospiIndexBadge />
             <StompStatusBadge />
             <SettingsButton />
