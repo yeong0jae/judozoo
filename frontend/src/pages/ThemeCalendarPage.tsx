@@ -73,64 +73,73 @@ export default function ThemeCalendarPage() {
         </button>
       </div>
 
-      {/* 월 이동 */}
-      <div className="flex items-center justify-center gap-4">
-        <button
-          onClick={() => shiftMonth(-1)}
-          className="px-2 py-1 rounded hover:bg-zinc-800 text-zinc-400"
-          aria-label="이전 달"
-        >
-          ‹
-        </button>
-        <span className="text-sm font-medium tabular-nums w-28 text-center">
-          {monthLabel}
-        </span>
-        <button
-          onClick={() => shiftMonth(1)}
-          className="px-2 py-1 rounded hover:bg-zinc-800 text-zinc-400"
-          aria-label="다음 달"
-        >
-          ›
-        </button>
-      </div>
-
-      {isLoading ? (
-        <Skeleton className="h-96 w-full" />
-      ) : (
-        <div className="grid grid-cols-7 gap-px bg-zinc-800 border border-zinc-800 rounded-lg">
-          {WEEKDAYS.map((w, i) => (
-            <div
-              key={w}
-              className={`bg-zinc-950 py-2 text-center text-xs font-medium ${
-                i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-zinc-400"
-              }`}
+      {/* 왼쪽: 캘린더(6.5) / 오른쪽: 선택일 상세(3.5) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[13fr_7fr] gap-4 items-start">
+        <div className="space-y-4">
+          {/* 월 이동 */}
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={() => shiftMonth(-1)}
+              className="px-2 py-1 rounded hover:bg-zinc-800 text-zinc-400"
+              aria-label="이전 달"
             >
-              {w}
+              ‹
+            </button>
+            <span className="text-sm font-medium tabular-nums w-28 text-center">
+              {monthLabel}
+            </span>
+            <button
+              onClick={() => shiftMonth(1)}
+              className="px-2 py-1 rounded hover:bg-zinc-800 text-zinc-400"
+              aria-label="다음 달"
+            >
+              ›
+            </button>
+          </div>
+
+          {isLoading ? (
+            <Skeleton className="h-96 w-full" />
+          ) : (
+            <div className="grid grid-cols-7 gap-px bg-zinc-800 border border-zinc-800 rounded-lg">
+              {WEEKDAYS.map((w, i) => (
+                <div
+                  key={w}
+                  className={`bg-zinc-950 py-2 text-center text-xs font-medium ${
+                    i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-zinc-400"
+                  }`}
+                >
+                  {w}
+                </div>
+              ))}
+              {cells.map((d, i) =>
+                d === null ? (
+                  <div key={`empty-${i}`} className="bg-zinc-950 min-h-24" />
+                ) : (
+                  <DayCell
+                    key={ymd(d)}
+                    day={d.getDate()}
+                    themes={byDate.get(ymd(d))?.themes ?? []}
+                    isToday={ymd(d) === todayStr}
+                    isSelected={ymd(d) === selectedDate}
+                    onSelect={() => setSelectedDate(ymd(d))}
+                  />
+                ),
+              )}
             </div>
-          ))}
-          {cells.map((d, i) =>
-            d === null ? (
-              <div key={`empty-${i}`} className="bg-zinc-950 min-h-24" />
-            ) : (
-              <DayCell
-                key={ymd(d)}
-                day={d.getDate()}
-                themes={byDate.get(ymd(d))?.themes ?? []}
-                isToday={ymd(d) === todayStr}
-                isSelected={ymd(d) === selectedDate}
-                onSelect={() => setSelectedDate(ymd(d))}
-              />
-            ),
           )}
         </div>
-      )}
 
-      {selectedDate && (
-        <DayDetail
-          date={selectedDate}
-          themes={byDate.get(selectedDate)?.themes ?? []}
-        />
-      )}
+        {selectedDate ? (
+          <DayDetail
+            date={selectedDate}
+            themes={byDate.get(selectedDate)?.themes ?? []}
+          />
+        ) : (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-500">
+            날짜를 선택하면 그날 테마별 주도 종목이 표시됩니다
+          </div>
+        )}
+      </div>
     </div>
   );
 }
