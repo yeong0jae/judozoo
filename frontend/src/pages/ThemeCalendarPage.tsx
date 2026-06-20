@@ -21,6 +21,7 @@ export default function ThemeCalendarPage() {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
   const from = ymd(month);
@@ -116,9 +117,53 @@ export default function ThemeCalendarPage() {
                 day={d.getDate()}
                 themes={byDate.get(ymd(d))?.themes ?? []}
                 isToday={ymd(d) === todayStr}
+                isSelected={ymd(d) === selectedDate}
+                onSelect={() => setSelectedDate(ymd(d))}
               />
             ),
           )}
+        </div>
+      )}
+
+      {selectedDate && (
+        <DayDetail
+          date={selectedDate}
+          themes={byDate.get(selectedDate)?.themes ?? []}
+        />
+      )}
+    </div>
+  );
+}
+
+function DayDetail({ date, themes }: { date: string; themes: ThemeItem[] }) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+      <h3 className="text-sm font-semibold text-zinc-200 mb-3">{date} 테마별 주도 종목</h3>
+      {themes.length === 0 ? (
+        <p className="text-sm text-zinc-500">이 날짜에 적재된 테마가 없습니다</p>
+      ) : (
+        <div className="space-y-3">
+          {themes.map((t) => (
+            <div key={t.rank} className="border-b border-zinc-800 pb-3 last:border-0 last:pb-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-medium text-zinc-200">
+                  <span className="text-zinc-600 num mr-1.5">{t.rank}</span>
+                  {t.name}
+                </span>
+                <span className="num text-sm text-amber-400 shrink-0">
+                  {formatKoreanMoney(t.tradingValue)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+                {t.stocks.map((s) => (
+                  <span key={s.stockCode} className="text-xs text-zinc-400">
+                    {s.stockName}{" "}
+                    <span className="num text-zinc-500">{formatKoreanMoney(s.tradingValue)}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -129,14 +174,23 @@ function DayCell({
   day,
   themes,
   isToday,
+  isSelected,
+  onSelect,
 }: {
   day: number;
   themes: ThemeItem[];
   isToday: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
 }) {
   const extra = themes.length - CELL_THEMES;
   return (
-    <div className="group relative bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1">
+    <div
+      onClick={onSelect}
+      className={`group relative bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-zinc-800/60 ${
+        isSelected ? "ring-1 ring-inset ring-emerald-600" : ""
+      }`}
+    >
       <span
         className={`text-xs num ${
           isToday

@@ -5,6 +5,7 @@ import at.backend.theme.application.ThemeCalendarService
 import at.backend.theme.presentation.response.ThemeCalendarResponse
 import at.backend.theme.presentation.response.ThemeDayItem
 import at.backend.theme.presentation.response.ThemeItem
+import at.backend.theme.presentation.response.ThemeStockItem
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -26,12 +27,20 @@ class ThemeCalendarController(
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) to: LocalDate,
     ): ApiResponse<ThemeCalendarResponse> {
         val days = service.getCalendar(from, to)
-            .groupBy { it.date }
-            .map { (date, recs) ->
+            .groupBy { it.record.date }
+            .map { (date, list) ->
                 ThemeDayItem(
                     date = date,
-                    themes = recs.sortedBy { it.rank }
-                        .map { ThemeItem(rank = it.rank, name = it.themeName, tradingValue = it.tradingValue) },
+                    themes = list.sortedBy { it.record.rank }.map { tw ->
+                        ThemeItem(
+                            rank = tw.record.rank,
+                            name = tw.record.themeName,
+                            tradingValue = tw.record.tradingValue,
+                            stocks = tw.stocks.map {
+                                ThemeStockItem(it.stockCode, it.stockName, it.tradingValue)
+                            },
+                        )
+                    },
                 )
             }
             .sortedBy { it.date }

@@ -302,10 +302,17 @@ export interface CandidateStocksResponse {
 }
 
 // === 테마 캘린더 ===
+export interface ThemeStockItem {
+  stockCode: string;
+  stockName: string;
+  tradingValue: number;
+}
+
 export interface ThemeItem {
   rank: number;
   name: string;
   tradingValue: number; // 테마 소속 상위 종목 거래대금 합산(원)
+  stocks: ThemeStockItem[]; // 거래대금 기여 종목(내림차순)
 }
 
 export interface ThemeDayItem {
