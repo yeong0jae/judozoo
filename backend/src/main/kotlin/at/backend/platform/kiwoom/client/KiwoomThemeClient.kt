@@ -2,6 +2,7 @@ package at.backend.platform.kiwoom.client
 
 import at.backend.platform.kiwoom.config.KiwoomApiProperties
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
@@ -16,7 +17,11 @@ class KiwoomThemeClient(
     /**
      * 종목이 속한 테마명 목록 (ka90001, 종목검색=qry_tp 2).
      * flu_pl_amt_tp=3(상위등락률)로 정렬해 그날 강한 테마가 앞에 온다. 실패 시 빈 리스트.
+     *
+     * 종목별 12시간 캐시(stockThemes) — 후보 목록·테마 캘린더 캡처가 공유한다.
+     * 키는 6자리 단축코드로 정규화해 `_AL` 등 접미사가 달라도 같은 종목이면 캐시를 맞힌다.
      */
+    @Cacheable("stockThemes", key = "#stockCode.substring(0, 6)")
     fun fetchThemesForStock(stockCode: String): List<String> {
         val shortCode = stockCode.substringBefore("_").take(6)
         try {

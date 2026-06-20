@@ -70,10 +70,9 @@ class LeadingStockService(
     }
 
     /**
-     * 종목이 속한 테마명 목록. 테마는 장중 거의 안 바뀌므로 종목별로 길게 캐싱(30m)해
-     * 5초 후보 폴링마다 키움을 때리지 않도록 한다.
+     * 종목이 속한 테마명 목록. 캐싱은 [KiwoomThemeClient.fetchThemesForStock]에서 처리하므로
+     * (후보 목록·테마 캘린더 캡처가 같은 캐시 공유) 여기선 위임만 한다.
      */
-    @Cacheable("stockThemes", key = "#stockCode")
     fun themesOf(stockCode: String): List<String> = themeClient.fetchThemesForStock(stockCode)
 
     /** 특정 종목에 대해 모든 필터(A~H) 평가 + 상대거래량 — 상세 보기에서 사용 */

@@ -99,6 +99,6 @@ class ThemeCalendarService(
 
     companion object {
         private const val CAPTURE_LIMIT = 10        // 하루 저장 테마 수
-        private const val CAPTURE_STOCK_COUNT = 50  // 거래대금 상위 N종목을 테마로 집계
+        private const val CAPTURE_STOCK_COUNT = 30  // 거래대금 상위 N종목을 테마로 집계
     }
 }
