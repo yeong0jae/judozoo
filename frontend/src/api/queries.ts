@@ -33,7 +33,8 @@ export const QK = {
   dailyReport: (date: string) => ["reports", "daily", date] as const,
   leadingStockCandidates: (minChangeRate: number) =>
     ["leading-stocks", "candidates", minChangeRate] as const,
-  breakoutRadar: ["leading-stocks", "breakout-radar"] as const,
+  breakoutRadar: (minChangeRate: number) =>
+    ["leading-stocks", "breakout-radar", minChangeRate] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -167,11 +168,13 @@ export function useLeadingStockCandidates(minChangeRate: number) {
   });
 }
 
-export function useBreakoutRadar() {
+export function useBreakoutRadar(minChangeRate: number) {
   return useQuery({
-    queryKey: QK.breakoutRadar,
+    queryKey: QK.breakoutRadar(minChangeRate),
     queryFn: () =>
-      apiFetch<BreakoutRadarResponse>("/api/leading-stocks/breakout-radar"),
+      apiFetch<BreakoutRadarResponse>(
+        `/api/leading-stocks/breakout-radar?minChangeRate=${minChangeRate}`,
+      ),
     refetchInterval: 5_000,
   });
 }

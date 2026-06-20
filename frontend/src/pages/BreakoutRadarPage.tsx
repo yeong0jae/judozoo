@@ -1,8 +1,14 @@
+import { useState } from "react";
 import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
 import { formatPrice, formatRelative } from "../lib/format";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
+import ChangeRateSelector, {
+  CHANGE_RATE_OPTIONS,
+} from "../components/common/ChangeRateSelector";
+
+const MIN_CHANGE_RATE_KEY = "breakoutRadar.minChangeRate";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -22,7 +28,18 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
 }
 
 export default function BreakoutRadarPage() {
-  const radarQ = useBreakoutRadar();
+  // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
+  const [minChangeRate, setMinChangeRate] = useState(() => {
+    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
+    const saved = Number(raw);
+    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
+  });
+  const setRate = (r: number) => {
+    setMinChangeRate(r);
+    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(r));
+  };
+
+  const radarQ = useBreakoutRadar(minChangeRate);
   const data = radarQ.data;
   const stocks = data?.stocks ?? [];
 
@@ -51,6 +68,10 @@ export default function BreakoutRadarPage() {
       </div>
 
       <section className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+        {/* 등락률 임계값 선택 — 후보 풀 조절 */}
+        <div className="flex justify-end px-4 py-2 border-b border-zinc-800">
+          <ChangeRateSelector value={minChangeRate} onChange={setRate} />
+        </div>
         {radarQ.isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
