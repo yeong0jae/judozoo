@@ -76,4 +76,51 @@ class MinuteCandlesTest : FunSpec({
             candles.dayHighSignal(currentPrice = 0) shouldBe null
         }
     }
+
+    // 거래대금만 지정하는 봉 (스파이크 판정은 tradingValue만 사용)
+    fun tvCandle(minute: Int, tradingValue: Long) =
+        MinuteCandle(
+            dateTime = base.plusMinutes(minute.toLong()),
+            openPrice = 0,
+            highPrice = 0,
+            lowPrice = 0,
+            closePrice = 0,
+            volume = 0,
+            tradingValue = tradingValue,
+        )
+
+    context("분봉 거래대금 스파이크") {
+        test("최신 봉 거래대금이 직전 평균의 N배면 배율 N") {
+            // 직전 3봉 평균 100, 최신 500 → 5배
+            val candles = MinuteCandles(
+                listOf(
+                    tvCandle(0, 100), tvCandle(1, 100), tvCandle(2, 100), tvCandle(3, 500),
+                ),
+            )
+            val spike = candles.volumeSpike(baselineBars = 3)!!
+            spike.latestTradingValue shouldBe 500
+            spike.at shouldBe base.plusMinutes(3)
+            spike.ratio shouldBe (5.0 plusOrMinus 0.001)
+        }
+
+        test("직전 평균은 baselineBars 개로 제한된다") {
+            // baselineBars=2 → 직전 2봉(분2·분3) 평균 200, 최신 400 → 2배 (분0·분1 제외)
+            val candles = MinuteCandles(
+                listOf(
+                    tvCandle(0, 1000), tvCandle(1, 1000),
+                    tvCandle(2, 200), tvCandle(3, 200), tvCandle(4, 400),
+                ),
+            )
+            candles.volumeSpike(baselineBars = 2)!!.ratio shouldBe (2.0 plusOrMinus 0.001)
+        }
+
+        test("봉이 1개뿐이면 null") {
+            MinuteCandles(listOf(tvCandle(0, 100))).volumeSpike(baselineBars = 20) shouldBe null
+        }
+
+        test("직전 평균이 0이면 null") {
+            val candles = MinuteCandles(listOf(tvCandle(0, 0), tvCandle(1, 500)))
+            candles.volumeSpike(baselineBars = 20) shouldBe null
+        }
+    }
 })

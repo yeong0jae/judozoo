@@ -14,6 +14,16 @@ data class SwingHighSignal(
     val gapRate: Double,
 )
 
+/**
+ * 분봉 거래대금 스파이크 — 최신 1분봉 거래대금이 직전 평균 대비 몇 배인지.
+ * [ratio]=1.0이면 평소 수준, 클수록 순간 수급이 몰린 것.
+ */
+data class VolumeSpike(
+    val latestTradingValue: Long,
+    val at: LocalDateTime,
+    val ratio: Double,
+)
+
 /** 당일 분봉 모음 — 시간 오름차순으로 정규화해 보관한다. */
 class MinuteCandles(candles: List<MinuteCandle>) {
 
@@ -33,6 +43,23 @@ class MinuteCandles(candles: List<MinuteCandle>) {
             peakPrice = peak.highPrice,
             peakAt = peak.dateTime,
             gapRate = (peak.highPrice - currentPrice).toDouble() / currentPrice * 100,
+        )
+    }
+
+    /**
+     * 최신 1분봉 거래대금이 직전 [baselineBars]봉 평균 대비 몇 배인지.
+     * 봉이 2개 미만이거나 직전 평균이 0이면 null.
+     */
+    fun volumeSpike(baselineBars: Int): VolumeSpike? {
+        if (ordered.size < 2) return null
+        val latest = ordered.last()
+        val baseline = ordered.dropLast(1).takeLast(baselineBars)
+        val avg = baseline.map { it.tradingValue }.average()
+        if (avg <= 0) return null
+        return VolumeSpike(
+            latestTradingValue = latest.tradingValue,
+            at = latest.dateTime,
+            ratio = latest.tradingValue / avg,
         )
     }
 }

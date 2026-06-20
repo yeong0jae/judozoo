@@ -139,6 +139,32 @@ class LeadingStockService(
         }.sortedBy { it.gapRate }
 
     /**
+     * 분봉 거래대금 스파이크 — 거래대금 상위(ETF 제외) 중 최신 1분봉 거래대금이
+     * 직전 평균 대비 급증한 종목을 배율 내림차순으로. 등락률 무관(수급이 막 터진 곳 포착).
+     */
+    fun volumeSpikes(): List<VolumeSpikeStock> {
+        val etf = EtfExclusionFilter()
+        return marketClient.fetchTopTradingValueStocks(SPIKE_POOL)
+            .filter(etf::filter)
+            .mapNotNull { s ->
+                val spike = MinuteCandles(latestSessionMinuteCandles(s.stockCode))
+                    .volumeSpike(SPIKE_BASELINE_BARS) ?: return@mapNotNull null
+                if (spike.ratio < SPIKE_RATIO_MIN || spike.latestTradingValue < SPIKE_MIN_TRADING_VALUE) {
+                    return@mapNotNull null
+                }
+                VolumeSpikeStock(
+                    stockCode = s.stockCode,
+                    stockName = s.stockName,
+                    currentPrice = s.currentPrice,
+                    priceChangeRate = s.priceChangeRate,
+                    minuteTradingValue = spike.latestTradingValue,
+                    spikeRatio = spike.ratio,
+                    at = spike.at,
+                )
+            }.sortedByDescending { it.spikeRatio }
+    }
+
+    /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
      * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로, 데이터에 존재하는 최신 거래일로 필터링해야
      * 전고점이 다른 날 봉에서 잡히지 않는다(장중엔 당일, 장 마감 후엔 직전 세션).
@@ -152,8 +178,23 @@ class LeadingStockService(
     companion object {
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val RVOL_LOOKBACK_DAYS = 20
+        private const val SPIKE_POOL = 50               // 스파이크 탐색 대상(거래대금 상위 N)
+        private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
+        private const val SPIKE_RATIO_MIN = 3.0         // 최소 배율
+        private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
     }
 }
+
+/** 분봉 거래대금 스파이크 한 종목. */
+data class VolumeSpikeStock(
+    val stockCode: String,
+    val stockName: String,
+    val currentPrice: Long,
+    val priceChangeRate: Double,
+    val minuteTradingValue: Long, // 최신 1분봉 거래대금(원)
+    val spikeRatio: Double,       // 직전 평균 대비 배율
+    val at: java.time.LocalDateTime,
+)
 
 /** 돌파 레이더 한 종목 — 당일 고가(돌파선) 대비 현재가 갭. */
 data class BreakoutRadarStock(

@@ -12,6 +12,7 @@ import { useMarketStatus } from "../../api/queries";
 const NAV = [
   { to: "/leading-stocks", label: "주도주" },
   { to: "/breakout-radar", label: "돌파 레이더" },
+  { to: "/volume-spike", label: "거래대금 스파이크" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   // 당분간 숨김 (라우트/페이지는 유지, 필요 시 주석 해제)
   // { to: "/market-flow", label: "시장 흐름" },

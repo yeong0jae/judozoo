@@ -4,6 +4,7 @@ import CommandPage from "./pages/CommandPage";
 import HoldingsPage from "./pages/HoldingsPage";
 import LeadingStocksPage from "./pages/LeadingStocksPage";
 import BreakoutRadarPage from "./pages/BreakoutRadarPage";
+import VolumeSpikePage from "./pages/VolumeSpikePage";
 import MarketFlowPage from "./pages/MarketFlowPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
@@ -60,6 +61,7 @@ function AppShell() {
           <Route path="/" element={<Navigate to="/leading-stocks" replace />} />
           <Route path="/leading-stocks" element={<LeadingStocksPage />} />
           <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
+          <Route path="/volume-spike" element={<VolumeSpikePage />} />
           <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
           <Route path="/market-flow" element={<MarketFlowPage />} />
           <Route path="/command" element={<CommandPage />} />

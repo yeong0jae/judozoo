@@ -41,6 +41,24 @@ data class BreakoutRadarItem(
     val themeCount: Int,
 )
 
+// --- 분봉 거래대금 스파이크 API ---
+
+data class VolumeSpikeResponse(
+    val queriedAt: LocalDateTime,
+    val totalCount: Int,
+    val stocks: List<VolumeSpikeItem>,
+)
+
+data class VolumeSpikeItem(
+    val stockCode: String,
+    val stockName: String,
+    val currentPrice: Long,
+    val priceChangeRate: Double,
+    val minuteTradingValue: Long, // 최신 1분봉 거래대금(원)
+    val spikeRatio: Double,       // 직전 평균 대비 배율
+    val at: LocalDateTime,        // 해당 분봉 시각
+)
+
 // --- 종목 상세 API ---
 
 data class LeadingStockDetailResponse(

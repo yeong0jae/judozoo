@@ -16,6 +16,7 @@ import type {
   StockPriceResult,
   StockSearchResult,
   ThemeCalendarResponse,
+  VolumeSpikeResponse,
   TradingDetail,
   TradingSummary,
 } from "../types";
@@ -35,6 +36,7 @@ export const QK = {
     ["leading-stocks", "candidates", minChangeRate] as const,
   breakoutRadar: (minChangeRate: number) =>
     ["leading-stocks", "breakout-radar", minChangeRate] as const,
+  volumeSpikes: ["leading-stocks", "volume-spikes"] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -175,6 +177,15 @@ export function useBreakoutRadar(minChangeRate: number) {
       apiFetch<BreakoutRadarResponse>(
         `/api/leading-stocks/breakout-radar?minChangeRate=${minChangeRate}`,
       ),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useVolumeSpikes() {
+  return useQuery({
+    queryKey: QK.volumeSpikes,
+    queryFn: () =>
+      apiFetch<VolumeSpikeResponse>("/api/leading-stocks/volume-spikes"),
     refetchInterval: 5_000,
   });
 }
