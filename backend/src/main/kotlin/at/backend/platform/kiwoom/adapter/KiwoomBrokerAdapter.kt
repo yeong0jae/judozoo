@@ -14,7 +14,6 @@ import at.backend.trading.application.broker.StockInfo
 import at.backend.trading.domain.order.ExecutionNotice
 import at.backend.trading.domain.order.OrderSide
 import kotlinx.coroutines.flow.SharedFlow
-import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import java.time.DayOfWeek
 import java.time.Duration
@@ -30,7 +29,6 @@ import java.time.format.DateTimeFormatter
  * 공휴일은 매수 거부 응답에 위임(매수 1건 fail → 사이클 자동 종료 후 사용자 인지).
  */
 @Component
-@Profile("kiwoom")
 class KiwoomBrokerAdapter(
     private val tradingClient: KiwoomTradingClient,
     private val webSocketClient: KiwoomWebSocketClient,

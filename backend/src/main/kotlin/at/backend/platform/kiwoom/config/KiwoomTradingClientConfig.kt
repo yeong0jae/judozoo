@@ -6,7 +6,6 @@ import at.backend.platform.kiwoom.client.KiwoomWebSocketClient
 import kotlinx.coroutines.CoroutineScope
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Profile
 import org.springframework.web.client.RestClient
 import org.springframework.web.socket.client.WebSocketClient
 import tools.jackson.databind.ObjectMapper
@@ -16,7 +15,6 @@ import tools.jackson.databind.ObjectMapper
  * leadingstock용 시세 클라이언트(`KiwoomMarketClient` 등)는 항상-active이므로 여기서 다시 등록하지 않음.
  */
 @Configuration
-@Profile("kiwoom")
 class KiwoomTradingClientConfig {
 
     @Bean

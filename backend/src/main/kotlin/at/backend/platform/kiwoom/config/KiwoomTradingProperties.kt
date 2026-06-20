@@ -1,7 +1,6 @@
 package at.backend.platform.kiwoom.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.context.annotation.Profile
 
 /**
  * Kiwoom 트레이딩 전용 설정. `kiwoom` profile에서만 binding.
@@ -12,7 +11,6 @@ import org.springframework.context.annotation.Profile
  * - [dmstStexTp]: 주문 거래소 라우팅. `KRX` | `NXT` | `SOR`.
  */
 @ConfigurationProperties(prefix = "kiwoom.trading")
-@Profile("kiwoom")
 data class KiwoomTradingProperties(
     val accountNo: String,
     val wsUrl: String,

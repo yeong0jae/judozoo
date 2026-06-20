@@ -71,9 +71,6 @@ jobs:
       fail-fast: false                 # 한 인스턴스 실패해도 다른 인스턴스 배포 계속
       matrix:
         target:
-          - key: kis-real
-            profile: kis-real
-            vm_var: VM_NAME_KIS_REAL
           - key: kiwoom-real
             profile: kiwoom-real
             vm_var: VM_NAME_KIWOOM_REAL

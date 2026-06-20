@@ -2,11 +2,8 @@ spring:
   application:
     name: backend
   profiles:
-    # 단일 profile 활성화로 충분 — group이 broker × env 두 축 profile로 확장한다.
-    active: kis-real
-    group:
-      kis-real: kis,real
-      kiwoom-real: kiwoom,real
+    # Kiwoom 단독 — kiwoom-real 프로파일이 운영 설정(application-kiwoom-real.yaml)을 선택한다.
+    active: kiwoom-real
   datasource:
     url: jdbc:mysql://localhost:33061/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME}
