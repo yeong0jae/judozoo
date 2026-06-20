@@ -12,7 +12,7 @@ export type FlowPoint = {
 const STEP = 30; // 포인트 간 가로 간격(px)
 const H = 480;
 const PAD_T = 20;
-const PAD_B = 36;
+const PAD_B = 46;
 const Y_AXIS_W = 68;
 const LINE = "#34d399"; // emerald
 
@@ -87,28 +87,42 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
               strokeDasharray={t === 0 ? "" : "2 3"}
             />
           ))}
-          {/* 날짜 구분선 + 라벨 */}
+          {/* 날짜 구분선 */}
           {points.map((p, i) =>
             p.dayStart ? (
-              <g key={`d${i}`}>
-                <line
-                  x1={x(i)}
-                  x2={x(i)}
-                  y1={PAD_T}
-                  y2={H - PAD_B}
-                  className="stroke-zinc-800"
-                />
+              <line
+                key={`d${i}`}
+                x1={x(i)}
+                x2={x(i)}
+                y1={PAD_T}
+                y2={H - PAD_B}
+                className="stroke-zinc-800"
+              />
+            ) : null,
+          )}
+          {/* x축: 시각(모든 점) + 날짜(그날 첫 점) */}
+          {points.map((p, i) => (
+            <g key={`x${i}`}>
+              <text
+                x={x(i)}
+                y={H - 12}
+                textAnchor="middle"
+                className="fill-zinc-500 text-[10px]"
+              >
+                {p.time}
+              </text>
+              {p.dayStart && (
                 <text
                   x={x(i)}
-                  y={H - 12}
+                  y={H - 28}
                   textAnchor="middle"
-                  className="fill-zinc-400 text-xs"
+                  className="fill-zinc-300 text-xs font-medium"
                 >
                   {p.date.slice(5).replace("-", "/")}
                 </text>
-              </g>
-            ) : null,
-          )}
+              )}
+            </g>
+          ))}
           {/* 흐름 선 */}
           <polyline
             points={polyline}
