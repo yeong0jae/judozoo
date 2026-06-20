@@ -14,5 +14,5 @@ data class ThemeDayItem(
 data class ThemeItem(
     val rank: Int,
     val name: String,
-    val fluRt: Double, // 당일 등락률(%)
+    val tradingValue: Long, // 테마 소속 상위 종목 거래대금 합산(원)
 )

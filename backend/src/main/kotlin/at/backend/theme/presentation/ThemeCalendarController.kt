@@ -31,7 +31,7 @@ class ThemeCalendarController(
                 ThemeDayItem(
                     date = date,
                     themes = recs.sortedBy { it.rank }
-                        .map { ThemeItem(rank = it.rank, name = it.themeName, fluRt = it.fluRt) },
+                        .map { ThemeItem(rank = it.rank, name = it.themeName, tradingValue = it.tradingValue) },
                 )
             }
             .sortedBy { it.date }

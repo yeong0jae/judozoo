@@ -305,7 +305,7 @@ export interface CandidateStocksResponse {
 export interface ThemeItem {
   rank: number;
   name: string;
-  fluRt: number; // 당일 등락률(%)
+  tradingValue: number; // 테마 소속 상위 종목 거래대금 합산(원)
 }
 
 export interface ThemeDayItem {

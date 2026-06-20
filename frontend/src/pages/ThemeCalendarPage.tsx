@@ -3,6 +3,7 @@ import { useThemeCalendar } from "../api/queries";
 import { useCaptureThemes } from "../api/mutations";
 import type { ThemeDayItem, ThemeItem } from "../types";
 import Skeleton from "../components/common/Skeleton";
+import { formatKoreanMoney } from "../lib/format";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const CELL_THEMES = 3; // 칸당 노출 테마 수
@@ -58,7 +59,7 @@ export default function ThemeCalendarPage() {
         <div>
           <h2 className="text-lg font-semibold">테마 캘린더</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            매 거래일 마감 시점 당일 등락률 상위 테마 · 순환 흐름 파악용
+            매 거래일 마감 시점 당일 거래대금 상위 테마 · 순환 흐름 파악용
           </p>
         </div>
         <button
@@ -134,9 +135,6 @@ function DayCell({
   isToday: boolean;
 }) {
   const extra = themes.length - CELL_THEMES;
-  const rateColor = (r: number) =>
-    r > 0 ? "text-red-400" : r < 0 ? "text-blue-400" : "text-zinc-500";
-  const fmtRate = (r: number) => `${r > 0 ? "+" : ""}${r.toFixed(2)}`;
   return (
     <div className="group relative bg-zinc-900 min-h-24 p-1.5 flex flex-col gap-1">
       <span
@@ -152,7 +150,7 @@ function DayCell({
         {themes.slice(0, CELL_THEMES).map((t) => (
           <span key={t.rank} className="text-xs truncate">
             <span className="text-zinc-300">{t.name}</span>{" "}
-            <span className={`num ${rateColor(t.fluRt)}`}>{fmtRate(t.fluRt)}</span>
+            <span className="num text-amber-400">{formatKoreanMoney(t.tradingValue)}</span>
           </span>
         ))}
         {extra > 0 && <span className="text-[10px] text-zinc-600">+{extra}</span>}
@@ -160,14 +158,16 @@ function DayCell({
 
       {/* hover 시 그날 전체 테마 팝오버 — "+N"에 가려진 나머지까지 */}
       {themes.length > 0 && (
-        <div className="hidden group-hover:block absolute left-0 top-full z-50 mt-1 w-56 max-h-72 overflow-auto rounded-md border border-zinc-700 bg-zinc-950 p-2 shadow-lg">
+        <div className="hidden group-hover:block absolute left-0 top-full z-50 mt-1 w-60 max-h-72 overflow-auto rounded-md border border-zinc-700 bg-zinc-950 p-2 shadow-lg">
           {themes.map((t) => (
             <div key={t.rank} className="flex items-baseline justify-between gap-2 py-0.5 text-xs">
               <span className="text-zinc-300 truncate">
                 <span className="text-zinc-600 num mr-1">{t.rank}</span>
                 {t.name}
               </span>
-              <span className={`num shrink-0 ${rateColor(t.fluRt)}`}>{fmtRate(t.fluRt)}%</span>
+              <span className="num shrink-0 text-amber-400">
+                {formatKoreanMoney(t.tradingValue)}
+              </span>
             </div>
           ))}
         </div>
