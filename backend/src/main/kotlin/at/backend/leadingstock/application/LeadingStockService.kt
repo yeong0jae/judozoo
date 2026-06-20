@@ -131,6 +131,7 @@ class LeadingStockService(
                 stockCode = c.stockCode,
                 stockName = c.stockName,
                 currentPrice = c.currentPrice,
+                priceChangeRate = c.priceChangeRate,
                 dayHigh = signal.peakPrice,
                 peakAt = signal.peakAt,
                 gapRate = signal.gapRate,
@@ -197,6 +198,7 @@ data class BreakoutRadarStock(
     val stockCode: String,
     val stockName: String,
     val currentPrice: Long,
+    val priceChangeRate: Double, // 당일 등락률(%)
     val dayHigh: Long,
     val peakAt: java.time.LocalDateTime, // 돌파선(고가) 형성 분봉 시각
     val gapRate: Double, // 돌파까지 남은 상승률(%), 고가 도달 시 0

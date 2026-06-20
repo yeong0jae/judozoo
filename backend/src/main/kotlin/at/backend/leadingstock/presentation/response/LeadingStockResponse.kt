@@ -33,6 +33,7 @@ data class BreakoutRadarItem(
     val stockCode: String,
     val stockName: String,
     val currentPrice: Long,
+    val priceChangeRate: Double, // 당일 등락률(%)
     val dayHigh: Long, // 돌파선(당일 고가)
     val peakAt: LocalDateTime, // 돌파선 형성 분봉 시각
     val gapRate: Double, // 돌파까지 남은 상승률(%)

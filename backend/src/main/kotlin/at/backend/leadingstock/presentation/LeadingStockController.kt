@@ -79,6 +79,7 @@ class LeadingStockController(
                 stockCode = s.stockCode,
                 stockName = s.stockName,
                 currentPrice = s.currentPrice,
+                priceChangeRate = s.priceChangeRate,
                 dayHigh = s.dayHigh,
                 peakAt = s.peakAt,
                 gapRate = s.gapRate,

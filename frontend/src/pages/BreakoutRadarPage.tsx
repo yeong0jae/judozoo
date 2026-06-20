@@ -2,7 +2,8 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
-import { formatKoreanMoney, formatPrice, formatRelative } from "../lib/format";
+import { formatKoreanMoney, formatPct, formatPrice, formatRelative } from "../lib/format";
+import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
@@ -51,7 +52,7 @@ export default function BreakoutRadarPage() {
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            돌파 임박 레이더
+            돌파 임박 시그널
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
                 radarQ.isFetching ? "animate-ping" : "animate-pulse"
@@ -90,6 +91,7 @@ export default function BreakoutRadarPage() {
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
                   <th className="px-4 py-2.5 text-right">현재가</th>
+                  <th className="px-4 py-2.5 text-right">등락률</th>
                   <th className="px-4 py-2.5 text-right">거래대금</th>
                   <th className="px-4 py-2.5 text-right">돌파선</th>
                   <th className="px-4 py-2.5 text-right">돌파까지</th>
@@ -155,6 +157,9 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
       </td>
       <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
         <NumWon value={s.currentPrice} />
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
       </td>
       <td className="px-4 py-3.5 text-right num text-zinc-400">
         {formatKoreanMoney(s.tradingValue)}

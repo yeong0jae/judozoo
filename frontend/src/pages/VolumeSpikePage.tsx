@@ -88,7 +88,6 @@ export default function VolumeSpikePage() {
                   <th className="px-4 py-2.5 text-right">등락률</th>
                   <th className="px-4 py-2.5 text-right">1분 거래대금</th>
                   <th className="px-4 py-2.5 text-right">배율</th>
-                  <th className="px-4 py-2.5 text-right">시각</th>
                 </tr>
               </thead>
               <tbody>
@@ -108,10 +107,6 @@ export default function VolumeSpikePage() {
 
 function SpikeRow({ s }: { s: VolumeSpikeItem }) {
   const code = shortCode(s.stockCode);
-  // 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링됨 — HTS 기준 +1분 보정
-  const t = new Date(s.at);
-  t.setMinutes(t.getMinutes() + 1);
-  const time = t.toTimeString().slice(0, 5);
   return (
     <motion.tr
       layout
@@ -145,7 +140,6 @@ function SpikeRow({ s }: { s: VolumeSpikeItem }) {
       <td className={`px-4 py-3.5 text-right num font-semibold ${ratioColor(s.spikeRatio)}`}>
         {s.spikeRatio.toFixed(1)}배
       </td>
-      <td className="px-4 py-3.5 text-right num text-zinc-500">{time}</td>
     </motion.tr>
   );
 }

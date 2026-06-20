@@ -306,6 +306,7 @@ export interface BreakoutRadarItem {
   stockCode: string;
   stockName: string;
   currentPrice: number;
+  priceChangeRate: number; // 당일 등락률(%)
   dayHigh: number; // 돌파선(당일 고가)
   peakAt: string; // 돌파선 형성 분봉 시각 (ISO LocalDateTime)
   gapRate: number; // 돌파까지 남은 상승률(%)
