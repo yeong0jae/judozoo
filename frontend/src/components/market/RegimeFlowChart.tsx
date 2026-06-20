@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 export type FlowPoint = {
   date: string; // YYYY-MM-DD
   time: string; // "08:15" 등
-  cum: number; // 누적 변동률(%)
+  value: number; // 그 구간 등락률(%, 직전 시점 대비)
   dayStart: boolean; // 그날 첫 포인트(08:15)면 true → 구분선·날짜 라벨
 };
 
@@ -31,9 +31,9 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
 
   if (points.length === 0) return null;
 
-  const cums = points.map((p) => p.cum).concat(0);
-  let mn = Math.min(...cums);
-  let mx = Math.max(...cums);
+  const vals = points.map((p) => p.value).concat(0);
+  let mn = Math.min(...vals);
+  let mx = Math.max(...vals);
   const sp = mx - mn || 1;
   mn -= sp * 0.1;
   mx += sp * 0.1;
@@ -44,7 +44,7 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
   const width = points.length * STEP + STEP;
 
   const ticks = ticksOf(mn, mx);
-  const polyline = points.map((p, i) => `${x(i)},${y(p.cum)}`).join(" ");
+  const polyline = points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ");
 
   return (
     <div className="flex">
@@ -111,11 +111,11 @@ export default function RegimeFlowChart({ points }: { points: FlowPoint[] }) {
           />
           {/* 포인트 + 네이티브 툴팁 */}
           {points.map((p, i) => (
-            <circle key={i} cx={x(i)} cy={y(p.cum)} r={2} fill={LINE}>
+            <circle key={i} cx={x(i)} cy={y(p.value)} r={2.5} fill={LINE}>
               <title>
-                {p.date.slice(5).replace("-", "/")} {p.time} · 누적{" "}
-                {p.cum >= 0 ? "+" : ""}
-                {p.cum.toFixed(2)}%
+                {p.date.slice(5).replace("-", "/")} {p.time} ·{" "}
+                {p.value >= 0 ? "+" : ""}
+                {p.value.toFixed(2)}%
               </title>
             </circle>
           ))}
