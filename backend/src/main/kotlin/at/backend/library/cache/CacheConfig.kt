@@ -46,6 +46,13 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
+            "stockDetail", // 종목 기본정보(ka10001) — 돌파 레이더가 후보별로 호출, 상세와 공유
+            Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.SECONDS)
+                .maximumSize(60)
+                .build(),
+        )
+        manager.registerCustomCache(
             "kospiIndex",
             Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.SECONDS)

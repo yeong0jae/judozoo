@@ -146,6 +146,7 @@ class KiwoomMarketClient(
     }
 
     /** 종목 기본 정보 조회 (ka10001) */
+    @Cacheable("stockDetail", key = "#stockCode", unless = "#result == null")
     fun fetchStockDetail(stockCode: String): LeadingStockSnapshot? {
         try {
             val token = authClient.getAccessToken()

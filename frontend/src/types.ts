@@ -301,6 +301,23 @@ export interface CandidateStocksResponse {
   stocks: CandidateStockItem[];
 }
 
+// === 돌파 임박 레이더 ===
+export interface BreakoutRadarItem {
+  stockCode: string;
+  stockName: string;
+  currentPrice: number;
+  dayHigh: number; // 돌파선(당일 고가)
+  gapRate: number; // 돌파까지 남은 상승률(%)
+  themes: string[];
+  themeCount: number;
+}
+
+export interface BreakoutRadarResponse {
+  queriedAt: string;
+  totalCount: number;
+  stocks: BreakoutRadarItem[];
+}
+
 // === 테마 캘린더 ===
 export interface ThemeStockItem {
   stockCode: string;

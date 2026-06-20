@@ -21,6 +21,24 @@ data class CandidateStockItem(
     val themeCount: Int,        // 종목이 속한 전체 테마 수 ("+N" 표기용)
 )
 
+// --- 돌파 임박 레이더 API ---
+
+data class BreakoutRadarResponse(
+    val queriedAt: LocalDateTime,
+    val totalCount: Int,
+    val stocks: List<BreakoutRadarItem>,
+)
+
+data class BreakoutRadarItem(
+    val stockCode: String,
+    val stockName: String,
+    val currentPrice: Long,
+    val dayHigh: Long, // 돌파선(당일 고가)
+    val gapRate: Double, // 돌파까지 남은 상승률(%)
+    val themes: List<String>,
+    val themeCount: Int,
+)
+
 // --- 종목 상세 API ---
 
 data class LeadingStockDetailResponse(

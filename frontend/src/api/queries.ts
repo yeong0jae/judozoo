@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import type {
   AccountBalance,
+  BreakoutRadarResponse,
   CandidateStocksResponse,
   DailyReport,
   DailyTrading,
@@ -32,6 +33,7 @@ export const QK = {
   dailyReport: (date: string) => ["reports", "daily", date] as const,
   leadingStockCandidates: (minChangeRate: number) =>
     ["leading-stocks", "candidates", minChangeRate] as const,
+  breakoutRadar: ["leading-stocks", "breakout-radar"] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -161,6 +163,15 @@ export function useLeadingStockCandidates(minChangeRate: number) {
       apiFetch<CandidateStocksResponse>(
         `/api/leading-stocks/candidates?minChangeRate=${minChangeRate}`,
       ),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useBreakoutRadar() {
+  return useQuery({
+    queryKey: QK.breakoutRadar,
+    queryFn: () =>
+      apiFetch<BreakoutRadarResponse>("/api/leading-stocks/breakout-radar"),
     refetchInterval: 5_000,
   });
 }

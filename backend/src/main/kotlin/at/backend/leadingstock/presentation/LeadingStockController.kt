@@ -3,6 +3,8 @@ package at.backend.leadingstock.presentation
 import at.backend.leadingstock.application.InvestorTrendService
 import at.backend.leadingstock.application.LeadingStockCriteriaProperties
 import at.backend.leadingstock.application.LeadingStockService
+import at.backend.leadingstock.presentation.response.BreakoutRadarItem
+import at.backend.leadingstock.presentation.response.BreakoutRadarResponse
 import at.backend.leadingstock.presentation.response.CandidateStockItem
 import at.backend.leadingstock.presentation.response.CandidateStocksResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
@@ -52,6 +54,37 @@ class LeadingStockController(
         }
         return ApiResponse.ok(
             CandidateStocksResponse(
+                queriedAt = timeProvider.now(),
+                totalCount = items.size,
+                stocks = items,
+            ),
+        )
+    }
+
+    /**
+     * 돌파 임박 레이더 — 후보를 당일 고가 돌파에 가까운 순으로.
+     * minChangeRate 미지정 시 설정 기본값(후보와 동일 풀).
+     */
+    @GetMapping("/breakout-radar")
+    fun getBreakoutRadar(
+        @RequestParam(required = false) minChangeRate: Int?,
+    ): ApiResponse<BreakoutRadarResponse> {
+        val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
+            ?: criteria.minDailyPriceChangeRate
+        val items = leadingStockService.breakoutRadar(rate).map { s ->
+            val themes = leadingStockService.themesOf(s.stockCode)
+            BreakoutRadarItem(
+                stockCode = s.stockCode,
+                stockName = s.stockName,
+                currentPrice = s.currentPrice,
+                dayHigh = s.dayHigh,
+                gapRate = s.gapRate,
+                themes = themes.take(MAX_THEME_CHIPS),
+                themeCount = themes.size,
+            )
+        }
+        return ApiResponse.ok(
+            BreakoutRadarResponse(
                 queriedAt = timeProvider.now(),
                 totalCount = items.size,
                 stocks = items,

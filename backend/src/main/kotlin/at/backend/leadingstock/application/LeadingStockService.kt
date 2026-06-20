@@ -119,6 +119,25 @@ class LeadingStockService(
     }
 
     /**
+     * 돌파 임박 레이더 — 후보를 당일 고가 돌파에 가까운 순으로 정렬.
+     * 후보별 ka10001(stockDetail, 5s 캐시)로 당일 고가·현재가를 받아 gap%를 계산한다(분봉 미사용).
+     */
+    fun breakoutRadar(minDailyPriceChangeRate: Double): List<BreakoutRadarStock> =
+        findCandidateStocks(minDailyPriceChangeRate).mapNotNull { c ->
+            val detail = marketClient.fetchStockDetail(c.stockCode) ?: return@mapNotNull null
+            val high = detail.highPrice
+            val current = detail.currentPrice
+            if (high <= 0 || current <= 0) return@mapNotNull null
+            BreakoutRadarStock(
+                stockCode = c.stockCode,
+                stockName = c.stockName,
+                currentPrice = current,
+                dayHigh = high,
+                gapRate = (high - current).toDouble() / current * 100,
+            )
+        }.sortedBy { it.gapRate }
+
+    /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
      * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로, 데이터에 존재하는 최신 거래일로 필터링해야
      * 전고점이 다른 날 봉에서 잡히지 않는다(장중엔 당일, 장 마감 후엔 직전 세션).
@@ -134,6 +153,15 @@ class LeadingStockService(
         private const val RVOL_LOOKBACK_DAYS = 20
     }
 }
+
+/** 돌파 레이더 한 종목 — 당일 고가(돌파선) 대비 현재가 갭. */
+data class BreakoutRadarStock(
+    val stockCode: String,
+    val stockName: String,
+    val currentPrice: Long,
+    val dayHigh: Long,
+    val gapRate: Double, // 돌파까지 남은 상승률(%), 고가 도달 시 0
+)
 
 /**
  * 종목 상세 평가 결과 — 필터 평가 + 상대거래량(RVOL) + 직전 스윙 고점 돌파 시그널.
