@@ -13,10 +13,11 @@ const NAV = [
   { to: "/leading-stocks", label: "주도주" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   { to: "/market-flow", label: "시장 흐름" },
-  { to: "/command", label: "매매 명령" },
-  { to: "/monitoring", label: "모니터링" },
-  { to: "/holdings", label: "보유 주식" },
-  { to: "/report", label: "실적" },
+  // 매매 관련 탭은 당분간 숨김 (라우트/페이지는 유지, 필요 시 주석 해제)
+  // { to: "/command", label: "매매 명령" },
+  // { to: "/monitoring", label: "모니터링" },
+  // { to: "/holdings", label: "보유 주식" },
+  // { to: "/report", label: "실적" },
 ];
 
 const navBase = "rounded-md text-sm font-medium transition-colors hover:bg-zinc-800";

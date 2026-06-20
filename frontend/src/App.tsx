@@ -56,7 +56,7 @@ function AppShell() {
       <StompDisconnectionBanner />
       <main className="flex-1 max-w-[110rem] mx-auto w-full px-4 sm:px-6 py-4 sm:py-6">
         <Routes>
-          <Route path="/" element={<Navigate to="/monitoring" replace />} />
+          <Route path="/" element={<Navigate to="/leading-stocks" replace />} />
           <Route path="/leading-stocks" element={<LeadingStocksPage />} />
           <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
           <Route path="/market-flow" element={<MarketFlowPage />} />
