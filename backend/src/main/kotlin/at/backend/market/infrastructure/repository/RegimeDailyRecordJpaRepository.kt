@@ -13,4 +13,7 @@ interface RegimeDailyRecordJpaRepository : JpaRepository<RegimeDailyRecord, Loca
 
     /** 직전 거래일 기록 — 오전 NXT를 전일 20:00 기준으로 보정할 때 사용. */
     fun findTopByDateBeforeOrderByDateDesc(date: LocalDate): RegimeDailyRecord?
+
+    /** 20일 롤링 윈도우 유지 — 윈도우 밖(가장 오래된 날 이전) 기록 삭제. */
+    fun deleteByDateLessThan(date: LocalDate)
 }

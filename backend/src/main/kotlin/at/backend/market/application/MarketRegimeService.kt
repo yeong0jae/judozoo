@@ -12,6 +12,7 @@ import at.backend.market.infrastructure.repository.RegimeAnchorJpaRepository
 import at.backend.market.infrastructure.repository.RegimeDailyRecordJpaRepository
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -47,6 +48,7 @@ class MarketRegimeService(
     fun recentDaily(): List<RegimeDailyRecord> = dailyRepository.findTop20ByOrderByDateDesc()
 
     /** 현재 바스켓으로 산출하고 최신 스냅샷 보관 + 당일 결과를 영속한다(폴러가 호출). */
+    @Transactional
     fun refresh(basket: List<LeadingStockSnapshot>): RegimeSnapshot {
         val snap = compute(basket).let { it.copy(gap1 = adjustGap1To20(it.gap1)) }
         latest.set(snap)
@@ -73,10 +75,17 @@ class MarketRegimeService(
         val gap2 = snap.gap2 ?: return // 본장 전엔 기록하지 않음
         val now = timeProvider.now().toLocalTime()
         val date = timeProvider.today()
-        val record = dailyRepository.findById(date).orElse(null)
+        val existing = dailyRepository.findById(date).orElse(null)
+        val record = existing
             ?: RegimeDailyRecord(date = date, gap1 = snap.gap1, gap2Close = gap2, gap2High = gap2, gap2Low = gap2)
         record.update(snap.gap1, gap2, now)
         dailyRepository.save(record)
+
+        // 새 날이 들어오면 20일 롤링 유지 — 윈도우 밖 가장 오래된 기록 제거
+        if (existing == null) {
+            val window = dailyRepository.findTop20ByOrderByDateDesc()
+            if (window.size == 20) dailyRepository.deleteByDateLessThan(window.last().date)
+        }
     }
 
     /** 거래대금 상위에서 ETF/ETN 제외 후 Top [size] 바스켓 후보. */
