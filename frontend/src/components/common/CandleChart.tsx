@@ -103,7 +103,7 @@ export default function CandleChart({
       e.stopImmediatePropagation();
       // 휠 변화량에 비례(관성 꼬리 약화) + 이벤트당 상한, 위로=확대·아래로=축소
       const d = Math.max(-120, Math.min(120, e.deltaY));
-      const next = priceZoomRef.current * Math.exp(d * 0.0002);
+      const next = priceZoomRef.current * Math.exp(d * 0.0003);
       priceZoomRef.current = Math.min(6, Math.max(0.15, next));
       seriesRef.current?.applyOptions({ autoscaleInfoProvider: priceAutoscale });
     };
