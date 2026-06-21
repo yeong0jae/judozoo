@@ -96,6 +96,7 @@ export default function VolumeSpikePage() {
                   <th className="px-4 py-2.5 text-left">종목</th>
                   <th className="px-4 py-2.5 text-right">배율</th>
                   <th className="px-4 py-2.5 text-right">1분 거래대금</th>
+                  <th className="px-4 py-2.5 text-right">거래대금</th>
                   <th className="px-4 py-2.5 text-right">현재가</th>
                   <th className="px-4 py-2.5 text-right">등락률</th>
                 </tr>
@@ -175,6 +176,9 @@ function SpikeRow({
       <td className="px-4 py-3.5 text-right num text-zinc-400">
         {formatKoreanMoney(s.minuteTradingValue)}
       </td>
+      <td className="px-4 py-3.5 text-right num text-zinc-400">
+        {formatKoreanMoney(s.tradingValue)}
+      </td>
       <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
         <NumWon value={s.currentPrice} />
       </td>
@@ -212,7 +216,8 @@ function SpikeCard({
       </div>
       <div className="flex items-baseline justify-between gap-2 pl-9">
         <span className="text-xs text-zinc-500 num truncate">
-          {code} · 1분 {formatKoreanMoney(s.minuteTradingValue)}
+          {code} · 1분 {formatKoreanMoney(s.minuteTradingValue)} · 누적{" "}
+          {formatKoreanMoney(s.tradingValue)}
         </span>
         <span className="flex items-baseline gap-2 shrink-0">
           <NumWon value={s.currentPrice} className="num text-sm font-medium text-zinc-100" />

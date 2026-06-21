@@ -117,6 +117,7 @@ class LeadingStockController(
                 currentPrice = s.currentPrice,
                 priceChangeRate = s.priceChangeRate,
                 minuteTradingValue = s.minuteTradingValue,
+                tradingValue = s.tradingValue,
                 spikeRatio = s.spikeRatio,
                 at = s.at,
             )

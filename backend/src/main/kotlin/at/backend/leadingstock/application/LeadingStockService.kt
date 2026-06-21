@@ -162,6 +162,7 @@ class LeadingStockService(
                     currentPrice = s.currentPrice,
                     priceChangeRate = s.priceChangeRate,
                     minuteTradingValue = spike.latestTradingValue,
+                    tradingValue = s.accumulatedTradingValue,
                     spikeRatio = spike.ratio,
                     at = spike.at,
                 )
@@ -266,6 +267,7 @@ data class VolumeSpikeStock(
     val currentPrice: Long,
     val priceChangeRate: Double,
     val minuteTradingValue: Long, // 최신 1분봉 거래대금(원)
+    val tradingValue: Long,       // 당일 누적 거래대금(원)
     val spikeRatio: Double,       // 직전 평균 대비 배율
     val at: java.time.LocalDateTime,
 )

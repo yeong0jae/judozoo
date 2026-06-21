@@ -339,6 +339,7 @@ export interface VolumeSpikeItem {
   currentPrice: number;
   priceChangeRate: number;
   minuteTradingValue: number; // 최신 1분봉 거래대금(원)
+  tradingValue: number; // 당일 누적 거래대금(원)
   spikeRatio: number; // 직전 평균 대비 배율
   at: string; // 해당 분봉 시각 (ISO LocalDateTime)
 }
