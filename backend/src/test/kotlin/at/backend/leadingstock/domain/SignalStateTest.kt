@@ -55,8 +55,8 @@ class SignalStateTest : FunSpec({
     }
 
     context("돌파 임박") {
-        test("갭이 1% 미만으로 처음 접근하면 임박 이벤트를 낸다") {
-            val (events, _) = SignalState.INITIAL.advance(reading(gap = 0.7, peak = 1000))
+        test("갭이 2% 미만으로 처음 접근하면 임박 이벤트를 낸다") {
+            val (events, _) = SignalState.INITIAL.advance(reading(gap = 1.5, peak = 1000))
             events shouldContainExactly listOf(SignalEventType.BREAKOUT_IMMINENT)
         }
 
@@ -68,10 +68,10 @@ class SignalStateTest : FunSpec({
             events.shouldBeEmpty()
         }
 
-        test("충분히 물러났다가(>=1.5%) 다시 접근하면 임박을 재발화한다") {
+        test("충분히 물러났다가(>=2.5%) 다시 접근하면 임박을 재발화한다") {
             val (events, _) = SignalState.INITIAL.feed(
                 reading(gap = 0.7, peak = 1000),
-                reading(gap = 2.0, peak = 1000),
+                reading(gap = 3.0, peak = 1000),
                 reading(gap = 0.5, peak = 1000),
             )
             events shouldContainExactly listOf(SignalEventType.BREAKOUT_IMMINENT)

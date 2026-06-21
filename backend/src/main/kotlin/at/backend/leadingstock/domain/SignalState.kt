@@ -74,8 +74,8 @@ class SignalState private constructor(
 
         private const val BROKEN_GAP = 0.0
         private const val BROKEN_RESET_GAP = 0.5   // 돌파 해제(재무장) 기준
-        private const val IMMINENT_GAP = 1.0       // 임박 진입 기준
-        private const val IMMINENT_RESET_GAP = 1.5 // 임박 해제 기준
+        private const val IMMINENT_GAP = 2.0       // 임박 진입 기준(화면 임박 띠 0~2%와 일치)
+        private const val IMMINENT_RESET_GAP = 2.5 // 임박 해제 기준
         private const val SPIKE_FIRE_RATIO = 3.0
         private const val SPIKE_RESET_RATIO = 2.0
     }
