@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react";
 import {
   createChart,
   ColorType,
+  LineStyle,
   type CandlestickData,
   type HistogramData,
   type IChartApi,
+  type IPriceLine,
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -52,16 +54,21 @@ export function dailySeries(items: DailyCandleItem[]): CandleSeries {
 export default function CandleChart({
   series,
   timeVisible = true,
+  priceLine,
+  priceLineTitle = "돌파선",
   className = "w-full h-48",
 }: {
   series: CandleSeries;
   timeVisible?: boolean;
+  priceLine?: number; // 가로 기준선(예: 돌파선)
+  priceLineTitle?: string;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const priceLineRef = useRef<IPriceLine | null>(null);
   const fittedRef = useRef(false);
 
   useEffect(() => {
@@ -122,11 +129,26 @@ export default function CandleChart({
     if (!s) return;
     s.setData(series.candles);
     volumeRef.current?.setData(series.volumes);
+    // 가로 기준선(돌파선) — 값 바뀌면 교체
+    if (priceLineRef.current) {
+      s.removePriceLine(priceLineRef.current);
+      priceLineRef.current = null;
+    }
+    if (priceLine != null) {
+      priceLineRef.current = s.createPriceLine({
+        price: priceLine,
+        color: "#f59e0b",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: priceLineTitle,
+      });
+    }
     if (!fittedRef.current && series.candles.length > 0) {
       chartRef.current?.timeScale().fitContent();
       fittedRef.current = true;
     }
-  }, [series]);
+  }, [series, priceLine, priceLineTitle]);
 
   return <div ref={containerRef} className={className} />;
 }

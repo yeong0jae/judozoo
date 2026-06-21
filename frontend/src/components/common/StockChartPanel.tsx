@@ -62,6 +62,7 @@ export default function StockChartPanel({
           <CandleChart
             key={`${stockCode}-m`}
             series={minuteSeries(minuteData!)}
+            priceLine={Math.max(...minuteData!.map((c) => c.high))} // 돌파선 = 3거래일 최고가
             className={`w-full ${heightClass}`}
           />
         ) : (
