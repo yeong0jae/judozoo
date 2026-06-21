@@ -338,6 +338,28 @@ export interface VolumeSpikeResponse {
   stocks: VolumeSpikeItem[];
 }
 
+// === 시그널 전이 로그 ===
+export type SignalEventType = "BREAKOUT" | "BREAKOUT_IMMINENT" | "VOLUME_SPIKE";
+
+export interface SignalEventItem {
+  occurredAt: string; // 전이 발생 시각 (ISO LocalDateTime)
+  stockCode: string;
+  stockName: string;
+  eventType: SignalEventType;
+  currentPrice: number;
+  priceChangeRate: number; // 발생 시점 당일 등락률(%)
+  tradingValue: number; // 발생 시점 당일 누적 거래대금(원)
+  gapRate: number | null; // 돌파 계열만
+  spikeRatio: number | null; // 스파이크만
+  theme: string | null;
+}
+
+export interface SignalEventsResponse {
+  date: string; // yyyy-MM-dd
+  totalCount: number;
+  events: SignalEventItem[];
+}
+
 // === 테마 캘린더 ===
 export interface ThemeStockItem {
   stockCode: string;

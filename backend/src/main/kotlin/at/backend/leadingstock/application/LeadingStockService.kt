@@ -163,6 +163,29 @@ class LeadingStockService(
             }.sortedByDescending { it.spikeRatio }
 
     /**
+     * 시그널 전이 적재 폴러용 — 후보별 분봉 1회로 돌파 갭·전고점·스파이크 배율을 함께 읽는다.
+     * spikeRatio는 거래대금 임계를 넘긴 봉만 채우고(미달/봉없음이면 null로 둬 히스테리시스 해제에 쓰이게 한다),
+     * 분봉이 없으면 gapRate·peakPrice도 null.
+     */
+    fun signalReadings(minDailyPriceChangeRate: Double): List<CandidateSignalReading> =
+        findCandidateStocks(minDailyPriceChangeRate).map { c ->
+            val candles = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
+            val high = candles.dayHighSignal(c.currentPrice)
+            val spike = candles.volumeSpike(SPIKE_BASELINE_BARS)
+                ?.takeIf { it.latestTradingValue >= SPIKE_MIN_TRADING_VALUE }
+            CandidateSignalReading(
+                stockCode = c.stockCode,
+                stockName = c.stockName,
+                currentPrice = c.currentPrice,
+                priceChangeRate = c.priceChangeRate,
+                tradingValue = c.accumulatedTradingValue,
+                gapRate = high?.gapRate,
+                peakPrice = high?.peakPrice,
+                spikeRatio = spike?.ratio,
+            )
+        }
+
+    /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
      * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로, 데이터에 존재하는 최신 거래일로 필터링해야
      * 전고점이 다른 날 봉에서 잡히지 않는다(장중엔 당일, 장 마감 후엔 직전 세션).
@@ -181,6 +204,21 @@ class LeadingStockService(
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
     }
 }
+
+/**
+ * 시그널 전이 판정용 후보 한 종목의 측정값 + 적재 컨텍스트.
+ * gapRate·peakPrice·spikeRatio는 신호가 없으면 null(분봉 미존재 또는 거래대금 미달).
+ */
+data class CandidateSignalReading(
+    val stockCode: String,
+    val stockName: String,
+    val currentPrice: Long,
+    val priceChangeRate: Double,
+    val tradingValue: Long,
+    val gapRate: Double?,
+    val peakPrice: Long?,
+    val spikeRatio: Double?,
+)
 
 /** 분봉 거래대금 스파이크 한 종목. */
 data class VolumeSpikeStock(

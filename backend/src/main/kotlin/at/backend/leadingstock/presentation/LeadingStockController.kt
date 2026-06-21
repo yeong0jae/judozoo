@@ -3,6 +3,7 @@ package at.backend.leadingstock.presentation
 import at.backend.leadingstock.application.InvestorTrendService
 import at.backend.leadingstock.application.LeadingStockCriteriaProperties
 import at.backend.leadingstock.application.LeadingStockService
+import at.backend.leadingstock.application.SignalEventService
 import at.backend.leadingstock.presentation.response.BreakoutRadarItem
 import at.backend.leadingstock.presentation.response.BreakoutRadarResponse
 import at.backend.leadingstock.presentation.response.CandidateStockItem
@@ -12,6 +13,8 @@ import at.backend.leadingstock.presentation.response.VolumeSpikeResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
+import at.backend.leadingstock.presentation.response.SignalEventItem
+import at.backend.leadingstock.presentation.response.SignalEventsResponse
 import at.backend.leadingstock.presentation.response.SwingHighSignalItem
 import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController
 class LeadingStockController(
     private val leadingStockService: LeadingStockService,
     private val investorTrendService: InvestorTrendService,
+    private val signalEventService: SignalEventService,
     private val criteria: LeadingStockCriteriaProperties,
     private val timeProvider: TimeProvider,
 ) {
@@ -122,6 +126,34 @@ class LeadingStockController(
                 stocks = items,
             ),
         )
+    }
+
+    /**
+     * 시그널 전이 로그 — 그날 발생한 돌파/임박/스파이크 전이를 최신순으로.
+     * date 미지정 시 오늘. 라이브 피드 + 종목 여정 화면이 같은 데이터를 쓴다.
+     */
+    @GetMapping("/signal-events")
+    fun getSignalEvents(
+        @RequestParam(required = false)
+        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        date: java.time.LocalDate?,
+    ): ApiResponse<SignalEventsResponse> {
+        val day = date ?: timeProvider.today()
+        val events = signalEventService.eventsOn(day).map { e ->
+            SignalEventItem(
+                occurredAt = e.occurredAt,
+                stockCode = e.stockCode,
+                stockName = e.stockName,
+                eventType = e.eventType.name,
+                currentPrice = e.currentPrice,
+                priceChangeRate = e.priceChangeRate,
+                tradingValue = e.tradingValue,
+                gapRate = e.gapRate,
+                spikeRatio = e.spikeRatio,
+                theme = e.theme,
+            )
+        }
+        return ApiResponse.ok(SignalEventsResponse(date = day, totalCount = events.size, events = events))
     }
 
     /** 종목별 일자별 외국인·기관·개인 순매수 추이 (단위: 백만원). */

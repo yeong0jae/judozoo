@@ -60,6 +60,27 @@ data class VolumeSpikeItem(
     val at: LocalDateTime,        // 해당 분봉 시각
 )
 
+// --- 시그널 전이 로그 API ---
+
+data class SignalEventsResponse(
+    val date: java.time.LocalDate,
+    val totalCount: Int,
+    val events: List<SignalEventItem>,
+)
+
+data class SignalEventItem(
+    val occurredAt: LocalDateTime,
+    val stockCode: String,
+    val stockName: String,
+    val eventType: String,       // BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE
+    val currentPrice: Long,
+    val priceChangeRate: Double, // 발생 시점 당일 등락률(%)
+    val tradingValue: Long,      // 발생 시점 당일 누적 거래대금(원)
+    val gapRate: Double?,        // 돌파 계열만
+    val spikeRatio: Double?,     // 스파이크만
+    val theme: String?,          // 대표 테마
+)
+
 // --- 종목 상세 API ---
 
 data class LeadingStockDetailResponse(
