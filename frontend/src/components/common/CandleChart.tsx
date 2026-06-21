@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   createChart,
   ColorType,
+  type AutoscaleInfo,
   type CandlestickData,
   type IChartApi,
   type ISeriesApi,
@@ -34,6 +35,8 @@ export default function CandleChart({
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const fittedRef = useRef(false);
+  // 가격축 휠 세로 줌 배율(1=자동맞춤, <1=확대, >1=축소)
+  const priceZoomRef = useRef(1);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -57,12 +60,23 @@ export default function CandleChart({
       },
       crosshair: { mode: 0 },
     });
+    // 휠 세로 줌 — 자동맞춤 범위를 중심 기준 배율만큼 넓히거나 좁힌다
+    const priceAutoscale = (orig: () => AutoscaleInfo | null): AutoscaleInfo | null => {
+      const base = orig();
+      const f = priceZoomRef.current;
+      if (!base || !base.priceRange || f === 1) return base;
+      const { minValue, maxValue } = base.priceRange;
+      const mid = (minValue + maxValue) / 2;
+      const half = ((maxValue - minValue) / 2) * f;
+      return { ...base, priceRange: { minValue: mid - half, maxValue: mid + half } };
+    };
     seriesRef.current = chart.addCandlestickSeries({
       upColor: "#f43f5e",
       downColor: "#3b82f6",
       wickUpColor: "#f43f5e",
       wickDownColor: "#3b82f6",
       borderVisible: false,
+      autoscaleInfoProvider: priceAutoscale,
     });
     // 캔들은 위 75%, 거래량은 아래 20%에 별도 오버레이 스케일로
     chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.05, bottom: 0.25 } });
@@ -73,7 +87,22 @@ export default function CandleChart({
     volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
     volumeRef.current = volume;
     chartRef.current = chart;
+
+    // 가격축(오른쪽) 위에서 휠 → 세로 줌. 차트 영역 위 휠은 기본(가로 줌) 유지.
+    const onWheel = (e: WheelEvent) => {
+      const axisW = chart.priceScale("right").width();
+      const x = e.clientX - el.getBoundingClientRect().left;
+      if (x < el.clientWidth - axisW) return; // 차트 영역 → 라이브러리 기본 처리
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const step = e.deltaY > 0 ? 1.1 : 1 / 1.1; // 위로=확대, 아래로=축소
+      priceZoomRef.current = Math.min(6, Math.max(0.15, priceZoomRef.current * step));
+      seriesRef.current?.applyOptions({ autoscaleInfoProvider: priceAutoscale });
+    };
+    el.addEventListener("wheel", onWheel, { capture: true, passive: false });
+
     return () => {
+      el.removeEventListener("wheel", onWheel, { capture: true });
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;

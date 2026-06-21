@@ -79,7 +79,7 @@ export default function BreakoutRadarPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[11fr_9fr] gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {/* 등락률 임계값 선택 — 후보 풀 조절 */}
         <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
@@ -178,20 +178,7 @@ function RadarRow({
         <div className="flex items-center gap-3">
           <StockAvatar name={s.stockName} code={code} />
           <div className="min-w-0">
-            <div className="flex items-center flex-wrap gap-1.5">
-              <span className="font-semibold text-zinc-100">{s.stockName}</span>
-              {s.themes.map((t) => (
-                <span
-                  key={t}
-                  className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400"
-                >
-                  {t}
-                </span>
-              ))}
-              {s.themeCount > s.themes.length && (
-                <span className="text-[11px] text-zinc-500">+{s.themeCount - s.themes.length}</span>
-              )}
-            </div>
+            <div className="font-semibold text-zinc-100">{s.stockName}</div>
             <div className="text-xs text-zinc-500 num mt-0.5">{code}</div>
           </div>
         </div>
@@ -275,22 +262,6 @@ function RadarCard({
           <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num text-xs" />
         </span>
       </div>
-      {/* 테마 */}
-      {s.themes.length > 0 && (
-        <div className="flex items-center flex-wrap gap-1 pl-9">
-          {s.themes.map((t) => (
-            <span
-              key={t}
-              className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400"
-            >
-              {t}
-            </span>
-          ))}
-          {s.themeCount > s.themes.length && (
-            <span className="text-[11px] text-zinc-500">+{s.themeCount - s.themes.length}</span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
