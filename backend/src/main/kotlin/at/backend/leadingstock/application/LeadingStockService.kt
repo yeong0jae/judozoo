@@ -191,12 +191,25 @@ class LeadingStockService(
             )
         }
 
-    /** 상세 캔들차트용 — 최근 2거래일(당일+전일) 1분봉을 시간 오름차순으로. (ka10080 30s 캐시 공유) */
+    /**
+     * 상세 캔들차트용 — 최근 2거래일(당일+전일) 1분봉을 시간 오름차순으로. (ka10080 30s 캐시 공유)
+     * ka10080 한 페이지는 전일 일부(애프터마켓 부근)까지만 닿으므로, 전일 세션 전체를 채우려고
+     * 전일 날짜를 base_dt로 한 번 더 호출해 합친다(당일 호출은 신호와 캐시 공유, 전일 호출만 추가).
+     */
     fun minuteCandles(stockCode: String): List<MinuteCandle> {
-        val candles = marketClient.fetchMinuteCandles(stockCode)
-        val recentDays = candles.map { it.dateTime.toLocalDate() }
+        val firstPage = marketClient.fetchMinuteCandles(stockCode)
+        val prevDay = firstPage.map { it.dateTime.toLocalDate() }
+            .distinct().sortedDescending().getOrNull(1)
+        val combined = if (prevDay != null) {
+            firstPage + marketClient.fetchMinuteCandles(stockCode, prevDay)
+        } else {
+            firstPage
+        }
+        val recentDays = combined.map { it.dateTime.toLocalDate() }
             .distinct().sortedDescending().take(CHART_SESSION_DAYS).toSet()
-        return candles.filter { it.dateTime.toLocalDate() in recentDays }.sortedBy { it.dateTime }
+        return combined.filter { it.dateTime.toLocalDate() in recentDays }
+            .distinctBy { it.dateTime }
+            .sortedBy { it.dateTime }
     }
 
     /**
