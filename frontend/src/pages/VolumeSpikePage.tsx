@@ -8,7 +8,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
-import StockChartPanel from "../components/common/StockChartPanel";
+import StockDetailPanel from "../components/common/StockDetailPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -47,7 +47,6 @@ export default function VolumeSpikePage() {
   useEffect(() => {
     if (selectedCode === null && stocks.length > 0) setSelectedCode(stocks[0].stockCode);
   }, [stocks, selectedCode]);
-  const selected = stocks.find((s) => s.stockCode === selectedCode);
 
   return (
     <div className="space-y-4">
@@ -129,7 +128,7 @@ export default function VolumeSpikePage() {
         )}
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
-        <StockChartPanel stockCode={selectedCode} stockName={selected?.stockName} />
+        <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
       </div>
       </div>
     </div>
