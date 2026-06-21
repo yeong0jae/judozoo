@@ -44,6 +44,7 @@ leading-stock:
     # 시그널 로그 폴러 전용 — 후보/돌파/스파이크 페이지 기본값과 분리
     min-change-rate: 0.0                   # 감시 풀 당일 등락률 하한(%) — 상승 종목만
     poll-interval-millis: 10000            # 폴링 주기(ms)
+    cooldown-minutes: 3                    # 같은 종목·타입 재적재 쿨다운(분) — 프리마켓 출렁임 중복 방지
 
 trading:
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
