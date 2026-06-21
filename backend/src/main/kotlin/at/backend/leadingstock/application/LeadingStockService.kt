@@ -13,6 +13,7 @@ import at.backend.leadingstock.application.filter.ProgramNetBuyFilter
 import at.backend.leadingstock.application.filter.SpacExclusionFilter
 import at.backend.leadingstock.application.filter.StockFilter
 import at.backend.leadingstock.application.filter.TradingValueRankFilter
+import at.backend.leadingstock.domain.DailyCandle
 import at.backend.leadingstock.domain.DailyCandles
 import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.leadingstock.domain.MinuteCandle
@@ -120,7 +121,7 @@ class LeadingStockService(
 
         val swingHighSignal = breakoutHighCandles(stockCode).dayHighSignal(stock.currentPrice)
 
-        return StockEvaluation(stock, results, relativeVolume, swingHighSignal)
+        return StockEvaluation(stock, results, relativeVolume, swingHighSignal, dailyCandles)
     }
 
     /**
@@ -297,4 +298,5 @@ data class StockEvaluation(
     val filterResults: List<FilterEvaluationResult>,
     val relativeVolume: Double?,
     val swingHighSignal: SwingHighSignal?,
+    val dailyCandles: List<DailyCandle>, // 필터 G/RVOL용으로 받은 60봉 — 일봉 차트 재사용
 )

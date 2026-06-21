@@ -105,6 +105,17 @@ data class LeadingStockDetailResponse(
     val swingHighSignal: SwingHighSignalItem?, // 직전 스윙 고점 돌파 시그널. 데이터 없으면 null
     val themes: List<String>, // 종목이 속한 전체 테마명
     val filterResults: List<FilterResultItem>,
+    val dailyCandles: List<DailyCandleChartItem>, // 일봉 차트용 60봉(필터 G/RVOL 조회분 재사용)
+)
+
+/** 일봉 한 개 — 일봉 차트용. date는 yyyy-MM-dd. */
+data class DailyCandleChartItem(
+    val date: String,
+    val open: Long,
+    val high: Long,
+    val low: Long,
+    val close: Long,
+    val volume: Long,
 )
 
 /** 직전 스윙 고점 돌파 매매 시그널. gapRate 양수=남은 상승률, 음수=이미 돌파. */

@@ -1,5 +1,5 @@
 import { useMinuteCandles } from "../../api/queries";
-import CandleChart from "./CandleChart";
+import CandleChart, { minuteSeries } from "./CandleChart";
 import Skeleton from "./Skeleton";
 
 /**
@@ -34,7 +34,7 @@ export default function MinuteChartPanel({
             분봉 데이터가 없습니다
           </div>
         ) : (
-          <CandleChart key={stockCode} candles={data} className={`w-full ${H}`} />
+          <CandleChart key={stockCode} series={minuteSeries(data)} className={`w-full ${H}`} />
         )}
       </div>
     </section>

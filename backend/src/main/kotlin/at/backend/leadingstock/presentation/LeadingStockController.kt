@@ -8,6 +8,7 @@ import at.backend.leadingstock.presentation.response.BreakoutRadarItem
 import at.backend.leadingstock.presentation.response.BreakoutRadarResponse
 import at.backend.leadingstock.presentation.response.CandidateStockItem
 import at.backend.leadingstock.presentation.response.CandidateStocksResponse
+import at.backend.leadingstock.presentation.response.DailyCandleChartItem
 import at.backend.leadingstock.presentation.response.VolumeSpikeItem
 import at.backend.leadingstock.presentation.response.VolumeSpikeResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
@@ -219,6 +220,16 @@ class LeadingStockController(
                         criteriaDescription = it.criteriaDescription,
                         actualValue = it.actualValue,
                         passed = it.passed,
+                    )
+                },
+                dailyCandles = eval.dailyCandles.map {
+                    DailyCandleChartItem(
+                        date = it.date.toString(),
+                        open = it.openPrice,
+                        high = it.highPrice,
+                        low = it.lowPrice,
+                        close = it.closePrice,
+                        volume = it.volume,
                     )
                 },
             ),

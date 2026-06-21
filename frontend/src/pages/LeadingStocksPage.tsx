@@ -22,7 +22,7 @@ import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
-import MinuteChartPanel from "../components/common/MinuteChartPanel";
+import CandidateChartPanel from "../components/common/CandidateChartPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -148,9 +148,9 @@ export default function LeadingStocksPage() {
         )}
       </div>
 
-      {/* 리스트·상세 아래 가로 전체 폭 차트 */}
+      {/* 리스트·상세 아래 가로 전체 폭 차트 (1분봉/일봉 토글) */}
       {openCode && (
-        <MinuteChartPanel stockCode={openCode} stockName={selectedStock?.stockName} />
+        <CandidateChartPanel stockCode={openCode} stockName={selectedStock?.stockName} />
       )}
     </div>
   );
@@ -411,7 +411,7 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
           </div>
         </div>
         {detail && (
-          <div className="text-sm text-zinc-400 mt-0.5">
+          <div className="text-xs text-zinc-400 mt-0.5">
             <NumWon value={detail.currentPrice} className="num" />{" "}
             <ProfitText
               value={detail.priceChangeRate / 100}
@@ -478,14 +478,14 @@ function FilterResultsList({ results }: { results: FilterResultItem[] }) {
               : "bg-rose-50 border-rose-200"
           }`}
         >
-          <span className="text-sm mt-0.5">{r.passed ? "✓" : "✗"}</span>
+          <span className="text-xs mt-0.5">{r.passed ? "✓" : "✗"}</span>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium">{r.filterName}</div>
-            <div className="text-xs text-zinc-500 mt-0.5">
+            <div className="text-xs font-medium">{r.filterName}</div>
+            <div className="text-[11px] text-zinc-500 mt-0.5">
               기준: {r.criteriaDescription}
             </div>
           </div>
-          <div className="text-sm num shrink-0">{r.actualValue}</div>
+          <div className="text-xs num shrink-0">{r.actualValue}</div>
         </div>
       ))}
     </div>
@@ -602,7 +602,7 @@ function BreakoutSignalSection({
       <div className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4">
         {/* 돌파선(전고점) + 임박도 칩 */}
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-zinc-400">돌파선</span>
+          <span className="text-xs text-zinc-400">돌파선</span>
           <span className="flex items-baseline gap-2">
             <span className="num text-lg font-semibold text-zinc-100">
               {formatPrice(signal.peakPrice)}
@@ -620,11 +620,11 @@ function BreakoutSignalSection({
 
         {/* 현재가 → 돌파까지 거리(원/%) */}
         <div className="flex items-baseline justify-between">
-          <span className="text-sm text-zinc-400">현재가</span>
+          <span className="text-xs text-zinc-400">현재가</span>
           <span className="num text-zinc-300">{formatPrice(currentPrice)}</span>
         </div>
         <div className="mt-2 flex items-baseline justify-between">
-          <span className="text-sm text-zinc-400">{broke ? "돌파" : "돌파까지"}</span>
+          <span className="text-xs text-zinc-400">{broke ? "돌파" : "돌파까지"}</span>
           <span className={`num font-semibold ${status.gap}`}>
             {broke
               ? `${formatPrice(-gapWon)}원 (+${(-signal.gapRate).toFixed(1)}%)`
@@ -647,7 +647,7 @@ function FlowGroup({
     <div>
       <div className="text-xs text-zinc-500 mb-2">{label}</div>
       {/* 3열 표: 라벨 / 전체(SOR통합) / NXT 단독 */}
-      <div className="grid grid-cols-[auto_1fr_1fr] gap-x-6 gap-y-1.5 text-sm">
+      <div className="grid grid-cols-[auto_1fr_1fr] gap-x-6 gap-y-1.5 text-xs">
         <span></span>
         <span className="text-xs text-zinc-500 text-right">전체</span>
         <span className="text-xs text-zinc-500 text-right">NXT</span>
