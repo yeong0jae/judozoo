@@ -233,7 +233,7 @@ function CandidatesTable({
   onOpen: (stockCode: string) => void;
 }) {
   return (
-    <table className="hidden md:table w-full text-sm">
+    <table className="hidden md:table w-full text-xs">
       <thead className="text-zinc-500 text-xs">
         <tr>
           <th className="pl-4 py-2.5 text-left whitespace-nowrap font-medium">순위</th>
