@@ -203,7 +203,7 @@ class LeadingStockService(
         while (all.map { it.dateTime.toLocalDate() }.distinct().size <= CHART_SESSION_DAYS) {
             val oldestDay = all.minOfOrNull { it.dateTime.toLocalDate() } ?: break
             val before = all.map { it.dateTime.toLocalDate() }.distinct().size
-            all += marketClient.fetchMinuteCandles(stockCode, oldestDay)
+            all += marketClient.fetchHistoricalMinuteCandles(stockCode, oldestDay)
             if (all.map { it.dateTime.toLocalDate() }.distinct().size == before) break // 데이터 소진
         }
         val recentDays = all.map { it.dateTime.toLocalDate() }

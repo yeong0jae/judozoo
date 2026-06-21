@@ -233,9 +233,17 @@ class KiwoomMarketClient(
         }
     }
 
-    /** 분봉 차트 조회 (ka10080) — _AL 접미사로 SOR 통합 시세, 1분봉 기준 */
+    /** 당일 분봉 (ka10080, _AL SOR, 1분봉) — 형성 중이라 짧은 캐시(30s). */
     @Cacheable("minuteCandles", unless = "#result.isEmpty()")
-    fun fetchMinuteCandles(stockCode: String, baseDate: LocalDate = LocalDate.now()): List<MinuteCandle> {
+    fun fetchMinuteCandles(stockCode: String): List<MinuteCandle> =
+        fetchMinuteCandlesRaw(stockCode, LocalDate.now())
+
+    /** 과거 거래일 분봉 — base_dt로 특정 세션 조회. 데이터 불변이라 당일과 분리해 장기 캐시. */
+    @Cacheable("minuteCandlesHistory", unless = "#result.isEmpty()")
+    fun fetchHistoricalMinuteCandles(stockCode: String, baseDate: LocalDate): List<MinuteCandle> =
+        fetchMinuteCandlesRaw(stockCode, baseDate)
+
+    private fun fetchMinuteCandlesRaw(stockCode: String, baseDate: LocalDate): List<MinuteCandle> {
         try {
             val token = authClient.getAccessToken()
             log.info("Fetching minute candles for stock {} (base {})", stockCode, baseDate)

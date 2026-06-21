@@ -73,6 +73,13 @@ class CacheConfig {
                 .maximumSize(200)
                 .build(),
         )
+        manager.registerCustomCache(
+            "minuteCandlesHistory", // 과거 거래일 분봉(ka10080) — 마감돼 불변, 차트 다일치용 장기 TTL
+            Caffeine.newBuilder()
+                .expireAfterWrite(12, TimeUnit.HOURS)
+                .maximumSize(300)
+                .build(),
+        )
         return manager
     }
 }
