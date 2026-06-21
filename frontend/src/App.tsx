@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import CommandPage from "./pages/CommandPage";
 import HoldingsPage from "./pages/HoldingsPage";
 import LeadingStocksPage from "./pages/LeadingStocksPage";
+import SignalBoardPage from "./pages/SignalBoardPage";
 import BreakoutRadarPage from "./pages/BreakoutRadarPage";
 import VolumeSpikePage from "./pages/VolumeSpikePage";
 import MarketFlowPage from "./pages/MarketFlowPage";
@@ -70,6 +71,7 @@ function AppShell() {
             <Routes location={location}>
               <Route path="/" element={<Navigate to="/leading-stocks" replace />} />
               <Route path="/leading-stocks" element={<LeadingStocksPage />} />
+              <Route path="/signals" element={<SignalBoardPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
               <Route path="/volume-spike" element={<VolumeSpikePage />} />
               <Route path="/theme-calendar" element={<ThemeCalendarPage />} />

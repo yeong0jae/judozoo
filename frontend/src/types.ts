@@ -338,6 +338,38 @@ export interface VolumeSpikeResponse {
   stocks: VolumeSpikeItem[];
 }
 
+// === 종합 시그널 보드 ===
+export interface SignalBreakout {
+  dayHigh: number; // 돌파선(당일 고가)
+  peakAt: string; // 돌파선 형성 분봉 시각 (ISO LocalDateTime)
+  gapRate: number; // 돌파까지 남은 상승률(%), 돌파 시 0 이하
+}
+
+export interface SignalSpike {
+  minuteTradingValue: number; // 최신 1분봉 거래대금(원)
+  spikeRatio: number; // 직전 평균 대비 배율
+  at: string; // 해당 분봉 시각 (ISO LocalDateTime)
+}
+
+export interface SignalBoardItem {
+  stockCode: string;
+  stockName: string;
+  currentPrice: number;
+  priceChangeRate: number; // 당일 등락률(%)
+  tradingValue: number; // 당일 누적 거래대금(원)
+  themes: string[];
+  themeCount: number;
+  signalCount: number; // 켜진 신호 수(0~2): 2=교차(강), 1=중, 0=약
+  breakout: SignalBreakout | null; // null이면 돌파 신호 비활성
+  spike: SignalSpike | null; // null이면 스파이크 비활성
+}
+
+export interface SignalBoardResponse {
+  queriedAt: string;
+  totalCount: number;
+  stocks: SignalBoardItem[];
+}
+
 // === 테마 캘린더 ===
 export interface ThemeStockItem {
   stockCode: string;

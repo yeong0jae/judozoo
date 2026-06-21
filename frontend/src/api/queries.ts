@@ -13,6 +13,7 @@ import type {
   MarketStatus,
   RegimeDaily,
   RegimeSnapshot,
+  SignalBoardResponse,
   StockPriceResult,
   StockSearchResult,
   ThemeCalendarResponse,
@@ -38,6 +39,8 @@ export const QK = {
     ["leading-stocks", "breakout-radar", minChangeRate] as const,
   volumeSpikes: (minChangeRate: number) =>
     ["leading-stocks", "volume-spikes", minChangeRate] as const,
+  signalBoard: (minChangeRate: number) =>
+    ["leading-stocks", "signals", minChangeRate] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -188,6 +191,17 @@ export function useVolumeSpikes(minChangeRate: number) {
     queryFn: () =>
       apiFetch<VolumeSpikeResponse>(
         `/api/leading-stocks/volume-spikes?minChangeRate=${minChangeRate}`,
+      ),
+    refetchInterval: 5_000,
+  });
+}
+
+export function useSignalBoard(minChangeRate: number) {
+  return useQuery({
+    queryKey: QK.signalBoard(minChangeRate),
+    queryFn: () =>
+      apiFetch<SignalBoardResponse>(
+        `/api/leading-stocks/signals?minChangeRate=${minChangeRate}`,
       ),
     refetchInterval: 5_000,
   });

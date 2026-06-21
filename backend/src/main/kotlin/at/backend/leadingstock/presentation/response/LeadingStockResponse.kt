@@ -60,6 +60,39 @@ data class VolumeSpikeItem(
     val at: LocalDateTime,        // 해당 분봉 시각
 )
 
+// --- 종합 시그널 보드 API ---
+
+data class SignalBoardResponse(
+    val queriedAt: LocalDateTime,
+    val totalCount: Int,
+    val stocks: List<SignalBoardItem>,
+)
+
+data class SignalBoardItem(
+    val stockCode: String,
+    val stockName: String,
+    val currentPrice: Long,
+    val priceChangeRate: Double, // 당일 등락률(%)
+    val tradingValue: Long,      // 당일 누적 거래대금(원)
+    val themes: List<String>,
+    val themeCount: Int,
+    val signalCount: Int,        // 켜진 신호 수(0~2): 2=교차(강), 1=중, 0=약
+    val breakout: SignalBreakout?, // null이면 돌파 신호 비활성
+    val spike: SignalSpike?,       // null이면 스파이크 비활성
+)
+
+data class SignalBreakout(
+    val dayHigh: Long,           // 돌파선(당일 고가)
+    val peakAt: LocalDateTime,   // 돌파선 형성 분봉 시각
+    val gapRate: Double,         // 돌파까지 남은 상승률(%), 돌파 시 0 이하
+)
+
+data class SignalSpike(
+    val minuteTradingValue: Long, // 최신 1분봉 거래대금(원)
+    val spikeRatio: Double,       // 직전 평균 대비 배율
+    val at: LocalDateTime,        // 해당 분봉 시각
+)
+
 // --- 종목 상세 API ---
 
 data class LeadingStockDetailResponse(
