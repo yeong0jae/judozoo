@@ -110,7 +110,7 @@ export default function LeadingStocksPage() {
       <div
         className={
           openCode
-            ? "grid grid-cols-1 lg:grid-cols-2 gap-6 items-start"
+            ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6 items-start"
             : ""
         }
       >
