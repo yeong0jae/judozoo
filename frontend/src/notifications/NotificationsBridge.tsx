@@ -36,7 +36,7 @@ export default function NotificationsBridge() {
 
       if (settings.osNotificationsEnabled && "Notification" in window) {
         if (Notification.permission === "granted") {
-          new Notification("AT 자동매매", {
+          new Notification("주도주 매매 도우미", {
             body: message,
             tag: `cmd-${p.cycleId}`,
             requireInteraction: isCritical,
