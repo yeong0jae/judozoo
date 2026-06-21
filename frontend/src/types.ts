@@ -309,6 +309,7 @@ export interface MinuteCandleItem {
   low: number;
   close: number;
   volume: number;
+  tradingValue: number; // 거래대금(원, 종가×거래량 근사)
 }
 
 // === 돌파 임박 레이더 ===

@@ -142,12 +142,16 @@ export default function LeadingStocksPage() {
         </section>
 
         {openCode && (
-          <aside className="lg:sticky lg:top-6 space-y-6">
-            <MinuteChartPanel stockCode={openCode} stockName={selectedStock?.stockName} />
+          <aside className="lg:sticky lg:top-6">
             <DetailPanel stockCode={openCode} />
           </aside>
         )}
       </div>
+
+      {/* 리스트·상세 아래 가로 전체 폭 차트 */}
+      {openCode && (
+        <MinuteChartPanel stockCode={openCode} stockName={selectedStock?.stockName} />
+      )}
     </div>
   );
 }

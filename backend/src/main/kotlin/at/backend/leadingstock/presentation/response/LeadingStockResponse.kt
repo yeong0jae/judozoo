@@ -62,7 +62,7 @@ data class VolumeSpikeItem(
 
 // --- 분봉 캔들차트 API ---
 
-/** 1분봉 한 개. time은 체결시각(ISO LocalDateTime, KST 벽시계). */
+/** 1분봉 한 개. time은 체결시각(ISO LocalDateTime, KST 벽시계). tradingValue=거래대금(종가×거래량 근사). */
 data class MinuteCandleItem(
     val time: LocalDateTime,
     val open: Long,
@@ -70,6 +70,7 @@ data class MinuteCandleItem(
     val low: Long,
     val close: Long,
     val volume: Long,
+    val tradingValue: Long,
 )
 
 // --- 시그널 전이 로그 API ---

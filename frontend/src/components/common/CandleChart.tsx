@@ -32,6 +32,7 @@ export default function CandleChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const fittedRef = useRef(false);
 
   useEffect(() => {
@@ -63,11 +64,20 @@ export default function CandleChart({
       wickDownColor: "#3b82f6",
       borderVisible: false,
     });
+    // 캔들은 위 75%, 거래량은 아래 20%에 별도 오버레이 스케일로
+    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.05, bottom: 0.25 } });
+    const volume = chart.addHistogramSeries({
+      priceFormat: { type: "volume" },
+      priceScaleId: "",
+    });
+    volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    volumeRef.current = volume;
     chartRef.current = chart;
     return () => {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      volumeRef.current = null;
     };
   }, []);
 
@@ -82,6 +92,14 @@ export default function CandleChart({
       close: c.close,
     }));
     series.setData(data);
+    volumeRef.current?.setData(
+      candles.map((c) => ({
+        time: toTime(c.time),
+        value: c.tradingValue, // 거래대금(원)
+        // 상승 빨강, 하락 파랑 (반투명)
+        color: c.close >= c.open ? "rgba(244,63,94,0.5)" : "rgba(59,130,246,0.5)",
+      })),
+    );
     if (!fittedRef.current && data.length > 0) {
       chartRef.current?.timeScale().fitContent();
       fittedRef.current = true;

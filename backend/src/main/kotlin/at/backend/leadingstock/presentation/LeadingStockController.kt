@@ -168,6 +168,7 @@ class LeadingStockController(
                 low = it.lowPrice,
                 close = it.closePrice,
                 volume = it.volume,
+                tradingValue = it.tradingValue,
             )
         }
         return ApiResponse.ok(candles)
