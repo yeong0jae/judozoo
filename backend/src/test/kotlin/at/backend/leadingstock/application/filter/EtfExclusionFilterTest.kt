@@ -27,6 +27,15 @@ class EtfExclusionFilterTest : FunSpec({
         }
     }
 
+    context("화이트리스트 예외") {
+        test("SOL prefix지만 화이트리스트 종목은 통과") {
+            filter.filter(snapshot(stockName = "SOL AI반도체TOP2플러스")) shouldBe true
+        }
+        test("화이트리스트에 없는 다른 SOL 종목은 차단") {
+            filter.filter(snapshot(stockName = "SOL 미국배당다우존스")) shouldBe false
+        }
+    }
+
     context("ETN 패턴 차단") {
         test("종목명 중간에 ' ETN'이 포함되면 차단") {
             filter.filter(snapshot(stockName = "한투 ETN 코스피200 H")) shouldBe false
