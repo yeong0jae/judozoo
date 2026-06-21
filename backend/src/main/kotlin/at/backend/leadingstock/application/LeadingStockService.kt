@@ -191,9 +191,13 @@ class LeadingStockService(
             )
         }
 
-    /** 상세 캔들차트용 — 최신 거래일 1분봉을 시간 오름차순으로. (ka10080 30s 캐시 공유) */
-    fun minuteCandles(stockCode: String): List<MinuteCandle> =
-        latestSessionMinuteCandles(stockCode).sortedBy { it.dateTime }
+    /** 상세 캔들차트용 — 최근 2거래일(당일+전일) 1분봉을 시간 오름차순으로. (ka10080 30s 캐시 공유) */
+    fun minuteCandles(stockCode: String): List<MinuteCandle> {
+        val candles = marketClient.fetchMinuteCandles(stockCode)
+        val recentDays = candles.map { it.dateTime.toLocalDate() }
+            .distinct().sortedDescending().take(CHART_SESSION_DAYS).toSet()
+        return candles.filter { it.dateTime.toLocalDate() in recentDays }.sortedBy { it.dateTime }
+    }
 
     /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
@@ -212,6 +216,7 @@ class LeadingStockService(
         private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
         private const val SPIKE_RATIO_MIN = 3.0         // 최소 배율
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
+        private const val CHART_SESSION_DAYS = 2 // 상세 차트 표시 거래일 수(당일+전일)
     }
 }
 
