@@ -22,7 +22,13 @@ function toTime(iso: string): UTCTimestamp {
 }
 
 /** 한국 관행: 상승 빨강, 하락 파랑. */
-export default function CandleChart({ candles }: { candles: MinuteCandleItem[] }) {
+export default function CandleChart({
+  candles,
+  className = "w-full h-48",
+}: {
+  candles: MinuteCandleItem[];
+  className?: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -82,5 +88,5 @@ export default function CandleChart({ candles }: { candles: MinuteCandleItem[] }
     }
   }, [candles]);
 
-  return <div ref={containerRef} className="w-full h-48" />;
+  return <div ref={containerRef} className={className} />;
 }

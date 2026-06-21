@@ -3,7 +3,6 @@ import {
   useInvestorTrend,
   useLeadingStockCandidates,
   useLeadingStockDetail,
-  useMinuteCandles,
 } from "../api/queries";
 import type {
   CandidateStockItem,
@@ -23,7 +22,7 @@ import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
-import CandleChart from "../components/common/CandleChart";
+import MinuteChartPanel from "../components/common/MinuteChartPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -52,6 +51,7 @@ export default function LeadingStocksPage() {
 
   const data = candidatesQ.data;
   const stocks = data?.stocks ?? [];
+  const selectedStock = stocks.find((s) => s.stockCode === openCode);
 
   // 페이지 진입 시 첫 종목 기본 선택, 선택 종목이 리스트에서 사라지면 다시 첫 종목으로
   useEffect(() => {
@@ -142,7 +142,8 @@ export default function LeadingStocksPage() {
         </section>
 
         {openCode && (
-          <aside className="lg:sticky lg:top-6">
+          <aside className="lg:sticky lg:top-6 space-y-6">
+            <MinuteChartPanel stockCode={openCode} stockName={selectedStock?.stockName} />
             <DetailPanel stockCode={openCode} />
           </aside>
         )}
@@ -441,9 +442,7 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
         ) : detailQ.isError ? (
           <p className="text-sm text-rose-700">상세 정보를 불러올 수 없습니다</p>
         ) : detail ? (
-          <div className="space-y-6">
-            <MinuteChartSection stockCode={stockCode} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <FilterResultsList results={detail.filterResults} />
             <div className="space-y-6">
               <BreakoutSignalSection
@@ -452,27 +451,10 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
               />
               <InvestorTrendSection stockCode={shortCode(stockCode)} />
             </div>
-            </div>
           </div>
         ) : null}
       </div>
     </div>
-  );
-}
-
-function MinuteChartSection({ stockCode }: { stockCode: string }) {
-  const { data, isLoading } = useMinuteCandles(stockCode);
-  return (
-    <section>
-      <h3 className="text-sm font-semibold text-zinc-200 mb-2">1분봉</h3>
-      {isLoading ? (
-        <Skeleton className="h-48 w-full" />
-      ) : !data || data.length === 0 ? (
-        <p className="text-xs text-zinc-600">분봉 데이터가 없습니다</p>
-      ) : (
-        <CandleChart key={stockCode} candles={data} />
-      )}
-    </section>
   );
 }
 

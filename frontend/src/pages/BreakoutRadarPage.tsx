@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
@@ -8,6 +8,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
+import MinuteChartPanel from "../components/common/MinuteChartPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -47,6 +48,13 @@ export default function BreakoutRadarPage() {
   const data = radarQ.data;
   const stocks = data?.stocks ?? [];
 
+  // 우측 차트에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (selectedCode === null && stocks.length > 0) setSelectedCode(stocks[0].stockCode);
+  }, [stocks, selectedCode]);
+  const selected = stocks.find((s) => s.stockCode === selectedCode);
+
   return (
     <div className="space-y-4">
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
@@ -71,6 +79,7 @@ export default function BreakoutRadarPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {/* 등락률 임계값 선택 — 후보 풀 조절 */}
         <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
@@ -102,7 +111,12 @@ export default function BreakoutRadarPage() {
               <tbody>
                 <AnimatePresence mode="popLayout">
                   {stocks.map((s) => (
-                    <RadarRow key={s.stockCode} s={s} />
+                    <RadarRow
+                      key={s.stockCode}
+                      s={s}
+                      selected={s.stockCode === selectedCode}
+                      onSelect={setSelectedCode}
+                    />
                   ))}
                 </AnimatePresence>
               </tbody>
@@ -110,17 +124,34 @@ export default function BreakoutRadarPage() {
           </div>
           <div className="md:hidden">
             {stocks.map((s) => (
-              <RadarCard key={s.stockCode} s={s} />
+              <RadarCard
+                key={s.stockCode}
+                s={s}
+                selected={s.stockCode === selectedCode}
+                onSelect={setSelectedCode}
+              />
             ))}
           </div>
           </>
         )}
       </section>
+      <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
+        <MinuteChartPanel stockCode={selectedCode} stockName={selected?.stockName} />
+      </div>
+      </div>
     </div>
   );
 }
 
-function RadarRow({ s }: { s: BreakoutRadarItem }) {
+function RadarRow({
+  s,
+  selected,
+  onSelect,
+}: {
+  s: BreakoutRadarItem;
+  selected: boolean;
+  onSelect: (code: string) => void;
+}) {
   const code = shortCode(s.stockCode);
   const st = radarStatus(s.gapRate);
   const gapWon = s.dayHigh - s.currentPrice;
@@ -138,7 +169,10 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
         layout: { type: "spring", stiffness: 600, damping: 42 },
         opacity: { duration: 0.2 },
       }}
-      className="border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+      onClick={() => onSelect(s.stockCode)}
+      className={`border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer ${
+        selected ? "bg-emerald-900/40" : ""
+      }`}
     >
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-3">
@@ -194,7 +228,15 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
 }
 
 /** 모바일 카드 — 표 컬럼을 3행으로 압축 (돌파선·돌파까지·상태 우선). */
-function RadarCard({ s }: { s: BreakoutRadarItem }) {
+function RadarCard({
+  s,
+  selected,
+  onSelect,
+}: {
+  s: BreakoutRadarItem;
+  selected: boolean;
+  onSelect: (code: string) => void;
+}) {
   const code = shortCode(s.stockCode);
   const st = radarStatus(s.gapRate);
   const gapWon = s.dayHigh - s.currentPrice;
@@ -202,7 +244,12 @@ function RadarCard({ s }: { s: BreakoutRadarItem }) {
   peak.setMinutes(peak.getMinutes() + 1);
   const peakTime = peak.toTimeString().slice(0, 5);
   return (
-    <div className="border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1.5">
+    <div
+      onClick={() => onSelect(s.stockCode)}
+      className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1.5 cursor-pointer ${
+        selected ? "bg-emerald-900/40" : ""
+      }`}
+    >
       {/* 1행: 종목 · 상태 */}
       <div className="flex items-center gap-2">
         <StockAvatar name={s.stockName} code={code} size={26} />
