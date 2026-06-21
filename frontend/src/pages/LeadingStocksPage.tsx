@@ -3,6 +3,7 @@ import {
   useInvestorTrend,
   useLeadingStockCandidates,
   useLeadingStockDetail,
+  useMinuteCandles,
 } from "../api/queries";
 import type {
   CandidateStockItem,
@@ -22,6 +23,7 @@ import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
+import CandleChart from "../components/common/CandleChart";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -439,7 +441,9 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
         ) : detailQ.isError ? (
           <p className="text-sm text-rose-700">상세 정보를 불러올 수 없습니다</p>
         ) : detail ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="space-y-6">
+            <MinuteChartSection stockCode={stockCode} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <FilterResultsList results={detail.filterResults} />
             <div className="space-y-6">
               <BreakoutSignalSection
@@ -448,10 +452,27 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
               />
               <InvestorTrendSection stockCode={shortCode(stockCode)} />
             </div>
+            </div>
           </div>
         ) : null}
       </div>
     </div>
+  );
+}
+
+function MinuteChartSection({ stockCode }: { stockCode: string }) {
+  const { data, isLoading } = useMinuteCandles(stockCode);
+  return (
+    <section>
+      <h3 className="text-sm font-semibold text-zinc-200 mb-2">1분봉</h3>
+      {isLoading ? (
+        <Skeleton className="h-48 w-full" />
+      ) : !data || data.length === 0 ? (
+        <p className="text-xs text-zinc-600">분봉 데이터가 없습니다</p>
+      ) : (
+        <CandleChart key={stockCode} candles={data} />
+      )}
+    </section>
   );
 }
 

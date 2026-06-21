@@ -10,6 +10,7 @@ import type {
   InvestorTrendDay,
   KospiIndex,
   LeadingStockDetailResponse,
+  MinuteCandleItem,
   MarketStatus,
   RegimeDaily,
   RegimeSnapshot,
@@ -44,6 +45,8 @@ export const QK = {
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
     ["leading-stocks", "investors", code] as const,
+  minuteCandles: (code: string) =>
+    ["leading-stocks", "minute-candles", code] as const,
   kospiIndex: ["market", "kospi"] as const,
   regime: ["market", "regime"] as const,
   regimeDaily: ["market", "regime", "daily"] as const,
@@ -221,6 +224,18 @@ export function useInvestorTrend(code: string | null) {
       ),
     enabled: code !== null,
     staleTime: 5 * 60_000, // 일자별 데이터 — 5분 신선도
+  });
+}
+
+export function useMinuteCandles(code: string | null) {
+  return useQuery({
+    queryKey: code ? QK.minuteCandles(code) : ["leading-stocks", "minute-candles", "null"],
+    queryFn: () =>
+      apiFetch<MinuteCandleItem[]>(
+        `/api/leading-stocks/candidates/${code}/minute-candles`,
+      ),
+    enabled: code !== null,
+    refetchInterval: 30_000, // 서버 분봉 캐시 30초와 맞춤
   });
 }
 

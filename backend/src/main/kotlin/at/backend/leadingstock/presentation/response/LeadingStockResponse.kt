@@ -60,6 +60,18 @@ data class VolumeSpikeItem(
     val at: LocalDateTime,        // 해당 분봉 시각
 )
 
+// --- 분봉 캔들차트 API ---
+
+/** 1분봉 한 개. time은 체결시각(ISO LocalDateTime, KST 벽시계). */
+data class MinuteCandleItem(
+    val time: LocalDateTime,
+    val open: Long,
+    val high: Long,
+    val low: Long,
+    val close: Long,
+    val volume: Long,
+)
+
 // --- 시그널 전이 로그 API ---
 
 data class SignalEventsResponse(

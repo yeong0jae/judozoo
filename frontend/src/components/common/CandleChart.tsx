@@ -1,0 +1,86 @@
+import { useEffect, useRef } from "react";
+import {
+  createChart,
+  ColorType,
+  type CandlestickData,
+  type IChartApi,
+  type ISeriesApi,
+  type UTCTimestamp,
+} from "lightweight-charts";
+import type { MinuteCandleItem } from "../../types";
+
+/**
+ * ISO LocalDateTime(KST 벽시계) → lightweight-charts 시간(UTC 초).
+ * 벽시계를 그대로 UTC로 취급해 축 라벨이 09:00.. 로 보이게 하고,
+ * 키움 cntr_tm이 HTS보다 1분 이르므로 +1분 보정(표시단에서만).
+ */
+function toTime(iso: string): UTCTimestamp {
+  const [date, time] = iso.split("T");
+  const [y, mo, d] = date.split("-").map(Number);
+  const [h, mi, s] = (time ?? "0:0:0").split(":").map(Number);
+  return (Date.UTC(y, mo - 1, d, h, mi + 1, s || 0) / 1000) as UTCTimestamp;
+}
+
+/** 한국 관행: 상승 빨강, 하락 파랑. */
+export default function CandleChart({ candles }: { candles: MinuteCandleItem[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const fittedRef = useRef(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const chart = createChart(el, {
+      autoSize: true,
+      layout: {
+        background: { type: ColorType.Solid, color: "transparent" },
+        textColor: "#a1a1aa",
+        fontSize: 11,
+      },
+      grid: {
+        vertLines: { color: "rgba(255,255,255,0.04)" },
+        horzLines: { color: "rgba(255,255,255,0.04)" },
+      },
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
+      timeScale: {
+        borderColor: "rgba(255,255,255,0.08)",
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      crosshair: { mode: 0 },
+    });
+    seriesRef.current = chart.addCandlestickSeries({
+      upColor: "#f43f5e",
+      downColor: "#3b82f6",
+      wickUpColor: "#f43f5e",
+      wickDownColor: "#3b82f6",
+      borderVisible: false,
+    });
+    chartRef.current = chart;
+    return () => {
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+    const data: CandlestickData[] = candles.map((c) => ({
+      time: toTime(c.time),
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+    series.setData(data);
+    if (!fittedRef.current && data.length > 0) {
+      chartRef.current?.timeScale().fitContent();
+      fittedRef.current = true;
+    }
+  }, [candles]);
+
+  return <div ref={containerRef} className="w-full h-48" />;
+}

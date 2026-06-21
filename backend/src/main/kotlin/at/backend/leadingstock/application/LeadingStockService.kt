@@ -191,6 +191,10 @@ class LeadingStockService(
             )
         }
 
+    /** 상세 캔들차트용 — 최신 거래일 1분봉을 시간 오름차순으로. (ka10080 30s 캐시 공유) */
+    fun minuteCandles(stockCode: String): List<MinuteCandle> =
+        latestSessionMinuteCandles(stockCode).sortedBy { it.dateTime }
+
     /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
      * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로, 데이터에 존재하는 최신 거래일로 필터링해야

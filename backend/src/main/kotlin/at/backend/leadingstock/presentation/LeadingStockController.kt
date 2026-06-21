@@ -13,6 +13,7 @@ import at.backend.leadingstock.presentation.response.VolumeSpikeResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
+import at.backend.leadingstock.presentation.response.MinuteCandleItem
 import at.backend.leadingstock.presentation.response.SignalEventItem
 import at.backend.leadingstock.presentation.response.SignalEventsResponse
 import at.backend.leadingstock.presentation.response.SwingHighSignalItem
@@ -154,6 +155,22 @@ class LeadingStockController(
             )
         }
         return ApiResponse.ok(SignalEventsResponse(date = day, totalCount = events.size, events = events))
+    }
+
+    /** 종목 최신 거래일 1분봉 — 상세 캔들차트용. ka10080 30s 캐시를 상세 평가와 공유. */
+    @GetMapping("/candidates/{stockCode}/minute-candles")
+    fun getMinuteCandles(@PathVariable stockCode: String): ApiResponse<List<MinuteCandleItem>> {
+        val candles = leadingStockService.minuteCandles(stockCode).map {
+            MinuteCandleItem(
+                time = it.dateTime,
+                open = it.openPrice,
+                high = it.highPrice,
+                low = it.lowPrice,
+                close = it.closePrice,
+                volume = it.volume,
+            )
+        }
+        return ApiResponse.ok(candles)
     }
 
     /** 종목별 일자별 외국인·기관·개인 순매수 추이 (단위: 백만원). */

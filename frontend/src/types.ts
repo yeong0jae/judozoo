@@ -301,6 +301,16 @@ export interface CandidateStocksResponse {
   stocks: CandidateStockItem[];
 }
 
+// === 1분봉 캔들 (상세 차트) ===
+export interface MinuteCandleItem {
+  time: string; // ISO LocalDateTime (KST 벽시계)
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 // === 돌파 임박 레이더 ===
 export interface BreakoutRadarItem {
   stockCode: string;
