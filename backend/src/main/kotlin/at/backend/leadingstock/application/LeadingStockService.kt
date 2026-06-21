@@ -118,20 +118,18 @@ class LeadingStockService(
         val relativeVolume = DailyCandles(dailyCandles)
             .relativeVolume(timeProvider.today(), RVOL_LOOKBACK_DAYS)
 
-        val swingHighSignal = MinuteCandles(latestSessionMinuteCandles(stockCode))
-            .dayHighSignal(stock.currentPrice)
+        val swingHighSignal = breakoutHighCandles(stockCode).dayHighSignal(stock.currentPrice)
 
         return StockEvaluation(stock, results, relativeVolume, swingHighSignal)
     }
 
     /**
-     * 돌파 임박 레이더 — 후보를 당일 고가 돌파에 가까운 순으로 정렬.
-     * 후보별 분봉(dayHighSignal, 상세와 동일 로직)으로 돌파선·형성시각·gap%를 구하고,
-     * 현재가·거래대금은 후보 스냅샷에서 가져온다. 분봉은 30s 캐시.
+     * 돌파 임박 레이더 — 후보를 돌파선(당일·전일 최고가) 돌파에 가까운 순으로 정렬.
+     * 후보별 2거래일 분봉으로 돌파선·형성시각·gap%를 구하고, 현재가·거래대금은 후보 스냅샷에서 가져온다.
      */
     fun breakoutRadar(minDailyPriceChangeRate: Double): List<BreakoutRadarStock> =
         findCandidateStocks(minDailyPriceChangeRate).mapNotNull { c ->
-            val signal = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
+            val signal = breakoutHighCandles(c.stockCode)
                 .dayHighSignal(c.currentPrice) ?: return@mapNotNull null
             BreakoutRadarStock(
                 stockCode = c.stockCode,
@@ -175,9 +173,10 @@ class LeadingStockService(
      */
     fun signalReadings(minDailyPriceChangeRate: Double): List<CandidateSignalReading> =
         findCandidateStocks(minDailyPriceChangeRate).map { c ->
-            val candles = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
-            val high = candles.dayHighSignal(c.currentPrice)
-            val spike = candles.volumeSpike(SPIKE_BASELINE_BARS)
+            // 돌파선은 당일+전일 최고가, 스파이크는 당일만(개장 베이스라인 오염 방지)
+            val high = breakoutHighCandles(c.stockCode).dayHighSignal(c.currentPrice)
+            val spike = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
+                .volumeSpike(SPIKE_BASELINE_BARS)
                 ?.takeIf { it.latestTradingValue >= SPIKE_MIN_TRADING_VALUE }
             CandidateSignalReading(
                 stockCode = c.stockCode,
@@ -211,6 +210,23 @@ class LeadingStockService(
         return all.filter { it.dateTime.toLocalDate() in recentDays }
             .distinctBy { it.dateTime }
             .sortedBy { it.dateTime }
+    }
+
+    /**
+     * 돌파선용 분봉 — 당일+전일 2거래일. 돌파선 = 두 날의 최고가(전일 고가/당일 고가 중 높은 쪽).
+     * 전일은 마감돼 불변이라 장기 캐시(12h)로 사실상 1일 1회만 실호출(당일은 30s 캐시 공유).
+     */
+    private fun breakoutHighCandles(stockCode: String): MinuteCandles {
+        val firstPage = marketClient.fetchMinuteCandles(stockCode) // 당일 + 전일 일부 (30s 캐시)
+        val prevDay = firstPage.map { it.dateTime.toLocalDate() }
+            .distinct().sortedDescending().getOrNull(1)
+        val combined = if (prevDay != null) {
+            firstPage + marketClient.fetchHistoricalMinuteCandles(stockCode, prevDay)
+        } else {
+            firstPage
+        }
+        val days = combined.map { it.dateTime.toLocalDate() }.distinct().sortedDescending().take(2).toSet()
+        return MinuteCandles(combined.filter { it.dateTime.toLocalDate() in days })
     }
 
     /**
