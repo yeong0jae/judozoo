@@ -14,7 +14,7 @@ export default function MinuteChartPanel({
   stockName?: string;
 }) {
   const { data, isLoading } = useMinuteCandles(stockCode);
-  const H = "h-[28rem]";
+  const H = "h-[32rem]";
   return (
     <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.04]">
