@@ -32,15 +32,12 @@ function detailOf(e: SignalEventItem): string {
   return e.gapRate != null ? `${e.gapRate.toFixed(2)}% 남음` : "";
 }
 
+// TEMP: 주말 미리보기용 목 데이터 — 확인 후 이 블록과 아래 사용처를 제거할 것
 export default function SignalLogPage() {
   const eventsQ = useSignalEvents();
   const data = eventsQ.data;
   const events = data?.events ?? [];
-  const [openCode, setOpenCode] = useState<string | null>(null);
-
-  const journey = openCode
-    ? events.filter((e) => e.stockCode === openCode).slice().reverse() // 오래된 순(여정)
-    : [];
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
@@ -80,10 +77,14 @@ export default function SignalLogPage() {
               {events.map((e, i) => {
                 const code = shortCode(e.stockCode);
                 const meta = EVENT_META[e.eventType];
-                const open = openCode === e.stockCode;
+                const rowKey = `${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`;
+                const open = openKey === rowKey;
+                // 같은 종목 이벤트 모음(피드는 최신순) → 여정은 오래된 순, 누적 거래대금은 최신 스냅샷
+                const stockEvents = open ? events.filter((x) => x.stockCode === e.stockCode) : [];
+                const journey = [...stockEvents].reverse();
                 return (
                   <motion.li
-                    key={`${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`}
+                    key={rowKey}
                     layout
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -92,7 +93,7 @@ export default function SignalLogPage() {
                   >
                     <button
                       type="button"
-                      onClick={() => setOpenCode(open ? null : e.stockCode)}
+                      onClick={() => setOpenKey(open ? null : rowKey)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
                     >
                       <span className="num text-xs text-zinc-500 tabular-nums w-16 shrink-0">
@@ -125,7 +126,7 @@ export default function SignalLogPage() {
                     {open && (
                       <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
                         <div className="text-xs text-zinc-500 mb-2">
-                          {e.stockName} 오늘 여정 · 누적 거래대금 {formatKoreanMoney(e.tradingValue)}
+                          {e.stockName} 오늘 여정 · 누적 거래대금 {formatKoreanMoney(stockEvents[0].tradingValue)}
                         </div>
                         <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
                           {journey.map((j, k) => {

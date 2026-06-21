@@ -10,6 +10,7 @@ import at.backend.leadingstock.application.filter.OpeningPriceFilter
 import at.backend.leadingstock.application.filter.PrevDayCloseFilter
 import at.backend.leadingstock.application.filter.PriceAboveOpenFilter
 import at.backend.leadingstock.application.filter.ProgramNetBuyFilter
+import at.backend.leadingstock.application.filter.SpacExclusionFilter
 import at.backend.leadingstock.application.filter.StockFilter
 import at.backend.leadingstock.application.filter.TradingValueRankFilter
 import at.backend.leadingstock.domain.DailyCandles
@@ -48,15 +49,20 @@ class LeadingStockService(
         log.info("Fetched {} candidates from trading value ranking", candidates.size)
 
         val etfExclusion = EtfExclusionFilter()
+        val spacExclusion = SpacExclusionFilter()
 
-        // 개별종목 거래대금 1~3위는 등락률 무관 항상 포함 — 시장 톤 기준점 (ETF/ETN은 제외)
-        val topThree = candidates.filter(etfExclusion::filter).take(TOP_RANK_ALWAYS_INCLUDED)
+        // 개별종목 거래대금 1~3위는 등락률 무관 항상 포함 — 시장 톤 기준점 (ETF/ETN·스팩은 제외)
+        val topThree = candidates
+            .filter(etfExclusion::filter)
+            .filter(spacExclusion::filter)
+            .take(TOP_RANK_ALWAYS_INCLUDED)
 
         // 사용자 지정 등락률만 덮어쓴 임계값으로 Phase 1 필터 구성
         val effectiveCriteria = criteria.copy(minDailyPriceChangeRate = minDailyPriceChangeRate)
         val phase1Filters = FilterChain(
             listOf(
                 etfExclusion,                        // ETF/ETN 제외
+                spacExclusion,                       // 스팩 제외
                 TradingValueRankFilter(effectiveCriteria),
                 DailyPriceChangeFilter(effectiveCriteria),
             ),

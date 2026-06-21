@@ -7,6 +7,7 @@ import at.backend.leadingstock.domain.SignalState
 import at.backend.library.time.TimeProvider
 import at.backend.market.application.MarketStatusService
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Profile
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -25,14 +26,15 @@ class SignalEventPoller(
     private val leadingStockService: LeadingStockService,
     private val signalEventService: SignalEventService,
     private val marketStatusService: MarketStatusService,
-    private val criteria: LeadingStockCriteriaProperties,
+    @Value("\${leading-stock.signal-event.min-change-rate:-7.0}")
+    private val minChangeRate: Double,
     private val timeProvider: TimeProvider,
 ) {
     private val log = KotlinLogging.logger {}
     private val states = ConcurrentHashMap<String, SignalState>()
     private val tradeDate = AtomicReference<LocalDate?>(null)
 
-    @Scheduled(fixedDelayString = "\${leading-stocks.signal-event.poll-interval-millis:10000}")
+    @Scheduled(fixedDelayString = "\${leading-stock.signal-event.poll-interval-millis:10000}")
     fun onSchedule() {
         val status = marketStatusService.getStatus()
         if (status.isHoliday || !status.tradingHoursOpen) return
@@ -44,7 +46,7 @@ class SignalEventPoller(
         if (tradeDate.getAndSet(today) != today) states.clear() // 일자 전환 — 직전 상태 폐기
 
         val now = timeProvider.now()
-        val recorded = leadingStockService.signalReadings(criteria.minDailyPriceChangeRate)
+        val recorded = leadingStockService.signalReadings(minChangeRate)
             .flatMap { r ->
                 val prev = states[r.stockCode] ?: SignalState.INITIAL
                 val (events, next) = prev.advance(SignalReading(r.gapRate, r.peakPrice, r.spikeRatio))

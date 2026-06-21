@@ -40,6 +40,10 @@ leading-stock:
     max-prev-close-change-rate: 25.0       # 전일 종가 대비 25% 이하
     max-opening-price-change-rate: 7.0     # 시초가 대비 7% 이하
     max-theme-rank: 5                      # 테마 그룹 상위 N위
+  signal-event:
+    # 시그널 로그 폴러 전용 — 후보/돌파/스파이크 페이지 기본값과 분리
+    min-change-rate: -7.0                  # 감시 풀 당일 등락률 하한(%) — 넓게 잡아 하락 종목 반등까지 포착
+    poll-interval-millis: 10000            # 폴링 주기(ms)
 
 trading:
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
