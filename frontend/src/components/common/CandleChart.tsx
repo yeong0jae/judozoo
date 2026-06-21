@@ -101,8 +101,10 @@ export default function CandleChart({
       if (x < el.clientWidth - axisW) return; // 차트 영역 → 라이브러리 기본 처리
       e.preventDefault();
       e.stopImmediatePropagation();
-      const step = e.deltaY > 0 ? 1.04 : 1 / 1.04; // 위로=확대, 아래로=축소
-      priceZoomRef.current = Math.min(6, Math.max(0.15, priceZoomRef.current * step));
+      // 휠 변화량에 비례(관성 꼬리 약화) + 이벤트당 상한, 위로=확대·아래로=축소
+      const d = Math.max(-120, Math.min(120, e.deltaY));
+      const next = priceZoomRef.current * Math.exp(d * 0.0002);
+      priceZoomRef.current = Math.min(6, Math.max(0.15, next));
       seriesRef.current?.applyOptions({ autoscaleInfoProvider: priceAutoscale });
     };
     el.addEventListener("wheel", onWheel, { capture: true, passive: false });
