@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
+  useDailyCandles,
   useInvestorTrend,
   useLeadingStockCandidates,
   useLeadingStockDetail,
+  useMinuteCandles,
 } from "../api/queries";
 import type {
   CandidateStockItem,
@@ -22,7 +24,10 @@ import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
-import StockChartPanel from "../components/common/StockChartPanel";
+import CandleChart, {
+  dailySeries,
+  minuteSeries,
+} from "../components/common/CandleChart";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -51,7 +56,6 @@ export default function LeadingStocksPage() {
 
   const data = candidatesQ.data;
   const stocks = data?.stocks ?? [];
-  const selectedStock = stocks.find((s) => s.stockCode === openCode);
 
   // 페이지 진입 시 첫 종목 기본 선택, 선택 종목이 리스트에서 사라지면 다시 첫 종목으로
   useEffect(() => {
@@ -147,15 +151,6 @@ export default function LeadingStocksPage() {
           </aside>
         )}
       </div>
-
-      {/* 리스트·상세 아래 가로 전체 폭 차트 (1분봉/일봉 토글) */}
-      {openCode && (
-        <StockChartPanel
-          stockCode={openCode}
-          stockName={selectedStock?.stockName}
-          heightClass="h-[36rem]"
-        />
-      )}
     </div>
   );
 }
@@ -397,70 +392,131 @@ function CardGroupHeader({ label }: { label: string }) {
 // Detail panel (우측 인라인)
 // ============================================================
 
+type DetailTab = "detail" | "minute" | "daily";
+
 function DetailPanel({ stockCode }: { stockCode: string }) {
   const detailQ = useLeadingStockDetail(stockCode);
   const detail = detailQ.data;
+  const [tab, setTab] = useState<DetailTab>("detail");
+  const minuteQ = useMinuteCandles(tab === "minute" ? stockCode : null);
+  const dailyQ = useDailyCandles(tab === "daily" ? stockCode : null);
+  const CH = "h-[28rem]";
+
+  const TABS: { key: DetailTab; label: string }[] = [
+    { key: "detail", label: "상세" },
+    { key: "minute", label: "1분봉" },
+    { key: "daily", label: "일봉" },
+  ];
 
   return (
     <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden flex flex-col lg:max-h-[calc(100vh-8rem)]">
       <header className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
-        <div className="flex items-center gap-3">
-          <StockAvatar name={detail?.stockName ?? "?"} code={shortCode(stockCode)} size={36} />
-          <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-            <span className="text-base font-semibold">{detail?.stockName ?? "…"}</span>
-            <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <StockAvatar name={detail?.stockName ?? "?"} code={shortCode(stockCode)} size={36} />
+              <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                <span className="text-base font-semibold">{detail?.stockName ?? "…"}</span>
+                <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
+                {detail && (
+                  <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
+                )}
+              </div>
+            </div>
             {detail && (
-              <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
+              <div className="text-xs text-zinc-400 mt-0.5">
+                <NumWon value={detail.currentPrice} className="num" />{" "}
+                <ProfitText
+                  value={detail.priceChangeRate / 100}
+                  format={formatPct}
+                  className="num ml-1"
+                />
+                {detail.relativeVolume != null && (
+                  <span
+                    className={`num ml-2 text-xs ${
+                      detail.relativeVolume >= 2
+                        ? "text-amber-400"
+                        : detail.relativeVolume >= 1
+                          ? "text-zinc-300"
+                          : "text-zinc-600"
+                    }`}
+                    title="당일 누적 거래량 / 직전 20거래일 평균 (장 초반엔 낮게 나옴)"
+                  >
+                    RVOL {detail.relativeVolume.toFixed(1)}배
+                  </span>
+                )}
+              </div>
             )}
+          </div>
+          {/* 상세/차트 토글 */}
+          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs shrink-0">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  tab === t.key ? "bg-white/[0.1] text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
-        {detail && (
-          <div className="text-xs text-zinc-400 mt-0.5">
-            <NumWon value={detail.currentPrice} className="num" />{" "}
-            <ProfitText
-              value={detail.priceChangeRate / 100}
-              format={formatPct}
-              className="num ml-1"
-            />
-            {detail.relativeVolume != null && (
-              <span
-                className={`num ml-2 text-xs ${
-                  detail.relativeVolume >= 2
-                    ? "text-amber-400"
-                    : detail.relativeVolume >= 1
-                      ? "text-zinc-300"
-                      : "text-zinc-600"
-                }`}
-                title="당일 누적 거래량 / 직전 20거래일 평균 (장 초반엔 낮게 나옴)"
-              >
-                RVOL {detail.relativeVolume.toFixed(1)}배
-              </span>
-            )}
-          </div>
-        )}
       </header>
 
       <div className="flex-1 lg:overflow-y-auto p-4 sm:p-6">
-        {detailQ.isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : detailQ.isError ? (
-          <p className="text-sm text-rose-700">상세 정보를 불러올 수 없습니다</p>
-        ) : detail ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            <FilterResultsList results={detail.filterResults} />
-            <div className="space-y-6">
-              <BreakoutSignalSection
-                signal={detail.swingHighSignal}
-                currentPrice={detail.currentPrice}
-              />
-              <InvestorTrendSection stockCode={shortCode(stockCode)} />
+        {tab === "detail" ? (
+          detailQ.isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
             </div>
+          ) : detailQ.isError ? (
+            <p className="text-xs text-rose-700">상세 정보를 불러올 수 없습니다</p>
+          ) : detail ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              <FilterResultsList results={detail.filterResults} />
+              <div className="space-y-6">
+                <BreakoutSignalSection
+                  signal={detail.swingHighSignal}
+                  currentPrice={detail.currentPrice}
+                />
+                <InvestorTrendSection stockCode={shortCode(stockCode)} />
+              </div>
+            </div>
+          ) : null
+        ) : tab === "minute" ? (
+          minuteQ.isLoading ? (
+            <Skeleton className={`${CH} w-full`} />
+          ) : !minuteQ.data || minuteQ.data.length === 0 ? (
+            <div className={`${CH} flex items-center justify-center text-xs text-zinc-600`}>
+              분봉 데이터가 없습니다
+            </div>
+          ) : (
+            <CandleChart
+              key={`${stockCode}-m`}
+              series={minuteSeries(minuteQ.data)}
+              priceLine={Math.max(...minuteQ.data.map((c) => c.high))}
+              className={`w-full ${CH}`}
+            />
+          )
+        ) : dailyQ.isLoading ? (
+          <Skeleton className={`${CH} w-full`} />
+        ) : !dailyQ.data || dailyQ.data.length === 0 ? (
+          <div className={`${CH} flex items-center justify-center text-xs text-zinc-600`}>
+            일봉 데이터가 없습니다
           </div>
-        ) : null}
+        ) : (
+          <CandleChart
+            key={`${stockCode}-d`}
+            series={dailySeries(dailyQ.data)}
+            timeVisible={false}
+            className={`w-full ${CH}`}
+          />
+        )}
       </div>
     </div>
   );
@@ -485,7 +541,7 @@ function FilterResultsList({ results }: { results: FilterResultItem[] }) {
           <span className="text-xs mt-0.5">{r.passed ? "✓" : "✗"}</span>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium">{r.filterName}</div>
-            <div className="text-[11px] text-zinc-500 mt-0.5">
+            <div className="text-xs text-zinc-500 mt-0.5">
               기준: {r.criteriaDescription}
             </div>
           </div>
@@ -569,10 +625,10 @@ function breakoutStatus(gapRate: number): {
 } {
   if (gapRate <= 0)
     return { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
-  if (gapRate < 1.0)
-    return { label: "임박", chip: "bg-amber-500/20 text-amber-300", gap: "text-amber-300" };
   if (gapRate < 2.0)
-    return { label: "근접", chip: "bg-amber-500/15 text-amber-400", gap: "text-amber-400" };
+    return { label: "임박", chip: "bg-amber-500/20 text-amber-300", gap: "text-amber-300" };
+  if (gapRate < 4.0)
+    return { label: "주시", chip: "bg-amber-500/15 text-amber-400", gap: "text-amber-400" };
   return { label: "관망", chip: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-200" };
 }
 
@@ -608,7 +664,7 @@ function BreakoutSignalSection({
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">돌파선</span>
           <span className="flex items-baseline gap-2">
-            <span className="num text-base font-semibold text-zinc-100">
+            <span className="num text-sm font-semibold text-zinc-100">
               {formatPrice(signal.peakPrice)}
             </span>
             <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${status.chip}`}>
@@ -625,11 +681,11 @@ function BreakoutSignalSection({
         {/* 현재가 → 돌파까지 거리(원/%) */}
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">현재가</span>
-          <span className="num text-zinc-300">{formatPrice(currentPrice)}</span>
+          <span className="num text-sm text-zinc-300">{formatPrice(currentPrice)}</span>
         </div>
         <div className="mt-2 flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">{broke ? "돌파" : "돌파까지"}</span>
-          <span className={`num font-semibold ${status.gap}`}>
+          <span className={`num text-sm font-semibold ${status.gap}`}>
             {broke
               ? `${formatPrice(-gapWon)}원 (+${(-signal.gapRate).toFixed(1)}%)`
               : `${formatPrice(gapWon)}원 (${signal.gapRate.toFixed(1)}%)`}
