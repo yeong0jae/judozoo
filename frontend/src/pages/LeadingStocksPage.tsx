@@ -600,7 +600,7 @@ function BreakoutSignalSection({
       <h3 className="text-xs font-semibold text-zinc-200 mb-3">
         주도주 돌파 매매 시그널
         <span className="ml-2 text-xs font-normal text-zinc-500">
-          당일·전일 고가 기준
+          최근 3거래일 고가 기준
         </span>
       </h3>
       <div className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4">

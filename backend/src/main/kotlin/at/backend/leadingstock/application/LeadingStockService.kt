@@ -125,7 +125,7 @@ class LeadingStockService(
     }
 
     /**
-     * 돌파 임박 레이더 — 후보를 돌파선(당일·전일 최고가) 돌파에 가까운 순으로 정렬.
+     * 돌파 임박 레이더 — 후보를 돌파선(최근 3거래일 최고가) 돌파에 가까운 순으로 정렬.
      * 후보별 2거래일 분봉으로 돌파선·형성시각·gap%를 구하고, 현재가·거래대금은 후보 스냅샷에서 가져온다.
      */
     fun breakoutRadar(minDailyPriceChangeRate: Double): List<BreakoutRadarStock> =
@@ -174,7 +174,7 @@ class LeadingStockService(
      */
     fun signalReadings(minDailyPriceChangeRate: Double): List<CandidateSignalReading> =
         findCandidateStocks(minDailyPriceChangeRate).map { c ->
-            // 돌파선은 당일+전일 최고가, 스파이크는 당일만(개장 베이스라인 오염 방지)
+            // 돌파선은 최근 3거래일 최고가, 스파이크는 당일만(개장 베이스라인 오염 방지)
             val high = breakoutHighCandles(c.stockCode).dayHighSignal(c.currentPrice)
             val spike = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
                 .volumeSpike(SPIKE_BASELINE_BARS)
@@ -217,21 +217,11 @@ class LeadingStockService(
     fun dailyCandles(stockCode: String): List<DailyCandle> = marketClient.fetchDailyCandles(stockCode, 60)
 
     /**
-     * 돌파선용 분봉 — 당일+전일 2거래일. 돌파선 = 두 날의 최고가(전일 고가/당일 고가 중 높은 쪽).
-     * 전일은 마감돼 불변이라 장기 캐시(12h)로 사실상 1일 1회만 실호출(당일은 30s 캐시 공유).
+     * 돌파선용 분봉 — 차트와 동일한 최근 [CHART_SESSION_DAYS]거래일. 돌파선 = 그 기간 최고가.
+     * 차트용 [minuteCandles]를 그대로 재활용(당일 30s·과거 12h 캐시 공유)하므로 추가 실호출은 거의 없다.
      */
-    private fun breakoutHighCandles(stockCode: String): MinuteCandles {
-        val firstPage = marketClient.fetchMinuteCandles(stockCode) // 당일 + 전일 일부 (30s 캐시)
-        val prevDay = firstPage.map { it.dateTime.toLocalDate() }
-            .distinct().sortedDescending().getOrNull(1)
-        val combined = if (prevDay != null) {
-            firstPage + marketClient.fetchHistoricalMinuteCandles(stockCode, prevDay)
-        } else {
-            firstPage
-        }
-        val days = combined.map { it.dateTime.toLocalDate() }.distinct().sortedDescending().take(2).toSet()
-        return MinuteCandles(combined.filter { it.dateTime.toLocalDate() in days })
-    }
+    private fun breakoutHighCandles(stockCode: String): MinuteCandles =
+        MinuteCandles(minuteCandles(stockCode))
 
     /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
