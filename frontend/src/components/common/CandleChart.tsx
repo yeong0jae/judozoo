@@ -77,6 +77,12 @@ export default function CandleChart({
       wickDownColor: "#3b82f6",
       borderVisible: false,
       autoscaleInfoProvider: priceAutoscale,
+      // 가격축: 정수(원) + 천 단위 쉼표
+      priceFormat: {
+        type: "custom",
+        minMove: 1,
+        formatter: (p: number) => Math.round(p).toLocaleString("en-US"),
+      },
     });
     // 캔들은 위 75%, 거래량은 아래 20%에 별도 오버레이 스케일로
     chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.05, bottom: 0.25 } });
@@ -95,7 +101,7 @@ export default function CandleChart({
       if (x < el.clientWidth - axisW) return; // 차트 영역 → 라이브러리 기본 처리
       e.preventDefault();
       e.stopImmediatePropagation();
-      const step = e.deltaY > 0 ? 1.1 : 1 / 1.1; // 위로=확대, 아래로=축소
+      const step = e.deltaY > 0 ? 1.04 : 1 / 1.04; // 위로=확대, 아래로=축소
       priceZoomRef.current = Math.min(6, Math.max(0.15, priceZoomRef.current * step));
       seriesRef.current?.applyOptions({ autoscaleInfoProvider: priceAutoscale });
     };
