@@ -12,10 +12,6 @@ import at.backend.leadingstock.presentation.response.VolumeSpikeResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
-import at.backend.leadingstock.presentation.response.SignalBoardItem
-import at.backend.leadingstock.presentation.response.SignalBoardResponse
-import at.backend.leadingstock.presentation.response.SignalBreakout
-import at.backend.leadingstock.presentation.response.SignalSpike
 import at.backend.leadingstock.presentation.response.SwingHighSignalItem
 import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
@@ -121,44 +117,6 @@ class LeadingStockController(
         }
         return ApiResponse.ok(
             VolumeSpikeResponse(
-                queriedAt = timeProvider.now(),
-                totalCount = items.size,
-                stocks = items,
-            ),
-        )
-    }
-
-    /**
-     * 종합 시그널 보드 — 주도주 후보의 돌파·스파이크를 한 화면에서 교차 평가.
-     * 두 신호가 함께 켜진 종목을 위로 올린다(후보와 동일 풀).
-     */
-    @GetMapping("/signals")
-    fun getSignalBoard(
-        @RequestParam(required = false) minChangeRate: Int?,
-    ): ApiResponse<SignalBoardResponse> {
-        val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
-            ?: criteria.minDailyPriceChangeRate
-        val items = leadingStockService.signalBoard(rate).map { s ->
-            val themes = leadingStockService.themesOf(s.stockCode)
-            SignalBoardItem(
-                stockCode = s.stockCode,
-                stockName = s.stockName,
-                currentPrice = s.currentPrice,
-                priceChangeRate = s.priceChangeRate,
-                tradingValue = s.tradingValue,
-                themes = themes.take(MAX_THEME_CHIPS),
-                themeCount = themes.size,
-                signalCount = s.signalCount,
-                breakout = s.breakout?.let {
-                    SignalBreakout(dayHigh = it.peakPrice, peakAt = it.peakAt, gapRate = it.gapRate)
-                },
-                spike = s.spike?.let {
-                    SignalSpike(minuteTradingValue = it.latestTradingValue, spikeRatio = it.ratio, at = it.at)
-                },
-            )
-        }
-        return ApiResponse.ok(
-            SignalBoardResponse(
                 queriedAt = timeProvider.now(),
                 totalCount = items.size,
                 stocks = items,

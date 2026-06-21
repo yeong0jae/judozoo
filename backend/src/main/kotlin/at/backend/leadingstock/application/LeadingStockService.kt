@@ -12,13 +12,11 @@ import at.backend.leadingstock.application.filter.PriceAboveOpenFilter
 import at.backend.leadingstock.application.filter.ProgramNetBuyFilter
 import at.backend.leadingstock.application.filter.StockFilter
 import at.backend.leadingstock.application.filter.TradingValueRankFilter
-import at.backend.leadingstock.domain.CompositeSignal
 import at.backend.leadingstock.domain.DailyCandles
 import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.leadingstock.domain.MinuteCandle
 import at.backend.leadingstock.domain.MinuteCandles
 import at.backend.leadingstock.domain.SwingHighSignal
-import at.backend.leadingstock.domain.VolumeSpike
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import at.backend.platform.kiwoom.client.KiwoomProgramClient
@@ -165,37 +163,6 @@ class LeadingStockService(
             }.sortedByDescending { it.spikeRatio }
 
     /**
-     * 종합 시그널 보드 — 주도주 후보별로 돌파·스파이크를 한 번의 분봉 조회로 동시에 평가한다.
-     * 두 신호가 함께 켜진 종목(교차)을 위로 올린다: 신호 수 desc → 돌파 근접도(갭) asc → 스파이크 배율 desc.
-     */
-    fun signalBoard(minDailyPriceChangeRate: Double): List<SignalBoardStock> =
-        findCandidateStocks(minDailyPriceChangeRate).map { c ->
-            val candles = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
-            val spike = candles.volumeSpike(SPIKE_BASELINE_BARS)
-                ?.takeIf { it.ratio >= SPIKE_RATIO_MIN && it.latestTradingValue >= SPIKE_MIN_TRADING_VALUE }
-            val composite = CompositeSignal(
-                breakout = candles.dayHighSignal(c.currentPrice),
-                spike = spike,
-                breakoutNearGapRate = BREAKOUT_NEAR_GAP_RATE,
-            )
-            SignalBoardStock(
-                stockCode = c.stockCode,
-                stockName = c.stockName,
-                currentPrice = c.currentPrice,
-                priceChangeRate = c.priceChangeRate,
-                tradingValue = c.accumulatedTradingValue,
-                signalCount = composite.signalCount,
-                breakout = composite.breakout,
-                spike = composite.spike,
-            )
-        }.sortedWith(
-            compareByDescending<SignalBoardStock> { it.signalCount }
-                .thenByDescending { it.breakout != null }
-                .thenBy { it.breakout?.gapRate ?: Double.MAX_VALUE }
-                .thenByDescending { it.spike?.ratio ?: 0.0 },
-        )
-
-    /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.
      * ka10080은 base_dt 기준 과거 여러 날 분봉을 함께 내려주므로, 데이터에 존재하는 최신 거래일로 필터링해야
      * 전고점이 다른 날 봉에서 잡히지 않는다(장중엔 당일, 장 마감 후엔 직전 세션).
@@ -212,24 +179,8 @@ class LeadingStockService(
         private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
         private const val SPIKE_RATIO_MIN = 3.0         // 최소 배율
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
-        private const val BREAKOUT_NEAR_GAP_RATE = 2.0  // 돌파선까지 갭(%) 이 값 미만이면 돌파 신호 켜짐(근접 이상)
     }
 }
-
-/**
- * 종합 시그널 보드 한 종목 — 주도주 후보 기본정보 + 켜진 돌파·스파이크 신호.
- * [breakout]/[spike]는 신호가 비활성이면 null, [signalCount]는 켜진 신호 수(0~2).
- */
-data class SignalBoardStock(
-    val stockCode: String,
-    val stockName: String,
-    val currentPrice: Long,
-    val priceChangeRate: Double,
-    val tradingValue: Long,
-    val signalCount: Int,
-    val breakout: SwingHighSignal?,
-    val spike: VolumeSpike?,
-)
 
 /** 분봉 거래대금 스파이크 한 종목. */
 data class VolumeSpikeStock(
