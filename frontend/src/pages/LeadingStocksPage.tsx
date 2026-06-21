@@ -596,7 +596,7 @@ function BreakoutSignalSection({
       <h3 className="text-sm font-semibold text-zinc-200 mb-3">
         주도주 돌파 매매 시그널
         <span className="ml-2 text-xs font-normal text-zinc-500">
-          당일 고가 기준
+          당일·전일 고가 기준
         </span>
       </h3>
       <div className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4">
@@ -613,7 +613,7 @@ function BreakoutSignalSection({
           </span>
         </div>
         <div className="mt-1 text-xs text-zinc-500 num">
-          {peakTime} 형성 · {elapsed}
+          {peakDate.getDate()}일 {peakTime} 형성 · {elapsed}
         </div>
 
         <div className="my-3 border-t border-zinc-800" />

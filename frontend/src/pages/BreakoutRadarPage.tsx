@@ -79,7 +79,7 @@ export default function BreakoutRadarPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[11fr_9fr] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {/* 등락률 임계값 선택 — 후보 풀 조절 */}
         <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
@@ -96,7 +96,7 @@ export default function BreakoutRadarPage() {
         ) : (
           <>
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead className="text-zinc-500 text-xs">
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
@@ -185,7 +185,7 @@ function RadarRow({
       </td>
       <td className="px-4 py-3.5 text-right">
         <div className="num text-zinc-300">{formatPrice(s.dayHigh)}</div>
-        <div className="num text-xs text-zinc-500">{peakTime} 형성</div>
+        <div className="num text-xs text-zinc-500">{peak.getDate()}일 {peakTime} 형성</div>
       </td>
       <td className={`px-4 py-3.5 text-right num font-semibold ${st.gap}`}>
         {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
@@ -246,7 +246,7 @@ function RadarCard({
       {/* 2행: 돌파선 · 돌파까지 */}
       <div className="flex items-baseline justify-between gap-2 pl-9">
         <span className="text-xs text-zinc-500 num">
-          돌파선 {formatPrice(s.dayHigh)} · {peakTime}
+          돌파선 {formatPrice(s.dayHigh)} · {peak.getDate()}일 {peakTime}
         </span>
         <span className={`num text-sm font-semibold ${st.gap}`}>
           {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}

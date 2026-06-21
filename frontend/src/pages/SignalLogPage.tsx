@@ -70,7 +70,7 @@ export default function SignalLogPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[11fr_9fr] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {eventsQ.isLoading ? (
           <div className="p-6 space-y-3">
@@ -120,7 +120,7 @@ export default function SignalLogPage() {
                           {meta.label}
                         </span>
                         <StockAvatar name={e.stockName} code={code} />
-                        <span className="font-semibold text-zinc-100 truncate">{e.stockName}</span>
+                        <span className="text-sm font-semibold text-zinc-100 truncate">{e.stockName}</span>
                         {e.theme && (
                           <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400 shrink-0">
                             {e.theme}
@@ -130,7 +130,7 @@ export default function SignalLogPage() {
                       {/* 오른쪽: 디테일·현재가·등락률 (모바일에선 아래 줄로 래핑) */}
                       <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
                         <span className="num text-xs text-zinc-300">{detailOf(e)}</span>
-                        <span className="num text-sm text-zinc-100 w-20 text-right">
+                        <span className="num text-xs text-zinc-100 w-20 text-right">
                           {formatPrice(e.currentPrice)}
                         </span>
                         <span className="w-16 text-right">
