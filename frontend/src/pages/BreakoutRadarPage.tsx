@@ -85,7 +85,8 @@ export default function BreakoutRadarPage() {
         ) : stocks.length === 0 ? (
           <EmptyState message="후보 종목이 없습니다" />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-zinc-500 text-xs">
                 <tr>
@@ -107,6 +108,12 @@ export default function BreakoutRadarPage() {
               </tbody>
             </table>
           </div>
+          <div className="md:hidden">
+            {stocks.map((s) => (
+              <RadarCard key={s.stockCode} s={s} />
+            ))}
+          </div>
+          </>
         )}
       </section>
     </div>
@@ -183,5 +190,60 @@ function RadarRow({ s }: { s: BreakoutRadarItem }) {
         <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
       </td>
     </motion.tr>
+  );
+}
+
+/** 모바일 카드 — 표 컬럼을 3행으로 압축 (돌파선·돌파까지·상태 우선). */
+function RadarCard({ s }: { s: BreakoutRadarItem }) {
+  const code = shortCode(s.stockCode);
+  const st = radarStatus(s.gapRate);
+  const gapWon = s.dayHigh - s.currentPrice;
+  const peak = new Date(s.peakAt);
+  peak.setMinutes(peak.getMinutes() + 1);
+  const peakTime = peak.toTimeString().slice(0, 5);
+  return (
+    <div className="border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1.5">
+      {/* 1행: 종목 · 상태 */}
+      <div className="flex items-center gap-2">
+        <StockAvatar name={s.stockName} code={code} size={26} />
+        <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.stockName}</span>
+        <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${st.cls}`}>{st.label}</span>
+      </div>
+      {/* 2행: 돌파선 · 돌파까지 */}
+      <div className="flex items-baseline justify-between gap-2 pl-9">
+        <span className="text-xs text-zinc-500 num">
+          돌파선 {formatPrice(s.dayHigh)} · {peakTime}
+        </span>
+        <span className={`num text-sm font-semibold ${st.gap}`}>
+          {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
+        </span>
+      </div>
+      {/* 3행: 코드·거래대금 · 현재가·등락률 */}
+      <div className="flex items-baseline justify-between gap-2 pl-9">
+        <span className="text-xs text-zinc-500 num truncate">
+          {code} · {formatKoreanMoney(s.tradingValue)}
+        </span>
+        <span className="flex items-baseline gap-2 shrink-0">
+          <NumWon value={s.currentPrice} className="num text-sm font-medium text-zinc-100" />
+          <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num text-xs" />
+        </span>
+      </div>
+      {/* 테마 */}
+      {s.themes.length > 0 && (
+        <div className="flex items-center flex-wrap gap-1 pl-9">
+          {s.themes.map((t) => (
+            <span
+              key={t}
+              className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400"
+            >
+              {t}
+            </span>
+          ))}
+          {s.themeCount > s.themes.length && (
+            <span className="text-[11px] text-zinc-500">+{s.themeCount - s.themes.length}</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

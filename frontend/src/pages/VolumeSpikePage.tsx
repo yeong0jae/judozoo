@@ -79,7 +79,8 @@ export default function VolumeSpikePage() {
         ) : stocks.length === 0 ? (
           <EmptyState message="스파이크 종목이 없습니다" />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-zinc-500 text-xs">
                 <tr>
@@ -99,6 +100,12 @@ export default function VolumeSpikePage() {
               </tbody>
             </table>
           </div>
+          <div className="md:hidden">
+            {stocks.map((s) => (
+              <SpikeCard key={s.stockCode} s={s} />
+            ))}
+          </div>
+          </>
         )}
       </section>
     </div>
@@ -141,5 +148,30 @@ function SpikeRow({ s }: { s: VolumeSpikeItem }) {
         <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
       </td>
     </motion.tr>
+  );
+}
+
+/** 모바일 카드 — 배율을 우측 강조, 1분 거래대금·현재가·등락률을 압축. */
+function SpikeCard({ s }: { s: VolumeSpikeItem }) {
+  const code = shortCode(s.stockCode);
+  return (
+    <div className="border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <StockAvatar name={s.stockName} code={code} size={26} />
+        <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.stockName}</span>
+        <span className={`num text-sm font-semibold shrink-0 ${ratioColor(s.spikeRatio)}`}>
+          {s.spikeRatio.toFixed(1)}배
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-2 pl-9">
+        <span className="text-xs text-zinc-500 num truncate">
+          {code} · 1분 {formatKoreanMoney(s.minuteTradingValue)}
+        </span>
+        <span className="flex items-baseline gap-2 shrink-0">
+          <NumWon value={s.currentPrice} className="num text-sm font-medium text-zinc-100" />
+          <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num text-xs" />
+        </span>
+      </div>
+    </div>
   );
 }

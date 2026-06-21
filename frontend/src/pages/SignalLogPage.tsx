@@ -94,33 +94,39 @@ export default function SignalLogPage() {
                     <button
                       type="button"
                       onClick={() => setOpenKey(open ? null : rowKey)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
+                      className="w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
                     >
-                      <span className="num text-xs text-zinc-500 tabular-nums w-16 shrink-0">
-                        {clockOf(e.occurredAt)}
-                      </span>
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
-                        {meta.label}
-                      </span>
-                      <StockAvatar name={e.stockName} code={code} />
-                      <span className="font-semibold text-zinc-100 truncate">{e.stockName}</span>
-                      {e.theme && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400 shrink-0">
-                          {e.theme}
+                      {/* 왼쪽: 시각·유형·종목 */}
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="num text-xs text-zinc-500 tabular-nums w-16 shrink-0">
+                          {clockOf(e.occurredAt)}
                         </span>
-                      )}
-                      <span className="num text-xs text-zinc-300 ml-auto shrink-0">{detailOf(e)}</span>
-                      <span className="num text-sm text-zinc-100 w-20 text-right shrink-0">
-                        {formatPrice(e.currentPrice)}
-                      </span>
-                      <span className="w-16 text-right shrink-0">
-                        <ProfitText
-                          value={e.priceChangeRate / 100}
-                          format={formatPct}
-                          className="num text-xs"
-                        />
-                      </span>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
+                          {meta.label}
+                        </span>
+                        <StockAvatar name={e.stockName} code={code} />
+                        <span className="font-semibold text-zinc-100 truncate">{e.stockName}</span>
+                        {e.theme && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400 shrink-0">
+                            {e.theme}
+                          </span>
+                        )}
+                      </div>
+                      {/* 오른쪽: 디테일·현재가·등락률 (모바일에선 아래 줄로 래핑) */}
+                      <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
+                        <span className="num text-xs text-zinc-300">{detailOf(e)}</span>
+                        <span className="num text-sm text-zinc-100 w-20 text-right">
+                          {formatPrice(e.currentPrice)}
+                        </span>
+                        <span className="w-16 text-right">
+                          <ProfitText
+                            value={e.priceChangeRate / 100}
+                            format={formatPct}
+                            className="num text-xs"
+                          />
+                        </span>
+                      </div>
                     </button>
 
                     {open && (
