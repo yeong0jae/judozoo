@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSignalEvents } from "../api/queries";
 import type { SignalEventItem, SignalEventType } from "../types";
@@ -7,6 +7,7 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
+import MinuteChartPanel from "../components/common/MinuteChartPanel";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -39,6 +40,13 @@ export default function SignalLogPage() {
   const events = data?.events ?? [];
   const [openKey, setOpenKey] = useState<string | null>(null);
 
+  // 우측 차트에 띄울 선택 종목 — 첫 로드 시 최신 이벤트 종목 자동 선택
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (selectedCode === null && events.length > 0) setSelectedCode(events[0].stockCode);
+  }, [events, selectedCode]);
+  const selectedName = events.find((e) => e.stockCode === selectedCode)?.stockName;
+
   return (
     <div className="space-y-4">
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
@@ -62,6 +70,7 @@ export default function SignalLogPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-[11fr_9fr] gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {eventsQ.isLoading ? (
           <div className="p-6 space-y-3">
@@ -93,8 +102,13 @@ export default function SignalLogPage() {
                   >
                     <button
                       type="button"
-                      onClick={() => setOpenKey(open ? null : rowKey)}
-                      className="w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
+                      onClick={() => {
+                        setSelectedCode(e.stockCode);
+                        setOpenKey(open ? null : rowKey);
+                      }}
+                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors ${
+                        e.stockCode === selectedCode ? "bg-emerald-900/30" : ""
+                      }`}
                     >
                       {/* 왼쪽: 시각·유형·종목 */}
                       <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -162,6 +176,10 @@ export default function SignalLogPage() {
           </ul>
         )}
       </section>
+      <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
+        <MinuteChartPanel stockCode={selectedCode} stockName={selectedName} />
+      </div>
+      </div>
     </div>
   );
 }
