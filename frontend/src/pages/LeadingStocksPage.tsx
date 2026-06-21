@@ -295,9 +295,9 @@ function CandidatesTable({
 
 function GroupHeader({ label, hint }: { label: string; hint?: string }) {
   return (
-    <tr aria-hidden className="bg-white/[0.02]">
+    <tr aria-hidden className="border-t border-white/[0.04] bg-white/[0.02]">
       {/* 표 좌측 끝(순위 컬럼 자리)에서 라벨 시작 — 1·2·3 번호 컬럼과 좌측 정렬 일치 */}
-      <td colSpan={5} className="px-4 pt-4 pb-2">
+      <td colSpan={5} className="px-4 py-2.5">
         <span className="text-xs font-semibold text-zinc-400">{label}</span>
         {hint && (
           <span className="ml-2 text-xs text-zinc-500 font-normal">{hint}</span>
