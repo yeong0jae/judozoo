@@ -22,7 +22,7 @@ import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
-import CandidateChartPanel from "../components/common/CandidateChartPanel";
+import StockChartPanel from "../components/common/StockChartPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -150,7 +150,11 @@ export default function LeadingStocksPage() {
 
       {/* 리스트·상세 아래 가로 전체 폭 차트 (1분봉/일봉 토글) */}
       {openCode && (
-        <CandidateChartPanel stockCode={openCode} stockName={selectedStock?.stockName} />
+        <StockChartPanel
+          stockCode={openCode}
+          stockName={selectedStock?.stockName}
+          heightClass="h-[36rem]"
+        />
       )}
     </div>
   );
@@ -403,7 +407,7 @@ function DetailPanel({ stockCode }: { stockCode: string }) {
         <div className="flex items-center gap-3">
           <StockAvatar name={detail?.stockName ?? "?"} code={shortCode(stockCode)} size={36} />
           <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-            <span className="text-lg font-semibold">{detail?.stockName ?? "…"}</span>
+            <span className="text-base font-semibold">{detail?.stockName ?? "…"}</span>
             <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
             {detail && (
               <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
@@ -502,7 +506,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   if (isLoading) {
     return (
       <section>
-        <h3 className="text-sm font-semibold text-zinc-200 mb-2">
+        <h3 className="text-xs font-semibold text-zinc-200 mb-2">
           외국인·기관 자금 흐름
         </h3>
         <Skeleton className="h-24 w-full" />
@@ -518,7 +522,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
 
   return (
     <section>
-      <h3 className="text-sm font-semibold text-zinc-200 mb-3">
+      <h3 className="text-xs font-semibold text-zinc-200 mb-3">
         외국인·기관 자금 흐름
         <span className="ml-2 text-xs font-normal text-zinc-500">
           5분 단위 갱신
@@ -593,7 +597,7 @@ function BreakoutSignalSection({
 
   return (
     <section>
-      <h3 className="text-sm font-semibold text-zinc-200 mb-3">
+      <h3 className="text-xs font-semibold text-zinc-200 mb-3">
         주도주 돌파 매매 시그널
         <span className="ml-2 text-xs font-normal text-zinc-500">
           당일·전일 고가 기준
@@ -604,7 +608,7 @@ function BreakoutSignalSection({
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">돌파선</span>
           <span className="flex items-baseline gap-2">
-            <span className="num text-lg font-semibold text-zinc-100">
+            <span className="num text-base font-semibold text-zinc-100">
               {formatPrice(signal.peakPrice)}
             </span>
             <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${status.chip}`}>

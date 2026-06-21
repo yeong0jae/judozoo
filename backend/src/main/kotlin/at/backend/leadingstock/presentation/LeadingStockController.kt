@@ -222,18 +222,24 @@ class LeadingStockController(
                         passed = it.passed,
                     )
                 },
-                dailyCandles = eval.dailyCandles.map {
-                    DailyCandleChartItem(
-                        date = it.date.toString(),
-                        open = it.openPrice,
-                        high = it.highPrice,
-                        low = it.lowPrice,
-                        close = it.closePrice,
-                        volume = it.volume,
-                    )
-                },
             ),
         )
+    }
+
+    /** 종목 최근 60거래일 일봉 — 일봉 차트용. ka10081 30s 캐시를 상세 필터/RVOL과 공유. */
+    @GetMapping("/candidates/{stockCode}/daily-candles")
+    fun getDailyCandles(@PathVariable stockCode: String): ApiResponse<List<DailyCandleChartItem>> {
+        val candles = leadingStockService.dailyCandles(stockCode).map {
+            DailyCandleChartItem(
+                date = it.date.toString(),
+                open = it.openPrice,
+                high = it.highPrice,
+                low = it.lowPrice,
+                close = it.closePrice,
+                volume = it.volume,
+            )
+        }
+        return ApiResponse.ok(candles)
     }
 
     companion object {

@@ -1,29 +1,30 @@
 import { useState } from "react";
-import { useLeadingStockDetail, useMinuteCandles } from "../../api/queries";
+import { useDailyCandles, useMinuteCandles } from "../../api/queries";
 import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
 import Skeleton from "./Skeleton";
 
 type Tab = "minute" | "daily";
 
 /**
- * 후보 조회 페이지 전용 차트 — 1분봉/일봉 토글.
- * 일봉은 상세 응답(useLeadingStockDetail)의 60봉을 재사용(추가 API 콜 없음).
+ * 선택 종목 차트 — 1분봉/일봉 토글. 후보·돌파·스파이크·시그널 로그 공용.
+ * 일봉(ka10081)은 30s 캐시라 상세 필터/RVOL 조회분과 공유.
  */
-export default function CandidateChartPanel({
+export default function StockChartPanel({
   stockCode,
   stockName,
+  heightClass = "h-[32rem]",
 }: {
   stockCode: string | null;
   stockName?: string;
+  heightClass?: string;
 }) {
   const [tab, setTab] = useState<Tab>("minute");
   const minuteQ = useMinuteCandles(tab === "minute" ? stockCode : null);
-  const detailQ = useLeadingStockDetail(stockCode); // 상세 패널과 공유 — 추가 콜 없음
-  const H = "h-[36rem]";
+  const dailyQ = useDailyCandles(tab === "daily" ? stockCode : null);
 
   const minuteData = minuteQ.data;
-  const dailyData = detailQ.data?.dailyCandles;
-  const loading = tab === "minute" ? minuteQ.isLoading : detailQ.isLoading;
+  const dailyData = dailyQ.data;
+  const loading = tab === "minute" ? minuteQ.isLoading : dailyQ.isLoading;
   const hasData =
     tab === "minute" ? (minuteData?.length ?? 0) > 0 : (dailyData?.length ?? 0) > 0;
 
@@ -48,27 +49,27 @@ export default function CandidateChartPanel({
       </div>
       <div className="p-4">
         {!stockCode ? (
-          <div className={`${H} flex items-center justify-center text-sm text-zinc-600`}>
+          <div className={`${heightClass} flex items-center justify-center text-sm text-zinc-600`}>
             종목을 선택하면 차트가 표시됩니다
           </div>
         ) : loading ? (
-          <Skeleton className={`${H} w-full`} />
+          <Skeleton className={`${heightClass} w-full`} />
         ) : !hasData ? (
-          <div className={`${H} flex items-center justify-center text-sm text-zinc-600`}>
+          <div className={`${heightClass} flex items-center justify-center text-sm text-zinc-600`}>
             차트 데이터가 없습니다
           </div>
         ) : tab === "minute" ? (
           <CandleChart
             key={`${stockCode}-m`}
             series={minuteSeries(minuteData!)}
-            className={`w-full ${H}`}
+            className={`w-full ${heightClass}`}
           />
         ) : (
           <CandleChart
             key={`${stockCode}-d`}
             series={dailySeries(dailyData!)}
             timeVisible={false}
-            className={`w-full ${H}`}
+            className={`w-full ${heightClass}`}
           />
         )}
       </div>

@@ -8,7 +8,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
-import MinuteChartPanel from "../components/common/MinuteChartPanel";
+import StockChartPanel from "../components/common/StockChartPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -128,7 +128,7 @@ export default function VolumeSpikePage() {
         )}
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
-        <MinuteChartPanel stockCode={selectedCode} stockName={selected?.stockName} />
+        <StockChartPanel stockCode={selectedCode} stockName={selected?.stockName} />
       </div>
       </div>
     </div>

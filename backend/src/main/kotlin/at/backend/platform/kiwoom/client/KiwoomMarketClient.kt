@@ -183,6 +183,7 @@ class KiwoomMarketClient(
     }
 
     /** 일봉 차트 조회 (ka10081) — _AL 접미사로 SOR 통합 시세, base_dt 기준 과거 봉 N개 반환 */
+    @Cacheable("dailyCandles", unless = "#result.isEmpty()")
     fun fetchDailyCandles(stockCode: String, count: Int = 60): List<DailyCandle> {
         try {
             val token = authClient.getAccessToken()

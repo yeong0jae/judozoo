@@ -80,6 +80,13 @@ class CacheConfig {
                 .maximumSize(300)
                 .build(),
         )
+        manager.registerCustomCache(
+            "dailyCandles", // 일봉(ka10081) — 상세 필터/RVOL·일봉 차트 공유. 당일 봉 변동 반영해 30s
+            Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .maximumSize(60)
+                .build(),
+        )
         return manager
     }
 }

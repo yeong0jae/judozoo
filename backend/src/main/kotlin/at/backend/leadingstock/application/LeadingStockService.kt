@@ -121,7 +121,7 @@ class LeadingStockService(
 
         val swingHighSignal = breakoutHighCandles(stockCode).dayHighSignal(stock.currentPrice)
 
-        return StockEvaluation(stock, results, relativeVolume, swingHighSignal, dailyCandles)
+        return StockEvaluation(stock, results, relativeVolume, swingHighSignal)
     }
 
     /**
@@ -213,6 +213,9 @@ class LeadingStockService(
             .sortedBy { it.dateTime }
     }
 
+    /** 일봉 차트용 — 최근 60거래일. ka10081 30s 캐시(상세 필터 G·RVOL과 공유). */
+    fun dailyCandles(stockCode: String): List<DailyCandle> = marketClient.fetchDailyCandles(stockCode, 60)
+
     /**
      * 돌파선용 분봉 — 당일+전일 2거래일. 돌파선 = 두 날의 최고가(전일 고가/당일 고가 중 높은 쪽).
      * 전일은 마감돼 불변이라 장기 캐시(12h)로 사실상 1일 1회만 실호출(당일은 30s 캐시 공유).
@@ -298,5 +301,4 @@ data class StockEvaluation(
     val filterResults: List<FilterEvaluationResult>,
     val relativeVolume: Double?,
     val swingHighSignal: SwingHighSignal?,
-    val dailyCandles: List<DailyCandle>, // 필터 G/RVOL용으로 받은 60봉 — 일봉 차트 재사용
 )

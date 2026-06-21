@@ -411,7 +411,6 @@ export interface LeadingStockDetailResponse {
   swingHighSignal: SwingHighSignal | null; // 직전 스윙 고점 돌파 시그널. 없으면 null
   themes: string[]; // 종목이 속한 전체 테마명
   filterResults: FilterResultItem[];
-  dailyCandles: DailyCandleItem[]; // 일봉 차트용 60봉
 }
 
 /** 일봉 한 개 — 일봉 차트용. date는 yyyy-MM-dd. */

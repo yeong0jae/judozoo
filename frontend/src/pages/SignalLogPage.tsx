@@ -7,7 +7,7 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
-import MinuteChartPanel from "../components/common/MinuteChartPanel";
+import StockChartPanel from "../components/common/StockChartPanel";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -177,7 +177,7 @@ export default function SignalLogPage() {
         )}
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
-        <MinuteChartPanel stockCode={selectedCode} stockName={selectedName} />
+        <StockChartPanel stockCode={selectedCode} stockName={selectedName} />
       </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { apiFetch } from "./client";
 import type {
   AccountBalance,
   BreakoutRadarResponse,
+  DailyCandleItem,
   CandidateStocksResponse,
   DailyReport,
   DailyTrading,
@@ -47,6 +48,8 @@ export const QK = {
     ["leading-stocks", "investors", code] as const,
   minuteCandles: (code: string) =>
     ["leading-stocks", "minute-candles", code] as const,
+  dailyCandles: (code: string) =>
+    ["leading-stocks", "daily-candles", code] as const,
   kospiIndex: ["market", "kospi"] as const,
   regime: ["market", "regime"] as const,
   regimeDaily: ["market", "regime", "daily"] as const,
@@ -236,6 +239,18 @@ export function useMinuteCandles(code: string | null) {
       ),
     enabled: code !== null,
     refetchInterval: 30_000, // 서버 분봉 캐시 30초와 맞춤
+  });
+}
+
+export function useDailyCandles(code: string | null) {
+  return useQuery({
+    queryKey: code ? QK.dailyCandles(code) : ["leading-stocks", "daily-candles", "null"],
+    queryFn: () =>
+      apiFetch<DailyCandleItem[]>(
+        `/api/leading-stocks/candidates/${code}/daily-candles`,
+      ),
+    enabled: code !== null,
+    staleTime: 30_000, // 일봉 — 자주 안 바뀜
   });
 }
 
