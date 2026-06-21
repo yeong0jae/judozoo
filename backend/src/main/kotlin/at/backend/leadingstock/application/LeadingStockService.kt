@@ -192,22 +192,23 @@ class LeadingStockService(
         }
 
     /**
-     * 상세 캔들차트용 — 최근 2거래일(당일+전일) 1분봉을 시간 오름차순으로. (ka10080 30s 캐시 공유)
-     * ka10080 한 페이지는 전일 일부(애프터마켓 부근)까지만 닿으므로, 전일 세션 전체를 채우려고
-     * 전일 날짜를 base_dt로 한 번 더 호출해 합친다(당일 호출은 신호와 캐시 공유, 전일 호출만 추가).
+     * 상세 캔들차트용 — 최근 [CHART_SESSION_DAYS]거래일 1분봉을 시간 오름차순으로. (ka10080 30s 캐시 공유)
+     * ka10080 한 페이지는 직전일 일부(애프터마켓 부근)까지만 닿으므로, 가진 데이터의 가장 이른 날을
+     * base_dt로 이어 호출하며 거래일을 하나씩 채운다(당일 호출은 신호와 캐시 공유, 과거분만 추가).
      */
     fun minuteCandles(stockCode: String): List<MinuteCandle> {
-        val firstPage = marketClient.fetchMinuteCandles(stockCode)
-        val prevDay = firstPage.map { it.dateTime.toLocalDate() }
-            .distinct().sortedDescending().getOrNull(1)
-        val combined = if (prevDay != null) {
-            firstPage + marketClient.fetchMinuteCandles(stockCode, prevDay)
-        } else {
-            firstPage
+        val all = marketClient.fetchMinuteCandles(stockCode).toMutableList()
+        // base_dt=X 호출은 X 세션 전체 + 직전일 일부를 주므로, 가장 이른 날을 base_dt로 이어 받으면
+        // 거래일이 하나씩 늘며 채워진다. 필요 일수+1(끝 날은 부분만 와 버림)까지, 더 과거가 없으면 중단.
+        while (all.map { it.dateTime.toLocalDate() }.distinct().size <= CHART_SESSION_DAYS) {
+            val oldestDay = all.minOfOrNull { it.dateTime.toLocalDate() } ?: break
+            val before = all.map { it.dateTime.toLocalDate() }.distinct().size
+            all += marketClient.fetchMinuteCandles(stockCode, oldestDay)
+            if (all.map { it.dateTime.toLocalDate() }.distinct().size == before) break // 데이터 소진
         }
-        val recentDays = combined.map { it.dateTime.toLocalDate() }
+        val recentDays = all.map { it.dateTime.toLocalDate() }
             .distinct().sortedDescending().take(CHART_SESSION_DAYS).toSet()
-        return combined.filter { it.dateTime.toLocalDate() in recentDays }
+        return all.filter { it.dateTime.toLocalDate() in recentDays }
             .distinctBy { it.dateTime }
             .sortedBy { it.dateTime }
     }
@@ -229,7 +230,7 @@ class LeadingStockService(
         private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
         private const val SPIKE_RATIO_MIN = 3.0         // 최소 배율
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
-        private const val CHART_SESSION_DAYS = 2 // 상세 차트 표시 거래일 수(당일+전일)
+        private const val CHART_SESSION_DAYS = 3 // 상세 차트 표시 거래일 수(당일 포함)
     }
 }
 
