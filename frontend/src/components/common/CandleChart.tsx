@@ -43,7 +43,7 @@ export default function CandleChart({
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#a1a1aa",
-        fontSize: 11,
+        fontSize: 13,
       },
       grid: {
         vertLines: { color: "rgba(255,255,255,0.04)" },
