@@ -134,7 +134,7 @@ class MinuteCandlesTest : FunSpec({
                 ),
             )
             val spike = candles.recentVolumeSpike(
-                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 100,
+                baselineBars = 2, since = base.plusMinutes(3), minRatio = 3.0, minTradingValue = 100,
             )!!
             spike.at shouldBe base.plusMinutes(3)
             spike.latestTradingValue shouldBe 900
@@ -142,7 +142,7 @@ class MinuteCandlesTest : FunSpec({
         }
 
         test("창 밖에서 터진 스파이크는 잡지 않는다") {
-            // 스파이크는 분2 — 창(최근 3봉=분3·4·5) 밖이라 무시되고 창 안엔 임계 초과 봉이 없다
+            // 스파이크는 분2 — 창(since=분3) 밖이라 무시되고 창 안엔 임계 초과 봉이 없다
             val candles = MinuteCandles(
                 listOf(
                     tvCandle(0, 100), tvCandle(1, 100), tvCandle(2, 900),
@@ -150,7 +150,7 @@ class MinuteCandlesTest : FunSpec({
                 ),
             )
             candles.recentVolumeSpike(
-                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 100,
+                baselineBars = 2, since = base.plusMinutes(3), minRatio = 3.0, minTradingValue = 100,
             ) shouldBe null
         }
 
@@ -160,7 +160,7 @@ class MinuteCandlesTest : FunSpec({
                 listOf(tvCandle(0, 10), tvCandle(1, 10), tvCandle(2, 10), tvCandle(3, 60)),
             )
             candles.recentVolumeSpike(
-                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 1000,
+                baselineBars = 2, since = base, minRatio = 3.0, minTradingValue = 1000,
             ) shouldBe null
         }
 
@@ -169,7 +169,7 @@ class MinuteCandlesTest : FunSpec({
                 listOf(tvCandle(0, 100), tvCandle(1, 100), tvCandle(2, 100), tvCandle(3, 100)),
             )
             candles.recentVolumeSpike(
-                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 100,
+                baselineBars = 2, since = base, minRatio = 3.0, minTradingValue = 100,
             ) shouldBe null
         }
     }
