@@ -70,12 +70,40 @@ export default function SignalLogPage() {
     if (selectedCode === null && events.length > 0) setSelectedCode(events[0].stockCode);
   }, [events, selectedCode]);
 
-  // LLM 분석용 프롬프트 복사 — 정제 데이터를 클립보드로
+  // LLM 분석용 프롬프트 복사 — 정제 데이터를 클립보드로.
+  // Clipboard API는 HTTPS/localhost에서만 동작하므로 HTTP 배포본을 위해 execCommand로 폴백한다.
   const [copied, setCopied] = useState(false);
   const copyPrompt = async () => {
-    await navigator.clipboard.writeText(buildSignalPrompt(date, events));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    const text = buildSignalPrompt(date, events);
+    let ok = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      document.body.removeChild(ta);
+    }
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } else {
+      alert("복사에 실패했어요. 브라우저 권한을 확인해 주세요.");
+    }
   };
 
   return (
