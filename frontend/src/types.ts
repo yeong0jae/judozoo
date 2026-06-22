@@ -363,6 +363,7 @@ export interface SignalEventItem {
   tradingValue: number; // 발생 시점 당일 누적 거래대금(원)
   gapRate: number | null; // 돌파 계열만
   spikeRatio: number | null; // 스파이크만
+  minuteTradingValue: number | null; // 스파이크만 — 발생 분봉 거래대금(원)
   theme: string | null;
 }
 

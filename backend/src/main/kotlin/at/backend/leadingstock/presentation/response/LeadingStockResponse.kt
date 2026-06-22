@@ -92,6 +92,7 @@ data class SignalEventItem(
     val tradingValue: Long,      // 발생 시점 당일 누적 거래대금(원)
     val gapRate: Double?,        // 돌파 계열만
     val spikeRatio: Double?,     // 스파이크만
+    val minuteTradingValue: Long?, // 스파이크만 — 발생 분봉 거래대금(원)
     val theme: String?,          // 대표 테마
 )
 

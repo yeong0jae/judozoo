@@ -189,6 +189,7 @@ class LeadingStockService(
                 gapRate = high?.gapRate,
                 peakPrice = high?.peakPrice,
                 spikeRatio = spike?.ratio,
+                minuteTradingValue = spike?.latestTradingValue,
             )
         }
 
@@ -258,6 +259,7 @@ data class CandidateSignalReading(
     val gapRate: Double?,
     val peakPrice: Long?,
     val spikeRatio: Double?,
+    val minuteTradingValue: Long?, // 스파이크 분봉 거래대금(원). 스파이크 없으면 null
 )
 
 /** 분봉 거래대금 스파이크 한 종목. */

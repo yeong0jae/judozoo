@@ -153,6 +153,7 @@ class LeadingStockController(
                 tradingValue = e.tradingValue,
                 gapRate = e.gapRate,
                 spikeRatio = e.spikeRatio,
+                minuteTradingValue = e.minuteTradingValue,
                 theme = e.theme,
             )
         }

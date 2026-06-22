@@ -27,9 +27,23 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
 };
 
-/** 이벤트별 핵심 수치 한 줄. 돌파선 가격은 그때의 현재가×(1+갭/100)으로 역산. */
-function detailOf(e: SignalEventItem): string {
-  if (e.eventType === "VOLUME_SPIKE") return e.spikeRatio ? `🔥${e.spikeRatio.toFixed(1)}배` : "";
+/**
+ * 이벤트별 핵심 수치 한 줄. 돌파선 가격은 그때의 현재가×(1+갭/100)으로 역산.
+ * 스파이크는 배율+그 분봉 거래대금(rose)과 그 순간 누적 거래대금(흐리게)을 함께 보인다.
+ */
+function detailOf(e: SignalEventItem) {
+  if (e.eventType === "VOLUME_SPIKE") {
+    if (!e.spikeRatio) return "";
+    return (
+      <>
+        <span className="text-rose-300">
+          🔥{e.spikeRatio.toFixed(1)}배
+          {e.minuteTradingValue != null && ` ${formatKoreanMoney(e.minuteTradingValue)}`}
+        </span>
+        <span className="text-zinc-500"> · 누적 {formatKoreanMoney(e.tradingValue)}</span>
+      </>
+    );
+  }
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
   const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));
   if (e.eventType === "BREAKOUT") return `${formatPrice(line)}원 돌파`;
@@ -130,11 +144,6 @@ export default function SignalLogPage() {
                         </span>
                         <StockAvatar name={e.stockName} code={code} />
                         <span className="text-sm font-semibold text-zinc-100 truncate">{e.stockName}</span>
-                        {e.theme && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400 shrink-0">
-                            {e.theme}
-                          </span>
-                        )}
                       </div>
                       {/* 오른쪽: 디테일·현재가·등락률 (모바일에선 아래 줄로 래핑) */}
                       <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
