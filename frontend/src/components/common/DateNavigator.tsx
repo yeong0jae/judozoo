@@ -1,5 +1,9 @@
+/** Date → 로컬 기준 YYYY-MM-DD (toISOString은 UTC라 KST 새벽에 하루 밀림). */
+const localStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 /** 로컬 오늘 날짜 (YYYY-MM-DD). */
-export const todayStr = () => new Date().toISOString().slice(0, 10);
+export const todayStr = () => localStr(new Date());
 
 /** 좌우 화살표 + 캘린더로 하루씩 이동. date는 YYYY-MM-DD. */
 export default function DateNavigator({
@@ -10,9 +14,8 @@ export default function DateNavigator({
   onChange: (v: string) => void;
 }) {
   const shift = (days: number) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    onChange(d.toISOString().slice(0, 10));
+    const [y, m, d] = date.split("-").map(Number);
+    onChange(localStr(new Date(y, m - 1, d + days)));
   };
   const isToday = date === todayStr();
   return (
