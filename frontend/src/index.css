@@ -102,6 +102,29 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* 스크롤바 — 다크 테마에 맞춰 얇고 은은하게 (트랙 투명, 둥근 thumb) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
 /* 주도주 후보 목록에 새 종목이 들어왔을 때 행을 8초간 amber로 하이라이트 후 fade */
 @keyframes leading-stock-new {
   from {
