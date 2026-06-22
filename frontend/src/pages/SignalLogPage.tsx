@@ -9,6 +9,7 @@ import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
+import { buildSignalPrompt } from "../lib/signalPrompt";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -69,6 +70,14 @@ export default function SignalLogPage() {
     if (selectedCode === null && events.length > 0) setSelectedCode(events[0].stockCode);
   }, [events, selectedCode]);
 
+  // LLM 분석용 프롬프트 복사 — 정제 데이터를 클립보드로
+  const [copied, setCopied] = useState(false);
+  const copyPrompt = async () => {
+    await navigator.clipboard.writeText(buildSignalPrompt(date, events));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
@@ -86,6 +95,14 @@ export default function SignalLogPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={copyPrompt}
+            disabled={events.length === 0}
+            className="text-xs px-2.5 py-1 rounded-md bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {copied ? "복사됨" : "📋 분석 프롬프트 복사"}
+          </button>
           {typeof data?.totalCount === "number" && (
             <span className="text-xs text-zinc-300 font-medium">{data.totalCount}건</span>
           )}
