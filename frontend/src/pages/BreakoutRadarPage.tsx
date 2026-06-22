@@ -26,7 +26,7 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
   if (gap <= 0)
     return { label: "돌파", cls: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
   if (gap < 2)
-    return { label: "임박", cls: "bg-amber-500/20 text-amber-300", gap: "text-amber-300" };
+    return { label: "임박", cls: "bg-orange-500/20 text-orange-300", gap: "text-orange-300" };
   if (gap < 4)
     return { label: "주시", cls: "bg-amber-500/15 text-amber-400", gap: "text-amber-400" };
   return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
