@@ -88,7 +88,7 @@ export default function SignalLogPage() {
         ) : events.length === 0 ? (
           <EmptyState message={`${date} 시그널이 없습니다`} />
         ) : (
-          <ul className="divide-y divide-white/[0.04] lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
+          <ul className="divide-y divide-white/[0.04]">
             <AnimatePresence initial={false}>
               {events.map((e, i) => {
                 const code = shortCode(e.stockCode);

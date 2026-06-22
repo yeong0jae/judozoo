@@ -87,7 +87,7 @@ export default function VolumeSpikePage() {
         ) : stocks.length === 0 ? (
           <EmptyState message="스파이크 종목이 없습니다" />
         ) : (
-          <div className="lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
+          <>
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="text-zinc-500 text-xs">
@@ -124,7 +124,7 @@ export default function VolumeSpikePage() {
               />
             ))}
           </div>
-          </div>
+          </>
         )}
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
