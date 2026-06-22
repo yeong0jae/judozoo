@@ -19,7 +19,6 @@ class EtfExclusionFilter : StockFilter {
     )
 
     private fun isEtfOrEtn(name: String): Boolean {
-        if (name in WHITELIST) return false
         if (BRAND_PREFIXES.any { name.startsWith(it) }) return true
         // 뒤에 ETN이 붙는 케이스 ("한투 ETN 코스피200 H" 등)
         if (name.contains(" ETN")) return true
@@ -27,11 +26,6 @@ class EtfExclusionFilter : StockFilter {
     }
 
     companion object {
-        // 브랜드 prefix에 걸리지만 개별 종목처럼 취급해 통과시킬 예외 종목명
-        private val WHITELIST = setOf(
-            "SOL AI반도체TOP2플러스",
-        )
-
         // 운용사 브랜드 — ETF/ETN 종목명은 보통 "{브랜드} {지수/테마}" 형태
         private val BRAND_PREFIXES = listOf(
             "KODEX ", "TIGER ", "KOSEF ", "KBSTAR ", "ARIRANG ",
