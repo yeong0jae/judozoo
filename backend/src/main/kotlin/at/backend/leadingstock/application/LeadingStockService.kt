@@ -168,7 +168,7 @@ class LeadingStockService(
                     direction = spike.direction,
                     at = spike.at,
                 )
-            }.sortedByDescending { it.spikeRatio }
+            }.sortedWith(compareByDescending<VolumeSpikeStock> { it.at }.thenByDescending { it.spikeRatio })
     }
 
     /**
