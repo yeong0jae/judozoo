@@ -9,6 +9,7 @@ import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
+import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import { buildSignalPrompt } from "../lib/signalPrompt";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
@@ -64,9 +65,11 @@ function detailOf(e: SignalEventItem) {
 
 export default function SignalLogPage() {
   const [date, setDate] = useState(todayStr());
+  const [minRate, setMinRate] = useState(0); // 발생 시점 등락률 하한 — 행 표시 필터
   const eventsQ = useSignalEvents(date);
   const data = eventsQ.data;
-  const events = data?.events ?? [];
+  const allEvents = data?.events ?? [];
+  const events = allEvents.filter((e) => e.priceChangeRate >= minRate);
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   // 우측 차트에 띄울 선택 종목 — 첫 로드 시 최신 이벤트 종목 자동 선택
@@ -137,7 +140,7 @@ export default function SignalLogPage() {
             {copied ? "복사됨" : "📋 분석 프롬프트 복사"}
           </button>
           {typeof data?.totalCount === "number" && (
-            <span className="text-xs text-zinc-300 font-medium">{data.totalCount}건</span>
+            <span className="text-xs text-zinc-300 font-medium">{events.length}건</span>
           )}
           <DateNavigator
             date={date}
@@ -151,6 +154,10 @@ export default function SignalLogPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
+        {/* 발생 시점 등락률 하한 — 행 표시 필터 */}
+        <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
+          <ChangeRateSelector value={minRate} onChange={setMinRate} />
+        </div>
         {eventsQ.isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -167,8 +174,8 @@ export default function SignalLogPage() {
                 const meta = EVENT_META[e.eventType];
                 const rowKey = `${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`;
                 const open = openKey === rowKey;
-                // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 누적 거래대금은 최신 스냅샷
-                const stockEvents = open ? events.filter((x) => x.stockCode === e.stockCode) : [];
+                // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 여정은 필터와 무관하게 전체 경로를 보여준다
+                const stockEvents = open ? allEvents.filter((x) => x.stockCode === e.stockCode) : [];
                 const journey = stockEvents;
                 return (
                   <motion.li
