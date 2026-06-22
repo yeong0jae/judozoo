@@ -21,6 +21,12 @@ function clockOf(iso: string): string {
   return iso.slice(11, 19);
 }
 
+/** 정규장(09:00~15:20) 시각은 흰색으로 강조, 장외(프리/애프터)는 회색. */
+function clockClass(iso: string): string {
+  const hm = iso.slice(11, 16); // HH:mm
+  return hm >= "09:00" && hm <= "15:20" ? "text-zinc-100" : "text-zinc-500";
+}
+
 const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: string }> = {
   BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
@@ -135,7 +141,7 @@ export default function SignalLogPage() {
                     >
                       {/* 왼쪽: 시각·유형·종목 */}
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className="num text-xs text-zinc-500 tabular-nums w-16 shrink-0">
+                        <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(e.occurredAt)}`}>
                           {clockOf(e.occurredAt)}
                         </span>
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
@@ -171,7 +177,7 @@ export default function SignalLogPage() {
                             const jm = EVENT_META[j.eventType];
                             return (
                               <li key={`${j.eventType}-${j.occurredAt}-${k}`} className="flex items-center gap-2 text-sm">
-                                <span className="num text-xs text-zinc-500 tabular-nums w-16">
+                                <span className={`num text-xs tabular-nums w-16 ${clockClass(j.occurredAt)}`}>
                                   {clockOf(j.occurredAt)}
                                 </span>
                                 <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
