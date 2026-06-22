@@ -341,6 +341,7 @@ export interface VolumeSpikeItem {
   minuteTradingValue: number; // 최신 1분봉 거래대금(원)
   tradingValue: number; // 당일 누적 거래대금(원)
   spikeRatio: number; // 직전 평균 대비 배율
+  direction: SpikeDirection; // 스파이크 봉 방향(매수/매도)
   at: string; // 해당 분봉 시각 (ISO LocalDateTime)
 }
 
@@ -353,6 +354,8 @@ export interface VolumeSpikeResponse {
 // === 시그널 전이 로그 ===
 export type SignalEventType = "BREAKOUT" | "BREAKOUT_IMMINENT" | "VOLUME_SPIKE";
 
+export type SpikeDirection = "BUY" | "SELL" | "FLAT";
+
 export interface SignalEventItem {
   occurredAt: string; // 전이 발생 시각 (ISO LocalDateTime)
   stockCode: string;
@@ -364,6 +367,7 @@ export interface SignalEventItem {
   gapRate: number | null; // 돌파 계열만
   spikeRatio: number | null; // 스파이크만
   minuteTradingValue: number | null; // 스파이크만 — 발생 분봉 거래대금(원)
+  spikeDirection: SpikeDirection | null; // 스파이크만 — 매수/매도
   theme: string | null;
 }
 

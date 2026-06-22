@@ -18,6 +18,7 @@ import at.backend.leadingstock.domain.DailyCandles
 import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.leadingstock.domain.MinuteCandle
 import at.backend.leadingstock.domain.MinuteCandles
+import at.backend.leadingstock.domain.SpikeDirection
 import at.backend.leadingstock.domain.SwingHighSignal
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
@@ -164,6 +165,7 @@ class LeadingStockService(
                     minuteTradingValue = spike.latestTradingValue,
                     tradingValue = s.accumulatedTradingValue,
                     spikeRatio = spike.ratio,
+                    direction = spike.direction,
                     at = spike.at,
                 )
             }.sortedByDescending { it.spikeRatio }
@@ -191,6 +193,7 @@ class LeadingStockService(
                 peakPrice = high?.peakPrice,
                 spikeRatio = spike?.ratio,
                 minuteTradingValue = spike?.latestTradingValue,
+                spikeDirection = spike?.direction,
             )
         }
 
@@ -262,6 +265,7 @@ data class CandidateSignalReading(
     val peakPrice: Long?,
     val spikeRatio: Double?,
     val minuteTradingValue: Long?, // 스파이크 분봉 거래대금(원). 스파이크 없으면 null
+    val spikeDirection: SpikeDirection?, // 스파이크 봉 방향(매수/매도). 스파이크 없으면 null
 )
 
 /** 분봉 거래대금 스파이크 한 종목. */
@@ -273,6 +277,7 @@ data class VolumeSpikeStock(
     val minuteTradingValue: Long, // 최신 1분봉 거래대금(원)
     val tradingValue: Long,       // 당일 누적 거래대금(원)
     val spikeRatio: Double,       // 직전 평균 대비 배율
+    val direction: SpikeDirection, // 매수/매도 — 스파이크 봉 양/음봉
     val at: java.time.LocalDateTime,
 )
 

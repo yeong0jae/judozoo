@@ -119,6 +119,7 @@ class LeadingStockController(
                 minuteTradingValue = s.minuteTradingValue,
                 tradingValue = s.tradingValue,
                 spikeRatio = s.spikeRatio,
+                direction = s.direction.name,
                 at = s.at,
             )
         }
@@ -154,6 +155,7 @@ class LeadingStockController(
                 gapRate = e.gapRate,
                 spikeRatio = e.spikeRatio,
                 minuteTradingValue = e.minuteTradingValue,
+                spikeDirection = e.spikeDirection?.name,
                 theme = e.theme,
             )
         }

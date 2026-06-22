@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useVolumeSpikes } from "../api/queries";
-import type { VolumeSpikeItem } from "../types";
+import type { SpikeDirection, VolumeSpikeItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
@@ -31,6 +31,13 @@ function ratioColor(r: number): string {
   if (r >= 5) return "text-amber-300";
   return "text-amber-400";
 }
+
+/** 스파이크 봉 방향 — 매수 빨강, 매도 파랑(국내 관행). */
+const DIRECTION_META: Record<SpikeDirection, { label: string; cls: string }> = {
+  BUY: { label: "매수", cls: "text-red-400" },
+  SELL: { label: "매도", cls: "text-blue-400" },
+  FLAT: { label: "보합", cls: "text-zinc-500" },
+};
 
 export default function VolumeSpikePage() {
   const [minChangeRate, setMinChangeRate] = useState(() => {
@@ -179,8 +186,9 @@ function SpikeRow({
         <div className="text-zinc-300">{clockOf(s.at)}</div>
         <div className="text-[11px] text-zinc-500">{formatRelative(s.at)}</div>
       </td>
-      <td className={`px-4 py-3.5 text-right num font-semibold ${ratioColor(s.spikeRatio)}`}>
-        {s.spikeRatio.toFixed(1)}배
+      <td className="px-4 py-3.5 text-right num">
+        <div className={`font-semibold ${ratioColor(s.spikeRatio)}`}>{s.spikeRatio.toFixed(1)}배</div>
+        <div className={`text-[11px] ${DIRECTION_META[s.direction].cls}`}>{DIRECTION_META[s.direction].label}</div>
       </td>
       <td className="px-4 py-3.5 text-right num text-zinc-400">
         {formatKoreanMoney(s.minuteTradingValue)}
@@ -220,6 +228,9 @@ function SpikeCard({
         <StockAvatar name={s.stockName} code={code} size={26} />
         <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.stockName}</span>
         <span className="num text-[11px] text-zinc-500 shrink-0">{formatRelative(s.at)}</span>
+        <span className={`text-[11px] shrink-0 ${DIRECTION_META[s.direction].cls}`}>
+          {DIRECTION_META[s.direction].label}
+        </span>
         <span className={`num text-sm font-semibold shrink-0 ${ratioColor(s.spikeRatio)}`}>
           {s.spikeRatio.toFixed(1)}배
         </span>

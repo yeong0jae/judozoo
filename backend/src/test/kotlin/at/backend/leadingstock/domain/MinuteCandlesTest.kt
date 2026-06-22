@@ -122,6 +122,29 @@ class MinuteCandlesTest : FunSpec({
             val candles = MinuteCandles(listOf(tvCandle(0, 0), tvCandle(1, 500)))
             candles.volumeSpike(baselineBars = 20) shouldBe null
         }
+
+        test("스파이크 봉이 양봉이면 매수, 음봉이면 매도로 가른다") {
+            fun bar(minute: Int, open: Long, close: Long, tv: Long) =
+                MinuteCandle(
+                    dateTime = base.plusMinutes(minute.toLong()),
+                    openPrice = open,
+                    highPrice = maxOf(open, close),
+                    lowPrice = minOf(open, close),
+                    closePrice = close,
+                    volume = 0,
+                    tradingValue = tv,
+                )
+            // 직전 3봉 평균 100, 최신 500(5배). 종가>시가 → 매수
+            val bull = MinuteCandles(
+                listOf(bar(0, 100, 100, 100), bar(1, 100, 100, 100), bar(2, 100, 100, 100), bar(3, 100, 120, 500)),
+            )
+            bull.volumeSpike(baselineBars = 3)!!.direction shouldBe SpikeDirection.BUY
+            // 종가<시가 → 매도
+            val bear = MinuteCandles(
+                listOf(bar(0, 100, 100, 100), bar(1, 100, 100, 100), bar(2, 100, 100, 100), bar(3, 120, 100, 500)),
+            )
+            bear.volumeSpike(baselineBars = 3)!!.direction shouldBe SpikeDirection.SELL
+        }
     }
 
     context("최근 창 스파이크") {

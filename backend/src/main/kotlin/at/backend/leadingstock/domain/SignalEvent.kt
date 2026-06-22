@@ -15,7 +15,7 @@ import java.time.LocalDateTime
 
 /**
  * 시그널 전이 한 건 — 전이가 일어난 순간의 컨텍스트를 함께 박아 둬, 재조회 없이 복기/리플레이가 가능하게 한다.
- * [gapRate]는 돌파 계열에만, [spikeRatio]·[minuteTradingValue]는 스파이크에만 채워진다.
+ * [gapRate]는 돌파 계열에만, [spikeRatio]·[minuteTradingValue]·[spikeDirection]은 스파이크에만 채워진다.
  */
 @Entity
 @Table(
@@ -59,6 +59,10 @@ class SignalEvent(
 
     @Column(name = "minute_trading_value")
     val minuteTradingValue: Long? = null,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "spike_direction")
+    val spikeDirection: SpikeDirection? = null,
 
     @Column
     val theme: String? = null,

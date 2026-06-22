@@ -26,8 +26,10 @@ function pct(v: number): string {
 function noteOf(e: SignalEventItem): string {
   if (e.eventType === "VOLUME_SPIKE") {
     const r = e.spikeRatio ? `배율 ${e.spikeRatio.toFixed(1)}배` : "";
+    const d =
+      e.spikeDirection === "BUY" ? " 매수" : e.spikeDirection === "SELL" ? " 매도" : e.spikeDirection === "FLAT" ? " 보합" : "";
     const m = e.minuteTradingValue != null ? ` / 분봉 ${formatKoreanMoney(e.minuteTradingValue)}` : "";
-    return r + m;
+    return r + d + m;
   }
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
   const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));

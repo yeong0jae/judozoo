@@ -93,6 +93,7 @@ class SignalEventPoller(
         gapRate = if (type == SignalEventType.VOLUME_SPIKE) null else r.gapRate,
         spikeRatio = if (type == SignalEventType.VOLUME_SPIKE) r.spikeRatio else null,
         minuteTradingValue = if (type == SignalEventType.VOLUME_SPIKE) r.minuteTradingValue else null,
+        spikeDirection = if (type == SignalEventType.VOLUME_SPIKE) r.spikeDirection else null,
         theme = theme,
     )
 }

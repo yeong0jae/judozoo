@@ -58,6 +58,7 @@ data class VolumeSpikeItem(
     val minuteTradingValue: Long, // 최신 1분봉 거래대금(원)
     val tradingValue: Long,       // 당일 누적 거래대금(원)
     val spikeRatio: Double,       // 직전 평균 대비 배율
+    val direction: String,        // BUY | SELL | FLAT — 스파이크 봉 방향
     val at: LocalDateTime,        // 해당 분봉 시각
 )
 
@@ -93,6 +94,7 @@ data class SignalEventItem(
     val gapRate: Double?,        // 돌파 계열만
     val spikeRatio: Double?,     // 스파이크만
     val minuteTradingValue: Long?, // 스파이크만 — 발생 분봉 거래대금(원)
+    val spikeDirection: String?, // 스파이크만 — BUY | SELL | FLAT
     val theme: String?,          // 대표 테마
 )
 

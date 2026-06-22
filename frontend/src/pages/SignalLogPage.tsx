@@ -41,12 +41,17 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
 function detailOf(e: SignalEventItem) {
   if (e.eventType === "VOLUME_SPIKE") {
     if (!e.spikeRatio) return "";
+    const dirCls =
+      e.spikeDirection === "BUY" ? "text-red-400" : e.spikeDirection === "SELL" ? "text-blue-400" : "text-zinc-500";
+    const dirLabel =
+      e.spikeDirection === "BUY" ? "매수" : e.spikeDirection === "SELL" ? "매도" : e.spikeDirection === "FLAT" ? "보합" : "";
     return (
       <>
         <span className="text-rose-300">
           🔥{e.spikeRatio.toFixed(1)}배
           {e.minuteTradingValue != null && ` ${formatKoreanMoney(e.minuteTradingValue)}`}
         </span>
+        {dirLabel && <span className={dirCls}> {dirLabel}</span>}
         <span className="text-zinc-500"> · 누적 {formatKoreanMoney(e.tradingValue)}</span>
       </>
     );

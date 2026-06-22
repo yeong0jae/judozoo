@@ -14,14 +14,18 @@ data class SwingHighSignal(
     val gapRate: Double,
 )
 
+/** 스파이크 봉의 방향 — 종가>시가면 매수, 종가<시가면 매도, 같으면 보합. */
+enum class SpikeDirection { BUY, SELL, FLAT }
+
 /**
  * 분봉 거래대금 스파이크 — 최신 1분봉 거래대금이 직전 평균 대비 몇 배인지.
- * [ratio]=1.0이면 평소 수준, 클수록 순간 수급이 몰린 것.
+ * [ratio]=1.0이면 평소 수준, 클수록 순간 수급이 몰린 것. [direction]은 그 봉의 양/음봉으로 매수/매도를 가른다.
  */
 data class VolumeSpike(
     val latestTradingValue: Long,
     val at: LocalDateTime,
     val ratio: Double,
+    val direction: SpikeDirection,
 )
 
 /** 당일 분봉 모음 — 시간 오름차순으로 정규화해 보관한다. */
@@ -60,6 +64,7 @@ class MinuteCandles(candles: List<MinuteCandle>) {
             latestTradingValue = latest.tradingValue,
             at = latest.dateTime,
             ratio = latest.tradingValue / avg,
+            direction = latest.spikeDirection(),
         )
     }
 
@@ -86,9 +91,20 @@ class MinuteCandles(candles: List<MinuteCandle>) {
             val ratio = bar.tradingValue / avg
             if (ratio < minRatio) continue
             if (best == null || ratio > best.ratio) {
-                best = VolumeSpike(latestTradingValue = bar.tradingValue, at = bar.dateTime, ratio = ratio)
+                best = VolumeSpike(
+                    latestTradingValue = bar.tradingValue,
+                    at = bar.dateTime,
+                    ratio = ratio,
+                    direction = bar.spikeDirection(),
+                )
             }
         }
         return best
+    }
+
+    private fun MinuteCandle.spikeDirection() = when {
+        closePrice > openPrice -> SpikeDirection.BUY
+        closePrice < openPrice -> SpikeDirection.SELL
+        else -> SpikeDirection.FLAT
     }
 }
