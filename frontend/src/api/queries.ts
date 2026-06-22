@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
+import { todayStr } from "../components/common/DateNavigator";
 import type {
   AccountBalance,
   BreakoutRadarResponse,
@@ -203,7 +204,7 @@ export function useVolumeSpikes(minChangeRate: number) {
 }
 
 export function useSignalEvents(date: string) {
-  const isToday = date === new Date().toISOString().slice(0, 10);
+  const isToday = date === todayStr();
   return useQuery({
     queryKey: QK.signalEvents(date),
     queryFn: () =>

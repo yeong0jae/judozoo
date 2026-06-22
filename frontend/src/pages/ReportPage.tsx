@@ -12,7 +12,7 @@ import EmptyState from "../components/common/EmptyState";
 import ErrorState from "../components/common/ErrorState";
 import Skeleton from "../components/common/Skeleton";
 import ProfitText from "../components/common/ProfitText";
-import DateNavigator from "../components/common/DateNavigator";
+import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import DetailPanel from "../components/trading/DetailPanel";
 import { useSettings } from "../settings/settings";
 import { useCommandDetail, useDailyReport } from "../api/queries";
@@ -20,11 +20,9 @@ import { useCommandDetail, useDailyReport } from "../api/queries";
 type SortKey = "closedAt" | "profitRate";
 type PnLFilter = "all" | "win" | "loss";
 
-const today = () => new Date().toISOString().slice(0, 10);
-
 export default function ReportPage() {
   const settings = useSettings();
-  const [date, setDate] = useState<string>(today());
+  const [date, setDate] = useState<string>(todayStr());
   const [sortKey, setSortKey] = useState<SortKey>("closedAt");
   const [pnlFilter, setPnLFilter] = useState<PnLFilter>("all");
   const [reasonFilter, setReasonFilter] = useState<Set<CloseReason>>(
