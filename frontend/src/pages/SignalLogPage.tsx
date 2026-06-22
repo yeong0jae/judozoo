@@ -8,6 +8,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
+import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -33,9 +34,9 @@ function detailOf(e: SignalEventItem): string {
   return e.gapRate != null ? `${e.gapRate.toFixed(2)}% 남음` : "";
 }
 
-// TEMP: 주말 미리보기용 목 데이터 — 확인 후 이 블록과 아래 사용처를 제거할 것
 export default function SignalLogPage() {
-  const eventsQ = useSignalEvents();
+  const [date, setDate] = useState(todayStr());
+  const eventsQ = useSignalEvents(date);
   const data = eventsQ.data;
   const events = data?.events ?? [];
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -59,13 +60,20 @@ export default function SignalLogPage() {
             />
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            오늘 발생한 돌파·임박·스파이크 전이를 발생순으로 · 행을 누르면 그 종목의 하루 여정 · 5초 갱신
+            선택 날짜의 돌파·임박·스파이크 전이 · 행을 누르면 그 종목의 여정
           </p>
         </div>
-        <div className="text-xs text-zinc-500">
+        <div className="flex items-center gap-3">
           {typeof data?.totalCount === "number" && (
-            <span className="text-zinc-300 font-medium">{data.totalCount}건</span>
+            <span className="text-xs text-zinc-300 font-medium">{data.totalCount}건</span>
           )}
+          <DateNavigator
+            date={date}
+            onChange={(d) => {
+              setDate(d);
+              setSelectedCode(null);
+            }}
+          />
         </div>
       </div>
 
@@ -78,7 +86,7 @@ export default function SignalLogPage() {
             ))}
           </div>
         ) : events.length === 0 ? (
-          <EmptyState message="오늘 발생한 시그널이 없습니다" />
+          <EmptyState message={`${date} 시그널이 없습니다`} />
         ) : (
           <ul className="divide-y divide-white/[0.04]">
             <AnimatePresence initial={false}>
@@ -145,7 +153,7 @@ export default function SignalLogPage() {
                     {open && (
                       <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
                         <div className="text-xs text-zinc-500 mb-2">
-                          {e.stockName} 오늘 여정 · 누적 거래대금 {formatKoreanMoney(stockEvents[0].tradingValue)}
+                          {e.stockName} 여정 · 누적 거래대금 {formatKoreanMoney(stockEvents[0].tradingValue)}
                         </div>
                         <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
                           {journey.map((j, k) => {

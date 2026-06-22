@@ -12,6 +12,7 @@ import EmptyState from "../components/common/EmptyState";
 import ErrorState from "../components/common/ErrorState";
 import Skeleton from "../components/common/Skeleton";
 import ProfitText from "../components/common/ProfitText";
+import DateNavigator from "../components/common/DateNavigator";
 import DetailPanel from "../components/trading/DetailPanel";
 import { useSettings } from "../settings/settings";
 import { useCommandDetail, useDailyReport } from "../api/queries";
@@ -152,57 +153,6 @@ export default function ReportPage() {
   );
 }
 
-// ============================================================
-// Date navigator (좌우 화살표 + 캘린더)
-// ============================================================
-
-function DateNavigator({
-  date,
-  onChange,
-}: {
-  date: string;
-  onChange: (v: string) => void;
-}) {
-  const shift = (days: number) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    onChange(d.toISOString().slice(0, 10));
-  };
-  const isToday = date === today();
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <button
-        onClick={() => shift(-1)}
-        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800"
-        aria-label="이전 날짜"
-      >
-        ◀
-      </button>
-      <input
-        type="date"
-        value={date}
-        max={today()}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
-      />
-      <button
-        onClick={() => shift(1)}
-        disabled={isToday}
-        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
-        aria-label="다음 날짜"
-      >
-        ▶
-      </button>
-      <button
-        onClick={() => onChange(today())}
-        disabled={isToday}
-        className="px-2 py-1 text-xs rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
-      >
-        오늘
-      </button>
-    </div>
-  );
-}
 
 // ============================================================
 // UNCLOSED banner

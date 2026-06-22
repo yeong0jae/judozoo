@@ -41,7 +41,8 @@ export const QK = {
     ["leading-stocks", "breakout-radar", minChangeRate] as const,
   volumeSpikes: (minChangeRate: number) =>
     ["leading-stocks", "volume-spikes", minChangeRate] as const,
-  signalEvents: ["leading-stocks", "signal-events"] as const,
+  signalEvents: (date: string) =>
+    ["leading-stocks", "signal-events", date] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -201,12 +202,15 @@ export function useVolumeSpikes(minChangeRate: number) {
   });
 }
 
-export function useSignalEvents() {
+export function useSignalEvents(date: string) {
+  const isToday = date === new Date().toISOString().slice(0, 10);
   return useQuery({
-    queryKey: QK.signalEvents,
+    queryKey: QK.signalEvents(date),
     queryFn: () =>
-      apiFetch<SignalEventsResponse>("/api/leading-stocks/signal-events"),
-    refetchInterval: 5_000,
+      apiFetch<SignalEventsResponse>(
+        `/api/leading-stocks/signal-events?date=${date}`,
+      ),
+    refetchInterval: isToday ? 5_000 : false, // 과거 날짜는 정적 — 폴링 안 함
   });
 }
 
