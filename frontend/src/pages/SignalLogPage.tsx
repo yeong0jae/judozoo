@@ -87,9 +87,9 @@ export default function SignalLogPage() {
                 const meta = EVENT_META[e.eventType];
                 const rowKey = `${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`;
                 const open = openKey === rowKey;
-                // 같은 종목 이벤트 모음(피드는 최신순) → 여정은 오래된 순, 누적 거래대금은 최신 스냅샷
+                // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 누적 거래대금은 최신 스냅샷
                 const stockEvents = open ? events.filter((x) => x.stockCode === e.stockCode) : [];
-                const journey = [...stockEvents].reverse();
+                const journey = stockEvents;
                 return (
                   <motion.li
                     key={rowKey}
