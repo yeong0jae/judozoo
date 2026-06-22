@@ -27,11 +27,13 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
 };
 
-/** 이벤트별 핵심 수치 한 줄. */
+/** 이벤트별 핵심 수치 한 줄. 돌파선 가격은 그때의 현재가×(1+갭/100)으로 역산. */
 function detailOf(e: SignalEventItem): string {
   if (e.eventType === "VOLUME_SPIKE") return e.spikeRatio ? `🔥${e.spikeRatio.toFixed(1)}배` : "";
-  if (e.eventType === "BREAKOUT") return "전고 돌파";
-  return e.gapRate != null ? `${e.gapRate.toFixed(2)}% 남음` : "";
+  if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
+  const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));
+  if (e.eventType === "BREAKOUT") return `전고 ${formatPrice(line)}원 돌파`;
+  return `${formatPrice(line)}원까지 ${e.gapRate.toFixed(2)}% 남음`;
 }
 
 export default function SignalLogPage() {
