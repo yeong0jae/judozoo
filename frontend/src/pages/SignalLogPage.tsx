@@ -32,8 +32,8 @@ function detailOf(e: SignalEventItem): string {
   if (e.eventType === "VOLUME_SPIKE") return e.spikeRatio ? `🔥${e.spikeRatio.toFixed(1)}배` : "";
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
   const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));
-  if (e.eventType === "BREAKOUT") return `전고 ${formatPrice(line)}원 돌파`;
-  return `${formatPrice(line)}원까지 ${e.gapRate.toFixed(2)}% 남음`;
+  if (e.eventType === "BREAKOUT") return `${formatPrice(line)}원 돌파`;
+  return `${formatPrice(line)}원 돌파까지 ${e.gapRate.toFixed(2)}% 남음`;
 }
 
 export default function SignalLogPage() {
