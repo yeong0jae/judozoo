@@ -62,4 +62,32 @@ class MinuteCandles(candles: List<MinuteCandle>) {
             ratio = latest.tradingValue / avg,
         )
     }
+
+    /**
+     * 최근 [windowBars]봉(≈분) 안에서 임계([minRatio]·[minTradingValue])를 넘긴 봉 중
+     * **배율이 가장 큰 봉**의 스파이크. 각 봉은 자기 직전 [baselineBars]봉 평균과 비교한다.
+     *
+     * 화면이 1분 단위로만 갱신돼도 직전 몇 분 사이의 스파이크를 놓치지 않도록 한 봉이 아니라 창으로 본다.
+     * 임계를 넘긴 봉이 없으면 null.
+     */
+    fun recentVolumeSpike(
+        baselineBars: Int,
+        windowBars: Int,
+        minRatio: Double,
+        minTradingValue: Long,
+    ): VolumeSpike? {
+        var best: VolumeSpike? = null
+        for (i in maxOf(1, ordered.size - windowBars) until ordered.size) {
+            val bar = ordered[i]
+            if (bar.tradingValue < minTradingValue) continue
+            val avg = ordered.subList(maxOf(0, i - baselineBars), i).map { it.tradingValue }.average()
+            if (avg <= 0) continue
+            val ratio = bar.tradingValue / avg
+            if (ratio < minRatio) continue
+            if (best == null || ratio > best.ratio) {
+                best = VolumeSpike(latestTradingValue = bar.tradingValue, at = bar.dateTime, ratio = ratio)
+            }
+        }
+        return best
+    }
 }

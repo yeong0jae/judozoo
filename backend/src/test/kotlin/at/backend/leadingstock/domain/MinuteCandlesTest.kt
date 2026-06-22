@@ -123,4 +123,54 @@ class MinuteCandlesTest : FunSpec({
             candles.volumeSpike(baselineBars = 20) shouldBe null
         }
     }
+
+    context("최근 창 스파이크") {
+        test("창 안에서 배율이 가장 큰 봉을 그 시각과 함께 고른다") {
+            // 분3이 직전 2봉(100,100) 대비 9배 — 가장 최신 봉(분5)이 아니어도 창 안 최대 배율을 잡는다
+            val candles = MinuteCandles(
+                listOf(
+                    tvCandle(0, 100), tvCandle(1, 100), tvCandle(2, 100),
+                    tvCandle(3, 900), tvCandle(4, 100), tvCandle(5, 600),
+                ),
+            )
+            val spike = candles.recentVolumeSpike(
+                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 100,
+            )!!
+            spike.at shouldBe base.plusMinutes(3)
+            spike.latestTradingValue shouldBe 900
+            spike.ratio shouldBe (9.0 plusOrMinus 0.001)
+        }
+
+        test("창 밖에서 터진 스파이크는 잡지 않는다") {
+            // 스파이크는 분2 — 창(최근 3봉=분3·4·5) 밖이라 무시되고 창 안엔 임계 초과 봉이 없다
+            val candles = MinuteCandles(
+                listOf(
+                    tvCandle(0, 100), tvCandle(1, 100), tvCandle(2, 900),
+                    tvCandle(3, 100), tvCandle(4, 100), tvCandle(5, 100),
+                ),
+            )
+            candles.recentVolumeSpike(
+                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 100,
+            ) shouldBe null
+        }
+
+        test("배율은 넘겨도 거래대금 임계 미달이면 제외한다") {
+            // 분3은 6배지만 거래대금 60 < 임계 1000 → 후보 없음
+            val candles = MinuteCandles(
+                listOf(tvCandle(0, 10), tvCandle(1, 10), tvCandle(2, 10), tvCandle(3, 60)),
+            )
+            candles.recentVolumeSpike(
+                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 1000,
+            ) shouldBe null
+        }
+
+        test("창 안에 임계를 넘긴 봉이 없으면 null") {
+            val candles = MinuteCandles(
+                listOf(tvCandle(0, 100), tvCandle(1, 100), tvCandle(2, 100), tvCandle(3, 100)),
+            )
+            candles.recentVolumeSpike(
+                baselineBars = 2, windowBars = 3, minRatio = 3.0, minTradingValue = 100,
+            ) shouldBe null
+        }
+    }
 })

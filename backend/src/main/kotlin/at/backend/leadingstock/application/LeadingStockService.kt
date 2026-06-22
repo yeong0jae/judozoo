@@ -151,11 +151,10 @@ class LeadingStockService(
     fun volumeSpikes(minDailyPriceChangeRate: Double): List<VolumeSpikeStock> =
         findCandidateStocks(minDailyPriceChangeRate)
             .mapNotNull { s ->
+                // 1분 단위 갱신으로 놓치지 않게 최근 SPIKE_WINDOW_BARS분 창에서 가장 강한 스파이크를 잡는다
                 val spike = MinuteCandles(latestSessionMinuteCandles(s.stockCode))
-                    .volumeSpike(SPIKE_BASELINE_BARS) ?: return@mapNotNull null
-                if (spike.ratio < SPIKE_RATIO_MIN || spike.latestTradingValue < SPIKE_MIN_TRADING_VALUE) {
-                    return@mapNotNull null
-                }
+                    .recentVolumeSpike(SPIKE_BASELINE_BARS, SPIKE_WINDOW_BARS, SPIKE_RATIO_MIN, SPIKE_MIN_TRADING_VALUE)
+                    ?: return@mapNotNull null
                 VolumeSpikeStock(
                     stockCode = s.stockCode,
                     stockName = s.stockName,
@@ -240,6 +239,7 @@ class LeadingStockService(
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val RVOL_LOOKBACK_DAYS = 20
         private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
+        private const val SPIKE_WINDOW_BARS = 5         // 스파이크 페이지 보존 창(분) — 직전 N분봉까지 탐색
         private const val SPIKE_RATIO_MIN = 3.0         // 최소 배율
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
         private const val CHART_SESSION_DAYS = 3 // 상세 차트 표시 거래일 수(당일 포함)

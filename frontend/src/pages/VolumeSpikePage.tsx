@@ -20,6 +20,11 @@ function shortCode(stockCode: string): string {
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
 }
 
+/** ISO LocalDateTime → HH:mm:ss (타임존 변환 없이 문자열에서 직접). */
+function clockOf(iso: string): string {
+  return iso.slice(11, 19);
+}
+
 /** 배율이 클수록 강한 색 */
 function ratioColor(r: number): string {
   if (r >= 8) return "text-rose-400";
@@ -61,7 +66,7 @@ export default function VolumeSpikePage() {
             />
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            주도주 후보 중 최신 1분봉 거래대금이 직전 평균 대비 급증한 종목 · 5초 자동 갱신
+            주도주 후보 중 최근 5분 내 1분봉 거래대금이 직전 평균 대비 급증한 종목 · 5초 자동 갱신
           </p>
         </div>
         <div className="text-xs text-zinc-500 flex items-center gap-2">
@@ -93,6 +98,7 @@ export default function VolumeSpikePage() {
               <thead className="text-zinc-500 text-xs">
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
+                  <th className="px-4 py-2.5 text-right">발생</th>
                   <th className="px-4 py-2.5 text-right">배율</th>
                   <th className="px-4 py-2.5 text-right">1분 거래대금</th>
                   <th className="px-4 py-2.5 text-right">거래대금</th>
@@ -169,6 +175,10 @@ function SpikeRow({
           </div>
         </div>
       </td>
+      <td className="px-4 py-3.5 text-right num whitespace-nowrap">
+        <div className="text-zinc-300">{clockOf(s.at)}</div>
+        <div className="text-[11px] text-zinc-500">{formatRelative(s.at)}</div>
+      </td>
       <td className={`px-4 py-3.5 text-right num font-semibold ${ratioColor(s.spikeRatio)}`}>
         {s.spikeRatio.toFixed(1)}배
       </td>
@@ -209,13 +219,14 @@ function SpikeCard({
       <div className="flex items-center gap-2">
         <StockAvatar name={s.stockName} code={code} size={26} />
         <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.stockName}</span>
+        <span className="num text-[11px] text-zinc-500 shrink-0">{formatRelative(s.at)}</span>
         <span className={`num text-sm font-semibold shrink-0 ${ratioColor(s.spikeRatio)}`}>
           {s.spikeRatio.toFixed(1)}배
         </span>
       </div>
       <div className="flex items-baseline justify-between gap-2 pl-9">
         <span className="text-xs text-zinc-500 num truncate">
-          {code} · 1분 {formatKoreanMoney(s.minuteTradingValue)} · 누적{" "}
+          {clockOf(s.at)} · {code} · 1분 {formatKoreanMoney(s.minuteTradingValue)} · 누적{" "}
           {formatKoreanMoney(s.tradingValue)}
         </span>
         <span className="flex items-baseline gap-2 shrink-0">
