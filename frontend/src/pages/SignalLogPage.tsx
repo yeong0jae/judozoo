@@ -33,7 +33,7 @@ function detailOf(e: SignalEventItem): string {
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
   const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));
   if (e.eventType === "BREAKOUT") return `${formatPrice(line)}원 돌파`;
-  return `${formatPrice(line)}원 돌파까지 ${e.gapRate.toFixed(2)}% 남음`;
+  return `${formatPrice(line)}원 돌파까지 ${formatPrice(line - e.currentPrice)}원 (${e.gapRate.toFixed(2)}%) 남음`;
 }
 
 export default function SignalLogPage() {
