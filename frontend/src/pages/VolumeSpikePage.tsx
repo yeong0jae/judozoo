@@ -12,6 +12,7 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
+import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "volumeSpike.minChangeRate";
 
@@ -59,6 +60,9 @@ export default function VolumeSpikePage() {
   useEffect(() => {
     if (selectedCode === null && stocks.length > 0) setSelectedCode(stocks[0].stockCode);
   }, [stocks, selectedCode]);
+
+  // ↑/↓ 방향키로 선택 종목 이동
+  useArrowStockNav(stocks.map((s) => s.stockCode), selectedCode, setSelectedCode);
 
   return (
     <div className="space-y-4">
@@ -168,6 +172,7 @@ function SpikeRow({
         layout: { type: "spring", stiffness: 600, damping: 42 },
         opacity: { duration: 0.2 },
       }}
+      data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
       className={`border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer ${
         selected ? "bg-emerald-900/40" : ""
@@ -219,6 +224,7 @@ function SpikeCard({
   const code = shortCode(s.stockCode);
   return (
     <div
+      data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
       className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1.5 cursor-pointer ${
         selected ? "bg-emerald-900/40" : ""

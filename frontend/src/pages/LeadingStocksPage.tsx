@@ -13,6 +13,7 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
+import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -35,6 +36,12 @@ export default function LeadingStocksPage() {
   }, [minChangeRate]);
   const candidatesQ = useLeadingStockCandidates(minChangeRate);
   const [openCode, setOpenCode] = useState<string | null>(null);
+  // ↑/↓ 방향키로 선택 종목 이동
+  useArrowStockNav(
+    (candidatesQ.data?.stocks ?? []).map((s) => s.stockCode),
+    openCode,
+    setOpenCode,
+  );
 
   const data = candidatesQ.data;
   const stocks = data?.stocks ?? [];
@@ -218,6 +225,7 @@ function CandidatesTable({
             <Fragment key={s.stockCode}>
               {idx === 3 && <GroupHeader label="주도주 후보" />}
               <tr
+                data-stock-code={s.stockCode}
                 className={`border-t border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors ${
                   isNew ? "leading-stock-new" : ""
                 } ${isSelected ? "bg-emerald-900" : ""}`}
@@ -303,6 +311,7 @@ function CandidatesCards({
             {idx === 0 && <CardGroupHeader label="거래대금 1, 2, 3위" />}
             {idx === 3 && <CardGroupHeader label="주도주 후보" />}
             <div
+              data-stock-code={s.stockCode}
               className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
                 isNew ? "leading-stock-new" : ""
               } ${isSelected ? "bg-emerald-900" : ""}`}

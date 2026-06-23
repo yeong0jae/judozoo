@@ -12,6 +12,7 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
+import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "breakoutRadar.minChangeRate";
 
@@ -54,26 +55,8 @@ export default function BreakoutRadarPage() {
     if (selectedCode === null && stocks.length > 0) setSelectedCode(stocks[0].stockCode);
   }, [stocks, selectedCode]);
 
-  // ↑/↓ 방향키로 선택 종목 이동 (입력 요소 포커스 중에는 무시)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (stocks.length === 0) return;
-      e.preventDefault();
-      const idx = stocks.findIndex((s) => s.stockCode === selectedCode);
-      const next =
-        e.key === "ArrowDown"
-          ? Math.min((idx < 0 ? -1 : idx) + 1, stocks.length - 1)
-          : Math.max((idx < 0 ? stocks.length : idx) - 1, 0);
-      const code = stocks[next].stockCode;
-      setSelectedCode(code);
-      document.querySelector(`[data-stock-code="${code}"]`)?.scrollIntoView({ block: "nearest" });
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [stocks, selectedCode]);
+  // ↑/↓ 방향키로 선택 종목 이동
+  useArrowStockNav(stocks.map((s) => s.stockCode), selectedCode, setSelectedCode);
 
   return (
     <div className="space-y-4">

@@ -11,6 +11,7 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import { buildSignalPrompt } from "../lib/signalPrompt";
+import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -77,6 +78,9 @@ export default function SignalLogPage() {
   useEffect(() => {
     if (selectedCode === null && events.length > 0) setSelectedCode(events[0].stockCode);
   }, [events, selectedCode]);
+
+  // ↑/↓ 방향키로 선택 종목 이동 (한 종목이 여러 행이면 종목 단위로 이동)
+  useArrowStockNav(events.map((e) => e.stockCode), selectedCode, setSelectedCode);
 
   // LLM 분석용 프롬프트 복사 — 정제 데이터를 클립보드로.
   // Clipboard API는 HTTPS/localhost에서만 동작하므로 HTTP 배포본을 위해 execCommand로 폴백한다.
@@ -180,6 +184,7 @@ export default function SignalLogPage() {
                 return (
                   <motion.li
                     key={rowKey}
+                    data-stock-code={e.stockCode}
                     layout
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
