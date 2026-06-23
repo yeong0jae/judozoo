@@ -4,20 +4,25 @@ import { motion } from "motion/react";
 // 당일 등락률 임계값 선택지 — -7 ~ +7 중 홀수 구간 + 0
 export const CHANGE_RATE_OPTIONS = [-7, -5, -3, 0, 3, 5, 7];
 
-/** 당일 등락률 임계값 선택 — -7~7% 세그먼트 버튼. 활성 표시가 버튼 사이를 슬라이드. */
+// "전체"(하한 없음) 센티넬 — 어떤 등락률도 통과(>= -100). 화면 필터에서만 사용.
+export const ALL_CHANGE_RATE = -100;
+
+/** 당일 등락률 임계값 선택 — 세그먼트 버튼. 활성 표시가 버튼 사이를 슬라이드. [options]로 선택지 주입 가능. */
 export default function ChangeRateSelector({
   value,
   onChange,
+  options = CHANGE_RATE_OPTIONS,
 }: {
   value: number;
   onChange: (rate: number) => void;
+  options?: number[];
 }) {
   const id = useId();
   return (
     <div className="flex items-center gap-1.5 flex-wrap justify-end">
       <span className="text-xs text-zinc-500">등락률</span>
       <div className="inline-flex flex-wrap rounded-md overflow-hidden border border-zinc-700">
-        {CHANGE_RATE_OPTIONS.map((rate) => {
+        {options.map((rate) => {
           const active = rate === value;
           return (
             <motion.button
@@ -40,7 +45,7 @@ export default function ChangeRateSelector({
                   active ? "text-white" : "text-zinc-400"
                 }`}
               >
-                {rate > 0 ? `+${rate}` : rate}
+                {rate === ALL_CHANGE_RATE ? "전체" : rate > 0 ? `+${rate}` : rate}
               </span>
             </motion.button>
           );

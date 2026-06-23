@@ -9,7 +9,7 @@ import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
-import ChangeRateSelector from "../components/common/ChangeRateSelector";
+import ChangeRateSelector, { ALL_CHANGE_RATE } from "../components/common/ChangeRateSelector";
 import { buildSignalPrompt } from "../lib/signalPrompt";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
@@ -160,7 +160,11 @@ export default function SignalLogPage() {
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {/* 발생 시점 등락률 하한 — 행 표시 필터 */}
         <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
-          <ChangeRateSelector value={minRate} onChange={setMinRate} />
+          <ChangeRateSelector
+            value={minRate}
+            onChange={setMinRate}
+            options={[ALL_CHANGE_RATE, -7, -5, -3, 0, 3, 5, 7]}
+          />
         </div>
         {eventsQ.isLoading ? (
           <div className="p-6 space-y-3">
