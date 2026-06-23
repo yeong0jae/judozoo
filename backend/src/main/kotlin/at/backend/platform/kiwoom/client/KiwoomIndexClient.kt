@@ -18,18 +18,18 @@ class KiwoomIndexClient(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 업종 현재가 요청 (ka20001). 실패 시 null 반환. */
-    fun fetchIndex(indsCd: String): IndexSnapshot? {
+    /** 업종 현재가 요청 (ka20001). [mrktTp] 0=코스피, 1=코스닥. 실패 시 null 반환. */
+    fun fetchIndex(indsCd: String, mrktTp: String = "0"): IndexSnapshot? {
         try {
             val token = authClient.getAccessToken()
-            log.info("Fetching index from Kiwoom API — inds_cd={}", indsCd)
+            log.info("Fetching index from Kiwoom API — mrkt_tp={}, inds_cd={}", mrktTp, indsCd)
 
             val response = kiwoomRestClient.post()
                 .uri("/api/dostk/sect")
                 .header("authorization", "Bearer $token")
                 .header("Content-Type", "application/json;charset=UTF-8")
                 .header("api-id", "ka20001")
-                .body(mapOf("mrkt_tp" to "0", "inds_cd" to indsCd)) // mrkt_tp 0=코스피, 1=코스닥
+                .body(mapOf("mrkt_tp" to mrktTp, "inds_cd" to indsCd)) // mrkt_tp 0=코스피, 1=코스닥
                 .retrieve()
                 .body(IndexResponse::class.java)
                 ?: return null

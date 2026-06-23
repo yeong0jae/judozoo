@@ -17,4 +17,7 @@ class MarketStatusController(
 
     @GetMapping("/api/market/kospi")
     fun getKospi() = ApiResponse.ok(kospiIndexService.getKospi())
+
+    @GetMapping("/api/market/kosdaq")
+    fun getKosdaq() = ApiResponse.ok(kospiIndexService.getKosdaq())
 }

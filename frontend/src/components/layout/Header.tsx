@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import NotificationBell from "../header/NotificationBell";
 import MarketStatusBadge from "../header/MarketStatusBadge";
 import KospiIndexBadge from "../header/KospiIndexBadge";
+import KosdaqIndexBadge from "../header/KosdaqIndexBadge";
 import StompStatusBadge from "../header/StompStatusBadge";
 import SettingsButton from "../header/SettingsButton";
 import { useMarketStatus } from "../../api/queries";
@@ -53,6 +54,7 @@ export default function Header() {
         <div className="hidden md:flex items-center gap-4">
           <div className="flex items-center gap-1">
             <KospiIndexBadge />
+            <KosdaqIndexBadge />
             <NotificationBell />
             {status && <MarketStatusBadge status={status} />}
             <StompStatusBadge />
@@ -118,6 +120,7 @@ export default function Header() {
           </nav>
           <div className="flex items-center flex-wrap gap-2 pt-3 border-t border-white/[0.04]">
             <KospiIndexBadge />
+            <KosdaqIndexBadge />
             <StompStatusBadge />
             <SettingsButton />
           </div>

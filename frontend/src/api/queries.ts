@@ -11,6 +11,7 @@ import type {
   Holding,
   InvestorTrendDay,
   KospiIndex,
+  MarketIndex,
   LeadingStockDetailResponse,
   MinuteCandleItem,
   MarketStatus,
@@ -53,6 +54,7 @@ export const QK = {
   dailyCandles: (code: string) =>
     ["leading-stocks", "daily-candles", code] as const,
   kospiIndex: ["market", "kospi"] as const,
+  kosdaqIndex: ["market", "kosdaq"] as const,
   regime: ["market", "regime"] as const,
   regimeDaily: ["market", "regime", "daily"] as const,
   themeCalendar: (from: string, to: string) =>
@@ -219,6 +221,14 @@ export function useKospiIndex() {
   return useQuery({
     queryKey: QK.kospiIndex,
     queryFn: () => apiFetch<KospiIndex>("/api/market/kospi"),
+    refetchInterval: 30_000, // 헤더용 — 30초마다
+  });
+}
+
+export function useKosdaqIndex() {
+  return useQuery({
+    queryKey: QK.kosdaqIndex,
+    queryFn: () => apiFetch<MarketIndex>("/api/market/kosdaq"),
     refetchInterval: 30_000, // 헤더용 — 30초마다
   });
 }

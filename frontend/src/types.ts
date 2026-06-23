@@ -277,10 +277,13 @@ export type AccountPayload = { type: "BALANCE_INVALIDATED"; ts: string };
 
 // === 시장 지수 ===
 
-export interface KospiIndex {
+export interface MarketIndex {
   currentValue: number;
   changeRate: number; // 단위: % (양수=상승)
 }
+
+// 기존 호출부 호환
+export type KospiIndex = MarketIndex;
 
 // === 주도주 (Leading Stocks) ===
 

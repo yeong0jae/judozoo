@@ -67,6 +67,13 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
+            "kosdaqIndex",
+            Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.SECONDS)
+                .maximumSize(1)
+                .build(),
+        )
+        manager.registerCustomCache(
             "stockThemes", // 종목별 테마명 — 하루 단위로도 거의 불변, 12시간 TTL
             Caffeine.newBuilder()
                 .expireAfterWrite(12, TimeUnit.HOURS)
