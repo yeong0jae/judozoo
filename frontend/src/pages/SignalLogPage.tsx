@@ -9,9 +9,11 @@ import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
-import ChangeRateSelector from "../components/common/ChangeRateSelector";
+import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
 import { buildSignalPrompt } from "../lib/signalPrompt";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
+
+const MIN_RATE_KEY = "signalLog.minRate";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -66,7 +68,15 @@ function detailOf(e: SignalEventItem) {
 
 export default function SignalLogPage() {
   const [date, setDate] = useState(todayStr());
-  const [minRate, setMinRate] = useState(0); // 발생 시점 등락률 하한 — 행 표시 필터
+  // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
+  const [minRate, setMinRate] = useState(() => {
+    const raw = localStorage.getItem(MIN_RATE_KEY);
+    const saved = Number(raw);
+    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 0;
+  });
+  useEffect(() => {
+    localStorage.setItem(MIN_RATE_KEY, String(minRate));
+  }, [minRate]);
   const eventsQ = useSignalEvents(date);
   const data = eventsQ.data;
   const allEvents = data?.events ?? [];
