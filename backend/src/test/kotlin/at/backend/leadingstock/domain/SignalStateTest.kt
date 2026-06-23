@@ -79,7 +79,7 @@ class SignalStateTest : FunSpec({
     }
 
     context("거래대금 스파이크") {
-        test("배율이 3배 이상으로 처음 튀면 스파이크 이벤트를 낸다") {
+        test("배율이 임계(2.5배) 이상으로 처음 튀면 스파이크 이벤트를 낸다") {
             val (events, _) = SignalState.INITIAL.advance(reading(spike = 4.0))
             events shouldContainExactly listOf(SignalEventType.VOLUME_SPIKE)
         }
@@ -89,7 +89,7 @@ class SignalStateTest : FunSpec({
             events.shouldBeEmpty()
         }
 
-        test("2배 아래로 식었다가 다시 3배를 넘기면 재발화한다") {
+        test("2배 아래로 식었다가 다시 임계를 넘기면 재발화한다") {
             val (events, _) = SignalState.INITIAL.feed(
                 reading(spike = 4.0),
                 reading(spike = 1.5),

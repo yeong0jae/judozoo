@@ -245,7 +245,7 @@ class LeadingStockService(
         private const val RVOL_LOOKBACK_DAYS = 20
         private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
         private const val SPIKE_WINDOW_MINUTES = 5L     // 스파이크 페이지 보존 창 — 지금 기준 직전 N분
-        private const val SPIKE_RATIO_MIN = 3.0         // 최소 배율
+        private const val SPIKE_RATIO_MIN = 2.5         // 최소 배율
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
         private const val CHART_SESSION_DAYS = 3 // 상세 차트 표시 거래일 수(당일 포함)
     }
