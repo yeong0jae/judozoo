@@ -3,16 +3,16 @@ import { hierarchy, treemap, type HierarchyRectangularNode } from "d3-hierarchy"
 import type { ThemeItem } from "../../types";
 
 const HEIGHT = 520;
-const HEADER = 18; // 테마(그룹) 헤더 높이
+const HEADER = 24; // 테마(그룹) 헤더 높이
 
-/** 등락률 → 색. 한국 관행: 상승 빨강, 하락 파랑, 0 근처 회색. null(과거 적재분)은 회색. */
+/** 등락률 → 색. 한국 관행: 상승 적색, 하락 청색, 0 근처 슬레이트. null(과거 적재분)은 중립. */
 function colorOf(rate: number | null): string {
-  if (rate == null) return "rgb(63,63,70)"; // zinc-700
+  if (rate == null) return "rgb(51,54,63)"; // 중립 슬레이트
   const x = Math.max(-5, Math.min(5, rate)) / 5; // -1 ~ 1
-  const base = [63, 63, 70];
-  const target = x >= 0 ? [220, 38, 38] : [37, 99, 235]; // red-600 / blue-600
-  const t = Math.abs(x);
-  const c = base.map((b, i) => Math.round(b + (target[i] - b) * t));
+  const t = Math.pow(Math.abs(x), 0.8); // 작은 변동은 더 은은하게
+  const neutral = [43, 47, 58]; // #2b2f3a
+  const target = x >= 0 ? [183, 76, 68] : [66, 99, 173]; // 차분한 적/청
+  const c = neutral.map((b, i) => Math.round(b + (target[i] - b) * t));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
@@ -63,8 +63,9 @@ export default function ThemeTreemap({ themes }: { themes: ThemeItem[] }) {
       ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
         treemap<any>()
           .size([width, HEIGHT])
+          .paddingOuter(4)
           .paddingTop(HEADER)
-          .paddingInner(2)
+          .paddingInner(3)
           .round(true)(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           hierarchy<any>({ name: "root", children: groups })
@@ -90,10 +91,13 @@ export default function ThemeTreemap({ themes }: { themes: ThemeItem[] }) {
               return (
                 <div
                   key={`g-${i}`}
-                  className="absolute overflow-hidden pointer-events-none"
+                  className="absolute overflow-hidden pointer-events-none rounded-md bg-white/[0.02] ring-1 ring-white/[0.05]"
                   style={{ left: x, top: y, width: w, height: h }}
                 >
-                  <div className="px-1.5 text-[11px] font-medium text-zinc-400 truncate leading-[18px]">
+                  <div
+                    className="px-2 flex items-center text-[13px] font-semibold text-zinc-300 truncate"
+                    style={{ height: HEADER }}
+                  >
                     {n.data.name}
                   </div>
                 </div>
@@ -101,19 +105,39 @@ export default function ThemeTreemap({ themes }: { themes: ThemeItem[] }) {
             }
             const d = n.data as Leaf;
             const pct = d.rate == null ? "" : `${d.rate > 0 ? "+" : ""}${d.rate.toFixed(2)}%`;
+            // 박스가 클수록 글씨도 크게 (가로·세로에 비례, 상·하한 클램프)
+            const nameSize = Math.max(11, Math.min(w * 0.2, h * 0.42, 40));
+            const pctSize = Math.max(10, Math.min(nameSize * 0.7, 24));
+            const showName = w > 28 && h > 16;
+            const showPct = !!pct && h > nameSize + pctSize + 6;
             return (
               <div
                 key={`s-${i}`}
-                className="absolute overflow-hidden flex flex-col items-center justify-center text-center text-white px-0.5"
-                style={{ left: x, top: y, width: w, height: h, background: colorOf(d.rate) }}
+                className="absolute overflow-hidden flex flex-col items-center justify-center text-center text-white px-0.5 rounded-[3px]"
+                style={{
+                  left: x,
+                  top: y,
+                  width: w,
+                  height: h,
+                  background: colorOf(d.rate),
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.05)",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.35)",
+                }}
                 title={`${d.name} ${pct}`}
               >
-                {w > 34 && h > 22 && (
+                {showName && (
                   <>
-                    <span className="text-[11px] font-semibold leading-tight truncate max-w-full">
+                    <span
+                      className="font-semibold leading-none truncate max-w-full"
+                      style={{ fontSize: nameSize }}
+                    >
                       {d.name}
                     </span>
-                    {pct && h > 34 && <span className="text-[10px] leading-tight opacity-90">{pct}</span>}
+                    {showPct && (
+                      <span className="leading-none opacity-90 mt-1" style={{ fontSize: pctSize }}>
+                        {pct}
+                      </span>
+                    )}
                   </>
                 )}
               </div>
