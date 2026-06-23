@@ -9,7 +9,7 @@ import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
-import ChangeRateSelector, { ALL_CHANGE_RATE } from "../components/common/ChangeRateSelector";
+import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import { buildSignalPrompt } from "../lib/signalPrompt";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
@@ -163,7 +163,7 @@ export default function SignalLogPage() {
           <ChangeRateSelector
             value={minRate}
             onChange={setMinRate}
-            options={[ALL_CHANGE_RATE, -7, -5, -3, 0, 3, 5, 7]}
+            options={[-12, -7, -5, -3, 0, 3, 5, 7]}
           />
         </div>
         {eventsQ.isLoading ? (
