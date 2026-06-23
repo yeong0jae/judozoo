@@ -119,7 +119,7 @@ export default function SignalLogPage() {
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            시그널 로그
+            실시간 로그
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
                 eventsQ.isFetching ? "animate-ping" : "animate-pulse"

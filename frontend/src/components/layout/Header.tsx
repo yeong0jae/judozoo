@@ -9,7 +9,7 @@ import { useMarketStatus } from "../../api/queries";
 
 const NAV = [
   { to: "/leading-stocks", label: "주도주 후보 조회" },
-  { to: "/signal-log", label: "주도주 시그널 로그" },
+  { to: "/signal-log", label: "주도주 실시간 로그" },
   { to: "/breakout-radar", label: "주도주 돌파 시그널" },
   { to: "/volume-spike", label: "주도주 거래대금 스파이크" },
   { to: "/theme-calendar", label: "테마 캘린더" },

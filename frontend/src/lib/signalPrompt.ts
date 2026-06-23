@@ -117,7 +117,7 @@ export function buildSignalPrompt(date: string, events: SignalEventItem[]): stri
   );
 
   return [
-    `다음은 ${date} 주도주 시그널 로그야. 장중 발생한 돌파/임박/스파이크 전이를 시간순으로 기록한 거야.`,
+    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크 전이를 시간순으로 기록한 거야.`,
     `이걸 근거로 오늘 시장 흐름을 분석하고 매매를 복기해줘:`,
     `1) 주도 테마와 테마 순환`,
     `2) 시간대별 수급 흐름`,
