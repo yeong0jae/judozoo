@@ -4,6 +4,7 @@ import { useThemeCalendar } from "../api/queries";
 import { useCaptureThemes } from "../api/mutations";
 import type { ThemeDayItem, ThemeItem } from "../types";
 import Skeleton from "../components/common/Skeleton";
+import ThemeTreemap, { TreemapLegend } from "../components/theme/ThemeTreemap";
 import { formatKoreanMoney } from "../lib/format";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -154,6 +155,24 @@ export default function ThemeCalendarPage() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* 캘린더 아래: 선택일(없으면 오늘) 섹터별 트리맵 — 거래대금 크기 / 등락률 색 */}
+      {(() => {
+        const treemapDate = selectedDate ?? todayStr;
+        const treemapThemes = byDate.get(treemapDate)?.themes ?? [];
+        return (
+          <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-zinc-200">
+                {treemapDate} 섹터별 현황
+                <span className="text-xs text-zinc-500 font-normal"> · 거래대금 크기 / 등락률 색</span>
+              </h3>
+              <TreemapLegend />
+            </div>
+            <ThemeTreemap themes={treemapThemes} />
+          </section>
+        );
+      })()}
     </div>
   );
 }
