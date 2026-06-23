@@ -1,8 +1,8 @@
 import { useId } from "react";
 import { motion } from "motion/react";
 
-// 당일 등락률 임계값 선택지 — -7 ~ +7 중 홀수 구간 + 0
-export const CHANGE_RATE_OPTIONS = [-7, -5, -3, 0, 3, 5, 7];
+// 당일 등락률 임계값 선택지 — -12 하한 + -7~+7 홀수 구간 + 0
+export const CHANGE_RATE_OPTIONS = [-12, -7, -5, -3, 0, 3, 5, 7];
 
 /** 당일 등락률 임계값 선택 — 세그먼트 버튼. 활성 표시가 버튼 사이를 슬라이드. [options]로 선택지 주입 가능. */
 export default function ChangeRateSelector({

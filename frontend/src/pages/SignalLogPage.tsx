@@ -160,11 +160,7 @@ export default function SignalLogPage() {
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {/* 발생 시점 등락률 하한 — 행 표시 필터 */}
         <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
-          <ChangeRateSelector
-            value={minRate}
-            onChange={setMinRate}
-            options={[-12, -7, -5, -3, 0, 3, 5, 7]}
-          />
+          <ChangeRateSelector value={minRate} onChange={setMinRate} />
         </div>
         {eventsQ.isLoading ? (
           <div className="p-6 space-y-3">
