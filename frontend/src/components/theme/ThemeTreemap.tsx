@@ -48,11 +48,19 @@ export default function ThemeTreemap({ themes }: { themes: ThemeItem[] }) {
     return () => ro.disconnect();
   }, []);
 
-  const groups = themes
+  // 한 종목은 여러 테마에 속하므로, 면적·박스가 중복되지 않게 가장 상위 랭크 테마에만 배정한다.
+  // (낮은 랭크 테마가 같은 종목만으로 채워졌다면 비게 되어 자연히 사라진다.)
+  const seen = new Set<string>();
+  const groups = [...themes]
+    .sort((a, b) => a.rank - b.rank)
     .map((t) => ({
       name: t.name,
       children: t.stocks
-        .filter((s) => s.tradingValue > 0)
+        .filter((s) => {
+          if (s.tradingValue <= 0 || seen.has(s.stockCode)) return false;
+          seen.add(s.stockCode);
+          return true;
+        })
         .map((s): Leaf => ({ name: s.stockName, value: s.tradingValue, rate: s.priceChangeRate })),
     }))
     .filter((g) => g.children.length > 0);
