@@ -89,8 +89,15 @@ export default function SignalLogPage() {
     if (selectedCode === null && events.length > 0) setSelectedCode(events[0].stockCode);
   }, [events, selectedCode]);
 
-  // ↑/↓ 방향키로 선택 종목 이동 (한 종목이 여러 행이면 종목 단위로 이동)
-  useArrowStockNav(events.map((e) => e.stockCode), selectedCode, setSelectedCode);
+  // ↑/↓ 방향키로 선택 종목 이동 — 그 종목의 첫 행을 열고(이전 열린 행은 닫힘) 차트도 갱신
+  const selectAndOpen = (code: string) => {
+    setSelectedCode(code);
+    const idx = events.findIndex((e) => e.stockCode === code);
+    if (idx < 0) return;
+    const e = events[idx];
+    setOpenKey(`${e.stockCode}-${e.eventType}-${e.occurredAt}-${idx}`);
+  };
+  useArrowStockNav(events.map((e) => e.stockCode), selectedCode, selectAndOpen);
 
   // LLM 분석용 프롬프트 복사 — 정제 데이터를 클립보드로.
   // Clipboard API는 HTTPS/localhost에서만 동작하므로 HTTP 배포본을 위해 execCommand로 폴백한다.
