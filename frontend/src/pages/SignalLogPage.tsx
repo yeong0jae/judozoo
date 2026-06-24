@@ -11,9 +11,12 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
 import { buildSignalPrompt } from "../lib/signalPrompt";
-import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_RATE_KEY = "signalLog.minRate";
+
+/** 행 고유 키 — 같은 종목이 여러 행이어도 인덱스로 구분(방향키 행 단위 이동·열림 식별용). */
+const rowKeyOf = (e: SignalEventItem, i: number) =>
+  `${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`;
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -89,15 +92,27 @@ export default function SignalLogPage() {
     if (selectedCode === null && events.length > 0) setSelectedCode(events[0].stockCode);
   }, [events, selectedCode]);
 
-  // ↑/↓ 방향키로 선택 종목 이동 — 그 종목의 첫 행을 열고(이전 열린 행은 닫힘) 차트도 갱신
-  const selectAndOpen = (code: string) => {
-    setSelectedCode(code);
-    const idx = events.findIndex((e) => e.stockCode === code);
-    if (idx < 0) return;
-    const e = events[idx];
-    setOpenKey(`${e.stockCode}-${e.eventType}-${e.occurredAt}-${idx}`);
-  };
-  useArrowStockNav(events.map((e) => e.stockCode), selectedCode, selectAndOpen);
+  // ↑/↓ 방향키로 행 단위 이동 — 같은 종목이 여러 행이어도 각 행을 거친다. 그 행을 열고 차트도 갱신.
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+      const tag = (ev.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (events.length === 0) return;
+      ev.preventDefault();
+      const keys = events.map((e, i) => rowKeyOf(e, i));
+      const cur = openKey ? keys.indexOf(openKey) : -1;
+      const next =
+        ev.key === "ArrowDown"
+          ? Math.min((cur < 0 ? -1 : cur) + 1, keys.length - 1)
+          : Math.max((cur < 0 ? keys.length : cur) - 1, 0);
+      setOpenKey(keys[next]);
+      setSelectedCode(events[next].stockCode);
+      document.querySelector(`[data-row-key="${keys[next]}"]`)?.scrollIntoView({ block: "nearest" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [events, openKey]);
 
   // LLM 분석용 프롬프트 복사 — 정제 데이터를 클립보드로.
   // Clipboard API는 HTTPS/localhost에서만 동작하므로 HTTP 배포본을 위해 execCommand로 폴백한다.
@@ -193,7 +208,7 @@ export default function SignalLogPage() {
               {events.map((e, i) => {
                 const code = shortCode(e.stockCode);
                 const meta = EVENT_META[e.eventType];
-                const rowKey = `${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`;
+                const rowKey = rowKeyOf(e, i);
                 const open = openKey === rowKey;
                 // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 여정은 필터와 무관하게 전체 경로를 보여준다
                 const stockEvents = open ? allEvents.filter((x) => x.stockCode === e.stockCode) : [];
@@ -201,7 +216,7 @@ export default function SignalLogPage() {
                 return (
                   <motion.li
                     key={rowKey}
-                    data-stock-code={e.stockCode}
+                    data-row-key={rowKey}
                     layout
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
