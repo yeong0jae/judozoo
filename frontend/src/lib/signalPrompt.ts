@@ -7,7 +7,7 @@ const TYPE_LABEL: Record<SignalEventType, string> = {
   VOLUME_SPIKE: "스파이크",
 };
 
-const NO_THEME = "테마없음";
+const NO_THEME = "테마 미상"; // 키움 테마 데이터 없음 — 시장 의미 아님
 
 function clockOf(iso: string): string {
   return iso.slice(11, 19);
@@ -78,9 +78,12 @@ export function buildSignalPrompt(date: string, events: SignalEventItem[]): stri
     cur.t[e.eventType] += 1;
     themeMap.set(key, cur);
   }
+  // 테마 미상(키움 테마 없음)은 섹터가 아니므로 순위 집계에서 빼고, 건수만 따로 각주로 둔다.
   const themeRows = [...themeMap.entries()]
+    .filter(([theme]) => theme !== NO_THEME)
     .sort((a, b) => b[1].count - a[1].count)
     .map(([theme, v]) => `${theme} | ${v.count} | ${v.stocks.size} | ${v.t.BREAKOUT}/${v.t.BREAKOUT_IMMINENT}/${v.t.VOLUME_SPIKE}`);
+  const noThemeCount = themeMap.get(NO_THEME)?.count ?? 0;
 
   // 시간대별 집계 (시 단위)
   const hourMap = new Map<string, Record<SignalEventType, number>>();
@@ -125,6 +128,7 @@ export function buildSignalPrompt(date: string, events: SignalEventItem[]): stri
     `4) 전반적 시장 톤`,
     `5) 이상적 매매 복기 — 어느 종목·어느 신호에서 진입했어야 했고 언제 정리했어야 했는지, 믿을 만한 신호와 무시했어야 할 신호(돌파 실패·임박 무산·고점 스파이크 등)는 무엇이었는지`,
     `주의: 각 종목 가격은 '시그널 발생 시점' 값만 있고 그 사이 고저는 없어. 주어진 시점 가격들 안에서만 복기하고, 없는 값은 추정하지 마.`,
+    `주의: '테마 미상'은 키움에 테마 정보가 없을 뿐 시장적 의미가 아니야 — 테마·순환 분석에서 제외해.`,
     ``,
     `## 개요`,
     `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE})`,
@@ -133,6 +137,9 @@ export function buildSignalPrompt(date: string, events: SignalEventItem[]): stri
     `## 테마별 (이벤트 많은 순)`,
     `테마 | 이벤트 | 종목 | 돌파/임박/스파이크`,
     ...themeRows,
+    ...(noThemeCount > 0
+      ? [`※ 테마 미상 ${noThemeCount}건은 키움 테마 데이터 없음 — 시장 의미 아님(집계·순환 분석 제외)`]
+      : []),
     ``,
     `## 시간대별`,
     `시 | 돌파/임박/스파이크`,
