@@ -21,7 +21,8 @@ class KiwoomThemeClient(
      * 종목별 12시간 캐시(stockThemes) — 후보 목록·테마 캘린더 캡처가 공유한다.
      * 키는 6자리 단축코드로 정규화해 `_AL` 등 접미사가 달라도 같은 종목이면 캐시를 맞힌다.
      */
-    @Cacheable("stockThemes", key = "#stockCode.substring(0, 6)")
+    // unless: 빈 결과(레이트리밋·일시 오류 포함)는 캐싱하지 않아 다음 조회에서 재시도되게 한다.
+    @Cacheable("stockThemes", key = "#stockCode.substring(0, 6)", unless = "#result.isEmpty()")
     fun fetchThemesForStock(stockCode: String): List<String> {
         val shortCode = stockCode.substringBefore("_").take(6)
         try {
