@@ -335,25 +335,6 @@ export interface BreakoutRadarResponse {
   stocks: BreakoutRadarItem[];
 }
 
-// === 분봉 거래대금 스파이크 ===
-export interface VolumeSpikeItem {
-  stockCode: string;
-  stockName: string;
-  currentPrice: number;
-  priceChangeRate: number;
-  minuteTradingValue: number; // 최신 1분봉 거래대금(원)
-  tradingValue: number; // 당일 누적 거래대금(원)
-  spikeRatio: number; // 직전 평균 대비 배율
-  direction: SpikeDirection; // 스파이크 봉 방향(매수/매도)
-  at: string; // 해당 분봉 시각 (ISO LocalDateTime)
-}
-
-export interface VolumeSpikeResponse {
-  queriedAt: string;
-  totalCount: number;
-  stocks: VolumeSpikeItem[];
-}
-
 // === 시그널 전이 로그 ===
 export type SignalEventType = "BREAKOUT" | "BREAKOUT_IMMINENT" | "VOLUME_SPIKE";
 

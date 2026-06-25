@@ -12,7 +12,6 @@ const NAV = [
   { to: "/leading-stocks", label: "주도주 후보 조회" },
   { to: "/signal-log", label: "주도주 실시간 로그" },
   { to: "/breakout-radar", label: "주도주 돌파 시그널" },
-  { to: "/volume-spike", label: "주도주 거래대금 스파이크" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   // 당분간 숨김 (라우트/페이지는 유지, 필요 시 주석 해제)
   // { to: "/market-flow", label: "시장 흐름" },

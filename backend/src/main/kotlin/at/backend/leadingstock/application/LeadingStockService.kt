@@ -146,32 +146,6 @@ class LeadingStockService(
         }.sortedBy { it.gapRate }
 
     /**
-     * 분봉 거래대금 스파이크 — 주도주 후보(거래대금 상위 + 등락률 필터) 중 최신 1분봉 거래대금이
-     * 직전 평균 대비 급증한 종목을 배율 내림차순으로.
-     */
-    fun volumeSpikes(minDailyPriceChangeRate: Double): List<VolumeSpikeStock> {
-        // 1분 단위 갱신으로 놓치지 않게 "지금 - N분" 시간 창에서 가장 강한 스파이크를 잡는다(장 마감 후엔 빈다)
-        val since = timeProvider.now().minusMinutes(SPIKE_WINDOW_MINUTES)
-        return findCandidateStocks(minDailyPriceChangeRate)
-            .mapNotNull { s ->
-                val spike = MinuteCandles(latestSessionMinuteCandles(s.stockCode))
-                    .recentVolumeSpike(SPIKE_BASELINE_BARS, since, SPIKE_RATIO_MIN, SPIKE_MIN_TRADING_VALUE)
-                    ?: return@mapNotNull null
-                VolumeSpikeStock(
-                    stockCode = s.stockCode,
-                    stockName = s.stockName,
-                    currentPrice = s.currentPrice,
-                    priceChangeRate = s.priceChangeRate,
-                    minuteTradingValue = spike.latestTradingValue,
-                    tradingValue = s.accumulatedTradingValue,
-                    spikeRatio = spike.ratio,
-                    direction = spike.direction,
-                    at = spike.at,
-                )
-            }.sortedWith(compareByDescending<VolumeSpikeStock> { it.at }.thenByDescending { it.spikeRatio })
-    }
-
-    /**
      * 시그널 전이 적재 폴러용 — 후보별 분봉 1회로 돌파 갭·전고점·스파이크 배율을 함께 읽는다.
      * spikeRatio는 거래대금 임계를 넘긴 봉만 채우고(미달/봉없음이면 null로 둬 히스테리시스 해제에 쓰이게 한다),
      * 분봉이 없으면 gapRate·peakPrice도 null.
@@ -244,8 +218,6 @@ class LeadingStockService(
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val RVOL_LOOKBACK_DAYS = 20
         private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
-        private const val SPIKE_WINDOW_MINUTES = 5L     // 스파이크 페이지 보존 창 — 지금 기준 직전 N분
-        private const val SPIKE_RATIO_MIN = 2.5         // 최소 배율
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
         private const val CHART_SESSION_DAYS = 3 // 상세 차트 표시 거래일 수(당일 포함)
     }
@@ -266,19 +238,6 @@ data class CandidateSignalReading(
     val spikeRatio: Double?,
     val minuteTradingValue: Long?, // 스파이크 분봉 거래대금(원). 스파이크 없으면 null
     val spikeDirection: SpikeDirection?, // 스파이크 봉 방향(매수/매도). 스파이크 없으면 null
-)
-
-/** 분봉 거래대금 스파이크 한 종목. */
-data class VolumeSpikeStock(
-    val stockCode: String,
-    val stockName: String,
-    val currentPrice: Long,
-    val priceChangeRate: Double,
-    val minuteTradingValue: Long, // 최신 1분봉 거래대금(원)
-    val tradingValue: Long,       // 당일 누적 거래대금(원)
-    val spikeRatio: Double,       // 직전 평균 대비 배율
-    val direction: SpikeDirection, // 매수/매도 — 스파이크 봉 양/음봉
-    val at: java.time.LocalDateTime,
 )
 
 /** 돌파 레이더 한 종목 — 당일 고가(돌파선) 대비 현재가 갭. */

@@ -68,40 +68,6 @@ class MinuteCandles(candles: List<MinuteCandle>) {
         )
     }
 
-    /**
-     * [since] 이후(포함) 봉 중 임계([minRatio]·[minTradingValue])를 넘긴 봉 중 **배율이 가장 큰 봉**의 스파이크.
-     * 각 봉은 자기 직전 [baselineBars]봉 평균과 비교한다.
-     *
-     * 화면이 1분 단위로만 갱신돼도 직전 몇 분 사이의 스파이크를 놓치지 않도록 한 봉이 아니라 시간 창으로 본다.
-     * [since]는 호출자가 "지금 - N분"으로 준다(봉 개수가 아니라 벽시계 기준이라, 장 마감 후엔 자연히 빈다).
-     * 창 안에 임계를 넘긴 봉이 없으면 null.
-     */
-    fun recentVolumeSpike(
-        baselineBars: Int,
-        since: LocalDateTime,
-        minRatio: Double,
-        minTradingValue: Long,
-    ): VolumeSpike? {
-        var best: VolumeSpike? = null
-        for (i in 1 until ordered.size) {
-            val bar = ordered[i]
-            if (bar.dateTime < since || bar.tradingValue < minTradingValue) continue
-            val avg = ordered.subList(maxOf(0, i - baselineBars), i).map { it.tradingValue }.average()
-            if (avg <= 0) continue
-            val ratio = bar.tradingValue / avg
-            if (ratio < minRatio) continue
-            if (best == null || ratio > best.ratio) {
-                best = VolumeSpike(
-                    latestTradingValue = bar.tradingValue,
-                    at = bar.dateTime,
-                    ratio = ratio,
-                    direction = bar.spikeDirection(),
-                )
-            }
-        }
-        return best
-    }
-
     private fun MinuteCandle.spikeDirection() = when {
         closePrice > openPrice -> SpikeDirection.BUY
         closePrice < openPrice -> SpikeDirection.SELL

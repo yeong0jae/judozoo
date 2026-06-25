@@ -9,8 +9,6 @@ import at.backend.leadingstock.presentation.response.BreakoutRadarResponse
 import at.backend.leadingstock.presentation.response.CandidateStockItem
 import at.backend.leadingstock.presentation.response.CandidateStocksResponse
 import at.backend.leadingstock.presentation.response.DailyCandleChartItem
-import at.backend.leadingstock.presentation.response.VolumeSpikeItem
-import at.backend.leadingstock.presentation.response.VolumeSpikeResponse
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
@@ -96,35 +94,6 @@ class LeadingStockController(
         }
         return ApiResponse.ok(
             BreakoutRadarResponse(
-                queriedAt = timeProvider.now(),
-                totalCount = items.size,
-                stocks = items,
-            ),
-        )
-    }
-
-    /** 분봉 거래대금 스파이크 — 주도주 후보 중 최신 1분봉 거래대금이 직전 평균 대비 급증한 종목. */
-    @GetMapping("/volume-spikes")
-    fun getVolumeSpikes(
-        @RequestParam(required = false) minChangeRate: Int?,
-    ): ApiResponse<VolumeSpikeResponse> {
-        val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
-            ?: criteria.minDailyPriceChangeRate
-        val items = leadingStockService.volumeSpikes(rate).map { s ->
-            VolumeSpikeItem(
-                stockCode = s.stockCode,
-                stockName = s.stockName,
-                currentPrice = s.currentPrice,
-                priceChangeRate = s.priceChangeRate,
-                minuteTradingValue = s.minuteTradingValue,
-                tradingValue = s.tradingValue,
-                spikeRatio = s.spikeRatio,
-                direction = s.direction.name,
-                at = s.at,
-            )
-        }
-        return ApiResponse.ok(
-            VolumeSpikeResponse(
                 queriedAt = timeProvider.now(),
                 totalCount = items.size,
                 stocks = items,

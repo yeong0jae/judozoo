@@ -41,6 +41,14 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
 };
 
+/** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
+const TYPE_TABS: { key: "ALL" | SignalEventType; label: string }[] = [
+  { key: "ALL", label: "전체" },
+  { key: "BREAKOUT", label: "돌파" },
+  { key: "BREAKOUT_IMMINENT", label: "임박" },
+  { key: "VOLUME_SPIKE", label: "스파이크" },
+];
+
 /**
  * 이벤트별 핵심 수치 한 줄. 돌파선 가격은 그때의 현재가×(1+갭/100)으로 역산.
  * 스파이크는 배율+그 분봉 거래대금(rose)과 그 순간 누적 거래대금(흐리게)을 함께 보인다.
@@ -80,10 +88,13 @@ export default function SignalLogPage() {
   useEffect(() => {
     localStorage.setItem(MIN_RATE_KEY, String(minRate));
   }, [minRate]);
+  const [typeFilter, setTypeFilter] = useState<"ALL" | SignalEventType>("ALL"); // 전이 유형 필터
   const eventsQ = useSignalEvents(date);
   const data = eventsQ.data;
   const allEvents = data?.events ?? [];
-  const events = allEvents.filter((e) => e.priceChangeRate >= minRate);
+  const events = allEvents.filter(
+    (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter),
+  );
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   // 우측 차트에 띄울 선택 종목 — 첫 로드 시 최신 이벤트 종목 자동 선택
@@ -191,7 +202,22 @@ export default function SignalLogPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
         {/* 발생 시점 등락률 하한 — 행 표시 필터 */}
-        <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-white/[0.04]">
+          {/* 좌: 유형 필터 (상세 패널 토글과 동일 디자인) */}
+          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs shrink-0">
+            {TYPE_TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTypeFilter(t.key)}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  typeFilter === t.key ? "bg-white/[0.1] text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
           <ChangeRateSelector value={minRate} onChange={setMinRate} />
         </div>
         {eventsQ.isLoading ? (
