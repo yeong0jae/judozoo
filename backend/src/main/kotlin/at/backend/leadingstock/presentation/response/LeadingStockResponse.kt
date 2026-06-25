@@ -100,6 +100,8 @@ data class MarketSignalEventItem(
     val thresholdEok: Long?, // 순매수: 단계 기준선(억원)
     val netAmountEok: Long?, // 순매수: 발생 시점 누적 순매수(억원, 부호 포함)
     val streak: Int?,      // 캔들: 같은 색 연속 봉 수
+    val indexValue: Double?, // 발생 시점 지수값
+    val changeRate: Double?, // 발생 시점 등락률(%)
 )
 
 /** 지수 1분봉 차트용 — 가격은 지수값(소수). volume은 1000주 단위. */

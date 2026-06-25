@@ -60,18 +60,21 @@ class KiwoomIndexClient(
         }
     }
 
-    /** 시장별 종합 지수 코드/시장구분으로 당일 10초 틱 조회. */
-    fun fetchIndexTicks(market: Market, date: LocalDate = LocalDate.now()): List<IndexTick> = when (market) {
-        Market.KOSPI -> fetchIndexTicks(indsCd = "001", mrktTp = "0", date = date)
-        Market.KOSDAQ -> fetchIndexTicks(indsCd = "101", mrktTp = "1", date = date)
+    /** 시장별 종합 지수 코드/시장구분으로 당일 10초 틱만. (차트용) */
+    fun fetchIndexTicks(market: Market, date: LocalDate = LocalDate.now()): List<IndexTick> =
+        fetchIndexIntraday(market, date)?.ticks ?: emptyList()
+
+    /** 시장별 종합 지수의 당일 인트라데이(지수값·등락률 + 10초 틱). 실패 시 null. */
+    fun fetchIndexIntraday(market: Market, date: LocalDate = LocalDate.now()): IndexIntraday? = when (market) {
+        Market.KOSPI -> fetchIndexIntraday(indsCd = "001", mrktTp = "0", date = date)
+        Market.KOSDAQ -> fetchIndexIntraday(indsCd = "101", mrktTp = "1", date = date)
     }
 
     /**
-     * 업종 지수의 당일 장중 10초 틱(`inds_cur_prc_tm`)을 시간 오름차순으로. ka20001 재사용.
-     * [mrktTp] 0=코스피, 1=코스닥. cur_prc 부호는 등락 방향 표식이라 지수값은 절댓값으로.
-     * 시각은 tm_n(HHmmss)에 [date]를 붙여 구성. 실패 시 빈 리스트.
+     * 업종 지수 ka20001 — 상단 현재 지수값/등락률 + 장중 10초 틱(`inds_cur_prc_tm`, 시간 오름차순).
+     * cur_prc 부호는 등락 방향 표식이라 지수값은 절댓값으로(ka20001은 소수 형식). 시각은 tm_n에 [date]를 붙임.
      */
-    fun fetchIndexTicks(indsCd: String, mrktTp: String, date: LocalDate = LocalDate.now()): List<IndexTick> {
+    fun fetchIndexIntraday(indsCd: String, mrktTp: String, date: LocalDate = LocalDate.now()): IndexIntraday? {
         try {
             val token = authClient.getAccessToken()
 
@@ -83,14 +86,14 @@ class KiwoomIndexClient(
                 .body(mapOf("mrkt_tp" to mrktTp, "inds_cd" to indsCd))
                 .retrieve()
                 .body(IndexResponse::class.java)
-                ?: return emptyList()
+                ?: return null
 
             if (response.return_code != null && response.return_code != 0) {
-                log.error("ka20001 ticks error. Code: {}, Message: {}", response.return_code, response.return_msg)
-                return emptyList()
+                log.error("ka20001 error. Code: {}, Message: {}", response.return_code, response.return_msg)
+                return null
             }
 
-            return response.inds_cur_prc_tm.orEmpty()
+            val ticks = response.inds_cur_prc_tm.orEmpty()
                 .mapNotNull { tick ->
                     val time = parseTime(tick.tm_n) ?: return@mapNotNull null
                     IndexTick(
@@ -100,9 +103,15 @@ class KiwoomIndexClient(
                     )
                 }
                 .sortedBy { it.at }
+
+            return IndexIntraday(
+                value = abs(parseSignedDouble(response.cur_prc)),
+                changeRate = parseSignedDouble(response.flu_rt),
+                ticks = ticks,
+            )
         } catch (e: Exception) {
-            log.error("Failed to fetch index ticks inds_cd={}", indsCd, e)
-            return emptyList()
+            log.error("Failed to fetch index intraday inds_cd={}", indsCd, e)
+            return null
         }
     }
 
@@ -142,6 +151,13 @@ class KiwoomIndexClient(
         val tm_n: String? = null,       // 시각 HHmmss
         val cur_prc_n: String? = null,  // 그 시각 지수값(부호 포함)
         val trde_qty_n: String? = null, // 그 시각 거래량(1000주)
+    )
+
+    /** 지수 인트라데이 — 현재 지수값/등락률 + 당일 10초 틱. */
+    data class IndexIntraday(
+        val value: Double,
+        val changeRate: Double,
+        val ticks: List<IndexTick>,
     )
 
     /** 지수 한 시점 스냅샷. 도메인 객체로 격리해 클라이언트 응답 구조 변경에 대응. */

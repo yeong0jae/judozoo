@@ -75,6 +75,11 @@ const INVESTOR_LABEL: Record<InvestorType, string> = {
   INDIVIDUAL: "개인",
 };
 
+/** 지수값 → 천 단위 쉼표 + 소수 2자리 (예: 2,653.81). */
+function fmtIndex(v: number): string {
+  return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 /** 억원 → 사람이 읽기 쉬운 단위. 1조 이상은 "N조", 그 미만은 "N억". */
 function formatEok(eok: number): string {
   if (eok >= 10000) {
@@ -149,6 +154,14 @@ function renderMarketRow(
           {!isCandle && m.netAmountEok != null && (
             <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(m.netAmountEok))}</span>
           )}
+          <span className="num text-xs text-zinc-100 w-20 text-right">
+            {m.indexValue != null ? fmtIndex(m.indexValue) : ""}
+          </span>
+          <span className="w-16 text-right">
+            {m.changeRate != null && (
+              <ProfitText value={m.changeRate / 100} format={formatPct} className="num text-xs" />
+            )}
+          </span>
         </div>
       </button>
 
@@ -166,9 +179,13 @@ function renderMarketRow(
                   <span className={`num text-xs font-semibold ${p.sideCls}`}>{p.leftLabel}</span>
                   {p.rightLabel && <span className={`num text-xs ${p.sideCls}`}>{p.rightLabel}</span>}
                   {!p.isCandle && j.netAmountEok != null && (
-                    <span className="num text-xs text-zinc-500 ml-auto">
-                      누적 {formatEok(Math.abs(j.netAmountEok))}
-                    </span>
+                    <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(j.netAmountEok))}</span>
+                  )}
+                  <span className="num text-xs text-zinc-400 ml-auto">
+                    {j.indexValue != null ? fmtIndex(j.indexValue) : ""}
+                  </span>
+                  {j.changeRate != null && (
+                    <ProfitText value={j.changeRate / 100} format={formatPct} className="num text-xs w-14 text-right" />
                   )}
                 </li>
               );

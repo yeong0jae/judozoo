@@ -160,6 +160,8 @@ class LeadingStockController(
                 thresholdEok = e.level?.let { it * MarketSignalThresholds.stepEok(e.market) },
                 netAmountEok = e.netAmountEok,
                 streak = e.streak,
+                indexValue = e.indexValue,
+                changeRate = e.changeRate,
             )
         }
         return ApiResponse.ok(MarketSignalEventsResponse(date = day, totalCount = events.size, events = events))

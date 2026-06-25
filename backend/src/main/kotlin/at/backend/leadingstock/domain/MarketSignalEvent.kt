@@ -59,6 +59,12 @@ class MarketSignalEvent(
 
     @Column(name = "streak")
     val streak: Int? = null,
+
+    @Column(name = "index_value")
+    val indexValue: Double? = null,
+
+    @Column(name = "change_rate")
+    val changeRate: Double? = null,
 ) : BaseEntity() {
 
     @Id
@@ -66,7 +72,7 @@ class MarketSignalEvent(
     val id: Long = 0
 
     companion object {
-        /** 투자자 순매수 단계 전이. */
+        /** 투자자 순매수 단계 전이. [indexValue]·[changeRate]는 발생 시점 지수값/등락률. */
         fun netBuyLevel(
             occurredAt: LocalDateTime,
             tradeDate: LocalDate,
@@ -75,6 +81,8 @@ class MarketSignalEvent(
             side: NetTradeSide,
             level: Int,
             netAmountEok: Long,
+            indexValue: Double?,
+            changeRate: Double?,
         ) = MarketSignalEvent(
             occurredAt = occurredAt,
             tradeDate = tradeDate,
@@ -84,15 +92,19 @@ class MarketSignalEvent(
             investor = investor,
             level = level,
             netAmountEok = netAmountEok,
+            indexValue = indexValue,
+            changeRate = changeRate,
         )
 
-        /** 지수 1분봉 같은 색 연속 전이. */
+        /** 지수 1분봉 같은 색 연속 전이. [indexValue]·[changeRate]는 발생 시점 지수값/등락률. */
         fun candleStreak(
             occurredAt: LocalDateTime,
             tradeDate: LocalDate,
             market: Market,
             side: NetTradeSide,
             streak: Int,
+            indexValue: Double?,
+            changeRate: Double?,
         ) = MarketSignalEvent(
             occurredAt = occurredAt,
             tradeDate = tradeDate,
@@ -100,6 +112,8 @@ class MarketSignalEvent(
             market = market,
             side = side,
             streak = streak,
+            indexValue = indexValue,
+            changeRate = changeRate,
         )
     }
 }

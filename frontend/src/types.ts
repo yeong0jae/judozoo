@@ -377,6 +377,8 @@ export interface MarketSignalEventItem {
   thresholdEok: number | null; // 순매수 — 단계 기준선(억원)
   netAmountEok: number | null; // 순매수 — 발생 시점 누적 순매수(억원, 부호 포함)
   streak: number | null; // 캔들 — 같은 색 연속 봉 수
+  indexValue: number | null; // 발생 시점 지수값
+  changeRate: number | null; // 발생 시점 등락률(%)
 }
 
 export interface MarketSignalEventsResponse {
