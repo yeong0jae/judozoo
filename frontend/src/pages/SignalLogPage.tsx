@@ -5,6 +5,8 @@ import type {
   SignalEventItem,
   SignalEventType,
   MarketSignalEventItem,
+  MarketType,
+  InvestorType,
 } from "../types";
 import { formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
@@ -12,6 +14,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
+import IndexDetailPanel from "../components/common/IndexDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
 import { buildSignalPrompt } from "../lib/signalPrompt";
@@ -56,17 +59,17 @@ const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "MARKET", label: "지수" },
 ];
 
-const MARKET_LABEL: Record<MarketSignalEventItem["market"], string> = {
+const MARKET_LABEL: Record<MarketType, string> = {
   KOSPI: "코스피",
   KOSDAQ: "코스닥",
 };
 
-const MARKET_CHIP: Record<MarketSignalEventItem["market"], string> = {
+const MARKET_CHIP: Record<MarketType, string> = {
   KOSPI: "bg-indigo-500/15 text-indigo-300",
   KOSDAQ: "bg-cyan-500/15 text-cyan-300",
 };
 
-const INVESTOR_LABEL: Record<MarketSignalEventItem["investor"], string> = {
+const INVESTOR_LABEL: Record<InvestorType, string> = {
   FOREIGN: "외국인",
   INSTITUTION: "기관",
   INDIVIDUAL: "개인",
@@ -86,21 +89,51 @@ type FeedRow =
   | { kind: "stock"; key: string; at: string; e: SignalEventItem }
   | { kind: "market"; key: string; at: string; m: MarketSignalEventItem };
 
-/** 지수(코스피/코스닥) 투자자 순매수 단계 전이 한 행 — 종목과 달리 클릭/여정 없는 정보 행. */
-function renderMarketRow(key: string, m: MarketSignalEventItem) {
-  const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
+/** 지수 시그널 한 줄 요약 — 왼쪽 라벨/색, 오른쪽(순매수 금액). 행·여정에서 공용. */
+function marketParts(m: MarketSignalEventItem) {
   const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
-  const sideLabel = m.side === "BUY" ? "순매수" : "순매도";
+  const isCandle = m.kind === "CANDLE_STREAK";
+  const leftLabel = isCandle
+    ? `${m.streak}연속 ${m.side === "BUY" ? "매수" : "매도"}`
+    : INVESTOR_LABEL[m.investor ?? "FOREIGN"];
+  const rightLabel = isCandle
+    ? ""
+    : `${formatEok(m.thresholdEok ?? 0)} ${m.side === "BUY" ? "순매수" : "순매도"}`;
+  return { sideCls, isCandle, leftLabel, rightLabel };
+}
+
+/**
+ * 지수(코스피/코스닥) 시그널 한 행. kind=NET_BUY_LEVEL은 투자자 순매수 단계, CANDLE_STREAK은 1분봉 연속.
+ * 누르면 그 시장의 그날 지수 시그널 여정을 펼치고, 우측에 지수 1분봉 차트를 띄운다.
+ */
+function renderMarketRow(
+  key: string,
+  m: MarketSignalEventItem,
+  open: boolean,
+  selected: boolean,
+  onClick: () => void,
+  journey: MarketSignalEventItem[],
+) {
+  const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
+  const { sideCls, isCandle, leftLabel, rightLabel } = marketParts(m);
+  const leftCls = isCandle ? `text-sm font-semibold ${sideCls}` : "text-sm font-semibold text-zinc-100";
   return (
     <motion.li
       key={key}
+      data-row-key={key}
       layout
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
     >
-      <div className="w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors ${
+          selected ? "bg-emerald-900/30" : ""
+        }`}
+      >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(m.occurredAt)}`}>
             {clockOf(m.occurredAt)}
@@ -109,15 +142,40 @@ function renderMarketRow(key: string, m: MarketSignalEventItem) {
           <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${MARKET_CHIP[m.market]}`}>
             {MARKET_LABEL[m.market]}
           </span>
-          <span className="text-sm font-semibold text-zinc-100">{INVESTOR_LABEL[m.investor]}</span>
+          <span className={leftCls}>{leftLabel}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
-          <span className={`num text-xs font-semibold ${sideCls}`}>
-            {formatEok(m.thresholdEok)} {sideLabel}
-          </span>
-          <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(m.netAmountEok))}</span>
+          {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
+          {!isCandle && m.netAmountEok != null && (
+            <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(m.netAmountEok))}</span>
+          )}
         </div>
-      </div>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
+          <div className="text-xs text-zinc-500 mb-2">{MARKET_LABEL[m.market]} 지수 여정</div>
+          <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
+            {journey.map((j, k) => {
+              const p = marketParts(j);
+              return (
+                <li key={`${j.kind}-${j.occurredAt}-${k}`} className="flex items-center gap-2 text-sm">
+                  <span className={`num text-xs tabular-nums w-16 ${clockClass(j.occurredAt)}`}>
+                    {clockOf(j.occurredAt)}
+                  </span>
+                  <span className={`num text-xs font-semibold ${p.sideCls}`}>{p.leftLabel}</span>
+                  {p.rightLabel && <span className={`num text-xs ${p.sideCls}`}>{p.rightLabel}</span>}
+                  {!p.isCandle && j.netAmountEok != null && (
+                    <span className="num text-xs text-zinc-500 ml-auto">
+                      누적 {formatEok(Math.abs(j.netAmountEok))}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
     </motion.li>
   );
 }
@@ -170,9 +228,9 @@ export default function SignalLogPage() {
   const events = allEvents.filter(
     (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter),
   );
-  // 시장 시그널 — 전체/시장 탭에서만 노출(등락률 필터 무관).
-  const marketEvents =
-    typeFilter === "ALL" || typeFilter === "MARKET" ? (marketQ.data?.events ?? []) : [];
+  const allMarketEvents = marketQ.data?.events ?? []; // 여정용 — 필터 무관 전체
+  // 시장 시그널 — 전체/지수 탭에서만 노출(등락률 필터 무관).
+  const marketEvents = typeFilter === "ALL" || typeFilter === "MARKET" ? allMarketEvents : [];
   // 종목·시장 행을 시각 내림차순으로 병합한 렌더용 피드. 방향키·여정은 종목 행(events)에만 적용.
   const feed: FeedRow[] = [
     ...events.map((e, i): FeedRow => ({ kind: "stock", key: rowKeyOf(e, i), at: e.occurredAt, e })),
@@ -187,11 +245,15 @@ export default function SignalLogPage() {
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   const [openKey, setOpenKey] = useState<string | null>(null);
 
-  // 우측 차트에 띄울 선택 종목 — 첫 로드 시 최신 이벤트 종목 자동 선택
+  // 우측 패널 선택 — 종목(차트) 또는 지수(시장 차트). 둘 중 하나만 활성.
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [selectedMarket, setSelectedMarket] = useState<MarketType | null>(null);
   useEffect(() => {
-    if (selectedCode === null && events.length > 0) setSelectedCode(events[0].stockCode);
-  }, [events, selectedCode]);
+    // 첫 로드 시 최신 종목 자동 선택 — 단, 사용자가 지수를 고른 상태면 건드리지 않는다.
+    if (selectedCode === null && selectedMarket === null && events.length > 0) {
+      setSelectedCode(events[0].stockCode);
+    }
+  }, [events, selectedCode, selectedMarket]);
 
   // ↑/↓ 방향키로 행 단위 이동 — 같은 종목이 여러 행이어도 각 행을 거친다. 그 행을 열고 차트도 갱신.
   useEffect(() => {
@@ -209,6 +271,7 @@ export default function SignalLogPage() {
           : Math.max((cur < 0 ? keys.length : cur) - 1, 0);
       setOpenKey(keys[next]);
       setSelectedCode(events[next].stockCode);
+      setSelectedMarket(null);
       document.querySelector(`[data-row-key="${keys[next]}"]`)?.scrollIntoView({ block: "nearest" });
     };
     window.addEventListener("keydown", onKey);
@@ -264,7 +327,7 @@ export default function SignalLogPage() {
             />
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            선택 날짜의 돌파·임박·스파이크 전이 · 행을 누르면 그 종목의 여정
+            선택 날짜의 돌파·임박·스파이크·지수 전이 · 행을 누르면 그 종목의 여정
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -284,6 +347,7 @@ export default function SignalLogPage() {
             onChange={(d) => {
               setDate(d);
               setSelectedCode(null);
+              setSelectedMarket(null);
             }}
           />
         </div>
@@ -322,7 +386,17 @@ export default function SignalLogPage() {
           <ul className="divide-y divide-white/[0.04]">
             <AnimatePresence initial={false}>
               {feed.map((row) => {
-                if (row.kind === "market") return renderMarketRow(row.key, row.m);
+                if (row.kind === "market") {
+                  const m = row.m;
+                  const open = openKey === row.key;
+                  const selected = selectedMarket === m.market && selectedCode === null;
+                  const journey = open ? allMarketEvents.filter((x) => x.market === m.market) : [];
+                  return renderMarketRow(row.key, m, open, selected, () => {
+                    setSelectedMarket(m.market);
+                    setSelectedCode(null);
+                    setOpenKey(open ? null : row.key);
+                  }, journey);
+                }
                 const e = row.e;
                 const rowKey = row.key;
                 const code = shortCode(e.stockCode);
@@ -345,6 +419,7 @@ export default function SignalLogPage() {
                       type="button"
                       onClick={() => {
                         setSelectedCode(e.stockCode);
+                        setSelectedMarket(null);
                         setOpenKey(open ? null : rowKey);
                       }}
                       className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors ${
@@ -412,8 +487,12 @@ export default function SignalLogPage() {
           </ul>
         )}
       </section>
-      <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
-        <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
+      <div className={`lg:sticky lg:top-20 ${selectedCode || selectedMarket ? "" : "hidden lg:block"}`}>
+        {selectedMarket ? (
+          <IndexDetailPanel market={selectedMarket} />
+        ) : (
+          <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
+        )}
       </div>
       </div>
     </div>

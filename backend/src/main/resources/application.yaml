@@ -48,6 +48,7 @@ leading-stock:
   market-signal:
     # 코스피/코스닥 투자자 순매수 단계(조/천억) 전이 폴러
     poll-interval-millis: 30000            # 폴링 주기(ms) — 순매수 누적은 느리게 변해 30초로
+    candle-poll-interval-millis: 30000     # 지수 1분봉 4연속(양봉/음봉) 폴링 주기(ms)
 
 trading:
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)

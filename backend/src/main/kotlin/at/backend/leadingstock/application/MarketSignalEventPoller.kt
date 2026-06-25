@@ -55,7 +55,7 @@ class MarketSignalEventPoller(
                     .advance(netEok, step, buffer)
                 states[key] = next
                 transition?.let {
-                    MarketSignalEvent(
+                    MarketSignalEvent.netBuyLevel(
                         occurredAt = now,
                         tradeDate = today,
                         market = market,

@@ -86,15 +86,30 @@ data class MarketSignalEventsResponse(
     val events: List<MarketSignalEventItem>,
 )
 
-/** 단위: 억원. [thresholdEok]=도달 단계의 기준선(level×단계크기), [netAmountEok]=발생 시점 실제 누적. */
+/**
+ * [kind]=NET_BUY_LEVEL이면 investor/level/thresholdEok/netAmountEok(억원), CANDLE_STREAK이면 streak가 채워진다.
+ * [thresholdEok]=도달 단계의 기준선(level×단계크기).
+ */
 data class MarketSignalEventItem(
     val occurredAt: LocalDateTime,
+    val kind: String,      // NET_BUY_LEVEL | CANDLE_STREAK
     val market: String,    // KOSPI | KOSDAQ
-    val investor: String,  // FOREIGN | INSTITUTION | INDIVIDUAL
     val side: String,      // BUY | SELL
-    val level: Int,        // 도달 단계 (1=1단계)
-    val thresholdEok: Long, // 단계 기준선(억원) — 코스피 level×10,000, 코스닥 level×1,000
-    val netAmountEok: Long, // 발생 시점 누적 순매수(억원, 부호 포함)
+    val investor: String?, // 순매수: FOREIGN | INSTITUTION | INDIVIDUAL
+    val level: Int?,       // 순매수: 도달 단계 (1=1단계)
+    val thresholdEok: Long?, // 순매수: 단계 기준선(억원)
+    val netAmountEok: Long?, // 순매수: 발생 시점 누적 순매수(억원, 부호 포함)
+    val streak: Int?,      // 캔들: 같은 색 연속 봉 수
+)
+
+/** 지수 1분봉 차트용 — 가격은 지수값(소수). volume은 1000주 단위. */
+data class IndexMinuteCandleItem(
+    val time: LocalDateTime,
+    val open: Double,
+    val high: Double,
+    val low: Double,
+    val close: Double,
+    val volume: Long,
 )
 
 // --- 종목 상세 API ---

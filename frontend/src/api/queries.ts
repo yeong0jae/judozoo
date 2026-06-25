@@ -14,7 +14,9 @@ import type {
   MarketIndex,
   LeadingStockDetailResponse,
   MinuteCandleItem,
+  IndexMinuteCandleItem,
   MarketSignalEventsResponse,
+  MarketType,
   MarketStatus,
   RegimeDaily,
   RegimeSnapshot,
@@ -51,6 +53,8 @@ export const QK = {
     ["leading-stocks", "investors", code] as const,
   minuteCandles: (code: string) =>
     ["leading-stocks", "minute-candles", code] as const,
+  indexMinuteCandles: (market: string) =>
+    ["leading-stocks", "index-minute-candles", market] as const,
   dailyCandles: (code: string) =>
     ["leading-stocks", "daily-candles", code] as const,
   kospiIndex: ["market", "kospi"] as const,
@@ -255,6 +259,20 @@ export function useMinuteCandles(code: string | null) {
       ),
     enabled: code !== null,
     refetchInterval: 30_000, // 서버 분봉 캐시 30초와 맞춤
+  });
+}
+
+export function useIndexMinuteCandles(market: MarketType | null) {
+  return useQuery({
+    queryKey: market
+      ? QK.indexMinuteCandles(market)
+      : ["leading-stocks", "index-minute-candles", "null"],
+    queryFn: () =>
+      apiFetch<IndexMinuteCandleItem[]>(
+        `/api/leading-stocks/index/${market}/minute-candles`,
+      ),
+    enabled: market !== null,
+    refetchInterval: 30_000,
   });
 }
 

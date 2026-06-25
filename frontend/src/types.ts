@@ -365,21 +365,34 @@ export interface SignalEventsResponse {
 export type MarketType = "KOSPI" | "KOSDAQ";
 export type InvestorType = "FOREIGN" | "INSTITUTION" | "INDIVIDUAL";
 export type NetTradeSide = "BUY" | "SELL";
+export type MarketSignalType = "NET_BUY_LEVEL" | "CANDLE_STREAK";
 
 export interface MarketSignalEventItem {
   occurredAt: string; // ISO LocalDateTime
+  kind: MarketSignalType;
   market: MarketType;
-  investor: InvestorType;
-  side: NetTradeSide;
-  level: number; // 도달 단계 (1=1단계)
-  thresholdEok: number; // 단계 기준선(억원) — 코스피 level×10,000, 코스닥 level×1,000
-  netAmountEok: number; // 발생 시점 누적 순매수(억원, 부호 포함)
+  side: NetTradeSide; // 순매수 방향 / 양봉=BUY·음봉=SELL
+  investor: InvestorType | null; // 순매수 시그널만
+  level: number | null; // 순매수 — 도달 단계 (1=1단계)
+  thresholdEok: number | null; // 순매수 — 단계 기준선(억원)
+  netAmountEok: number | null; // 순매수 — 발생 시점 누적 순매수(억원, 부호 포함)
+  streak: number | null; // 캔들 — 같은 색 연속 봉 수
 }
 
 export interface MarketSignalEventsResponse {
   date: string; // yyyy-MM-dd
   totalCount: number;
   events: MarketSignalEventItem[];
+}
+
+/** 지수 1분봉 — 가격은 지수값(소수), volume은 1000주 단위. */
+export interface IndexMinuteCandleItem {
+  time: string; // ISO LocalDateTime
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 }
 
 // === 테마 캘린더 ===

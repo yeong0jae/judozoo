@@ -13,6 +13,7 @@ import at.backend.leadingstock.presentation.response.CandidateStocksResponse
 import at.backend.leadingstock.presentation.response.DailyCandleChartItem
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
+import at.backend.leadingstock.presentation.response.IndexMinuteCandleItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
 import at.backend.leadingstock.presentation.response.MarketSignalEventItem
 import at.backend.leadingstock.presentation.response.MarketSignalEventsResponse
@@ -22,6 +23,7 @@ import at.backend.leadingstock.presentation.response.SignalEventsResponse
 import at.backend.leadingstock.presentation.response.SwingHighSignalItem
 import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
+import at.backend.stock.domain.Market
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -150,15 +152,33 @@ class LeadingStockController(
         val events = marketSignalEventService.eventsOn(day).map { e ->
             MarketSignalEventItem(
                 occurredAt = e.occurredAt,
+                kind = e.kind.name,
                 market = e.market.name,
-                investor = e.investor.name,
                 side = e.side.name,
+                investor = e.investor?.name,
                 level = e.level,
-                thresholdEok = e.level * MarketSignalThresholds.stepEok(e.market),
+                thresholdEok = e.level?.let { it * MarketSignalThresholds.stepEok(e.market) },
                 netAmountEok = e.netAmountEok,
+                streak = e.streak,
             )
         }
         return ApiResponse.ok(MarketSignalEventsResponse(date = day, totalCount = events.size, events = events))
+    }
+
+    /** 지수(코스피/코스닥) 당일 1분봉 — 실시간 로그에서 지수 행 선택 시 우측 차트용. */
+    @GetMapping("/index/{market}/minute-candles")
+    fun getIndexMinuteCandles(@PathVariable market: String): ApiResponse<List<IndexMinuteCandleItem>> {
+        val candles = leadingStockService.indexMinuteCandles(Market.valueOf(market.uppercase())).map {
+            IndexMinuteCandleItem(
+                time = it.minute,
+                open = it.open,
+                high = it.high,
+                low = it.low,
+                close = it.close,
+                volume = it.volume,
+            )
+        }
+        return ApiResponse.ok(candles)
     }
 
     /** 종목 최신 거래일 1분봉 — 상세 캔들차트용. ka10080 30s 캐시를 상세 평가와 공유. */
