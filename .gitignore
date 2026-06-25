@@ -6,3 +6,6 @@ infra/terraform/*.tfstate*
 infra/terraform/*.tfplan
 infra/terraform/terraform.tfvars
 .claude/debt/touched.log
+
+# 에디터 설정 (개인)
+.vscode/
