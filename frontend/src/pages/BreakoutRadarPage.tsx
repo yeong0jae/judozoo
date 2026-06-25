@@ -63,7 +63,7 @@ export default function BreakoutRadarPage() {
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            돌파 임박 시그널
+            주도주 돌파 현황
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
                 radarQ.isFetching ? "animate-ping" : "animate-pulse"
