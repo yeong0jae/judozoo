@@ -3,7 +3,9 @@ package at.backend.leadingstock.presentation
 import at.backend.leadingstock.application.InvestorTrendService
 import at.backend.leadingstock.application.LeadingStockCriteriaProperties
 import at.backend.leadingstock.application.LeadingStockService
+import at.backend.leadingstock.application.MarketSignalEventService
 import at.backend.leadingstock.application.SignalEventService
+import at.backend.leadingstock.domain.MarketSignalThresholds
 import at.backend.leadingstock.presentation.response.BreakoutRadarItem
 import at.backend.leadingstock.presentation.response.BreakoutRadarResponse
 import at.backend.leadingstock.presentation.response.CandidateStockItem
@@ -12,6 +14,8 @@ import at.backend.leadingstock.presentation.response.DailyCandleChartItem
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
+import at.backend.leadingstock.presentation.response.MarketSignalEventItem
+import at.backend.leadingstock.presentation.response.MarketSignalEventsResponse
 import at.backend.leadingstock.presentation.response.MinuteCandleItem
 import at.backend.leadingstock.presentation.response.SignalEventItem
 import at.backend.leadingstock.presentation.response.SignalEventsResponse
@@ -30,6 +34,7 @@ class LeadingStockController(
     private val leadingStockService: LeadingStockService,
     private val investorTrendService: InvestorTrendService,
     private val signalEventService: SignalEventService,
+    private val marketSignalEventService: MarketSignalEventService,
     private val criteria: LeadingStockCriteriaProperties,
     private val timeProvider: TimeProvider,
 ) {
@@ -129,6 +134,31 @@ class LeadingStockController(
             )
         }
         return ApiResponse.ok(SignalEventsResponse(date = day, totalCount = events.size, events = events))
+    }
+
+    /**
+     * 시장(코스피/코스닥) 투자자 순매수 단계 전이 로그 — 외인/기관/개인이 1조·1000억 단위를 넘나든 전이.
+     * date 미지정 시 오늘. 실시간 로그가 종목 시그널과 시간순으로 합쳐 보여준다.
+     */
+    @GetMapping("/market-signal-events")
+    fun getMarketSignalEvents(
+        @RequestParam(required = false)
+        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        date: java.time.LocalDate?,
+    ): ApiResponse<MarketSignalEventsResponse> {
+        val day = date ?: timeProvider.today()
+        val events = marketSignalEventService.eventsOn(day).map { e ->
+            MarketSignalEventItem(
+                occurredAt = e.occurredAt,
+                market = e.market.name,
+                investor = e.investor.name,
+                side = e.side.name,
+                level = e.level,
+                thresholdEok = e.level * MarketSignalThresholds.stepEok(e.market),
+                netAmountEok = e.netAmountEok,
+            )
+        }
+        return ApiResponse.ok(MarketSignalEventsResponse(date = day, totalCount = events.size, events = events))
     }
 
     /** 종목 최신 거래일 1분봉 — 상세 캔들차트용. ka10080 30s 캐시를 상세 평가와 공유. */

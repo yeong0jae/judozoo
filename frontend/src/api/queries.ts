@@ -14,6 +14,7 @@ import type {
   MarketIndex,
   LeadingStockDetailResponse,
   MinuteCandleItem,
+  MarketSignalEventsResponse,
   MarketStatus,
   RegimeDaily,
   RegimeSnapshot,
@@ -42,6 +43,8 @@ export const QK = {
     ["leading-stocks", "breakout-radar", minChangeRate] as const,
   signalEvents: (date: string) =>
     ["leading-stocks", "signal-events", date] as const,
+  marketSignalEvents: (date: string) =>
+    ["leading-stocks", "market-signal-events", date] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -198,6 +201,18 @@ export function useSignalEvents(date: string) {
     queryFn: () =>
       apiFetch<SignalEventsResponse>(
         `/api/leading-stocks/signal-events?date=${date}`,
+      ),
+    refetchInterval: isToday ? 5_000 : false, // 과거 날짜는 정적 — 폴링 안 함
+  });
+}
+
+export function useMarketSignalEvents(date: string) {
+  const isToday = date === todayStr();
+  return useQuery({
+    queryKey: QK.marketSignalEvents(date),
+    queryFn: () =>
+      apiFetch<MarketSignalEventsResponse>(
+        `/api/leading-stocks/market-signal-events?date=${date}`,
       ),
     refetchInterval: isToday ? 5_000 : false, // 과거 날짜는 정적 — 폴링 안 함
   });

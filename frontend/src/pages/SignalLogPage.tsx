@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useSignalEvents } from "../api/queries";
-import type { SignalEventItem, SignalEventType } from "../types";
+import { useSignalEvents, useMarketSignalEvents } from "../api/queries";
+import type {
+  SignalEventItem,
+  SignalEventType,
+  MarketSignalEventItem,
+} from "../types";
 import { formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
@@ -41,13 +45,82 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
 };
 
+type TypeFilter = "ALL" | "MARKET" | SignalEventType;
+
 /** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
-const TYPE_TABS: { key: "ALL" | SignalEventType; label: string }[] = [
+const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
   { key: "BREAKOUT", label: "돌파" },
   { key: "BREAKOUT_IMMINENT", label: "임박" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
+  { key: "MARKET", label: "지수" },
 ];
+
+const MARKET_LABEL: Record<MarketSignalEventItem["market"], string> = {
+  KOSPI: "코스피",
+  KOSDAQ: "코스닥",
+};
+
+const MARKET_CHIP: Record<MarketSignalEventItem["market"], string> = {
+  KOSPI: "bg-indigo-500/15 text-indigo-300",
+  KOSDAQ: "bg-cyan-500/15 text-cyan-300",
+};
+
+const INVESTOR_LABEL: Record<MarketSignalEventItem["investor"], string> = {
+  FOREIGN: "외국인",
+  INSTITUTION: "기관",
+  INDIVIDUAL: "개인",
+};
+
+/** 억원 → 사람이 읽기 쉬운 단위. 1조 이상은 "N조", 그 미만은 "N억". */
+function formatEok(eok: number): string {
+  if (eok >= 10000) {
+    const jo = eok / 10000;
+    return `${Number.isInteger(jo) ? jo : jo.toFixed(1)}조`;
+  }
+  return `${eok.toLocaleString()}억`;
+}
+
+/** 실시간 로그 한 행 — 종목 시그널 또는 시장(코스피/코스닥) 시그널. at은 정렬용 발생 시각. */
+type FeedRow =
+  | { kind: "stock"; key: string; at: string; e: SignalEventItem }
+  | { kind: "market"; key: string; at: string; m: MarketSignalEventItem };
+
+/** 지수(코스피/코스닥) 투자자 순매수 단계 전이 한 행 — 종목과 달리 클릭/여정 없는 정보 행. */
+function renderMarketRow(key: string, m: MarketSignalEventItem) {
+  const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
+  const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
+  const sideLabel = m.side === "BUY" ? "순매수" : "순매도";
+  return (
+    <motion.li
+      key={key}
+      layout
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <div className="w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(m.occurredAt)}`}>
+            {clockOf(m.occurredAt)}
+          </span>
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${MARKET_CHIP[m.market]}`}>
+            {MARKET_LABEL[m.market]}
+          </span>
+          <span className="text-sm font-semibold text-zinc-100">{INVESTOR_LABEL[m.investor]}</span>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
+          <span className={`num text-xs font-semibold ${sideCls}`}>
+            {formatEok(m.thresholdEok)} {sideLabel}
+          </span>
+          <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(m.netAmountEok))}</span>
+        </div>
+      </div>
+    </motion.li>
+  );
+}
 
 /**
  * 이벤트별 핵심 수치 한 줄. 돌파선 가격은 그때의 현재가×(1+갭/100)으로 역산.
@@ -88,13 +161,30 @@ export default function SignalLogPage() {
   useEffect(() => {
     localStorage.setItem(MIN_RATE_KEY, String(minRate));
   }, [minRate]);
-  const [typeFilter, setTypeFilter] = useState<"ALL" | SignalEventType>("ALL"); // 전이 유형 필터
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL"); // 전이 유형 필터
   const eventsQ = useSignalEvents(date);
+  const marketQ = useMarketSignalEvents(date);
   const data = eventsQ.data;
   const allEvents = data?.events ?? [];
+  // 종목 시그널 — 등락률 하한 + 유형 필터. "시장"/특정 유형 선택 시 종목 행은 빠진다.
   const events = allEvents.filter(
     (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter),
   );
+  // 시장 시그널 — 전체/시장 탭에서만 노출(등락률 필터 무관).
+  const marketEvents =
+    typeFilter === "ALL" || typeFilter === "MARKET" ? (marketQ.data?.events ?? []) : [];
+  // 종목·시장 행을 시각 내림차순으로 병합한 렌더용 피드. 방향키·여정은 종목 행(events)에만 적용.
+  const feed: FeedRow[] = [
+    ...events.map((e, i): FeedRow => ({ kind: "stock", key: rowKeyOf(e, i), at: e.occurredAt, e })),
+    ...marketEvents.map(
+      (m, i): FeedRow => ({
+        kind: "market",
+        key: `m-${m.market}-${m.investor}-${m.side}-${m.occurredAt}-${i}`,
+        at: m.occurredAt,
+        m,
+      }),
+    ),
+  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   // 우측 차트에 띄울 선택 종목 — 첫 로드 시 최신 이벤트 종목 자동 선택
@@ -186,8 +276,8 @@ export default function SignalLogPage() {
           >
             {copied ? "복사됨" : "📋 분석 프롬프트 복사"}
           </button>
-          {typeof data?.totalCount === "number" && (
-            <span className="text-xs text-zinc-300 font-medium">{events.length}건</span>
+          {(data || marketQ.data) && (
+            <span className="text-xs text-zinc-300 font-medium">{feed.length}건</span>
           )}
           <DateNavigator
             date={date}
@@ -220,21 +310,23 @@ export default function SignalLogPage() {
           </div>
           <ChangeRateSelector value={minRate} onChange={setMinRate} />
         </div>
-        {eventsQ.isLoading ? (
+        {eventsQ.isLoading || marketQ.isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />
             ))}
           </div>
-        ) : events.length === 0 ? (
+        ) : feed.length === 0 ? (
           <EmptyState message={`${date} 시그널이 없습니다`} />
         ) : (
           <ul className="divide-y divide-white/[0.04]">
             <AnimatePresence initial={false}>
-              {events.map((e, i) => {
+              {feed.map((row) => {
+                if (row.kind === "market") return renderMarketRow(row.key, row.m);
+                const e = row.e;
+                const rowKey = row.key;
                 const code = shortCode(e.stockCode);
                 const meta = EVENT_META[e.eventType];
-                const rowKey = rowKeyOf(e, i);
                 const open = openKey === rowKey;
                 // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 여정은 필터와 무관하게 전체 경로를 보여준다
                 const stockEvents = open ? allEvents.filter((x) => x.stockCode === e.stockCode) : [];

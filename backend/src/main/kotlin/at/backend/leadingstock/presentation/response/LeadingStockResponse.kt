@@ -78,6 +78,25 @@ data class SignalEventItem(
     val theme: String?,          // 대표 테마
 )
 
+// --- 시장(코스피/코스닥) 투자자 순매수 시그널 API ---
+
+data class MarketSignalEventsResponse(
+    val date: java.time.LocalDate,
+    val totalCount: Int,
+    val events: List<MarketSignalEventItem>,
+)
+
+/** 단위: 억원. [thresholdEok]=도달 단계의 기준선(level×단계크기), [netAmountEok]=발생 시점 실제 누적. */
+data class MarketSignalEventItem(
+    val occurredAt: LocalDateTime,
+    val market: String,    // KOSPI | KOSDAQ
+    val investor: String,  // FOREIGN | INSTITUTION | INDIVIDUAL
+    val side: String,      // BUY | SELL
+    val level: Int,        // 도달 단계 (1=1단계)
+    val thresholdEok: Long, // 단계 기준선(억원) — 코스피 level×10,000, 코스닥 level×1,000
+    val netAmountEok: Long, // 발생 시점 누적 순매수(억원, 부호 포함)
+)
+
 // --- 종목 상세 API ---
 
 data class LeadingStockDetailResponse(

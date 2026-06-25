@@ -45,6 +45,9 @@ leading-stock:
     min-change-rate: -12.0                 # 감시 풀 당일 등락률 하한(%) — 하락 종목까지 수집(전시는 화면 필터로, 최하 -12)
     poll-interval-millis: 10000            # 폴링 주기(ms)
     cooldown-minutes: 3                    # 같은 종목·타입 재적재 쿨다운(분) — 프리마켓 출렁임 중복 방지
+  market-signal:
+    # 코스피/코스닥 투자자 순매수 단계(조/천억) 전이 폴러
+    poll-interval-millis: 30000            # 폴링 주기(ms) — 순매수 누적은 느리게 변해 30초로
 
 trading:
   default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)

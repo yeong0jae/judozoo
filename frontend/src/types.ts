@@ -361,6 +361,27 @@ export interface SignalEventsResponse {
   events: SignalEventItem[];
 }
 
+// === 시장(코스피/코스닥) 투자자 순매수 시그널 ===
+export type MarketType = "KOSPI" | "KOSDAQ";
+export type InvestorType = "FOREIGN" | "INSTITUTION" | "INDIVIDUAL";
+export type NetTradeSide = "BUY" | "SELL";
+
+export interface MarketSignalEventItem {
+  occurredAt: string; // ISO LocalDateTime
+  market: MarketType;
+  investor: InvestorType;
+  side: NetTradeSide;
+  level: number; // 도달 단계 (1=1단계)
+  thresholdEok: number; // 단계 기준선(억원) — 코스피 level×10,000, 코스닥 level×1,000
+  netAmountEok: number; // 발생 시점 누적 순매수(억원, 부호 포함)
+}
+
+export interface MarketSignalEventsResponse {
+  date: string; // yyyy-MM-dd
+  totalCount: number;
+  events: MarketSignalEventItem[];
+}
+
 // === 테마 캘린더 ===
 export interface ThemeStockItem {
   stockCode: string;

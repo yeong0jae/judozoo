@@ -9,5 +9,6 @@
 - [ ] SignalState 전이의 히스테리시스(진입/해제 임계 분리)와 돌파 재인정(전고 갱신 시에만)이 왜 노이즈를 막는가 — @main/00fe1ce — added 2026-06-21
 - [ ] 차트 N거래일 분봉을 base_dt 연속호출로 채우는 루프 — 왜 가장 이른 날을 base_dt로 주면 하루씩 채워지고 "필요일수+1"에서 멈추는가 — @main/7f0e0a2 — added 2026-06-21
 - [ ] d3-hierarchy 트리맵(ThemeTreemap) — squarified 레이아웃 + paddingTop으로 그룹(테마) 헤더 밴드 확보하는 2단계 배치가 어떻게 동작하는가 — @main/HEAD — added 2026-06-23
+- [ ] InvestorNetBuyState 데드밴드 레벨 전이 — 승급은 n×step, 강등은 n×step−buffer에서 일어나는 비대칭 히스테리시스가 경계 떨림 도배는 막으면서 회복(2조→1조)은 잡아내는 원리 — @main/15c6177 — added 2026-06-25
 
 ## 정산 완료
