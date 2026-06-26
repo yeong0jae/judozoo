@@ -12,6 +12,7 @@ import type {
 } from "../../types";
 import { formatKoreanMoney, formatPct, formatPrice } from "../../lib/format";
 import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
+import { todayStr } from "./DateNavigator";
 import NumWon from "./NumWon";
 import ProfitText from "./ProfitText";
 import Skeleton from "./Skeleton";
@@ -33,15 +34,17 @@ type DetailTab = "detail" | "minute" | "daily";
 export default function StockDetailPanel({
   stockCode,
   defaultTab = "detail",
+  date = todayStr(),
 }: {
   stockCode: string | null;
   defaultTab?: DetailTab;
+  date?: string; // 차트 기준 날짜 — 미지정 시 오늘
 }) {
   const detailQ = useLeadingStockDetail(stockCode);
   const detail = detailQ.data;
   const [tab, setTab] = useState<DetailTab>(defaultTab);
-  const minuteQ = useMinuteCandles(tab === "minute" ? stockCode : null);
-  const dailyQ = useDailyCandles(tab === "daily" ? stockCode : null);
+  const minuteQ = useMinuteCandles(tab === "minute" ? stockCode : null, date);
+  const dailyQ = useDailyCandles(tab === "daily" ? stockCode : null, date);
   const CH = "h-[28rem]";
 
   const TABS: { key: DetailTab; label: string }[] = [

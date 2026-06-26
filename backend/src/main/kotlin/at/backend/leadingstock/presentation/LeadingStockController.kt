@@ -189,10 +189,15 @@ class LeadingStockController(
         return ApiResponse.ok(candles)
     }
 
-    /** 종목 최신 거래일 1분봉 — 상세 캔들차트용. ka10080 30s 캐시를 상세 평가와 공유. */
+    /** 종목 1분봉 — 상세 캔들차트용. date 기준 최근 3거래일, 미지정 시 오늘. */
     @GetMapping("/candidates/{stockCode}/minute-candles")
-    fun getMinuteCandles(@PathVariable stockCode: String): ApiResponse<List<MinuteCandleItem>> {
-        val candles = leadingStockService.minuteCandles(stockCode).map {
+    fun getMinuteCandles(
+        @PathVariable stockCode: String,
+        @RequestParam(required = false)
+        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        date: java.time.LocalDate?,
+    ): ApiResponse<List<MinuteCandleItem>> {
+        val candles = leadingStockService.minuteCandles(stockCode, date ?: timeProvider.today()).map {
             MinuteCandleItem(
                 time = it.dateTime,
                 open = it.openPrice,
@@ -257,10 +262,15 @@ class LeadingStockController(
         )
     }
 
-    /** 종목 최근 60거래일 일봉 — 일봉 차트용. ka10081 30s 캐시를 상세 필터/RVOL과 공유. */
+    /** 종목 일봉 — 일봉 차트용. date 기준 과거 60거래일, 미지정 시 오늘. */
     @GetMapping("/candidates/{stockCode}/daily-candles")
-    fun getDailyCandles(@PathVariable stockCode: String): ApiResponse<List<DailyCandleChartItem>> {
-        val candles = leadingStockService.dailyCandles(stockCode).map {
+    fun getDailyCandles(
+        @PathVariable stockCode: String,
+        @RequestParam(required = false)
+        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        date: java.time.LocalDate?,
+    ): ApiResponse<List<DailyCandleChartItem>> {
+        val candles = leadingStockService.dailyCandles(stockCode, date ?: timeProvider.today()).map {
             DailyCandleChartItem(
                 date = it.date.toString(),
                 open = it.openPrice,

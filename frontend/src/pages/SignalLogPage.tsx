@@ -512,7 +512,7 @@ export default function SignalLogPage() {
             changeRate={allMarketEvents.find((m) => m.market === selectedMarket)?.changeRate ?? null}
           />
         ) : (
-          <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
+          <StockDetailPanel stockCode={selectedCode} defaultTab="minute" date={date} />
         )}
       </div>
       </div>

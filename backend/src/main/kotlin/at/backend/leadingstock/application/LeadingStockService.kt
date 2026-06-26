@@ -180,8 +180,11 @@ class LeadingStockService(
      * ka10080 한 페이지는 직전일 일부(애프터마켓 부근)까지만 닿으므로, 가진 데이터의 가장 이른 날을
      * base_dt로 이어 호출하며 거래일을 하나씩 채운다(당일 호출은 신호와 캐시 공유, 과거분만 추가).
      */
-    fun minuteCandles(stockCode: String): List<MinuteCandle> {
-        val all = marketClient.fetchMinuteCandles(stockCode).toMutableList()
+    fun minuteCandles(stockCode: String, date: LocalDate): List<MinuteCandle> {
+        // 당일은 30s 캐시(신호 공유)로, 과거 날짜는 그 날짜를 base_dt로 시작해 채운다.
+        val seed = if (date == timeProvider.today()) marketClient.fetchMinuteCandles(stockCode)
+        else marketClient.fetchHistoricalMinuteCandles(stockCode, date)
+        val all = seed.toMutableList()
         // base_dt=X 호출은 X 세션 전체 + 직전일 일부를 주므로, 가장 이른 날을 base_dt로 이어 받으면
         // 거래일이 하나씩 늘며 채워진다. 필요 일수+1(끝 날은 부분만 와 버림)까지, 더 과거가 없으면 중단.
         while (all.map { it.dateTime.toLocalDate() }.distinct().size <= CHART_SESSION_DAYS) {
@@ -190,15 +193,17 @@ class LeadingStockService(
             all += marketClient.fetchHistoricalMinuteCandles(stockCode, oldestDay)
             if (all.map { it.dateTime.toLocalDate() }.distinct().size == before) break // 데이터 소진
         }
+        // 기준일 이하의 최근 거래일만 — 과거 날짜 조회 시 그 날짜까지로 한정.
         val recentDays = all.map { it.dateTime.toLocalDate() }
-            .distinct().sortedDescending().take(CHART_SESSION_DAYS).toSet()
+            .distinct().filter { it <= date }.sortedDescending().take(CHART_SESSION_DAYS).toSet()
         return all.filter { it.dateTime.toLocalDate() in recentDays }
             .distinctBy { it.dateTime }
             .sortedBy { it.dateTime }
     }
 
-    /** 일봉 차트용 — 최근 60거래일. ka10081 30s 캐시(상세 필터 G·RVOL과 공유). */
-    fun dailyCandles(stockCode: String): List<DailyCandle> = marketClient.fetchDailyCandles(stockCode, 60)
+    /** 일봉 차트용 — [date] 기준 과거 60거래일. ka10081. */
+    fun dailyCandles(stockCode: String, date: LocalDate): List<DailyCandle> =
+        marketClient.fetchDailyCandles(stockCode, 60, date)
 
     /** 지수(코스피/코스닥) 1분봉 — DB에서 일자별로 읽는다(폴러가 라이트스루로 적재). 차트용. */
     fun indexMinuteCandles(market: Market, date: LocalDate): List<IndexMinuteCandle> =
@@ -209,7 +214,7 @@ class LeadingStockService(
      * 차트용 [minuteCandles]를 그대로 재활용(당일 30s·과거 12h 캐시 공유)하므로 추가 실호출은 거의 없다.
      */
     private fun breakoutHighCandles(stockCode: String): MinuteCandles =
-        MinuteCandles(minuteCandles(stockCode))
+        MinuteCandles(minuteCandles(stockCode, timeProvider.today()))
 
     /**
      * 가장 최근 거래일의 분봉만 추린다. stockCode는 `_AL`(SOR 통합 = KRX+NXT, 애프터마켓 포함)로 들어온다.

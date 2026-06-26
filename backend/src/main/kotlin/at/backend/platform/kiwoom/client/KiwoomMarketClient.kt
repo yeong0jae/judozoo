@@ -184,10 +184,10 @@ class KiwoomMarketClient(
 
     /** 일봉 차트 조회 (ka10081) — _AL 접미사로 SOR 통합 시세, base_dt 기준 과거 봉 N개 반환 */
     @Cacheable("dailyCandles", unless = "#result.isEmpty()")
-    fun fetchDailyCandles(stockCode: String, count: Int = 60): List<DailyCandle> {
+    fun fetchDailyCandles(stockCode: String, count: Int = 60, baseDate: LocalDate = LocalDate.now()): List<DailyCandle> {
         try {
             val token = authClient.getAccessToken()
-            log.info("Fetching {} daily candles for stock {}", count, stockCode)
+            log.info("Fetching {} daily candles for stock {} (base {})", count, stockCode, baseDate)
 
             val response = kiwoomRestClient.post()
                 .uri("/api/dostk/chart")
@@ -198,7 +198,7 @@ class KiwoomMarketClient(
                     mapOf(
                         // ka10081은 ka10001과 동일하게 _AL 시 빈 응답 가능성 — KRX 기본 stk_cd로 호출
                         "stk_cd" to stockCode,
-                        "base_dt" to LocalDate.now().toString().replace("-", ""),
+                        "base_dt" to baseDate.toString().replace("-", ""),
                         "upd_stkpc_tp" to "1",
                     ),
                 )

@@ -51,12 +51,12 @@ export const QK = {
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
     ["leading-stocks", "investors", code] as const,
-  minuteCandles: (code: string) =>
-    ["leading-stocks", "minute-candles", code] as const,
+  minuteCandles: (code: string, date: string) =>
+    ["leading-stocks", "minute-candles", code, date] as const,
   indexMinuteCandles: (market: string, date: string) =>
     ["leading-stocks", "index-minute-candles", market, date] as const,
-  dailyCandles: (code: string) =>
-    ["leading-stocks", "daily-candles", code] as const,
+  dailyCandles: (code: string, date: string) =>
+    ["leading-stocks", "daily-candles", code, date] as const,
   kospiIndex: ["market", "kospi"] as const,
   kosdaqIndex: ["market", "kosdaq"] as const,
   regime: ["market", "regime"] as const,
@@ -250,15 +250,15 @@ export function useInvestorTrend(code: string | null) {
   });
 }
 
-export function useMinuteCandles(code: string | null) {
+export function useMinuteCandles(code: string | null, date: string) {
   return useQuery({
-    queryKey: code ? QK.minuteCandles(code) : ["leading-stocks", "minute-candles", "null"],
+    queryKey: code ? QK.minuteCandles(code, date) : ["leading-stocks", "minute-candles", "null", date],
     queryFn: () =>
       apiFetch<MinuteCandleItem[]>(
-        `/api/leading-stocks/candidates/${code}/minute-candles`,
+        `/api/leading-stocks/candidates/${code}/minute-candles?date=${date}`,
       ),
     enabled: code !== null,
-    refetchInterval: 30_000, // 서버 분봉 캐시 30초와 맞춤
+    refetchInterval: date === todayStr() ? 30_000 : false, // 과거 날짜는 정적
   });
 }
 
@@ -276,12 +276,12 @@ export function useIndexMinuteCandles(market: MarketType | null, date: string) {
   });
 }
 
-export function useDailyCandles(code: string | null) {
+export function useDailyCandles(code: string | null, date: string) {
   return useQuery({
-    queryKey: code ? QK.dailyCandles(code) : ["leading-stocks", "daily-candles", "null"],
+    queryKey: code ? QK.dailyCandles(code, date) : ["leading-stocks", "daily-candles", "null", date],
     queryFn: () =>
       apiFetch<DailyCandleItem[]>(
-        `/api/leading-stocks/candidates/${code}/daily-candles`,
+        `/api/leading-stocks/candidates/${code}/daily-candles?date=${date}`,
       ),
     enabled: code !== null,
     staleTime: 30_000, // 일봉 — 자주 안 바뀜
