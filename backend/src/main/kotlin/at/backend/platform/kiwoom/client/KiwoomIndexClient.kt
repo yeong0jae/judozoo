@@ -65,9 +65,9 @@ class KiwoomIndexClient(
         fetchIndexIntraday(market, date)?.ticks ?: emptyList()
 
     /** 시장별 종합 지수의 당일 인트라데이(지수값·등락률 + 10초 틱). 실패 시 null. */
-    fun fetchIndexIntraday(market: Market, date: LocalDate = LocalDate.now()): IndexIntraday? = when (market) {
-        Market.KOSPI -> fetchIndexIntraday(indsCd = "001", mrktTp = "0", date = date)
-        Market.KOSDAQ -> fetchIndexIntraday(indsCd = "101", mrktTp = "1", date = date)
+    fun fetchIndexIntraday(market: Market, date: LocalDate = LocalDate.now()): IndexIntraday? {
+        val (indsCd, mrktTp) = codeOf(market)
+        return fetchIndexIntraday(indsCd = indsCd, mrktTp = mrktTp, date = date)
     }
 
     /**
@@ -93,26 +93,68 @@ class KiwoomIndexClient(
                 return null
             }
 
-            val ticks = response.inds_cur_prc_tm.orEmpty()
-                .mapNotNull { tick ->
-                    val time = parseTime(tick.tm_n) ?: return@mapNotNull null
-                    IndexTick(
-                        at = LocalDateTime.of(date, time),
-                        value = abs(parseSignedDouble(tick.cur_prc_n)),
-                        volume = parseSignedDouble(tick.trde_qty_n).toLong(),
-                    )
-                }
-                .sortedBy { it.at }
-
             return IndexIntraday(
                 value = abs(parseSignedDouble(response.cur_prc)),
                 changeRate = parseSignedDouble(response.flu_rt),
-                ticks = ticks,
+                ticks = response.inds_cur_prc_tm.orEmpty().mapNotNull { parseTick(it, date) }.sortedBy { it.at },
             )
         } catch (e: Exception) {
             log.error("Failed to fetch index intraday inds_cd={}", indsCd, e)
             return null
         }
+    }
+
+    /**
+     * 당일 10초 틱을 연속조회(cont-yn)로 [maxPages]까지 거슬러 받아 시간 오름차순으로. (당일 전체 백필용)
+     * 한 페이지는 약 4분치라 당일 전체는 ~100페이지. 응답 cont-yn이 N이거나 next-key가 없으면 멈춘다.
+     */
+    fun fetchIndexTicksPaged(market: Market, date: LocalDate = LocalDate.now(), maxPages: Int = 120): List<IndexTick> {
+        val (indsCd, mrktTp) = codeOf(market)
+        val acc = mutableListOf<IndexTick>()
+        var contYn = "N"
+        var nextKey = ""
+        try {
+            val token = authClient.getAccessToken()
+            repeat(maxPages) {
+                val entity = kiwoomRestClient.post()
+                    .uri("/api/dostk/sect")
+                    .header("authorization", "Bearer $token")
+                    .header("Content-Type", "application/json;charset=UTF-8")
+                    .header("api-id", "ka20001")
+                    .header("cont-yn", contYn)
+                    .header("next-key", nextKey)
+                    .body(mapOf("mrkt_tp" to mrktTp, "inds_cd" to indsCd))
+                    .retrieve()
+                    .toEntity(IndexResponse::class.java)
+
+                val body = entity.body ?: return acc.sortedBy { it.at }
+                if (body.return_code != null && body.return_code != 0) return acc.sortedBy { it.at }
+                acc += body.inds_cur_prc_tm.orEmpty().mapNotNull { parseTick(it, date) }
+
+                val nk = entity.headers.getFirst("next-key")
+                if (entity.headers.getFirst("cont-yn") != "Y" || nk.isNullOrBlank()) return acc.sortedBy { it.at }
+                contYn = "Y"
+                nextKey = nk
+            }
+        } catch (e: Exception) {
+            log.error("Failed to backfill index ticks market={}", market, e)
+        }
+        return acc.sortedBy { it.at }
+    }
+
+    private fun codeOf(market: Market): Pair<String, String> = when (market) {
+        Market.KOSPI -> "001" to "0"
+        Market.KOSDAQ -> "101" to "1"
+    }
+
+    /** 한 시각 항목 → 틱. tm_n(HHmmss)에 [date]를 붙이고, cur_prc 부호는 방향 표식이라 절댓값. */
+    private fun parseTick(item: IndexTimeItem, date: LocalDate): IndexTick? {
+        val time = parseTime(item.tm_n) ?: return null
+        return IndexTick(
+            at = LocalDateTime.of(date, time),
+            value = abs(parseSignedDouble(item.cur_prc_n)),
+            volume = parseSignedDouble(item.trde_qty_n).toLong(),
+        )
     }
 
     /** "143000"(HHmmss) → LocalTime. 형식이 어긋나면 null. */

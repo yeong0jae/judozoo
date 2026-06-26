@@ -16,14 +16,12 @@ import at.backend.leadingstock.application.filter.TradingValueRankFilter
 import at.backend.leadingstock.domain.DailyCandle
 import at.backend.leadingstock.domain.DailyCandles
 import at.backend.leadingstock.domain.IndexMinuteCandle
-import at.backend.leadingstock.domain.IndexMinuteCandles
 import at.backend.leadingstock.domain.LeadingStockSnapshot
 import at.backend.leadingstock.domain.MinuteCandle
 import at.backend.leadingstock.domain.MinuteCandles
 import at.backend.leadingstock.domain.SpikeDirection
 import at.backend.leadingstock.domain.SwingHighSignal
 import at.backend.library.time.TimeProvider
-import at.backend.platform.kiwoom.client.KiwoomIndexClient
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import at.backend.platform.kiwoom.client.KiwoomProgramClient
 import at.backend.platform.kiwoom.client.KiwoomThemeClient
@@ -37,7 +35,7 @@ class LeadingStockService(
     private val marketClient: KiwoomMarketClient,
     private val programClient: KiwoomProgramClient,
     private val themeClient: KiwoomThemeClient,
-    private val indexClient: KiwoomIndexClient,
+    private val indexCandleStore: IndexMinuteCandleStore,
     private val criteria: LeadingStockCriteriaProperties,
     private val timeProvider: TimeProvider,
 ) {
@@ -201,9 +199,9 @@ class LeadingStockService(
     /** 일봉 차트용 — 최근 60거래일. ka10081 30s 캐시(상세 필터 G·RVOL과 공유). */
     fun dailyCandles(stockCode: String): List<DailyCandle> = marketClient.fetchDailyCandles(stockCode, 60)
 
-    /** 지수(코스피/코스닥) 당일 1분봉 — ka20001 10초 틱을 분 단위로 합성. 차트용. */
+    /** 지수(코스피/코스닥) 당일 1분봉 — 폴러가 누적한 저장소에서 읽는다(추가 API 호출 없음). 차트용. */
     fun indexMinuteCandles(market: Market): List<IndexMinuteCandle> =
-        IndexMinuteCandles.fromTicks(indexClient.fetchIndexTicks(market)).candles()
+        indexCandleStore.candles(market)
 
     /**
      * 돌파선용 분봉 — 차트와 동일한 최근 [CHART_SESSION_DAYS]거래일. 돌파선 = 그 기간 최고가.

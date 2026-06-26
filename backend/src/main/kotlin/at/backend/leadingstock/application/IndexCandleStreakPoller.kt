@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 @Profile("!test")
 class IndexCandleStreakPoller(
     private val indexClient: KiwoomIndexClient,
+    private val candleStore: IndexMinuteCandleStore,
     private val marketSignalEventService: MarketSignalEventService,
     private val marketStatusService: MarketStatusService,
     private val timeProvider: TimeProvider,
@@ -35,6 +36,7 @@ class IndexCandleStreakPoller(
 ) {
     private val log = KotlinLogging.logger {}
     private val runStates = ConcurrentHashMap<Market, RunState>()
+    private val backfilledOn = ConcurrentHashMap<Market, LocalDate>()
     private val tradeDate = AtomicReference<LocalDate?>(null)
     private val sessionStart: LocalTime = LocalTime.parse(sessionStart)
     private val sessionEnd: LocalTime = LocalTime.parse(sessionEnd)
@@ -52,12 +54,24 @@ class IndexCandleStreakPoller(
 
     private fun detect() {
         val today = timeProvider.today()
-        if (tradeDate.getAndSet(today) != today) runStates.clear()
+        if (tradeDate.getAndSet(today) != today) {
+            runStates.clear()
+            backfilledOn.clear()
+        }
 
         val now = timeProvider.now()
         val recorded = Market.entries.mapNotNull { market ->
             val intraday = indexClient.fetchIndexIntraday(market, today) ?: return@mapNotNull null
-            val streak = IndexMinuteCandles.fromTicks(intraday.ticks).trailingStreak(excludeMinute = now)
+
+            // 당일 첫 폴에서 연속조회로 장 시작까지 1회 백필 — 이후엔 최신 페이지만 누적.
+            if (backfilledOn[market] != today) {
+                candleStore.merge(market, IndexMinuteCandles.fromTicks(indexClient.fetchIndexTicksPaged(market, today)).candles())
+                backfilledOn[market] = today
+            }
+            candleStore.merge(market, IndexMinuteCandles.fromTicks(intraday.ticks).candles())
+
+            // 연속 판정은 누적 저장소 기준 — 4분 페이지 경계에서 연속이 잘리지 않게.
+            val streak = IndexMinuteCandles(candleStore.candles(market)).trailingStreak(excludeMinute = now)
                 ?: return@mapNotNull null
 
             val block = streak.count / STREAK_STEP // 4~7→1, 8~11→2, … (4의 배수 블록)
