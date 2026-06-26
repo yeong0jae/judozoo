@@ -506,7 +506,7 @@ export default function SignalLogPage() {
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode || selectedMarket ? "" : "hidden lg:block"}`}>
         {selectedMarket ? (
-          <IndexDetailPanel market={selectedMarket} />
+          <IndexDetailPanel market={selectedMarket} date={date} />
         ) : (
           <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
         )}

@@ -6,9 +6,15 @@ import Skeleton from "./Skeleton";
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 
-/** 지수(코스피/코스닥) 당일 1분봉 차트 패널 — 실시간 로그에서 지수 행 선택 시 우측에. */
-export default function IndexDetailPanel({ market }: { market: MarketType | null }) {
-  const candlesQ = useIndexMinuteCandles(market);
+/** 지수(코스피/코스닥) 1분봉 차트 패널 — 실시간 로그에서 지수 행 선택 시 우측에. */
+export default function IndexDetailPanel({
+  market,
+  date,
+}: {
+  market: MarketType | null;
+  date: string;
+}) {
+  const candlesQ = useIndexMinuteCandles(market, date);
   const candles = candlesQ.data ?? [];
 
   if (!market) {

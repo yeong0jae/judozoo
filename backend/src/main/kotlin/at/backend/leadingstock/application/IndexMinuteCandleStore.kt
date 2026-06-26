@@ -10,30 +10,45 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * 당일 지수 1분봉 누적 저장소(메모리). 폴러가 30초마다 받은 최근 ~4분치를 분 단위로 병합해 하루를 채우고,
- * 차트 엔드포인트는 추가 API 호출 없이 여기서 읽는다. 같은 분은 더 완성된(최신) 봉으로 덮어쓴다.
- * 일자가 바뀌면 통째로 비운다.
+ * 당일 지수 1분봉 누적 캐시(메모리) — 연속 판정 핫패스용. 폴러가 30초마다 받은 최근 ~4분치를 분 단위로 병합하고,
+ * 같은 값을 DB에도 라이트스루(upsert)한다. 재시작 시엔 DB에서 그날치를 한 번 끌어와(rehydrate) 연속이 정확하다.
+ * 일자가 바뀌면 메모리를 비운다.
  */
 @Component
 class IndexMinuteCandleStore(
     private val timeProvider: TimeProvider,
+    private val persistence: IndexMinuteCandleService,
 ) {
     private val byMarket = ConcurrentHashMap<Market, ConcurrentHashMap<LocalDateTime, IndexMinuteCandle>>()
+    private val loaded = ConcurrentHashMap.newKeySet<Market>()
     private val tradeDate = AtomicReference<LocalDate?>(null)
 
     fun merge(market: Market, candles: List<IndexMinuteCandle>) {
         rolloverIfNeeded()
+        ensureLoaded(market)
         val map = byMarket.getOrPut(market) { ConcurrentHashMap() }
         candles.forEach { map[it.minute] = it }
+        persistence.upsertAll(market, candles)
     }
 
     fun candles(market: Market): List<IndexMinuteCandle> {
         rolloverIfNeeded()
+        ensureLoaded(market)
         return byMarket[market]?.values?.sortedBy { it.minute } ?: emptyList()
+    }
+
+    /** 재시작 후 메모리가 비어 있으면 그날치를 DB에서 한 번 끌어온다. */
+    private fun ensureLoaded(market: Market) {
+        if (!loaded.add(market)) return
+        val map = byMarket.getOrPut(market) { ConcurrentHashMap() }
+        persistence.candlesOn(market, timeProvider.today()).forEach { map[it.minute] = it }
     }
 
     private fun rolloverIfNeeded() {
         val today = timeProvider.today()
-        if (tradeDate.getAndSet(today) != today) byMarket.clear()
+        if (tradeDate.getAndSet(today) != today) {
+            byMarket.clear()
+            loaded.clear()
+        }
     }
 }

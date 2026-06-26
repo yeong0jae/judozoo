@@ -53,8 +53,8 @@ export const QK = {
     ["leading-stocks", "investors", code] as const,
   minuteCandles: (code: string) =>
     ["leading-stocks", "minute-candles", code] as const,
-  indexMinuteCandles: (market: string) =>
-    ["leading-stocks", "index-minute-candles", market] as const,
+  indexMinuteCandles: (market: string, date: string) =>
+    ["leading-stocks", "index-minute-candles", market, date] as const,
   dailyCandles: (code: string) =>
     ["leading-stocks", "daily-candles", code] as const,
   kospiIndex: ["market", "kospi"] as const,
@@ -262,17 +262,17 @@ export function useMinuteCandles(code: string | null) {
   });
 }
 
-export function useIndexMinuteCandles(market: MarketType | null) {
+export function useIndexMinuteCandles(market: MarketType | null, date: string) {
   return useQuery({
     queryKey: market
-      ? QK.indexMinuteCandles(market)
-      : ["leading-stocks", "index-minute-candles", "null"],
+      ? QK.indexMinuteCandles(market, date)
+      : ["leading-stocks", "index-minute-candles", "null", date],
     queryFn: () =>
       apiFetch<IndexMinuteCandleItem[]>(
-        `/api/leading-stocks/index/${market}/minute-candles`,
+        `/api/leading-stocks/index/${market}/minute-candles?date=${date}`,
       ),
     enabled: market !== null,
-    refetchInterval: 30_000,
+    refetchInterval: date === todayStr() ? 30_000 : false, // 과거 날짜는 정적
   });
 }
 

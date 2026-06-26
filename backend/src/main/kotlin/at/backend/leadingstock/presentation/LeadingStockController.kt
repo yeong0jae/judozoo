@@ -167,10 +167,16 @@ class LeadingStockController(
         return ApiResponse.ok(MarketSignalEventsResponse(date = day, totalCount = events.size, events = events))
     }
 
-    /** 지수(코스피/코스닥) 당일 1분봉 — 실시간 로그에서 지수 행 선택 시 우측 차트용. */
+    /** 지수(코스피/코스닥) 1분봉 — 실시간 로그에서 지수 행 선택 시 우측 차트용. date 미지정 시 오늘. */
     @GetMapping("/index/{market}/minute-candles")
-    fun getIndexMinuteCandles(@PathVariable market: String): ApiResponse<List<IndexMinuteCandleItem>> {
-        val candles = leadingStockService.indexMinuteCandles(Market.valueOf(market.uppercase())).map {
+    fun getIndexMinuteCandles(
+        @PathVariable market: String,
+        @RequestParam(required = false)
+        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        date: java.time.LocalDate?,
+    ): ApiResponse<List<IndexMinuteCandleItem>> {
+        val day = date ?: timeProvider.today()
+        val candles = leadingStockService.indexMinuteCandles(Market.valueOf(market.uppercase()), day).map {
             IndexMinuteCandleItem(
                 time = it.minute,
                 open = it.open,

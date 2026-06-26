@@ -36,7 +36,6 @@ class IndexCandleStreakPoller(
 ) {
     private val log = KotlinLogging.logger {}
     private val runStates = ConcurrentHashMap<Market, RunState>()
-    private val backfilledOn = ConcurrentHashMap<Market, LocalDate>()
     private val tradeDate = AtomicReference<LocalDate?>(null)
     private val sessionStart: LocalTime = LocalTime.parse(sessionStart)
     private val sessionEnd: LocalTime = LocalTime.parse(sessionEnd)
@@ -54,20 +53,13 @@ class IndexCandleStreakPoller(
 
     private fun detect() {
         val today = timeProvider.today()
-        if (tradeDate.getAndSet(today) != today) {
-            runStates.clear()
-            backfilledOn.clear()
-        }
+        if (tradeDate.getAndSet(today) != today) runStates.clear()
 
         val now = timeProvider.now()
         val recorded = Market.entries.mapNotNull { market ->
             val intraday = indexClient.fetchIndexIntraday(market, today) ?: return@mapNotNull null
 
-            // 당일 첫 폴에서 연속조회로 장 시작까지 1회 백필 — 이후엔 최신 페이지만 누적.
-            if (backfilledOn[market] != today) {
-                candleStore.merge(market, IndexMinuteCandles.fromTicks(indexClient.fetchIndexTicksPaged(market, today)).candles())
-                backfilledOn[market] = today
-            }
+            // 매 폴마다 받은 최근 ~4분치를 저장소에 누적(겹치며 하루를 채움). 백필 없음 — 한도 보호.
             candleStore.merge(market, IndexMinuteCandles.fromTicks(intraday.ticks).candles())
 
             // 연속 판정은 누적 저장소 기준 — 4분 페이지 경계에서 연속이 잘리지 않게.

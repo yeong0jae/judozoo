@@ -23,6 +23,7 @@ import at.backend.leadingstock.domain.SpikeDirection
 import at.backend.leadingstock.domain.SwingHighSignal
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
+import java.time.LocalDate
 import at.backend.platform.kiwoom.client.KiwoomProgramClient
 import at.backend.platform.kiwoom.client.KiwoomThemeClient
 import at.backend.stock.domain.Market
@@ -35,7 +36,7 @@ class LeadingStockService(
     private val marketClient: KiwoomMarketClient,
     private val programClient: KiwoomProgramClient,
     private val themeClient: KiwoomThemeClient,
-    private val indexCandleStore: IndexMinuteCandleStore,
+    private val indexMinuteCandleService: IndexMinuteCandleService,
     private val criteria: LeadingStockCriteriaProperties,
     private val timeProvider: TimeProvider,
 ) {
@@ -199,9 +200,9 @@ class LeadingStockService(
     /** 일봉 차트용 — 최근 60거래일. ka10081 30s 캐시(상세 필터 G·RVOL과 공유). */
     fun dailyCandles(stockCode: String): List<DailyCandle> = marketClient.fetchDailyCandles(stockCode, 60)
 
-    /** 지수(코스피/코스닥) 당일 1분봉 — 폴러가 누적한 저장소에서 읽는다(추가 API 호출 없음). 차트용. */
-    fun indexMinuteCandles(market: Market): List<IndexMinuteCandle> =
-        indexCandleStore.candles(market)
+    /** 지수(코스피/코스닥) 1분봉 — DB에서 일자별로 읽는다(폴러가 라이트스루로 적재). 차트용. */
+    fun indexMinuteCandles(market: Market, date: LocalDate): List<IndexMinuteCandle> =
+        indexMinuteCandleService.candlesOn(market, date)
 
     /**
      * 돌파선용 분봉 — 차트와 동일한 최근 [CHART_SESSION_DAYS]거래일. 돌파선 = 그 기간 최고가.
