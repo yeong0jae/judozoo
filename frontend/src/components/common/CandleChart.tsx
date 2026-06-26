@@ -10,7 +10,7 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { DailyCandleItem, MinuteCandleItem, IndexMinuteCandleItem } from "../../types";
+import type { DailyCandleItem, MinuteCandleItem } from "../../types";
 
 const UP = "rgba(244,63,94,0.5)"; // 상승 빨강
 const DOWN = "rgba(59,130,246,0.5)"; // 하락 파랑
@@ -38,24 +38,6 @@ export function minuteSeries(items: MinuteCandleItem[]): CandleSeries {
   return { candles, volumes };
 }
 
-/**
- * 지수 1분봉 → 시리즈. 시각은 ka20001 tm_n 그대로(종목과 달리 +1분 보정 없음).
- * 가격은 지수값(소수), 거래량 막대는 그 분 거래량(1000주).
- */
-export function indexMinuteSeries(items: IndexMinuteCandleItem[]): CandleSeries {
-  const candles: CandlestickData[] = [];
-  const volumes: HistogramData[] = [];
-  for (const c of items) {
-    const [date, time] = c.time.split("T");
-    const [y, mo, d] = date.split("-").map(Number);
-    const [h, mi, s] = (time ?? "0:0:0").split(":").map(Number);
-    const t = (Date.UTC(y, mo - 1, d, h, mi, s || 0) / 1000) as UTCTimestamp;
-    candles.push({ time: t, open: c.open, high: c.high, low: c.low, close: c.close });
-    volumes.push({ time: t, value: c.volume, color: c.close >= c.open ? UP : DOWN });
-  }
-  return { candles, volumes };
-}
-
 /** 일봉 → 시리즈. time은 영업일(yyyy-MM-dd), 오름차순. 거래량 막대 ≈ 종가×거래량(거래대금). */
 export function dailySeries(items: DailyCandleItem[]): CandleSeries {
   const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
@@ -74,14 +56,12 @@ export default function CandleChart({
   timeVisible = true,
   priceLine,
   priceLineTitle = "돌파선",
-  priceDecimals = 0,
   className = "w-full h-48",
 }: {
   series: CandleSeries;
   timeVisible?: boolean;
   priceLine?: number; // 가로 기준선(예: 돌파선)
   priceLineTitle?: string;
-  priceDecimals?: number; // 가격축 소수 자릿수 — 종목(원)=0, 지수=2
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -119,15 +99,11 @@ export default function CandleChart({
       wickUpColor: "#f43f5e",
       wickDownColor: "#3b82f6",
       borderVisible: false,
-      // 가격축: 천 단위 쉼표 + 소수 자릿수(종목=정수, 지수=소수 2자리)
+      // 가격축: 정수(원) + 천 단위 쉼표
       priceFormat: {
         type: "custom",
-        minMove: priceDecimals > 0 ? 1 / 10 ** priceDecimals : 1,
-        formatter: (p: number) =>
-          p.toLocaleString("en-US", {
-            minimumFractionDigits: priceDecimals,
-            maximumFractionDigits: priceDecimals,
-          }),
+        minMove: 1,
+        formatter: (p: number) => Math.round(p).toLocaleString("en-US"),
       },
     });
     // 캔들은 위 75%, 거래량은 아래 20%에 별도 오버레이 스케일로
@@ -146,7 +122,7 @@ export default function CandleChart({
       seriesRef.current = null;
       volumeRef.current = null;
     };
-  }, [timeVisible, priceDecimals]);
+  }, [timeVisible]);
 
   useEffect(() => {
     const s = seriesRef.current;

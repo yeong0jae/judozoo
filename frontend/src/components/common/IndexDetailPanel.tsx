@@ -1,6 +1,6 @@
 import { useIndexMinuteCandles } from "../../api/queries";
 import type { MarketType } from "../../types";
-import CandleChart, { indexMinuteSeries } from "./CandleChart";
+import IndexLineChart from "./IndexLineChart";
 import EmptyState from "./EmptyState";
 import Skeleton from "./Skeleton";
 
@@ -32,7 +32,7 @@ export default function IndexDetailPanel({
       <header className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
         <div className="flex items-center gap-2">
           <span className="text-base font-semibold">{MARKET_LABEL[market]} 지수</span>
-          <span className="text-xs text-zinc-500">당일 1분봉</span>
+          <span className="text-xs text-zinc-500">1분 추이</span>
         </div>
       </header>
       <div className="p-3">
@@ -43,7 +43,7 @@ export default function IndexDetailPanel({
             <EmptyState message="장중에 지수 분봉이 표시됩니다" />
           </div>
         ) : (
-          <CandleChart series={indexMinuteSeries(candles)} priceDecimals={2} className="w-full h-[28rem]" />
+          <IndexLineChart items={candles} className="w-full h-[28rem]" />
         )}
       </div>
     </div>
