@@ -1,7 +1,9 @@
 package at.backend.leadingstock.application
 
 import at.backend.leadingstock.domain.MarketSignalEvent
+import at.backend.leadingstock.domain.MarketSignalType
 import at.backend.leadingstock.infrastructure.repository.MarketSignalEventRepository
+import at.backend.stock.domain.Market
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -20,4 +22,11 @@ class MarketSignalEventService(
     @Transactional(readOnly = true)
     fun eventsOn(date: LocalDate): List<MarketSignalEvent> =
         repository.findByTradeDateOrderByOccurredAtDesc(date)
+
+    /** 그날 한 시장의 최신 캔들 연속 시그널 — 폴러 디바운스 상태 복원용. */
+    @Transactional(readOnly = true)
+    fun latestCandleStreak(market: Market, date: LocalDate): MarketSignalEvent? =
+        repository.findFirstByMarketAndKindAndTradeDateOrderByOccurredAtDesc(
+            market, MarketSignalType.CANDLE_STREAK, date,
+        )
 }
