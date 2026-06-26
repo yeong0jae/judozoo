@@ -9,9 +9,12 @@ import {
 } from "lightweight-charts";
 import type { IndexMinuteCandleItem } from "../../types";
 
+const UP = "#f43f5e"; // 상승 빨강
+const DOWN = "#3b82f6"; // 하락 파랑
+
 /**
  * 지수 선차트 — 분봉 종가를 이어 그린다. (지수값은 10초 샘플 합성이라 캔들보다 선이 정직)
- * 거래량 막대 없음. 가격축은 소수 2자리.
+ * 당일 시초가 대비 오르면 빨강·내리면 파랑 한 가지 색. 거래량 막대 없음, 가격축 소수 2자리.
  */
 export default function IndexLineChart({
   items,
@@ -44,7 +47,7 @@ export default function IndexLineChart({
       crosshair: { mode: 0 },
     });
     seriesRef.current = chart.addLineSeries({
-      color: "#10b981",
+      color: UP,
       lineWidth: 2,
       priceFormat: {
         type: "custom",
@@ -74,6 +77,11 @@ export default function IndexLineChart({
       return { time: t, value: c.close };
     });
     s.setData(data);
+    // 당일 시초가 대비 현재 종가가 오르면 빨강, 내리면 파랑 (선 전체 한 색)
+    if (items.length > 0) {
+      const up = items[items.length - 1].close >= items[0].open;
+      s.applyOptions({ color: up ? UP : DOWN });
+    }
     if (!fittedRef.current && data.length > 0) {
       chartRef.current?.timeScale().fitContent();
       fittedRef.current = true;
