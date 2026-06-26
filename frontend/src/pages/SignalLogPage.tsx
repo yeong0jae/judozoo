@@ -506,7 +506,11 @@ export default function SignalLogPage() {
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode || selectedMarket ? "" : "hidden lg:block"}`}>
         {selectedMarket ? (
-          <IndexDetailPanel market={selectedMarket} date={date} />
+          <IndexDetailPanel
+            market={selectedMarket}
+            date={date}
+            changeRate={allMarketEvents.find((m) => m.market === selectedMarket)?.changeRate ?? null}
+          />
         ) : (
           <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
         )}

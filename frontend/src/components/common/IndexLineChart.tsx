@@ -14,13 +14,15 @@ const DOWN = "#3b82f6"; // 하락 파랑
 
 /**
  * 지수 선차트 — 분봉 종가를 이어 그린다. (지수값은 10초 샘플 합성이라 캔들보다 선이 정직)
- * 당일 시초가 대비 오르면 빨강·내리면 파랑 한 가지 색. 거래량 막대 없음, 가격축 소수 2자리.
+ * 등락률이 +면 빨강·−면 파랑 한 가지 색. 등락률 없으면 당일 시초가 대비로 폴백. 거래량 막대 없음, 가격축 소수 2자리.
  */
 export default function IndexLineChart({
   items,
+  changeRate,
   className = "w-full h-[28rem]",
 }: {
   items: IndexMinuteCandleItem[];
+  changeRate?: number | null;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,16 +79,17 @@ export default function IndexLineChart({
       return { time: t, value: c.close };
     });
     s.setData(data);
-    // 당일 시초가 대비 현재 종가가 오르면 빨강, 내리면 파랑 (선 전체 한 색)
-    if (items.length > 0) {
-      const up = items[items.length - 1].close >= items[0].open;
-      s.applyOptions({ color: up ? UP : DOWN });
-    }
+    // 등락률 부호로 선 색 결정(+빨강/−파랑). 등락률 없으면 당일 시초가 대비로 폴백.
+    const up =
+      changeRate != null
+        ? changeRate >= 0
+        : items.length > 0 && items[items.length - 1].close >= items[0].open;
+    s.applyOptions({ color: up ? UP : DOWN });
     if (!fittedRef.current && data.length > 0) {
       chartRef.current?.timeScale().fitContent();
       fittedRef.current = true;
     }
-  }, [items]);
+  }, [items, changeRate]);
 
   return <div ref={containerRef} className={className} />;
 }

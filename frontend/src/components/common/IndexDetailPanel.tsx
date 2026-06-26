@@ -10,9 +10,11 @@ const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "
 export default function IndexDetailPanel({
   market,
   date,
+  changeRate,
 }: {
   market: MarketType | null;
   date: string;
+  changeRate?: number | null;
 }) {
   const candlesQ = useIndexMinuteCandles(market, date);
   const candles = candlesQ.data ?? [];
@@ -43,7 +45,7 @@ export default function IndexDetailPanel({
             <EmptyState message="장중에 지수 분봉이 표시됩니다" />
           </div>
         ) : (
-          <IndexLineChart items={candles} className="w-full h-[28rem]" />
+          <IndexLineChart items={candles} changeRate={changeRate} className="w-full h-[28rem]" />
         )}
       </div>
     </div>
