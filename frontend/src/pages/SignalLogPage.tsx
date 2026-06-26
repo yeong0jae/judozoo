@@ -299,7 +299,7 @@ export default function SignalLogPage() {
   // Clipboard API는 HTTPS/localhost에서만 동작하므로 HTTP 배포본을 위해 execCommand로 폴백한다.
   const [copied, setCopied] = useState(false);
   const copyPrompt = async () => {
-    const text = buildSignalPrompt(date, events);
+    const text = buildSignalPrompt(date, events, allMarketEvents);
     let ok = false;
     if (navigator.clipboard && window.isSecureContext) {
       try {
@@ -351,7 +351,7 @@ export default function SignalLogPage() {
           <button
             type="button"
             onClick={copyPrompt}
-            disabled={events.length === 0}
+            disabled={events.length === 0 && allMarketEvents.length === 0}
             className="text-xs px-2.5 py-1 rounded-md bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {copied ? "복사됨" : "📋 분석 프롬프트 복사"}

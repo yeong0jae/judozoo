@@ -1,4 +1,10 @@
-import type { SignalEventItem, SignalEventType } from "../types";
+import type {
+  SignalEventItem,
+  SignalEventType,
+  MarketSignalEventItem,
+  MarketType,
+  InvestorType,
+} from "../types";
 import { formatKoreanMoney, formatPrice } from "./format";
 
 const TYPE_LABEL: Record<SignalEventType, string> = {
@@ -6,6 +12,37 @@ const TYPE_LABEL: Record<SignalEventType, string> = {
   BREAKOUT_IMMINENT: "임박",
   VOLUME_SPIKE: "스파이크",
 };
+
+const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
+const INVESTOR_LABEL: Record<InvestorType, string> = {
+  FOREIGN: "외국인",
+  INSTITUTION: "기관",
+  INDIVIDUAL: "개인",
+};
+
+/** 억원 → "N조"/"N억". */
+function fmtEok(eok: number): string {
+  if (eok >= 10000) {
+    const jo = eok / 10000;
+    return `${Number.isInteger(jo) ? jo : jo.toFixed(1)}조`;
+  }
+  return `${eok.toLocaleString()}억`;
+}
+
+/** 지수 시그널 한 줄 — 시각 · 시장 · 내용 · 지수값 · 등락률. */
+function marketLine(m: MarketSignalEventItem): string {
+  const side = m.side === "BUY" ? "매수" : "매도";
+  const desc =
+    m.kind === "CANDLE_STREAK"
+      ? `${m.streak}연속 ${side}`
+      : `${INVESTOR_LABEL[m.investor ?? "FOREIGN"]} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
+  const idx =
+    m.indexValue != null
+      ? ` · 지수 ${m.indexValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : "";
+  const chg = m.changeRate != null ? ` ${pct(m.changeRate)}` : "";
+  return `${clockOf(m.occurredAt)} · ${MARKET_LABEL[m.market]} · ${desc}${idx}${chg}`;
+}
 
 const NO_THEME = "테마 미상"; // 키움 테마 데이터 없음 — 시장 의미 아님
 
@@ -57,8 +94,13 @@ function sequenceOf(events: SignalEventItem[]): string {
  * 프롬프트 + 사전 집계(개요·테마별·시간대별·종목별) + 원본 이벤트(시간 오름차순).
  * 숫자는 모두 코드가 계산해 넣어, 붙여넣은 쪽 LLM은 해석만 하면 된다.
  */
-export function buildSignalPrompt(date: string, events: SignalEventItem[]): string {
+export function buildSignalPrompt(
+  date: string,
+  events: SignalEventItem[],
+  marketEvents: MarketSignalEventItem[] = [],
+): string {
   const asc = [...events].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+  const marketAsc = [...marketEvents].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
 
   const byType: Record<SignalEventType, number> = {
     BREAKOUT: 0,
@@ -120,12 +162,12 @@ export function buildSignalPrompt(date: string, events: SignalEventItem[]): stri
   );
 
   return [
-    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크 전이를 시간순으로 기록한 거야.`,
+    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·지수 캔들 연속)을 시간순으로 기록한 거야.`,
     `이걸 근거로 오늘 시장 흐름을 분석하고 매매를 복기해줘:`,
     `1) 주도 테마와 테마 순환`,
     `2) 시간대별 수급 흐름`,
     `3) 주목 종목(임박→돌파→스파이크로 이어진 종목 등)`,
-    `4) 전반적 시장 톤`,
+    `4) 전반적 시장 톤 (지수 시그널 — 외인/기관/개인 순매수 단계, 지수 양/음봉 연속 — 을 근거로)`,
     `5) 이상적 매매 복기 — 어느 종목·어느 신호에서 진입했어야 했고 언제 정리했어야 했는지, 믿을 만한 신호와 무시했어야 할 신호(돌파 실패·임박 무산·고점 스파이크 등)는 무엇이었는지`,
     `주의: 각 종목 가격은 '시그널 발생 시점' 값만 있고 그 사이 고저는 없어. 주어진 시점 가격들 안에서만 복기하고, 없는 값은 추정하지 마.`,
     `주의: '테마 미상'은 키움에 테마 정보가 없을 뿐 시장적 의미가 아니야 — 테마·순환 분석에서 제외해.`,
@@ -133,6 +175,7 @@ export function buildSignalPrompt(date: string, events: SignalEventItem[]): stri
     `## 개요`,
     `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE})`,
     `- 등장 종목: ${stockCount}개`,
+    `- 지수 시그널: ${marketAsc.length}건`,
     ``,
     `## 테마별 (이벤트 많은 순)`,
     `테마 | 이벤트 | 종목 | 돌파/임박/스파이크`,
@@ -149,6 +192,14 @@ export function buildSignalPrompt(date: string, events: SignalEventItem[]): stri
     `종목(코드) | 테마 | 최고배율 | 최종등락률 | 전이 시퀀스`,
     ...stockRows,
     ``,
+    ...(marketAsc.length > 0
+      ? [
+          `## 지수 시그널 (시간순)`,
+          `시각 · 시장 · 내용(순매수 단계 또는 N연속 매수/매도) · 지수값 · 등락률`,
+          ...marketAsc.map(marketLine),
+          ``,
+        ]
+      : []),
     `## 원본 이벤트 (시간순)`,
     `시각 · 유형 · 종목(코드) · 테마 · 현재가 · 등락률 · 누적거래대금 · 비고`,
     ...eventRows,
