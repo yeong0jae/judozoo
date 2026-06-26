@@ -18,9 +18,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * 장중 주기적으로 코스피·코스닥 지수 1분봉을 합성해, 같은 색(양봉/음봉)이 4연속·8연속·12연속…
- * (4의 배수마다) 도달한 순간을 적재한다. 같은 연속 구간에서 5·6·7연속처럼 같은 블록 안에선 재발화하지 않고,
- * 다음 4단위 블록을 넘거나 색이 끊겨 새 구간이 시작되면 다시 발화.
+ * 장중 주기적으로 코스피·코스닥 지수 1분봉을 합성해, 같은 색(양봉/음봉)이 5연속·10연속·15연속…
+ * (5의 배수마다) 도달한 순간을 적재한다. 같은 연속 구간에서 6~9연속처럼 같은 블록 안에선 재발화하지 않고,
+ * 다음 5단위 블록을 넘거나 색이 끊겨 새 구간이 시작되면 다시 발화.
  * 시장별 (구간 시작 시각, 마지막 발화 블록)을 메모리에 들고(일자 바뀌면 초기화), 휴장/장외엔 스킵. 테스트에선 제외.
  */
 @Component
@@ -66,7 +66,7 @@ class IndexCandleStreakPoller(
             val streak = IndexMinuteCandles(candleStore.candles(market)).trailingStreak(excludeMinute = now)
                 ?: return@mapNotNull null
 
-            val block = streak.count / STREAK_STEP // 4~7→1, 8~11→2, … (4의 배수 블록)
+            val block = streak.count / STREAK_STEP // 5~9→1, 10~14→2, … (5의 배수 블록)
             if (block < 1) return@mapNotNull null
             // 같은 구간(첫 봉 시각 동일)이면 직전 발화 블록 이어받고, 새 구간이면 0부터.
             val prev = runStates[market]
@@ -90,6 +90,6 @@ class IndexCandleStreakPoller(
     }
 
     companion object {
-        private const val STREAK_STEP = 4 // 4연속마다(4·8·12…) 발화
+        private const val STREAK_STEP = 5 // 5연속마다(5·10·15…) 발화
     }
 }
