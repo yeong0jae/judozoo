@@ -72,7 +72,7 @@ export default function TimelinePage() {
       <div>
         <h1 className="text-xl font-bold text-zinc-100">타임라인</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          그 달 거래일의 지수 이벤트를 3시간 단위로 이어 봅니다 · 달력에서 날짜를 누르면 그날로 이동
+          그 달 거래일의 이벤트를 3시간 단위로 이어 봅니다 · 달력에서 날짜를 누르면 그날로 이동
         </p>
       </div>
 

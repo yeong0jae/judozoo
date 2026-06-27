@@ -108,7 +108,7 @@ function DaySection({ day, selected }: { day: TimelineDay; selected: boolean }) 
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-zinc-600 py-4">기록된 지수 이벤트가 없습니다</p>
+        <p className="text-sm text-zinc-600 py-4">기록된 이벤트가 없습니다</p>
       ) : (
         <div className="pt-1">
           {BUCKETS.map((b) => {
