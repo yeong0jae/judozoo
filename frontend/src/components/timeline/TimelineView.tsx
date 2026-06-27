@@ -48,9 +48,6 @@ function rateText(rate: number | null): string {
   return `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`;
 }
 function marketDesc(e: MarketSignalEventItem): string {
-  if (e.kind === "CANDLE_STREAK") {
-    return `${e.streak ?? ""}연속 ${e.side === "BUY" ? "양봉" : "음봉"}`;
-  }
   const who = e.investor ? INVESTOR_LABEL[e.investor] : "";
   const amt = e.netAmountEok != null ? `${eok(e.netAmountEok)} ` : "";
   return `${who} ${amt}${e.side === "BUY" ? "순매수" : "순매도"}`.trim();
@@ -58,6 +55,7 @@ function marketDesc(e: MarketSignalEventItem): string {
 
 function toItems(markets: MarketSignalEventItem[]): TLItem[] {
   return markets
+    .filter((e) => e.kind === "NET_BUY_LEVEL") // 투자자 순매수/순매도만 (연속 양봉·음봉 제외)
     .map((e) => ({
       time: hhmm(e.occurredAt),
       hour: hourOf(e.occurredAt),

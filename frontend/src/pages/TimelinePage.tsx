@@ -10,6 +10,14 @@ import type { MarketSignalEventsResponse } from "../types";
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
+/** 오늘(또는 주말이면 직전 평일) = 가장 최근 거래일. 공휴일 보정은 못 하지만 데이터가 없어도 선택만 된다. */
+function latestTradingDay(today: string): string {
+  const [y, m, d] = today.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  while (dt.getDay() === 0 || dt.getDay() === 6) dt.setDate(dt.getDate() - 1);
+  return ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
+}
+
 /** 보는 달의 거래일(평일) 중 오늘 이전까지, 오름차순. 미래는 데이터가 없어 제외. */
 function tradingDays(month: Date, today: string): string[] {
   const y = month.getFullYear();
@@ -28,11 +36,12 @@ function tradingDays(month: Date, today: string): string[] {
 
 export default function TimelinePage() {
   const today = todayStr();
+  const latest = latestTradingDay(today);
   const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
+    const [y, m] = latest.split("-").map(Number);
+    return new Date(y, m - 1, 1);
   });
-  const [selectedDate, setSelectedDate] = useState<string | null>(today);
+  const [selectedDate, setSelectedDate] = useState<string | null>(latest);
 
   const dates = tradingDays(month, today);
 
