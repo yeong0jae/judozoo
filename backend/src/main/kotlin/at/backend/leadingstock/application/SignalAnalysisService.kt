@@ -100,7 +100,26 @@ class SignalAnalysisService(
             avgMae = labels.mapNotNull { it.mae }.avg(),
             winRate20m = ret20s.takeIf { it.isNotEmpty() }
                 ?.let { it.count { r -> r > 0 }.toDouble() / it.size * 100 },
+            dist20m = histogram20m(ret20s),
         )
+    }
+
+    /** +20분 수익률을 7구간으로 센다 — 경계(%): -5 / -2 / -0.5 / 0.5 / 2 / 5. */
+    private fun histogram20m(rets: List<Double>): List<Int> {
+        val bins = IntArray(7)
+        rets.forEach { r ->
+            val i = when {
+                r < -5 -> 0
+                r < -2 -> 1
+                r < -0.5 -> 2
+                r < 0.5 -> 3
+                r < 2 -> 4
+                r < 5 -> 5
+                else -> 6
+            }
+            bins[i]++
+        }
+        return bins.toList()
     }
 
     private fun groupByStock(events: List<SignalEvent>, label: (SignalEvent) -> SignalLabel?): List<StockSignalGroup> =

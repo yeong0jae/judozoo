@@ -111,6 +111,41 @@ export default function SignalAnalysisPage() {
   );
 }
 
+const DIST_LABEL = ["≤-5%", "-5~-2", "-2~-0.5", "±0.5", "+0.5~2", "+2~5", "≥+5%"];
+// 음수 구간 파랑, 중앙 회색, 양수 구간 빨강 (한국식)
+const DIST_COLOR = [
+  "bg-blue-500",
+  "bg-blue-400/70",
+  "bg-blue-400/40",
+  "bg-zinc-600",
+  "bg-red-400/40",
+  "bg-red-400/70",
+  "bg-red-500",
+];
+
+/** +20m 수익률 7구간 분포 막대 — 평균 뒤의 모양(대칭/꼬리)을 본다. */
+function DistBar({ dist }: { dist: number[] }) {
+  const max = Math.max(1, ...dist);
+  const total = dist.reduce((a, b) => a + b, 0);
+  return (
+    <div className="px-3 py-2 bg-zinc-900/40 space-y-0.5">
+      <div className="text-[10px] text-zinc-600 mb-1">+20m 수익률 분포 · {total}건</div>
+      {dist.map((c, i) => (
+        <div key={i} className="flex items-center gap-2 text-[10px]">
+          <span className="w-14 text-right text-zinc-500">{DIST_LABEL[i]}</span>
+          <div className="flex-1 h-3 rounded bg-zinc-800/40">
+            <div
+              className={`h-3 rounded ${DIST_COLOR[i]}`}
+              style={{ width: `${(c / max) * 100}%` }}
+            />
+          </div>
+          <span className="w-6 text-zinc-500">{c}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** 메트릭 셀들 (+1m ~ 승률) — 종류 행·시간대 행 공통. */
 function MetricCells({ m }: { m: SignalMetrics }) {
   return (
@@ -138,9 +173,14 @@ function StatTable({
   stats: SignalKindStat[];
   byTime: boolean;
 }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const toggle = (key: string) => setOpen((k) => (k === key ? null : key));
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
-      <h2 className="text-sm font-semibold text-zinc-300 mb-2">{title}</h2>
+      <h2 className="text-sm font-semibold text-zinc-300 mb-2">
+        {title}
+        <span className="ml-2 text-[10px] font-normal text-zinc-600">행 클릭 → +20m 분포</span>
+      </h2>
       {stats.length === 0 ? (
         <p className="text-xs text-zinc-600">데이터 없음</p>
       ) : (
@@ -164,7 +204,10 @@ function StatTable({
               const avoid = AVOID_KINDS.includes(s.kind);
               return (
                 <Fragment key={s.kind}>
-                  <tr className="text-right border-t border-zinc-800/60">
+                  <tr
+                    onClick={() => toggle(s.kind)}
+                    className="text-right border-t border-zinc-800/60 cursor-pointer hover:bg-zinc-800/30"
+                  >
                     <td className="text-left py-1">
                       <span className={avoid ? "text-amber-400" : "text-zinc-200"}>
                         {KIND_LABEL[s.kind]}
@@ -176,16 +219,38 @@ function StatTable({
                     </td>
                     <MetricCells m={s.metrics} />
                   </tr>
+                  {open === s.kind && (
+                    <tr>
+                      <td colSpan={10}>
+                        <DistBar dist={s.metrics.dist20m} />
+                      </td>
+                    </tr>
+                  )}
                   {byTime &&
-                    s.byBucket.map((b) => (
-                      <tr key={b.bucket} className="text-right text-zinc-500">
-                        <td className="text-left pl-4 py-0.5">└ {BUCKET_LABEL[b.bucket]}</td>
-                        <td>
-                          {b.labeled}/{b.count}
-                        </td>
-                        <MetricCells m={b.metrics} />
-                      </tr>
-                    ))}
+                    s.byBucket.map((b) => {
+                      const key = `${s.kind}-${b.bucket}`;
+                      return (
+                        <Fragment key={key}>
+                          <tr
+                            onClick={() => toggle(key)}
+                            className="text-right text-zinc-500 cursor-pointer hover:bg-zinc-800/30"
+                          >
+                            <td className="text-left pl-4 py-0.5">└ {BUCKET_LABEL[b.bucket]}</td>
+                            <td>
+                              {b.labeled}/{b.count}
+                            </td>
+                            <MetricCells m={b.metrics} />
+                          </tr>
+                          {open === key && (
+                            <tr>
+                              <td colSpan={10}>
+                                <DistBar dist={b.metrics.dist20m} />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                 </Fragment>
               );
             })}

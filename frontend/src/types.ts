@@ -468,6 +468,8 @@ export interface SignalMetrics {
   avgMfe: number | null;
   avgMae: number | null;
   winRate20m: number | null; // +20분 > 0 비율(%)
+  // +20분 수익률 7구간 분포 [≤-5, -5~-2, -2~-0.5, ±0.5, +0.5~2, +2~5, ≥+5]
+  dist20m: number[];
 }
 
 // 한 종류 안에서 시간대별로 쪼갠 집계
