@@ -15,7 +15,13 @@ export default function DateNavigator({
 }) {
   const shift = (days: number) => {
     const [y, m, d] = date.split("-").map(Number);
-    onChange(localStr(new Date(y, m - 1, d + days)));
+    const next = new Date(y, m - 1, d + days);
+    // 주말은 건너뛰고 같은 방향의 가장 가까운 평일로 이동.
+    const step = days > 0 ? 1 : -1;
+    while (next.getDay() === 0 || next.getDay() === 6) {
+      next.setDate(next.getDate() + step);
+    }
+    onChange(localStr(next));
   };
   const isToday = date === todayStr();
   return (
@@ -31,7 +37,13 @@ export default function DateNavigator({
         type="date"
         value={date}
         max={todayStr()}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          const [y, m, d] = e.target.value.split("-").map(Number);
+          const day = new Date(y, m - 1, d).getDay();
+          // 주말 선택은 무시 — value가 date에 바인딩돼 입력칸이 원래대로 돌아간다.
+          if (day === 0 || day === 6) return;
+          onChange(e.target.value);
+        }}
         className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
       />
       <button
