@@ -18,8 +18,6 @@ import type {
   MarketSignalEventsResponse,
   MarketType,
   MarketStatus,
-  RegimeDaily,
-  RegimeSnapshot,
   SignalEventsResponse,
   StockPriceResult,
   StockSearchResult,
@@ -59,8 +57,6 @@ export const QK = {
     ["leading-stocks", "daily-candles", code, date] as const,
   kospiIndex: ["market", "kospi"] as const,
   kosdaqIndex: ["market", "kosdaq"] as const,
-  regime: ["market", "regime"] as const,
-  regimeDaily: ["market", "regime", "daily"] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
 };
@@ -86,21 +82,6 @@ export function useMarketStatus() {
     queryKey: QK.marketStatus,
     queryFn: () => apiFetch<MarketStatus>("/api/market/status"),
     refetchInterval: 10 * 60_000,
-  });
-}
-
-export function useRegime() {
-  return useQuery({
-    queryKey: QK.regime,
-    queryFn: () => apiFetch<RegimeSnapshot | null>("/api/market/regime"),
-  });
-}
-
-export function useRegimeDaily() {
-  return useQuery({
-    queryKey: QK.regimeDaily,
-    queryFn: () => apiFetch<RegimeDaily[]>("/api/market/regime/daily"),
-    refetchInterval: 30_000, // 오늘 막대(종가)가 본장 중 갱신되도록
   });
 }
 

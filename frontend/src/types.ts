@@ -54,26 +54,6 @@ export interface MarketStatus {
   tradingHoursOpen: boolean;
 }
 
-// 시장 레짐 관측 스냅샷 (오전 NXT 두 갭)
-export interface RegimeSnapshot {
-  gap1: number; // 전일종가 대비 오전 NXT 갭(%)
-  gap1Locked: boolean; // 08:15 고정 여부 (false=프리마켓 잠정)
-  gap2: number | null; // 08:15 대비 본장 갭(%) — 본장 전이면 null
-  gap2Coverage: number | null;
-  gap2Reliable: boolean;
-  asOf: string;
-}
-
-// 시장 흐름 멀티데이 — 하루치 결과 (구간: 전일종가→08:15→11:00→14:00→20:00)
-export interface RegimeDaily {
-  date: string;
-  gap1: number; // 전일종가→08:15 (오전 NXT)
-  gap2At1100: number | null; // 08:15 대비 11:00
-  gap2At1400: number | null; // 08:15 대비 14:00 (오후 정규장)
-  gap2At2000: number | null; // 08:15 대비 20:00 (NXT 애프터마켓)
-  gap2Close: number; // 08:15 대비 최신 (구 시드행 폴백용)
-}
-
 export interface AccountBalance {
   cashBalance: number;
   reservedAmount: number;
