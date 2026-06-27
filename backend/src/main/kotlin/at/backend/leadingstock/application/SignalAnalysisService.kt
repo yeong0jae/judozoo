@@ -69,23 +69,39 @@ class SignalAnalysisService(
 
     private fun aggregate(events: List<SignalEvent>, label: (SignalEvent) -> SignalLabel?): List<SignalKindStat> =
         events.groupBy { it.kind() }.map { (kind, group) ->
-            val labels = group.mapNotNull(label)
-            val ret20s = labels.mapNotNull { it.ret20m }
             SignalKindStat(
                 kind = kind,
                 count = group.size,
-                labeled = labels.size,
-                avg1m = labels.mapNotNull { it.ret1m }.avg(),
-                avg2m = labels.mapNotNull { it.ret2m }.avg(),
-                avg20m = ret20s.avg(),
-                avg2h = labels.mapNotNull { it.ret2h }.avg(),
-                avgClose = labels.mapNotNull { it.retClose }.avg(),
-                avgMfe = labels.mapNotNull { it.mfe }.avg(),
-                avgMae = labels.mapNotNull { it.mae }.avg(),
-                winRate20m = ret20s.takeIf { it.isNotEmpty() }
-                    ?.let { it.count { r -> r > 0 }.toDouble() / it.size * 100 },
+                labeled = group.count { label(it) != null },
+                metrics = metricsOf(group, label),
+                byBucket = group.groupBy { it.timeBucket() }
+                    .map { (bucket, sub) ->
+                        TimeBucketStat(
+                            bucket = bucket,
+                            count = sub.size,
+                            labeled = sub.count { label(it) != null },
+                            metrics = metricsOf(sub, label),
+                        )
+                    }
+                    .sortedBy { it.bucket.ordinal },
             )
         }.sortedBy { it.kind.ordinal }
+
+    private fun metricsOf(events: List<SignalEvent>, label: (SignalEvent) -> SignalLabel?): SignalMetrics {
+        val labels = events.mapNotNull(label)
+        val ret20s = labels.mapNotNull { it.ret20m }
+        return SignalMetrics(
+            avg1m = labels.mapNotNull { it.ret1m }.avg(),
+            avg2m = labels.mapNotNull { it.ret2m }.avg(),
+            avg20m = ret20s.avg(),
+            avg2h = labels.mapNotNull { it.ret2h }.avg(),
+            avgClose = labels.mapNotNull { it.retClose }.avg(),
+            avgMfe = labels.mapNotNull { it.mfe }.avg(),
+            avgMae = labels.mapNotNull { it.mae }.avg(),
+            winRate20m = ret20s.takeIf { it.isNotEmpty() }
+                ?.let { it.count { r -> r > 0 }.toDouble() / it.size * 100 },
+        )
+    }
 
     private fun groupByStock(events: List<SignalEvent>, label: (SignalEvent) -> SignalLabel?): List<StockSignalGroup> =
         events.groupBy { it.stockCode }.map { (code, group) ->

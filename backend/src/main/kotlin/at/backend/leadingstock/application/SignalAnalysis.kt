@@ -1,6 +1,7 @@
 package at.backend.leadingstock.application
 
 import at.backend.leadingstock.domain.SignalKind
+import at.backend.leadingstock.domain.TimeBucket
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -15,11 +16,8 @@ data class SignalAnalysis(
     val stocks: List<StockSignalGroup>,
 )
 
-/** 종류(매수/매도 스파이크 분리)별 사후 수익률 집계. 평균은 라벨이 채워진 건만 대상. */
-data class SignalKindStat(
-    val kind: SignalKind,
-    val count: Int,
-    val labeled: Int,
+/** 사후 수익률 평균·승률 묶음. 평균은 라벨이 채워진 건만 대상, 측정 불가는 null. */
+data class SignalMetrics(
     val avg1m: Double?,
     val avg2m: Double?,
     val avg20m: Double?,
@@ -29,6 +27,23 @@ data class SignalKindStat(
     val avgMae: Double?,
     /** +20분 수익률 > 0 비율(%). 라벨된 건 기준. */
     val winRate20m: Double?,
+)
+
+/** 종류(매수/매도 스파이크 분리)별 집계 + 시간대별 하위 집계([byBucket]). */
+data class SignalKindStat(
+    val kind: SignalKind,
+    val count: Int,
+    val labeled: Int,
+    val metrics: SignalMetrics,
+    val byBucket: List<TimeBucketStat>,
+)
+
+/** 한 종류 안에서 시간대별로 더 쪼갠 집계. */
+data class TimeBucketStat(
+    val bucket: TimeBucket,
+    val count: Int,
+    val labeled: Int,
+    val metrics: SignalMetrics,
 )
 
 /** 한 종목의 그날 여정 — 신호들을 시간순으로 묶고, 헤더에 종목 단위 성과를 요약. */

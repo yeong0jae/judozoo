@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { motion } from "motion/react";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import { useSignalAnalysis } from "../api/queries";
 import { useLabelSignals } from "../api/mutations";
-import type { SignalKind, SignalKindStat, StockSignalGroup } from "../types";
+import type {
+  SignalKind,
+  SignalKindStat,
+  SignalMetrics,
+  StockSignalGroup,
+  TimeBucket,
+} from "../types";
 
 const KIND_LABEL: Record<SignalKind, string> = {
   BREAKOUT: "돌파",
@@ -13,6 +19,14 @@ const KIND_LABEL: Record<SignalKind, string> = {
   SPIKE_BUY: "매수 스파이크",
   SPIKE_SELL: "매도 스파이크",
   SPIKE_FLAT: "보합 스파이크",
+};
+
+const BUCKET_LABEL: Record<TimeBucket, string> = {
+  PRE_NXT: "오전 NXT",
+  EARLY: "장초반",
+  MID: "장중",
+  LATE: "막판",
+  POST_NXT: "오후 NXT",
 };
 
 /** 매도 스파이크는 진입이 아니라 회피 신호 — 통계도 "승률"이 아니라 주의 표식. */
@@ -39,6 +53,7 @@ function Ret({ v }: { v: number | null }) {
 
 export default function SignalAnalysisPage() {
   const [date, setDate] = useState(todayStr());
+  const [byTime, setByTime] = useState(false);
   const { data, isLoading } = useSignalAnalysis(date);
   const label = useLabelSignals();
 
@@ -70,9 +85,20 @@ export default function SignalAnalysisPage() {
         <EmptyState message={`${date} 신호가 없습니다 — 라벨링은 신호가 쌓인 날에만 의미가 있어요`} />
       ) : (
         <>
+          <div className="flex justify-end">
+            <label className="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={byTime}
+                onChange={(e) => setByTime(e.target.checked)}
+                className="accent-zinc-500"
+              />
+              시간대로 나누기
+            </label>
+          </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <StatTable title="그날 성격 (표본 적음 — 참고용)" stats={data.dayStats} />
-            <StatTable title="전체 누적 (승률 사전)" stats={data.overallStats} />
+            <StatTable title="그날 성격 (표본 적음 — 참고용)" stats={data.dayStats} byTime={byTime} />
+            <StatTable title="전체 누적 (승률 사전)" stats={data.overallStats} byTime={byTime} />
           </div>
           <div className="space-y-3">
             {data.stocks.map((g) => (
@@ -85,7 +111,33 @@ export default function SignalAnalysisPage() {
   );
 }
 
-function StatTable({ title, stats }: { title: string; stats: SignalKindStat[] }) {
+/** 메트릭 셀들 (+1m ~ 승률) — 종류 행·시간대 행 공통. */
+function MetricCells({ m }: { m: SignalMetrics }) {
+  return (
+    <>
+      <td><Ret v={m.avg1m} /></td>
+      <td><Ret v={m.avg2m} /></td>
+      <td><Ret v={m.avg20m} /></td>
+      <td><Ret v={m.avg2h} /></td>
+      <td><Ret v={m.avgClose} /></td>
+      <td><Ret v={m.avgMfe} /></td>
+      <td><Ret v={m.avgMae} /></td>
+      <td className="text-zinc-400">
+        {m.winRate20m == null ? "—" : `${m.winRate20m.toFixed(0)}%`}
+      </td>
+    </>
+  );
+}
+
+function StatTable({
+  title,
+  stats,
+  byTime,
+}: {
+  title: string;
+  stats: SignalKindStat[];
+  byTime: boolean;
+}) {
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
       <h2 className="text-sm font-semibold text-zinc-300 mb-2">{title}</h2>
@@ -111,27 +163,30 @@ function StatTable({ title, stats }: { title: string; stats: SignalKindStat[] })
             {stats.map((s) => {
               const avoid = AVOID_KINDS.includes(s.kind);
               return (
-                <tr key={s.kind} className="text-right border-t border-zinc-800/60">
-                  <td className="text-left py-1">
-                    <span className={avoid ? "text-amber-400" : "text-zinc-200"}>
-                      {KIND_LABEL[s.kind]}
-                    </span>
-                    {avoid && <span className="ml-1 text-[10px] text-amber-500">회피</span>}
-                  </td>
-                  <td className="text-zinc-500">
-                    {s.labeled}/{s.count}
-                  </td>
-                  <td><Ret v={s.avg1m} /></td>
-                  <td><Ret v={s.avg2m} /></td>
-                  <td><Ret v={s.avg20m} /></td>
-                  <td><Ret v={s.avg2h} /></td>
-                  <td><Ret v={s.avgClose} /></td>
-                  <td><Ret v={s.avgMfe} /></td>
-                  <td><Ret v={s.avgMae} /></td>
-                  <td className="text-zinc-400">
-                    {s.winRate20m == null ? "—" : `${s.winRate20m.toFixed(0)}%`}
-                  </td>
-                </tr>
+                <Fragment key={s.kind}>
+                  <tr className="text-right border-t border-zinc-800/60">
+                    <td className="text-left py-1">
+                      <span className={avoid ? "text-amber-400" : "text-zinc-200"}>
+                        {KIND_LABEL[s.kind]}
+                      </span>
+                      {avoid && <span className="ml-1 text-[10px] text-amber-500">회피</span>}
+                    </td>
+                    <td className="text-zinc-500">
+                      {s.labeled}/{s.count}
+                    </td>
+                    <MetricCells m={s.metrics} />
+                  </tr>
+                  {byTime &&
+                    s.byBucket.map((b) => (
+                      <tr key={b.bucket} className="text-right text-zinc-500">
+                        <td className="text-left pl-4 py-0.5">└ {BUCKET_LABEL[b.bucket]}</td>
+                        <td>
+                          {b.labeled}/{b.count}
+                        </td>
+                        <MetricCells m={b.metrics} />
+                      </tr>
+                    ))}
+                </Fragment>
               );
             })}
           </tbody>

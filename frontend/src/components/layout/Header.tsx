@@ -11,8 +11,8 @@ import { useMarketStatus } from "../../api/queries";
 const NAV = [
   { to: "/leading-stocks", label: "주도주 후보 조회" },
   { to: "/signal-log", label: "주도주 실시간 로그" },
-  { to: "/signal-analysis", label: "시그널 분석" },
   { to: "/breakout-radar", label: "주도주 돌파 현황" },
+  { to: "/signal-analysis", label: "시그널 분석" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   // 당분간 숨김 (라우트/페이지는 유지, 필요 시 주석 해제)
   // { to: "/command", label: "매매 명령" },

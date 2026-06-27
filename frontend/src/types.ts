@@ -455,11 +455,11 @@ export type SignalKind =
   | "SPIKE_SELL"
   | "SPIKE_FLAT";
 
-// 종류별 사후 수익률 집계 (평균은 라벨된 건만 대상, 측정 불가는 null)
-export interface SignalKindStat {
-  kind: SignalKind;
-  count: number;
-  labeled: number;
+// 신호 발생 시간대
+export type TimeBucket = "PRE_NXT" | "EARLY" | "MID" | "LATE" | "POST_NXT";
+
+// 사후 수익률 평균·승률 묶음 (라벨된 건만, 측정 불가는 null)
+export interface SignalMetrics {
   avg1m: number | null;
   avg2m: number | null;
   avg20m: number | null;
@@ -468,6 +468,23 @@ export interface SignalKindStat {
   avgMfe: number | null;
   avgMae: number | null;
   winRate20m: number | null; // +20분 > 0 비율(%)
+}
+
+// 한 종류 안에서 시간대별로 쪼갠 집계
+export interface TimeBucketStat {
+  bucket: TimeBucket;
+  count: number;
+  labeled: number;
+  metrics: SignalMetrics;
+}
+
+// 종류별 집계 + 시간대별 하위 집계
+export interface SignalKindStat {
+  kind: SignalKind;
+  count: number;
+  labeled: number;
+  metrics: SignalMetrics;
+  byBucket: TimeBucketStat[];
 }
 
 // 신호 1건 + 사후 라벨 (라벨 없으면 수익률 null)
