@@ -1,3 +1,6 @@
+import { useState } from "react";
+import DatePopover from "./DatePopover";
+
 /** Date → 로컬 기준 YYYY-MM-DD (toISOString은 UTC라 KST 새벽에 하루 밀림). */
 const localStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -5,7 +8,15 @@ const localStr = (d: Date) =>
 /** 로컬 오늘 날짜 (YYYY-MM-DD). */
 export const todayStr = () => localStr(new Date());
 
-/** 좌우 화살표 + 캘린더로 하루씩 이동. date는 YYYY-MM-DD. */
+/** YYYY-MM-DD → "M월 D일 (요일)". */
+const WD = ["일", "월", "화", "수", "목", "금", "토"];
+const label = (s: string) => {
+  const [y, m, d] = s.split("-").map(Number);
+  const wd = WD[new Date(y, m - 1, d).getDay()];
+  return `${m}월 ${d}일 (${wd})`;
+};
+
+/** 좌우 화살표 + 팝업 달력으로 거래일(평일) 이동. date는 YYYY-MM-DD. */
 export default function DateNavigator({
   date,
   onChange,
@@ -13,6 +24,7 @@ export default function DateNavigator({
   date: string;
   onChange: (v: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const shift = (days: number) => {
     const [y, m, d] = date.split("-").map(Number);
     const next = new Date(y, m - 1, d + days);
@@ -33,19 +45,22 @@ export default function DateNavigator({
       >
         ◀
       </button>
-      <input
-        type="date"
-        value={date}
-        max={todayStr()}
-        onChange={(e) => {
-          const [y, m, d] = e.target.value.split("-").map(Number);
-          const day = new Date(y, m - 1, d).getDay();
-          // 주말 선택은 무시 — value가 date에 바인딩돼 입력칸이 원래대로 돌아간다.
-          if (day === 0 || day === 6) return;
-          onChange(e.target.value);
-        }}
-        className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200"
-      />
+      <div className="relative">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="bg-zinc-900 border border-zinc-800 rounded px-3 py-1 text-sm text-zinc-200 hover:bg-zinc-800 min-w-[110px]"
+        >
+          {label(date)}
+        </button>
+        {open && (
+          <DatePopover
+            value={date}
+            today={todayStr()}
+            onChange={onChange}
+            onClose={() => setOpen(false)}
+          />
+        )}
+      </div>
       <button
         onClick={() => shift(1)}
         disabled={isToday}
