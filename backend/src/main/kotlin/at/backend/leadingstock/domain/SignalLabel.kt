@@ -23,9 +23,10 @@ class SignalLabel(
     @Column(name = "entry_price", nullable = false)
     val entryPrice: Long,
 
-    @Column var ret5m: Double? = null,
-    @Column var ret10m: Double? = null,
-    @Column var ret30m: Double? = null,
+    @Column var ret1m: Double? = null,
+    @Column var ret2m: Double? = null,
+    @Column var ret20m: Double? = null,
+    @Column var ret2h: Double? = null,
     @Column var retClose: Double? = null,
     @Column var mfe: Double? = null,
     @Column var mae: Double? = null,
@@ -33,9 +34,10 @@ class SignalLabel(
 
     /** 멱등 재라벨링 — 같은 행에 새 결과를 덮어쓴다. */
     fun apply(result: SignalLabelResult) {
-        ret5m = result.ret5m
-        ret10m = result.ret10m
-        ret30m = result.ret30m
+        ret1m = result.ret1m
+        ret2m = result.ret2m
+        ret20m = result.ret20m
+        ret2h = result.ret2h
         retClose = result.retClose
         mfe = result.mfe
         mae = result.mae

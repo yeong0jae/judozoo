@@ -97,9 +97,10 @@ function StatTable({ title, stats }: { title: string; stats: SignalKindStat[] })
             <tr className="text-right">
               <th className="text-left font-normal py-1">종류</th>
               <th className="font-normal">건수</th>
-              <th className="font-normal">+5m</th>
-              <th className="font-normal">+10m</th>
-              <th className="font-normal">+30m</th>
+              <th className="font-normal">+1m</th>
+              <th className="font-normal">+2m</th>
+              <th className="font-normal">+20m</th>
+              <th className="font-normal">+2h</th>
               <th className="font-normal">종가</th>
               <th className="font-normal">고점</th>
               <th className="font-normal">저점</th>
@@ -120,14 +121,15 @@ function StatTable({ title, stats }: { title: string; stats: SignalKindStat[] })
                   <td className="text-zinc-500">
                     {s.labeled}/{s.count}
                   </td>
-                  <td><Ret v={s.avg5m} /></td>
-                  <td><Ret v={s.avg10m} /></td>
-                  <td><Ret v={s.avg30m} /></td>
+                  <td><Ret v={s.avg1m} /></td>
+                  <td><Ret v={s.avg2m} /></td>
+                  <td><Ret v={s.avg20m} /></td>
+                  <td><Ret v={s.avg2h} /></td>
                   <td><Ret v={s.avgClose} /></td>
                   <td><Ret v={s.avgMfe} /></td>
                   <td><Ret v={s.avgMae} /></td>
                   <td className="text-zinc-400">
-                    {s.winRate10m == null ? "—" : `${s.winRate10m.toFixed(0)}%`}
+                    {s.winRate20m == null ? "—" : `${s.winRate20m.toFixed(0)}%`}
                   </td>
                 </tr>
               );
@@ -167,9 +169,10 @@ function StockCard({ group }: { group: StockSignalGroup }) {
             <th className="text-left font-normal px-3 py-1">시각</th>
             <th className="text-left font-normal">신호</th>
             <th className="font-normal">현재가</th>
-            <th className="font-normal">+5m</th>
-            <th className="font-normal">+10m</th>
-            <th className="font-normal">+30m</th>
+            <th className="font-normal">+1m</th>
+            <th className="font-normal">+2m</th>
+            <th className="font-normal">+20m</th>
+            <th className="font-normal">+2h</th>
             <th className="font-normal">종가</th>
             <th className="font-normal">고점</th>
             <th className="font-normal px-3">저점</th>
@@ -190,9 +193,10 @@ function StockCard({ group }: { group: StockSignalGroup }) {
                   )}
                 </td>
                 <td className="text-zinc-400">{r.currentPrice.toLocaleString()}</td>
-                <td><Ret v={r.ret5m} /></td>
-                <td><Ret v={r.ret10m} /></td>
-                <td><Ret v={r.ret30m} /></td>
+                <td><Ret v={r.ret1m} /></td>
+                <td><Ret v={r.ret2m} /></td>
+                <td><Ret v={r.ret20m} /></td>
+                <td><Ret v={r.ret2h} /></td>
                 <td><Ret v={r.retClose} /></td>
                 <td><Ret v={r.mfe} /></td>
                 <td className="px-3"><Ret v={r.mae} /></td>

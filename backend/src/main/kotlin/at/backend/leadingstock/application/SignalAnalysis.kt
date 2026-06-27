@@ -20,14 +20,15 @@ data class SignalKindStat(
     val kind: SignalKind,
     val count: Int,
     val labeled: Int,
-    val avg5m: Double?,
-    val avg10m: Double?,
-    val avg30m: Double?,
+    val avg1m: Double?,
+    val avg2m: Double?,
+    val avg20m: Double?,
+    val avg2h: Double?,
     val avgClose: Double?,
     val avgMfe: Double?,
     val avgMae: Double?,
-    /** +10분 수익률 > 0 비율(%). 라벨된 건 기준. */
-    val winRate10m: Double?,
+    /** +20분 수익률 > 0 비율(%). 라벨된 건 기준. */
+    val winRate20m: Double?,
 )
 
 /** 한 종목의 그날 여정 — 신호들을 시간순으로 묶고, 헤더에 종목 단위 성과를 요약. */
@@ -50,9 +51,10 @@ data class SignalRow(
     val priceChangeRate: Double,
     val gapRate: Double?,
     val spikeRatio: Double?,
-    val ret5m: Double?,
-    val ret10m: Double?,
-    val ret30m: Double?,
+    val ret1m: Double?,
+    val ret2m: Double?,
+    val ret20m: Double?,
+    val ret2h: Double?,
     val retClose: Double?,
     val mfe: Double?,
     val mae: Double?,

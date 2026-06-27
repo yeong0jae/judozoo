@@ -460,13 +460,14 @@ export interface SignalKindStat {
   kind: SignalKind;
   count: number;
   labeled: number;
-  avg5m: number | null;
-  avg10m: number | null;
-  avg30m: number | null;
+  avg1m: number | null;
+  avg2m: number | null;
+  avg20m: number | null;
+  avg2h: number | null;
   avgClose: number | null;
   avgMfe: number | null;
   avgMae: number | null;
-  winRate10m: number | null; // +10분 > 0 비율(%)
+  winRate20m: number | null; // +20분 > 0 비율(%)
 }
 
 // 신호 1건 + 사후 라벨 (라벨 없으면 수익률 null)
@@ -477,9 +478,10 @@ export interface SignalRow {
   priceChangeRate: number;
   gapRate: number | null;
   spikeRatio: number | null;
-  ret5m: number | null;
-  ret10m: number | null;
-  ret30m: number | null;
+  ret1m: number | null;
+  ret2m: number | null;
+  ret20m: number | null;
+  ret2h: number | null;
   retClose: number | null;
   mfe: number | null; // 신호 후 당일 최대 상승
   mae: number | null; // 신호 후 당일 최대 하락

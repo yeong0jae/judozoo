@@ -70,18 +70,19 @@ class SignalAnalysisService(
     private fun aggregate(events: List<SignalEvent>, label: (SignalEvent) -> SignalLabel?): List<SignalKindStat> =
         events.groupBy { it.kind() }.map { (kind, group) ->
             val labels = group.mapNotNull(label)
-            val ret10s = labels.mapNotNull { it.ret10m }
+            val ret20s = labels.mapNotNull { it.ret20m }
             SignalKindStat(
                 kind = kind,
                 count = group.size,
                 labeled = labels.size,
-                avg5m = labels.mapNotNull { it.ret5m }.avg(),
-                avg10m = ret10s.avg(),
-                avg30m = labels.mapNotNull { it.ret30m }.avg(),
+                avg1m = labels.mapNotNull { it.ret1m }.avg(),
+                avg2m = labels.mapNotNull { it.ret2m }.avg(),
+                avg20m = ret20s.avg(),
+                avg2h = labels.mapNotNull { it.ret2h }.avg(),
                 avgClose = labels.mapNotNull { it.retClose }.avg(),
                 avgMfe = labels.mapNotNull { it.mfe }.avg(),
                 avgMae = labels.mapNotNull { it.mae }.avg(),
-                winRate10m = ret10s.takeIf { it.isNotEmpty() }
+                winRate20m = ret20s.takeIf { it.isNotEmpty() }
                     ?.let { it.count { r -> r > 0 }.toDouble() / it.size * 100 },
             )
         }.sortedBy { it.kind.ordinal }
@@ -98,9 +99,10 @@ class SignalAnalysisService(
                     priceChangeRate = e.priceChangeRate,
                     gapRate = e.gapRate,
                     spikeRatio = e.spikeRatio,
-                    ret5m = l?.ret5m,
-                    ret10m = l?.ret10m,
-                    ret30m = l?.ret30m,
+                    ret1m = l?.ret1m,
+                    ret2m = l?.ret2m,
+                    ret20m = l?.ret20m,
+                    ret2h = l?.ret2h,
                     retClose = l?.retClose,
                     mfe = l?.mfe,
                     mae = l?.mae,

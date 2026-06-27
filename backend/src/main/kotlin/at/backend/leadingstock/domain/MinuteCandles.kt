@@ -81,14 +81,15 @@ class MinuteCandles(candles: List<MinuteCandle>) {
      * 분봉이 없거나 측정 시점 봉이 없으면 해당 항목은 null(측정 불가)이다.
      */
     fun labelFor(occurredAt: LocalDateTime, entryPrice: Long): SignalLabelResult {
-        if (entryPrice <= 0) return SignalLabelResult(null, null, null, null, null, null)
+        if (entryPrice <= 0) return SignalLabelResult(null, null, null, null, null, null, null)
         val after = ordered.filter { !it.dateTime.isBefore(occurredAt) }
-        if (after.isEmpty()) return SignalLabelResult(null, null, null, null, null, null)
+        if (after.isEmpty()) return SignalLabelResult(null, null, null, null, null, null, null)
 
         return SignalLabelResult(
-            ret5m = after.closeAtLeast(occurredAt, 5)?.toReturn(entryPrice),
-            ret10m = after.closeAtLeast(occurredAt, 10)?.toReturn(entryPrice),
-            ret30m = after.closeAtLeast(occurredAt, 30)?.toReturn(entryPrice),
+            ret1m = after.closeAtLeast(occurredAt, 1)?.toReturn(entryPrice),
+            ret2m = after.closeAtLeast(occurredAt, 2)?.toReturn(entryPrice),
+            ret20m = after.closeAtLeast(occurredAt, 20)?.toReturn(entryPrice),
+            ret2h = after.closeAtLeast(occurredAt, 120)?.toReturn(entryPrice),
             retClose = after.last().closePrice.toReturn(entryPrice),
             mfe = after.maxOf { it.highPrice }.toReturn(entryPrice),
             mae = after.minOf { it.lowPrice }.toReturn(entryPrice),
