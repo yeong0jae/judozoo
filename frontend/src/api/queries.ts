@@ -18,7 +18,6 @@ import type {
   MarketSignalEventsResponse,
   MarketType,
   MarketStatus,
-  SignalAnalysis,
   SignalEventsResponse,
   StockPriceResult,
   StockSearchResult,
@@ -46,8 +45,6 @@ export const QK = {
     ["leading-stocks", "signal-events", date] as const,
   marketSignalEvents: (date: string) =>
     ["leading-stocks", "market-signal-events", date] as const,
-  signalAnalysis: (date: string) =>
-    ["leading-stocks", "signal-analysis", date] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -203,13 +200,6 @@ export function useMarketSignalEvents(date: string) {
         `/api/leading-stocks/market-signal-events?date=${date}`,
       ),
     refetchInterval: isToday ? 5_000 : false, // 과거 날짜는 정적 — 폴링 안 함
-  });
-}
-
-export function useSignalAnalysis(date: string) {
-  return useQuery({
-    queryKey: QK.signalAnalysis(date),
-    queryFn: () => apiFetch<SignalAnalysis>(`/api/signal-analysis?date=${date}`),
   });
 }
 

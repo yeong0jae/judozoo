@@ -71,18 +71,4 @@ class SignalEvent(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0
-
-    /** 신호 발생 시간대(NXT 프리·장초반·장중·막판·NXT 애프터). */
-    fun timeBucket(): TimeBucket = TimeBucket.of(occurredAt.toLocalTime())
-
-    /** 통계·전시용 종류 — 매수/매도 스파이크를 갈라 본다. */
-    fun kind(): SignalKind = when (eventType) {
-        SignalEventType.BREAKOUT -> SignalKind.BREAKOUT
-        SignalEventType.BREAKOUT_IMMINENT -> SignalKind.BREAKOUT_IMMINENT
-        SignalEventType.VOLUME_SPIKE -> when (spikeDirection) {
-            SpikeDirection.BUY -> SignalKind.SPIKE_BUY
-            SpikeDirection.SELL -> SignalKind.SPIKE_SELL
-            else -> SignalKind.SPIKE_FLAT
-        }
-    }
 }

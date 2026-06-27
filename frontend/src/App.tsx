@@ -6,7 +6,6 @@ import HoldingsPage from "./pages/HoldingsPage";
 import LeadingStocksPage from "./pages/LeadingStocksPage";
 import BreakoutRadarPage from "./pages/BreakoutRadarPage";
 import SignalLogPage from "./pages/SignalLogPage";
-import SignalAnalysisPage from "./pages/SignalAnalysisPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import ReportPage from "./pages/ReportPage";
 import ThemeCalendarPage from "./pages/ThemeCalendarPage";
@@ -72,7 +71,6 @@ function AppShell() {
               <Route path="/leading-stocks" element={<LeadingStocksPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
               <Route path="/signal-log" element={<SignalLogPage />} />
-              <Route path="/signal-analysis" element={<SignalAnalysisPage />} />
               <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
               <Route path="/command" element={<CommandPage />} />
               <Route path="/monitoring" element={<MonitoringPage />} />
