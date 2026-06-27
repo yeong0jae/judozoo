@@ -98,9 +98,9 @@ function DaySection({ day, selected }: { day: TimelineDay; selected: boolean }) 
   const wd = WD[new Date(y, m - 1, d).getDay()];
 
   return (
-    <section id={`tl-day-${day.date}`} className="scroll-mt-4">
-      {/* 날짜 헤더 — 토스 주차 헤더 자리 */}
-      <div className="flex items-baseline gap-2 pb-2 border-b border-white/[0.08]">
+    <section id={`tl-day-${day.date}`} className="scroll-mt-0">
+      {/* 날짜 헤더 — 스크롤 중 상단 고정(sticky) */}
+      <div className="sticky top-0 z-10 bg-zinc-950 flex items-baseline gap-2 py-2 border-b border-white/[0.08]">
         <h2 className={`text-base font-bold ${selected ? "text-blue-400" : "text-zinc-100"}`}>
           {m}월 {d}일 <span className="font-normal text-zinc-500 text-sm">({wd})</span>
         </h2>

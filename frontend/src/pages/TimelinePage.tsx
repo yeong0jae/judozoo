@@ -88,7 +88,9 @@ export default function TimelinePage() {
             onSelect={setSelectedDate}
           />
         </div>
-        <TimelineView days={days} selectedDate={selectedDate} isLoading={isLoading} />
+        <div className="lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto pr-1">
+          <TimelineView days={days} selectedDate={selectedDate} isLoading={isLoading} />
+        </div>
       </div>
     </div>
   );
