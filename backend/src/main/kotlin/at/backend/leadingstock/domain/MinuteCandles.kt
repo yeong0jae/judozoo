@@ -1,5 +1,6 @@
 package at.backend.leadingstock.domain
 
+import java.time.Duration
 import java.time.LocalDateTime
 
 /**
@@ -73,4 +74,31 @@ class MinuteCandles(candles: List<MinuteCandle>) {
         closePrice < openPrice -> SpikeDirection.SELL
         else -> SpikeDirection.FLAT
     }
+
+    /**
+     * 시그널 1건의 사후 결과를 [entryPrice](신호 순간 현재가) 기준으로 계산한다.
+     * [occurredAt] 이후의 봉만 본다 — `>= occurredAt`을 "신호 이후"로 본다.
+     * 분봉이 없거나 측정 시점 봉이 없으면 해당 항목은 null(측정 불가)이다.
+     */
+    fun labelFor(occurredAt: LocalDateTime, entryPrice: Long): SignalLabelResult {
+        if (entryPrice <= 0) return SignalLabelResult(null, null, null, null, null, null)
+        val after = ordered.filter { !it.dateTime.isBefore(occurredAt) }
+        if (after.isEmpty()) return SignalLabelResult(null, null, null, null, null, null)
+
+        return SignalLabelResult(
+            ret5m = after.closeAtLeast(occurredAt, 5)?.toReturn(entryPrice),
+            ret10m = after.closeAtLeast(occurredAt, 10)?.toReturn(entryPrice),
+            ret30m = after.closeAtLeast(occurredAt, 30)?.toReturn(entryPrice),
+            retClose = after.last().closePrice.toReturn(entryPrice),
+            mfe = after.maxOf { it.highPrice }.toReturn(entryPrice),
+            mae = after.minOf { it.lowPrice }.toReturn(entryPrice),
+        )
+    }
+
+    /** [occurredAt] + [minutes]분 시점 이후 첫 봉의 종가. 그 시점까지 봉이 없으면 null. */
+    private fun List<MinuteCandle>.closeAtLeast(occurredAt: LocalDateTime, minutes: Long): Long? =
+        firstOrNull { !it.dateTime.isBefore(occurredAt.plus(Duration.ofMinutes(minutes))) }?.closePrice
+
+    private fun Long.toReturn(entryPrice: Long): Double =
+        (this - entryPrice).toDouble() / entryPrice * 100
 }

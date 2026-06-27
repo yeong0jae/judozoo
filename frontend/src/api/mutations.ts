@@ -62,3 +62,19 @@ export function useCaptureThemes() {
     },
   });
 }
+
+/** 그 날짜 신호 라벨링(멱등) — 끝나면 해당 날짜 분석을 새로고침. */
+export function useLabelSignals() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (date: string) =>
+      apiFetch<number>(`/api/signal-analysis/label?date=${date}`, {
+        method: "POST",
+      }),
+    onSuccess: (_, date) => {
+      qc.invalidateQueries({
+        queryKey: ["leading-stocks", "signal-analysis", date],
+      });
+    },
+  });
+}

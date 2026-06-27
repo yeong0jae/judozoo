@@ -146,4 +146,81 @@ class MinuteCandlesTest : FunSpec({
             bear.volumeSpike(baselineBars = 3)!!.direction shouldBe SpikeDirection.SELL
         }
     }
+
+    // OHLC를 모두 지정하는 봉 (사후 라벨은 종가·고가·저가를 본다)
+    fun ohlc(minute: Int, open: Long, high: Long, low: Long, close: Long) =
+        MinuteCandle(
+            dateTime = base.plusMinutes(minute.toLong()),
+            openPrice = open,
+            highPrice = high,
+            lowPrice = low,
+            closePrice = close,
+            volume = 0,
+            tradingValue = 0,
+        )
+
+    context("시그널 사후 라벨") {
+        // 신호 09:00, 진입가 1000. 이후 봉들로 각 수익률이 결정된다.
+        val candles = MinuteCandles(
+            listOf(
+                ohlc(0, 1000, 1000, 1000, 1000),  // 신호봉
+                ohlc(5, 1000, 1200, 1000, 1100),  // +5분 종가 1100, 고가 1200
+                ohlc(10, 1100, 1100, 1050, 1050), // +10분 종가 1050
+                ohlc(30, 1050, 1050, 880, 900),   // +30분 종가 900, 저가 880
+                ohlc(40, 900, 1030, 900, 1020),   // 마지막 = 당일 종가 1020
+            ),
+        )
+
+        test("신호 이후 각 호라이즌 시점 봉 종가로 진입가 대비 수익률을 낸다") {
+            val l = candles.labelFor(base, entryPrice = 1000)
+            l.ret5m shouldBe (10.0 plusOrMinus 0.001)    // 1100
+            l.ret10m shouldBe (5.0 plusOrMinus 0.001)    // 1050
+            l.ret30m shouldBe (-10.0 plusOrMinus 0.001)  // 900
+            l.retClose shouldBe (2.0 plusOrMinus 0.001)  // 1020
+            l.mfe shouldBe (20.0 plusOrMinus 0.001)      // 최고가 1200
+            l.mae shouldBe (-12.0 plusOrMinus 0.001)     // 최저가 880
+        }
+
+        test("측정 시점까지 봉이 없으면 그 호라이즌만 null(측정 불가)") {
+            // 신호 후 10분치만 있으면 +30분·종가는 그날 마지막 봉으로, +30분은 측정 불가
+            val short = MinuteCandles(
+                listOf(
+                    ohlc(0, 1000, 1000, 1000, 1000),
+                    ohlc(5, 1000, 1100, 1000, 1100),
+                    ohlc(10, 1100, 1100, 1100, 1050),
+                ),
+            )
+            val l = short.labelFor(base, entryPrice = 1000)
+            l.ret5m shouldBe (10.0 plusOrMinus 0.001)
+            l.ret10m shouldBe (5.0 plusOrMinus 0.001)
+            l.ret30m shouldBe null
+        }
+
+        test("신호 이전 봉은 고점·저점·종가 계산에서 제외한다") {
+            // 08:55 봉이 고가 9999여도 신호(09:00) 이전이라 mfe에 들어가지 않는다
+            val withPrior = MinuteCandles(
+                listOf(ohlc(-5, 1000, 9999, 1000, 1000)) + candles.let {
+                    listOf(
+                        ohlc(0, 1000, 1000, 1000, 1000),
+                        ohlc(5, 1000, 1200, 1000, 1100),
+                        ohlc(40, 900, 1030, 900, 1020),
+                    )
+                },
+            )
+            withPrior.labelFor(base, entryPrice = 1000).mfe shouldBe (20.0 plusOrMinus 0.001)
+        }
+
+        test("분봉이 없으면 모두 null") {
+            val l = MinuteCandles(emptyList()).labelFor(base, entryPrice = 1000)
+            l.ret5m shouldBe null
+            l.retClose shouldBe null
+            l.mfe shouldBe null
+        }
+
+        test("진입가가 0 이하면 모두 null") {
+            val l = candles.labelFor(base, entryPrice = 0)
+            l.ret5m shouldBe null
+            l.mfe shouldBe null
+        }
+    }
 })

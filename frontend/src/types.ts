@@ -446,3 +446,58 @@ export interface InvestorTrendDay {
   foreignNetNxt: number;
   institutionNetNxt: number;
 }
+
+// 시그널 분석 — 매수/매도 스파이크를 분리한 종류
+export type SignalKind =
+  | "BREAKOUT"
+  | "BREAKOUT_IMMINENT"
+  | "SPIKE_BUY"
+  | "SPIKE_SELL"
+  | "SPIKE_FLAT";
+
+// 종류별 사후 수익률 집계 (평균은 라벨된 건만 대상, 측정 불가는 null)
+export interface SignalKindStat {
+  kind: SignalKind;
+  count: number;
+  labeled: number;
+  avg5m: number | null;
+  avg10m: number | null;
+  avg30m: number | null;
+  avgClose: number | null;
+  avgMfe: number | null;
+  avgMae: number | null;
+  winRate10m: number | null; // +10분 > 0 비율(%)
+}
+
+// 신호 1건 + 사후 라벨 (라벨 없으면 수익률 null)
+export interface SignalRow {
+  occurredAt: string;
+  kind: SignalKind;
+  currentPrice: number;
+  priceChangeRate: number;
+  gapRate: number | null;
+  spikeRatio: number | null;
+  ret5m: number | null;
+  ret10m: number | null;
+  ret30m: number | null;
+  retClose: number | null;
+  mfe: number | null; // 신호 후 당일 최대 상승
+  mae: number | null; // 신호 후 당일 최대 하락
+}
+
+// 한 종목의 그날 여정 (신호 시간순 + 헤더 요약)
+export interface StockSignalGroup {
+  stockCode: string;
+  stockName: string;
+  theme: string | null;
+  bestMfe: number | null;
+  closeRet: number | null;
+  signals: SignalRow[];
+}
+
+export interface SignalAnalysis {
+  date: string;
+  dayStats: SignalKindStat[];
+  overallStats: SignalKindStat[];
+  stocks: StockSignalGroup[];
+}
