@@ -1,12 +1,8 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import NotificationBell from "../header/NotificationBell";
-import MarketStatusBadge from "../header/MarketStatusBadge";
 import KospiIndexBadge from "../header/KospiIndexBadge";
 import KosdaqIndexBadge from "../header/KosdaqIndexBadge";
-import StompStatusBadge from "../header/StompStatusBadge";
 import SettingsButton from "../header/SettingsButton";
-import { useMarketStatus } from "../../api/queries";
 
 const NAV = [
   { to: "/leading-stocks", label: "주도주 후보 조회" },
@@ -25,7 +21,6 @@ const activeItem = "bg-white/[0.06] text-zinc-100";
 const inactiveItem = "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.03]";
 
 export default function Header() {
-  const { data: status } = useMarketStatus();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -53,17 +48,12 @@ export default function Header() {
           <div className="flex items-center gap-1">
             <KospiIndexBadge />
             <KosdaqIndexBadge />
-            <NotificationBell />
-            {status && <MarketStatusBadge status={status} />}
-            <StompStatusBadge />
             <SettingsButton />
           </div>
         </div>
 
-        {/* 모바일: 핵심 배지 + 햄버거 */}
+        {/* 모바일: 햄버거 */}
         <div className="flex md:hidden items-center gap-1">
-          {status && <MarketStatusBadge status={status} />}
-          <NotificationBell />
           <button
             type="button"
             onClick={() => setMenuOpen((o) => !o)}
@@ -119,7 +109,6 @@ export default function Header() {
           <div className="flex items-center flex-wrap gap-2 pt-3 border-t border-white/[0.04]">
             <KospiIndexBadge />
             <KosdaqIndexBadge />
-            <StompStatusBadge />
             <SettingsButton />
           </div>
         </div>
