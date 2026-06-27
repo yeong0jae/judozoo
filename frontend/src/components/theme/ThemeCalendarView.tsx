@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import type { ThemeDayItem, ThemeItem } from "../../types";
 import Skeleton from "../common/Skeleton";
 import ThemeTreemap, { TreemapLegend } from "./ThemeTreemap";
@@ -15,7 +15,7 @@ function ymd(d: Date): string {
   ).padStart(2, "0")}`;
 }
 
-/** 테마 대표 등락 = 거래대금 1위 종목의 등락률. 색바 색을 정한다. */
+/** 테마 대표 등락 = 거래대금 1위 종목의 등락률. 색바·팝오버 등락 표시에 쓴다. */
 function themeRate(t: ThemeItem): number | null {
   return t.stocks[0]?.priceChangeRate ?? null;
 }
@@ -23,10 +23,18 @@ function barColor(rate: number | null): string {
   if (rate === null) return "bg-zinc-600";
   return rate >= 0 ? "bg-red-400" : "bg-blue-400";
 }
+function rateText(rate: number | null): string {
+  if (rate === null) return "";
+  return `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`;
+}
+function rateClass(rate: number | null): string {
+  if (rate === null) return "text-zinc-600";
+  return rate >= 0 ? "text-red-400" : "text-blue-400";
+}
 
 /**
  * 테마 캘린더 프레젠테이션 — 데이터(month/days)는 props로 받아 순수 렌더.
- * 토스 경제 캘린더 스타일: 좌 선택일 상세 + 우 큰 월 그리드 + 하단 섹터 트리맵(풀폭).
+ * 큰 월 그리드(풀폭) + 하단 섹터 트리맵(선택일 기준). 칸 hover 시 그날 전체 테마+등락 팝오버.
  */
 export default function ThemeCalendarView({
   month,
@@ -66,7 +74,7 @@ export default function ThemeCalendarView({
   }, [month, monthEnd]);
 
   const monthLabel = `${month.getFullYear()}년 ${month.getMonth() + 1}월`;
-  const detailDate = selectedDate ?? today;
+  const treemapDate = selectedDate ?? today;
 
   return (
     <div className="space-y-4">
@@ -88,136 +96,76 @@ export default function ThemeCalendarView({
         </motion.button>
       </div>
 
-      {/* 좌: 선택일 상세(좁게) / 우: 큰 월 그리드(넓게) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[6fr_14fr] gap-4 items-start">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={detailDate}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 8 }}
-            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <DayDetail date={detailDate} themes={byDate.get(detailDate)?.themes ?? []} />
-          </motion.div>
-        </AnimatePresence>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="text-base font-semibold tabular-nums">{monthLabel}</span>
+          <div className="flex gap-1">
+            <motion.button
+              onClick={() => onShiftMonth(-1)}
+              whileTap={{ scale: 0.85 }}
+              className="px-2 py-0.5 rounded text-zinc-400 hover:bg-zinc-800"
+              aria-label="이전 달"
+            >
+              ‹
+            </motion.button>
+            <motion.button
+              onClick={() => onShiftMonth(1)}
+              whileTap={{ scale: 0.85 }}
+              className="px-2 py-0.5 rounded text-zinc-400 hover:bg-zinc-800"
+              aria-label="다음 달"
+            >
+              ›
+            </motion.button>
+          </div>
+        </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-base font-semibold tabular-nums">{monthLabel}</span>
-            <div className="flex gap-1">
-              <motion.button
-                onClick={() => onShiftMonth(-1)}
-                whileTap={{ scale: 0.85 }}
-                className="px-2 py-0.5 rounded text-zinc-400 hover:bg-zinc-800"
-                aria-label="이전 달"
-              >
-                ‹
-              </motion.button>
-              <motion.button
-                onClick={() => onShiftMonth(1)}
-                whileTap={{ scale: 0.85 }}
-                className="px-2 py-0.5 rounded text-zinc-400 hover:bg-zinc-800"
-                aria-label="다음 달"
-              >
-                ›
-              </motion.button>
+        {isLoading ? (
+          <Skeleton className="h-[32rem] w-full" />
+        ) : (
+          <div>
+            <div className="grid grid-cols-7">
+              {WEEKDAYS.map((w, i) => (
+                <div
+                  key={w}
+                  className={`pb-2 text-xs font-medium border-b border-white/[0.08] ${
+                    i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-zinc-400"
+                  }`}
+                >
+                  {w}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5 pt-1.5">
+              {cells.map((d, i) =>
+                d === null ? (
+                  <div key={`empty-${i}`} className="min-h-28" />
+                ) : (
+                  <DayCell
+                    key={ymd(d)}
+                    day={d.getDate()}
+                    themes={byDate.get(ymd(d))?.themes ?? []}
+                    isToday={ymd(d) === today}
+                    isSelected={ymd(d) === selectedDate}
+                    onSelect={() => setSelectedDate(ymd(d))}
+                  />
+                ),
+              )}
             </div>
           </div>
-
-          {isLoading ? (
-            <Skeleton className="h-[32rem] w-full" />
-          ) : (
-            <div>
-              <div className="grid grid-cols-7">
-                {WEEKDAYS.map((w, i) => (
-                  <div
-                    key={w}
-                    className={`pb-2 text-xs font-medium border-b border-white/[0.08] ${
-                      i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-zinc-400"
-                    }`}
-                  >
-                    {w}
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-1.5 pt-1.5">
-                {cells.map((d, i) =>
-                  d === null ? (
-                    <div key={`empty-${i}`} className="min-h-28" />
-                  ) : (
-                    <DayCell
-                      key={ymd(d)}
-                      day={d.getDate()}
-                      themes={byDate.get(ymd(d))?.themes ?? []}
-                      isToday={ymd(d) === today}
-                      isSelected={ymd(d) === selectedDate}
-                      onSelect={() => setSelectedDate(ymd(d))}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* 하단 풀폭: 선택일(없으면 오늘) 섹터별 트리맵 */}
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-semibold text-zinc-200">
-            {detailDate} 섹터별 현황
+            {treemapDate} 섹터별 현황
             <span className="text-xs text-zinc-500 font-normal"> · 거래대금 √스케일 / 등락률 색</span>
           </h3>
           <TreemapLegend />
         </div>
-        <ThemeTreemap themes={byDate.get(detailDate)?.themes ?? []} />
+        <ThemeTreemap themes={byDate.get(treemapDate)?.themes ?? []} />
       </section>
-    </div>
-  );
-}
-
-function DayDetail({ date, themes }: { date: string; themes: ThemeItem[] }) {
-  return (
-    <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl p-4 lg:sticky lg:top-4">
-      <h3 className="text-sm font-semibold text-zinc-200 mb-3">{date} 테마별 주도 종목</h3>
-      {themes.length === 0 ? (
-        <p className="text-sm text-zinc-500">이 날짜에 적재된 테마가 없습니다</p>
-      ) : (
-        <div className="space-y-3 max-h-[36rem] overflow-auto pr-1">
-          {themes.map((t) => (
-            <div key={t.rank} className="border-b border-white/[0.06] pb-3 last:border-0 last:pb-0">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-medium text-zinc-200">
-                  <span className="text-zinc-600 num mr-1.5">{t.rank}</span>
-                  {t.name}
-                </span>
-                <span className="num text-sm text-amber-400 shrink-0">
-                  {formatKoreanMoney(t.tradingValue)}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
-                {t.stocks.map((s) => (
-                  <span key={s.stockCode} className="text-xs text-zinc-400">
-                    {s.stockName}{" "}
-                    <span className="num text-zinc-500">{formatKoreanMoney(s.tradingValue)}</span>
-                    {s.priceChangeRate !== null && (
-                      <span
-                        className={`num ml-1 ${
-                          s.priceChangeRate >= 0 ? "text-red-400" : "text-blue-400"
-                        }`}
-                      >
-                        {s.priceChangeRate >= 0 ? "+" : ""}
-                        {s.priceChangeRate.toFixed(2)}%
-                      </span>
-                    )}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -265,20 +213,26 @@ function DayCell({
         {extra > 0 && <span className="text-[10px] text-zinc-600 pl-2">+{extra}</span>}
       </div>
 
-      {/* hover 시 그날 전체 테마 팝오버 — "+N"에 가려진 나머지까지 */}
+      {/* hover 시 그날 전체 테마 팝오버 — 거래대금 + 대표 등락률(1위 종목) */}
       {themes.length > 0 && (
-        <div className="hidden group-hover:block absolute left-0 top-full z-50 mt-1 w-60 max-h-72 overflow-auto rounded-md border border-zinc-700 bg-zinc-950 p-2 shadow-lg">
-          {themes.map((t) => (
-            <div key={t.rank} className="flex items-baseline justify-between gap-2 py-0.5 text-xs">
-              <span className="text-zinc-300 truncate">
-                <span className="text-zinc-600 num mr-1">{t.rank}</span>
-                {t.name}
-              </span>
-              <span className="num shrink-0 text-amber-400">
-                {formatKoreanMoney(t.tradingValue)}
-              </span>
-            </div>
-          ))}
+        <div className="hidden group-hover:block absolute left-0 top-full z-50 mt-1 w-72 max-h-80 overflow-auto rounded-md border border-zinc-700 bg-zinc-950 p-2 shadow-lg">
+          {themes.map((t) => {
+            const rate = themeRate(t);
+            return (
+              <div key={t.rank} className="flex items-baseline justify-between gap-2 py-0.5 text-xs">
+                <span className="text-zinc-300 truncate">
+                  <span className="text-zinc-600 num mr-1">{t.rank}</span>
+                  {t.name}
+                </span>
+                <span className="shrink-0 flex items-baseline gap-1.5">
+                  <span className="num text-amber-400">{formatKoreanMoney(t.tradingValue)}</span>
+                  {rate !== null && (
+                    <span className={`num w-14 text-right ${rateClass(rate)}`}>{rateText(rate)}</span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </motion.div>
