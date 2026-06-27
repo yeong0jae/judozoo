@@ -167,7 +167,7 @@ export default function ThemeCalendarView({
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-semibold text-zinc-200">
             {detailDate} 섹터별 현황
-            <span className="text-xs text-zinc-500 font-normal"> · 거래대금 크기 / 등락률 색</span>
+            <span className="text-xs text-zinc-500 font-normal"> · 거래대금 √스케일 / 등락률 색</span>
           </h3>
           <TreemapLegend />
         </div>

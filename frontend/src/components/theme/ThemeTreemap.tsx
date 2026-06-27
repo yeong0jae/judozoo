@@ -77,7 +77,9 @@ export default function ThemeTreemap({ themes }: { themes: ThemeItem[] }) {
           .round(true)(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           hierarchy<any>({ name: "root", children: groups })
-            .sum((d: { value?: number }) => d.value ?? 0)
+            // 면적은 √거래대금 — 삼성전자·SK하이닉스 같은 초대형주가 화면을 독식해
+            // 작은 테마가 안 보이는 것을 완화한다(크기 차이를 압축, 순서는 유지).
+            .sum((d: { value?: number }) => (d.value ? Math.sqrt(d.value) : 0))
             .sort((a, b) => (b.value ?? 0) - (a.value ?? 0)),
         )
       : null;
