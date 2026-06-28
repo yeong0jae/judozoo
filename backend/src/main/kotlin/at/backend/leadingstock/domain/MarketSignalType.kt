@@ -7,4 +7,7 @@ enum class MarketSignalType {
 
     /** 지수 1분봉이 같은 색(양봉/음봉)으로 5연속 이상 이어진 전이. */
     CANDLE_STREAK,
+
+    /** 투자자 누적 순매수 흐름이 정점에서 임계 이상 되돌려 방향이 꺾인 전환. */
+    NET_FLOW_TURN,
 }

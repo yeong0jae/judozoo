@@ -1,5 +1,6 @@
 package at.backend.leadingstock.application
 
+import at.backend.leadingstock.domain.InvestorFlowState
 import at.backend.leadingstock.domain.InvestorNetBuyState
 import at.backend.leadingstock.domain.InvestorType
 import at.backend.leadingstock.domain.MarketSignalEvent
@@ -34,6 +35,7 @@ class MarketSignalEventPoller(
 ) {
     private val log = KotlinLogging.logger {}
     private val states = ConcurrentHashMap<String, InvestorNetBuyState>()
+    private val flowStates = ConcurrentHashMap<String, InvestorFlowState>()
     private val tradeDate = AtomicReference<LocalDate?>(null)
     private val sessionStart: LocalTime = LocalTime.parse(sessionStart)
     private val sessionEnd: LocalTime = LocalTime.parse(sessionEnd)
@@ -48,7 +50,10 @@ class MarketSignalEventPoller(
 
     private fun detect() {
         val today = timeProvider.today()
-        if (tradeDate.getAndSet(today) != today) states.clear() // 일자 전환 — 직전 단계 폐기
+        if (tradeDate.getAndSet(today) != today) {
+            states.clear() // 일자 전환 — 직전 단계 폐기
+            flowStates.clear()
+        }
 
         val now = timeProvider.now()
         val recorded = Market.entries.flatMap { market ->
@@ -56,27 +61,38 @@ class MarketSignalEventPoller(
             val step = MarketSignalThresholds.stepEok(market)
             val buffer = MarketSignalThresholds.bufferEok(market)
 
-            netBuyByInvestor(snapshot).mapNotNull { (investor, netEok) ->
+            netBuyByInvestor(snapshot).flatMap { (investor, netEok) ->
                 val key = "$market|$investor"
-                val (transition, next) = (states[key] ?: InvestorNetBuyState.INITIAL)
+
+                // 1) 순매수 단계 — 그날 같은 조합은 한 번만(재시작·회복 재발화 방지).
+                val (transition, nextLevel) = (states[key] ?: InvestorNetBuyState.INITIAL)
                     .advance(netEok, step, buffer)
-                states[key] = next
-                val t = transition ?: return@mapNotNull null
-                // 재시작(메모리 소실)·회복 시 같은 단계가 다시 찍히는 것 방지 — 그날 같은 조합은 한 번만.
-                if (marketSignalEventService.alreadyFiredNetBuyLevel(today, market, investor, t.side, t.level)) {
-                    return@mapNotNull null
+                states[key] = nextLevel
+                val levelEvent = transition
+                    ?.takeUnless {
+                        marketSignalEventService.alreadyFiredNetBuyLevel(today, market, investor, it.side, it.level)
+                    }
+                    ?.let {
+                        MarketSignalEvent.netBuyLevel(
+                            occurredAt = now, tradeDate = today, market = market, investor = investor,
+                            side = it.side, level = it.level, netAmountEok = netEok,
+                            indexValue = snapshot.indexValue, changeRate = snapshot.changeRate,
+                        )
+                    }
+
+                // 2) 흐름 전환 — 정점에서 임계 이상 되돌리면 방향 꺾임.
+                val (turn, nextFlow) = (flowStates[key] ?: InvestorFlowState.INITIAL)
+                    .advance(netEok, MarketSignalThresholds.REVERSAL_EOK)
+                flowStates[key] = nextFlow
+                val turnEvent = turn?.let {
+                    MarketSignalEvent.netFlowTurn(
+                        occurredAt = now, tradeDate = today, market = market, investor = investor,
+                        side = it.to, netAmountEok = netEok,
+                        indexValue = snapshot.indexValue, changeRate = snapshot.changeRate,
+                    )
                 }
-                MarketSignalEvent.netBuyLevel(
-                    occurredAt = now,
-                    tradeDate = today,
-                    market = market,
-                    investor = investor,
-                    side = t.side,
-                    level = t.level,
-                    netAmountEok = netEok,
-                    indexValue = snapshot.indexValue,
-                    changeRate = snapshot.changeRate,
-                )
+
+                listOfNotNull(levelEvent, turnEvent)
             }
         }
 

@@ -49,13 +49,17 @@ function rateText(rate: number | null): string {
 }
 function marketDesc(e: MarketSignalEventItem): string {
   const who = e.investor ? INVESTOR_LABEL[e.investor] : "";
+  if (e.kind === "NET_FLOW_TURN") {
+    return `${who} ${e.side === "BUY" ? "매수" : "매도"} 전환`.trim();
+  }
   const amt = e.netAmountEok != null ? `${eok(e.netAmountEok)} ` : "";
   return `${who} ${amt}${e.side === "BUY" ? "순매수" : "순매도"}`.trim();
 }
 
 function toItems(markets: MarketSignalEventItem[]): TLItem[] {
   return markets
-    .filter((e) => e.kind === "NET_BUY_LEVEL") // 투자자 순매수/순매도만 (연속 양봉·음봉 제외)
+    // 투자자 순매수 단계 + 흐름 전환만 (연속 양봉·음봉 제외)
+    .filter((e) => e.kind === "NET_BUY_LEVEL" || e.kind === "NET_FLOW_TURN")
     .map((e) => ({
       time: hhmm(e.occurredAt),
       hour: hourOf(e.occurredAt),

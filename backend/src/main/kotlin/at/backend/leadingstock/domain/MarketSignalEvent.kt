@@ -115,5 +115,30 @@ class MarketSignalEvent(
             indexValue = indexValue,
             changeRate = changeRate,
         )
+
+        /**
+         * 투자자 누적 순매수 흐름 전환. [side]=전환해 향하는 방향(매수 전환이면 BUY).
+         * [netAmountEok]=전환 시점 누적(억원, 부호 포함) — 부호는 아직 직전 방향일 수 있다.
+         */
+        fun netFlowTurn(
+            occurredAt: LocalDateTime,
+            tradeDate: LocalDate,
+            market: Market,
+            investor: InvestorType,
+            side: NetTradeSide,
+            netAmountEok: Long,
+            indexValue: Double?,
+            changeRate: Double?,
+        ) = MarketSignalEvent(
+            occurredAt = occurredAt,
+            tradeDate = tradeDate,
+            kind = MarketSignalType.NET_FLOW_TURN,
+            market = market,
+            side = side,
+            investor = investor,
+            netAmountEok = netAmountEok,
+            indexValue = indexValue,
+            changeRate = changeRate,
+        )
     }
 }

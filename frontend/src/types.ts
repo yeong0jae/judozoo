@@ -345,7 +345,7 @@ export interface SignalEventsResponse {
 export type MarketType = "KOSPI" | "KOSDAQ";
 export type InvestorType = "FOREIGN" | "INSTITUTION" | "INDIVIDUAL";
 export type NetTradeSide = "BUY" | "SELL";
-export type MarketSignalType = "NET_BUY_LEVEL" | "CANDLE_STREAK";
+export type MarketSignalType = "NET_BUY_LEVEL" | "CANDLE_STREAK" | "NET_FLOW_TURN";
 
 export interface MarketSignalEventItem {
   occurredAt: string; // ISO LocalDateTime

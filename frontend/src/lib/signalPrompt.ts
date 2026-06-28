@@ -32,10 +32,13 @@ function fmtEok(eok: number): string {
 /** 지수 시그널 한 줄 — 시각 · 시장 · 내용 · 지수값 · 등락률. */
 function marketLine(m: MarketSignalEventItem): string {
   const side = m.side === "BUY" ? "매수" : "매도";
+  const investor = INVESTOR_LABEL[m.investor ?? "FOREIGN"];
   const desc =
     m.kind === "CANDLE_STREAK"
       ? `${m.streak}연속 ${side}`
-      : `${INVESTOR_LABEL[m.investor ?? "FOREIGN"]} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
+      : m.kind === "NET_FLOW_TURN"
+        ? `${investor} ${side} 전환`
+        : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
   const idx =
     m.indexValue != null
       ? ` · 지수 ${m.indexValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

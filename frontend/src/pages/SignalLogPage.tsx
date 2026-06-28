@@ -103,7 +103,9 @@ function marketParts(m: MarketSignalEventItem) {
     : INVESTOR_LABEL[m.investor ?? "FOREIGN"];
   const rightLabel = isCandle
     ? ""
-    : `${formatEok(m.thresholdEok ?? 0)} ${m.side === "BUY" ? "순매수" : "순매도"}`;
+    : m.kind === "NET_FLOW_TURN"
+      ? `${m.side === "BUY" ? "매수" : "매도"} 전환`
+      : `${formatEok(m.thresholdEok ?? 0)} ${m.side === "BUY" ? "순매수" : "순매도"}`;
   return { sideCls, isCandle, leftLabel, rightLabel };
 }
 
