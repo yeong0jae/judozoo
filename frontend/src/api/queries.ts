@@ -218,7 +218,7 @@ export function useOverseasRanking() {
       apiFetch<OverseasStockRankItem[]>(
         `/api/overseas-leading-stocks/ranking`,
       ),
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
   });
 }
 

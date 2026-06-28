@@ -114,7 +114,7 @@ function Header({
     <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
       <div>
         <h2 className="text-xl font-bold flex items-center gap-2">
-          해외주식 거래대금 순위
+          주도주 후보
           <span
             className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
               loading ? "animate-ping" : "animate-pulse"
@@ -123,7 +123,7 @@ function Header({
           />
         </h2>
         <p className="text-xs text-zinc-500 mt-0.5">
-          나스닥·뉴욕·아멕스 통합 거래대금 상위 40위 · 30초 자동 갱신
+          나스닥·뉴욕·아멕스 통합 거래대금 상위 40위 · 15초 자동 갱신
         </p>
       </div>
       {typeof totalCount === "number" && (

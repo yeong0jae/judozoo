@@ -95,9 +95,9 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
-            "kisOverseasRanking", // KIS 해외주식 거래대금순위 — 거래소별(NYS/NAS/AMS) 슬롯, 30s TTL
+            "kisOverseasRanking", // KIS 해외주식 거래대금순위 — 거래소별(NYS/NAS/AMS) 슬롯, 15s TTL
             Caffeine.newBuilder()
-                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .expireAfterWrite(15, TimeUnit.SECONDS)
                 .maximumSize(3)
                 .build(),
         )
