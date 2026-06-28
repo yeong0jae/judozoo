@@ -2,13 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import { todayStr } from "../components/common/DateNavigator";
 import type {
-  AccountBalance,
   BreakoutRadarResponse,
   DailyCandleItem,
   CandidateStocksResponse,
-  DailyReport,
-  DailyTrading,
-  Holding,
   InvestorTrendDay,
   KospiIndex,
   MarketIndex,
@@ -19,24 +15,14 @@ import type {
   MarketType,
   MarketStatus,
   SignalEventsResponse,
-  StockPriceResult,
   StockSearchResult,
   ThemeCalendarResponse,
-  TradingDetail,
-  TradingSummary,
 } from "../types";
 
 export const QK = {
   instanceInfo: ["system", "instance"] as const,
   marketStatus: ["market", "status"] as const,
-  accountBalance: ["account", "balance"] as const,
-  holdings: ["account", "holdings"] as const,
-  activeCommands: ["trading", "active"] as const,
-  todayClosed: ["trading", "today"] as const,
-  commandDetail: (id: number) => ["trading", "detail", id] as const,
   stockSearch: (q: string) => ["stocks", "search", q] as const,
-  stockPrice: (code: string) => ["stocks", "price", code] as const,
-  dailyReport: (date: string) => ["reports", "daily", date] as const,
   leadingStockCandidates: (minChangeRate: number) =>
     ["leading-stocks", "candidates", minChangeRate] as const,
   breakoutRadar: (minChangeRate: number) =>
@@ -68,7 +54,6 @@ export interface InstanceInfo {
 }
 
 export function useInstanceInfo() {
-  // 부팅 시점에 결정되어 런타임 중 변경 안 됨 → 영구 캐시.
   return useQuery({
     queryKey: QK.instanceInfo,
     queryFn: () => apiFetch<InstanceInfo>("/api/system/instance"),
@@ -85,45 +70,6 @@ export function useMarketStatus() {
   });
 }
 
-export function useAccountBalance() {
-  return useQuery({
-    queryKey: QK.accountBalance,
-    queryFn: () => apiFetch<AccountBalance>("/api/account/balance"),
-  });
-}
-
-export function useHoldings() {
-  return useQuery({
-    queryKey: QK.holdings,
-    queryFn: () => apiFetch<Holding[]>("/api/account/holdings"),
-  });
-}
-
-export function useActiveCommands() {
-  return useQuery({
-    queryKey: QK.activeCommands,
-    queryFn: () =>
-      apiFetch<TradingSummary[]>("/api/trading?status=active"),
-  });
-}
-
-export function useTodayClosed() {
-  return useQuery({
-    queryKey: QK.todayClosed,
-    queryFn: () =>
-      apiFetch<DailyTrading[]>("/api/trading?status=today"),
-  });
-}
-
-export function useCommandDetail(id: number | null) {
-  return useQuery({
-    queryKey: id ? QK.commandDetail(id) : ["trading", "detail", "null"],
-    queryFn: () => apiFetch<TradingDetail>(`/api/trading/${id}`),
-    enabled: id !== null,
-  });
-}
-
-// 백엔드 검색은 로컬 종목 카탈로그(이름/코드 부분일치)라 2자 이상이면 질의한다.
 export const STOCK_SEARCH_MIN_LEN = 2;
 
 export function useStockSearch(query: string) {
@@ -138,25 +84,6 @@ export function useStockSearch(query: string) {
   });
 }
 
-export function useStockPrice(code: string | null) {
-  return useQuery({
-    queryKey: code ? QK.stockPrice(code) : ["stocks", "price", "null"],
-    queryFn: () =>
-      apiFetch<StockPriceResult>(`/api/stocks/${code}/price`),
-    enabled: code !== null,
-  });
-}
-
-export function useDailyReport(date: string) {
-  return useQuery({
-    queryKey: QK.dailyReport(date),
-    queryFn: () =>
-      apiFetch<DailyReport[]>(`/api/reports/daily?date=${date}`),
-  });
-}
-
-// === 주도주 (Leading Stocks) ===
-// 백엔드의 candidateStocks 캐시(5s TTL)와 같은 호흡으로 폴링
 export function useLeadingStockCandidates(minChangeRate: number) {
   return useQuery({
     queryKey: QK.leadingStockCandidates(minChangeRate),
@@ -187,7 +114,7 @@ export function useSignalEvents(date: string) {
       apiFetch<SignalEventsResponse>(
         `/api/leading-stocks/signal-events?date=${date}`,
       ),
-    refetchInterval: isToday ? 5_000 : false, // 과거 날짜는 정적 — 폴링 안 함
+    refetchInterval: isToday ? 5_000 : false,
   });
 }
 
@@ -199,7 +126,7 @@ export function useMarketSignalEvents(date: string) {
       apiFetch<MarketSignalEventsResponse>(
         `/api/leading-stocks/market-signal-events?date=${date}`,
       ),
-    refetchInterval: isToday ? 5_000 : false, // 과거 날짜는 정적 — 폴링 안 함
+    refetchInterval: isToday ? 5_000 : false,
   });
 }
 
@@ -207,7 +134,7 @@ export function useKospiIndex() {
   return useQuery({
     queryKey: QK.kospiIndex,
     queryFn: () => apiFetch<KospiIndex>("/api/market/kospi"),
-    refetchInterval: 30_000, // 헤더용 — 30초마다
+    refetchInterval: 30_000,
   });
 }
 
@@ -215,7 +142,7 @@ export function useKosdaqIndex() {
   return useQuery({
     queryKey: QK.kosdaqIndex,
     queryFn: () => apiFetch<MarketIndex>("/api/market/kosdaq"),
-    refetchInterval: 30_000, // 헤더용 — 30초마다
+    refetchInterval: 30_000,
   });
 }
 
@@ -227,7 +154,7 @@ export function useInvestorTrend(code: string | null) {
         `/api/leading-stocks/candidates/${code}/investors`,
       ),
     enabled: code !== null,
-    staleTime: 5 * 60_000, // 일자별 데이터 — 5분 신선도
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -239,7 +166,7 @@ export function useMinuteCandles(code: string | null, date: string) {
         `/api/leading-stocks/candidates/${code}/minute-candles?date=${date}`,
       ),
     enabled: code !== null,
-    refetchInterval: date === todayStr() ? 30_000 : false, // 과거 날짜는 정적
+    refetchInterval: date === todayStr() ? 30_000 : false,
   });
 }
 
@@ -253,7 +180,7 @@ export function useIndexMinuteCandles(market: MarketType | null, date: string) {
         `/api/leading-stocks/index/${market}/minute-candles?date=${date}`,
       ),
     enabled: market !== null,
-    refetchInterval: date === todayStr() ? 30_000 : false, // 과거 날짜는 정적
+    refetchInterval: date === todayStr() ? 30_000 : false,
   });
 }
 
@@ -265,7 +192,7 @@ export function useDailyCandles(code: string | null, date: string) {
         `/api/leading-stocks/candidates/${code}/daily-candles?date=${date}`,
       ),
     enabled: code !== null,
-    staleTime: 30_000, // 일봉 — 자주 안 바뀜
+    staleTime: 30_000,
   });
 }
 
@@ -289,6 +216,6 @@ export function useThemeCalendar(from: string, to: string) {
       apiFetch<ThemeCalendarResponse>(
         `/api/themes/calendar?from=${from}&to=${to}`,
       ),
-    staleTime: 60_000, // 일자별 적재 데이터 — 자주 안 바뀜
+    staleTime: 60_000,
   });
 }

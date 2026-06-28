@@ -51,18 +51,3 @@ leading-stock:
     candle-poll-interval-millis: 30000     # 지수 1분봉 4연속(양봉/음봉) 폴링 주기(ms)
     session-start: "09:00"                 # 지수 폴링 시작 — 정규장 개장(지수는 정규장에만 체결)
     session-end: "15:30"                   # 지수 폴링 종료 — 정규장 마감(종가 단일가 포함)
-
-trading:
-  default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
-  default-breakeven-threshold-pct: 2       # 퍼센트 숫자 (2 = 2%)
-  default-stop-loss-pct: 2                 # 퍼센트 숫자, 양수 입력 (2 → 내부 -2%)
-  sell-cost-rate: 0.0025                   # 소수 비율 (0.0025 = 0.25%)
-  market:
-    bar-poll-interval-millis: 10000
-  order:
-    sell-retry-delay-millis: 5000
-    sell-max-retries: 5                    # 매도 발송 거부 시 최대 재시도 횟수 — 초과 시 중단(무한 재시도 방지)
-    egw-retry-base-delay-millis: 1500      # 매수 EGW00201 재시도 backoff 단위
-  cycle:
-    buy-fill-wait-millis: 30000            # 단일 매수 발송 후 체결 통보 대기 한도 (초과 시 NO_FILL)
-    holding-poll-interval-millis: 50

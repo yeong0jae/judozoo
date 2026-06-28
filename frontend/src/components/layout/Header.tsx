@@ -10,11 +10,6 @@ const NAV = [
   { to: "/breakout-radar", label: "주도주 돌파 현황" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   { to: "/timeline", label: "타임라인" },
-  // 당분간 숨김 (라우트/페이지는 유지, 필요 시 주석 해제)
-  // { to: "/command", label: "매매 명령" },
-  // { to: "/monitoring", label: "모니터링" },
-  // { to: "/holdings", label: "보유 주식" },
-  // { to: "/report", label: "실적" },
 ];
 
 const navBase = "rounded-lg text-sm font-medium transition-colors";

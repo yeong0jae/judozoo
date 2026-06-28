@@ -3,16 +3,15 @@ package at.backend.market.application
 import at.backend.library.time.TimeProvider
 import at.backend.library.time.toInstantKst
 import at.backend.market.domain.event.HolidayChanged
-import at.backend.trading.application.broker.BrokerTradingClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
+import java.time.DayOfWeek
 
 @Component
 class MarketDayStartupHook(
-    private val broker: BrokerTradingClient,
     private val timeProvider: TimeProvider,
     private val eventPublisher: ApplicationEventPublisher,
 ) {
@@ -22,12 +21,7 @@ class MarketDayStartupHook(
     @EventListener(ApplicationReadyEvent::class)
     fun publishMarketDay() {
         val today = timeProvider.today()
-        val isHoliday = runCatching {
-            !broker.isMarketOpen(today)
-        }.getOrElse {
-            log.warn(it) { "개장일 검증 실패 — HolidayChanged 발행 생략" }
-            return
-        }
+        val isHoliday = today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY
         eventPublisher.publishEvent(
             HolidayChanged(isHoliday = isHoliday, ts = timeProvider.now().toInstantKst())
         )

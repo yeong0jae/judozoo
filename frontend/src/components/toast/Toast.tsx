@@ -6,9 +6,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { CloseReason } from "../../types";
-import CloseReasonBadge from "../common/CloseReasonBadge";
-
 export type ToastTone = "success" | "error" | "warning" | "info";
 
 export interface ToastInput {
@@ -16,8 +13,6 @@ export interface ToastInput {
   tone?: ToastTone;
   duration?: number;
   action?: { label: string; onClick: () => void };
-  // 사이클 종료 토스트 — 지정 시 헤더에 CloseReasonBadge 표시 + 4s 기본 duration
-  closeReason?: CloseReason;
 }
 
 interface Toast extends ToastInput {
@@ -52,8 +47,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (input: ToastInput) => {
       const id = ++idRef.current;
       const tone = input.tone ?? "info";
-      const duration =
-        input.duration ?? (input.closeReason ? 4000 : DEFAULT_DURATION[tone]);
+      const duration = input.duration ?? DEFAULT_DURATION[tone];
       setToasts((prev) => [...prev, { ...input, id, tone }]);
       if (duration > 0) {
         setTimeout(() => dismiss(id), duration);
@@ -109,9 +103,7 @@ function ToastContainer({
 
 function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const tone = toast.tone ?? "info";
-  const cls = toast.closeReason
-    ? "bg-zinc-900/95 border-zinc-700 text-zinc-100"
-    : TONE_CLS[tone];
+  const cls = TONE_CLS[tone];
   return (
     <div
       className={`border rounded-lg shadow-lg px-4 py-3 pointer-events-auto ${cls}`}
@@ -119,11 +111,6 @@ function ToastCard({ toast, onClose }: { toast: Toast; onClose: () => void }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          {toast.closeReason && (
-            <div className="mb-1.5">
-              <CloseReasonBadge reason={toast.closeReason} />
-            </div>
-          )}
           <p className="text-sm leading-snug">{toast.message}</p>
           {toast.action && (
             <button

@@ -1,19 +1,19 @@
 package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
-import at.backend.trading.application.broker.BrokerTradingClient
 import org.springframework.stereotype.Service
+import java.time.DayOfWeek
 import java.time.LocalTime
 
 @Service
 class MarketStatusService(
-    private val broker: BrokerTradingClient,
     private val timeProvider: TimeProvider,
 ) {
 
     fun getStatus(): MarketStatusResult {
+        val today = timeProvider.today()
         val now = timeProvider.now().toLocalTime()
-        val isHoliday = !broker.isMarketOpen(timeProvider.today())
+        val isHoliday = today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY
         val tradingHoursOpen = now in TRADING_START..TRADING_END
         return MarketStatusResult(
             isHoliday = isHoliday,

@@ -1,5 +1,4 @@
 import type { ApiResponse } from "../types";
-import { errorMessage } from "../lib/errorMessages";
 
 export class ApiError extends Error {
   constructor(
@@ -7,7 +6,7 @@ export class ApiError extends Error {
     public readonly status: number,
     msg?: string,
   ) {
-    super(msg ?? errorMessage(code));
+    super(msg ?? code);
     this.name = "ApiError";
   }
 }
