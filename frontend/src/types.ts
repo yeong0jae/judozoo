@@ -194,6 +194,22 @@ export interface SwingHighSignal {
   gapRate: number;
 }
 
+// === 해외주식 주도주 (Overseas Leading Stocks) ===
+
+export type OverseasExchange = "NYS" | "NAS" | "AMS";
+
+export interface OverseasStockRankItem {
+  rank: number;
+  exchange: string;
+  symbol: string;
+  name: string;
+  ename: string;
+  price: number;
+  diff: number;
+  rate: number;
+  tradingValue: number;
+}
+
 export interface InvestorTrendDay {
   date: string;
   individualNet: number;

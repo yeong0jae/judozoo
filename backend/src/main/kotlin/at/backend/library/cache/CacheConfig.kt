@@ -94,6 +94,13 @@ class CacheConfig {
                 .maximumSize(60)
                 .build(),
         )
+        manager.registerCustomCache(
+            "kisOverseasRanking", // KIS 해외주식 거래대금순위 — 거래소별(NYS/NAS/AMS) 슬롯, 30s TTL
+            Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .maximumSize(3)
+                .build(),
+        )
         return manager
     }
 }

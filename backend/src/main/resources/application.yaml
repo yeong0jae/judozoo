@@ -1,9 +1,6 @@
 spring:
   application:
     name: backend
-  profiles:
-    # Kiwoom 단독 — kiwoom-real 프로파일이 운영 설정(application-kiwoom-real.yaml)을 선택한다.
-    active: kiwoom-real
   datasource:
     url: jdbc:mysql://localhost:33061/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME}
@@ -20,6 +17,12 @@ logging:
   level:
     root: INFO
     at.backend: DEBUG
+
+kis:
+  api:
+    base-url: https://openapi.koreainvestment.com:9443
+    app-key: ${REAL_KIS_APP_KEY:}
+    app-secret: ${REAL_KIS_APP_SECRET:}
 
 stock:
   master:
@@ -51,3 +54,9 @@ leading-stock:
     candle-poll-interval-millis: 30000     # 지수 1분봉 4연속(양봉/음봉) 폴링 주기(ms)
     session-start: "09:00"                 # 지수 폴링 시작 — 정규장 개장(지수는 정규장에만 체결)
     session-end: "15:30"                   # 지수 폴링 종료 — 정규장 마감(종가 단일가 포함)
+
+kiwoom:
+  api:
+    base-url: https://api.kiwoom.com
+    app-key: ${REAL_KIWOOM_APP_KEY:}
+    app-secret: ${REAL_KIWOOM_APP_SECRET:}

@@ -14,6 +14,8 @@ import type {
   MarketSignalEventsResponse,
   MarketType,
   MarketStatus,
+  OverseasExchange,
+  OverseasStockRankItem,
   SignalEventsResponse,
   StockSearchResult,
   ThemeCalendarResponse,
@@ -45,6 +47,8 @@ export const QK = {
   kosdaqIndex: ["market", "kosdaq"] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
+  overseasRanking: (excd: OverseasExchange) =>
+    ["overseas-leading-stocks", "ranking", excd] as const,
 };
 
 export interface InstanceInfo {
@@ -206,6 +210,17 @@ export function useLeadingStockDetail(code: string | null) {
         `/api/leading-stocks/candidates/${code}`,
       ),
     enabled: code !== null,
+  });
+}
+
+export function useOverseasRanking(excd: OverseasExchange) {
+  return useQuery({
+    queryKey: QK.overseasRanking(excd),
+    queryFn: () =>
+      apiFetch<OverseasStockRankItem[]>(
+        `/api/overseas-leading-stocks/ranking/${excd}`,
+      ),
+    refetchInterval: 30_000,
   });
 }
 
