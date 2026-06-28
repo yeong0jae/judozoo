@@ -15,16 +15,11 @@ resource "google_project_service" "apis" {
 }
 
 # ---------------------------------------------------------------------------
-# 인스턴스 정의 — 3개 broker × env 조합
-#   - kis-vts: 기존 유일 VM. name_suffix 빈 문자열로 두어 기존 GCP 리소스명 보존 → state mv만으로 destroy 0.
-#   - kis-real / kiwoom-real: Phase 11에서 신규 추가.
+# 인스턴스 정의
 # ---------------------------------------------------------------------------
 locals {
   instances = {
-    "kis-vts"     = { name_suffix = "-kis-vts" }
-    "kis-real"    = { name_suffix = "-kis-real" }
     "kiwoom-real" = { name_suffix = "-kiwoom-real" }
-    "kiwoom-vts"  = { name_suffix = "-kiwoom-vts" }
   }
 }
 
@@ -143,27 +138,15 @@ resource "google_artifact_registry_repository" "docker" {
 }
 
 # ---------------------------------------------------------------------------
-# Secret Manager (KIS/KIWOOM/DB) — 컨테이너만 생성. 실제 값은 수동 주입.
+# Secret Manager — 컨테이너만 생성. 실제 값은 수동 주입.
 #   echo -n "<value>" | gcloud secrets versions add AT_* --data-file=-
 # ---------------------------------------------------------------------------
 locals {
   app_secrets = toset([
     "AT_DB_PASSWORD",
-    "AT_KIS_HTS_ID",
-    "AT_REAL_KIS_APP_KEY",
-    "AT_REAL_KIS_APP_SECRET",
-    "AT_REAL_KIS_ACCOUNT_NO",
-    "AT_REAL_KIS_ACCOUNT_PRODUCT_CODE",
-    "AT_VTS_KIS_APP_KEY",
-    "AT_VTS_KIS_APP_SECRET",
-    "AT_VTS_KIS_ACCOUNT_NO",
-    "AT_VTS_KIS_ACCOUNT_PRODUCT_CODE",
     "AT_KIWOOM_APP_KEY",
     "AT_KIWOOM_APP_SECRET",
     "AT_KIWOOM_ACCOUNT_NO",
-    "AT_VTS_KIWOOM_APP_KEY",
-    "AT_VTS_KIWOOM_APP_SECRET",
-    "AT_VTS_KIWOOM_ACCOUNT_NO",
   ])
 }
 
