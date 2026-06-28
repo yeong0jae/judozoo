@@ -4,7 +4,6 @@ import at.backend.library.web.ApiResponse
 import at.backend.overseasleadingstock.application.OverseasLeadingStockService
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -14,14 +13,8 @@ class OverseasLeadingStockController(
     private val service: OverseasLeadingStockService,
 ) {
 
-    /** 해외주식 거래대금순위 — excd: NYS, NAS, AMS */
-    @GetMapping("/ranking/{excd}")
-    fun getRanking(@PathVariable excd: String): ApiResponse<List<OverseasStockRankItem>> {
-        require(excd in SUPPORTED_EXCHANGES) { "지원하지 않는 거래소: $excd" }
-        return ApiResponse.ok(service.getRanking(excd))
-    }
-
-    companion object {
-        private val SUPPORTED_EXCHANGES = setOf("NYS", "NAS", "AMS")
-    }
+    /** 해외주식 거래대금순위 — 나스닥·뉴욕·아멕스 통합 상위 40위 */
+    @GetMapping("/ranking")
+    fun getRanking(): ApiResponse<List<OverseasStockRankItem>> =
+        ApiResponse.ok(service.getRanking())
 }
