@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { QK } from "../api/queries";
@@ -60,11 +60,22 @@ export default function TimelinePage() {
   }));
   const isLoading = marketQs.some((q) => q.isLoading);
 
-  // 선택일(또는 월 변경)에 맞춰 해당 날짜 섹션으로 스크롤.
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 선택일에 맞춰 해당 날짜 섹션으로 스크롤. 컨테이너가 자체 스크롤되면 그것만 움직여
+  // 페이지(window)는 건드리지 않는다(앱 헤더 가림 방지). 모바일(컨테이너 비스크롤)은 페이지 스크롤.
   useEffect(() => {
     if (!selectedDate) return;
     const el = document.getElementById(`tl-day-${selectedDate}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const container = scrollRef.current;
+    if (!el) return;
+    if (container && container.scrollHeight > container.clientHeight) {
+      const top =
+        container.scrollTop + el.getBoundingClientRect().top - container.getBoundingClientRect().top;
+      container.scrollTo({ top, behavior: "smooth" });
+    } else {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   }, [selectedDate, dates.length]);
 
   return (
@@ -88,7 +99,7 @@ export default function TimelinePage() {
             onSelect={setSelectedDate}
           />
         </div>
-        <div className="lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto pr-1">
+        <div ref={scrollRef} className="lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto pr-1">
           <TimelineView days={days} selectedDate={selectedDate} isLoading={isLoading} />
         </div>
       </div>
