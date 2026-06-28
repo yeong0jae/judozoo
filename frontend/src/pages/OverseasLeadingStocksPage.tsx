@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useOverseasRanking } from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
 import { formatPct } from "../lib/format";
@@ -6,7 +6,12 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
+import ChangeRateSelector, {
+  CHANGE_RATE_OPTIONS,
+} from "../components/common/ChangeRateSelector";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
+
+const MIN_CHANGE_RATE_KEY = "overseasStock.minChangeRate";
 
 // 거래소 코드 → 한글 라벨
 const EXCHANGE_LABEL: Record<string, string> = {
@@ -28,7 +33,17 @@ function formatUsd(value: number): string {
 }
 
 export default function OverseasLeadingStocks({ toggle }: { toggle?: React.ReactNode }) {
-  const { data, isLoading, isFetching } = useOverseasRanking();
+  // 당일 등락률 임계값(%) — 국내와 동일하게 localStorage 보관, 기본 7%.
+  const [minChangeRate, setMinChangeRate] = useState(() => {
+    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
+    const saved = Number(raw);
+    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
+  });
+  useEffect(() => {
+    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(minChangeRate));
+  }, [minChangeRate]);
+
+  const { data, isLoading, isFetching } = useOverseasRanking(minChangeRate);
   const stocks = data ?? [];
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
 
@@ -65,6 +80,10 @@ export default function OverseasLeadingStocks({ toggle }: { toggle?: React.React
         }
       >
         <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
+          {/* 등락률 임계값 선택 — 리스트 우측 상단 */}
+          <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
+            <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
+          </div>
           {isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 10 }).map((_, i) => (
@@ -123,7 +142,7 @@ function Header({
           />
         </h2>
         <p className="text-xs text-zinc-500 mt-0.5">
-          나스닥·뉴욕·아멕스 통합 거래대금 상위 40위 · 15초 자동 갱신
+          나스닥·뉴욕·아멕스 통합 거래대금 상위 + 당일 등락률 필터 통과 · 15초 자동 갱신
         </p>
       </div>
       {typeof totalCount === "number" && (
@@ -159,42 +178,55 @@ function RankingTable({
         </tr>
       </thead>
       <tbody>
-        {stocks.map((s) => {
+        {stocks.length > 0 && <GroupHeader label="거래대금 1, 2, 3위" />}
+        {stocks.map((s, idx) => {
           const isSelected = selectedSymbol === s.symbol;
           return (
-            <tr
-              key={s.symbol}
-              data-stock-code={s.symbol}
-              className={`border-t border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors ${
-                isSelected ? "bg-emerald-900" : ""
-              }`}
-              onClick={() => onOpen(s.symbol)}
-            >
-              <td className="pl-4 py-3.5 text-zinc-500 num w-10">{s.rank}</td>
-              <td className="px-2 py-3.5">
-                <div className="flex items-center gap-3">
-                  <StockAvatar name={s.symbol} code={s.symbol} />
-                  <div className="min-w-0">
-                    <div className="font-semibold text-zinc-100">{s.symbol}</div>
-                    <div className="text-xs text-zinc-500 truncate max-w-[12rem]">{s.name}</div>
+            <Fragment key={s.symbol}>
+              {idx === 3 && <GroupHeader label="주도주 후보" />}
+              <tr
+                data-stock-code={s.symbol}
+                className={`border-t border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors ${
+                  isSelected ? "bg-emerald-900" : ""
+                }`}
+                onClick={() => onOpen(s.symbol)}
+              >
+                <td className="pl-4 py-3.5 text-zinc-500 num w-10">{s.rank}</td>
+                <td className="px-2 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <StockAvatar name={s.symbol} code={s.symbol} />
+                    <div className="min-w-0">
+                      <div className="font-semibold text-zinc-100">{s.symbol}</div>
+                      <div className="text-xs text-zinc-500 truncate max-w-[12rem]">{s.name}</div>
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td className="px-4 py-3.5 text-zinc-400">{exchangeLabel(s.exchange)}</td>
-              <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
-                {formatUsd(s.price)}
-              </td>
-              <td className="px-4 py-3.5 text-right num font-medium">
-                <ProfitText value={s.rate / 100} format={formatPct} />
-              </td>
-              <td className="px-4 py-3.5 text-right num text-zinc-400">
-                {Math.round(s.tradingValue).toLocaleString("en-US")}
-              </td>
-            </tr>
+                </td>
+                <td className="px-4 py-3.5 text-zinc-400">{exchangeLabel(s.exchange)}</td>
+                <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
+                  {formatUsd(s.price)}
+                </td>
+                <td className="px-4 py-3.5 text-right num font-medium">
+                  <ProfitText value={s.rate / 100} format={formatPct} />
+                </td>
+                <td className="px-4 py-3.5 text-right num text-zinc-400">
+                  {Math.round(s.tradingValue).toLocaleString("en-US")}
+                </td>
+              </tr>
+            </Fragment>
           );
         })}
       </tbody>
     </table>
+  );
+}
+
+function GroupHeader({ label }: { label: string }) {
+  return (
+    <tr aria-hidden className="border-t border-white/[0.04] bg-white/[0.02]">
+      <td colSpan={6} className="px-4 py-2.5">
+        <span className="text-xs font-semibold text-zinc-400">{label}</span>
+      </td>
+    </tr>
   );
 }
 
@@ -213,38 +245,49 @@ function RankingCards({
 }) {
   return (
     <div className="md:hidden">
-      {stocks.map((s) => {
+      {stocks.map((s, idx) => {
         const isSelected = selectedSymbol === s.symbol;
         return (
-          <div
-            key={s.symbol}
-            data-stock-code={s.symbol}
-            className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
-              isSelected ? "bg-emerald-900" : ""
-            }`}
-            onClick={() => onOpen(s.symbol)}
-          >
-            {/* 1행: 순위 · 아바타 · 심볼 · 현재가 */}
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-500 text-xs num w-4 shrink-0">{s.rank}</span>
-              <StockAvatar name={s.symbol} code={s.symbol} size={26} />
-              <span className="font-semibold truncate flex-1 min-w-0">{s.symbol}</span>
-              <span className="num shrink-0 font-medium text-zinc-100">{formatUsd(s.price)}</span>
+          <Fragment key={s.symbol}>
+            {idx === 0 && <CardGroupHeader label="거래대금 1, 2, 3위" />}
+            {idx === 3 && <CardGroupHeader label="주도주 후보" />}
+            <div
+              data-stock-code={s.symbol}
+              className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
+                isSelected ? "bg-emerald-900" : ""
+              }`}
+              onClick={() => onOpen(s.symbol)}
+            >
+              {/* 1행: 순위 · 아바타 · 심볼 · 현재가 */}
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500 text-xs num w-4 shrink-0">{s.rank}</span>
+                <StockAvatar name={s.symbol} code={s.symbol} size={26} />
+                <span className="font-semibold truncate flex-1 min-w-0">{s.symbol}</span>
+                <span className="num shrink-0 font-medium text-zinc-100">{formatUsd(s.price)}</span>
+              </div>
+              {/* 2행: 거래소·종목명 · 등락률 */}
+              <div className="flex items-center gap-2 pl-[3.25rem]">
+                <span className="text-xs text-zinc-500 truncate flex-1 min-w-0">
+                  {exchangeLabel(s.exchange)} · {s.name}
+                </span>
+                <ProfitText
+                  value={s.rate / 100}
+                  format={formatPct}
+                  className="num text-xs shrink-0"
+                />
+              </div>
             </div>
-            {/* 2행: 거래소·종목명 · 등락률 */}
-            <div className="flex items-center gap-2 pl-[3.25rem]">
-              <span className="text-xs text-zinc-500 truncate flex-1 min-w-0">
-                {exchangeLabel(s.exchange)} · {s.name}
-              </span>
-              <ProfitText
-                value={s.rate / 100}
-                format={formatPct}
-                className="num text-xs shrink-0"
-              />
-            </div>
-          </div>
+          </Fragment>
         );
       })}
+    </div>
+  );
+}
+
+function CardGroupHeader({ label }: { label: string }) {
+  return (
+    <div className="bg-zinc-950 border-t border-zinc-800 px-4 py-2.5">
+      <span className="text-sm font-semibold text-zinc-200">{label}</span>
     </div>
   );
 }

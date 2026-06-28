@@ -10,16 +10,22 @@ class OverseasLeadingStockService(
 ) {
 
     /**
-     * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위 40위.
-     * 국내와 동일하게 통합 거래대금 40위로 먼저 컷한 뒤 그 안에서 ETF를 제외한다 —
-     * ETF 자리를 41위가 채우지 않으므로 결과는 40개 미만일 수 있다.
+     * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위 60위.
+     * 국내와 동일한 흐름: 통합 거래대금 60위 컷 → ETF 제외 → 거래대금 1~3위는 등락률 무관 항상 포함,
+     * 나머지는 당일 등락률이 [minChangeRate] 이상인 것만 통과. (60위 컷·ETF로 결과는 60개 미만일 수 있다)
      */
-    fun getRanking(): List<OverseasStockRankItem> =
-        EXCHANGES.flatMap { excd -> rankingClient.fetchTradingValueRanking(excd).map { it.toRankItem() } }
+    fun getRanking(minChangeRate: Double): List<OverseasStockRankItem> {
+        val pool = EXCHANGES
+            .flatMap { excd -> rankingClient.fetchTradingValueRanking(excd).map { it.toRankItem() } }
             .sortedByDescending { it.tradingValue }
             .take(TOP_N)
             .filterNot { it.isEtf() }
-            .mapIndexed { i, item -> item.copy(rank = i + 1) }
+
+        // 거래대금 1~3위는 시장 톤 기준점으로 항상 포함, 4위부터는 등락률 필터
+        val topThree = pool.take(TOP_RANK_ALWAYS_INCLUDED)
+        val rest = pool.drop(TOP_RANK_ALWAYS_INCLUDED).filter { it.rate >= minChangeRate }
+        return (topThree + rest).mapIndexed { i, item -> item.copy(rank = i + 1) }
+    }
 
     /**
      * 거래대금순위 API엔 ETF 구분 필드가 없어 영문명 키워드로 판별(휴리스틱).
@@ -49,7 +55,8 @@ class OverseasLeadingStockService(
 
     companion object {
         private val EXCHANGES = listOf("NAS", "NYS", "AMS")
-        private const val TOP_N = 40
+        private const val TOP_N = 60
+        private const val TOP_RANK_ALWAYS_INCLUDED = 3
 
         // ETF/ETN 발행사 브랜드 + 명시 키워드. 미국 거래대금 상위 ETF 대부분을 커버.
         private val ETF_KEYWORDS = listOf(
