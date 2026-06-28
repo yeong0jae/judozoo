@@ -20,8 +20,9 @@ class OverseasLeadingStockService(
             .mapIndexed { i, item -> item.copy(rank = i + 1) }
 
     private fun KisOverseasRankingClient.OverseasRankItem.toRankItem(): OverseasStockRankItem {
+        // rate(등락율)는 이미 부호 포함("-6.69"). diff(대비)는 절댓값이라 sign으로 방향 부여.
         val negative = sign.trim() in setOf("4", "5") // 4:하한가 5:하락
-        val signMul = if (negative) -1.0 else 1.0
+        val diffSign = if (negative) -1.0 else 1.0
         return OverseasStockRankItem(
             rank = 0, // 통합 정렬 후 재부여
             exchange = excd.trim(),
@@ -29,8 +30,8 @@ class OverseasLeadingStockService(
             name = name.trim(),
             ename = ename.trim(),
             price = last.trim().toDoubleOrNull() ?: 0.0,
-            diff = signMul * (diff.trim().toDoubleOrNull() ?: 0.0),
-            rate = signMul * (rate.trim().toDoubleOrNull() ?: 0.0),
+            diff = diffSign * (diff.trim().toDoubleOrNull() ?: 0.0),
+            rate = rate.trim().toDoubleOrNull() ?: 0.0,
             tradingValue = tamt.trim().toDoubleOrNull() ?: 0.0,
         )
     }

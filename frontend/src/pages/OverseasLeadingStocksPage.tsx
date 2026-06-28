@@ -294,7 +294,7 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
             value={
               <ProfitText
                 value={stock.rate / 100}
-                format={() => `${stock.diff >= 0 ? "+" : ""}${formatUsd(stock.diff)}`}
+                format={() => `${stock.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(stock.diff))}`}
                 className="num"
               />
             }
