@@ -57,9 +57,16 @@ function marketDesc(e: MarketSignalEventItem): string {
 }
 
 function toItems(markets: MarketSignalEventItem[]): TLItem[] {
-  return markets
-    // 투자자 순매수 단계 + 흐름 전환만 (연속 양봉·음봉 제외)
-    .filter((e) => e.kind === "NET_BUY_LEVEL" || e.kind === "NET_FLOW_TURN")
+  // 각 (시장·투자자)별 가장 마지막(최신) 시그널 1건만 — 최대 6개(코스피·코스닥 × 개인·외인·기관).
+  const latest = new Map<string, MarketSignalEventItem>();
+  for (const e of markets) {
+    if (e.kind !== "NET_BUY_LEVEL" && e.kind !== "NET_FLOW_TURN") continue;
+    if (!e.investor) continue;
+    const key = `${e.market}|${e.investor}`;
+    const prev = latest.get(key);
+    if (!prev || e.occurredAt > prev.occurredAt) latest.set(key, e);
+  }
+  return [...latest.values()]
     .map((e) => ({
       time: hhmm(e.occurredAt),
       hour: hourOf(e.occurredAt),

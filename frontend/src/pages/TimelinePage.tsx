@@ -62,6 +62,15 @@ export default function TimelinePage() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 타임라인은 내부 컨테이너만 스크롤 — 페이지(window) 스크롤은 막아 앱 헤더가 밀리지 않게.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   // 선택일에 맞춰 해당 날짜 섹션으로 스크롤. 컨테이너가 자체 스크롤되면 그것만 움직여
   // 페이지(window)는 건드리지 않는다(앱 헤더 가림 방지). 모바일(컨테이너 비스크롤)은 페이지 스크롤.
   useEffect(() => {
@@ -99,7 +108,7 @@ export default function TimelinePage() {
             onSelect={setSelectedDate}
           />
         </div>
-        <div ref={scrollRef} className="lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto pr-1">
+        <div ref={scrollRef} className="max-h-[calc(100dvh-8rem)] overflow-y-auto pr-1">
           <TimelineView days={days} selectedDate={selectedDate} isLoading={isLoading} />
         </div>
       </div>
