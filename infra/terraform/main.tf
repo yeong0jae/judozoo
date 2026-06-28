@@ -147,6 +147,8 @@ locals {
     "AT_KIWOOM_APP_KEY",
     "AT_KIWOOM_APP_SECRET",
     "AT_KIWOOM_ACCOUNT_NO",
+    "AT_REAL_KIS_APP_KEY", # KIS 해외주식 거래대금순위 조회
+    "AT_REAL_KIS_APP_SECRET",
   ])
 }
 
