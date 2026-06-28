@@ -31,9 +31,10 @@ class ThemeCalendarService(
      */
     @Transactional
     fun capture(): Int {
-        // 장 마감된 가장 최근 거래일에 적재. 장중·새벽처럼 당일 데이터가 미확정인 시점에 캡처하면
-        // 직전 거래일(예: 월요일 새벽→금요일)로 저장해 거래대금이 당일 날짜로 잘못 들어가는 걸 막는다.
-        val captureDate = mostRecentClosedTradingDay(timeProvider.now())
+        // 당일 장 데이터가 존재하는 가장 최근 거래일에 적재. 프리마켓 시작(08:00) 전 새벽에 캡처하면
+        // 아직 당일 데이터가 없어 직전 거래일(예: 월요일 새벽→금요일)로 저장한다 —
+        // 거래대금(전일 종가 기준)이 당일 날짜로 잘못 들어가는 걸 막는다.
+        val captureDate = mostRecentTradingDayWithData(timeProvider.now())
 
         // 테마명 → 기여 종목들 (상위 거래대금 종목 중 그 테마 소속)
         val byTheme = LinkedHashMap<String, MutableList<Contributor>>()
@@ -115,14 +116,14 @@ class ThemeCalendarService(
     )
 
     /**
-     * 장 마감(15:30)된 가장 최근 거래일.
-     * 평일이고 마감 후면 당일, 그 외(평일 마감 전·주말)는 직전 평일로 거슬러 올라간다.
+     * 당일 장 데이터가 존재하는 가장 최근 거래일.
+     * 평일이고 프리마켓 시작(08:00) 이후면 당일, 그 외(평일 개장 전·주말)는 직전 평일로 거슬러 올라간다.
      */
-    private fun mostRecentClosedTradingDay(now: LocalDateTime): LocalDate {
+    private fun mostRecentTradingDayWithData(now: LocalDateTime): LocalDate {
         var d = now.toLocalDate()
         val isWeekend = d.dayOfWeek == DayOfWeek.SATURDAY || d.dayOfWeek == DayOfWeek.SUNDAY
-        val closedToday = !isWeekend && now.toLocalTime() >= MARKET_CLOSE
-        if (!closedToday) {
+        val todayHasData = !isWeekend && now.toLocalTime() >= SESSION_START
+        if (!todayHasData) {
             do {
                 d = d.minusDays(1)
             } while (d.dayOfWeek == DayOfWeek.SATURDAY || d.dayOfWeek == DayOfWeek.SUNDAY)
@@ -133,6 +134,6 @@ class ThemeCalendarService(
     companion object {
         private const val CAPTURE_LIMIT = 12        // 하루 저장 테마 수
         private const val CAPTURE_STOCK_COUNT = 40  // 거래대금 상위 N종목을 테마로 집계
-        private val MARKET_CLOSE = LocalTime.of(15, 30) // 정규장 마감
+        private val SESSION_START = LocalTime.of(8, 0) // 프리마켓 개장 — 이 시각 후 당일 데이터 존재
     }
 }
