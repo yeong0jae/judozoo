@@ -82,7 +82,7 @@ class MarketSignalEventPoller(
 
                 // 2) 흐름 전환 — 정점에서 임계 이상 되돌리면 방향 꺾임.
                 val (turn, nextFlow) = (flowStates[key] ?: InvestorFlowState.INITIAL)
-                    .advance(netEok, MarketSignalThresholds.REVERSAL_EOK)
+                    .advance(netEok, MarketSignalThresholds.reversalEok(market))
                 flowStates[key] = nextFlow
                 val turnEvent = turn?.let {
                     MarketSignalEvent.netFlowTurn(
