@@ -2,7 +2,6 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import LeadingStocksPage from "./pages/LeadingStocksPage";
-import OverseasLeadingStocksPage from "./pages/OverseasLeadingStocksPage";
 import BreakoutRadarPage from "./pages/BreakoutRadarPage";
 import SignalLogPage from "./pages/SignalLogPage";
 import TimelinePage from "./pages/TimelinePage";
@@ -48,7 +47,6 @@ function AppShell() {
               <Route path="/leading-stocks" element={<LeadingStocksPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
               <Route path="/signal-log" element={<SignalLogPage />} />
-              <Route path="/overseas-leading-stocks" element={<OverseasLeadingStocksPage />} />
               <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
               <Route path="/timeline" element={<TimelinePage />} />
             </Routes>

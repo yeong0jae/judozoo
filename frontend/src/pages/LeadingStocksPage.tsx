@@ -14,6 +14,8 @@ import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
+import OverseasLeadingStocks from "./OverseasLeadingStocksPage";
+import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -24,7 +26,30 @@ function shortCode(stockCode: string): string {
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
 }
 
+/**
+ * 주도주 후보 — 국내/해외 토글로 전환. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다.
+ */
 export default function LeadingStocksPage() {
+  const [market, setMarket] = useState<StockMarket>(() => {
+    const saved = localStorage.getItem(MARKET_KEY);
+    return saved === "overseas" ? "overseas" : "domestic";
+  });
+  useEffect(() => {
+    localStorage.setItem(MARKET_KEY, market);
+  }, [market]);
+
+  const toggle = <MarketToggle value={market} onChange={setMarket} />;
+
+  return market === "domestic" ? (
+    <DomesticLeadingStocks toggle={toggle} />
+  ) : (
+    <OverseasLeadingStocks toggle={toggle} />
+  );
+}
+
+const MARKET_KEY = "leadingStock.market";
+
+function DomesticLeadingStocks({ toggle }: { toggle: React.ReactNode }) {
   // 당일 등락률 임계값(%) — 사용자 선택. 새로고침해도 유지되도록 localStorage에 보관, 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -94,6 +119,8 @@ export default function LeadingStocksPage() {
         queriedAt={data?.queriedAt}
         loading={candidatesQ.isFetching}
       />
+
+      {toggle}
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
       <div

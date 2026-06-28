@@ -27,7 +27,7 @@ function formatUsd(value: number): string {
   });
 }
 
-export default function OverseasLeadingStocksPage() {
+export default function OverseasLeadingStocks({ toggle }: { toggle?: React.ReactNode }) {
   const { data, isLoading, isFetching } = useOverseasRanking();
   const stocks = data ?? [];
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
@@ -53,6 +53,8 @@ export default function OverseasLeadingStocksPage() {
   return (
     <div className="space-y-6">
       <Header totalCount={data?.length} loading={isFetching} />
+
+      {toggle}
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
       <div

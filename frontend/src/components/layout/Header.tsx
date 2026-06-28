@@ -8,7 +8,6 @@ const NAV = [
   { to: "/leading-stocks", label: "주도주 후보 조회" },
   { to: "/signal-log", label: "주도주 실시간 로그" },
   { to: "/breakout-radar", label: "주도주 돌파 현황" },
-  { to: "/overseas-leading-stocks", label: "해외주식 주도주" },
   { to: "/theme-calendar", label: "테마 캘린더" },
   { to: "/timeline", label: "타임라인" },
 ];
