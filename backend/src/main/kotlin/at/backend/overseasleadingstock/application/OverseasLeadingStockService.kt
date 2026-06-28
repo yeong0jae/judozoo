@@ -11,13 +11,14 @@ class OverseasLeadingStockService(
 
     /**
      * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위 40위.
-     * 거래소별 30위 풀(최대 90종목)에서 ETF를 거른 뒤 거래대금 내림차순으로 섞어 통합 순위를 재부여한다.
+     * 국내와 동일하게 통합 거래대금 40위로 먼저 컷한 뒤 그 안에서 ETF를 제외한다 —
+     * ETF 자리를 41위가 채우지 않으므로 결과는 40개 미만일 수 있다.
      */
     fun getRanking(): List<OverseasStockRankItem> =
         EXCHANGES.flatMap { excd -> rankingClient.fetchTradingValueRanking(excd).map { it.toRankItem() } }
-            .filterNot { it.isEtf() }
             .sortedByDescending { it.tradingValue }
             .take(TOP_N)
+            .filterNot { it.isEtf() }
             .mapIndexed { i, item -> item.copy(rank = i + 1) }
 
     /**
