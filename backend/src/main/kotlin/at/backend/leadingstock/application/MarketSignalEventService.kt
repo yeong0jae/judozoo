@@ -1,7 +1,9 @@
 package at.backend.leadingstock.application
 
+import at.backend.leadingstock.domain.InvestorType
 import at.backend.leadingstock.domain.MarketSignalEvent
 import at.backend.leadingstock.domain.MarketSignalType
+import at.backend.leadingstock.domain.NetTradeSide
 import at.backend.leadingstock.infrastructure.repository.MarketSignalEventRepository
 import at.backend.stock.domain.Market
 import org.springframework.stereotype.Service
@@ -28,5 +30,18 @@ class MarketSignalEventService(
     fun latestCandleStreak(market: Market, date: LocalDate): MarketSignalEvent? =
         repository.findFirstByMarketAndKindAndTradeDateOrderByOccurredAtDesc(
             market, MarketSignalType.CANDLE_STREAK, date,
+        )
+
+    /** 그날 같은 (시장·투자자·방향·단계) 순매수 시그널이 이미 적재됐는지. */
+    @Transactional(readOnly = true)
+    fun alreadyFiredNetBuyLevel(
+        date: LocalDate,
+        market: Market,
+        investor: InvestorType,
+        side: NetTradeSide,
+        level: Int,
+    ): Boolean =
+        repository.existsByTradeDateAndKindAndMarketAndInvestorAndSideAndLevel(
+            date, MarketSignalType.NET_BUY_LEVEL, market, investor, side, level,
         )
 }

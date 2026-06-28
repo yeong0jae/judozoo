@@ -61,19 +61,22 @@ class MarketSignalEventPoller(
                 val (transition, next) = (states[key] ?: InvestorNetBuyState.INITIAL)
                     .advance(netEok, step, buffer)
                 states[key] = next
-                transition?.let {
-                    MarketSignalEvent.netBuyLevel(
-                        occurredAt = now,
-                        tradeDate = today,
-                        market = market,
-                        investor = investor,
-                        side = it.side,
-                        level = it.level,
-                        netAmountEok = netEok,
-                        indexValue = snapshot.indexValue,
-                        changeRate = snapshot.changeRate,
-                    )
+                val t = transition ?: return@mapNotNull null
+                // 재시작(메모리 소실)·회복 시 같은 단계가 다시 찍히는 것 방지 — 그날 같은 조합은 한 번만.
+                if (marketSignalEventService.alreadyFiredNetBuyLevel(today, market, investor, t.side, t.level)) {
+                    return@mapNotNull null
                 }
+                MarketSignalEvent.netBuyLevel(
+                    occurredAt = now,
+                    tradeDate = today,
+                    market = market,
+                    investor = investor,
+                    side = t.side,
+                    level = t.level,
+                    netAmountEok = netEok,
+                    indexValue = snapshot.indexValue,
+                    changeRate = snapshot.changeRate,
+                )
             }
         }
 
