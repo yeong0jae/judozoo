@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 @Service
 class ThemeCalendarService(
@@ -29,14 +31,9 @@ class ThemeCalendarService(
      */
     @Transactional
     fun capture(): Int {
-        // 주말(토·일)엔 직전 거래일(금)에 적재 — 주말 날짜로는 행을 만들지 않는다
-        val captureDate = timeProvider.today().let { d ->
-            when (d.dayOfWeek) {
-                DayOfWeek.SATURDAY -> d.minusDays(1)
-                DayOfWeek.SUNDAY -> d.minusDays(2)
-                else -> d
-            }
-        }
+        // 장 마감된 가장 최근 거래일에 적재. 장중·새벽처럼 당일 데이터가 미확정인 시점에 캡처하면
+        // 직전 거래일(예: 월요일 새벽→금요일)로 저장해 거래대금이 당일 날짜로 잘못 들어가는 걸 막는다.
+        val captureDate = mostRecentClosedTradingDay(timeProvider.now())
 
         // 테마명 → 기여 종목들 (상위 거래대금 종목 중 그 테마 소속)
         val byTheme = LinkedHashMap<String, MutableList<Contributor>>()
@@ -117,8 +114,25 @@ class ThemeCalendarService(
         val stocks: List<ThemeDailyStock>,
     )
 
+    /**
+     * 장 마감(15:30)된 가장 최근 거래일.
+     * 평일이고 마감 후면 당일, 그 외(평일 마감 전·주말)는 직전 평일로 거슬러 올라간다.
+     */
+    private fun mostRecentClosedTradingDay(now: LocalDateTime): LocalDate {
+        var d = now.toLocalDate()
+        val isWeekend = d.dayOfWeek == DayOfWeek.SATURDAY || d.dayOfWeek == DayOfWeek.SUNDAY
+        val closedToday = !isWeekend && now.toLocalTime() >= MARKET_CLOSE
+        if (!closedToday) {
+            do {
+                d = d.minusDays(1)
+            } while (d.dayOfWeek == DayOfWeek.SATURDAY || d.dayOfWeek == DayOfWeek.SUNDAY)
+        }
+        return d
+    }
+
     companion object {
         private const val CAPTURE_LIMIT = 12        // 하루 저장 테마 수
         private const val CAPTURE_STOCK_COUNT = 40  // 거래대금 상위 N종목을 테마로 집계
+        private val MARKET_CLOSE = LocalTime.of(15, 30) // 정규장 마감
     }
 }
