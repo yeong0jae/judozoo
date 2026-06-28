@@ -64,7 +64,7 @@ export default function DatePopover({
   return (
     <div
       ref={ref}
-      className="absolute z-20 mt-1 w-60 rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl"
+      className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl"
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-semibold text-zinc-100">
