@@ -99,7 +99,7 @@ function marketParts(m: MarketSignalEventItem) {
   const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
   const isCandle = m.kind === "CANDLE_STREAK";
   const leftLabel = isCandle
-    ? `${m.streak}연속 ${m.side === "BUY" ? "매수" : "매도"}`
+    ? `${m.streak}연속 ${m.side === "BUY" ? "상승" : "하락"}`
     : INVESTOR_LABEL[m.investor ?? "FOREIGN"];
   const rightLabel = isCandle
     ? ""

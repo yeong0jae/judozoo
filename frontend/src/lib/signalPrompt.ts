@@ -35,7 +35,7 @@ function marketLine(m: MarketSignalEventItem): string {
   const investor = INVESTOR_LABEL[m.investor ?? "FOREIGN"];
   const desc =
     m.kind === "CANDLE_STREAK"
-      ? `${m.streak}연속 ${side}`
+      ? `${m.streak}연속 ${m.side === "BUY" ? "상승" : "하락"}`
       : m.kind === "NET_FLOW_TURN"
         ? `${investor} ${side} 전환`
         : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
