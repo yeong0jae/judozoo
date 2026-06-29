@@ -1,5 +1,9 @@
 import { Fragment, useEffect, useState } from "react";
-import { useOverseasRanking, useOverseasDailyCandles } from "../api/queries";
+import {
+  useOverseasRanking,
+  useOverseasMinuteCandles,
+  useOverseasDailyCandles,
+} from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
 import { formatPct } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
@@ -9,7 +13,10 @@ import StockAvatar from "../components/common/StockAvatar";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
-import CandleChart, { dailySeries } from "../components/common/CandleChart";
+import CandleChart, {
+  dailySeries,
+  minuteSeries,
+} from "../components/common/CandleChart";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "overseasStock.minChangeRate";
@@ -297,10 +304,11 @@ function CardGroupHeader({ label }: { label: string }) {
 // 상세 패널 — 선택 종목 기본 정보
 // ============================================================
 
-type DetailTab = "detail" | "daily";
+type DetailTab = "detail" | "minute" | "daily";
 
 const DETAIL_TABS: { key: DetailTab; label: string }[] = [
   { key: "detail", label: "상세" },
+  { key: "minute", label: "1분봉" },
   { key: "daily", label: "일봉" },
 ];
 
@@ -308,6 +316,7 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
   const [tab, setTab] = useState<DetailTab>("detail");
   const ex = stock?.exchange ?? null;
   const sym = stock?.symbol ?? null;
+  const minuteQ = useOverseasMinuteCandles(tab === "minute" ? ex : null, tab === "minute" ? sym : null);
   const dailyQ = useOverseasDailyCandles(tab === "daily" ? ex : null, tab === "daily" ? sym : null);
   const CH = "h-[28rem]";
 
@@ -379,6 +388,21 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
             <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
             <Field label="종목명" value={stock.name} span2 />
           </dl>
+        ) : tab === "minute" ? (
+          minuteQ.isLoading ? (
+            <Skeleton className={`${CH} w-full`} />
+          ) : !minuteQ.data || minuteQ.data.length === 0 ? (
+            <div className={`${CH} flex items-center justify-center text-xs text-zinc-600`}>
+              분봉 데이터가 없습니다
+            </div>
+          ) : (
+            <CandleChart
+              key={`${stock.symbol}-m`}
+              series={minuteSeries(minuteQ.data)}
+              priceLine={Math.max(...minuteQ.data.map((c) => c.high))}
+              className={`w-full ${CH}`}
+            />
+          )
         ) : dailyQ.isLoading ? (
           <Skeleton className={`${CH} w-full`} />
         ) : !dailyQ.data || dailyQ.data.length === 0 ? (
