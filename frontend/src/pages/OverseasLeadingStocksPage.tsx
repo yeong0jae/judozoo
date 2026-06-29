@@ -175,10 +175,10 @@ function RankingTable({
                 <td className="pl-4 py-3.5 text-zinc-500 num w-10">{s.rank}</td>
                 <td className="px-2 py-3.5">
                   <div className="flex items-center gap-3">
-                    <StockAvatar name={s.symbol} code={s.symbol} />
+                    <StockAvatar name={s.name} code={s.symbol} />
                     <div className="min-w-0">
-                      <div className="font-semibold text-zinc-100">{s.symbol}</div>
-                      <div className="text-xs text-zinc-500 truncate max-w-[12rem]">{s.name}</div>
+                      <div className="font-semibold text-zinc-100 truncate max-w-[12rem]">{s.name}</div>
+                      <div className="text-xs text-zinc-500 num">{s.symbol}</div>
                     </div>
                   </div>
                 </td>
@@ -241,14 +241,14 @@ function RankingCards({
               {/* 1행: 순위 · 아바타 · 심볼 · 현재가 */}
               <div className="flex items-center gap-2">
                 <span className="text-zinc-500 text-xs num w-4 shrink-0">{s.rank}</span>
-                <StockAvatar name={s.symbol} code={s.symbol} size={26} />
-                <span className="font-semibold truncate flex-1 min-w-0">{s.symbol}</span>
+                <StockAvatar name={s.name} code={s.symbol} size={26} />
+                <span className="font-semibold truncate flex-1 min-w-0">{s.name}</span>
                 <span className="num shrink-0 font-medium text-zinc-100">{formatUsd(s.price)}</span>
               </div>
-              {/* 2행: 종목명 · 등락률 */}
+              {/* 2행: 심볼 · 등락률 */}
               <div className="flex items-center gap-2 pl-[3.25rem]">
-                <span className="text-xs text-zinc-500 truncate flex-1 min-w-0">
-                  {s.name}
+                <span className="text-xs text-zinc-500 num truncate flex-1 min-w-0">
+                  {s.symbol}
                 </span>
                 <ProfitText
                   value={s.rate / 100}
