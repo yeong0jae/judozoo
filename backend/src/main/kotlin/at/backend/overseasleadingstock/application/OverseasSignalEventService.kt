@@ -1,5 +1,6 @@
 package at.backend.overseasleadingstock.application
 
+import at.backend.leadingstock.domain.SignalEventType
 import at.backend.overseasleadingstock.domain.OverseasSignalEvent
 import at.backend.overseasleadingstock.infrastructure.repository.OverseasSignalEventRepository
 import org.springframework.stereotype.Service
@@ -20,4 +21,9 @@ class OverseasSignalEventService(
     @Transactional(readOnly = true)
     fun eventsOn(date: LocalDate): List<OverseasSignalEvent> =
         repository.findByTradeDateOrderByOccurredAtDesc(date)
+
+    /** 그날 같은 종목·타입 전이가 이미 적재됐는지 — 재시작 재발화 방지. */
+    @Transactional(readOnly = true)
+    fun alreadyFired(date: LocalDate, exchange: String, symbol: String, type: SignalEventType): Boolean =
+        repository.existsByTradeDateAndExchangeAndSymbolAndEventType(date, exchange, symbol, type)
 }
