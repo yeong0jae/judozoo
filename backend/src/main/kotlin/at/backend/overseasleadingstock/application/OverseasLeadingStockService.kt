@@ -19,7 +19,7 @@ class OverseasLeadingStockService(
 ) {
 
     /**
-     * 통합 거래대금 60위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.
+     * 통합 거래대금 40위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.
      * getRanking(전시)·evaluateStock(상세)이 공유하는 후보 풀.
      */
     private fun rankingPool(): List<OverseasStockRankItem> =
@@ -31,7 +31,7 @@ class OverseasLeadingStockService(
             .mapIndexed { i, item -> item.copy(rank = i + 1) }
 
     /**
-     * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위 60위.
+     * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위 40위.
      * 국내와 동일한 흐름: 거래대금 1~3위는 등락률 무관 항상 포함,
      * 나머지는 당일 등락률이 [minChangeRate] 이상인 것만 통과.
      */
@@ -158,7 +158,7 @@ class OverseasLeadingStockService(
 
     companion object {
         private val EXCHANGES = listOf("NAS", "NYS", "AMS")
-        private const val TOP_N = 60
+        private const val TOP_N = 40
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val MIN_CHANGE_RATE_PCT = 5.0          // 상세 B: 당일 등락률 하한
         private const val MIN_MARKET_CAP_USD = 2_000_000_000L // 상세 C: 시가총액 $2B 하한
