@@ -17,9 +17,37 @@ class KisOverseasChartClient(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 해외주식 1분봉 (HHDFS76950200) — 최근 120건. 가격은 이미 소수점 적용, 시각은 한국기준(kymd+khms). */
+    /**
+     * 해외주식 1분봉 (HHDFS76950200) — 최근 [SESSION_DAYS]거래일. 가격은 소수점 적용, 시각은 한국기준(kymd+khms).
+     * 1회 120건 한도라, 마지막 봉의 현지시각(xymd+xhms) −1분을 KEYB로 넣어 과거로 이어 받는다.
+     * 현지영업일(tymd)이 SESSION_DAYS를 넘기 시작하면(다음 거래일 데이터가 보이면) 중단한 뒤 최신 거래일만 남긴다.
+     */
     @Cacheable("kisOverseasMinuteCandles", key = "#excd + ':' + #symb")
     fun fetchMinuteCandles(excd: String, symb: String): List<OverseasMinuteCandle> {
+        val collected = mutableListOf<MinuteItem>()
+        val tradingDays = linkedSetOf<String>()
+        var keyb = ""
+        var next = ""
+        for (page in 0 until MAX_MINUTE_PAGES) {
+            val items = fetchMinutePage(excd, symb, next, keyb)
+            if (items.isEmpty()) break
+            collected += items
+            items.forEach { tradingDays += it.tymd.trim() }
+            if (tradingDays.size > SESSION_DAYS) break // 다음 거래일까지 받았으니 충분
+            val last = items.last() // 페이지는 최신→과거라 마지막이 가장 이른 봉
+            val cursor = runCatching {
+                LocalDateTime.parse(last.xymd.trim() + last.xhms.trim().padStart(6, '0'), MINUTE_FMT)
+                    .minusMinutes(1)
+            }.getOrNull() ?: break
+            keyb = cursor.format(MINUTE_FMT)
+            next = "1"
+        }
+        // 최신 SESSION_DAYS 거래일치만 남겨 시각 오름차순 변환
+        val keepDays = tradingDays.sortedDescending().take(SESSION_DAYS).toSet()
+        return collected.filter { it.tymd.trim() in keepDays }.mapNotNull { it.toCandle() }
+    }
+
+    private fun fetchMinutePage(excd: String, symb: String, next: String, keyb: String): List<MinuteItem> {
         val token = authClient.getAccessToken()
         val response = kisRestClient.get()
             .uri { b ->
@@ -29,10 +57,10 @@ class KisOverseasChartClient(
                     .queryParam("SYMB", symb)
                     .queryParam("NMIN", "1")
                     .queryParam("PINC", "1") // 전일포함 — 장 초반에도 직전 세션 봉으로 채움
-                    .queryParam("NEXT", "")
+                    .queryParam("NEXT", next)
                     .queryParam("NREC", "120")
                     .queryParam("FILL", "")
-                    .queryParam("KEYB", "")
+                    .queryParam("KEYB", keyb)
                     .build()
             }
             .headers { it.applyKisHeaders(token, "HHDFS76950200") }
@@ -43,7 +71,7 @@ class KisOverseasChartClient(
         if (response.rt_cd != "0") {
             throw IllegalStateException("KIS 해외 분봉 오류: ${response.msg1} ($excd:$symb)")
         }
-        return (response.output2 ?: emptyList()).mapNotNull { it.toCandle() }
+        return response.output2 ?: emptyList()
     }
 
     /** 해외주식 일봉 (HHDFS76240000, GUBN=0) — 최근 100건. 가격 소수점 적용, 최신→과거 순. */
@@ -70,7 +98,7 @@ class KisOverseasChartClient(
         if (response.rt_cd != "0") {
             throw IllegalStateException("KIS 해외 일봉 오류: ${response.msg1} ($excd:$symb)")
         }
-        return (response.output2 ?: emptyList()).mapNotNull { it.toCandle() }
+        return (response.output2 ?: emptyList()).take(DAILY_COUNT).mapNotNull { it.toCandle() }
     }
 
     private fun org.springframework.http.HttpHeaders.applyKisHeaders(token: String, trId: String) {
@@ -135,6 +163,9 @@ class KisOverseasChartClient(
     )
 
     private data class MinuteItem(
+        val tymd: String, // 현지영업일자 YYYYMMDD — 거래일 카운트용
+        val xymd: String, // 현지기준일자 YYYYMMDD — KEYB 페이징용
+        val xhms: String, // 현지기준시간 HHMMSS  — KEYB 페이징용
         val kymd: String, // 한국기준일자 YYYYMMDD
         val khms: String, // 한국기준시간 HHMMSS
         val open: String,
@@ -161,6 +192,9 @@ class KisOverseasChartClient(
     )
 
     companion object {
+        private const val SESSION_DAYS = 2      // 분봉 표시 거래일 수
+        private const val MAX_MINUTE_PAGES = 20  // 2거래일 채우기 위한 KEYB 페이징 상한
+        private const val DAILY_COUNT = 60       // 일봉 표시 거래일 수 (국내와 동일)
         private val MINUTE_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
         private val DAILY_FMT = DateTimeFormatter.ofPattern("yyyyMMdd")
     }
