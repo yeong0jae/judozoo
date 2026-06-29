@@ -56,12 +56,14 @@ export default function CandleChart({
   timeVisible = true,
   priceLine,
   priceLineTitle = "돌파선",
+  priceDecimals = 0,
   className = "w-full h-48",
 }: {
   series: CandleSeries;
   timeVisible?: boolean;
   priceLine?: number; // 가로 기준선(예: 돌파선)
   priceLineTitle?: string;
+  priceDecimals?: number; // 가격축 소수 자릿수 (국내 원=0, 해외 달러=2)
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,11 +101,15 @@ export default function CandleChart({
       wickUpColor: "#f43f5e",
       wickDownColor: "#3b82f6",
       borderVisible: false,
-      // 가격축: 정수(원) + 천 단위 쉼표
+      // 가격축: priceDecimals 자리(원=0, 달러=2) + 천 단위 쉼표
       priceFormat: {
         type: "custom",
-        minMove: 1,
-        formatter: (p: number) => Math.round(p).toLocaleString("en-US"),
+        minMove: priceDecimals > 0 ? 1 / 10 ** priceDecimals : 1,
+        formatter: (p: number) =>
+          p.toLocaleString("en-US", {
+            minimumFractionDigits: priceDecimals,
+            maximumFractionDigits: priceDecimals,
+          }),
       },
     });
     // 캔들은 위 75%, 거래량은 아래 20%에 별도 오버레이 스케일로
@@ -122,7 +128,7 @@ export default function CandleChart({
       seriesRef.current = null;
       volumeRef.current = null;
     };
-  }, [timeVisible]);
+  }, [timeVisible, priceDecimals]);
 
   useEffect(() => {
     const s = seriesRef.current;

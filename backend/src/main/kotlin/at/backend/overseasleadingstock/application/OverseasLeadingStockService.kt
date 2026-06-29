@@ -66,7 +66,7 @@ class OverseasLeadingStockService(
             FilterResultItem(
                 filterName = "시가총액",
                 criteriaDescription = "$${MIN_MARKET_CAP_USD / 1_000_000_000}B 이상",
-                actualValue = marketCap?.let { "$${it / 1_000_000}M" } ?: "조회 불가",
+                actualValue = marketCap?.let { formatUsdCap(it) } ?: "조회 불가",
                 passed = marketCap != null && marketCap >= MIN_MARKET_CAP_USD,
             ),
         )
@@ -112,6 +112,11 @@ class OverseasLeadingStockService(
                     volume = it.volume,
                 )
             }
+
+    /** 시가총액(달러)을 보기 좋은 단위로 — 1조 이상은 $X.XXT, 그 외는 $X,XXXB. */
+    private fun formatUsdCap(usd: Long): String =
+        if (usd >= 1_000_000_000_000L) "$%.2fT".format(usd / 1_000_000_000_000.0)
+        else "$%,dB".format(usd / 1_000_000_000L)
 
     /**
      * 거래대금순위 API엔 ETF 구분 필드가 없어 영문명 키워드로 판별(휴리스틱).

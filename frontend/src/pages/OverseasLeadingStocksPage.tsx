@@ -180,7 +180,6 @@ function RankingTable({
         <tr>
           <th className="pl-4 py-2.5 text-left font-medium w-10">순위</th>
           <th className="px-2 py-2.5 text-left font-medium">종목</th>
-          <th className="px-4 py-2.5 text-left font-medium">거래소</th>
           <th className="px-4 py-2.5 text-right font-medium">현재가</th>
           <th className="px-4 py-2.5 text-right font-medium">등락률</th>
           <th className="px-4 py-2.5 text-right font-medium">거래대금(USD)</th>
@@ -210,7 +209,6 @@ function RankingTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-zinc-400">{exchangeLabel(s.exchange)}</td>
                 <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
                   {formatUsd(s.price)}
                 </td>
@@ -232,7 +230,7 @@ function RankingTable({
 function GroupHeader({ label }: { label: string }) {
   return (
     <tr aria-hidden className="border-t border-white/[0.04] bg-white/[0.02]">
-      <td colSpan={6} className="px-4 py-2.5">
+      <td colSpan={5} className="px-4 py-2.5">
         <span className="text-xs font-semibold text-zinc-400">{label}</span>
       </td>
     </tr>
@@ -274,10 +272,10 @@ function RankingCards({
                 <span className="font-semibold truncate flex-1 min-w-0">{s.symbol}</span>
                 <span className="num shrink-0 font-medium text-zinc-100">{formatUsd(s.price)}</span>
               </div>
-              {/* 2행: 거래소·종목명 · 등락률 */}
+              {/* 2행: 종목명 · 등락률 */}
               <div className="flex items-center gap-2 pl-[3.25rem]">
                 <span className="text-xs text-zinc-500 truncate flex-1 min-w-0">
-                  {exchangeLabel(s.exchange)} · {s.name}
+                  {s.name}
                 </span>
                 <ProfitText
                   value={s.rate / 100}
@@ -413,6 +411,7 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
               key={`${stock.symbol}-m`}
               series={minuteSeries(minuteQ.data)}
               priceLine={Math.max(...minuteQ.data.map((c) => c.high))}
+              priceDecimals={2}
               className={`w-full ${CH}`}
             />
           )
@@ -427,6 +426,7 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
             key={`${stock.symbol}-d`}
             series={dailySeries(dailyQ.data)}
             timeVisible={false}
+            priceDecimals={2}
             className={`w-full ${CH}`}
           />
         )}
@@ -468,10 +468,10 @@ function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
         >
           <span className="text-xs mt-0.5">{r.passed ? "✓" : "✗"}</span>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-zinc-800">{r.filterName}</div>
+            <div className="text-xs font-medium">{r.filterName}</div>
             <div className="text-xs text-zinc-500 mt-0.5">기준: {r.criteriaDescription}</div>
           </div>
-          <div className="text-xs num shrink-0 text-zinc-700">{r.actualValue}</div>
+          <div className="text-xs num shrink-0">{r.actualValue}</div>
         </div>
       ))}
     </div>
