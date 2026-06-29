@@ -374,7 +374,16 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
 
       <div className="p-4 sm:p-6">
         {tab === "detail" ? (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {detailQ.data ? (
+              <FilterResultsList results={detailQ.data.filterResults} />
+            ) : (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            )}
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
               <Field label="통합 순위" value={`${stock.rank}위`} />
               <Field label="거래소" value={exchangeLabel(stock.exchange)} />
@@ -391,7 +400,6 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
               <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
               <Field label="종목명" value={stock.name} span2 />
             </dl>
-            {detailQ.data && <FilterResultsList results={detailQ.data.filterResults} />}
           </div>
         ) : tab === "minute" ? (
           minuteQ.isLoading ? (
