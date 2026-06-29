@@ -101,6 +101,20 @@ class CacheConfig {
                 .maximumSize(3)
                 .build(),
         )
+        manager.registerCustomCache(
+            "kisOverseasMinuteCandles", // KIS 해외 분봉 — 종목별, 형성 중이라 30s
+            Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .maximumSize(60)
+                .build(),
+        )
+        manager.registerCustomCache(
+            "kisOverseasDailyCandles", // KIS 해외 일봉 — 종목별, 당일 봉 변동 반영 30s
+            Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .maximumSize(60)
+                .build(),
+        )
         return manager
     }
 }

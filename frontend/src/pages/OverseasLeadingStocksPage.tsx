@@ -1,5 +1,9 @@
 import { Fragment, useEffect, useState } from "react";
-import { useOverseasRanking } from "../api/queries";
+import {
+  useOverseasRanking,
+  useOverseasMinuteCandles,
+  useOverseasDailyCandles,
+} from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
 import { formatPct } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
@@ -9,6 +13,10 @@ import StockAvatar from "../components/common/StockAvatar";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
+import CandleChart, {
+  dailySeries,
+  minuteSeries,
+} from "../components/common/CandleChart";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "overseasStock.minChangeRate";
@@ -296,7 +304,22 @@ function CardGroupHeader({ label }: { label: string }) {
 // 상세 패널 — 선택 종목 기본 정보
 // ============================================================
 
+type DetailTab = "detail" | "minute" | "daily";
+
+const DETAIL_TABS: { key: DetailTab; label: string }[] = [
+  { key: "detail", label: "상세" },
+  { key: "minute", label: "1분봉" },
+  { key: "daily", label: "일봉" },
+];
+
 function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
+  const [tab, setTab] = useState<DetailTab>("detail");
+  const ex = stock?.exchange ?? null;
+  const sym = stock?.symbol ?? null;
+  const minuteQ = useOverseasMinuteCandles(tab === "minute" ? ex : null, tab === "minute" ? sym : null);
+  const dailyQ = useOverseasDailyCandles(tab === "daily" ? ex : null, tab === "daily" ? sym : null);
+  const CH = "h-[28rem]";
+
   if (!stock) {
     return (
       <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
@@ -310,14 +333,31 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
   return (
     <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
       <header className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
-        <div className="flex items-center gap-3">
-          <StockAvatar name={stock.symbol} code={stock.symbol} size={36} />
-          <div className="min-w-0">
-            <div className="flex items-center flex-wrap gap-x-2">
-              <span className="text-base font-semibold">{stock.symbol}</span>
-              <span className="text-xs text-zinc-500">{exchangeLabel(stock.exchange)}</span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <StockAvatar name={stock.symbol} code={stock.symbol} size={36} />
+            <div className="min-w-0">
+              <div className="flex items-center flex-wrap gap-x-2">
+                <span className="text-base font-semibold">{stock.symbol}</span>
+                <span className="text-xs text-zinc-500">{exchangeLabel(stock.exchange)}</span>
+              </div>
+              <div className="text-xs text-zinc-400 truncate">{stock.ename || stock.name}</div>
             </div>
-            <div className="text-xs text-zinc-400 truncate">{stock.ename || stock.name}</div>
+          </div>
+          {/* 상세/차트 토글 */}
+          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs shrink-0">
+            {DETAIL_TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  tab === t.key ? "bg-white/[0.1] text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
@@ -331,22 +371,52 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
       </header>
 
       <div className="p-4 sm:p-6">
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-          <Field label="통합 순위" value={`${stock.rank}위`} />
-          <Field label="거래소" value={exchangeLabel(stock.exchange)} />
-          <Field
-            label="전일 대비"
-            value={
-              <ProfitText
-                value={stock.rate / 100}
-                format={() => `${stock.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(stock.diff))}`}
-                className="num"
-              />
-            }
+        {tab === "detail" ? (
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+            <Field label="통합 순위" value={`${stock.rank}위`} />
+            <Field label="거래소" value={exchangeLabel(stock.exchange)} />
+            <Field
+              label="전일 대비"
+              value={
+                <ProfitText
+                  value={stock.rate / 100}
+                  format={() => `${stock.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(stock.diff))}`}
+                  className="num"
+                />
+              }
+            />
+            <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
+            <Field label="종목명" value={stock.name} span2 />
+          </dl>
+        ) : tab === "minute" ? (
+          minuteQ.isLoading ? (
+            <Skeleton className={`${CH} w-full`} />
+          ) : !minuteQ.data || minuteQ.data.length === 0 ? (
+            <div className={`${CH} flex items-center justify-center text-xs text-zinc-600`}>
+              분봉 데이터가 없습니다
+            </div>
+          ) : (
+            <CandleChart
+              key={`${stock.symbol}-m`}
+              series={minuteSeries(minuteQ.data)}
+              priceLine={Math.max(...minuteQ.data.map((c) => c.high))}
+              className={`w-full ${CH}`}
+            />
+          )
+        ) : dailyQ.isLoading ? (
+          <Skeleton className={`${CH} w-full`} />
+        ) : !dailyQ.data || dailyQ.data.length === 0 ? (
+          <div className={`${CH} flex items-center justify-center text-xs text-zinc-600`}>
+            일봉 데이터가 없습니다
+          </div>
+        ) : (
+          <CandleChart
+            key={`${stock.symbol}-d`}
+            series={dailySeries(dailyQ.data)}
+            timeVisible={false}
+            className={`w-full ${CH}`}
           />
-          <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
-          <Field label="종목명" value={stock.name} span2 />
-        </dl>
+        )}
       </div>
     </div>
   );

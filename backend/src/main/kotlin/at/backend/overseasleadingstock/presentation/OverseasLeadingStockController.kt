@@ -2,8 +2,11 @@ package at.backend.overseasleadingstock.presentation
 
 import at.backend.library.web.ApiResponse
 import at.backend.overseasleadingstock.application.OverseasLeadingStockService
+import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandleItem
+import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -26,6 +29,22 @@ class OverseasLeadingStockController(
             ?: DEFAULT_MIN_CHANGE_RATE
         return ApiResponse.ok(service.getRanking(rate))
     }
+
+    /** 종목 1분봉 — 상세 캔들차트용. */
+    @GetMapping("/{exchange}/{symbol}/minute-candles")
+    fun getMinuteCandles(
+        @PathVariable exchange: String,
+        @PathVariable symbol: String,
+    ): ApiResponse<List<OverseasMinuteCandleItem>> =
+        ApiResponse.ok(service.minuteCandles(exchange.uppercase(), symbol.uppercase()))
+
+    /** 종목 일봉 — 일봉 차트용. */
+    @GetMapping("/{exchange}/{symbol}/daily-candles")
+    fun getDailyCandles(
+        @PathVariable exchange: String,
+        @PathVariable symbol: String,
+    ): ApiResponse<List<OverseasDailyCandleItem>> =
+        ApiResponse.ok(service.dailyCandles(exchange.uppercase(), symbol.uppercase()))
 
     companion object {
         private const val MIN_CHANGE_RATE = -12

@@ -1,12 +1,16 @@
 package at.backend.overseasleadingstock.application
 
+import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandleItem
+import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
+import at.backend.platform.kis.client.KisOverseasChartClient
 import at.backend.platform.kis.client.KisOverseasRankingClient
 import org.springframework.stereotype.Service
 
 @Service
 class OverseasLeadingStockService(
     private val rankingClient: KisOverseasRankingClient,
+    private val chartClient: KisOverseasChartClient,
 ) {
 
     /**
@@ -26,6 +30,37 @@ class OverseasLeadingStockService(
         val rest = pool.drop(TOP_RANK_ALWAYS_INCLUDED).filter { it.rate >= minChangeRate }
         return (topThree + rest).mapIndexed { i, item -> item.copy(rank = i + 1) }
     }
+
+    /** 종목 1분봉 (한국 시각순 오름차순). */
+    fun minuteCandles(exchange: String, symbol: String): List<OverseasMinuteCandleItem> =
+        chartClient.fetchMinuteCandles(exchange, symbol)
+            .sortedBy { it.dateTime }
+            .map {
+                OverseasMinuteCandleItem(
+                    time = it.dateTime,
+                    open = it.open,
+                    high = it.high,
+                    low = it.low,
+                    close = it.close,
+                    volume = it.volume,
+                    tradingValue = it.tradingValue,
+                )
+            }
+
+    /** 종목 일봉 (일자 오름차순). */
+    fun dailyCandles(exchange: String, symbol: String): List<OverseasDailyCandleItem> =
+        chartClient.fetchDailyCandles(exchange, symbol)
+            .sortedBy { it.date }
+            .map {
+                OverseasDailyCandleItem(
+                    date = it.date.toString(),
+                    open = it.open,
+                    high = it.high,
+                    low = it.low,
+                    close = it.close,
+                    volume = it.volume,
+                )
+            }
 
     /**
      * 거래대금순위 API엔 ETF 구분 필드가 없어 영문명 키워드로 판별(휴리스틱).
