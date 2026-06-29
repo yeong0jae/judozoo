@@ -5,6 +5,7 @@ import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandle
 import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasStockDetailResponse
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
+import at.backend.overseasleadingstock.presentation.response.OverseasSwingHighSignal
 import at.backend.platform.kis.client.KisOverseasChartClient
 import at.backend.platform.kis.client.KisOverseasProductClient
 import at.backend.platform.kis.client.KisOverseasRankingClient
@@ -50,6 +51,16 @@ class OverseasLeadingStockService(
             ?: throw NoSuchElementException("후보에 없는 종목: $exchange:$symbol")
         val marketCap = productClient.fetchMarketCap(exchange, symbol)
 
+        // 분봉(차트와 캐시 공유) 최고가를 전고점(돌파선)으로
+        val peak = chartClient.fetchMinuteCandles(exchange, symbol).maxByOrNull { it.high }
+        val swingHigh = peak?.takeIf { stock.price > 0 }?.let {
+            OverseasSwingHighSignal(
+                peakPrice = it.high,
+                peakAt = it.dateTime,
+                gapRate = (it.high - stock.price) / stock.price * 100,
+            )
+        }
+
         val filters = listOf(
             FilterResultItem(
                 filterName = "거래대금순위",
@@ -79,6 +90,7 @@ class OverseasLeadingStockService(
             rate = stock.rate,
             marketCap = marketCap,
             filterResults = filters,
+            swingHighSignal = swingHigh,
         )
     }
 

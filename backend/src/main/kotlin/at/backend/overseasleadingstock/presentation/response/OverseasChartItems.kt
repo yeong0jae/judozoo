@@ -13,7 +13,7 @@ data class OverseasMinuteCandleItem(
     val tradingValue: Double,
 )
 
-/** 해외 종목 상세 — 필터 평가 결과(A·B·C) + 시가총액. */
+/** 해외 종목 상세 — 필터 평가 결과(A·B·C) + 시가총액 + 돌파 시그널. */
 data class OverseasStockDetailResponse(
     val exchange: String,
     val symbol: String,
@@ -23,6 +23,14 @@ data class OverseasStockDetailResponse(
     val rate: Double,
     val marketCap: Long?, // 달러, 조회 불가 시 null
     val filterResults: List<FilterResultItem>,
+    val swingHighSignal: OverseasSwingHighSignal?,
+)
+
+/** 분봉 전고점 돌파 시그널. gapRate = (고점-현재가)/현재가×100, 양수=남은 상승률·음수=이미 돌파. */
+data class OverseasSwingHighSignal(
+    val peakPrice: Double,
+    val peakAt: java.time.LocalDateTime,
+    val gapRate: Double,
 )
 
 /** 필터 한 줄 평가 — 국내 FilterResultItem과 동일 구조. */

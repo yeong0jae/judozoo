@@ -5,7 +5,11 @@ import {
   useOverseasMinuteCandles,
   useOverseasDailyCandles,
 } from "../api/queries";
-import type { OverseasFilterResult, OverseasStockRankItem } from "../types";
+import type {
+  OverseasFilterResult,
+  OverseasStockRankItem,
+  OverseasSwingHighSignal,
+} from "../types";
 import { formatPct } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
@@ -382,22 +386,30 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
                 ))}
               </div>
             )}
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-              <Field label="통합 순위" value={`${stock.rank}위`} />
-              <Field label="거래소" value={exchangeLabel(stock.exchange)} />
-              <Field
-                label="전일 대비"
-                value={
-                  <ProfitText
-                    value={stock.rate / 100}
-                    format={() => `${stock.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(stock.diff))}`}
-                    className="num"
-                  />
-                }
-              />
-              <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
-              <Field label="종목명" value={stock.name} span2 />
-            </dl>
+            <div className="space-y-6">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                <Field label="통합 순위" value={`${stock.rank}위`} />
+                <Field label="거래소" value={exchangeLabel(stock.exchange)} />
+                <Field
+                  label="전일 대비"
+                  value={
+                    <ProfitText
+                      value={stock.rate / 100}
+                      format={() => `${stock.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(stock.diff))}`}
+                      className="num"
+                    />
+                  }
+                />
+                <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
+                <Field label="종목명" value={stock.name} span2 />
+              </dl>
+              {detailQ.data?.swingHighSignal && (
+                <BreakoutSignalSection
+                  signal={detailQ.data.swingHighSignal}
+                  currentPrice={stock.price}
+                />
+              )}
+            </div>
           </div>
         ) : tab === "minute" ? (
           minuteQ.isLoading ? (
@@ -475,5 +487,83 @@ function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// 전고점 형성 후 경과 시간을 사람이 읽기 좋게
+function formatElapsed(ms: number): string {
+  const min = Math.floor(ms / 60000);
+  if (min <= 0) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `${h}시간 전` : `${h}시간 ${m}분 전`;
+}
+
+// 잔여 상승률(%)로 돌파 임박도를 라벨/색으로 구분
+function breakoutStatus(gapRate: number): { label: string; chip: string; gap: string } {
+  if (gapRate <= 0)
+    return { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
+  if (gapRate < 2.0)
+    return { label: "임박", chip: "bg-amber-500/20 text-amber-300", gap: "text-amber-300" };
+  if (gapRate < 4.0)
+    return { label: "주시", chip: "bg-amber-500/15 text-amber-400", gap: "text-amber-400" };
+  return { label: "관망", chip: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-200" };
+}
+
+function BreakoutSignalSection({
+  signal,
+  currentPrice,
+}: {
+  signal: OverseasSwingHighSignal;
+  currentPrice: number;
+}) {
+  const broke = signal.gapRate <= 0;
+  const peakDate = new Date(signal.peakAt);
+  const peakTime = peakDate.toTimeString().slice(0, 5); // HH:mm
+  const elapsed = formatElapsed(Date.now() - peakDate.getTime());
+  const gap = signal.peakPrice - currentPrice; // 돌파까지 더 올라야 하는 금액 (돌파 시 음수)
+  const status = breakoutStatus(signal.gapRate);
+
+  return (
+    <section>
+      <h3 className="text-xs font-semibold text-zinc-200 mb-3">
+        주도주 돌파 매매 시그널
+        <span className="ml-2 text-xs font-normal text-zinc-500">최근 2거래일 고가 기준</span>
+      </h3>
+      <div className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4">
+        {/* 돌파선(전고점) + 임박도 칩 */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs text-zinc-400">돌파선</span>
+          <span className="flex items-baseline gap-2">
+            <span className="num text-sm font-semibold text-zinc-100">
+              ${formatUsd(signal.peakPrice)}
+            </span>
+            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${status.chip}`}>
+              {status.label}
+            </span>
+          </span>
+        </div>
+        <div className="mt-1 text-xs text-zinc-500 num">
+          {peakDate.getDate()}일 {peakTime} 형성 · {elapsed}
+        </div>
+
+        <div className="my-3 border-t border-zinc-800" />
+
+        {/* 현재가 → 돌파까지 거리($/%) */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-xs text-zinc-400">현재가</span>
+          <span className="num text-sm text-zinc-300">${formatUsd(currentPrice)}</span>
+        </div>
+        <div className="mt-2 flex items-baseline justify-between">
+          <span className="text-xs text-zinc-400">{broke ? "돌파" : "돌파까지"}</span>
+          <span className={`num text-sm font-semibold ${status.gap}`}>
+            {broke
+              ? `$${formatUsd(-gap)} (+${(-signal.gapRate).toFixed(1)}%)`
+              : `$${formatUsd(gap)} (${signal.gapRate.toFixed(1)}%)`}
+          </span>
+        </div>
+      </div>
+    </section>
   );
 }

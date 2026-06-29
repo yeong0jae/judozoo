@@ -213,6 +213,12 @@ export interface OverseasFilterResult {
   passed: boolean;
 }
 
+export interface OverseasSwingHighSignal {
+  peakPrice: number;
+  peakAt: string;
+  gapRate: number; // (고점-현재가)/현재가×100, 양수=남은 상승률
+}
+
 export interface OverseasStockDetailResponse {
   exchange: string;
   symbol: string;
@@ -222,6 +228,7 @@ export interface OverseasStockDetailResponse {
   rate: number;
   marketCap: number | null; // 달러
   filterResults: OverseasFilterResult[];
+  swingHighSignal: OverseasSwingHighSignal | null;
 }
 
 export interface OverseasStockRankItem {
