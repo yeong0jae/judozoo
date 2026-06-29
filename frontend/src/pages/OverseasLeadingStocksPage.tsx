@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useState } from "react";
 import {
   useOverseasRanking,
+  useOverseasStockDetail,
   useOverseasMinuteCandles,
   useOverseasDailyCandles,
 } from "../api/queries";
-import type { OverseasStockRankItem } from "../types";
+import type { OverseasFilterResult, OverseasStockRankItem } from "../types";
 import { formatPct } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
@@ -316,6 +317,7 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
   const [tab, setTab] = useState<DetailTab>("detail");
   const ex = stock?.exchange ?? null;
   const sym = stock?.symbol ?? null;
+  const detailQ = useOverseasStockDetail(tab === "detail" ? ex : null, tab === "detail" ? sym : null);
   const minuteQ = useOverseasMinuteCandles(tab === "minute" ? ex : null, tab === "minute" ? sym : null);
   const dailyQ = useOverseasDailyCandles(tab === "daily" ? ex : null, tab === "daily" ? sym : null);
   const CH = "h-[28rem]";
@@ -372,22 +374,25 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
 
       <div className="p-4 sm:p-6">
         {tab === "detail" ? (
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-            <Field label="통합 순위" value={`${stock.rank}위`} />
-            <Field label="거래소" value={exchangeLabel(stock.exchange)} />
-            <Field
-              label="전일 대비"
-              value={
-                <ProfitText
-                  value={stock.rate / 100}
-                  format={() => `${stock.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(stock.diff))}`}
-                  className="num"
-                />
-              }
-            />
-            <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
-            <Field label="종목명" value={stock.name} span2 />
-          </dl>
+          <div className="space-y-6">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+              <Field label="통합 순위" value={`${stock.rank}위`} />
+              <Field label="거래소" value={exchangeLabel(stock.exchange)} />
+              <Field
+                label="전일 대비"
+                value={
+                  <ProfitText
+                    value={stock.rate / 100}
+                    format={() => `${stock.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(stock.diff))}`}
+                    className="num"
+                  />
+                }
+              />
+              <Field label="거래대금" value={`$${Math.round(stock.tradingValue).toLocaleString("en-US")}`} />
+              <Field label="종목명" value={stock.name} span2 />
+            </dl>
+            {detailQ.data && <FilterResultsList results={detailQ.data.filterResults} />}
+          </div>
         ) : tab === "minute" ? (
           minuteQ.isLoading ? (
             <Skeleton className={`${CH} w-full`} />
@@ -435,6 +440,32 @@ function Field({
     <div className={span2 ? "col-span-2" : ""}>
       <dt className="text-xs text-zinc-500 mb-1">{label}</dt>
       <dd className="text-zinc-100 num font-medium">{value}</dd>
+    </div>
+  );
+}
+
+function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
+  const passedCount = results.filter((r) => r.passed).length;
+  return (
+    <div className="space-y-2">
+      <div className="text-xs text-zinc-500 mb-2">
+        {passedCount} / {results.length}개 필터 통과
+      </div>
+      {results.map((r) => (
+        <div
+          key={r.filterName}
+          className={`flex items-start gap-3 px-3 py-2.5 rounded border ${
+            r.passed ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"
+          }`}
+        >
+          <span className="text-xs mt-0.5">{r.passed ? "✓" : "✗"}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-zinc-800">{r.filterName}</div>
+            <div className="text-xs text-zinc-500 mt-0.5">기준: {r.criteriaDescription}</div>
+          </div>
+          <div className="text-xs num shrink-0 text-zinc-700">{r.actualValue}</div>
+        </div>
+      ))}
     </div>
   );
 }

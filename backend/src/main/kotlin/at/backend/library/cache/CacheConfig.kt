@@ -109,6 +109,13 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
+            "kisOverseasMarketCap", // KIS 해외 시가총액 — 종목별, 상장주식수 거의 불변이라 1h
+            Caffeine.newBuilder()
+                .expireAfterWrite(1, TimeUnit.HOURS)
+                .maximumSize(100)
+                .build(),
+        )
+        manager.registerCustomCache(
             "kisOverseasMinuteCandles", // KIS 해외 분봉 — 종목별 2거래일 통째. 1분봉이라 60s면 충분
             Caffeine.newBuilder()
                 .expireAfterWrite(60, TimeUnit.SECONDS)

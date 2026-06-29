@@ -206,6 +206,24 @@ export interface SwingHighSignal {
 
 // === 해외주식 주도주 (Overseas Leading Stocks) ===
 
+export interface OverseasFilterResult {
+  filterName: string;
+  criteriaDescription: string;
+  actualValue: string;
+  passed: boolean;
+}
+
+export interface OverseasStockDetailResponse {
+  exchange: string;
+  symbol: string;
+  name: string;
+  ename: string;
+  price: number;
+  rate: number;
+  marketCap: number | null; // 달러
+  filterResults: OverseasFilterResult[];
+}
+
 export interface OverseasStockRankItem {
   rank: number;
   exchange: string;

@@ -1,9 +1,12 @@
 package at.backend.overseasleadingstock.application
 
+import at.backend.overseasleadingstock.presentation.response.FilterResultItem
 import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
+import at.backend.overseasleadingstock.presentation.response.OverseasStockDetailResponse
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
 import at.backend.platform.kis.client.KisOverseasChartClient
+import at.backend.platform.kis.client.KisOverseasProductClient
 import at.backend.platform.kis.client.KisOverseasRankingClient
 import org.springframework.stereotype.Service
 
@@ -11,24 +14,72 @@ import org.springframework.stereotype.Service
 class OverseasLeadingStockService(
     private val rankingClient: KisOverseasRankingClient,
     private val chartClient: KisOverseasChartClient,
+    private val productClient: KisOverseasProductClient,
 ) {
 
     /**
-     * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위 60위.
-     * 국내와 동일한 흐름: 통합 거래대금 60위 컷 → ETF 제외 → 거래대금 1~3위는 등락률 무관 항상 포함,
-     * 나머지는 당일 등락률이 [minChangeRate] 이상인 것만 통과. (60위 컷·ETF로 결과는 60개 미만일 수 있다)
+     * 통합 거래대금 60위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.
+     * getRanking(전시)·evaluateStock(상세)이 공유하는 후보 풀.
      */
-    fun getRanking(minChangeRate: Double): List<OverseasStockRankItem> {
-        val pool = EXCHANGES
+    private fun rankingPool(): List<OverseasStockRankItem> =
+        EXCHANGES
             .flatMap { excd -> rankingClient.fetchTradingValueRanking(excd).map { it.toRankItem() } }
             .sortedByDescending { it.tradingValue }
             .take(TOP_N)
             .filterNot { it.isEtf() }
+            .mapIndexed { i, item -> item.copy(rank = i + 1) }
 
-        // 거래대금 1~3위는 시장 톤 기준점으로 항상 포함, 4위부터는 등락률 필터
+    /**
+     * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위 60위.
+     * 국내와 동일한 흐름: 거래대금 1~3위는 등락률 무관 항상 포함,
+     * 나머지는 당일 등락률이 [minChangeRate] 이상인 것만 통과.
+     */
+    fun getRanking(minChangeRate: Double): List<OverseasStockRankItem> {
+        val pool = rankingPool()
         val topThree = pool.take(TOP_RANK_ALWAYS_INCLUDED)
         val rest = pool.drop(TOP_RANK_ALWAYS_INCLUDED).filter { it.rate >= minChangeRate }
         return (topThree + rest).mapIndexed { i, item -> item.copy(rank = i + 1) }
+    }
+
+    /**
+     * 종목 상세 — 필터 A(거래대금순위)·B(당일등락률)·C(시가총액) 평가.
+     * A·B는 후보 풀에서, C는 상품기본정보(상장주식수×현재가)로 산출.
+     */
+    fun evaluateStock(exchange: String, symbol: String): OverseasStockDetailResponse {
+        val stock = rankingPool().find { it.exchange == exchange && it.symbol == symbol }
+            ?: throw NoSuchElementException("후보에 없는 종목: $exchange:$symbol")
+        val marketCap = productClient.fetchMarketCap(exchange, symbol)
+
+        val filters = listOf(
+            FilterResultItem(
+                filterName = "거래대금순위",
+                criteriaDescription = "통합 상위 ${TOP_N}위 이내",
+                actualValue = "${stock.rank}위",
+                passed = stock.rank <= TOP_N,
+            ),
+            FilterResultItem(
+                filterName = "당일 등락률",
+                criteriaDescription = "${MIN_CHANGE_RATE_PCT.toInt()}% 이상",
+                actualValue = "${"%+.2f".format(stock.rate)}%",
+                passed = stock.rate >= MIN_CHANGE_RATE_PCT,
+            ),
+            FilterResultItem(
+                filterName = "시가총액",
+                criteriaDescription = "$${MIN_MARKET_CAP_USD / 1_000_000_000}B 이상",
+                actualValue = marketCap?.let { "$${it / 1_000_000}M" } ?: "조회 불가",
+                passed = marketCap != null && marketCap >= MIN_MARKET_CAP_USD,
+            ),
+        )
+        return OverseasStockDetailResponse(
+            exchange = stock.exchange,
+            symbol = stock.symbol,
+            name = stock.name,
+            ename = stock.ename,
+            price = stock.price,
+            rate = stock.rate,
+            marketCap = marketCap,
+            filterResults = filters,
+        )
     }
 
     /** 종목 1분봉 (한국 시각순 오름차순). */
@@ -92,6 +143,8 @@ class OverseasLeadingStockService(
         private val EXCHANGES = listOf("NAS", "NYS", "AMS")
         private const val TOP_N = 60
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
+        private const val MIN_CHANGE_RATE_PCT = 5.0          // 상세 B: 당일 등락률 하한
+        private const val MIN_MARKET_CAP_USD = 2_000_000_000L // 상세 C: 시가총액 $2B 하한
 
         // ETF/ETN 발행사 브랜드 + 명시 키워드. 미국 거래대금 상위 ETF 대부분을 커버.
         private val ETF_KEYWORDS = listOf(
