@@ -14,11 +14,12 @@ class KisRestClientConfig {
     /**
      * KIS 호출 공유 리미터 — 한도 "초당 N건"을 모든 KIS 호출에 한 버킷으로 적용.
      * 분봉 페이징·랭킹·일봉 버스트가 EGW00201(초당 거래건수 초과)을 내지 않게 평탄화.
-     * yaml `kis.query.permits-per-second`로 조정(기본 18 — 문서 한도 초당 20에 여유 2).
+     * yaml `kis.query.permits-per-second`로 조정(기본 10 — 한도 20의 절반.
+     * 리미터 1초 윈도우와 KIS 윈도우가 어긋나 경계에서 2배까지 몰릴 수 있어 절반으로 둔다).
      */
     @Bean
     fun kisRateLimiter(
-        @Value("\${kis.query.permits-per-second:18}") permitsPerSecond: Int,
+        @Value("\${kis.query.permits-per-second:10}") permitsPerSecond: Int,
     ): RateLimiter =
         RateLimiter.of(
             "kis-query",
