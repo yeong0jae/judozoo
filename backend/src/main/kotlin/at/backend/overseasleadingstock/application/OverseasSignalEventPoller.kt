@@ -61,11 +61,7 @@ class OverseasSignalEventPoller(
             states[key] = next
             if (events.isEmpty()) return@flatMap emptyList()
             events.mapNotNull { type ->
-                // 돌파·임박은 상태 전이라 재시작 시 재발화 위험 — DB 멱등 가드로 그날 1회만.
-                // 스파이크는 본래 여러 번 정상이라 쿨다운(메모리)으로만 제어.
-                if (type != SignalEventType.VOLUME_SPIKE &&
-                    signalEventService.alreadyFired(session, r.exchange, r.symbol, type)
-                ) return@mapNotNull null
+                // 국내와 동일 — 멱등 가드 없이 쿨다운(3분)만. 전고점 갱신 재돌파·재접근 임박을 그대로 허용.
                 val firedKey = "$key|$type"
                 if (lastFired[firedKey]?.isAfter(cooldownFrom) == true) return@mapNotNull null
                 lastFired[firedKey] = now
