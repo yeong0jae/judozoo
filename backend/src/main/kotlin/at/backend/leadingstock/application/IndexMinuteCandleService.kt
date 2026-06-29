@@ -41,4 +41,9 @@ class IndexMinuteCandleService(
     @Transactional(readOnly = true)
     fun candlesOn(market: Market, date: LocalDate): List<IndexMinuteCandle> =
         repository.findByMarketAndTradeDateOrderByMinuteAsc(market, date).map { it.toDomain() }
+
+    /** [from]~[to] 거래일 범위(시간 오름차순). 차트 다거래일 표시용. */
+    @Transactional(readOnly = true)
+    fun candlesInRange(market: Market, from: LocalDate, to: LocalDate): List<IndexMinuteCandle> =
+        repository.findByMarketAndTradeDateBetweenOrderByMinuteAsc(market, from, to).map { it.toDomain() }
 }

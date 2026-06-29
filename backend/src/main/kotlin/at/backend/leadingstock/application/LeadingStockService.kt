@@ -206,8 +206,17 @@ class LeadingStockService(
         marketClient.fetchDailyCandles(stockCode, 60, date)
 
     /** 지수(코스피/코스닥) 1분봉 — DB에서 일자별로 읽는다(폴러가 라이트스루로 적재). 차트용. */
+    /** 지수 1분봉 — 차트용. [date] 포함 직전 거래일까지 2거래일치. */
     fun indexMinuteCandles(market: Market, date: LocalDate): List<IndexMinuteCandle> =
-        indexMinuteCandleService.candlesOn(market, date)
+        indexMinuteCandleService.candlesInRange(market, previousTradingDay(date), date)
+
+    private fun previousTradingDay(date: LocalDate): LocalDate {
+        var d = date.minusDays(1)
+        while (d.dayOfWeek == java.time.DayOfWeek.SATURDAY || d.dayOfWeek == java.time.DayOfWeek.SUNDAY) {
+            d = d.minusDays(1)
+        }
+        return d
+    }
 
     /**
      * 돌파선용 분봉 — 차트와 동일한 최근 [CHART_SESSION_DAYS]거래일. 돌파선 = 그 기간 최고가.

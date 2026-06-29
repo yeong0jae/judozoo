@@ -10,5 +10,11 @@ interface IndexMinuteCandleRepository : JpaRepository<IndexMinuteCandleEntity, L
 
     fun findByMarketAndTradeDateOrderByMinuteAsc(market: Market, tradeDate: LocalDate): List<IndexMinuteCandleEntity>
 
+    fun findByMarketAndTradeDateBetweenOrderByMinuteAsc(
+        market: Market,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<IndexMinuteCandleEntity>
+
     fun findByMarketAndMinute(market: Market, minute: LocalDateTime): IndexMinuteCandleEntity?
 }
