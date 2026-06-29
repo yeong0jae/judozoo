@@ -406,7 +406,7 @@ function StockDetailPanel({ stock }: { stock: OverseasStockRankItem | null }) {
               {detailQ.data?.swingHighSignal && (
                 <BreakoutSignalSection
                   signal={detailQ.data.swingHighSignal}
-                  currentPrice={stock.price}
+                  currentPrice={detailQ.data.price}
                 />
               )}
             </div>
