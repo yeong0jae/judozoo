@@ -255,7 +255,7 @@ export function useOverseasMinuteCandles(
         `/api/overseas-leading-stocks/${exchange}/${symbol}/minute-candles`,
       ),
     enabled,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 }
 

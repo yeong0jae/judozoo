@@ -109,9 +109,9 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
-            "kisOverseasMinuteCandles", // KIS 해외 분봉 — 종목별, 형성 중이라 30s
+            "kisOverseasMinuteCandles", // KIS 해외 분봉 — 종목별 2거래일 통째. 1분봉이라 60s면 충분
             Caffeine.newBuilder()
-                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .expireAfterWrite(60, TimeUnit.SECONDS)
                 .maximumSize(60)
                 .build(),
         )
