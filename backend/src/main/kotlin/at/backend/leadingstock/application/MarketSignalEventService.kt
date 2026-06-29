@@ -5,6 +5,7 @@ import at.backend.leadingstock.domain.MarketSignalEvent
 import at.backend.leadingstock.domain.MarketSignalType
 import at.backend.leadingstock.domain.NetTradeSide
 import at.backend.leadingstock.infrastructure.repository.MarketSignalEventRepository
+import at.backend.platform.kiwoom.client.KiwoomSectorInvestorClient
 import at.backend.stock.domain.Market
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -14,7 +15,19 @@ import java.time.LocalDate
 @Service
 class MarketSignalEventService(
     private val repository: MarketSignalEventRepository,
+    private val sectorInvestorClient: KiwoomSectorInvestorClient,
 ) {
+
+    /** 코스피·코스닥 각 시장의 당일 누적 투자자(외인·기관·개인) 순매수. 데이터 없는 시장은 제외. */
+    fun investorNetBuy(): Map<Market, KiwoomSectorInvestorClient.SectorInvestorNetBuy> =
+        Market.entries
+            .mapNotNull { market -> sectorInvestorClient.fetchSectorNetBuy(market.mrktTp())?.let { market to it } }
+            .toMap()
+
+    private fun Market.mrktTp() = when (this) {
+        Market.KOSPI -> "0"
+        Market.KOSDAQ -> "1"
+    }
 
     @Transactional
     fun recordAll(events: List<MarketSignalEvent>) {

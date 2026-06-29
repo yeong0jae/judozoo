@@ -8,7 +8,7 @@ import type {
   MarketType,
   InvestorType,
 } from "../types";
-import { formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
+import { formatEok, formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
@@ -81,14 +81,6 @@ function fmtIndex(v: number): string {
 }
 
 /** 억원 → 사람이 읽기 쉬운 단위. 1조 이상은 "N조", 그 미만은 "N억". */
-function formatEok(eok: number): string {
-  if (eok >= 10000) {
-    const jo = eok / 10000;
-    return `${Number.isInteger(jo) ? jo : jo.toFixed(1)}조`;
-  }
-  return `${eok.toLocaleString()}억`;
-}
-
 /** 실시간 로그 한 행 — 종목 시그널 또는 시장(코스피/코스닥) 시그널. at은 정렬용 발생 시각. */
 type FeedRow =
   | { kind: "stock"; key: string; at: string; e: SignalEventItem }

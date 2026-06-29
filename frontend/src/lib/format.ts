@@ -37,6 +37,15 @@ export function formatQty(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(value) + "주";
 }
 
+// 억원 단위 입력 → "1.2조" / "3,500억". 시장 순매수 표시용.
+export function formatEok(eok: number): string {
+  if (Math.abs(eok) >= 10000) {
+    const jo = eok / 10000;
+    return `${Number.isInteger(jo) ? jo : jo.toFixed(1)}조`;
+  }
+  return `${eok.toLocaleString()}억`;
+}
+
 // === Percentage ===
 // 입력은 소수 (rate). 0.025 → "+2.50%".
 export function formatPct(rate: number, digits = 2): string {

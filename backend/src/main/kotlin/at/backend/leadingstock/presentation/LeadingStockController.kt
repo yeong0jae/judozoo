@@ -14,6 +14,7 @@ import at.backend.leadingstock.presentation.response.DailyCandleChartItem
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.IndexMinuteCandleItem
+import at.backend.leadingstock.presentation.response.MarketInvestorNetBuyItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
 import at.backend.leadingstock.presentation.response.MarketSignalEventItem
 import at.backend.leadingstock.presentation.response.MarketSignalEventsResponse
@@ -165,6 +166,22 @@ class LeadingStockController(
             )
         }
         return ApiResponse.ok(MarketSignalEventsResponse(date = day, totalCount = events.size, events = events))
+    }
+
+    /** 코스피·코스닥 당일 누적 투자자(외인·기관·개인) 순매수 — 지수 상세 패널용. */
+    @GetMapping("/market/investor-net-buy")
+    fun getMarketInvestorNetBuy(): ApiResponse<List<MarketInvestorNetBuyItem>> {
+        val items = marketSignalEventService.investorNetBuy().map { (market, nb) ->
+            MarketInvestorNetBuyItem(
+                market = market.name,
+                foreignEok = nb.foreignEok,
+                institutionEok = nb.institutionEok,
+                individualEok = nb.individualEok,
+                indexValue = nb.indexValue,
+                changeRate = nb.changeRate,
+            )
+        }
+        return ApiResponse.ok(items)
     }
 
     /** 지수(코스피/코스닥) 1분봉 — 실시간 로그에서 지수 행 선택 시 우측 차트용. date 미지정 시 오늘. */

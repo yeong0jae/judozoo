@@ -104,6 +104,16 @@ data class MarketSignalEventItem(
     val changeRate: Double?, // 발생 시점 등락률(%)
 )
 
+/** 시장(코스피/코스닥) 당일 누적 투자자 순매수 — 상세 패널용. 순매수 단위는 억원(부호 포함). */
+data class MarketInvestorNetBuyItem(
+    val market: String,        // KOSPI | KOSDAQ
+    val foreignEok: Long,      // 외국인
+    val institutionEok: Long,  // 기관
+    val individualEok: Long,   // 개인
+    val indexValue: Double,
+    val changeRate: Double,    // %
+)
+
 /** 지수 1분봉 차트용 — 가격은 지수값(소수). volume은 1000주 단위. */
 data class IndexMinuteCandleItem(
     val time: LocalDateTime,

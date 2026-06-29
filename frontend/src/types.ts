@@ -127,6 +127,16 @@ export interface MarketSignalEventsResponse {
   events: MarketSignalEventItem[];
 }
 
+/** 시장(코스피/코스닥) 당일 누적 투자자 순매수 — 단위 억원(부호 포함). */
+export interface MarketInvestorNetBuyItem {
+  market: MarketType;
+  foreignEok: number;
+  institutionEok: number;
+  individualEok: number;
+  indexValue: number;
+  changeRate: number;
+}
+
 /** 지수 1분봉 — 가격은 지수값(소수), volume은 1000주 단위. */
 export interface IndexMinuteCandleItem {
   time: string;

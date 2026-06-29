@@ -102,6 +102,13 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
+            "sectorNetBuy", // 코스피/코스닥 투자자 순매수 — 폴러(2분)·상세 패널 공유, 시장별 슬롯 30s
+            Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .maximumSize(2)
+                .build(),
+        )
+        manager.registerCustomCache(
             "kisOverseasDailyCandles", // KIS 해외 일봉 — 종목별, 당일 봉 변동 반영 30s
             Caffeine.newBuilder()
                 .expireAfterWrite(30, TimeUnit.SECONDS)

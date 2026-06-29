@@ -1,6 +1,7 @@
 package at.backend.platform.kiwoom.client
 
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
@@ -16,7 +17,8 @@ class KiwoomSectorInvestorClient(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** [mrktTp] 0=코스피, 1=코스닥. 종합 업종 행이 없거나 실패 시 null. */
+    /** [mrktTp] 0=코스피, 1=코스닥. 종합 업종 행이 없거나 실패 시 null. 폴러(2분)와 상세 패널이 캐시 공유. */
+    @Cacheable("sectorNetBuy", key = "#mrktTp", unless = "#result == null")
     fun fetchSectorNetBuy(mrktTp: String): SectorInvestorNetBuy? {
         try {
             val token = authClient.getAccessToken()

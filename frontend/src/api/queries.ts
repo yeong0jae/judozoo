@@ -12,6 +12,7 @@ import type {
   MinuteCandleItem,
   IndexMinuteCandleItem,
   MarketSignalEventsResponse,
+  MarketInvestorNetBuyItem,
   MarketType,
   MarketStatus,
   OverseasStockRankItem,
@@ -32,6 +33,7 @@ export const QK = {
     ["leading-stocks", "signal-events", date] as const,
   marketSignalEvents: (date: string) =>
     ["leading-stocks", "market-signal-events", date] as const,
+  marketInvestorNetBuy: ["leading-stocks", "market-investor-net-buy"] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -132,6 +134,18 @@ export function useMarketSignalEvents(date: string) {
         `/api/leading-stocks/market-signal-events?date=${date}`,
       ),
     refetchInterval: isToday ? 5_000 : false,
+  });
+}
+
+export function useMarketInvestorNetBuy(enabled: boolean) {
+  return useQuery({
+    queryKey: QK.marketInvestorNetBuy,
+    queryFn: () =>
+      apiFetch<MarketInvestorNetBuyItem[]>(
+        "/api/leading-stocks/market/investor-net-buy",
+      ),
+    enabled,
+    refetchInterval: 30_000,
   });
 }
 
