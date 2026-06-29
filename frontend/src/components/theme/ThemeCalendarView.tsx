@@ -15,9 +15,13 @@ function ymd(d: Date): string {
   ).padStart(2, "0")}`;
 }
 
-/** 테마 대표 등락 = 거래대금 1위 종목의 등락률. 색바·팝오버 등락 표시에 쓴다. */
+/** 테마 대표 등락 = 테마 내 종목 등락률의 단순 평균(등락률 없는 종목 제외). 색바·팝오버 등락 표시에 쓴다. */
 function themeRate(t: ThemeItem): number | null {
-  return t.stocks[0]?.priceChangeRate ?? null;
+  const rates = t.stocks
+    .map((s) => s.priceChangeRate)
+    .filter((r): r is number => r != null);
+  if (rates.length === 0) return null;
+  return rates.reduce((a, b) => a + b, 0) / rates.length;
 }
 function barColor(rate: number | null): string {
   if (rate === null) return "bg-zinc-600";
@@ -92,7 +96,7 @@ export default function ThemeCalendarView({
           className="px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 border border-white/[0.06] disabled:opacity-50"
           title="오늘치 테마를 즉시 적재"
         >
-          {capturePending ? "캡처 중..." : "오늘 캡처"}
+          {capturePending ? "갱신 중..." : "갱신"}
         </motion.button>
       </div>
 
