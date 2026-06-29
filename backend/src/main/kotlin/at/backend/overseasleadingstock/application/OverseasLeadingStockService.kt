@@ -27,7 +27,12 @@ class OverseasLeadingStockService(
      */
     fun signalReadings(minChangeRate: Double): List<OverseasCandidateReading> =
         getRanking(minChangeRate).map { stock ->
-            val fresh = chartClient.fetchLatestMinutes(stock.exchange, stock.symbol)
+            // 첫 등장 종목은 2거래일 페이징으로 seed(전고점 정확), 이후엔 최신 1페이지만 누적
+            val fresh = if (minuteStore.has(stock.exchange, stock.symbol)) {
+                chartClient.fetchLatestMinutes(stock.exchange, stock.symbol)
+            } else {
+                chartClient.fetchMinuteCandles(stock.exchange, stock.symbol)
+            }
             minuteStore.merge(stock.exchange, stock.symbol, fresh)
             val stored = minuteStore.candles(stock.exchange, stock.symbol)
 

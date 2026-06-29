@@ -33,6 +33,10 @@ class OverseasMinuteCandleStore {
     fun candles(exchange: String, symbol: String): List<OverseasMinuteCandle> =
         byKey[key(exchange, symbol)]?.values?.toList() ?: emptyList()
 
+    /** 이미 누적분이 있는지 — 첫 등장 종목만 2거래일 seed하기 위한 판별. */
+    fun has(exchange: String, symbol: String): Boolean =
+        byKey[key(exchange, symbol)]?.isNotEmpty() == true
+
     /** 일자 전환 시 [keepDate] 이전 봉을 비운다(메모리 누수 방지). */
     fun clearBefore(keepDate: LocalDate) {
         byKey.values.forEach { map ->
