@@ -224,11 +224,35 @@ export interface OverseasStockDetailResponse {
   symbol: string;
   name: string;
   ename: string;
+  rank: number;
   price: number;
+  diff: number;
   rate: number;
+  tradingValue: number;
   marketCap: number | null; // 달러
   filterResults: OverseasFilterResult[];
   swingHighSignal: OverseasSwingHighSignal | null;
+}
+
+export interface OverseasSignalEventItem {
+  occurredAt: string;
+  exchange: string;
+  symbol: string;
+  name: string;
+  eventType: SignalEventType; // BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE
+  price: number;
+  rate: number;
+  tradingValue: number;
+  gapRate: number | null;
+  spikeRatio: number | null;
+  minuteTradingValue: number | null;
+  spikeDirection: SpikeDirection | null;
+}
+
+export interface OverseasSignalEventsResponse {
+  date: string;
+  totalCount: number;
+  events: OverseasSignalEventItem[];
 }
 
 export interface OverseasStockRankItem {

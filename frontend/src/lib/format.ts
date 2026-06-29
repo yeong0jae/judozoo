@@ -37,6 +37,14 @@ export function formatQty(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(value) + "주";
 }
 
+// 미국 주식 가격 — 소수 2자리 달러.
+export function formatUsd(value: number): string {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 // 억원 단위 입력 → "1.2조" / "3,500억". 시장 순매수 표시용.
 export function formatEok(eok: number): string {
   if (Math.abs(eok) >= 10000) {

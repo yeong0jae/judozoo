@@ -15,6 +15,7 @@ import type {
   MarketInvestorNetBuyItem,
   MarketType,
   MarketStatus,
+  OverseasSignalEventsResponse,
   OverseasStockDetailResponse,
   OverseasStockRankItem,
   SignalEventsResponse,
@@ -53,6 +54,8 @@ export const QK = {
     ["overseas-leading-stocks", "ranking", minChangeRate] as const,
   overseasDetail: (exchange: string, symbol: string) =>
     ["overseas-leading-stocks", "detail", exchange, symbol] as const,
+  overseasSignalEvents: (date: string) =>
+    ["overseas-leading-stocks", "signal-events", date] as const,
   overseasMinuteCandles: (exchange: string, symbol: string) =>
     ["overseas-leading-stocks", "minute-candles", exchange, symbol] as const,
   overseasDailyCandles: (exchange: string, symbol: string) =>
@@ -241,6 +244,18 @@ export function useOverseasRanking(minChangeRate: number) {
         `/api/overseas-leading-stocks/ranking?minChangeRate=${minChangeRate}`,
       ),
     refetchInterval: 15_000,
+  });
+}
+
+export function useOverseasSignalEvents(date: string) {
+  const isToday = date === todayStr();
+  return useQuery({
+    queryKey: QK.overseasSignalEvents(date),
+    queryFn: () =>
+      apiFetch<OverseasSignalEventsResponse>(
+        `/api/overseas-leading-stocks/signal-events?date=${date}`,
+      ),
+    refetchInterval: isToday ? 15_000 : false,
   });
 }
 

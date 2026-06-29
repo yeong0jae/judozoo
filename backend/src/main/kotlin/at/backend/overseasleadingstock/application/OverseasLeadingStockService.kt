@@ -6,7 +6,9 @@ import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandl
 import at.backend.overseasleadingstock.presentation.response.OverseasStockDetailResponse
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
 import at.backend.overseasleadingstock.presentation.response.OverseasSwingHighSignal
+import at.backend.leadingstock.domain.SpikeDirection
 import at.backend.platform.kis.client.KisOverseasChartClient
+import at.backend.platform.kis.client.KisOverseasChartClient.OverseasMinuteCandle
 import at.backend.platform.kis.client.KisOverseasProductClient
 import at.backend.platform.kis.client.KisOverseasRankingClient
 import org.springframework.stereotype.Service
@@ -16,7 +18,59 @@ class OverseasLeadingStockService(
     private val rankingClient: KisOverseasRankingClient,
     private val chartClient: KisOverseasChartClient,
     private val productClient: KisOverseasProductClient,
+    private val minuteStore: OverseasMinuteCandleStore,
 ) {
+
+    /**
+     * 실시간 폴러용 — 후보별 최신 분봉을 스토어에 누적 병합한 뒤 돌파선·스파이크 측정값을 만든다.
+     * 종목당 분봉 1호출(120건)만, 누적분으로 전고점(돌파선)을 잡는다.
+     */
+    fun signalReadings(minChangeRate: Double): List<OverseasCandidateReading> =
+        getRanking(minChangeRate).map { stock ->
+            val fresh = chartClient.fetchLatestMinutes(stock.exchange, stock.symbol)
+            minuteStore.merge(stock.exchange, stock.symbol, fresh)
+            val stored = minuteStore.candles(stock.exchange, stock.symbol)
+
+            val peak = stored.maxByOrNull { it.high }
+            val gapRate = peak?.takeIf { stock.price > 0 }?.let { (it.high - stock.price) / stock.price * 100 }
+            val spike = computeSpike(stored)
+
+            OverseasCandidateReading(
+                exchange = stock.exchange,
+                symbol = stock.symbol,
+                name = stock.name,
+                price = stock.price,
+                rate = stock.rate,
+                tradingValue = stock.tradingValue,
+                gapRate = gapRate,
+                peakPrice = peak?.high,
+                spikeRatio = spike?.ratio,
+                minuteTradingValue = spike?.latestTradingValue,
+                spikeDirection = spike?.direction,
+            )
+        }
+
+    /** 최신 1분봉 거래대금이 직전 [SPIKE_BASELINE_BARS]봉 평균 대비 몇 배인지. 최소 거래대금 미달이면 null. */
+    private fun computeSpike(candles: List<OverseasMinuteCandle>): SpikeMeasure? {
+        if (candles.size < 2) return null
+        val latest = candles.last()
+        if (latest.tradingValue < SPIKE_MIN_TRADING_VALUE) return null
+        val baseline = candles.dropLast(1).takeLast(SPIKE_BASELINE_BARS)
+        val avg = baseline.map { it.tradingValue }.average()
+        if (avg <= 0) return null
+        val direction = when {
+            latest.close > latest.open -> SpikeDirection.BUY
+            latest.close < latest.open -> SpikeDirection.SELL
+            else -> SpikeDirection.FLAT
+        }
+        return SpikeMeasure(latest.tradingValue, latest.tradingValue / avg, direction)
+    }
+
+    private data class SpikeMeasure(
+        val latestTradingValue: Double,
+        val ratio: Double,
+        val direction: SpikeDirection,
+    )
 
     /**
      * 통합 거래대금 40위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.
@@ -86,8 +140,11 @@ class OverseasLeadingStockService(
             symbol = stock.symbol,
             name = stock.name,
             ename = stock.ename,
+            rank = stock.rank,
             price = stock.price,
+            diff = stock.diff,
             rate = stock.rate,
+            tradingValue = stock.tradingValue,
             marketCap = marketCap,
             filterResults = filters,
             swingHighSignal = swingHigh,
@@ -162,6 +219,8 @@ class OverseasLeadingStockService(
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val MIN_CHANGE_RATE_PCT = 5.0          // 상세 B: 당일 등락률 하한
         private const val MIN_MARKET_CAP_USD = 2_000_000_000L // 상세 C: 시가총액 $2B 하한
+        private const val SPIKE_BASELINE_BARS = 20            // 스파이크 직전 평균 산정 봉 수
+        private const val SPIKE_MIN_TRADING_VALUE = 1_000_000.0 // 최신 1분봉 최소 거래대금($1M)
 
         // ETF/ETN 발행사 브랜드 + 명시 키워드. 미국 거래대금 상위 ETF 대부분을 커버.
         private val ETF_KEYWORDS = listOf(

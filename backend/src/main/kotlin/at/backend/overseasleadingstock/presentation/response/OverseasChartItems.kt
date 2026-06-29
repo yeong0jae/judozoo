@@ -13,14 +13,17 @@ data class OverseasMinuteCandleItem(
     val tradingValue: Double,
 )
 
-/** 해외 종목 상세 — 필터 평가 결과(A·B·C) + 시가총액 + 돌파 시그널. */
+/** 해외 종목 상세 — 필터 평가 결과(A·B·C) + 시가총액 + 돌파 시그널. 패널이 이 응답만으로 완결되게 순위·대비·거래대금 포함. */
 data class OverseasStockDetailResponse(
     val exchange: String,
     val symbol: String,
     val name: String,
     val ename: String,
+    val rank: Int,
     val price: Double,
+    val diff: Double,
     val rate: Double,
+    val tradingValue: Double,
     val marketCap: Long?, // 달러, 조회 불가 시 null
     val filterResults: List<FilterResultItem>,
     val swingHighSignal: OverseasSwingHighSignal?,
@@ -39,6 +42,29 @@ data class FilterResultItem(
     val criteriaDescription: String,
     val actualValue: String,
     val passed: Boolean,
+)
+
+/** 해외 시그널 전이 로그 응답. */
+data class OverseasSignalEventsResponse(
+    val date: java.time.LocalDate,
+    val totalCount: Int,
+    val events: List<OverseasSignalEventItem>,
+)
+
+/** 해외 시그널 한 건 — eventType: BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE. */
+data class OverseasSignalEventItem(
+    val occurredAt: java.time.LocalDateTime,
+    val exchange: String,
+    val symbol: String,
+    val name: String,
+    val eventType: String,
+    val price: Double,
+    val rate: Double,
+    val tradingValue: Double,
+    val gapRate: Double?,
+    val spikeRatio: Double?,
+    val minuteTradingValue: Double?,
+    val spikeDirection: String?,
 )
 
 /** 해외 일봉 — 가격은 달러(소수). 국내 DailyCandleChartItem과 동일 JSON 구조. */

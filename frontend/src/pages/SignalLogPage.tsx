@@ -17,7 +17,29 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import IndexDetailPanel from "../components/common/IndexDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
+import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
+import OverseasSignalLog from "./OverseasSignalLogPage";
 import { buildSignalPrompt } from "../lib/signalPrompt";
+
+const SIGNAL_MARKET_KEY = "signalLog.market";
+
+/** 실시간 로그 — 국내/해외 토글. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다. */
+export default function SignalLogPage() {
+  const [market, setMarket] = useState<StockMarket>(() => {
+    const saved = localStorage.getItem(SIGNAL_MARKET_KEY);
+    return saved === "overseas" ? "overseas" : "domestic";
+  });
+  useEffect(() => {
+    localStorage.setItem(SIGNAL_MARKET_KEY, market);
+  }, [market]);
+
+  const toggle = <MarketToggle value={market} onChange={setMarket} />;
+  return market === "domestic" ? (
+    <DomesticSignalLog toggle={toggle} />
+  ) : (
+    <OverseasSignalLog toggle={toggle} />
+  );
+}
 
 const MIN_RATE_KEY = "signalLog.minRate";
 
@@ -219,7 +241,7 @@ function detailOf(e: SignalEventItem) {
   return `${formatPrice(line)}원 돌파까지 ${formatPrice(line - e.currentPrice)}원 (${e.gapRate.toFixed(2)}%) 남음`;
 }
 
-export default function SignalLogPage() {
+function DomesticSignalLog({ toggle }: { toggle: React.ReactNode }) {
   const [date, setDate] = useState(todayStr());
   // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
   const [minRate, setMinRate] = useState(() => {
@@ -363,6 +385,8 @@ export default function SignalLogPage() {
           />
         </div>
       </div>
+
+      {toggle}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
