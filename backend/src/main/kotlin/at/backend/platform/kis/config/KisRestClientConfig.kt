@@ -13,9 +13,9 @@ class KisRestClientConfig {
 
     /**
      * KIS 호출 공유 리미터 — 한도 "초당 N건"을 모든 KIS 호출에 한 버킷으로 적용.
-     * 분봉 페이징·랭킹·일봉 버스트가 EGW00201(초당 거래건수 초과)을 내지 않게 평탄화.
-     * yaml `kis.query.permits-per-second`로 조정(기본 10 — 한도 20의 절반.
-     * 리미터 1초 윈도우와 KIS 윈도우가 어긋나 경계에서 2배까지 몰릴 수 있어 절반으로 둔다).
+     * 1초에 N개를 한꺼번에 충전하면 1초 경계에서 이전·이후 창이 KIS 윈도우에 겹쳐 최대 2N이 몰려
+     * EGW00201이 간헐 발생한다. 그래서 (1000/N)ms마다 1개씩 **균등** 발급해 버스트를 없앤다.
+     * yaml `kis.query.permits-per-second`로 조정(기본 10).
      */
     @Bean
     fun kisRateLimiter(
@@ -24,9 +24,9 @@ class KisRestClientConfig {
         RateLimiter.of(
             "kis-query",
             RateLimiterConfig.custom()
-                .limitForPeriod(permitsPerSecond)
-                .limitRefreshPeriod(Duration.ofSeconds(1))
-                .timeoutDuration(Duration.ofSeconds(20)) // 버스트 시 거부 대신 대기
+                .limitForPeriod(1)
+                .limitRefreshPeriod(Duration.ofMillis(1000L / permitsPerSecond))
+                .timeoutDuration(Duration.ofSeconds(30)) // 페이징·동시요청이 큐잉돼도 거부 대신 대기
                 .build(),
         )
 
