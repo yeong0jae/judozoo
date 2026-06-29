@@ -7,22 +7,8 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
-import OverseasStockDetailPanel, {
-  exchangeLabel,
-} from "../components/common/OverseasStockDetailPanel";
+import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
-
-const TYPE_LABEL: Record<SignalEventType, string> = {
-  BREAKOUT: "돌파",
-  BREAKOUT_IMMINENT: "임박",
-  VOLUME_SPIKE: "스파이크",
-};
-const TYPE_BADGE: Record<SignalEventType, string> = {
-  BREAKOUT: "bg-emerald-500/15 text-emerald-400",
-  BREAKOUT_IMMINENT: "bg-amber-500/20 text-amber-300",
-  VOLUME_SPIKE: "bg-rose-500/15 text-rose-400",
-};
-const SPIKE_DIR: Record<string, string> = { BUY: "매수", SELL: "매도", FLAT: "보합" };
 
 type TypeFilter = "ALL" | SignalEventType;
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
@@ -32,19 +18,48 @@ const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "VOLUME_SPIKE", label: "스파이크" },
 ];
 
-/** 시각 ISO → HH:mm:ss (KST 벽시계 그대로). */
-function hms(iso: string): string {
+const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: string }> = {
+  BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
+  BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
+  VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
+};
+
+function clockOf(iso: string): string {
   return iso.slice(11, 19);
 }
+/** 미국 정규장(한국시각 22:30~익일 05:00)은 흰색, 프리·애프터는 회색. */
+function clockClass(iso: string): string {
+  const hm = iso.slice(11, 16);
+  return hm >= "22:30" || hm <= "05:00" ? "text-zinc-100" : "text-zinc-500";
+}
 
-/** 시그널 디테일 한 줄 — 스파이크는 배율·방향, 돌파 계열은 돌파/잔여%. */
-function detailOf(e: OverseasSignalEventItem): string {
+/** 달러 거래대금 — 정수 + 천 단위 쉼표. */
+function usdAmount(v: number): string {
+  return `$${Math.round(v).toLocaleString("en-US")}`;
+}
+
+function detailOf(e: OverseasSignalEventItem) {
   if (e.eventType === "VOLUME_SPIKE") {
-    const dir = e.spikeDirection ? ` ${SPIKE_DIR[e.spikeDirection] ?? ""}` : "";
-    return e.spikeRatio != null ? `${e.spikeRatio.toFixed(1)}배${dir}` : "";
+    if (!e.spikeRatio) return "";
+    const dirCls =
+      e.spikeDirection === "BUY" ? "text-red-400" : e.spikeDirection === "SELL" ? "text-blue-400" : "text-zinc-500";
+    const dirLabel =
+      e.spikeDirection === "BUY" ? "매수" : e.spikeDirection === "SELL" ? "매도" : e.spikeDirection === "FLAT" ? "보합" : "";
+    return (
+      <>
+        <span className="text-rose-300">
+          🔥{e.spikeRatio.toFixed(1)}배
+          {e.minuteTradingValue != null && ` ${usdAmount(e.minuteTradingValue)}`}
+        </span>
+        {dirLabel && <span className={dirCls}> {dirLabel}</span>}
+        <span className="text-zinc-500"> · 누적 {usdAmount(e.tradingValue)}</span>
+      </>
+    );
   }
-  if (e.gapRate == null) return "";
-  return e.gapRate <= 0 ? "돌파" : `${e.gapRate.toFixed(1)}% 남음`;
+  if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
+  const line = e.price * (1 + e.gapRate / 100);
+  if (e.eventType === "BREAKOUT") return `$${formatUsd(line)} 돌파`;
+  return `$${formatUsd(line)} 돌파까지 $${formatUsd(line - e.price)} (${e.gapRate.toFixed(2)}%) 남음`;
 }
 
 export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode }) {
@@ -57,7 +72,6 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
     [allEvents, typeFilter],
   );
 
-  // 우측 패널 선택 종목 + 펼친 행
   const [sel, setSel] = useState<{ exchange: string; symbol: string } | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
   useEffect(() => {
@@ -81,7 +95,7 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
             />
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            해외 주도주 돌파·임박·스파이크 전이 · 행을 누르면 그 종목의 여정 · 미국장 15초 갱신
+            선택 날짜의 돌파·임박·스파이크 전이 · 행을 누르면 그 종목의 여정
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -125,12 +139,14 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
                   const rowKey = `${e.exchange}:${e.symbol}-${e.occurredAt}-${i}`;
                   const open = openKey === rowKey;
                   const selected = sel?.exchange === e.exchange && sel?.symbol === e.symbol;
+                  const meta = EVENT_META[e.eventType];
                   const journey = open
                     ? allEvents.filter((x) => x.exchange === e.exchange && x.symbol === e.symbol)
                     : [];
                   return (
                     <motion.li
                       key={rowKey}
+                      data-row-key={rowKey}
                       layout
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -143,42 +159,53 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
                           setSel({ exchange: e.exchange, symbol: e.symbol });
                           setOpenKey(open ? null : rowKey);
                         }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors ${
+                        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors ${
                           selected ? "bg-emerald-900/30" : ""
                         }`}
                       >
-                        <span className="num text-xs text-zinc-500 w-16 shrink-0">{hms(e.occurredAt)}</span>
-                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${TYPE_BADGE[e.eventType]}`}>
-                          {TYPE_LABEL[e.eventType]}
-                        </span>
-                        <StockAvatar name={e.symbol} code={e.symbol} size={24} />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-zinc-100 text-sm">{e.symbol}</div>
-                          <div className="text-xs text-zinc-500 truncate">
-                            {exchangeLabel(e.exchange)} · {e.name}
-                          </div>
+                        {/* 왼쪽: 시각·유형·종목 */}
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(e.occurredAt)}`}>
+                            {clockOf(e.occurredAt)}
+                          </span>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
+                            {meta.label}
+                          </span>
+                          <StockAvatar name={e.symbol} code={e.symbol} />
+                          <span className="text-sm font-semibold text-zinc-100 truncate">{e.symbol}</span>
                         </div>
-                        <span className="num text-xs text-zinc-300 shrink-0">{detailOf(e)}</span>
-                        <span className="num text-xs text-zinc-100 w-20 text-right shrink-0">${formatUsd(e.price)}</span>
-                        <span className="w-16 text-right shrink-0">
-                          <ProfitText value={e.rate / 100} format={formatPct} className="num text-xs" />
-                        </span>
+                        {/* 오른쪽: 디테일·현재가·등락률 */}
+                        <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
+                          <span className="num text-xs text-zinc-300">{detailOf(e)}</span>
+                          <span className="num text-xs text-zinc-100 w-24 text-right">${formatUsd(e.price)}</span>
+                          <span className="w-16 text-right">
+                            <ProfitText value={e.rate / 100} format={formatPct} className="num text-xs" />
+                          </span>
+                        </div>
                       </button>
 
                       {open && journey.length > 0 && (
                         <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
-                          <div className="text-xs text-zinc-500 mb-2">{e.name} 여정</div>
+                          <div className="text-xs text-zinc-500 mb-2">
+                            {e.symbol} 여정 · 누적 거래대금 {usdAmount(journey[0].tradingValue)}
+                          </div>
                           <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
-                            {journey.map((j, k) => (
-                              <li key={`${j.eventType}-${j.occurredAt}-${k}`} className="flex items-center gap-2 text-sm">
-                                <span className="num text-xs text-zinc-500 w-16">{hms(j.occurredAt)}</span>
-                                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${TYPE_BADGE[j.eventType]}`}>
-                                  {TYPE_LABEL[j.eventType]}
-                                </span>
-                                <span className="num text-xs text-zinc-300">{detailOf(j)}</span>
-                                <span className="num text-xs text-zinc-500 ml-auto">${formatUsd(j.price)}</span>
-                              </li>
-                            ))}
+                            {journey.map((j, k) => {
+                              const jm = EVENT_META[j.eventType];
+                              return (
+                                <li key={`${j.eventType}-${j.occurredAt}-${k}`} className="flex items-center gap-2 text-sm">
+                                  <span className={`num text-xs tabular-nums w-16 ${clockClass(j.occurredAt)}`}>
+                                    {clockOf(j.occurredAt)}
+                                  </span>
+                                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
+                                    {jm.label}
+                                  </span>
+                                  <span className="num text-xs text-zinc-300">{detailOf(j)}</span>
+                                  <span className="num text-xs text-zinc-500 ml-auto">${formatUsd(j.price)}</span>
+                                </li>
+                              );
+                            })}
                           </ol>
                         </div>
                       )}
