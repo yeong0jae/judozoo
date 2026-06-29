@@ -172,8 +172,9 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
                           <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
                             {meta.label}
                           </span>
-                          <StockAvatar name={e.symbol} code={e.symbol} />
-                          <span className="text-sm font-semibold text-zinc-100 truncate">{e.symbol}</span>
+                          <StockAvatar name={e.name} code={e.symbol} />
+                          <span className="text-sm font-semibold text-zinc-100 truncate">{e.name}</span>
+                          <span className="text-xs text-zinc-500 num shrink-0">{e.symbol}</span>
                         </div>
                         {/* 오른쪽: 디테일·현재가·등락률 */}
                         <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
@@ -188,7 +189,7 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
                       {open && journey.length > 0 && (
                         <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
                           <div className="text-xs text-zinc-500 mb-2">
-                            {e.symbol} 여정 · 누적 거래대금 {usdAmount(journey[0].tradingValue)}
+                            {e.name} 여정 · 누적 거래대금 {usdAmount(journey[0].tradingValue)}
                           </div>
                           <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
                             {journey.map((j, k) => {
