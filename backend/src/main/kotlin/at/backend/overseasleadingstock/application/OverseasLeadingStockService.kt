@@ -1,7 +1,6 @@
 package at.backend.overseasleadingstock.application
 
 import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandleItem
-import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
 import at.backend.platform.kis.client.KisOverseasChartClient
 import at.backend.platform.kis.client.KisOverseasRankingClient
@@ -30,22 +29,6 @@ class OverseasLeadingStockService(
         val rest = pool.drop(TOP_RANK_ALWAYS_INCLUDED).filter { it.rate >= minChangeRate }
         return (topThree + rest).mapIndexed { i, item -> item.copy(rank = i + 1) }
     }
-
-    /** 종목 1분봉 (한국 시각순 오름차순). */
-    fun minuteCandles(exchange: String, symbol: String): List<OverseasMinuteCandleItem> =
-        chartClient.fetchMinuteCandles(exchange, symbol)
-            .sortedBy { it.dateTime }
-            .map {
-                OverseasMinuteCandleItem(
-                    time = it.dateTime,
-                    open = it.open,
-                    high = it.high,
-                    low = it.low,
-                    close = it.close,
-                    volume = it.volume,
-                    tradingValue = it.tradingValue,
-                )
-            }
 
     /** 종목 일봉 (일자 오름차순). */
     fun dailyCandles(exchange: String, symbol: String): List<OverseasDailyCandleItem> =

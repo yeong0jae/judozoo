@@ -48,8 +48,6 @@ export const QK = {
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
     ["overseas-leading-stocks", "ranking", minChangeRate] as const,
-  overseasMinuteCandles: (exchange: string, symbol: string) =>
-    ["overseas-leading-stocks", "minute-candles", exchange, symbol] as const,
   overseasDailyCandles: (exchange: string, symbol: string) =>
     ["overseas-leading-stocks", "daily-candles", exchange, symbol] as const,
 };
@@ -224,24 +222,6 @@ export function useOverseasRanking(minChangeRate: number) {
         `/api/overseas-leading-stocks/ranking?minChangeRate=${minChangeRate}`,
       ),
     refetchInterval: 15_000,
-  });
-}
-
-export function useOverseasMinuteCandles(
-  exchange: string | null,
-  symbol: string | null,
-) {
-  const enabled = exchange !== null && symbol !== null;
-  return useQuery({
-    queryKey: enabled
-      ? QK.overseasMinuteCandles(exchange, symbol)
-      : ["overseas-leading-stocks", "minute-candles", "null"],
-    queryFn: () =>
-      apiFetch<MinuteCandleItem[]>(
-        `/api/overseas-leading-stocks/${exchange}/${symbol}/minute-candles`,
-      ),
-    enabled,
-    refetchInterval: 30_000,
   });
 }
 
