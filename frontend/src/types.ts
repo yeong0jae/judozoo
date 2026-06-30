@@ -278,6 +278,19 @@ export interface OverseasStockRankItem {
   tradingValue: number;
 }
 
+/** 해외 돌파 현황 한 종목 — 가격 단위 USD. */
+export interface OverseasBreakoutRadarItem {
+  exchange: string;
+  symbol: string;
+  name: string;
+  price: number;
+  rate: number;
+  tradingValue: number;
+  dayHigh: number;
+  peakAt: string;
+  gapRate: number;
+}
+
 export interface InvestorTrendDay {
   date: string;
   individualNet: number;

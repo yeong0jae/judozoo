@@ -1,0 +1,260 @@
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useOverseasBreakoutRadar } from "../api/queries";
+import type { OverseasBreakoutRadarItem } from "../types";
+import { formatPct, formatUsd } from "../lib/format";
+import ProfitText from "../components/common/ProfitText";
+import Skeleton from "../components/common/Skeleton";
+import EmptyState from "../components/common/EmptyState";
+import StockAvatar from "../components/common/StockAvatar";
+import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
+import ChangeRateSelector, {
+  CHANGE_RATE_OPTIONS,
+} from "../components/common/ChangeRateSelector";
+import { useArrowStockNav } from "../lib/useArrowStockNav";
+
+const MIN_CHANGE_RATE_KEY = "overseasBreakoutRadar.minChangeRate";
+
+/** 돌파까지 남은 % → 임박도 라벨/색 (국내와 동일 기준) */
+function radarStatus(gap: number): { label: string; cls: string; gap: string } {
+  if (gap <= 0)
+    return { label: "돌파", cls: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
+  if (gap < 2)
+    return { label: "임박", cls: "bg-red-500/20 text-red-300", gap: "text-red-300" };
+  if (gap < 4)
+    return { label: "주시", cls: "bg-yellow-500/15 text-yellow-400", gap: "text-yellow-400" };
+  return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
+}
+
+/** ISO LocalDateTime(한국 벽시계) → "N일 HH:mm". */
+function peakLabel(iso: string): string {
+  const dt = new Date(iso);
+  return `${dt.getDate()}일 ${dt.toTimeString().slice(0, 5)}`;
+}
+
+export default function OverseasBreakoutRadar({ toggle }: { toggle?: React.ReactNode }) {
+  // 등락률 임계값 — 새로고침해도 유지(해외 돌파 전용 키), 기본 7%.
+  const [minChangeRate, setMinChangeRate] = useState(() => {
+    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
+    const saved = Number(raw);
+    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
+  });
+  const setRate = (r: number) => {
+    setMinChangeRate(r);
+    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(r));
+  };
+
+  const radarQ = useOverseasBreakoutRadar(minChangeRate);
+  const stocks = radarQ.data ?? [];
+
+  // 우측 차트에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  useEffect(() => {
+    if (selectedSymbol === null && stocks.length > 0) setSelectedSymbol(stocks[0].symbol);
+  }, [stocks, selectedSymbol]);
+
+  // ↑/↓ 방향키로 선택 종목 이동
+  useArrowStockNav(stocks.map((s) => s.symbol), selectedSymbol, setSelectedSymbol);
+
+  const selected = stocks.find((s) => s.symbol === selectedSymbol) ?? null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            주도주 돌파 현황
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
+                radarQ.isFetching ? "animate-ping" : "animate-pulse"
+              }`}
+            />
+          </h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            나스닥·뉴욕·아멕스 후보를 당일 고가 돌파에 가까운 순으로 · 15초 자동 갱신
+          </p>
+        </div>
+        {typeof radarQ.data?.length === "number" && (
+          <div className="text-xs text-zinc-300 font-medium">{radarQ.data.length}건</div>
+        )}
+      </div>
+
+      {toggle}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
+          {/* 등락률 임계값 선택 — 후보 풀 조절 */}
+          <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
+            <ChangeRateSelector value={minChangeRate} onChange={setRate} />
+          </div>
+          {radarQ.isLoading ? (
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : stocks.length === 0 ? (
+            <EmptyState message="후보 종목이 없습니다" />
+          ) : (
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-zinc-500 text-xs">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left">종목</th>
+                      <th className="px-4 py-2.5 text-right">돌파선</th>
+                      <th className="px-4 py-2.5 text-right">돌파까지</th>
+                      <th className="px-4 py-2.5 text-right">상태</th>
+                      <th className="px-4 py-2.5 text-right">거래대금(USD)</th>
+                      <th className="px-4 py-2.5 text-right">현재가</th>
+                      <th className="px-4 py-2.5 text-right">등락률</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <AnimatePresence mode="popLayout">
+                      {stocks.map((s) => (
+                        <RadarRow
+                          key={s.symbol}
+                          s={s}
+                          selected={s.symbol === selectedSymbol}
+                          onSelect={setSelectedSymbol}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </tbody>
+                </table>
+              </div>
+              <div className="md:hidden">
+                {stocks.map((s) => (
+                  <RadarCard
+                    key={s.symbol}
+                    s={s}
+                    selected={s.symbol === selectedSymbol}
+                    onSelect={setSelectedSymbol}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+        <div className={`lg:sticky lg:top-20 ${selectedSymbol ? "" : "hidden lg:block"}`}>
+          <OverseasStockDetailPanel exchange={selected?.exchange ?? null} symbol={selectedSymbol} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RadarRow({
+  s,
+  selected,
+  onSelect,
+}: {
+  s: OverseasBreakoutRadarItem;
+  selected: boolean;
+  onSelect: (symbol: string) => void;
+}) {
+  const st = radarStatus(s.gapRate);
+  const gapUsd = s.dayHigh - s.price;
+  return (
+    <motion.tr
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        layout: { type: "spring", stiffness: 600, damping: 42 },
+        opacity: { duration: 0.2 },
+      }}
+      data-stock-code={s.symbol}
+      onClick={() => onSelect(s.symbol)}
+      className={`border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer ${
+        selected ? "bg-emerald-900/40" : ""
+      }`}
+    >
+      <td className="px-4 py-3.5">
+        <div className="flex items-center gap-3">
+          <StockAvatar name={s.name} code={s.symbol} />
+          <div className="min-w-0">
+            <div className="font-semibold text-zinc-100 truncate max-w-[12rem]">{s.name}</div>
+            <div className="text-xs text-zinc-500 num mt-0.5">{s.symbol}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        <div className="num text-zinc-300">{formatUsd(s.dayHigh)}</div>
+        <div className="num text-xs text-zinc-500">{peakLabel(s.peakAt)} 형성</div>
+      </td>
+      <td className={`px-4 py-3.5 text-right num font-semibold ${st.gap}`}>
+        {s.gapRate <= 0 ? "돌파" : `${formatUsd(gapUsd)} (${s.gapRate.toFixed(2)}%)`}
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        <motion.span
+          key={st.label}
+          initial={{ scale: 1.25 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 18 }}
+          className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${st.cls}`}
+        >
+          {st.label}
+        </motion.span>
+      </td>
+      <td className="px-4 py-3.5 text-right num text-zinc-400">
+        {Math.round(s.tradingValue).toLocaleString("en-US")}
+      </td>
+      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">{formatUsd(s.price)}</td>
+      <td className="px-4 py-3.5 text-right">
+        <ProfitText value={s.rate / 100} format={formatPct} className="num font-medium" />
+      </td>
+    </motion.tr>
+  );
+}
+
+/** 모바일 카드 — 표 컬럼을 3행으로 압축 (돌파선·돌파까지·상태 우선). */
+function RadarCard({
+  s,
+  selected,
+  onSelect,
+}: {
+  s: OverseasBreakoutRadarItem;
+  selected: boolean;
+  onSelect: (symbol: string) => void;
+}) {
+  const st = radarStatus(s.gapRate);
+  const gapUsd = s.dayHigh - s.price;
+  return (
+    <div
+      data-stock-code={s.symbol}
+      onClick={() => onSelect(s.symbol)}
+      className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1.5 cursor-pointer ${
+        selected ? "bg-emerald-900/40" : ""
+      }`}
+    >
+      {/* 1행: 종목 · 상태 */}
+      <div className="flex items-center gap-2">
+        <StockAvatar name={s.name} code={s.symbol} size={26} />
+        <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.name}</span>
+        <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${st.cls}`}>{st.label}</span>
+      </div>
+      {/* 2행: 돌파선 · 돌파까지 */}
+      <div className="flex items-baseline justify-between gap-2 pl-9">
+        <span className="text-xs text-zinc-500 num">
+          돌파선 {formatUsd(s.dayHigh)} · {peakLabel(s.peakAt)}
+        </span>
+        <span className={`num text-sm font-semibold ${st.gap}`}>
+          {s.gapRate <= 0 ? "돌파" : `${formatUsd(gapUsd)} (${s.gapRate.toFixed(2)}%)`}
+        </span>
+      </div>
+      {/* 3행: 심볼·거래대금 · 현재가·등락률 */}
+      <div className="flex items-baseline justify-between gap-2 pl-9">
+        <span className="text-xs text-zinc-500 num truncate">
+          {s.symbol} · {Math.round(s.tradingValue).toLocaleString("en-US")}
+        </span>
+        <span className="flex items-baseline gap-2 shrink-0">
+          <span className="num text-sm font-medium text-zinc-100">{formatUsd(s.price)}</span>
+          <ProfitText value={s.rate / 100} format={formatPct} className="num text-xs" />
+        </span>
+      </div>
+    </div>
+  );
+}

@@ -4,6 +4,7 @@ import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
 import at.backend.overseasleadingstock.application.OverseasLeadingStockService
 import at.backend.overseasleadingstock.application.OverseasSignalEventService
+import at.backend.overseasleadingstock.presentation.response.OverseasBreakoutRadarItem
 import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasSignalEventItem
@@ -73,6 +74,19 @@ class OverseasLeadingStockController(
         val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
             ?: DEFAULT_MIN_CHANGE_RATE
         return ApiResponse.ok(service.getRanking(rate))
+    }
+
+    /**
+     * 해외 돌파 현황 — 후보를 당일 고가 돌파에 가까운 순으로.
+     * minChangeRate 미지정 시 기본값(랭킹과 동일 풀).
+     */
+    @GetMapping("/breakout-radar")
+    fun getBreakoutRadar(
+        @RequestParam(required = false) minChangeRate: Int?,
+    ): ApiResponse<List<OverseasBreakoutRadarItem>> {
+        val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
+            ?: DEFAULT_MIN_CHANGE_RATE
+        return ApiResponse.ok(service.breakoutRadar(rate))
     }
 
     /** 종목 상세 — 필터(거래대금순위·등락률·시총) 평가. */

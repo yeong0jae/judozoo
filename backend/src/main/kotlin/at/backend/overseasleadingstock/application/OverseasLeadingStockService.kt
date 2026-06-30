@@ -1,6 +1,7 @@
 package at.backend.overseasleadingstock.application
 
 import at.backend.overseasleadingstock.presentation.response.FilterResultItem
+import at.backend.overseasleadingstock.presentation.response.OverseasBreakoutRadarItem
 import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasStockDetailResponse
@@ -100,6 +101,28 @@ class OverseasLeadingStockService(
         val rest = pool.drop(TOP_RANK_ALWAYS_INCLUDED).filter { it.rate >= minChangeRate }
         return (topThree + rest).mapIndexed { i, item -> item.copy(rank = i + 1) }
     }
+
+    /**
+     * 돌파 현황 — 후보를 돌파선(누적 분봉 최고가) 돌파에 가까운 순으로.
+     * 폴러가 채워둔 스토어를 읽어 추가 분봉 호출 없이 전고점·갭을 구한다(미국장 폴러가 누적). 누적분 없는 종목은 제외.
+     */
+    fun breakoutRadar(minChangeRate: Double): List<OverseasBreakoutRadarItem> =
+        getRanking(minChangeRate).mapNotNull { stock ->
+            if (stock.price <= 0) return@mapNotNull null
+            val peak = minuteStore.candles(stock.exchange, stock.symbol).maxByOrNull { it.high }
+                ?: return@mapNotNull null
+            OverseasBreakoutRadarItem(
+                exchange = stock.exchange,
+                symbol = stock.symbol,
+                name = stock.name,
+                price = stock.price,
+                rate = stock.rate,
+                tradingValue = stock.tradingValue,
+                dayHigh = peak.high,
+                peakAt = peak.dateTime,
+                gapRate = (peak.high - stock.price) / stock.price * 100,
+            )
+        }.sortedBy { it.gapRate }
 
     /**
      * 종목 상세 — 필터 A(거래대금순위)·B(당일등락률)·C(시가총액) 평가.

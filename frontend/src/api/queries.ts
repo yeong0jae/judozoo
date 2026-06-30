@@ -15,6 +15,7 @@ import type {
   MarketInvestorNetBuyItem,
   MarketType,
   MarketStatus,
+  OverseasBreakoutRadarItem,
   OverseasSignalEventsResponse,
   OverseasStockDetailResponse,
   OverseasStockRankItem,
@@ -54,6 +55,8 @@ export const QK = {
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
     ["overseas-leading-stocks", "ranking", minChangeRate] as const,
+  overseasBreakoutRadar: (minChangeRate: number) =>
+    ["overseas-leading-stocks", "breakout-radar", minChangeRate] as const,
   overseasDetail: (exchange: string, symbol: string) =>
     ["overseas-leading-stocks", "detail", exchange, symbol] as const,
   overseasSignalEvents: (date: string) =>
@@ -244,6 +247,17 @@ export function useOverseasRanking(minChangeRate: number) {
     queryFn: () =>
       apiFetch<OverseasStockRankItem[]>(
         `/api/overseas-leading-stocks/ranking?minChangeRate=${minChangeRate}`,
+      ),
+    refetchInterval: 15_000,
+  });
+}
+
+export function useOverseasBreakoutRadar(minChangeRate: number) {
+  return useQuery({
+    queryKey: QK.overseasBreakoutRadar(minChangeRate),
+    queryFn: () =>
+      apiFetch<OverseasBreakoutRadarItem[]>(
+        `/api/overseas-leading-stocks/breakout-radar?minChangeRate=${minChangeRate}`,
       ),
     refetchInterval: 15_000,
   });

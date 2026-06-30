@@ -12,9 +12,30 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
+import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
+import OverseasBreakoutRadar from "./OverseasBreakoutRadarPage";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "breakoutRadar.minChangeRate";
+const MARKET_KEY = "breakoutRadar.market";
+
+/** 돌파 현황 — 국내/해외 토글. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다. */
+export default function BreakoutRadarPage() {
+  const [market, setMarket] = useState<StockMarket>(() => {
+    const saved = localStorage.getItem(MARKET_KEY);
+    return saved === "overseas" ? "overseas" : "domestic";
+  });
+  useEffect(() => {
+    localStorage.setItem(MARKET_KEY, market);
+  }, [market]);
+
+  const toggle = <MarketToggle value={market} onChange={setMarket} />;
+  return market === "domestic" ? (
+    <DomesticBreakoutRadar toggle={toggle} />
+  ) : (
+    <OverseasBreakoutRadar toggle={toggle} />
+  );
+}
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -33,7 +54,7 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
   return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
 }
 
-export default function BreakoutRadarPage() {
+function DomesticBreakoutRadar({ toggle }: { toggle: React.ReactNode }) {
   // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -81,6 +102,8 @@ export default function BreakoutRadarPage() {
           )}
         </div>
       </div>
+
+      {toggle}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
