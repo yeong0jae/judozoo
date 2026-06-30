@@ -58,7 +58,7 @@ export default function MonthCalendar({
   }, [y, m, monthEnd]);
 
   return (
-    <div className="rounded-2xl border border-white/[0.04] bg-zinc-900 p-4">
+    <div>
       <div className="flex items-center gap-3 mb-3">
         <span className="text-base font-semibold tabular-nums text-zinc-100">
           {y}년 {m + 1}월

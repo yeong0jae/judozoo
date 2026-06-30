@@ -88,7 +88,7 @@ export default function TimelinePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_26rem] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_30rem] gap-4 items-start">
         <div>
           <MonthCalendar
             month={month}
