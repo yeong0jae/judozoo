@@ -3,7 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { QK } from "../api/queries";
 import { todayStr } from "../components/common/DateNavigator";
-import MiniMonthCalendar from "../components/timeline/MiniMonthCalendar";
+import MonthCalendar from "../components/timeline/MonthCalendar";
 import TimelineView, { type TimelineDay } from "../components/timeline/TimelineView";
 import type { MarketCloseSnapshotItem } from "../types";
 
@@ -59,6 +59,7 @@ export default function TimelinePage() {
     markets: marketQs[i]?.data ?? [],
   }));
   const isLoading = marketQs.some((q) => q.isLoading);
+  const datesWithData = new Set(days.filter((d) => d.markets.length > 0).map((d) => d.date));
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -87,12 +88,13 @@ export default function TimelinePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[16rem_1fr] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[26rem_1fr] gap-4 items-start">
         <div className="lg:sticky lg:top-4">
-          <MiniMonthCalendar
+          <MonthCalendar
             month={month}
             selected={selectedDate}
             today={today}
+            datesWithData={datesWithData}
             onShiftMonth={(delta) =>
               setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
             }
