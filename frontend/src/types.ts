@@ -138,6 +138,15 @@ export interface MarketCloseSnapshotItem {
   changeRate: number | null;
 }
 
+/** 해외지수(나스닥종합 등) 장 마감 스냅샷 — 타임라인용. 지수값 + 등락률(부호 포함, %). */
+export interface OverseasIndexCloseSnapshotItem {
+  capturedAt: string;
+  code: string;
+  name: string;
+  indexValue: number;
+  changeRate: number;
+}
+
 /** 시장(코스피/코스닥) 당일 누적 투자자 순매수 — 단위 억원(부호 포함). */
 export interface MarketInvestorNetBuyItem {
   market: MarketType;

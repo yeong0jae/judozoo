@@ -5,7 +5,7 @@ import { QK } from "../api/queries";
 import { todayStr } from "../components/common/DateNavigator";
 import MonthCalendar from "../components/timeline/MonthCalendar";
 import TimelineView, { type TimelineDay } from "../components/timeline/TimelineView";
-import type { MarketCloseSnapshotItem } from "../types";
+import type { MarketCloseSnapshotItem, OverseasIndexCloseSnapshotItem } from "../types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -54,12 +54,24 @@ export default function TimelinePage() {
     })),
   });
 
+  const indexQs = useQueries({
+    queries: dates.map((d) => ({
+      queryKey: QK.overseasIndexCloseSnapshots(d),
+      queryFn: () =>
+        apiFetch<OverseasIndexCloseSnapshotItem[]>(
+          `/api/overseas-leading-stocks/index-close-snapshots?date=${d}`,
+        ),
+      staleTime: d === today ? 30_000 : Infinity, // 과거는 정적
+    })),
+  });
+
   const days: TimelineDay[] = dates.map((d, i) => ({
     date: d,
     markets: marketQs[i]?.data ?? [],
+    indices: indexQs[i]?.data ?? [],
   }));
-  const isLoading = marketQs.some((q) => q.isLoading);
-  const byDate = new Map(days.map((d) => [d.date, d.markets]));
+  const isLoading = marketQs.some((q) => q.isLoading) || indexQs.some((q) => q.isLoading);
+  const byDate = new Map(days.map((d) => [d.date, d]));
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -84,7 +96,7 @@ export default function TimelinePage() {
       <div>
         <h1 className="text-xl font-bold text-zinc-100">타임라인</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          그 달 거래일의 장 마감 투자자 순매수를 코스피·코스닥 한 줄씩 봅니다 · 달력에서 날짜를 누르면 그날로 이동
+          거래일별 코스피·코스닥·나스닥과 주요 이슈를 한곳에 모아 봅니다 · 달력에서 날짜를 누르면 그날로 이동
         </p>
       </div>
 

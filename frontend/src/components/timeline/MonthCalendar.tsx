@@ -1,11 +1,23 @@
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import type { MarketCloseSnapshotItem, MarketType } from "../../types";
+import type {
+  MarketCloseSnapshotItem,
+  MarketType,
+  OverseasIndexCloseSnapshotItem,
+} from "../../types";
+import type { TimelineDay } from "./TimelineView";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
+
+function rateClass(rate: number): string {
+  return rate >= 0 ? "text-red-400" : "text-blue-400";
+}
+function rateText(rate: number): string {
+  return `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`;
+}
 
 function eok(v: number): string {
   const a = Math.abs(v);
@@ -40,7 +52,7 @@ export default function MonthCalendar({
   month: Date;
   selected: string | null;
   today: string;
-  byDate: Map<string, MarketCloseSnapshotItem[]>;
+  byDate: Map<string, TimelineDay>;
   onShiftMonth: (delta: number) => void;
   onSelect: (date: string) => void;
 }) {
@@ -102,11 +114,13 @@ export default function MonthCalendar({
           const ds = ymd(y, m, d);
           const wd = new Date(y, m, d).getDay();
           const disabled = wd === 0 || wd === 6 || ds > today;
+          const dayData = byDate.get(ds);
           return (
             <DayCell
               key={ds}
               day={d}
-              markets={byDate.get(ds) ?? []}
+              markets={dayData?.markets ?? []}
+              indices={dayData?.indices ?? []}
               isToday={ds === today}
               isSelected={ds === selected}
               disabled={disabled}
@@ -122,6 +136,7 @@ export default function MonthCalendar({
 function DayCell({
   day,
   markets,
+  indices,
   isToday,
   isSelected,
   disabled,
@@ -129,6 +144,7 @@ function DayCell({
 }: {
   day: number;
   markets: MarketCloseSnapshotItem[];
+  indices: OverseasIndexCloseSnapshotItem[];
   isToday: boolean;
   isSelected: boolean;
   disabled: boolean;
@@ -168,6 +184,12 @@ function DayCell({
               <NetPart label="기" eok={mk.institutionEok} />
               <NetPart label="외" eok={mk.foreignEok} />
             </div>
+          </div>
+        ))}
+        {indices.map((ix) => (
+          <div key={ix.code} className="flex items-baseline gap-1 text-[10px] num leading-tight">
+            <span className="font-medium text-zinc-400">{ix.name}</span>
+            <span className={rateClass(ix.changeRate)}>{rateText(ix.changeRate)}</span>
           </div>
         ))}
       </div>

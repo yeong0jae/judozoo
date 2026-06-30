@@ -67,6 +67,15 @@ data class OverseasSignalEventItem(
     val spikeDirection: String?,
 )
 
+/** 해외지수(나스닥종합 등) 장 마감 스냅샷 — 타임라인용. 지수값 + 등락률(부호 포함, %). */
+data class OverseasIndexCloseSnapshotItem(
+    val capturedAt: LocalDateTime,
+    val code: String,
+    val name: String,
+    val indexValue: Double,
+    val changeRate: Double,
+)
+
 /** 해외 일봉 — 가격은 달러(소수). 국내 DailyCandleChartItem과 동일 JSON 구조. */
 data class OverseasDailyCandleItem(
     val date: String,

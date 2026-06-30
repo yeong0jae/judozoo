@@ -2,10 +2,12 @@ package at.backend.overseasleadingstock.presentation
 
 import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
+import at.backend.overseasleadingstock.application.OverseasIndexSnapshotService
 import at.backend.overseasleadingstock.application.OverseasLeadingStockService
 import at.backend.overseasleadingstock.application.OverseasSignalEventService
 import at.backend.overseasleadingstock.presentation.response.OverseasBreakoutRadarItem
 import at.backend.overseasleadingstock.presentation.response.OverseasDailyCandleItem
+import at.backend.overseasleadingstock.presentation.response.OverseasIndexCloseSnapshotItem
 import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandleItem
 import at.backend.overseasleadingstock.presentation.response.OverseasSignalEventItem
 import at.backend.overseasleadingstock.presentation.response.OverseasSignalEventsResponse
@@ -25,6 +27,7 @@ import java.time.LocalTime
 class OverseasLeadingStockController(
     private val service: OverseasLeadingStockService,
     private val signalEventService: OverseasSignalEventService,
+    private val indexSnapshotService: OverseasIndexSnapshotService,
     private val timeProvider: TimeProvider,
 ) {
 
@@ -87,6 +90,29 @@ class OverseasLeadingStockController(
         val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble()
             ?: DEFAULT_MIN_CHANGE_RATE
         return ApiResponse.ok(service.breakoutRadar(rate))
+    }
+
+    /**
+     * 해외지수(나스닥종합) 장 마감 스냅샷 — 타임라인용. date 미지정 시 오늘.
+     * 영업일(미국)이 키라 KST 날짜와 같은 달력 칸에 들어간다.
+     */
+    @GetMapping("/index-close-snapshots")
+    fun getIndexCloseSnapshots(
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        date: LocalDate?,
+    ): ApiResponse<List<OverseasIndexCloseSnapshotItem>> {
+        val day = date ?: timeProvider.today()
+        val items = indexSnapshotService.snapshotsOn(day).map { s ->
+            OverseasIndexCloseSnapshotItem(
+                capturedAt = s.capturedAt,
+                code = s.code,
+                name = s.name,
+                indexValue = s.indexValue,
+                changeRate = s.changeRate,
+            )
+        }
+        return ApiResponse.ok(items)
     }
 
     /** 종목 상세 — 필터(거래대금순위·등락률·시총) 평가. */

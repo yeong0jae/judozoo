@@ -38,6 +38,8 @@ export const QK = {
     ["leading-stocks", "market-signal-events", date] as const,
   marketCloseSnapshots: (date: string) =>
     ["leading-stocks", "market-close-snapshots", date] as const,
+  overseasIndexCloseSnapshots: (date: string) =>
+    ["overseas-leading-stocks", "index-close-snapshots", date] as const,
   marketInvestorNetBuy: ["leading-stocks", "market-investor-net-buy"] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,

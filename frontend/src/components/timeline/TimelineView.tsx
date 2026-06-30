@@ -1,11 +1,21 @@
 import { useMemo } from "react";
-import type { MarketCloseSnapshotItem, MarketType } from "../../types";
+import type {
+  MarketCloseSnapshotItem,
+  MarketType,
+  OverseasIndexCloseSnapshotItem,
+} from "../../types";
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 
 export interface TimelineDay {
   date: string; // YYYY-MM-DD
   markets: MarketCloseSnapshotItem[];
+  indices: OverseasIndexCloseSnapshotItem[]; // 해외지수(나스닥종합 등) 마감
+}
+
+/** 지수값 콤마 + 소수 둘째자리. */
+function fmtIndex(v: number): string {
+  return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const hhmm = (iso: string) => iso.slice(11, 16);
@@ -48,7 +58,7 @@ export default function TimelineView({
   selectedDate: string | null;
   isLoading: boolean;
 }) {
-  if (isLoading && days.every((d) => d.markets.length === 0)) {
+  if (isLoading && days.every((d) => d.markets.length === 0 && d.indices.length === 0)) {
     return (
       <div className="rounded-2xl border border-white/[0.04] bg-zinc-900 p-8 text-sm text-zinc-500">
         불러오는 중…
@@ -68,6 +78,7 @@ function DaySection({ day, selected }: { day: TimelineDay; selected: boolean }) 
   const rows = useMemo(() => ordered(day.markets), [day.markets]);
   const [y, m, d] = day.date.split("-").map(Number);
   const wd = WD[new Date(y, m - 1, d).getDay()];
+  const total = rows.length + day.indices.length;
 
   return (
     <section id={`tl-day-${day.date}`} className="scroll-mt-0">
@@ -76,19 +87,40 @@ function DaySection({ day, selected }: { day: TimelineDay; selected: boolean }) 
         <h2 className={`text-base font-bold ${selected ? "text-blue-400" : "text-zinc-100"}`}>
           {m}월 {d}일 <span className="font-normal text-zinc-500 text-sm">({wd})</span>
         </h2>
-        <span className="text-xs text-zinc-600">{rows.length}건</span>
+        <span className="text-xs text-zinc-600">{total}건</span>
       </div>
 
-      {rows.length === 0 ? (
+      {total === 0 ? (
         <p className="text-sm text-zinc-600 py-4">기록된 이벤트가 없습니다</p>
       ) : (
         <div className="pt-1">
-          {rows.map((m) => (
-            <Row key={m.market} item={m} />
+          {rows.map((mk) => (
+            <Row key={mk.market} item={mk} />
+          ))}
+          {day.indices.map((ix) => (
+            <IndexRow key={ix.code} item={ix} />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function IndexRow({ item }: { item: OverseasIndexCloseSnapshotItem }) {
+  return (
+    <div className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-lg border-b border-white/[0.04] hover:bg-white/[0.03]">
+      <span className="num text-xs text-zinc-500 w-11 shrink-0">{hhmm(item.capturedAt)}</span>
+      <span
+        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+          item.changeRate >= 0 ? "bg-red-400" : "bg-blue-400"
+        }`}
+      />
+      <span className="text-sm text-zinc-200 shrink-0">{item.name}</span>
+      <div className="min-w-0 flex-1 num text-sm text-zinc-400">{fmtIndex(item.indexValue)}</div>
+      <span className={`num text-sm shrink-0 ${rateClass(item.changeRate)}`}>
+        {rateText(item.changeRate)}
+      </span>
+    </div>
   );
 }
 
