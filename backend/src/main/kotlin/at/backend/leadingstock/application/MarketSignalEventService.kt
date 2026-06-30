@@ -1,9 +1,12 @@
 package at.backend.leadingstock.application
 
+import at.backend.leadingstock.domain.InvestorFlowState
 import at.backend.leadingstock.domain.InvestorType
+import at.backend.leadingstock.domain.MarketFlowStateSnapshot
 import at.backend.leadingstock.domain.MarketSignalEvent
 import at.backend.leadingstock.domain.MarketSignalType
 import at.backend.leadingstock.domain.NetTradeSide
+import at.backend.leadingstock.infrastructure.repository.MarketFlowStateSnapshotRepository
 import at.backend.leadingstock.infrastructure.repository.MarketSignalEventRepository
 import at.backend.platform.kiwoom.client.KiwoomSectorInvestorClient
 import at.backend.stock.domain.Market
@@ -16,7 +19,31 @@ import java.time.LocalDate
 class MarketSignalEventService(
     private val repository: MarketSignalEventRepository,
     private val sectorInvestorClient: KiwoomSectorInvestorClient,
+    private val flowStateRepository: MarketFlowStateSnapshotRepository,
 ) {
+
+    /** 그날 흐름 전환 상태 스냅샷 복원 — 키 "market|investor". 재시작으로 메모리가 비었을 때 정점을 되살린다. */
+    @Transactional(readOnly = true)
+    fun loadFlowStates(date: LocalDate): Map<String, InvestorFlowState> =
+        flowStateRepository.findByTradeDate(date).associate {
+            "${it.market}|${it.investor}" to InvestorFlowState.restore(it.side, it.extremeEok)
+        }
+
+    /** 흐름 전환 상태를 스냅샷으로 upsert. 아직 방향이 없으면(추적 전) 저장하지 않는다. */
+    @Transactional
+    fun saveFlowState(date: LocalDate, market: Market, investor: InvestorType, state: InvestorFlowState) {
+        val side = state.currentSide ?: return
+        val existing = flowStateRepository.findByMarketAndInvestor(market, investor)
+        if (existing != null) {
+            existing.side = side
+            existing.extremeEok = state.currentExtremeEok
+            existing.tradeDate = date
+        } else {
+            flowStateRepository.save(
+                MarketFlowStateSnapshot(market, investor, side, state.currentExtremeEok, date),
+            )
+        }
+    }
 
     /** 코스피·코스닥 각 시장의 당일 누적 투자자(외인·기관·개인) 순매수. 데이터 없는 시장은 제외. */
     fun investorNetBuy(): Map<Market, KiwoomSectorInvestorClient.SectorInvestorNetBuy> =

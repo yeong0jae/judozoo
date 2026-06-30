@@ -41,7 +41,15 @@ class InvestorFlowState private constructor(
         return null to InvestorFlowState(side, extremeEok)
     }
 
+    /** 재시작 복원·스냅샷 저장용 — 현재 진행 방향과 정점. side가 null이면 아직 추적 시작 전. */
+    val currentSide: NetTradeSide? get() = side
+    val currentExtremeEok: Long get() = extremeEok
+
     companion object {
         val INITIAL = InvestorFlowState(side = null, extremeEok = 0)
+
+        /** DB 스냅샷에서 상태 복원. */
+        fun restore(side: NetTradeSide, extremeEok: Long): InvestorFlowState =
+            InvestorFlowState(side, extremeEok)
     }
 }

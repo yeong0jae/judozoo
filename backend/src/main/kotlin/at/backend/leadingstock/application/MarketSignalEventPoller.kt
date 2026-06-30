@@ -54,6 +54,10 @@ class MarketSignalEventPoller(
             states.clear() // 일자 전환 — 직전 단계 폐기
             flowStates.clear()
         }
+        // 재시작으로 메모리가 비었으면 그날 흐름 전환 정점을 DB 스냅샷에서 복원
+        if (flowStates.isEmpty()) {
+            flowStates.putAll(marketSignalEventService.loadFlowStates(today))
+        }
 
         val now = timeProvider.now()
         val recorded = Market.entries.flatMap { market ->
@@ -84,6 +88,8 @@ class MarketSignalEventPoller(
                 val (turn, nextFlow) = (flowStates[key] ?: InvestorFlowState.INITIAL)
                     .advance(netEok, MarketSignalThresholds.reversalEok(market))
                 flowStates[key] = nextFlow
+                // 정점을 DB 스냅샷에 보존 — 재시작 시 복원해 전환을 놓치지 않게
+                marketSignalEventService.saveFlowState(today, market, investor, nextFlow)
                 val turnEvent = turn?.let {
                     MarketSignalEvent.netFlowTurn(
                         occurredAt = now, tradeDate = today, market = market, investor = investor,
