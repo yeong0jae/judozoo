@@ -94,7 +94,7 @@ export default function TimelinePage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-zinc-100">타임라인</h1>
+        <h1 className="text-xl font-bold text-zinc-100">이슈</h1>
         <p className="mt-1 text-sm text-zinc-500">
           거래일별 코스피·코스닥·나스닥과 주요 이슈를 한곳에 모아 봅니다 · 달력에서 날짜를 누르면 그날로 이동
         </p>

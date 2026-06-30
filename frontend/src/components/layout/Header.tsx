@@ -9,7 +9,7 @@ const NAV = [
   { to: "/signal-log", label: "주도주 실시간 로그" },
   { to: "/breakout-radar", label: "주도주 돌파 현황" },
   { to: "/theme-calendar", label: "테마 캘린더" },
-  { to: "/timeline", label: "타임라인" },
+  { to: "/timeline", label: "이슈" },
 ];
 
 const navBase = "rounded-lg text-sm font-medium transition-colors";
