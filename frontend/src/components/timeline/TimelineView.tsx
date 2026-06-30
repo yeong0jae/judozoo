@@ -1,43 +1,28 @@
 import { useMemo } from "react";
-import type { InvestorType, MarketSignalEventItem, MarketType } from "../../types";
+import type { MarketCloseSnapshotItem, MarketType } from "../../types";
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
-const INVESTOR_LABEL: Record<InvestorType, string> = {
-  FOREIGN: "외국인",
-  INSTITUTION: "기관",
-  INDIVIDUAL: "개인",
-};
-
-/** 3시간 단위 버킷 (장중 + 프리/애프터). hour ∈ [from, to). */
-const BUCKETS = [
-  { label: "장 전 · ~09:00", from: 0, to: 9 },
-  { label: "09:00 ~ 12:00", from: 9, to: 12 },
-  { label: "12:00 ~ 15:00", from: 12, to: 15 },
-  { label: "15:00 ~ 18:00", from: 15, to: 18 },
-  { label: "18:00 ~ · 애프터", from: 18, to: 24 },
-];
 
 export interface TimelineDay {
   date: string; // YYYY-MM-DD
-  markets: MarketSignalEventItem[];
-}
-
-interface TLItem {
-  time: string;
-  hour: number;
-  title: string;
-  desc: string;
-  rate: number | null;
+  markets: MarketCloseSnapshotItem[];
 }
 
 const hhmm = (iso: string) => iso.slice(11, 16);
-const hourOf = (iso: string) => Number(iso.slice(11, 13));
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 
 function eok(v: number): string {
   const a = Math.abs(v);
   if (a >= 10000) return `${(a / 10000).toFixed(1)}조`;
   return `${Math.round(a).toLocaleString()}억`;
+}
+function signed(v: number): string {
+  const sign = v > 0 ? "+" : v < 0 ? "-" : "";
+  return `${sign}${eok(v)}`;
+}
+function netClass(v: number): string {
+  // 한국 거래소 관행 — 순매수(양수) 빨강 / 순매도(음수) 파랑
+  return v > 0 ? "text-red-400" : v < 0 ? "text-blue-400" : "text-zinc-500";
 }
 function rateClass(rate: number | null): string {
   if (rate === null) return "text-zinc-500";
@@ -47,37 +32,13 @@ function rateText(rate: number | null): string {
   if (rate === null) return "";
   return `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`;
 }
-function marketDesc(e: MarketSignalEventItem): string {
-  const who = e.investor ? INVESTOR_LABEL[e.investor] : "";
-  if (e.kind === "NET_FLOW_TURN") {
-    return `${who} ${e.side === "BUY" ? "매수" : "매도"} 전환`.trim();
-  }
-  const amt = e.netAmountEok != null ? `${eok(e.netAmountEok)} ` : "";
-  return `${who} ${amt}${e.side === "BUY" ? "순매수" : "순매도"}`.trim();
+
+/** 코스피 먼저, 코스닥 다음. */
+function ordered(markets: MarketCloseSnapshotItem[]): MarketCloseSnapshotItem[] {
+  return [...markets].sort((a) => (a.market === "KOSPI" ? -1 : 1));
 }
 
-function toItems(markets: MarketSignalEventItem[]): TLItem[] {
-  // 각 (시장·투자자)별 가장 마지막(최신) 시그널 1건만 — 최대 6개(코스피·코스닥 × 개인·외인·기관).
-  const latest = new Map<string, MarketSignalEventItem>();
-  for (const e of markets) {
-    if (e.kind !== "NET_BUY_LEVEL" && e.kind !== "NET_FLOW_TURN") continue;
-    if (!e.investor) continue;
-    const key = `${e.market}|${e.investor}`;
-    const prev = latest.get(key);
-    if (!prev || e.occurredAt > prev.occurredAt) latest.set(key, e);
-  }
-  return [...latest.values()]
-    .map((e) => ({
-      time: hhmm(e.occurredAt),
-      hour: hourOf(e.occurredAt),
-      title: MARKET_LABEL[e.market],
-      desc: marketDesc(e),
-      rate: e.changeRate,
-    }))
-    .sort((x, y) => x.time.localeCompare(y.time));
-}
-
-/** 보는 달 거래일을 위→아래로 이어 붙인 지수 이벤트 타임라인. 미니 캘린더 선택 시 해당 섹션으로 스크롤. */
+/** 보는 달 거래일을 위→아래로 이어 붙인 마감 스냅샷 타임라인. 미니 캘린더 선택 시 해당 섹션으로 스크롤. */
 export default function TimelineView({
   days,
   selectedDate,
@@ -104,7 +65,7 @@ export default function TimelineView({
 }
 
 function DaySection({ day, selected }: { day: TimelineDay; selected: boolean }) {
-  const items = useMemo(() => toItems(day.markets), [day.markets]);
+  const rows = useMemo(() => ordered(day.markets), [day.markets]);
   const [y, m, d] = day.date.split("-").map(Number);
   const wd = WD[new Date(y, m - 1, d).getDay()];
 
@@ -115,47 +76,53 @@ function DaySection({ day, selected }: { day: TimelineDay; selected: boolean }) 
         <h2 className={`text-base font-bold ${selected ? "text-blue-400" : "text-zinc-100"}`}>
           {m}월 {d}일 <span className="font-normal text-zinc-500 text-sm">({wd})</span>
         </h2>
-        <span className="text-xs text-zinc-600">{items.length}건</span>
+        <span className="text-xs text-zinc-600">{rows.length}건</span>
       </div>
 
-      {items.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-sm text-zinc-600 py-4">기록된 이벤트가 없습니다</p>
       ) : (
         <div className="pt-1">
-          {BUCKETS.map((b) => {
-            const inBucket = items.filter((it) => it.hour >= b.from && it.hour < b.to);
-            if (inBucket.length === 0) return null;
-            return (
-              <div key={b.label}>
-                <div className="text-[11px] text-zinc-600 pt-3 pb-1 pl-1">{b.label}</div>
-                {inBucket.map((it, i) => (
-                  <Row key={i} item={it} />
-                ))}
-              </div>
-            );
-          })}
+          {rows.map((m) => (
+            <Row key={m.market} item={m} />
+          ))}
         </div>
       )}
     </section>
   );
 }
 
-function Row({ item }: { item: TLItem }) {
+function Row({ item }: { item: MarketCloseSnapshotItem }) {
   return (
     <div className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-lg border-b border-white/[0.04] hover:bg-white/[0.03]">
-      <span className="num text-xs text-zinc-500 w-11 shrink-0">{item.time}</span>
+      <span className="num text-xs text-zinc-500 w-11 shrink-0">{hhmm(item.capturedAt)}</span>
       <span
         className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-          item.rate == null ? "bg-zinc-600" : item.rate >= 0 ? "bg-red-400" : "bg-blue-400"
+          item.changeRate == null ? "bg-zinc-600" : item.changeRate >= 0 ? "bg-red-400" : "bg-blue-400"
         }`}
       />
-      <div className="min-w-0 flex-1 flex items-baseline gap-2">
-        <span className="text-sm text-zinc-200 shrink-0">{item.title}</span>
-        <span className="text-sm text-zinc-400 truncate">{item.desc}</span>
+      <span className="text-sm text-zinc-200 shrink-0 w-12">{MARKET_LABEL[item.market]}</span>
+      <div className="min-w-0 flex-1 flex items-baseline gap-2 text-sm">
+        <NetPart label="개인" eok={item.individualEok} />
+        <span className="text-zinc-700">·</span>
+        <NetPart label="기관" eok={item.institutionEok} />
+        <span className="text-zinc-700">·</span>
+        <NetPart label="외인" eok={item.foreignEok} />
       </div>
-      {item.rate !== null && (
-        <span className={`num text-sm shrink-0 ${rateClass(item.rate)}`}>{rateText(item.rate)}</span>
+      {item.changeRate !== null && (
+        <span className={`num text-sm shrink-0 ${rateClass(item.changeRate)}`}>
+          {rateText(item.changeRate)}
+        </span>
       )}
     </div>
+  );
+}
+
+function NetPart({ label, eok }: { label: string; eok: number }) {
+  return (
+    <span className="shrink-0">
+      <span className="text-zinc-500">{label} </span>
+      <span className={`num ${netClass(eok)}`}>{signed(eok)}</span>
+    </span>
   );
 }

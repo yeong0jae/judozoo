@@ -104,6 +104,17 @@ data class MarketSignalEventItem(
     val changeRate: Double?, // 발생 시점 등락률(%)
 )
 
+/** 시장(코스피/코스닥) 장 마감(15:40) 투자자 순매수 스냅샷 — 타임라인용. 순매수 단위는 억원(부호 포함). */
+data class MarketCloseSnapshotItem(
+    val capturedAt: LocalDateTime,
+    val market: String,        // KOSPI | KOSDAQ
+    val foreignEok: Long,      // 외국인
+    val institutionEok: Long,  // 기관
+    val individualEok: Long,   // 개인
+    val indexValue: Double?,
+    val changeRate: Double?,   // %
+)
+
 /** 시장(코스피/코스닥) 당일 누적 투자자 순매수 — 상세 패널용. 순매수 단위는 억원(부호 포함). */
 data class MarketInvestorNetBuyItem(
     val market: String,        // KOSPI | KOSDAQ

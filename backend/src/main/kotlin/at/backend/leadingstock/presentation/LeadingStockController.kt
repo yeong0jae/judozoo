@@ -3,6 +3,7 @@ package at.backend.leadingstock.presentation
 import at.backend.leadingstock.application.InvestorTrendService
 import at.backend.leadingstock.application.LeadingStockCriteriaProperties
 import at.backend.leadingstock.application.LeadingStockService
+import at.backend.leadingstock.application.MarketCloseSnapshotService
 import at.backend.leadingstock.application.MarketSignalEventService
 import at.backend.leadingstock.application.SignalEventService
 import at.backend.leadingstock.domain.MarketSignalThresholds
@@ -14,6 +15,7 @@ import at.backend.leadingstock.presentation.response.DailyCandleChartItem
 import at.backend.leadingstock.presentation.response.FilterResultItem
 import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.IndexMinuteCandleItem
+import at.backend.leadingstock.presentation.response.MarketCloseSnapshotItem
 import at.backend.leadingstock.presentation.response.MarketInvestorNetBuyItem
 import at.backend.leadingstock.presentation.response.LeadingStockDetailResponse
 import at.backend.leadingstock.presentation.response.MarketSignalEventItem
@@ -38,6 +40,7 @@ class LeadingStockController(
     private val investorTrendService: InvestorTrendService,
     private val signalEventService: SignalEventService,
     private val marketSignalEventService: MarketSignalEventService,
+    private val marketCloseSnapshotService: MarketCloseSnapshotService,
     private val criteria: LeadingStockCriteriaProperties,
     private val timeProvider: TimeProvider,
 ) {
@@ -166,6 +169,31 @@ class LeadingStockController(
             )
         }
         return ApiResponse.ok(MarketSignalEventsResponse(date = day, totalCount = events.size, events = events))
+    }
+
+    /**
+     * 시장(코스피/코스닥) 장 마감 투자자 순매수 스냅샷 — 타임라인용. 하루 시장당 한 건.
+     * date 미지정 시 오늘.
+     */
+    @GetMapping("/market-close-snapshots")
+    fun getMarketCloseSnapshots(
+        @RequestParam(required = false)
+        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        date: java.time.LocalDate?,
+    ): ApiResponse<List<MarketCloseSnapshotItem>> {
+        val day = date ?: timeProvider.today()
+        val items = marketCloseSnapshotService.snapshotsOn(day).map { s ->
+            MarketCloseSnapshotItem(
+                capturedAt = s.capturedAt,
+                market = s.market.name,
+                foreignEok = s.foreignEok,
+                institutionEok = s.institutionEok,
+                individualEok = s.individualEok,
+                indexValue = s.indexValue,
+                changeRate = s.changeRate,
+            )
+        }
+        return ApiResponse.ok(items)
     }
 
     /** 코스피·코스닥 당일 누적 투자자(외인·기관·개인) 순매수 — 지수 상세 패널용. */

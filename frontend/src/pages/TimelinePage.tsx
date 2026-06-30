@@ -5,7 +5,7 @@ import { QK } from "../api/queries";
 import { todayStr } from "../components/common/DateNavigator";
 import MiniMonthCalendar from "../components/timeline/MiniMonthCalendar";
 import TimelineView, { type TimelineDay } from "../components/timeline/TimelineView";
-import type { MarketSignalEventsResponse } from "../types";
+import type { MarketCloseSnapshotItem } from "../types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -47,16 +47,16 @@ export default function TimelinePage() {
 
   const marketQs = useQueries({
     queries: dates.map((d) => ({
-      queryKey: QK.marketSignalEvents(d),
+      queryKey: QK.marketCloseSnapshots(d),
       queryFn: () =>
-        apiFetch<MarketSignalEventsResponse>(`/api/leading-stocks/market-signal-events?date=${d}`),
+        apiFetch<MarketCloseSnapshotItem[]>(`/api/leading-stocks/market-close-snapshots?date=${d}`),
       staleTime: d === today ? 30_000 : Infinity, // 과거는 정적
     })),
   });
 
   const days: TimelineDay[] = dates.map((d, i) => ({
     date: d,
-    markets: marketQs[i]?.data?.events ?? [],
+    markets: marketQs[i]?.data ?? [],
   }));
   const isLoading = marketQs.some((q) => q.isLoading);
 
@@ -83,7 +83,7 @@ export default function TimelinePage() {
       <div>
         <h1 className="text-xl font-bold text-zinc-100">타임라인</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          그 달 거래일의 이벤트를 3시간 단위로 이어 봅니다 · 달력에서 날짜를 누르면 그날로 이동
+          그 달 거래일의 장 마감 투자자 순매수를 코스피·코스닥 한 줄씩 봅니다 · 달력에서 날짜를 누르면 그날로 이동
         </p>
       </div>
 

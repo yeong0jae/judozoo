@@ -127,6 +127,17 @@ export interface MarketSignalEventsResponse {
   events: MarketSignalEventItem[];
 }
 
+/** 시장(코스피/코스닥) 장 마감(15:40) 투자자 순매수 스냅샷 — 단위 억원(부호 포함). */
+export interface MarketCloseSnapshotItem {
+  capturedAt: string;
+  market: MarketType;
+  foreignEok: number;
+  institutionEok: number;
+  individualEok: number;
+  indexValue: number | null;
+  changeRate: number | null;
+}
+
 /** 시장(코스피/코스닥) 당일 누적 투자자 순매수 — 단위 억원(부호 포함). */
 export interface MarketInvestorNetBuyItem {
   market: MarketType;
