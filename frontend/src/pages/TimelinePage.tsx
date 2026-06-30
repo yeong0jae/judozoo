@@ -59,7 +59,7 @@ export default function TimelinePage() {
     markets: marketQs[i]?.data ?? [],
   }));
   const isLoading = marketQs.some((q) => q.isLoading);
-  const datesWithData = new Set(days.filter((d) => d.markets.length > 0).map((d) => d.date));
+  const byDate = new Map(days.map((d) => [d.date, d.markets]));
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -88,20 +88,20 @@ export default function TimelinePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[26rem_1fr] gap-4 items-start">
-        <div className="lg:sticky lg:top-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_22rem] gap-4 items-start">
+        <div>
           <MonthCalendar
             month={month}
             selected={selectedDate}
             today={today}
-            datesWithData={datesWithData}
+            byDate={byDate}
             onShiftMonth={(delta) =>
               setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
             }
             onSelect={setSelectedDate}
           />
         </div>
-        <div ref={scrollRef} className="lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto pr-1">
+        <div ref={scrollRef} className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto pr-1">
           <TimelineView days={days} selectedDate={selectedDate} isLoading={isLoading} />
         </div>
       </div>
