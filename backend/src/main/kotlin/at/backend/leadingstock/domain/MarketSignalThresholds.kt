@@ -20,7 +20,7 @@ object MarketSignalThresholds {
 
     /** 흐름 전환 임계(억원) — 누적 정점에서 이만큼 반대로 되돌리면 방향 전환으로 본다. 코스닥은 규모가 작아 더 민감하게. */
     fun reversalEok(market: Market): Long = when (market) {
-        Market.KOSPI -> 2_000L
-        Market.KOSDAQ -> 200L
+        Market.KOSPI -> 1_000L
+        Market.KOSDAQ -> 100L
     }
 }
