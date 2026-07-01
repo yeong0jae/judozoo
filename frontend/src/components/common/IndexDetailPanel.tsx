@@ -49,10 +49,10 @@ export default function IndexDetailPanel({
 
   return (
     <div className="flex flex-col">
-      <header className="pb-4 border-b border-white/[0.06]">
+      <header className="pb-4 border-b border-zinc-800">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <span className="text-lg font-bold tracking-tight text-zinc-50">{MARKET_LABEL[market]} 지수</span>
+            <span className="text-lg font-bold tracking-tight text-zinc-100">{MARKET_LABEL[market]} 지수</span>
             {lastValue != null && (
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="num text-xl font-bold text-zinc-100">{fmtIndex(lastValue)}</span>
@@ -118,7 +118,7 @@ function NetBuyDetail({ items }: { items: MarketInvestorNetBuyItem[] }) {
       {sorted.map((m) => (
         <div
           key={m.market}
-          className="bg-white/[0.025] rounded-2xl p-4"
+          className="bg-zinc-900 rounded-2xl p-4"
         >
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-sm font-semibold text-zinc-100">{MARKET_LABEL[m.market]}</span>

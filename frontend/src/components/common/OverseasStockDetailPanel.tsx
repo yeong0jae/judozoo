@@ -55,13 +55,13 @@ export default function OverseasStockDetailPanel({
 
   return (
     <div className="flex flex-col lg:max-h-[calc(100vh-8rem)]">
-      <header className="pb-4 border-b border-white/[0.06]">
+      <header className="pb-4 border-b border-zinc-800">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
             <StockAvatar name={symbol} code={symbol} size={40} />
             <div className="min-w-0">
               <div className="flex items-center flex-wrap gap-x-2">
-                <span className="text-lg font-bold tracking-tight text-zinc-50">{symbol}</span>
+                <span className="text-lg font-bold tracking-tight text-zinc-100">{symbol}</span>
                 <span className="text-xs text-zinc-500">{exchangeLabel(exchange)}</span>
               </div>
               <div className="text-xs text-zinc-400 truncate">{d?.ename || d?.name || ""}</div>
@@ -84,7 +84,7 @@ export default function OverseasStockDetailPanel({
         </div>
         {d && (
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold num text-zinc-50 tracking-tight">${formatUsd(d.price)}</span>
+            <span className="text-2xl font-bold num text-zinc-100 tracking-tight">${formatUsd(d.price)}</span>
             <ProfitText value={d.rate / 100} format={formatPct} className="num text-sm font-semibold" />
           </div>
         )}
@@ -174,7 +174,7 @@ function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-semibold tracking-wider text-zinc-500">필터</span>
+        <span className="text-sm font-semibold text-zinc-400">필터</span>
         <span className="text-xs num text-zinc-400">
           <span className="text-emerald-400 font-semibold">{passedCount}</span> / {results.length} 통과
         </span>
@@ -182,11 +182,11 @@ function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
       {results.map((r) => (
         <div
           key={r.filterName}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02]"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-900"
         >
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-zinc-200">{r.filterName}</div>
-            <div className="text-[11px] text-zinc-500 mt-0.5">{r.criteriaDescription}</div>
+            <div className="text-xs text-zinc-500 mt-0.5">{r.criteriaDescription}</div>
           </div>
           <div className="num text-xs text-zinc-300 shrink-0">{r.actualValue}</div>
           <span
@@ -238,10 +238,10 @@ function BreakoutSignalSection({
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
-        <span className="text-[11px] font-semibold tracking-wider text-zinc-500">주도주 돌파 매매 시그널</span>
-        <span className="text-[11px] text-zinc-600">최근 2거래일 고가</span>
+        <span className="text-sm font-semibold text-zinc-400">주도주 돌파 매매 시그널</span>
+        <span className="text-xs text-zinc-600">최근 2거래일 고가</span>
       </div>
-      <div className="bg-white/[0.025] rounded-2xl p-4">
+      <div className="bg-zinc-900 rounded-2xl p-4">
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">돌파선</span>
           <span className="flex items-baseline gap-2">
@@ -252,7 +252,7 @@ function BreakoutSignalSection({
         <div className="mt-1 text-xs text-zinc-500 num">
           {peakDate.getDate()}일 {peakTime} 형성 · {elapsed}
         </div>
-        <div className="my-3 h-px bg-white/[0.06]" />
+        <div className="my-3 h-px bg-zinc-800" />
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">현재가</span>
           <span className="num text-sm text-zinc-300">${formatUsd(currentPrice)}</span>

@@ -63,13 +63,13 @@ export default function StockDetailPanel({
 
   return (
     <div className="flex flex-col lg:max-h-[calc(100vh-8rem)]">
-      <header className="pb-4 border-b border-white/[0.06]">
+      <header className="pb-4 border-b border-zinc-800">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <StockAvatar name={detail?.stockName ?? "?"} code={shortCode(stockCode)} size={40} />
               <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-                <span className="text-lg font-bold tracking-tight text-zinc-50">{detail?.stockName ?? "…"}</span>
+                <span className="text-lg font-bold tracking-tight text-zinc-100">{detail?.stockName ?? "…"}</span>
                 <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
                 {detail && (
                   <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
@@ -77,16 +77,16 @@ export default function StockDetailPanel({
               </div>
             </div>
             {detail && (
-              <div className="text-xs text-zinc-400 mt-0.5">
-                <NumWon value={detail.currentPrice} className="num" />{" "}
+              <div className="mt-1 flex items-baseline gap-2 flex-wrap">
+                <NumWon value={detail.currentPrice} className="num text-xl font-bold text-zinc-100" />
                 <ProfitText
                   value={detail.priceChangeRate / 100}
                   format={formatPct}
-                  className="num ml-1"
+                  className="num text-sm font-semibold"
                 />
                 {detail.relativeVolume != null && (
                   <span
-                    className={`num ml-2 text-xs ${
+                    className={`num text-xs ${
                       detail.relativeVolume >= 2
                         ? "text-amber-400"
                         : detail.relativeVolume >= 1
@@ -180,7 +180,7 @@ function FilterResultsList({ results }: { results: FilterResultItem[] }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-semibold tracking-wider text-zinc-500">필터</span>
+        <span className="text-sm font-semibold text-zinc-400">필터</span>
         <span className="text-xs num text-zinc-400">
           <span className="text-emerald-400 font-semibold">{passedCount}</span> / {results.length} 통과
         </span>
@@ -188,11 +188,11 @@ function FilterResultsList({ results }: { results: FilterResultItem[] }) {
       {results.map((r) => (
         <div
           key={r.filterName}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02]"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-900"
         >
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-zinc-200">{r.filterName}</div>
-            <div className="text-[11px] text-zinc-500 mt-0.5">{r.criteriaDescription}</div>
+            <div className="text-xs text-zinc-500 mt-0.5">{r.criteriaDescription}</div>
           </div>
           <div className="num text-xs text-zinc-300 shrink-0">{r.actualValue}</div>
           <span
@@ -218,7 +218,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   if (isLoading) {
     return (
       <section>
-        <span className="text-[11px] font-semibold tracking-wider text-zinc-500 block mb-2">외국인·기관 자금 흐름</span>
+        <span className="text-sm font-semibold text-zinc-400 block mb-2">외국인·기관 자금 흐름</span>
         <Skeleton className="h-24 w-full" />
       </section>
     );
@@ -233,10 +233,10 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
-        <span className="text-[11px] font-semibold tracking-wider text-zinc-500">외국인·기관 자금 흐름</span>
-        <span className="text-[11px] text-zinc-600">5분 갱신</span>
+        <span className="text-sm font-semibold text-zinc-400">외국인·기관 자금 흐름</span>
+        <span className="text-xs text-zinc-600">5분 갱신</span>
       </div>
-      <div className="bg-white/[0.025] rounded-2xl p-4 space-y-4">
+      <div className="bg-zinc-900 rounded-2xl p-4 space-y-4">
         <FlowGroup
           label={`오늘 ${today.date.slice(5)}`}
           rows={[
@@ -245,7 +245,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
             { name: "기관", total: today.institutionNet, nxt: today.institutionNetNxt },
           ]}
         />
-        <div className="h-px bg-white/[0.06]" />
+        <div className="h-px bg-zinc-800" />
         <FlowGroup
           label={`최근 ${last5.length}일 누적`}
           rows={[
@@ -302,10 +302,10 @@ function BreakoutSignalSection({
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
-        <span className="text-[11px] font-semibold tracking-wider text-zinc-500">주도주 돌파 매매 시그널</span>
-        <span className="text-[11px] text-zinc-600">최근 3거래일 고가</span>
+        <span className="text-sm font-semibold text-zinc-400">주도주 돌파 매매 시그널</span>
+        <span className="text-xs text-zinc-600">최근 3거래일 고가</span>
       </div>
-      <div className="bg-white/[0.025] rounded-2xl p-4">
+      <div className="bg-zinc-900 rounded-2xl p-4">
         {/* 돌파선(전고점) + 임박도 칩 */}
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">돌파선</span>
@@ -322,7 +322,7 @@ function BreakoutSignalSection({
           {peakDate.getDate()}일 {peakTime} 형성 · {elapsed}
         </div>
 
-        <div className="my-3 h-px bg-white/[0.06]" />
+        <div className="my-3 h-px bg-zinc-800" />
 
         {/* 현재가 → 돌파까지 거리(원/%) */}
         <div className="flex items-baseline justify-between">
