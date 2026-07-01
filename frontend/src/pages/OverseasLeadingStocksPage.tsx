@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useState } from "react";
 import { useOverseasRanking } from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
-import { formatPct, formatUsd } from "../lib/format";
+import { formatPct } from "../lib/format";
+import NumUsd from "../components/common/NumUsd";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
@@ -183,7 +184,7 @@ function RankingTable({
                   </div>
                 </td>
                 <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
-                  {formatUsd(s.price)}
+                  <NumUsd value={s.price} prefix="" />
                 </td>
                 <td className="px-4 py-3.5 text-right num font-medium">
                   <ProfitText value={s.rate / 100} format={formatPct} />
@@ -243,7 +244,7 @@ function RankingCards({
                 <span className="text-zinc-500 text-xs num w-4 shrink-0">{s.rank}</span>
                 <StockAvatar name={s.name} code={s.symbol} size={26} />
                 <span className="font-semibold truncate flex-1 min-w-0">{s.name}</span>
-                <span className="num shrink-0 font-medium text-zinc-100">{formatUsd(s.price)}</span>
+                <NumUsd value={s.price} prefix="" className="num shrink-0 font-medium text-zinc-100" />
               </div>
               {/* 2행: 심볼 · 등락률 */}
               <div className="flex items-center gap-2 pl-[3.25rem]">

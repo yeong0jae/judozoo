@@ -13,6 +13,7 @@ import ProfitText from "./ProfitText";
 import Skeleton from "./Skeleton";
 import StockAvatar from "./StockAvatar";
 import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
+import NumUsd from "./NumUsd";
 
 const EXCHANGE_LABEL: Record<string, string> = {
   NAS: "나스닥",
@@ -84,7 +85,7 @@ export default function OverseasStockDetailPanel({
         </div>
         {d && (
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold num text-zinc-100 tracking-tight">${formatUsd(d.price)}</span>
+            <NumUsd value={d.price} className="text-2xl font-bold num text-zinc-100 tracking-tight" />
             <ProfitText value={d.rate / 100} format={formatPct} className="num text-sm font-semibold" />
           </div>
         )}
@@ -190,8 +191,8 @@ function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
           </div>
           <div className="num text-xs text-zinc-300 shrink-0">{r.actualValue}</div>
           <span
-            className={`text-[10px] px-1.5 py-0.5 rounded-md shrink-0 ${
-              r.passed ? "bg-emerald-400/10 text-emerald-400" : "bg-zinc-500/15 text-zinc-400"
+            className={`text-[11px] px-2 py-0.5 rounded-md shrink-0 ${
+              r.passed ? "bg-emerald-400/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
             }`}
           >
             {r.passed ? "통과" : "미달"}

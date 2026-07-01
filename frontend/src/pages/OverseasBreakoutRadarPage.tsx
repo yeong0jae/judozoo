@@ -8,6 +8,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
+import NumUsd from "../components/common/NumUsd";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -202,7 +203,7 @@ function RadarRow({
       <td className="px-4 py-3.5 text-right num text-zinc-400">
         {Math.round(s.tradingValue).toLocaleString("en-US")}
       </td>
-      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">{formatUsd(s.price)}</td>
+      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100"><NumUsd value={s.price} prefix="" /></td>
       <td className="px-4 py-3.5 text-right">
         <ProfitText value={s.rate / 100} format={formatPct} className="num font-medium" />
       </td>
@@ -251,7 +252,7 @@ function RadarCard({
           {s.symbol} · {Math.round(s.tradingValue).toLocaleString("en-US")}
         </span>
         <span className="flex items-baseline gap-2 shrink-0">
-          <span className="num text-sm font-medium text-zinc-100">{formatUsd(s.price)}</span>
+          <NumUsd value={s.price} prefix="" className="num text-sm font-medium text-zinc-100" />
           <ProfitText value={s.rate / 100} format={formatPct} className="num text-xs" />
         </span>
       </div>
