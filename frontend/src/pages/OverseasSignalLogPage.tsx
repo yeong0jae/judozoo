@@ -8,6 +8,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
+import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 
 type TypeFilter = "ALL" | SignalEventType;
@@ -62,7 +63,13 @@ function detailOf(e: OverseasSignalEventItem) {
   return `$${formatUsd(line)} 돌파까지 $${formatUsd(line - e.price)} (${e.gapRate.toFixed(2)}%) 남음`;
 }
 
-export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode }) {
+export default function OverseasSignalLog({
+  market,
+  onMarket,
+}: {
+  market: StockMarket;
+  onMarket: (m: StockMarket) => void;
+}) {
   const [date, setDate] = useState(todayStr());
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const q = useOverseasSignalEvents(date);
@@ -104,12 +111,12 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
         </div>
       </div>
 
-      {toggle}
+      <MarketToggle value={market} onChange={onMarket} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <section>
-          <div className="flex px-4 py-2.5 border-b border-white/[0.04]">
-            <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs">
+          <div className="py-2.5">
+            <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs w-fit">
               {TYPE_TABS.map((t) => (
                 <button
                   key={t.key}

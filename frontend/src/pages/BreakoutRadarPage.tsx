@@ -29,11 +29,10 @@ export default function BreakoutRadarPage() {
     localStorage.setItem(MARKET_KEY, market);
   }, [market]);
 
-  const toggle = <MarketToggle value={market} onChange={setMarket} />;
   return market === "domestic" ? (
-    <DomesticBreakoutRadar toggle={toggle} />
+    <DomesticBreakoutRadar market={market} onMarket={setMarket} />
   ) : (
-    <OverseasBreakoutRadar toggle={toggle} />
+    <OverseasBreakoutRadar market={market} onMarket={setMarket} />
   );
 }
 
@@ -54,7 +53,13 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
   return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
 }
 
-function DomesticBreakoutRadar({ toggle }: { toggle: React.ReactNode }) {
+function DomesticBreakoutRadar({
+  market,
+  onMarket,
+}: {
+  market: StockMarket;
+  onMarket: (m: StockMarket) => void;
+}) {
   // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -103,14 +108,14 @@ function DomesticBreakoutRadar({ toggle }: { toggle: React.ReactNode }) {
         </div>
       </div>
 
-      {toggle}
+      <MarketToggle
+        value={market}
+        onChange={onMarket}
+        trailing={<ChangeRateSelector value={minChangeRate} onChange={setRate} />}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <section>
-        {/* 등락률 임계값 선택 — 후보 풀 조절 */}
-        <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
-          <ChangeRateSelector value={minChangeRate} onChange={setRate} />
-        </div>
         {radarQ.isLoading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (

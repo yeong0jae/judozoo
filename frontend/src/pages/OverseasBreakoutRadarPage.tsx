@@ -12,6 +12,7 @@ import NumUsd from "../components/common/NumUsd";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
+import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "overseasBreakoutRadar.minChangeRate";
@@ -33,7 +34,13 @@ function peakLabel(iso: string): string {
   return `${dt.getDate()}일 ${dt.toTimeString().slice(0, 5)}`;
 }
 
-export default function OverseasBreakoutRadar({ toggle }: { toggle?: React.ReactNode }) {
+export default function OverseasBreakoutRadar({
+  market,
+  onMarket,
+}: {
+  market: StockMarket;
+  onMarket: (m: StockMarket) => void;
+}) {
   // 등락률 임계값 — 새로고침해도 유지(해외 돌파 전용 키), 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -80,14 +87,14 @@ export default function OverseasBreakoutRadar({ toggle }: { toggle?: React.React
         )}
       </div>
 
-      {toggle}
+      <MarketToggle
+        value={market}
+        onChange={onMarket}
+        trailing={<ChangeRateSelector value={minChangeRate} onChange={setRate} />}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <section>
-          {/* 등락률 임계값 선택 — 후보 풀 조절 */}
-          <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
-            <ChangeRateSelector value={minChangeRate} onChange={setRate} />
-          </div>
           {radarQ.isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (

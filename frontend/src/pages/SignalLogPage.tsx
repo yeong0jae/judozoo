@@ -33,11 +33,10 @@ export default function SignalLogPage() {
     localStorage.setItem(SIGNAL_MARKET_KEY, market);
   }, [market]);
 
-  const toggle = <MarketToggle value={market} onChange={setMarket} />;
   return market === "domestic" ? (
-    <DomesticSignalLog toggle={toggle} />
+    <DomesticSignalLog market={market} onMarket={setMarket} />
   ) : (
-    <OverseasSignalLog toggle={toggle} />
+    <OverseasSignalLog market={market} onMarket={setMarket} />
   );
 }
 
@@ -241,7 +240,13 @@ function detailOf(e: SignalEventItem) {
   return `${formatPrice(line)}원 돌파까지 ${formatPrice(line - e.currentPrice)}원 (${e.gapRate.toFixed(2)}%) 남음`;
 }
 
-function DomesticSignalLog({ toggle }: { toggle: React.ReactNode }) {
+function DomesticSignalLog({
+  market,
+  onMarket,
+}: {
+  market: StockMarket;
+  onMarket: (m: StockMarket) => void;
+}) {
   const [date, setDate] = useState(todayStr());
   // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
   const [minRate, setMinRate] = useState(() => {
@@ -386,14 +391,17 @@ function DomesticSignalLog({ toggle }: { toggle: React.ReactNode }) {
         </div>
       </div>
 
-      {toggle}
+      <MarketToggle
+        value={market}
+        onChange={onMarket}
+        trailing={<ChangeRateSelector value={minRate} onChange={setMinRate} />}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <section>
-        {/* 발생 시점 등락률 하한 — 행 표시 필터 */}
-        <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-white/[0.04]">
-          {/* 좌: 유형 필터 (상세 패널 토글과 동일 디자인) */}
-          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs shrink-0">
+        {/* 유형 필터 — 리스트 위 한 줄 */}
+        <div className="py-2.5">
+          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs w-fit">
             {TYPE_TABS.map((t) => (
               <button
                 key={t.key}
@@ -407,7 +415,6 @@ function DomesticSignalLog({ toggle }: { toggle: React.ReactNode }) {
               </button>
             ))}
           </div>
-          <ChangeRateSelector value={minRate} onChange={setMinRate} />
         </div>
         {eventsQ.isLoading || marketQ.isLoading ? (
           <div className="p-6 space-y-3">

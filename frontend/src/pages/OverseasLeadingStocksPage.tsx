@@ -11,11 +11,18 @@ import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
+import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "overseasStock.minChangeRate";
 
-export default function OverseasLeadingStocks({ toggle }: { toggle?: React.ReactNode }) {
+export default function OverseasLeadingStocks({
+  market,
+  onMarket,
+}: {
+  market: StockMarket;
+  onMarket: (m: StockMarket) => void;
+}) {
   // 당일 등락률 임계값(%) — 국내와 동일하게 localStorage 보관, 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -52,7 +59,11 @@ export default function OverseasLeadingStocks({ toggle }: { toggle?: React.React
     <div className="space-y-4">
       <Header totalCount={data?.length} loading={isFetching} />
 
-      {toggle}
+      <MarketToggle
+        value={market}
+        onChange={onMarket}
+        trailing={<ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />}
+      />
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
       <div
@@ -63,10 +74,6 @@ export default function OverseasLeadingStocks({ toggle }: { toggle?: React.React
         }
       >
         <section>
-          {/* 등락률 임계값 선택 — 리스트 우측 상단 */}
-          <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
-            <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
-          </div>
           {isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 10 }).map((_, i) => (

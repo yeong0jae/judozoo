@@ -38,18 +38,22 @@ export default function LeadingStocksPage() {
     localStorage.setItem(MARKET_KEY, market);
   }, [market]);
 
-  const toggle = <MarketToggle value={market} onChange={setMarket} />;
-
   return market === "domestic" ? (
-    <DomesticLeadingStocks toggle={toggle} />
+    <DomesticLeadingStocks market={market} onMarket={setMarket} />
   ) : (
-    <OverseasLeadingStocks toggle={toggle} />
+    <OverseasLeadingStocks market={market} onMarket={setMarket} />
   );
 }
 
 const MARKET_KEY = "leadingStock.market";
 
-function DomesticLeadingStocks({ toggle }: { toggle: React.ReactNode }) {
+function DomesticLeadingStocks({
+  market,
+  onMarket,
+}: {
+  market: StockMarket;
+  onMarket: (m: StockMarket) => void;
+}) {
   // 당일 등락률 임계값(%) — 사용자 선택. 새로고침해도 유지되도록 localStorage에 보관, 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -120,7 +124,11 @@ function DomesticLeadingStocks({ toggle }: { toggle: React.ReactNode }) {
         loading={candidatesQ.isFetching}
       />
 
-      {toggle}
+      <MarketToggle
+        value={market}
+        onChange={onMarket}
+        trailing={<ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />}
+      />
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
       <div
@@ -131,10 +139,6 @@ function DomesticLeadingStocks({ toggle }: { toggle: React.ReactNode }) {
         }
       >
         <section>
-          {/* 등락률 임계값 선택 — 리스트 우측 상단 */}
-          <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
-            <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
-          </div>
           {candidatesQ.isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
