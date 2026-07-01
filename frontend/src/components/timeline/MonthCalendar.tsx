@@ -181,8 +181,8 @@ function DayCell({
             <span className="text-[10px] font-medium text-zinc-400">{MARKET_LABEL[mk.market]}</span>
             <div className="flex flex-wrap gap-x-1.5 text-[10px] num leading-tight">
               <NetPart label="개" eok={mk.individualEok} />
-              <NetPart label="기" eok={mk.institutionEok} />
               <NetPart label="외" eok={mk.foreignEok} />
+              <NetPart label="기" eok={mk.institutionEok} />
             </div>
           </div>
         ))}

@@ -137,9 +137,9 @@ function Row({ item }: { item: MarketCloseSnapshotItem }) {
       <div className="min-w-0 flex-1 flex items-baseline gap-2 text-sm">
         <NetPart label="개인" eok={item.individualEok} />
         <span className="text-zinc-700">·</span>
-        <NetPart label="기관" eok={item.institutionEok} />
-        <span className="text-zinc-700">·</span>
         <NetPart label="외인" eok={item.foreignEok} />
+        <span className="text-zinc-700">·</span>
+        <NetPart label="기관" eok={item.institutionEok} />
       </div>
       {item.changeRate !== null && (
         <span className={`num text-sm shrink-0 ${rateClass(item.changeRate)}`}>
