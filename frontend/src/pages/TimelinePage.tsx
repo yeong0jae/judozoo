@@ -100,7 +100,7 @@ export default function TimelinePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_34rem] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_38rem] gap-4 items-start">
         <div>
           <MonthCalendar
             month={month}
@@ -113,7 +113,7 @@ export default function TimelinePage() {
             onSelect={setSelectedDate}
           />
         </div>
-        <div ref={scrollRef} className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto pr-1">
+        <div ref={scrollRef} className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:overflow-x-hidden pr-1">
           <TimelineView days={days} selectedDate={selectedDate} isLoading={isLoading} />
         </div>
       </div>
