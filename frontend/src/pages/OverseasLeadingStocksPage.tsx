@@ -49,7 +49,7 @@ export default function OverseasLeadingStocks({ toggle }: { toggle?: React.React
   const selected = stocks.find((s) => s.symbol === openSymbol) ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Header totalCount={data?.length} loading={isFetching} />
 
       {toggle}
@@ -149,7 +149,7 @@ function RankingTable({
   onOpen: (symbol: string) => void;
 }) {
   return (
-    <table className="hidden md:table w-full text-xs">
+    <table className="hidden md:table w-full text-xs border-separate border-spacing-y-1">
       <thead className="text-zinc-500">
         <tr>
           <th className="pl-4 py-2.5 text-left font-medium w-10">순위</th>
@@ -168,8 +168,8 @@ function RankingTable({
               {idx === 3 && <GroupHeader label="주도주 후보" />}
               <tr
                 data-stock-code={s.symbol}
-                className={`border-t border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors ${
-                  isSelected ? "bg-emerald-900" : ""
+                className={`cursor-pointer transition-colors hover:[&>td]:bg-white/[0.03] [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
+                  isSelected ? "[&>td]:bg-emerald-900" : ""
                 }`}
                 onClick={() => onOpen(s.symbol)}
               >
@@ -203,7 +203,7 @@ function RankingTable({
 
 function GroupHeader({ label }: { label: string }) {
   return (
-    <tr aria-hidden className="border-t border-white/[0.04] bg-white/[0.02]">
+    <tr aria-hidden>
       <td colSpan={5} className="px-4 py-2.5">
         <span className="text-xs font-semibold text-zinc-400">{label}</span>
       </td>
@@ -225,7 +225,7 @@ function RankingCards({
   onOpen: (symbol: string) => void;
 }) {
   return (
-    <div className="md:hidden">
+    <div className="md:hidden space-y-1">
       {stocks.map((s, idx) => {
         const isSelected = selectedSymbol === s.symbol;
         return (
@@ -234,7 +234,7 @@ function RankingCards({
             {idx === 3 && <CardGroupHeader label="주도주 후보" />}
             <div
               data-stock-code={s.symbol}
-              className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
+              className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
                 isSelected ? "bg-emerald-900" : ""
               }`}
               onClick={() => onOpen(s.symbol)}

@@ -122,7 +122,7 @@ function DomesticBreakoutRadar({ toggle }: { toggle: React.ReactNode }) {
         ) : (
           <>
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs border-separate border-spacing-y-1">
               <thead className="text-zinc-500 text-xs">
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
@@ -148,7 +148,7 @@ function DomesticBreakoutRadar({ toggle }: { toggle: React.ReactNode }) {
               </tbody>
             </table>
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden space-y-1">
             {stocks.map((s) => (
               <RadarCard
                 key={s.stockCode}
@@ -197,8 +197,8 @@ function RadarRow({
       }}
       data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
-      className={`border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer ${
-        selected ? "bg-emerald-900/40" : ""
+      className={`transition-colors cursor-pointer hover:[&>td]:bg-white/[0.03] [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
+        selected ? "[&>td]:bg-emerald-900/40" : ""
       }`}
     >
       <td className="px-4 py-3.5">
@@ -261,7 +261,7 @@ function RadarCard({
     <div
       data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
-      className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1.5 cursor-pointer ${
+      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1.5 cursor-pointer ${
         selected ? "bg-emerald-900/40" : ""
       }`}
     >

@@ -113,7 +113,7 @@ function DomesticLeadingStocks({ toggle }: { toggle: React.ReactNode }) {
   }, [stocks]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Header
         totalCount={data?.totalCount}
         queriedAt={data?.queriedAt}
@@ -230,7 +230,7 @@ function CandidatesTable({
   onOpen: (stockCode: string) => void;
 }) {
   return (
-    <table className="hidden md:table w-full text-xs">
+    <table className="hidden md:table w-full text-xs border-separate border-spacing-y-1">
       <thead className="text-zinc-500 text-xs">
         <tr>
           <th className="pl-4 py-2.5 text-left whitespace-nowrap font-medium">순위</th>
@@ -253,9 +253,9 @@ function CandidatesTable({
               {idx === 3 && <GroupHeader label="주도주 후보" />}
               <tr
                 data-stock-code={s.stockCode}
-                className={`border-t border-white/[0.04] hover:bg-white/[0.03] cursor-pointer transition-colors ${
+                className={`cursor-pointer transition-colors hover:[&>td]:bg-white/[0.03] [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
                   isNew ? "leading-stock-new" : ""
-                } ${isSelected ? "bg-emerald-900" : ""}`}
+                } ${isSelected ? "[&>td]:bg-emerald-900" : ""}`}
                 onClick={() => onOpen(s.stockCode)}
               >
               <td className="pl-4 py-3.5 text-zinc-500 num w-10">{s.rank}</td>
@@ -300,7 +300,7 @@ function CandidatesTable({
 
 function GroupHeader({ label, hint }: { label: string; hint?: string }) {
   return (
-    <tr aria-hidden className="border-t border-white/[0.04] bg-white/[0.02]">
+    <tr aria-hidden>
       {/* 표 좌측 끝(순위 컬럼 자리)에서 라벨 시작 — 1·2·3 번호 컬럼과 좌측 정렬 일치 */}
       <td colSpan={5} className="px-4 py-2.5">
         <span className="text-xs font-semibold text-zinc-400">{label}</span>
@@ -328,7 +328,7 @@ function CandidatesCards({
   onOpen: (stockCode: string) => void;
 }) {
   return (
-    <div className="md:hidden">
+    <div className="md:hidden space-y-1">
       {stocks.map((s, idx) => {
         const code = shortCode(s.stockCode);
         const isNew = newCodes.has(s.stockCode);
@@ -339,7 +339,7 @@ function CandidatesCards({
             {idx === 3 && <CardGroupHeader label="주도주 후보" />}
             <div
               data-stock-code={s.stockCode}
-              className={`border-t border-white/[0.04] px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
+              className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
                 isNew ? "leading-stock-new" : ""
               } ${isSelected ? "bg-emerald-900" : ""}`}
               onClick={() => onOpen(s.stockCode)}

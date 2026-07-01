@@ -159,7 +159,7 @@ export default function OverseasSignalLog({ toggle }: { toggle?: React.ReactNode
                           setSel({ exchange: e.exchange, symbol: e.symbol });
                           setOpenKey(open ? null : rowKey);
                         }}
-                        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors ${
+                        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-white/[0.03] transition-colors ${
                           selected ? "bg-emerald-900/30" : ""
                         }`}
                       >
