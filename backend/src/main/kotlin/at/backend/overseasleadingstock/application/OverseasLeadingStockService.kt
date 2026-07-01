@@ -27,15 +27,20 @@ class OverseasLeadingStockService(
      * 종목당 분봉 1호출(120건)만, 누적분으로 전고점(돌파선)을 잡는다.
      */
     fun signalReadings(minChangeRate: Double): List<OverseasCandidateReading> =
-        getRanking(minChangeRate).map { stock ->
-            // 첫 등장 종목은 2거래일 페이징으로 seed(전고점 정확), 이후엔 최신 1페이지만 누적
-            val fresh = if (minuteStore.has(stock.exchange, stock.symbol)) {
-                chartClient.fetchLatestMinutes(stock.exchange, stock.symbol)
-            } else {
-                chartClient.fetchMinuteCandles(stock.exchange, stock.symbol)
+        getRanking(minChangeRate).mapNotNull { stock ->
+            // 분봉 갱신은 종목 단위 best-effort — 한 종목이 rate-limit(EGW00201) 등으로 실패해도
+            // 폴 전체를 버리지 않고, 나머지 종목은 스토어의 누적분으로 계속 평가한다.
+            runCatching {
+                // 첫 등장 종목은 2거래일 페이징으로 seed(전고점 정확), 이후엔 최신 1페이지만 누적
+                val fresh = if (minuteStore.has(stock.exchange, stock.symbol)) {
+                    chartClient.fetchLatestMinutes(stock.exchange, stock.symbol)
+                } else {
+                    chartClient.fetchMinuteCandles(stock.exchange, stock.symbol)
+                }
+                minuteStore.merge(stock.exchange, stock.symbol, fresh)
             }
-            minuteStore.merge(stock.exchange, stock.symbol, fresh)
             val stored = minuteStore.candles(stock.exchange, stock.symbol)
+            if (stored.isEmpty()) return@mapNotNull null // 갱신 실패 + 누적분 없음 → 이번 폴만 스킵
 
             val peak = stored.maxByOrNull { it.high }
             val gapRate = peak?.takeIf { stock.price > 0 }?.let { (it.high - stock.price) / stock.price * 100 }
