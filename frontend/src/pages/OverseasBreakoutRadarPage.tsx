@@ -87,11 +87,14 @@ export default function OverseasBreakoutRadar({
         )}
       </div>
 
-      <MarketToggle
-        value={market}
-        onChange={onMarket}
-        trailing={<ChangeRateSelector value={minChangeRate} onChange={setRate} />}
-      />
+      {/* 토글+필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MarketToggle
+          value={market}
+          onChange={onMarket}
+          trailing={<ChangeRateSelector value={minChangeRate} onChange={setRate} />}
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <section>

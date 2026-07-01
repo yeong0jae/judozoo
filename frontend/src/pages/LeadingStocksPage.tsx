@@ -124,11 +124,14 @@ function DomesticLeadingStocks({
         loading={candidatesQ.isFetching}
       />
 
-      <MarketToggle
-        value={market}
-        onChange={onMarket}
-        trailing={<ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />}
-      />
+      {/* 토글+필터는 목록 컬럼 폭에 맞춰(필터가 리스트 오른쪽 끝에 정렬) */}
+      <div className={openCode ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6" : ""}>
+        <MarketToggle
+          value={market}
+          onChange={onMarket}
+          trailing={<ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />}
+        />
+      </div>
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
       <div

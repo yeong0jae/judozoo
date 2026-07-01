@@ -9,7 +9,10 @@ import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
+import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
+
+const MIN_RATE_KEY = "overseasSignalLog.minRate";
 
 type TypeFilter = "ALL" | SignalEventType;
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
@@ -72,11 +75,19 @@ export default function OverseasSignalLog({
 }) {
   const [date, setDate] = useState(todayStr());
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
+  const [minRate, setMinRate] = useState(() => {
+    const raw = localStorage.getItem(MIN_RATE_KEY);
+    const saved = Number(raw);
+    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 0;
+  });
+  useEffect(() => {
+    localStorage.setItem(MIN_RATE_KEY, String(minRate));
+  }, [minRate]);
   const q = useOverseasSignalEvents(date);
   const allEvents = q.data?.events ?? []; // 여정용 — 필터 무관 전체
   const events = useMemo(
-    () => allEvents.filter((e) => typeFilter === "ALL" || e.eventType === typeFilter),
-    [allEvents, typeFilter],
+    () => allEvents.filter((e) => e.rate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter)),
+    [allEvents, typeFilter, minRate],
   );
 
   const [sel, setSel] = useState<{ exchange: string; symbol: string } | null>(null);
@@ -111,7 +122,14 @@ export default function OverseasSignalLog({
         </div>
       </div>
 
-      <MarketToggle value={market} onChange={onMarket} />
+      {/* 토글+필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MarketToggle
+          value={market}
+          onChange={onMarket}
+          trailing={<ChangeRateSelector value={minRate} onChange={setMinRate} />}
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <section>
