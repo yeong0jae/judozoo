@@ -130,7 +130,7 @@ function DomesticLeadingStocks({ toggle }: { toggle: React.ReactNode }) {
             : ""
         }
       >
-        <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
+        <section>
           {/* 등락률 임계값 선택 — 리스트 우측 상단 */}
           <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
             <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
