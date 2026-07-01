@@ -16,20 +16,25 @@ const navBase = "rounded-lg text-sm font-medium transition-colors";
 const activeItem = "bg-white/[0.06] text-zinc-100";
 const inactiveItem = "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.03]";
 
+// 데스크톱 — 헤더 하단 보더에 붙는 언더라인 탭 (마켓 토글과 동일 톤)
+const deskBase = "flex items-center border-b-2 text-sm font-medium transition-colors";
+const deskActive = "border-zinc-100 text-zinc-100";
+const deskInactive = "border-transparent text-zinc-400 hover:text-zinc-100";
+
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="border-b border-white/[0.04] bg-zinc-950">
-      <div className="max-w-[110rem] mx-auto px-4 sm:px-6 py-3 flex items-center gap-4 md:gap-6">
-        {/* 데스크톱 네비 */}
-        <nav className="hidden md:flex items-center gap-1">
+      <div className="max-w-[110rem] mx-auto px-4 sm:px-6 h-14 flex items-center gap-4 md:gap-6">
+        {/* 데스크톱 네비 — 하단 보더에 붙는 언더라인 탭 */}
+        <nav className="hidden md:flex items-stretch gap-6 h-14 -mb-px">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               className={({ isActive }) =>
-                `${navBase} px-3 py-1.5 ${isActive ? activeItem : inactiveItem}`
+                `${deskBase} ${isActive ? deskActive : deskInactive}`
               }
             >
               {n.label}

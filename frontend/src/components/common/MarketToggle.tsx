@@ -5,7 +5,7 @@ const TABS: { key: StockMarket; label: string }[] = [
   { key: "overseas", label: "해외" },
 ];
 
-/** 국내/해외 전환 토글 — StockDetailPanel의 [상세|1분봉|일봉] 토글과 동일 디자인. */
+/** 국내/해외 전환 — 언더라인 탭. 활성은 중립(흰색) 언더라인(파랑=하락과 혼동 방지). 하단 보더가 리스트와의 구분선. */
 export default function MarketToggle({
   value,
   onChange,
@@ -14,16 +14,16 @@ export default function MarketToggle({
   onChange: (market: StockMarket) => void;
 }) {
   return (
-    <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs w-fit">
+    <div className="flex gap-6 border-b border-white/[0.08]">
       {TABS.map((t) => (
         <button
           key={t.key}
           type="button"
           onClick={() => onChange(t.key)}
-          className={`px-3 py-1 rounded-md transition-colors ${
+          className={`pb-2.5 -mb-px border-b-2 text-sm font-medium transition-colors ${
             value === t.key
-              ? "bg-white/[0.1] text-zinc-100"
-              : "text-zinc-500 hover:text-zinc-300"
+              ? "border-zinc-100 text-zinc-100"
+              : "border-transparent text-zinc-500 hover:text-zinc-300"
           }`}
         >
           {t.label}
