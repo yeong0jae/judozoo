@@ -389,7 +389,7 @@ function DomesticSignalLog({ toggle }: { toggle: React.ReactNode }) {
       {toggle}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
+      <section>
         {/* 발생 시점 등락률 하한 — 행 표시 필터 */}
         <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-white/[0.04]">
           {/* 좌: 유형 필터 (상세 패널 토글과 동일 디자인) */}

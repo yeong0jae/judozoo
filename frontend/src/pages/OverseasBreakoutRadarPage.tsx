@@ -83,7 +83,7 @@ export default function OverseasBreakoutRadar({ toggle }: { toggle?: React.React
       {toggle}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <section className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
+        <section>
           {/* 등락률 임계값 선택 — 후보 풀 조절 */}
           <div className="flex justify-end px-4 py-2.5 border-b border-white/[0.04]">
             <ChangeRateSelector value={minChangeRate} onChange={setRate} />
