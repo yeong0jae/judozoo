@@ -47,36 +47,34 @@ export default function OverseasStockDetailPanel({
 
   if (!exchange || !symbol) {
     return (
-      <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
-        <div className="h-[28rem] flex items-center justify-center text-sm text-zinc-600">
-          종목을 선택하면 표시됩니다
-        </div>
+      <div className="h-[28rem] flex items-center justify-center text-sm text-zinc-600">
+        종목을 선택하면 표시됩니다
       </div>
     );
   }
 
   return (
-    <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
-      <header className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
+    <div className="flex flex-col lg:max-h-[calc(100vh-8rem)]">
+      <header className="pb-4 border-b border-white/[0.06]">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <StockAvatar name={symbol} code={symbol} size={36} />
+            <StockAvatar name={symbol} code={symbol} size={40} />
             <div className="min-w-0">
               <div className="flex items-center flex-wrap gap-x-2">
-                <span className="text-base font-semibold">{symbol}</span>
+                <span className="text-lg font-bold tracking-tight text-zinc-50">{symbol}</span>
                 <span className="text-xs text-zinc-500">{exchangeLabel(exchange)}</span>
               </div>
               <div className="text-xs text-zinc-400 truncate">{d?.ename || d?.name || ""}</div>
             </div>
           </div>
-          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs shrink-0">
+          <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
             {DETAIL_TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  tab === t.key ? "bg-white/[0.1] text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}
@@ -86,13 +84,13 @@ export default function OverseasStockDetailPanel({
         </div>
         {d && (
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold num text-zinc-100">${formatUsd(d.price)}</span>
-            <ProfitText value={d.rate / 100} format={formatPct} className="num text-sm font-medium" />
+            <span className="text-3xl font-bold num text-zinc-50 tracking-tight">${formatUsd(d.price)}</span>
+            <ProfitText value={d.rate / 100} format={formatPct} className="num text-sm font-semibold" />
           </div>
         )}
       </header>
 
-      <div className="p-4 sm:p-6">
+      <div className="flex-1 lg:overflow-y-auto pt-5">
         {tab === "detail" ? (
           !d ? (
             <div className="space-y-2">
@@ -174,23 +172,30 @@ function Field({ label, value, span2 }: { label: string; value: React.ReactNode;
 function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
   const passedCount = results.filter((r) => r.passed).length;
   return (
-    <div className="space-y-2">
-      <div className="text-xs text-zinc-500 mb-2">
-        {passedCount} / {results.length}개 필터 통과
+    <div className="space-y-1">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] font-semibold tracking-wider text-zinc-500">필터</span>
+        <span className="text-xs num text-zinc-400">
+          <span className="text-emerald-400 font-semibold">{passedCount}</span> / {results.length} 통과
+        </span>
       </div>
       {results.map((r) => (
         <div
           key={r.filterName}
-          className={`flex items-start gap-3 px-3 py-2.5 rounded border ${
-            r.passed ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"
-          }`}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02]"
         >
-          <span className="text-xs mt-0.5">{r.passed ? "✓" : "✗"}</span>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium">{r.filterName}</div>
-            <div className="text-xs text-zinc-500 mt-0.5">기준: {r.criteriaDescription}</div>
+            <div className="text-xs font-medium text-zinc-200">{r.filterName}</div>
+            <div className="text-[11px] text-zinc-500 mt-0.5">{r.criteriaDescription}</div>
           </div>
-          <div className="text-xs num shrink-0">{r.actualValue}</div>
+          <div className="num text-xs text-zinc-300 shrink-0">{r.actualValue}</div>
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded-md shrink-0 ${
+              r.passed ? "bg-emerald-400/10 text-emerald-400" : "bg-zinc-500/15 text-zinc-400"
+            }`}
+          >
+            {r.passed ? "통과" : "미달"}
+          </span>
         </div>
       ))}
     </div>
@@ -232,11 +237,11 @@ function BreakoutSignalSection({
 
   return (
     <section>
-      <h3 className="text-xs font-semibold text-zinc-200 mb-3">
-        주도주 돌파 매매 시그널
-        <span className="ml-2 text-xs font-normal text-zinc-500">최근 2거래일 고가 기준</span>
-      </h3>
-      <div className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className="text-[11px] font-semibold tracking-wider text-zinc-500">주도주 돌파 매매 시그널</span>
+        <span className="text-[11px] text-zinc-600">최근 2거래일 고가</span>
+      </div>
+      <div className="bg-white/[0.025] rounded-2xl p-4">
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">돌파선</span>
           <span className="flex items-baseline gap-2">
@@ -247,7 +252,7 @@ function BreakoutSignalSection({
         <div className="mt-1 text-xs text-zinc-500 num">
           {peakDate.getDate()}일 {peakTime} 형성 · {elapsed}
         </div>
-        <div className="my-3 border-t border-zinc-800" />
+        <div className="my-3 h-px bg-white/[0.06]" />
         <div className="flex items-baseline justify-between">
           <span className="text-xs text-zinc-400">현재가</span>
           <span className="num text-sm text-zinc-300">${formatUsd(currentPrice)}</span>

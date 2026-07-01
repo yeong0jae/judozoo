@@ -41,40 +41,36 @@ export default function IndexDetailPanel({
 
   if (!market) {
     return (
-      <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden">
-        <div className="h-[28rem] flex items-center justify-center text-sm text-zinc-600">
-          행을 선택하면 표시됩니다
-        </div>
+      <div className="h-[28rem] flex items-center justify-center text-sm text-zinc-600">
+        행을 선택하면 표시됩니다
       </div>
     );
   }
 
   return (
-    <div className="bg-zinc-900 border border-white/[0.04] rounded-2xl overflow-hidden flex flex-col">
-      <header className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
+    <div className="flex flex-col">
+      <header className="pb-4 border-b border-white/[0.06]">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-semibold">{MARKET_LABEL[market]} 지수</span>
-            </div>
+            <span className="text-lg font-bold tracking-tight text-zinc-50">{MARKET_LABEL[market]} 지수</span>
             {lastValue != null && (
-              <div className="text-xs text-zinc-400 mt-0.5">
-                <span className="num">{fmtIndex(lastValue)}</span>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="num text-xl font-bold text-zinc-100">{fmtIndex(lastValue)}</span>
                 {changeRate != null && (
-                  <ProfitText value={changeRate / 100} format={formatPct} className="num ml-1.5" />
+                  <ProfitText value={changeRate / 100} format={formatPct} className="num text-sm font-semibold" />
                 )}
               </div>
             )}
           </div>
           {/* 상세/차트 토글 */}
-          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs shrink-0">
+          <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
             {DETAIL_TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  tab === t.key ? "bg-white/[0.1] text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}
@@ -84,7 +80,7 @@ export default function IndexDetailPanel({
         </div>
       </header>
 
-      <div className="p-3">
+      <div className="pt-4">
         {tab === "minute" ? (
           candlesQ.isLoading ? (
             <Skeleton className="h-[28rem] w-full" />
@@ -122,7 +118,7 @@ function NetBuyDetail({ items }: { items: MarketInvestorNetBuyItem[] }) {
       {sorted.map((m) => (
         <div
           key={m.market}
-          className="bg-zinc-950 border border-white/[0.04] rounded-xl p-4"
+          className="bg-white/[0.025] rounded-2xl p-4"
         >
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-sm font-semibold text-zinc-100">{MARKET_LABEL[m.market]}</span>
