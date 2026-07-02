@@ -4,11 +4,13 @@ package at.backend.leadingstock.domain
  * 한 종목의 현재 시그널 측정값(한 폴링 시점). 값이 없으면(분봉 미존재 등) null.
  * [gapRate]: 전고점까지 남은 상승률(%), 돌파 시 0 이하. [peakPrice]: 그 시점 당일 전고점.
  * [spikeRatio]: 최신 1분봉 거래대금 배율 — 거래대금 임계 미달이면 null로 들어온다.
+ * [aboveMa20]: 직전 확정 5분봉 종가가 5분봉 20이평 위인지 — 확정 봉 부족이면 null.
  */
 data class SignalReading(
     val gapRate: Double?,
     val peakPrice: Long?,
     val spikeRatio: Double?,
+    val aboveMa20: Boolean?,
 )
 
 /**
@@ -23,6 +25,7 @@ class SignalState private constructor(
     private val imminent: Boolean,
     private val lastBrokenPeak: Long,
     private val spiking: Boolean,
+    private val aboveMa20: Boolean?,
 ) {
     fun advance(reading: SignalReading): Pair<List<SignalEventType>, SignalState> {
         val events = mutableListOf<SignalEventType>()
@@ -30,6 +33,7 @@ class SignalState private constructor(
         var imminent = imminent
         var lastBrokenPeak = lastBrokenPeak
         var spiking = spiking
+        var aboveMa20 = aboveMa20
 
         val gap = reading.gapRate
         val peak = reading.peakPrice
@@ -66,11 +70,21 @@ class SignalState private constructor(
             spiking = false
         }
 
-        return events to SignalState(broken, imminent, lastBrokenPeak, spiking)
+        // 돌림: 직전 확정 5분봉 종가가 20이평을 아래→위로 처음 뚫는 순간. 위치가 바뀌는 라이징 엣지만.
+        // 최초 관측(null→위)은 실제 돌파를 못 본 것이라 발화하지 않고 위치만 기록한다.
+        val above = reading.aboveMa20
+        if (above != null) {
+            if (aboveMa20 == false && above) events += SignalEventType.MA20_CROSS
+            aboveMa20 = above
+        }
+
+        return events to SignalState(broken, imminent, lastBrokenPeak, spiking, aboveMa20)
     }
 
     companion object {
-        val INITIAL = SignalState(broken = false, imminent = false, lastBrokenPeak = 0, spiking = false)
+        val INITIAL = SignalState(
+            broken = false, imminent = false, lastBrokenPeak = 0, spiking = false, aboveMa20 = null,
+        )
 
         private const val BROKEN_GAP = 0.0
         private const val BROKEN_RESET_GAP = 0.5   // 돌파 해제(재무장) 기준

@@ -146,4 +146,50 @@ class MinuteCandlesTest : FunSpec({
             bear.volumeSpike(baselineBars = 3)!!.direction shouldBe SpikeDirection.SELL
         }
     }
+
+    // 5분봉 한 구간(1분봉 5개) — 종가만 지정하면 그 구간 5분봉 종가가 된다(끝 봉 종가 = 구간 종가).
+    fun fiveMinBar(bucketIndex: Int, close: Long): List<MinuteCandle> =
+        (0..4).map { m ->
+            MinuteCandle(
+                dateTime = base.plusMinutes((bucketIndex * 5 + m).toLong()),
+                openPrice = close, highPrice = close, lowPrice = close, closePrice = close,
+                volume = 0, tradingValue = 0,
+            )
+        }
+
+    context("5분봉 20이평 대비 위치(돌림 판정용)") {
+        test("직전 확정 5분봉 종가가 이평 위면 above=true, 이평값도 함께 준다") {
+            // period=3, 확정 5분봉 종가 [10,10,40] → 이평 20, 끝봉 40 > 20 → 위
+            val candles = MinuteCandles(
+                fiveMinBar(0, 10) + fiveMinBar(1, 10) + fiveMinBar(2, 40) + fiveMinBar(3, 999),
+            )
+            val ma = candles.movingAverage(intervalMinutes = 5, period = 3)!!
+            ma.above shouldBe true
+            ma.ma20 shouldBe 20
+        }
+
+        test("직전 확정 5분봉 종가가 이평 아래면 above=false") {
+            // 확정 [40,40,10] → 이평 30, 끝봉 10 < 30 → 아래
+            val candles = MinuteCandles(
+                fiveMinBar(0, 40) + fiveMinBar(1, 40) + fiveMinBar(2, 10) + fiveMinBar(3, 999),
+            )
+            candles.movingAverage(intervalMinutes = 5, period = 3)!!.above shouldBe false
+        }
+
+        test("진행 중인 마지막 5분봉은 판정에서 제외한다") {
+            // 확정 [10,10,40](위)이고 진행 중 봉이 아무리 낮아도(1) 판정은 확정 봉 기준
+            val candles = MinuteCandles(
+                fiveMinBar(0, 10) + fiveMinBar(1, 10) + fiveMinBar(2, 40) + fiveMinBar(3, 1),
+            )
+            candles.movingAverage(intervalMinutes = 5, period = 3)!!.above shouldBe true
+        }
+
+        test("확정 5분봉이 기간보다 적으면 null") {
+            // 5분봉 3구간뿐 → 진행 중 1개 제외하면 확정 2개 < period 3
+            val candles = MinuteCandles(
+                fiveMinBar(0, 10) + fiveMinBar(1, 20) + fiveMinBar(2, 30),
+            )
+            candles.movingAverage(intervalMinutes = 5, period = 3) shouldBe null
+        }
+    }
 })

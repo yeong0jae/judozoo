@@ -11,6 +11,7 @@ const TYPE_LABEL: Record<SignalEventType, string> = {
   BREAKOUT: "돌파",
   BREAKOUT_IMMINENT: "임박",
   VOLUME_SPIKE: "스파이크",
+  MA20_CROSS: "돌림",
 };
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
@@ -71,6 +72,7 @@ function noteOf(e: SignalEventItem): string {
     const m = e.minuteTradingValue != null ? ` / 분봉 ${formatKoreanMoney(e.minuteTradingValue)}` : "";
     return r + d + m;
   }
+  if (e.eventType === "MA20_CROSS") return e.ma20 != null ? `5분 20이평 ${formatPrice(e.ma20)} 상향돌파` : "20이평 상향돌파";
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
   const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));
   if (e.eventType === "BREAKOUT") return `돌파선 ${formatPrice(line)}`;
@@ -109,6 +111,7 @@ export function buildSignalPrompt(
     BREAKOUT: 0,
     BREAKOUT_IMMINENT: 0,
     VOLUME_SPIKE: 0,
+    MA20_CROSS: 0,
   };
   asc.forEach((e) => (byType[e.eventType] += 1));
   const stockCount = new Set(asc.map((e) => e.stockCode)).size;
@@ -117,7 +120,7 @@ export function buildSignalPrompt(
   const themeMap = new Map<string, { count: number; stocks: Set<string>; t: Record<SignalEventType, number> }>();
   for (const e of asc) {
     const key = e.theme ?? NO_THEME;
-    const cur = themeMap.get(key) ?? { count: 0, stocks: new Set(), t: { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0 } };
+    const cur = themeMap.get(key) ?? { count: 0, stocks: new Set(), t: { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0, MA20_CROSS: 0 } };
     cur.count += 1;
     cur.stocks.add(e.stockCode);
     cur.t[e.eventType] += 1;
@@ -127,20 +130,20 @@ export function buildSignalPrompt(
   const themeRows = [...themeMap.entries()]
     .filter(([theme]) => theme !== NO_THEME)
     .sort((a, b) => b[1].count - a[1].count)
-    .map(([theme, v]) => `${theme} | ${v.count} | ${v.stocks.size} | ${v.t.BREAKOUT}/${v.t.BREAKOUT_IMMINENT}/${v.t.VOLUME_SPIKE}`);
+    .map(([theme, v]) => `${theme} | ${v.count} | ${v.stocks.size} | ${v.t.BREAKOUT}/${v.t.BREAKOUT_IMMINENT}/${v.t.VOLUME_SPIKE}/${v.t.MA20_CROSS}`);
   const noThemeCount = themeMap.get(NO_THEME)?.count ?? 0;
 
   // 시간대별 집계 (시 단위)
   const hourMap = new Map<string, Record<SignalEventType, number>>();
   for (const e of asc) {
     const hh = e.occurredAt.slice(11, 13);
-    const cur = hourMap.get(hh) ?? { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0 };
+    const cur = hourMap.get(hh) ?? { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0, MA20_CROSS: 0 };
     cur[e.eventType] += 1;
     hourMap.set(hh, cur);
   }
   const hourRows = [...hourMap.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([hh, v]) => `${hh}시 | ${v.BREAKOUT}/${v.BREAKOUT_IMMINENT}/${v.VOLUME_SPIKE}`);
+    .map(([hh, v]) => `${hh}시 | ${v.BREAKOUT}/${v.BREAKOUT_IMMINENT}/${v.VOLUME_SPIKE}/${v.MA20_CROSS}`);
 
   // 종목별 요약
   const stockMap = new Map<string, SignalEventItem[]>();
@@ -165,7 +168,7 @@ export function buildSignalPrompt(
   );
 
   return [
-    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·지수 캔들 연속)을 시간순으로 기록한 거야.`,
+    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크/돌림 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·지수 캔들 연속)을 시간순으로 기록한 거야.`,
     `이걸 근거로 오늘 시장 흐름을 분석하고 매매를 복기해줘:`,
     `1) 주도 테마와 테마 순환`,
     `2) 시간대별 수급 흐름`,
@@ -176,19 +179,19 @@ export function buildSignalPrompt(
     `주의: '테마 미상'은 키움에 테마 정보가 없을 뿐 시장적 의미가 아니야 — 테마·순환 분석에서 제외해.`,
     ``,
     `## 개요`,
-    `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE})`,
+    `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE} · 돌림 ${byType.MA20_CROSS})`,
     `- 등장 종목: ${stockCount}개`,
     `- 지수 시그널: ${marketAsc.length}건`,
     ``,
     `## 테마별 (이벤트 많은 순)`,
-    `테마 | 이벤트 | 종목 | 돌파/임박/스파이크`,
+    `테마 | 이벤트 | 종목 | 돌파/임박/스파이크/돌림`,
     ...themeRows,
     ...(noThemeCount > 0
       ? [`※ 테마 미상 ${noThemeCount}건은 키움 테마 데이터 없음 — 시장 의미 아님(집계·순환 분석 제외)`]
       : []),
     ``,
     `## 시간대별`,
-    `시 | 돌파/임박/스파이크`,
+    `시 | 돌파/임박/스파이크/돌림`,
     ...hourRows,
     ``,
     `## 종목별 요약 (이벤트 많은 순)`,

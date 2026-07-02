@@ -76,7 +76,7 @@ export interface BreakoutRadarResponse {
 }
 
 // === 시그널 전이 로그 ===
-export type SignalEventType = "BREAKOUT" | "BREAKOUT_IMMINENT" | "VOLUME_SPIKE";
+export type SignalEventType = "BREAKOUT" | "BREAKOUT_IMMINENT" | "VOLUME_SPIKE" | "MA20_CROSS";
 
 export type SpikeDirection = "BUY" | "SELL" | "FLAT";
 
@@ -92,6 +92,7 @@ export interface SignalEventItem {
   spikeRatio: number | null;
   minuteTradingValue: number | null;
   spikeDirection: SpikeDirection | null;
+  ma20: number | null;
   theme: string | null;
 }
 

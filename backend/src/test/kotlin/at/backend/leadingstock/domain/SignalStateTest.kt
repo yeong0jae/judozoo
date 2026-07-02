@@ -7,8 +7,8 @@ import io.kotest.matchers.shouldBe
 
 class SignalStateTest : FunSpec({
 
-    fun reading(gap: Double? = null, peak: Long? = null, spike: Double? = null) =
-        SignalReading(gapRate = gap, peakPrice = peak, spikeRatio = spike)
+    fun reading(gap: Double? = null, peak: Long? = null, spike: Double? = null, aboveMa20: Boolean? = null) =
+        SignalReading(gapRate = gap, peakPrice = peak, spikeRatio = spike, aboveMa20 = aboveMa20)
 
     /** 측정값을 차례로 흘려보내며 마지막 전이 결과만 본다. */
     fun SignalState.feed(vararg readings: SignalReading): Pair<List<SignalEventType>, SignalState> {
@@ -96,6 +96,40 @@ class SignalStateTest : FunSpec({
                 reading(spike = 3.2),
             )
             events shouldContainExactly listOf(SignalEventType.VOLUME_SPIKE)
+        }
+    }
+
+    context("돌림(20이평 상향 돌파)") {
+        test("20이평 아래에 있다가 위로 처음 올라서면 돌림 이벤트를 낸다") {
+            val (events, _) = SignalState.INITIAL.feed(
+                reading(aboveMa20 = false),
+                reading(aboveMa20 = true),
+            )
+            events shouldContainExactly listOf(SignalEventType.MA20_CROSS)
+        }
+
+        test("최초 관측이 이미 20이평 위면(돌파를 못 봄) 발화하지 않는다") {
+            val (events, _) = SignalState.INITIAL.advance(reading(aboveMa20 = true))
+            events.shouldBeEmpty()
+        }
+
+        test("20이평 위에 계속 머무는 동안에는 다시 내지 않는다") {
+            val (events, _) = SignalState.INITIAL.feed(
+                reading(aboveMa20 = false),
+                reading(aboveMa20 = true),
+                reading(aboveMa20 = true),
+            )
+            events.shouldBeEmpty()
+        }
+
+        test("위로 올라섰다가 아래로 내려온 뒤 다시 올라서면 재발화한다") {
+            val (events, _) = SignalState.INITIAL.feed(
+                reading(aboveMa20 = false),
+                reading(aboveMa20 = true),
+                reading(aboveMa20 = false),
+                reading(aboveMa20 = true),
+            )
+            events shouldContainExactly listOf(SignalEventType.MA20_CROSS)
         }
     }
 

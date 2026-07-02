@@ -26,6 +26,8 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
+  // 돌림은 국내 전용 — 해외는 이 시그널을 내지 않지만 공유 타입 충족용으로 둔다.
+  MA20_CROSS: { label: "돌림", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
 };
 
 function clockOf(iso: string): string {

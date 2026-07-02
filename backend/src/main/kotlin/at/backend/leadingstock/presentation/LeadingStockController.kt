@@ -136,6 +136,7 @@ class LeadingStockController(
                 spikeRatio = e.spikeRatio,
                 minuteTradingValue = e.minuteTradingValue,
                 spikeDirection = e.spikeDirection?.name,
+                ma20 = e.ma20,
                 theme = e.theme,
             )
         }

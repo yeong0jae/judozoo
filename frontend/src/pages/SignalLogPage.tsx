@@ -67,6 +67,7 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
+  MA20_CROSS: { label: "돌림", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
 };
 
 type TypeFilter = "ALL" | "MARKET" | SignalEventType;
@@ -77,6 +78,7 @@ const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "BREAKOUT", label: "돌파" },
   { key: "BREAKOUT_IMMINENT", label: "임박" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
+  { key: "MA20_CROSS", label: "돌림" },
   { key: "MARKET", label: "지수" },
 ];
 
@@ -248,6 +250,13 @@ function detailOf(e: SignalEventItem) {
         {dirLabel && <span className={dirCls}> {dirLabel}</span>}
         <span className="text-zinc-500"> · 누적 {formatKoreanMoney(e.tradingValue)}</span>
       </>
+    );
+  }
+  if (e.eventType === "MA20_CROSS") {
+    return (
+      <span className="text-sky-300">
+        5분 20이평{e.ma20 != null && ` ${formatPrice(e.ma20)}원`} 상향돌파
+      </span>
     );
   }
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";

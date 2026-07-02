@@ -67,7 +67,7 @@ data class SignalEventItem(
     val occurredAt: LocalDateTime,
     val stockCode: String,
     val stockName: String,
-    val eventType: String,       // BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE
+    val eventType: String,       // BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE | MA20_CROSS
     val currentPrice: Long,
     val priceChangeRate: Double, // 발생 시점 당일 등락률(%)
     val tradingValue: Long,      // 발생 시점 당일 누적 거래대금(원)
@@ -75,6 +75,7 @@ data class SignalEventItem(
     val spikeRatio: Double?,     // 스파이크만
     val minuteTradingValue: Long?, // 스파이크만 — 발생 분봉 거래대금(원)
     val spikeDirection: String?, // 스파이크만 — BUY | SELL | FLAT
+    val ma20: Long?,             // 돌림만 — 그 시점 5분봉 20이평값(원)
     val theme: String?,          // 대표 테마
 )
 

@@ -156,8 +156,10 @@ class LeadingStockService(
      */
     fun signalReadings(minDailyPriceChangeRate: Double): List<CandidateSignalReading> =
         findCandidateStocks(minDailyPriceChangeRate).map { c ->
-            // 돌파선은 최근 3거래일 최고가, 스파이크는 당일만(개장 베이스라인 오염 방지)
-            val high = breakoutHighCandles(c.stockCode).dayHighSignal(c.currentPrice)
+            // 돌파선·돌림은 최근 3거래일 연속 분봉으로(5분봉 20이평이 개장부터 연속되게), 스파이크는 당일만
+            val recent = breakoutHighCandles(c.stockCode)
+            val high = recent.dayHighSignal(c.currentPrice)
+            val ma = recent.movingAverage(MA_INTERVAL_MINUTES, MA_PERIOD)
             val spike = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
                 .volumeSpike(SPIKE_BASELINE_BARS)
                 ?.takeIf { it.latestTradingValue >= SPIKE_MIN_TRADING_VALUE }
@@ -172,6 +174,8 @@ class LeadingStockService(
                 spikeRatio = spike?.ratio,
                 minuteTradingValue = spike?.latestTradingValue,
                 spikeDirection = spike?.direction,
+                aboveMa20 = ma?.above,
+                ma20 = ma?.ma20,
             )
         }
 
@@ -241,6 +245,8 @@ class LeadingStockService(
         private const val RVOL_LOOKBACK_DAYS = 20
         private const val SPIKE_BASELINE_BARS = 20      // 직전 평균 산정 봉 수
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
+        private const val MA_INTERVAL_MINUTES = 5       // 돌림 판정 분봉 주기
+        private const val MA_PERIOD = 20                // 돌림 판정 이평 기간(봉)
         private const val CHART_SESSION_DAYS = 3 // 상세 차트 표시 거래일 수(당일 포함)
     }
 }
@@ -260,6 +266,8 @@ data class CandidateSignalReading(
     val spikeRatio: Double?,
     val minuteTradingValue: Long?, // 스파이크 분봉 거래대금(원). 스파이크 없으면 null
     val spikeDirection: SpikeDirection?, // 스파이크 봉 방향(매수/매도). 스파이크 없으면 null
+    val aboveMa20: Boolean?, // 직전 확정 5분봉 종가가 5분봉 20이평 위인지. 확정 봉 부족이면 null
+    val ma20: Long?, // 그 시점 5분봉 20이평값(원). aboveMa20이 null이면 null
 )
 
 /** 돌파 레이더 한 종목 — 당일 고가(돌파선) 대비 현재가 갭. */

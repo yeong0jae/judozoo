@@ -58,7 +58,7 @@ class SignalEventPoller(
         val recorded = leadingStockService.signalReadings(minChangeRate)
             .flatMap { r ->
                 val prev = states[r.stockCode] ?: SignalState.INITIAL
-                val (events, next) = prev.advance(SignalReading(r.gapRate, r.peakPrice, r.spikeRatio))
+                val (events, next) = prev.advance(SignalReading(r.gapRate, r.peakPrice, r.spikeRatio, r.aboveMa20))
                 states[r.stockCode] = next
                 if (events.isEmpty()) return@flatMap emptyList()
                 val theme = leadingStockService.themesOf(r.stockCode).firstOrNull()
@@ -90,10 +90,11 @@ class SignalEventPoller(
         currentPrice = r.currentPrice,
         priceChangeRate = r.priceChangeRate,
         tradingValue = r.tradingValue,
-        gapRate = if (type == SignalEventType.VOLUME_SPIKE) null else r.gapRate,
+        gapRate = if (type == SignalEventType.BREAKOUT || type == SignalEventType.BREAKOUT_IMMINENT) r.gapRate else null,
         spikeRatio = if (type == SignalEventType.VOLUME_SPIKE) r.spikeRatio else null,
         minuteTradingValue = if (type == SignalEventType.VOLUME_SPIKE) r.minuteTradingValue else null,
         spikeDirection = if (type == SignalEventType.VOLUME_SPIKE) r.spikeDirection else null,
+        ma20 = if (type == SignalEventType.MA20_CROSS) r.ma20 else null,
         theme = theme,
     )
 }
