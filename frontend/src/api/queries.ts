@@ -67,6 +67,7 @@ export const QK = {
     ["overseas-leading-stocks", "minute-candles", exchange, symbol] as const,
   overseasDailyCandles: (exchange: string, symbol: string) =>
     ["overseas-leading-stocks", "daily-candles", exchange, symbol] as const,
+  issues: (date: string) => ["issues", date] as const,
 };
 
 export interface InstanceInfo {

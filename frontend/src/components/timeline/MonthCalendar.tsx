@@ -113,7 +113,8 @@ export default function MonthCalendar({
           if (d === null) return <div key={`empty-${i}`} className="min-h-28" />;
           const ds = ymd(y, m, d);
           const wd = new Date(y, m, d).getDay();
-          const disabled = wd === 0 || wd === 6 || ds > today;
+          // 주말만 비활성 — 미래 평일은 예정 이슈를 적을 수 있게 선택 허용(마감 데이터는 없음).
+          const disabled = wd === 0 || wd === 6;
           const dayData = byDate.get(ds);
           return (
             <DayCell

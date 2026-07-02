@@ -5,7 +5,11 @@ import { QK } from "../api/queries";
 import { todayStr } from "../components/common/DateNavigator";
 import MonthCalendar from "../components/timeline/MonthCalendar";
 import TimelineView, { type TimelineDay } from "../components/timeline/TimelineView";
-import type { MarketCloseSnapshotItem, OverseasIndexCloseSnapshotItem } from "../types";
+import type {
+  DailyIssueItem,
+  MarketCloseSnapshotItem,
+  OverseasIndexCloseSnapshotItem,
+} from "../types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -18,8 +22,11 @@ function latestTradingDay(today: string): string {
   return ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
 
-/** 보는 달의 거래일(평일) 중 오늘 이전까지, 오름차순. 미래는 데이터가 없어 제외. */
-function tradingDays(month: Date, today: string): string[] {
+/**
+ * 보는 달의 거래일(평일) 전부, 오름차순. 미래 거래일도 포함한다 —
+ * 마감 데이터는 없지만 예정 이슈를 미리 적을 수 있게 타임라인에 슬림 행으로 노출한다.
+ */
+function tradingDays(month: Date): string[] {
   const y = month.getFullYear();
   const m = month.getMonth();
   const last = new Date(y, m + 1, 0).getDate();
@@ -28,7 +35,6 @@ function tradingDays(month: Date, today: string): string[] {
     const wd = new Date(y, m, d).getDay();
     if (wd === 0 || wd === 6) continue;
     const ds = ymd(y, m, d);
-    if (ds > today) continue;
     out.push(ds);
   }
   return out;
@@ -43,13 +49,15 @@ export default function TimelinePage() {
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(latest);
 
-  const dates = tradingDays(month, today);
+  const dates = tradingDays(month);
 
+  // 마감 스냅샷은 오늘까지만 존재 — 미래 거래일은 조회하지 않는다(빈 배열로 둔다).
   const marketQs = useQueries({
     queries: dates.map((d) => ({
       queryKey: QK.marketCloseSnapshots(d),
       queryFn: () =>
         apiFetch<MarketCloseSnapshotItem[]>(`/api/leading-stocks/market-close-snapshots?date=${d}`),
+      enabled: d <= today,
       staleTime: d === today ? 30_000 : Infinity, // 과거는 정적
     })),
   });
@@ -61,7 +69,17 @@ export default function TimelinePage() {
         apiFetch<OverseasIndexCloseSnapshotItem[]>(
           `/api/overseas-leading-stocks/index-close-snapshots?date=${d}`,
         ),
+      enabled: d <= today,
       staleTime: d === today ? 30_000 : Infinity, // 과거는 정적
+    })),
+  });
+
+  // 이슈는 사용자가 직접 쓰는 데이터라 과거도 정적으로 두지 않고, 작성/수정/삭제 시 무효화로 갱신된다.
+  const issueQs = useQueries({
+    queries: dates.map((d) => ({
+      queryKey: QK.issues(d),
+      queryFn: () => apiFetch<DailyIssueItem[]>(`/api/issues?date=${d}`),
+      staleTime: 30_000,
     })),
   });
 
@@ -69,6 +87,7 @@ export default function TimelinePage() {
     date: d,
     markets: marketQs[i]?.data ?? [],
     indices: indexQs[i]?.data ?? [],
+    issues: issueQs[i]?.data ?? [],
   }));
   const isLoading = marketQs.some((q) => q.isLoading) || indexQs.some((q) => q.isLoading);
   const byDate = new Map(days.map((d) => [d.date, d]));
@@ -114,7 +133,7 @@ export default function TimelinePage() {
           />
         </div>
         <div ref={scrollRef} className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:overflow-x-hidden pr-1">
-          <TimelineView days={days} selectedDate={selectedDate} isLoading={isLoading} />
+          <TimelineView days={days} selectedDate={selectedDate} today={today} isLoading={isLoading} />
         </div>
       </div>
     </div>
