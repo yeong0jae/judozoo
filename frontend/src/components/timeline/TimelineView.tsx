@@ -51,7 +51,7 @@ function parts(date: string) {
 }
 
 /**
- * 거래일 타임라인 — 위→아래로 예정(미래) → 오늘 → 과거. 미니 캘린더 선택 시 해당 섹션으로 스크롤.
+ * 거래일 타임라인 — 위→아래로 과거 → 오늘 → 예정(미래), 날짜 오름차순. 미니 캘린더 선택 시 해당 섹션으로 스크롤.
  * 과거·오늘은 마감 스냅샷 + 이슈, 미래는 마감 데이터가 없어 이슈만(빈 날은 슬림 행) 노출한다.
  */
 export default function TimelineView({
@@ -72,21 +72,23 @@ export default function TimelineView({
       </div>
     );
   }
-  const rendered = [...days].reverse(); // 예정 → 오늘 → 과거
   return (
     <div className="space-y-6">
-      {rendered.map((day) =>
-        day.date > today ? (
-          <FutureDay key={day.date} day={day} selected={day.date === selectedDate} />
-        ) : (
+      {days.map((day) => {
+        if (day.date > today) {
+          // 미래는 빈 날을 줄줄이 늘어놓지 않는다 — 이슈가 있거나 달력에서 고른 날만 노출.
+          if (day.issues.length === 0 && day.date !== selectedDate) return null;
+          return <FutureDay key={day.date} day={day} selected={day.date === selectedDate} />;
+        }
+        return (
           <DaySection
             key={day.date}
             day={day}
             selected={day.date === selectedDate}
             today={day.date === today}
           />
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }
@@ -128,33 +130,12 @@ function DaySection({ day, selected, today }: { day: TimelineDay; selected: bool
   );
 }
 
-/** 미래 거래일 — 마감 데이터 없음. 이슈 없으면 슬림 행, 있으면(또는 선택/펼침 시) 이슈 영역 노출. */
+/**
+ * 미래 거래일 — 마감 데이터 없음. 이슈가 있거나 달력에서 선택한 날만 렌더되며(빈 미래는 목록에서 제외),
+ * 예정 이슈 영역을 펼쳐 보여준다. 이슈가 아직 없으면 입력창에 바로 포커스한다.
+ */
 function FutureDay({ day, selected }: { day: TimelineDay; selected: boolean }) {
-  const [open, setOpen] = useState(false);
   const { m, d, wd } = parts(day.date);
-  const expanded = open || selected || day.issues.length > 0;
-
-  if (!expanded) {
-    return (
-      <section id={`tl-day-${day.date}`} className="scroll-mt-0">
-        <button
-          onClick={() => setOpen(true)}
-          className="group w-full flex items-center justify-between py-2 border-b border-dashed border-white/[0.08] text-left hover:border-white/[0.16]"
-        >
-          <span className="flex items-baseline gap-2">
-            <span className="text-base font-bold text-zinc-400">
-              {m}월 {d}일 <span className="font-normal text-zinc-600 text-sm">({wd})</span>
-            </span>
-            <span className="text-[11px] font-medium text-amber-300/70">예정</span>
-          </span>
-          <span className="flex items-center gap-1 text-xs text-zinc-600 group-hover:text-amber-300">
-            <PlusIcon className="w-3.5 h-3.5" /> 이슈
-          </span>
-        </button>
-      </section>
-    );
-  }
-
   return (
     <section id={`tl-day-${day.date}`} className="scroll-mt-0">
       <div className="sticky top-0 z-10 bg-zinc-950 flex items-center gap-2 py-2 border-b border-white/[0.08]">
