@@ -17,7 +17,8 @@ import java.time.LocalDateTime
 
 /**
  * 해외 시그널 전이 한 건. 국내 SignalEvent와 같은 구조 — 가격은 달러(Double), 거래소(exchange) 추가, 테마 제외.
- * [gapRate]는 돌파 계열에만, [spikeRatio]·[minuteTradingValue]·[spikeDirection]은 스파이크에만 채워진다.
+ * [gapRate]는 돌파 계열에만, [spikeRatio]·[minuteTradingValue]·[spikeDirection]은 스파이크에만,
+ * [ma20]은 돌림에만 채워진다.
  */
 @Entity
 @Table(
@@ -68,6 +69,9 @@ class OverseasSignalEvent(
     @Enumerated(EnumType.STRING)
     @Column(name = "spike_direction")
     val spikeDirection: SpikeDirection? = null,
+
+    @Column
+    val ma20: Double? = null,
 ) : BaseEntity() {
 
     @Id

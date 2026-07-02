@@ -56,6 +56,7 @@ class OverseasLeadingStockController(
                 spikeRatio = e.spikeRatio,
                 minuteTradingValue = e.minuteTradingValue,
                 spikeDirection = e.spikeDirection?.name,
+                ma20 = e.ma20,
             )
         }
         return ApiResponse.ok(OverseasSignalEventsResponse(date = day, totalCount = events.size, events = events))

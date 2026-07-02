@@ -57,7 +57,7 @@ class OverseasSignalEventPoller(
         val recorded = service.signalReadings(minChangeRate).flatMap { r ->
             val key = "${r.exchange}:${r.symbol}"
             val prev = states[key] ?: OverseasSignalState.INITIAL
-            val (events, next) = prev.advance(OverseasSignalReading(r.gapRate, r.peakPrice, r.spikeRatio))
+            val (events, next) = prev.advance(OverseasSignalReading(r.gapRate, r.peakPrice, r.spikeRatio, r.aboveMa20))
             states[key] = next
             if (events.isEmpty()) return@flatMap emptyList()
             events.mapNotNull { type ->
@@ -88,10 +88,11 @@ class OverseasSignalEventPoller(
         price = r.price,
         rate = r.rate,
         tradingValue = r.tradingValue,
-        gapRate = if (type == SignalEventType.VOLUME_SPIKE) null else r.gapRate,
+        gapRate = if (type == SignalEventType.BREAKOUT || type == SignalEventType.BREAKOUT_IMMINENT) r.gapRate else null,
         spikeRatio = if (type == SignalEventType.VOLUME_SPIKE) r.spikeRatio else null,
         minuteTradingValue = if (type == SignalEventType.VOLUME_SPIKE) r.minuteTradingValue else null,
         spikeDirection = if (type == SignalEventType.VOLUME_SPIKE) r.spikeDirection else null,
+        ma20 = if (type == SignalEventType.MA20_CROSS) r.ma20 else null,
     )
 
     /** 미국장 시간대 — 한국 17:00~24:00 또는 00:00~09:00 (프리~애프터). */

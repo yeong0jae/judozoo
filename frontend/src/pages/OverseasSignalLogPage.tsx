@@ -20,6 +20,7 @@ const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "BREAKOUT", label: "돌파" },
   { key: "BREAKOUT_IMMINENT", label: "임박" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
+  { key: "MA20_CROSS", label: "돌림" },
 ];
 
 const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: string }> = {
@@ -60,6 +61,13 @@ function detailOf(e: OverseasSignalEventItem) {
         {dirLabel && <span className={dirCls}> {dirLabel}</span>}
         <span className="text-zinc-500"> · 누적 {usdAmount(e.tradingValue)}</span>
       </>
+    );
+  }
+  if (e.eventType === "MA20_CROSS") {
+    return (
+      <span className="text-sky-300">
+        5분 20이평{e.ma20 != null && ` $${formatUsd(e.ma20)}`} 상향돌파
+      </span>
     );
   }
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";

@@ -260,7 +260,7 @@ export interface OverseasSignalEventItem {
   exchange: string;
   symbol: string;
   name: string;
-  eventType: SignalEventType; // BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE
+  eventType: SignalEventType; // BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE | MA20_CROSS
   price: number;
   rate: number;
   tradingValue: number;
@@ -268,6 +268,7 @@ export interface OverseasSignalEventItem {
   spikeRatio: number | null;
   minuteTradingValue: number | null;
   spikeDirection: SpikeDirection | null;
+  ma20: number | null;
 }
 
 export interface OverseasSignalEventsResponse {

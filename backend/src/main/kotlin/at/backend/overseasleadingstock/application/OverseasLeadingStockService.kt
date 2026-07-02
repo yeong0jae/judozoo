@@ -45,6 +45,7 @@ class OverseasLeadingStockService(
             val peak = stored.maxByOrNull { it.high }
             val gapRate = peak?.takeIf { stock.price > 0 }?.let { (it.high - stock.price) / stock.price * 100 }
             val spike = computeSpike(stored)
+            val ma = computeMovingAverage(stored)
 
             OverseasCandidateReading(
                 exchange = stock.exchange,
@@ -58,6 +59,8 @@ class OverseasLeadingStockService(
                 spikeRatio = spike?.ratio,
                 minuteTradingValue = spike?.latestTradingValue,
                 spikeDirection = spike?.direction,
+                aboveMa20 = ma?.above,
+                ma20 = ma?.ma20,
             )
         }
 
@@ -82,6 +85,26 @@ class OverseasLeadingStockService(
         val ratio: Double,
         val direction: SpikeDirection,
     )
+
+    /**
+     * 1분봉을 5분봉으로 합성한 뒤, 진행 중인 마지막 봉을 뺀 직전 확정 봉이 종가 기준
+     * 20이평 위에 있는지 판정한다. 확정 봉이 [MA_PERIOD]개 미만이면 null.
+     * "돌림"(아래→위 전이)은 이 위치를 폴링 간 비교하는 [OverseasSignalState]가 잡는다.
+     */
+    private fun computeMovingAverage(candles: List<OverseasMinuteCandle>): MaMeasure? {
+        val bars = aggregate(candles, MA_INTERVAL_MINUTES).dropLast(1) // 마지막 봉은 진행 중 — 직전 확정까지만
+        if (bars.size < MA_PERIOD) return null
+        val ma = bars.takeLast(MA_PERIOD).map { it.close }.average()
+        return MaMeasure(above = bars.last().close > ma, ma20 = ma)
+    }
+
+    /** 1분봉을 [intervalMinutes]분 경계로 묶어 종가=끝봉 종가로 합성(돌림 판정은 종가만 사용). */
+    private fun aggregate(candles: List<OverseasMinuteCandle>, intervalMinutes: Int): List<OverseasMinuteCandle> =
+        candles.groupBy { it.dateTime.withMinute(it.dateTime.minute / intervalMinutes * intervalMinutes).withSecond(0).withNano(0) }
+            .toSortedMap()
+            .map { (_, group) -> group.last() }
+
+    private data class MaMeasure(val above: Boolean, val ma20: Double)
 
     /**
      * 통합 거래대금 40위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.
@@ -254,6 +277,8 @@ class OverseasLeadingStockService(
         private const val MIN_MARKET_CAP_USD = 2_000_000_000L // 상세 C: 시가총액 $2B 하한
         private const val SPIKE_BASELINE_BARS = 20            // 스파이크 직전 평균 산정 봉 수
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000.0 // 최신 1분봉 최소 거래대금($1M)
+        private const val MA_INTERVAL_MINUTES = 5             // 돌림 판정 분봉 주기
+        private const val MA_PERIOD = 20                      // 돌림 판정 이평 기간(봉)
 
         // ETF/ETN 발행사 브랜드 + 명시 키워드. 미국 거래대금 상위 ETF 대부분을 커버.
         private val ETF_KEYWORDS = listOf(

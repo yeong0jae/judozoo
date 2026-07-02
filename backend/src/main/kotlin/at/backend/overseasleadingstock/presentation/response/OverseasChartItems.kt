@@ -65,6 +65,7 @@ data class OverseasSignalEventItem(
     val spikeRatio: Double?,
     val minuteTradingValue: Double?,
     val spikeDirection: String?,
+    val ma20: Double?,
 )
 
 /** 해외지수(나스닥종합 등) 장 마감 스냅샷 — 타임라인용. 지수값 + 등락률(부호 포함, %). */
