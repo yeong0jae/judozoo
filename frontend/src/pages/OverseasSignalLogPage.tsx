@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useOverseasSignalEvents } from "../api/queries";
+import { useOverseasSignalEvents, useOverseasStockDetail } from "../api/queries";
 import type { OverseasSignalEventItem, SignalEventType } from "../types";
 import { formatPct, formatUsd } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
@@ -64,6 +64,99 @@ function detailOf(e: OverseasSignalEventItem) {
   const line = e.price * (1 + e.gapRate / 100);
   if (e.eventType === "BREAKOUT") return `$${formatUsd(line)} 돌파`;
   return `$${formatUsd(line)} 돌파까지 $${formatUsd(line - e.price)} (${e.gapRate.toFixed(2)}%) 남음`;
+}
+
+function Stat({
+  label,
+  value,
+  valueClass = "text-zinc-100",
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] px-3 py-2">
+      <div className="text-[10px] text-zinc-500">{label}</div>
+      <div className={`num text-sm font-bold ${valueClass}`}>{value}</div>
+    </div>
+  );
+}
+
+/** 해외 종목 여정 — 요약 스탯 4개 + 시간순 테이블. [journey]는 최신순 → 테이블은 오래된→최신. */
+function OverseasStockJourney({
+  exchange,
+  symbol,
+  journey,
+}: {
+  exchange: string;
+  symbol: string;
+  journey: OverseasSignalEventItem[];
+}) {
+  const detailQ = useOverseasStockDetail(exchange, symbol);
+  const filters = detailQ.data?.filterResults;
+  const passed = filters?.filter((f) => f.passed).length;
+
+  const breakouts = journey.filter((j) => j.eventType === "BREAKOUT").length;
+  const spikeValues = journey
+    .filter((j) => j.eventType === "VOLUME_SPIKE" && j.minuteTradingValue != null)
+    .map((j) => j.minuteTradingValue as number);
+  const maxSpike = spikeValues.length > 0 ? Math.max(...spikeValues) : null;
+  const accTradingValue = journey[0]?.tradingValue ?? 0;
+  const ordered = [...journey].reverse();
+
+  return (
+    <div className="px-4 pb-4 pt-3 bg-white/[0.02]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        <Stat label="누적 거래대금" value={usdAmount(accTradingValue)} />
+        <Stat label="오늘 돌파" value={`${breakouts}회`} valueClass="text-emerald-400" />
+        <Stat
+          label="최대 스파이크"
+          value={maxSpike != null ? usdAmount(maxSpike) : "—"}
+          valueClass="text-rose-300"
+        />
+        <Stat
+          label="필터 충족"
+          value={
+            filters ? (
+              <>
+                <span className="text-emerald-400">{passed}</span> / {filters.length}
+              </>
+            ) : (
+              "…"
+            )
+          }
+        />
+      </div>
+      <table className="w-full text-xs num border-separate border-spacing-y-0.5">
+        <thead className="text-zinc-600">
+          <tr>
+            <th className="text-left font-medium pb-1">시각</th>
+            <th className="text-left font-medium pb-1">유형</th>
+            <th className="text-left font-medium pb-1">상세</th>
+            <th className="text-right font-medium pb-1">가격</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ordered.map((j, k) => {
+            const jm = EVENT_META[j.eventType];
+            return (
+              <tr key={`${j.eventType}-${j.occurredAt}-${k}`}>
+                <td className="text-zinc-500 py-0.5">{clockOf(j.occurredAt)}</td>
+                <td>
+                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
+                    {jm.label}
+                  </span>
+                </td>
+                <td className="text-zinc-300">{detailOf(j)}</td>
+                <td className="text-right text-zinc-400">${formatUsd(j.price)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function OverseasSignalLog({
@@ -212,28 +305,11 @@ export default function OverseasSignalLog({
                       </button>
 
                       {open && journey.length > 0 && (
-                        <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
-                          <div className="text-xs text-zinc-500 mb-2">
-                            {e.name} 여정 · 누적 거래대금 {usdAmount(journey[0].tradingValue)}
-                          </div>
-                          <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
-                            {journey.map((j, k) => {
-                              const jm = EVENT_META[j.eventType];
-                              return (
-                                <li key={`${j.eventType}-${j.occurredAt}-${k}`} className="flex items-center gap-2 text-sm">
-                                  <span className={`num text-xs tabular-nums w-16 ${clockClass(j.occurredAt)}`}>
-                                    {clockOf(j.occurredAt)}
-                                  </span>
-                                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
-                                    {jm.label}
-                                  </span>
-                                  <span className="num text-xs text-zinc-300">{detailOf(j)}</span>
-                                  <span className="num text-xs text-zinc-500 ml-auto">${formatUsd(j.price)}</span>
-                                </li>
-                              );
-                            })}
-                          </ol>
-                        </div>
+                        <OverseasStockJourney
+                          exchange={e.exchange}
+                          symbol={e.symbol}
+                          journey={journey}
+                        />
                       )}
                     </motion.li>
                   );

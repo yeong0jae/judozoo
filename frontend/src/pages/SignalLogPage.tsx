@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useSignalEvents, useMarketSignalEvents } from "../api/queries";
+import { useSignalEvents, useMarketSignalEvents, useLeadingStockDetail } from "../api/queries";
 import type {
   SignalEventItem,
   SignalEventType,
@@ -238,6 +238,94 @@ function detailOf(e: SignalEventItem) {
   const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));
   if (e.eventType === "BREAKOUT") return `${formatPrice(line)}원 돌파`;
   return `${formatPrice(line)}원 돌파까지 ${formatPrice(line - e.currentPrice)}원 (${e.gapRate.toFixed(2)}%) 남음`;
+}
+
+function Stat({
+  label,
+  value,
+  valueClass = "text-zinc-100",
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] px-3 py-2">
+      <div className="text-[10px] text-zinc-500">{label}</div>
+      <div className={`num text-sm font-bold ${valueClass}`}>{value}</div>
+    </div>
+  );
+}
+
+/**
+ * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·돌파 횟수·최대 스파이크
+ * 거래대금·필터 충족) + 시간순 테이블. [journey]는 최신순으로 들어오므로 테이블은 오래된→최신으로 뒤집는다.
+ */
+function StockJourney({ stockCode, journey }: { stockCode: string; journey: SignalEventItem[] }) {
+  const detailQ = useLeadingStockDetail(stockCode);
+  const filters = detailQ.data?.filterResults;
+  const passed = filters?.filter((f) => f.passed).length;
+
+  const breakouts = journey.filter((j) => j.eventType === "BREAKOUT").length;
+  const spikeValues = journey
+    .filter((j) => j.eventType === "VOLUME_SPIKE" && j.minuteTradingValue != null)
+    .map((j) => j.minuteTradingValue as number);
+  const maxSpike = spikeValues.length > 0 ? Math.max(...spikeValues) : null;
+  const accTradingValue = journey[0]?.tradingValue ?? 0;
+  const ordered = [...journey].reverse(); // 오래된 → 최신
+
+  return (
+    <div className="px-4 pb-4 pt-3 bg-white/[0.02]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        <Stat label="누적 거래대금" value={formatKoreanMoney(accTradingValue)} />
+        <Stat label="오늘 돌파" value={`${breakouts}회`} valueClass="text-emerald-400" />
+        <Stat
+          label="최대 스파이크"
+          value={maxSpike != null ? formatKoreanMoney(maxSpike) : "—"}
+          valueClass="text-rose-300"
+        />
+        <Stat
+          label="필터 충족"
+          value={
+            filters ? (
+              <>
+                <span className="text-emerald-400">{passed}</span> / {filters.length}
+              </>
+            ) : (
+              "…"
+            )
+          }
+        />
+      </div>
+      <table className="w-full text-xs num border-separate border-spacing-y-0.5">
+        <thead className="text-zinc-600">
+          <tr>
+            <th className="text-left font-medium pb-1">시각</th>
+            <th className="text-left font-medium pb-1">유형</th>
+            <th className="text-left font-medium pb-1">상세</th>
+            <th className="text-right font-medium pb-1">가격</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ordered.map((j, k) => {
+            const jm = EVENT_META[j.eventType];
+            return (
+              <tr key={`${j.eventType}-${j.occurredAt}-${k}`}>
+                <td className="text-zinc-500 py-0.5">{clockOf(j.occurredAt)}</td>
+                <td>
+                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
+                    {jm.label}
+                  </span>
+                </td>
+                <td className="text-zinc-300">{detailOf(j)}</td>
+                <td className="text-right text-zinc-400">{formatPrice(j.currentPrice)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function DomesticSignalLog({
@@ -499,32 +587,7 @@ function DomesticSignalLog({
                       </div>
                     </button>
 
-                    {open && (
-                      <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
-                        <div className="text-xs text-zinc-500 mb-2">
-                          {e.stockName} 여정 · 누적 거래대금 {formatKoreanMoney(stockEvents[0].tradingValue)}
-                        </div>
-                        <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
-                          {journey.map((j, k) => {
-                            const jm = EVENT_META[j.eventType];
-                            return (
-                              <li key={`${j.eventType}-${j.occurredAt}-${k}`} className="flex items-center gap-2 text-sm">
-                                <span className={`num text-xs tabular-nums w-16 ${clockClass(j.occurredAt)}`}>
-                                  {clockOf(j.occurredAt)}
-                                </span>
-                                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
-                                  {jm.label}
-                                </span>
-                                <span className="num text-xs text-zinc-300">{detailOf(j)}</span>
-                                <span className="num text-xs text-zinc-500 ml-auto">
-                                  {formatPrice(j.currentPrice)}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </div>
-                    )}
+                    {open && <StockJourney stockCode={e.stockCode} journey={journey} />}
                   </motion.li>
                 );
               })}
