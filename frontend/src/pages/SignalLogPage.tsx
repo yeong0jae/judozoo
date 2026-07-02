@@ -181,31 +181,47 @@ function renderMarketRow(
       </button>
 
       {open && (
-        <div className="px-4 pb-3 pt-1 bg-white/[0.02]">
-          <div className="text-xs text-zinc-500 mb-2">{MARKET_LABEL[m.market]} 지수 여정</div>
-          <ol className="space-y-1.5 border-l border-white/10 ml-2 pl-4">
-            {journey.map((j, k) => {
-              const p = marketParts(j);
-              return (
-                <li key={`${j.kind}-${j.occurredAt}-${k}`} className="flex items-center gap-2 text-sm">
-                  <span className={`num text-xs tabular-nums w-16 ${clockClass(j.occurredAt)}`}>
-                    {clockOf(j.occurredAt)}
-                  </span>
-                  <span className={`num text-xs font-semibold ${p.sideCls}`}>{p.leftLabel}</span>
-                  {p.rightLabel && <span className={`num text-xs ${p.sideCls}`}>{p.rightLabel}</span>}
-                  {!p.isCandle && j.netAmountEok != null && (
-                    <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(j.netAmountEok))}</span>
-                  )}
-                  <span className="num text-xs text-zinc-400 ml-auto">
-                    {j.indexValue != null ? fmtIndex(j.indexValue) : ""}
-                  </span>
-                  {j.changeRate != null && (
-                    <ProfitText value={j.changeRate / 100} format={formatPct} className="num text-xs w-14 text-right" />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
+        <div className="px-4 pb-4 pt-3 bg-white/[0.02]">
+          <table className="w-full text-xs num border-separate border-spacing-y-0.5">
+            <thead className="text-zinc-600">
+              <tr>
+                <th className="text-left font-medium pb-1">시각</th>
+                <th className="text-left font-medium pb-1">시그널</th>
+                <th className="text-right font-medium pb-1">누적</th>
+                <th className="text-right font-medium pb-1">지수</th>
+                <th className="text-right font-medium pb-1">등락</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...journey].reverse().map((j, k) => {
+                const p = marketParts(j);
+                return (
+                  <tr key={`${j.kind}-${j.occurredAt}-${k}`}>
+                    <td className="text-zinc-500 py-0.5">{clockOf(j.occurredAt)}</td>
+                    <td>
+                      <span className={`font-semibold ${p.sideCls}`}>{p.leftLabel}</span>
+                      {p.rightLabel && <span className={p.sideCls}> {p.rightLabel}</span>}
+                    </td>
+                    <td className="text-right text-zinc-400">
+                      {!p.isCandle && j.netAmountEok != null
+                        ? formatEok(Math.abs(j.netAmountEok))
+                        : "—"}
+                    </td>
+                    <td className="text-right text-zinc-400">
+                      {j.indexValue != null ? fmtIndex(j.indexValue) : ""}
+                    </td>
+                    <td className="text-right">
+                      {j.changeRate != null ? (
+                        <ProfitText value={j.changeRate / 100} format={formatPct} className="num" />
+                      ) : (
+                        ""
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </motion.li>
@@ -251,8 +267,8 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl bg-white/[0.03] px-3 py-2">
-      <div className="text-[10px] text-zinc-500">{label}</div>
-      <div className={`num text-sm font-bold ${valueClass}`}>{value}</div>
+      <div className="text-xs text-zinc-500">{label}</div>
+      <div className={`num text-base font-bold ${valueClass}`}>{value}</div>
     </div>
   );
 }

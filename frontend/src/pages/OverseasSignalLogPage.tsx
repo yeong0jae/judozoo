@@ -77,8 +77,8 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl bg-white/[0.03] px-3 py-2">
-      <div className="text-[10px] text-zinc-500">{label}</div>
-      <div className={`num text-sm font-bold ${valueClass}`}>{value}</div>
+      <div className="text-xs text-zinc-500">{label}</div>
+      <div className={`num text-base font-bold ${valueClass}`}>{value}</div>
     </div>
   );
 }
