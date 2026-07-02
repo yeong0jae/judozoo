@@ -11,7 +11,7 @@ import org.testcontainers.containers.MySQLContainer
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Import(KiwoomWebSocketClientMockConfig::class, KiwoomTradingClientMockConfig::class)
+@Import(KiwoomTradingClientMockConfig::class)
 abstract class IntegrationTestBase : FunSpec() {
 
     override fun extensions() = listOf(SpringExtension)

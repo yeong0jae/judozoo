@@ -7,7 +7,6 @@ import io.mockk.every
 import io.mockk.mockk
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import java.time.LocalDateTime
 
 class StockControllerTest : FunSpec({
 
@@ -44,24 +43,6 @@ class StockControllerTest : FunSpec({
             }.andExpect {
                 status { isOk() }
                 jsonPath("$.data.length()") { value(0) }
-            }
-        }
-    }
-
-    context("GET /api/stocks/{stockCode}/price") {
-        test("현재가 응답에 stockCode/currentPrice/asOf가 포함된다") {
-            every { stockService.getPrice("005930") } returns StockService.StockPriceResult(
-                stockCode = "005930",
-                currentPrice = 70_000L,
-                asOf = LocalDateTime.of(2026, 5, 3, 10, 0),
-            )
-
-            mockMvc.get("/api/stocks/005930/price").andExpect {
-                status { isOk() }
-                jsonPath("$.code") { value("SUCCESS") }
-                jsonPath("$.data.stockCode") { value("005930") }
-                jsonPath("$.data.currentPrice") { value(70000) }
-                jsonPath("$.data.asOf") { exists() }
             }
         }
     }
