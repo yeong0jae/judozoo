@@ -7,8 +7,8 @@ import io.kotest.matchers.shouldBe
 
 class SignalStateTest : FunSpec({
 
-    fun reading(gap: Double? = null, peak: Long? = null, spike: Double? = null, aboveMa20: Boolean? = null) =
-        SignalReading(gapRate = gap, peakPrice = peak, spikeRatio = spike, aboveMa20 = aboveMa20)
+    fun reading(gap: Double? = null, peak: Long? = null, spike: Double? = null, ma20CrossedUp: Boolean? = null) =
+        SignalReading(gapRate = gap, peakPrice = peak, spikeRatio = spike, ma20CrossedUp = ma20CrossedUp)
 
     /** 측정값을 차례로 흘려보내며 마지막 전이 결과만 본다. */
     fun SignalState.feed(vararg readings: SignalReading): Pair<List<SignalEventType>, SignalState> {
@@ -100,34 +100,31 @@ class SignalStateTest : FunSpec({
     }
 
     context("돌림(20이평 상향 돌파)") {
-        test("20이평 아래에 있다가 위로 처음 올라서면 돌림 이벤트를 낸다") {
-            val (events, _) = SignalState.INITIAL.feed(
-                reading(aboveMa20 = false),
-                reading(aboveMa20 = true),
-            )
+        test("최신 확정봉이 돌림봉이면 처음 본 순간에도 돌림 이벤트를 낸다") {
+            // 봉 데이터로 크로스를 판정하므로, 방금 후보에 든 종목이라도 첫 관측이 돌림봉이면 발화
+            val (events, _) = SignalState.INITIAL.advance(reading(ma20CrossedUp = true))
             events shouldContainExactly listOf(SignalEventType.MA20_CROSS)
         }
 
-        test("최초 관측이 이미 20이평 위면(돌파를 못 봄) 발화하지 않는다") {
-            val (events, _) = SignalState.INITIAL.advance(reading(aboveMa20 = true))
+        test("돌림봉이 아니면(크로스 아님) 발화하지 않는다") {
+            val (events, _) = SignalState.INITIAL.advance(reading(ma20CrossedUp = false))
             events.shouldBeEmpty()
         }
 
-        test("20이평 위에 계속 머무는 동안에는 다시 내지 않는다") {
+        test("같은 돌림봉이 다음 봉 확정 전까지 여러 폴에 걸쳐도 한 번만 낸다") {
             val (events, _) = SignalState.INITIAL.feed(
-                reading(aboveMa20 = false),
-                reading(aboveMa20 = true),
-                reading(aboveMa20 = true),
+                reading(ma20CrossedUp = true),
+                reading(ma20CrossedUp = true),
+                reading(ma20CrossedUp = true),
             )
-            events.shouldBeEmpty()
+            events.shouldBeEmpty() // 첫 폴에서만 발화, 이후는 라이징 엣지가 흡수
         }
 
-        test("위로 올라섰다가 아래로 내려온 뒤 다시 올라서면 재발화한다") {
+        test("돌림봉 뒤 크로스 아닌 봉이 왔다가 다시 돌림봉이면 재발화한다") {
             val (events, _) = SignalState.INITIAL.feed(
-                reading(aboveMa20 = false),
-                reading(aboveMa20 = true),
-                reading(aboveMa20 = false),
-                reading(aboveMa20 = true),
+                reading(ma20CrossedUp = true),
+                reading(ma20CrossedUp = false),
+                reading(ma20CrossedUp = true),
             )
             events shouldContainExactly listOf(SignalEventType.MA20_CROSS)
         }

@@ -29,10 +29,12 @@ data class VolumeSpike(
 )
 
 /**
- * 5분봉 20이평 대비 최신 확정 봉의 위치.
- * [above]: 직전 확정 5분봉 종가가 20이평 위인지. [ma20]: 그 시점 20이평값(원, 반올림).
+ * 5분봉 20이평 돌림(상향 돌파) 판정.
+ * [crossedUp]: 최신 확정 5분봉이 20이평을 아래에서 위로 처음 뚫은 봉인지
+ *              (직전 확정봉 종가 ≤ 그때 20이평 AND 최신 확정봉 종가 > 지금 20이평).
+ * [ma20]: 최신 확정봉 시점 20이평값(원, 반올림).
  */
-data class MovingAverageReading(val above: Boolean, val ma20: Long)
+data class MovingAverageReading(val crossedUp: Boolean, val ma20: Long)
 
 /** 당일 분봉 모음 — 시간 오름차순으로 정규화해 보관한다. */
 class MinuteCandles(candles: List<MinuteCandle>) {
@@ -81,18 +83,22 @@ class MinuteCandles(candles: List<MinuteCandle>) {
     }
 
     /**
-     * 1분봉을 [intervalMinutes]분봉으로 합성한 뒤, 마지막(진행 중) 봉을 뺀 직전 확정 봉이
-     * 종가 기준 [period]-이평 위에 있는지 판정한다. 확정 봉이 [period]개 미만이면 null.
+     * 1분봉을 [intervalMinutes]분봉으로 합성한 뒤, 마지막(진행 중) 봉을 뺀 **확정 봉 이력**에서
+     * 최신 확정봉이 [period]-이평을 아래→위로 돌파한 봉("돌림봉")인지 직접 판정한다.
+     * 직전 확정봉의 이평까지 필요하므로 확정 봉이 [period]+1개 미만이면 null.
      *
-     * "돌림"은 이 위치가 아래→위로 바뀌는 순간이지만, 그 전이는 [SignalState]가 폴링 간
-     * 비교로 잡는다. 여기서는 한 시점의 위치와 그때의 이평값만 돌려준다.
+     * 폴러 관측 이력이 아니라 봉 데이터 자체로 크로스를 잡으므로, 방금 후보에 든 종목이라도
+     * 최신 확정봉이 크로스면 잡히고, 이미 이평 위에 쭉 있던 종목은 크로스봉이 아니라 잡히지 않는다.
      */
     fun movingAverage(intervalMinutes: Int, period: Int): MovingAverageReading? {
         val bars = aggregate(intervalMinutes).dropLast(1) // 마지막 봉은 진행 중 — 직전 확정 봉까지만
-        if (bars.size < period) return null
-        val recent = bars.takeLast(period)
-        val ma = recent.map { it.closePrice }.average()
-        return MovingAverageReading(above = bars.last().closePrice > ma, ma20 = Math.round(ma))
+        if (bars.size < period + 1) return null
+        val latest = bars.last()
+        val prev = bars[bars.size - 2]
+        val maLatest = bars.takeLast(period).map { it.closePrice }.average()
+        val maPrev = bars.subList(bars.size - period - 1, bars.size - 1).map { it.closePrice }.average()
+        val crossedUp = prev.closePrice <= maPrev && latest.closePrice > maLatest
+        return MovingAverageReading(crossedUp = crossedUp, ma20 = Math.round(maLatest))
     }
 
     /**

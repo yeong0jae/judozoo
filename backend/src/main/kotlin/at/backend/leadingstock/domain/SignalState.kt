@@ -4,13 +4,13 @@ package at.backend.leadingstock.domain
  * 한 종목의 현재 시그널 측정값(한 폴링 시점). 값이 없으면(분봉 미존재 등) null.
  * [gapRate]: 전고점까지 남은 상승률(%), 돌파 시 0 이하. [peakPrice]: 그 시점 당일 전고점.
  * [spikeRatio]: 최신 1분봉 거래대금 배율 — 거래대금 임계 미달이면 null로 들어온다.
- * [aboveMa20]: 직전 확정 5분봉 종가가 5분봉 20이평 위인지 — 확정 봉 부족이면 null.
+ * [ma20CrossedUp]: 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지 — 확정 봉 부족이면 null.
  */
 data class SignalReading(
     val gapRate: Double?,
     val peakPrice: Long?,
     val spikeRatio: Double?,
-    val aboveMa20: Boolean?,
+    val ma20CrossedUp: Boolean?,
 )
 
 /**
@@ -25,7 +25,7 @@ class SignalState private constructor(
     private val imminent: Boolean,
     private val lastBrokenPeak: Long,
     private val spiking: Boolean,
-    private val aboveMa20: Boolean?,
+    private val ma20Crossed: Boolean,
 ) {
     fun advance(reading: SignalReading): Pair<List<SignalEventType>, SignalState> {
         val events = mutableListOf<SignalEventType>()
@@ -33,7 +33,7 @@ class SignalState private constructor(
         var imminent = imminent
         var lastBrokenPeak = lastBrokenPeak
         var spiking = spiking
-        var aboveMa20 = aboveMa20
+        var ma20Crossed = ma20Crossed
 
         val gap = reading.gapRate
         val peak = reading.peakPrice
@@ -70,20 +70,20 @@ class SignalState private constructor(
             spiking = false
         }
 
-        // 돌림: 직전 확정 5분봉 종가가 20이평을 아래→위로 처음 뚫는 순간. 위치가 바뀌는 라이징 엣지만.
-        // 최초 관측(null→위)은 실제 돌파를 못 본 것이라 발화하지 않고 위치만 기록한다.
-        val above = reading.aboveMa20
-        if (above != null) {
-            if (aboveMa20 == false && above) events += SignalEventType.MA20_CROSS
-            aboveMa20 = above
+        // 돌림: 최신 확정 5분봉이 20이평 돌림봉일 때 한 번만 적재한다. 같은 돌림봉이 다음 봉 확정 전까지
+        // 여러 폴에 걸쳐 최신봉으로 남으므로, 크로스 플래그의 라이징 엣지(false→true)로 봉당 1회만 발화한다.
+        val crossed = reading.ma20CrossedUp
+        if (crossed != null) {
+            if (!ma20Crossed && crossed) events += SignalEventType.MA20_CROSS
+            ma20Crossed = crossed
         }
 
-        return events to SignalState(broken, imminent, lastBrokenPeak, spiking, aboveMa20)
+        return events to SignalState(broken, imminent, lastBrokenPeak, spiking, ma20Crossed)
     }
 
     companion object {
         val INITIAL = SignalState(
-            broken = false, imminent = false, lastBrokenPeak = 0, spiking = false, aboveMa20 = null,
+            broken = false, imminent = false, lastBrokenPeak = 0, spiking = false, ma20Crossed = false,
         )
 
         private const val BROKEN_GAP = 0.0

@@ -59,7 +59,7 @@ class OverseasLeadingStockService(
                 spikeRatio = spike?.ratio,
                 minuteTradingValue = spike?.latestTradingValue,
                 spikeDirection = spike?.direction,
-                aboveMa20 = ma?.above,
+                ma20CrossedUp = ma?.crossedUp,
                 ma20 = ma?.ma20,
             )
         }
@@ -87,15 +87,19 @@ class OverseasLeadingStockService(
     )
 
     /**
-     * 1분봉을 5분봉으로 합성한 뒤, 진행 중인 마지막 봉을 뺀 직전 확정 봉이 종가 기준
-     * 20이평 위에 있는지 판정한다. 확정 봉이 [MA_PERIOD]개 미만이면 null.
-     * "돌림"(아래→위 전이)은 이 위치를 폴링 간 비교하는 [OverseasSignalState]가 잡는다.
+     * 1분봉을 5분봉으로 합성한 뒤, 진행 중인 마지막 봉을 뺀 **확정 봉 이력**에서 최신 확정봉이
+     * 20이평을 아래→위로 돌파한 봉("돌림봉")인지 직접 판정한다. 확정 봉이 [MA_PERIOD]+1개 미만이면 null.
+     * 폴러 관측 이력이 아니라 봉 데이터로 크로스를 잡으므로, 방금 후보에 든 종목의 크로스도 놓치지 않는다.
      */
     private fun computeMovingAverage(candles: List<OverseasMinuteCandle>): MaMeasure? {
         val bars = aggregate(candles, MA_INTERVAL_MINUTES).dropLast(1) // 마지막 봉은 진행 중 — 직전 확정까지만
-        if (bars.size < MA_PERIOD) return null
-        val ma = bars.takeLast(MA_PERIOD).map { it.close }.average()
-        return MaMeasure(above = bars.last().close > ma, ma20 = ma)
+        if (bars.size < MA_PERIOD + 1) return null
+        val latest = bars.last()
+        val prev = bars[bars.size - 2]
+        val maLatest = bars.takeLast(MA_PERIOD).map { it.close }.average()
+        val maPrev = bars.subList(bars.size - MA_PERIOD - 1, bars.size - 1).map { it.close }.average()
+        val crossedUp = prev.close <= maPrev && latest.close > maLatest
+        return MaMeasure(crossedUp = crossedUp, ma20 = maLatest)
     }
 
     /** 1분봉을 [intervalMinutes]분 경계로 묶어 종가=끝봉 종가로 합성(돌림 판정은 종가만 사용). */
@@ -104,7 +108,7 @@ class OverseasLeadingStockService(
             .toSortedMap()
             .map { (_, group) -> group.last() }
 
-    private data class MaMeasure(val above: Boolean, val ma20: Double)
+    private data class MaMeasure(val crossedUp: Boolean, val ma20: Double)
 
     /**
      * 통합 거래대금 40위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.

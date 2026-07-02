@@ -174,7 +174,7 @@ class LeadingStockService(
                 spikeRatio = spike?.ratio,
                 minuteTradingValue = spike?.latestTradingValue,
                 spikeDirection = spike?.direction,
-                aboveMa20 = ma?.above,
+                ma20CrossedUp = ma?.crossedUp,
                 ma20 = ma?.ma20,
             )
         }
@@ -266,8 +266,8 @@ data class CandidateSignalReading(
     val spikeRatio: Double?,
     val minuteTradingValue: Long?, // 스파이크 분봉 거래대금(원). 스파이크 없으면 null
     val spikeDirection: SpikeDirection?, // 스파이크 봉 방향(매수/매도). 스파이크 없으면 null
-    val aboveMa20: Boolean?, // 직전 확정 5분봉 종가가 5분봉 20이평 위인지. 확정 봉 부족이면 null
-    val ma20: Long?, // 그 시점 5분봉 20이평값(원). aboveMa20이 null이면 null
+    val ma20CrossedUp: Boolean?, // 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지. 확정 봉 부족이면 null
+    val ma20: Long?, // 그 시점 5분봉 20이평값(원). ma20CrossedUp이 null이면 null
 )
 
 /** 돌파 레이더 한 종목 — 당일 고가(돌파선) 대비 현재가 갭. */

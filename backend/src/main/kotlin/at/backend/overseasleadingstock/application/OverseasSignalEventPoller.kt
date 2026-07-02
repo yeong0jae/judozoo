@@ -57,7 +57,7 @@ class OverseasSignalEventPoller(
         val recorded = service.signalReadings(minChangeRate).flatMap { r ->
             val key = "${r.exchange}:${r.symbol}"
             val prev = states[key] ?: OverseasSignalState.INITIAL
-            val (events, next) = prev.advance(OverseasSignalReading(r.gapRate, r.peakPrice, r.spikeRatio, r.aboveMa20))
+            val (events, next) = prev.advance(OverseasSignalReading(r.gapRate, r.peakPrice, r.spikeRatio, r.ma20CrossedUp))
             states[key] = next
             if (events.isEmpty()) return@flatMap emptyList()
             events.mapNotNull { type ->
