@@ -14,14 +14,20 @@ import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 
 const MIN_RATE_KEY = "overseasSignalLog.minRate";
 
-type TypeFilter = "ALL" | SignalEventType;
+// 돌파·임박은 한 탭("돌파 / 임박")으로 묶어 함께 본다.
+type TypeFilter = "ALL" | "BREAKOUT_GROUP" | SignalEventType;
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
-  { key: "BREAKOUT", label: "돌파" },
-  { key: "BREAKOUT_IMMINENT", label: "임박" },
+  { key: "BREAKOUT_GROUP", label: "돌파 / 임박" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
   { key: "MA20_CROSS", label: "돌림" },
 ];
+
+/** 유형 필터 매칭 — "돌파 / 임박" 그룹은 돌파·임박 둘 다 통과. */
+function matchesType(eventType: SignalEventType, filter: TypeFilter): boolean {
+  if (filter === "BREAKOUT_GROUP") return eventType === "BREAKOUT" || eventType === "BREAKOUT_IMMINENT";
+  return eventType === filter;
+}
 
 const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: string }> = {
   BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
@@ -189,7 +195,7 @@ export default function OverseasSignalLog({
   const q = useOverseasSignalEvents(date);
   const allEvents = q.data?.events ?? []; // 여정용 — 필터 무관 전체
   const events = useMemo(
-    () => allEvents.filter((e) => e.rate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter)),
+    () => allEvents.filter((e) => e.rate >= minRate && (typeFilter === "ALL" || matchesType(e.eventType, typeFilter))),
     [allEvents, typeFilter, minRate],
   );
 

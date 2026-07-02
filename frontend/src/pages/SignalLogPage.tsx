@@ -70,17 +70,23 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   MA20_CROSS: { label: "돌림", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
 };
 
-type TypeFilter = "ALL" | "MARKET" | SignalEventType;
+// 돌파·임박은 한 탭("돌파 / 임박")으로 묶어 함께 본다.
+type TypeFilter = "ALL" | "MARKET" | "BREAKOUT_GROUP" | SignalEventType;
 
 /** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
-  { key: "BREAKOUT", label: "돌파" },
-  { key: "BREAKOUT_IMMINENT", label: "임박" },
+  { key: "BREAKOUT_GROUP", label: "돌파 / 임박" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
   { key: "MA20_CROSS", label: "돌림" },
   { key: "MARKET", label: "지수" },
 ];
+
+/** 유형 필터 매칭 — "돌파 / 임박" 그룹은 돌파·임박 둘 다 통과. */
+function matchesType(eventType: SignalEventType, filter: TypeFilter): boolean {
+  if (filter === "BREAKOUT_GROUP") return eventType === "BREAKOUT" || eventType === "BREAKOUT_IMMINENT";
+  return eventType === filter;
+}
 
 const MARKET_LABEL: Record<MarketType, string> = {
   KOSPI: "코스피",
@@ -377,7 +383,7 @@ function DomesticSignalLog({
   const allEvents = data?.events ?? [];
   // 종목 시그널 — 등락률 하한 + 유형 필터. "시장"/특정 유형 선택 시 종목 행은 빠진다.
   const events = allEvents.filter(
-    (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter),
+    (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || matchesType(e.eventType, typeFilter)),
   );
   const allMarketEvents = marketQ.data?.events ?? []; // 여정용 — 필터 무관 전체
   // 시장 시그널 — 전체/지수 탭에서만 노출(등락률 필터 무관).
