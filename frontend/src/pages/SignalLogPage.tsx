@@ -275,7 +275,7 @@ function Stat({
 
 /**
  * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·돌파 횟수·최대 스파이크
- * 거래대금·필터 충족) + 시간순 테이블. [journey]는 최신순으로 들어오므로 테이블은 오래된→최신으로 뒤집는다.
+ * 거래대금·필터 충족) + 시간순 테이블. [journey]는 최신순으로 들어오고, 테이블도 최신→오래된으로 그대로 그린다.
  */
 function StockJourney({ stockCode, journey }: { stockCode: string; journey: SignalEventItem[] }) {
   const detailQ = useLeadingStockDetail(stockCode);
@@ -288,7 +288,7 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
     .map((j) => j.minuteTradingValue as number);
   const maxSpike = spikeValues.length > 0 ? Math.max(...spikeValues) : null;
   const accTradingValue = journey[0]?.tradingValue ?? 0;
-  const ordered = [...journey].reverse(); // 오래된 → 최신
+  const ordered = journey; // 최신 → 오래된
 
   return (
     <div className="px-4 pb-4 pt-3 bg-white/[0.02]">

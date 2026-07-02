@@ -83,7 +83,7 @@ function Stat({
   );
 }
 
-/** 해외 종목 여정 — 요약 스탯 4개 + 시간순 테이블. [journey]는 최신순 → 테이블은 오래된→최신. */
+/** 해외 종목 여정 — 요약 스탯 4개 + 시간순 테이블. [journey]는 최신순 → 테이블도 최신→오래된 그대로. */
 function OverseasStockJourney({
   exchange,
   symbol,
@@ -103,7 +103,7 @@ function OverseasStockJourney({
     .map((j) => j.minuteTradingValue as number);
   const maxSpike = spikeValues.length > 0 ? Math.max(...spikeValues) : null;
   const accTradingValue = journey[0]?.tradingValue ?? 0;
-  const ordered = [...journey].reverse();
+  const ordered = journey; // 최신 → 오래된
 
   return (
     <div className="px-4 pb-4 pt-3 bg-white/[0.02]">
