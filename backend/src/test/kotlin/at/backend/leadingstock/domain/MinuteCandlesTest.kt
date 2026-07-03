@@ -164,8 +164,9 @@ class MinuteCandlesTest : FunSpec({
             val candles = MinuteCandles(
                 fiveMinBar(0, 10) + fiveMinBar(1, 10) + fiveMinBar(2, 10) + fiveMinBar(3, 40) + fiveMinBar(4, 999),
             )
-            val ma = candles.movingAverage(intervalMinutes = 5, period = 3)!!
+            val ma = candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005)!!
             ma.crossedUp shouldBe true
+            ma.belowBand shouldBe false
             ma.ma20 shouldBe 20
         }
 
@@ -174,15 +175,17 @@ class MinuteCandlesTest : FunSpec({
             val candles = MinuteCandles(
                 fiveMinBar(0, 10) + fiveMinBar(1, 10) + fiveMinBar(2, 40) + fiveMinBar(3, 50) + fiveMinBar(4, 999),
             )
-            candles.movingAverage(intervalMinutes = 5, period = 3)!!.crossedUp shouldBe false
+            candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005)!!.crossedUp shouldBe false
         }
 
-        test("최신 확정봉이 이평 아래면 돌림봉이 아니다") {
-            // 확정 [40,40,40,10] → 최신 이평 avg(40,40,10)=30, 끝봉 10<30 → 아래
+        test("최신 확정봉이 이평보다 마진 이상 아래면 돌림봉 아님 + 재무장 신호(belowBand)를 켠다") {
+            // 확정 [40,40,40,10] → 최신 이평 avg(40,40,10)=30, 끝봉 10 < 30×0.995 → 아래(재무장)
             val candles = MinuteCandles(
                 fiveMinBar(0, 40) + fiveMinBar(1, 40) + fiveMinBar(2, 40) + fiveMinBar(3, 10) + fiveMinBar(4, 999),
             )
-            candles.movingAverage(intervalMinutes = 5, period = 3)!!.crossedUp shouldBe false
+            val ma = candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005)!!
+            ma.crossedUp shouldBe false
+            ma.belowBand shouldBe true
         }
 
         test("진행 중인 마지막 5분봉은 판정에서 제외한다") {
@@ -190,7 +193,7 @@ class MinuteCandlesTest : FunSpec({
             val candles = MinuteCandles(
                 fiveMinBar(0, 10) + fiveMinBar(1, 10) + fiveMinBar(2, 10) + fiveMinBar(3, 40) + fiveMinBar(4, 1),
             )
-            candles.movingAverage(intervalMinutes = 5, period = 3)!!.crossedUp shouldBe true
+            candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005)!!.crossedUp shouldBe true
         }
 
         test("확정 5분봉이 기간+1보다 적으면 null") {
@@ -198,7 +201,7 @@ class MinuteCandlesTest : FunSpec({
             val candles = MinuteCandles(
                 fiveMinBar(0, 10) + fiveMinBar(1, 20) + fiveMinBar(2, 30) + fiveMinBar(3, 40),
             )
-            candles.movingAverage(intervalMinutes = 5, period = 3) shouldBe null
+            candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005) shouldBe null
         }
     }
 })

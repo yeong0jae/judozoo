@@ -60,6 +60,7 @@ class OverseasLeadingStockService(
                 minuteTradingValue = spike?.latestTradingValue,
                 spikeDirection = spike?.direction,
                 ma20CrossedUp = ma?.crossedUp,
+                ma20BelowBand = ma?.belowBand,
                 ma20 = ma?.ma20,
             )
         }
@@ -99,7 +100,8 @@ class OverseasLeadingStockService(
         val maLatest = bars.takeLast(MA_PERIOD).map { it.close }.average()
         val maPrev = bars.subList(bars.size - MA_PERIOD - 1, bars.size - 1).map { it.close }.average()
         val crossedUp = prev.close <= maPrev && latest.close > maLatest
-        return MaMeasure(crossedUp = crossedUp, ma20 = maLatest)
+        val belowBand = latest.close < maLatest * (1 - MA_REARM_MARGIN)
+        return MaMeasure(crossedUp = crossedUp, belowBand = belowBand, ma20 = maLatest)
     }
 
     /** 1분봉을 [intervalMinutes]분 경계로 묶어 종가=끝봉 종가로 합성(돌림 판정은 종가만 사용). */
@@ -108,7 +110,7 @@ class OverseasLeadingStockService(
             .toSortedMap()
             .map { (_, group) -> group.last() }
 
-    private data class MaMeasure(val crossedUp: Boolean, val ma20: Double)
+    private data class MaMeasure(val crossedUp: Boolean, val belowBand: Boolean, val ma20: Double)
 
     /**
      * 통합 거래대금 40위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.
@@ -283,6 +285,7 @@ class OverseasLeadingStockService(
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000.0 // 최신 1분봉 최소 거래대금($1M)
         private const val MA_INTERVAL_MINUTES = 5             // 돌림 판정 분봉 주기
         private const val MA_PERIOD = 20                      // 돌림 판정 이평 기간(봉)
+        private const val MA_REARM_MARGIN = 0.005             // 돌림 재무장 마진(0.5%)
 
         // ETF/ETN 발행사 브랜드 + 명시 키워드. 미국 거래대금 상위 ETF 대부분을 커버.
         private val ETF_KEYWORDS = listOf(

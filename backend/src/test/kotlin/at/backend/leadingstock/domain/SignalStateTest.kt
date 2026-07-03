@@ -7,8 +7,16 @@ import io.kotest.matchers.shouldBe
 
 class SignalStateTest : FunSpec({
 
-    fun reading(gap: Double? = null, peak: Long? = null, spike: Double? = null, ma20CrossedUp: Boolean? = null) =
-        SignalReading(gapRate = gap, peakPrice = peak, spikeRatio = spike, ma20CrossedUp = ma20CrossedUp)
+    fun reading(
+        gap: Double? = null,
+        peak: Long? = null,
+        spike: Double? = null,
+        ma20CrossedUp: Boolean? = null,
+        ma20BelowBand: Boolean? = null,
+    ) = SignalReading(
+        gapRate = gap, peakPrice = peak, spikeRatio = spike,
+        ma20CrossedUp = ma20CrossedUp, ma20BelowBand = ma20BelowBand,
+    )
 
     /** 측정값을 차례로 흘려보내며 마지막 전이 결과만 본다. */
     fun SignalState.feed(vararg readings: SignalReading): Pair<List<SignalEventType>, SignalState> {
@@ -120,13 +128,22 @@ class SignalStateTest : FunSpec({
             events.shouldBeEmpty() // 첫 폴에서만 발화, 이후는 라이징 엣지가 흡수
         }
 
-        test("돌림봉 뒤 크로스 아닌 봉이 왔다가 다시 돌림봉이면 재발화한다") {
+        test("돌림 후 이평 아래로 확실히 눌렸다가(재무장) 다시 돌림봉이면 재발화한다") {
             val (events, _) = SignalState.INITIAL.feed(
-                reading(ma20CrossedUp = true),
-                reading(ma20CrossedUp = false),
-                reading(ma20CrossedUp = true),
+                reading(ma20CrossedUp = true, ma20BelowBand = false),  // 발화 → 무장 해제
+                reading(ma20CrossedUp = false, ma20BelowBand = true),  // 마진 이상 눌림 → 재무장
+                reading(ma20CrossedUp = true, ma20BelowBand = false),  // 재발화
             )
             events shouldContainExactly listOf(SignalEventType.MA20_CROSS)
+        }
+
+        test("돌림 후 이평을 얕게 오가면(재무장 마진 미달) 다시 발화하지 않는다") {
+            val (events, _) = SignalState.INITIAL.feed(
+                reading(ma20CrossedUp = true, ma20BelowBand = false),   // 발화 → 무장 해제
+                reading(ma20CrossedUp = false, ma20BelowBand = false),  // 이평 살짝 아래(마진 미달) → 재무장 안 됨
+                reading(ma20CrossedUp = true, ma20BelowBand = false),   // 재크로스지만 무장 안 돼 발화 없음
+            )
+            events.shouldBeEmpty()
         }
     }
 

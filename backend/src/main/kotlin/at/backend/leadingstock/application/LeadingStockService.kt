@@ -159,7 +159,7 @@ class LeadingStockService(
             // 돌파선·돌림은 최근 3거래일 연속 분봉으로(5분봉 20이평이 개장부터 연속되게), 스파이크는 당일만
             val recent = breakoutHighCandles(c.stockCode)
             val high = recent.dayHighSignal(c.currentPrice)
-            val ma = recent.movingAverage(MA_INTERVAL_MINUTES, MA_PERIOD)
+            val ma = recent.movingAverage(MA_INTERVAL_MINUTES, MA_PERIOD, MA_REARM_MARGIN)
             val spike = MinuteCandles(latestSessionMinuteCandles(c.stockCode))
                 .volumeSpike(SPIKE_BASELINE_BARS)
                 ?.takeIf { it.latestTradingValue >= SPIKE_MIN_TRADING_VALUE }
@@ -175,6 +175,7 @@ class LeadingStockService(
                 minuteTradingValue = spike?.latestTradingValue,
                 spikeDirection = spike?.direction,
                 ma20CrossedUp = ma?.crossedUp,
+                ma20BelowBand = ma?.belowBand,
                 ma20 = ma?.ma20,
             )
         }
@@ -247,6 +248,7 @@ class LeadingStockService(
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L // 최신 1분봉 최소 거래대금(원)
         private const val MA_INTERVAL_MINUTES = 5       // 돌림 판정 분봉 주기
         private const val MA_PERIOD = 20                // 돌림 판정 이평 기간(봉)
+        private const val MA_REARM_MARGIN = 0.005       // 돌림 재무장 마진(0.5%) — 이평 아래로 이만큼 눌려야 재발화 허용
         private const val CHART_SESSION_DAYS = 3 // 상세 차트 표시 거래일 수(당일 포함)
     }
 }
@@ -267,6 +269,7 @@ data class CandidateSignalReading(
     val minuteTradingValue: Long?, // 스파이크 분봉 거래대금(원). 스파이크 없으면 null
     val spikeDirection: SpikeDirection?, // 스파이크 봉 방향(매수/매도). 스파이크 없으면 null
     val ma20CrossedUp: Boolean?, // 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지. 확정 봉 부족이면 null
+    val ma20BelowBand: Boolean?, // 최신 확정 5분봉 종가가 20이평보다 마진 이상 아래인지. 돌림 재무장 신호
     val ma20: Long?, // 그 시점 5분봉 20이평값(원). ma20CrossedUp이 null이면 null
 )
 

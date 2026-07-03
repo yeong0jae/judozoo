@@ -7,12 +7,14 @@ import at.backend.leadingstock.domain.SignalEventType
  * [gapRate]: 전고점까지 남은 상승률(%), 돌파 시 0 이하. [peakPrice]: 그 시점 누적 전고점(달러).
  * [spikeRatio]: 최신 1분봉 거래대금 배율 — 거래대금 임계 미달이면 null.
  * [ma20CrossedUp]: 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지 — 확정 봉 부족이면 null.
+ * [ma20BelowBand]: 최신 확정 5분봉 종가가 20이평보다 마진 이상 아래인지 — 돌림 재무장 신호. null이면 확정 봉 부족.
  */
 data class OverseasSignalReading(
     val gapRate: Double?,
     val peakPrice: Double?,
     val spikeRatio: Double?,
     val ma20CrossedUp: Boolean?,
+    val ma20BelowBand: Boolean?,
 )
 
 /**
@@ -24,7 +26,7 @@ class OverseasSignalState private constructor(
     private val imminent: Boolean,
     private val lastBrokenPeak: Double,
     private val spiking: Boolean,
-    private val ma20Crossed: Boolean,
+    private val ma20Armed: Boolean,
 ) {
     fun advance(reading: OverseasSignalReading): Pair<List<SignalEventType>, OverseasSignalState> {
         val events = mutableListOf<SignalEventType>()
@@ -32,7 +34,7 @@ class OverseasSignalState private constructor(
         var imminent = imminent
         var lastBrokenPeak = lastBrokenPeak
         var spiking = spiking
-        var ma20Crossed = ma20Crossed
+        var ma20Armed = ma20Armed
 
         val gap = reading.gapRate
         val peak = reading.peakPrice
@@ -66,20 +68,24 @@ class OverseasSignalState private constructor(
             spiking = false
         }
 
-        // 돌림: 최신 확정 5분봉이 돌림봉일 때 한 번만 적재. 같은 돌림봉이 다음 봉 확정 전까지 여러 폴에
-        // 걸쳐 남으므로, 크로스 플래그의 라이징 엣지(false→true)로 봉당 1회만 발화한다.
+        // 돌림: 최신 확정 5분봉이 돌림봉이고 "무장" 상태일 때만 발화. 발화 후 무장 해제하고, 종가가 이평보다
+        // 마진 이상 확실히 눌린 확정봉을 봐야 재무장한다(이평 잔떨림 반복 발화 차단 — 국내와 동형).
         val crossed = reading.ma20CrossedUp
         if (crossed != null) {
-            if (!ma20Crossed && crossed) events += SignalEventType.MA20_CROSS
-            ma20Crossed = crossed
+            if (ma20Armed && crossed) {
+                events += SignalEventType.MA20_CROSS
+                ma20Armed = false
+            } else if (reading.ma20BelowBand == true) {
+                ma20Armed = true
+            }
         }
 
-        return events to OverseasSignalState(broken, imminent, lastBrokenPeak, spiking, ma20Crossed)
+        return events to OverseasSignalState(broken, imminent, lastBrokenPeak, spiking, ma20Armed)
     }
 
     companion object {
         val INITIAL = OverseasSignalState(
-            broken = false, imminent = false, lastBrokenPeak = 0.0, spiking = false, ma20Crossed = false,
+            broken = false, imminent = false, lastBrokenPeak = 0.0, spiking = false, ma20Armed = true,
         )
 
         private const val BROKEN_GAP = 0.0

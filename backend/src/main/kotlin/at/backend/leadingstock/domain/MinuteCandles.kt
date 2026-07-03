@@ -32,9 +32,10 @@ data class VolumeSpike(
  * 5분봉 20이평 돌림(상향 돌파) 판정.
  * [crossedUp]: 최신 확정 5분봉이 20이평을 아래에서 위로 처음 뚫은 봉인지
  *              (직전 확정봉 종가 ≤ 그때 20이평 AND 최신 확정봉 종가 > 지금 20이평).
+ * [belowBand]: 최신 확정봉 종가가 20이평보다 재무장 마진 이상 확실히 아래인지 — 돌림 반복 발화 차단용 재무장 신호.
  * [ma20]: 최신 확정봉 시점 20이평값(원, 반올림).
  */
-data class MovingAverageReading(val crossedUp: Boolean, val ma20: Long)
+data class MovingAverageReading(val crossedUp: Boolean, val belowBand: Boolean, val ma20: Long)
 
 /** 당일 분봉 모음 — 시간 오름차순으로 정규화해 보관한다. */
 class MinuteCandles(candles: List<MinuteCandle>) {
@@ -90,7 +91,7 @@ class MinuteCandles(candles: List<MinuteCandle>) {
      * 폴러 관측 이력이 아니라 봉 데이터 자체로 크로스를 잡으므로, 방금 후보에 든 종목이라도
      * 최신 확정봉이 크로스면 잡히고, 이미 이평 위에 쭉 있던 종목은 크로스봉이 아니라 잡히지 않는다.
      */
-    fun movingAverage(intervalMinutes: Int, period: Int): MovingAverageReading? {
+    fun movingAverage(intervalMinutes: Int, period: Int, rearmMargin: Double): MovingAverageReading? {
         val bars = aggregate(intervalMinutes).dropLast(1) // 마지막 봉은 진행 중 — 직전 확정 봉까지만
         if (bars.size < period + 1) return null
         val latest = bars.last()
@@ -98,7 +99,8 @@ class MinuteCandles(candles: List<MinuteCandle>) {
         val maLatest = bars.takeLast(period).map { it.closePrice }.average()
         val maPrev = bars.subList(bars.size - period - 1, bars.size - 1).map { it.closePrice }.average()
         val crossedUp = prev.closePrice <= maPrev && latest.closePrice > maLatest
-        return MovingAverageReading(crossedUp = crossedUp, ma20 = Math.round(maLatest))
+        val belowBand = latest.closePrice < maLatest * (1 - rearmMargin)
+        return MovingAverageReading(crossedUp = crossedUp, belowBand = belowBand, ma20 = Math.round(maLatest))
     }
 
     /**
