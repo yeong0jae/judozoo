@@ -44,8 +44,9 @@ class OverseasSignalEvent(
     @Column(nullable = false)
     val name: String,
 
+    // varchar로 고정 — 네이티브 ENUM이면 enum 값 추가 시 ddl-auto가 컬럼을 안 고쳐 insert가 truncate로 터진다.
     @Enumerated(EnumType.STRING)
-    @Column(name = "event_type", nullable = false)
+    @Column(name = "event_type", nullable = false, columnDefinition = "varchar(32)")
     val eventType: SignalEventType,
 
     @Column(nullable = false)

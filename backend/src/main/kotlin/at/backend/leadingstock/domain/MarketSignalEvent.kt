@@ -35,8 +35,9 @@ class MarketSignalEvent(
     @Column(name = "trade_date", nullable = false)
     val tradeDate: LocalDate,
 
+    // varchar로 고정 — 네이티브 ENUM이면 enum 값 추가 시 ddl-auto가 컬럼을 안 고쳐 insert가 truncate로 터진다.
     @Enumerated(EnumType.STRING)
-    @Column(name = "kind", nullable = false)
+    @Column(name = "kind", nullable = false, columnDefinition = "varchar(32)")
     val kind: MarketSignalType,
 
     @Enumerated(EnumType.STRING)
