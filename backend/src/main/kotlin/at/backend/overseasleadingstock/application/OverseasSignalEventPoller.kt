@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Profile
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -41,7 +42,7 @@ class OverseasSignalEventPoller(
     @Scheduled(fixedDelayString = "\${overseas-signal-event.poll-interval-millis:15000}")
     fun onSchedule() {
         val now = timeProvider.now()
-        if (!isUsSession(now.toLocalTime())) return
+        if (!isUsSession(now.toLocalTime()) || isUsMarketWeekend(now)) return
         runCatching { detect(now) }.onFailure { log.warn(it) { "해외 시그널 전이 적재 실패" } }
     }
 
@@ -100,6 +101,21 @@ class OverseasSignalEventPoller(
     /** 미국장 시간대 — 한국 17:00~24:00 또는 00:00~09:00 (프리~애프터). */
     private fun isUsSession(t: LocalTime): Boolean =
         t >= SESSION_START || t < SESSION_END
+
+    /**
+     * 미국장 주말 휴장 — 미국은 현지 월~금만 열린다. 한국시각 기준으로는
+     * 토 저녁(US 토) · 일 종일(US 토밤~일) · 월 오전(US 일밤)이 휴장 구간.
+     * (토 오전은 US 금 세션 꼬리, 월 저녁은 US 월 프리마켓이라 정상 운영.)
+     */
+    private fun isUsMarketWeekend(now: LocalDateTime): Boolean {
+        val t = now.toLocalTime()
+        return when (now.dayOfWeek) {
+            DayOfWeek.SATURDAY -> t >= SESSION_START
+            DayOfWeek.SUNDAY -> true
+            DayOfWeek.MONDAY -> t < SESSION_END
+            else -> false
+        }
+    }
 
     /** 세션 기준일 — 낮 12시 전(미국장 후반)은 전날 세션으로 묶는다. */
     private fun sessionDateOf(now: LocalDateTime): LocalDate =
