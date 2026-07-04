@@ -67,7 +67,7 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
-  MA20_CROSS: { label: "돌림", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
+  MA20_CROSS: { label: "반등", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
 };
 
 // 돌파·임박은 한 탭("돌파 / 임박")으로 묶어 함께 본다.
@@ -78,7 +78,7 @@ const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
   { key: "BREAKOUT_GROUP", label: "돌파 / 임박" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
-  { key: "MA20_CROSS", label: "돌림" },
+  { key: "MA20_CROSS", label: "반등" },
   { key: "MARKET", label: "지수" },
 ];
 
@@ -118,16 +118,25 @@ type FeedRow =
 /** 지수 시그널 한 줄 요약 — 왼쪽 라벨/색, 오른쪽(순매수 금액). 행·여정에서 공용. */
 function marketParts(m: MarketSignalEventItem) {
   const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
-  const isCandle = m.kind === "CANDLE_STREAK";
-  const leftLabel = isCandle
-    ? `${m.streak}연속 ${m.side === "BUY" ? "상승" : "하락"}`
-    : INVESTOR_LABEL[m.investor ?? "FOREIGN"];
-  const rightLabel = isCandle
-    ? ""
-    : m.kind === "NET_FLOW_TURN"
-      ? `${m.side === "BUY" ? "매수" : "매도"} 전환`
-      : `${formatEok(m.thresholdEok ?? 0)} ${m.side === "BUY" ? "순매수" : "순매도"}`;
-  return { sideCls, isCandle, leftLabel, rightLabel };
+  // accent=라벨을 방향색으로 강조(캔들 연속·반등처럼 투자자 순매수가 아닌 신호). 순매수 금액 표시도 숨긴다.
+  switch (m.kind) {
+    case "CANDLE_STREAK":
+      return { sideCls, accent: true, leftLabel: `${m.streak}연속 ${m.side === "BUY" ? "상승" : "하락"}`, rightLabel: "" };
+    case "MA20_REBOUND":
+      return { sideCls, accent: true, leftLabel: "반등", rightLabel: "" };
+    case "NET_FLOW_TURN":
+      return {
+        sideCls, accent: false,
+        leftLabel: INVESTOR_LABEL[m.investor ?? "FOREIGN"],
+        rightLabel: `${m.side === "BUY" ? "매수" : "매도"} 전환`,
+      };
+    default:
+      return {
+        sideCls, accent: false,
+        leftLabel: INVESTOR_LABEL[m.investor ?? "FOREIGN"],
+        rightLabel: `${formatEok(m.thresholdEok ?? 0)} ${m.side === "BUY" ? "순매수" : "순매도"}`,
+      };
+  }
 }
 
 /**
@@ -143,8 +152,8 @@ function renderMarketRow(
   journey: MarketSignalEventItem[],
 ) {
   const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
-  const { sideCls, isCandle, leftLabel, rightLabel } = marketParts(m);
-  const leftCls = isCandle ? `text-sm font-semibold ${sideCls}` : "text-sm font-semibold text-zinc-100";
+  const { sideCls, accent, leftLabel, rightLabel } = marketParts(m);
+  const leftCls = accent ? `text-sm font-semibold ${sideCls}` : "text-sm font-semibold text-zinc-100";
   return (
     <motion.li
       key={key}
@@ -174,7 +183,7 @@ function renderMarketRow(
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
           {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
-          {!isCandle && m.netAmountEok != null && (
+          {!accent && m.netAmountEok != null && (
             <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(m.netAmountEok))}</span>
           )}
           <span className="num text-xs text-zinc-100 w-20 text-right">
@@ -211,7 +220,7 @@ function renderMarketRow(
                       {p.rightLabel && <span className={p.sideCls}> {p.rightLabel}</span>}
                     </td>
                     <td className="text-right text-zinc-400">
-                      {!p.isCandle && j.netAmountEok != null
+                      {!p.accent && j.netAmountEok != null
                         ? formatEok(Math.abs(j.netAmountEok))
                         : "—"}
                     </td>

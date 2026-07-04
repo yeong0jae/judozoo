@@ -38,6 +38,7 @@ class IndexCandleStreakPoller(
 ) {
     private val log = KotlinLogging.logger {}
     private val states = ConcurrentHashMap<Market, StreakFireState>()
+    private val reboundArmed = ConcurrentHashMap<Market, Boolean>() // 시장별 반등 무장 상태(발화 후 해제, 이평 아래로 눌리면 재무장)
     private val tradeDate = AtomicReference<LocalDate?>(null)
     private var seeded = false
     private val sessionStart: LocalTime = LocalTime.parse(sessionStart)
@@ -58,6 +59,7 @@ class IndexCandleStreakPoller(
         val today = timeProvider.today()
         if (tradeDate.getAndSet(today) != today) {
             states.clear()
+            reboundArmed.clear()
             seeded = false
         }
         if (!seeded) {
@@ -66,34 +68,45 @@ class IndexCandleStreakPoller(
         }
 
         val now = timeProvider.now()
-        val recorded = Market.entries.mapNotNull { market ->
-            val intraday = indexClient.fetchIndexIntraday(market, today) ?: return@mapNotNull null
+        val recorded = Market.entries.flatMap { market ->
+            val intraday = indexClient.fetchIndexIntraday(market, today) ?: return@flatMap emptyList()
 
             // 매 폴마다 받은 최근 ~4분치를 저장소에 누적(겹치며 하루를 채움). 백필 없음 — 한도 보호.
             candleStore.merge(market, IndexMinuteCandles.fromTicks(intraday.ticks).candles())
+            // 누적 저장소 기준 판정 — 4분 페이지 경계에서 연속·이평이 잘리지 않게.
+            val candles = IndexMinuteCandles(candleStore.candles(market))
 
-            // 연속 판정은 누적 저장소 기준 — 4분 페이지 경계에서 연속이 잘리지 않게.
-            val streak = IndexMinuteCandles(candleStore.candles(market)).trailingStreak(excludeMinute = now)
-                ?: return@mapNotNull null
-
-            val multiple = streak.count / STREAK_STEP * STREAK_STEP // 5~9→5, 10~14→10, …
-            // 방향이 그대로면 직전 발화 배수 이어받고, 바뀌면 0부터.
-            val firedMultiple = states[market]?.takeIf { it.side == streak.side }?.firedMultiple ?: 0
-            if (multiple < STREAK_STEP || multiple <= firedMultiple) {
-                states[market] = StreakFireState(streak.side, firedMultiple) // 방향만 갱신(발화 없음)
-                return@mapNotNull null
+            // 1) 캔들 연속 — 같은 색 5·10·15…연속에 처음 도달한 순간.
+            val streakEvent = candles.trailingStreak(excludeMinute = now)?.let { streak ->
+                val multiple = streak.count / STREAK_STEP * STREAK_STEP // 5~9→5, 10~14→10, …
+                // 방향이 그대로면 직전 발화 배수 이어받고, 바뀌면 0부터.
+                val firedMultiple = states[market]?.takeIf { it.side == streak.side }?.firedMultiple ?: 0
+                if (multiple < STREAK_STEP || multiple <= firedMultiple) {
+                    states[market] = StreakFireState(streak.side, firedMultiple) // 방향만 갱신(발화 없음)
+                    null
+                } else {
+                    states[market] = StreakFireState(streak.side, multiple)
+                    MarketSignalEvent.candleStreak(
+                        occurredAt = now, tradeDate = today, market = market,
+                        side = streak.side, streak = multiple, // 표시는 항상 배수(5·10·15)
+                        indexValue = intraday.value, changeRate = intraday.changeRate,
+                    )
+                }
             }
 
-            states[market] = StreakFireState(streak.side, multiple)
-            MarketSignalEvent.candleStreak(
-                occurredAt = now,
-                tradeDate = today,
-                market = market,
-                side = streak.side,
-                streak = multiple, // 표시는 항상 배수(5·10·15)
-                indexValue = intraday.value,
-                changeRate = intraday.changeRate,
-            )
+            // 2) 반등 — 5분봉 20이평 상향 돌파봉 + 무장 상태에서 1회. 이평 아래로 마진 이상 눌려야 재무장(잔떨림 차단).
+            val reboundEvent = candles.movingAverage(MA_INTERVAL_MINUTES, MA_PERIOD, MA_REARM_MARGIN)?.let { ma ->
+                val armed = reboundArmed[market] ?: true
+                if (armed && ma.crossedUp) {
+                    reboundArmed[market] = false
+                    MarketSignalEvent.ma20Rebound(now, today, market, intraday.value, intraday.changeRate)
+                } else {
+                    if (ma.belowBand) reboundArmed[market] = true
+                    null
+                }
+            }
+
+            listOfNotNull(streakEvent, reboundEvent)
         }
 
         marketSignalEventService.recordAll(recorded)
@@ -111,5 +124,8 @@ class IndexCandleStreakPoller(
 
     companion object {
         private const val STREAK_STEP = 5 // 5연속마다(5·10·15…) 발화
+        private const val MA_INTERVAL_MINUTES = 5   // 반등 판정 분봉 주기
+        private const val MA_PERIOD = 20            // 반등 판정 이평 기간(봉)
+        private const val MA_REARM_MARGIN = 0.005   // 반등 재무장 마진(0.5%)
     }
 }

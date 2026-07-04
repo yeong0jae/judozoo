@@ -141,5 +141,22 @@ class MarketSignalEvent(
             indexValue = indexValue,
             changeRate = changeRate,
         )
+
+        /** 지수 5분봉 20이평 반등(상향 돌파). 방향은 항상 매수(BUY). [indexValue]·[changeRate]는 발생 시점 값. */
+        fun ma20Rebound(
+            occurredAt: LocalDateTime,
+            tradeDate: LocalDate,
+            market: Market,
+            indexValue: Double?,
+            changeRate: Double?,
+        ) = MarketSignalEvent(
+            occurredAt = occurredAt,
+            tradeDate = tradeDate,
+            kind = MarketSignalType.MA20_REBOUND,
+            market = market,
+            side = NetTradeSide.BUY,
+            indexValue = indexValue,
+            changeRate = changeRate,
+        )
     }
 }

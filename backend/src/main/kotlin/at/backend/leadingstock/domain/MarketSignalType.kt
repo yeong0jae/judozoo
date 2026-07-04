@@ -10,4 +10,7 @@ enum class MarketSignalType {
 
     /** 투자자 누적 순매수 흐름이 정점에서 임계 이상 되돌려 방향이 꺾인 전환. */
     NET_FLOW_TURN,
+
+    /** 지수 5분봉 종가가 5분봉 20이평을 아래에서 위로 뚫은 반등. */
+    MA20_REBOUND,
 }

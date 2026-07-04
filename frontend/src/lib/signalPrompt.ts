@@ -11,7 +11,7 @@ const TYPE_LABEL: Record<SignalEventType, string> = {
   BREAKOUT: "돌파",
   BREAKOUT_IMMINENT: "임박",
   VOLUME_SPIKE: "스파이크",
-  MA20_CROSS: "돌림",
+  MA20_CROSS: "반등",
 };
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
@@ -37,9 +37,11 @@ function marketLine(m: MarketSignalEventItem): string {
   const desc =
     m.kind === "CANDLE_STREAK"
       ? `${m.streak}연속 ${m.side === "BUY" ? "상승" : "하락"}`
-      : m.kind === "NET_FLOW_TURN"
-        ? `${investor} ${side} 전환`
-        : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
+      : m.kind === "MA20_REBOUND"
+        ? "5분 20이평 반등"
+        : m.kind === "NET_FLOW_TURN"
+          ? `${investor} ${side} 전환`
+          : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
   const idx =
     m.indexValue != null
       ? ` · 지수 ${m.indexValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -168,7 +170,7 @@ export function buildSignalPrompt(
   );
 
   return [
-    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크/돌림 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·지수 캔들 연속)을 시간순으로 기록한 거야.`,
+    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크/반등 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·지수 캔들 연속)을 시간순으로 기록한 거야.`,
     `이걸 근거로 오늘 시장 흐름을 분석하고 매매를 복기해줘:`,
     `1) 주도 테마와 테마 순환`,
     `2) 시간대별 수급 흐름`,
@@ -179,19 +181,19 @@ export function buildSignalPrompt(
     `주의: '테마 미상'은 키움에 테마 정보가 없을 뿐 시장적 의미가 아니야 — 테마·순환 분석에서 제외해.`,
     ``,
     `## 개요`,
-    `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE} · 돌림 ${byType.MA20_CROSS})`,
+    `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE} · 반등 ${byType.MA20_CROSS})`,
     `- 등장 종목: ${stockCount}개`,
     `- 지수 시그널: ${marketAsc.length}건`,
     ``,
     `## 테마별 (이벤트 많은 순)`,
-    `테마 | 이벤트 | 종목 | 돌파/임박/스파이크/돌림`,
+    `테마 | 이벤트 | 종목 | 돌파/임박/스파이크/반등`,
     ...themeRows,
     ...(noThemeCount > 0
       ? [`※ 테마 미상 ${noThemeCount}건은 키움 테마 데이터 없음 — 시장 의미 아님(집계·순환 분석 제외)`]
       : []),
     ``,
     `## 시간대별`,
-    `시 | 돌파/임박/스파이크/돌림`,
+    `시 | 돌파/임박/스파이크/반등`,
     ...hourRows,
     ``,
     `## 종목별 요약 (이벤트 많은 순)`,
