@@ -1,45 +1,15 @@
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import type {
-  MarketCloseSnapshotItem,
-  MarketType,
-  OverseasIndexCloseSnapshotItem,
-} from "../../types";
+import type { DailyIssueItem } from "../../types";
 import type { TimelineDay } from "./TimelineView";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
-function rateClass(rate: number): string {
-  return rate >= 0 ? "text-red-400" : "text-blue-400";
-}
-function rateText(rate: number): string {
-  return `${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%`;
-}
-
-function eok(v: number): string {
-  const a = Math.abs(v);
-  if (a >= 10000) return `${(a / 10000).toFixed(1)}조`;
-  return `${Math.round(a).toLocaleString()}억`;
-}
-function signed(v: number): string {
-  return `${v > 0 ? "+" : v < 0 ? "-" : ""}${eok(v)}`;
-}
-function netClass(v: number): string {
-  // 한국 거래소 관행 — 순매수(양수) 빨강 / 순매도(음수) 파랑
-  return v > 0 ? "text-red-400" : v < 0 ? "text-blue-400" : "text-zinc-500";
-}
-
-/** 코스피 먼저, 코스닥 다음. */
-function ordered(markets: MarketCloseSnapshotItem[]): MarketCloseSnapshotItem[] {
-  return [...markets].sort((a) => (a.market === "KOSPI" ? -1 : 1));
-}
-
 /**
- * 큰 월 캘린더 — 테마 캘린더와 같은 7열 풀 그리드 룩. 각 칸에 그날 코스피/코스닥 마감 순매수(개인·기관·외인).
- * 거래일(평일) 단일 선택. 주말·미래는 비활성. 타임라인 좌측 메인 패널용.
+ * 큰 월 캘린더 — 테마 캘린더와 같은 7열 풀 그리드 룩. 각 칸에 그날 내가 남긴 이슈를 작게 보여준다.
+ * 거래일(평일) 단일 선택(미래 평일도 예정 이슈 작성용으로 선택 허용). 주말은 비활성. 타임라인 좌측 메인 패널용.
  */
 export default function MonthCalendar({
   month,
@@ -113,15 +83,13 @@ export default function MonthCalendar({
           if (d === null) return <div key={`empty-${i}`} className="min-h-28" />;
           const ds = ymd(y, m, d);
           const wd = new Date(y, m, d).getDay();
-          // 주말만 비활성 — 미래 평일은 예정 이슈를 적을 수 있게 선택 허용(마감 데이터는 없음).
+          // 주말만 비활성 — 미래 평일은 예정 이슈를 적을 수 있게 선택 허용.
           const disabled = wd === 0 || wd === 6;
-          const dayData = byDate.get(ds);
           return (
             <DayCell
               key={ds}
               day={d}
-              markets={dayData?.markets ?? []}
-              indices={dayData?.indices ?? []}
+              issues={byDate.get(ds)?.issues ?? []}
               isToday={ds === today}
               isSelected={ds === selected}
               disabled={disabled}
@@ -136,21 +104,21 @@ export default function MonthCalendar({
 
 function DayCell({
   day,
-  markets,
-  indices,
+  issues,
   isToday,
   isSelected,
   disabled,
   onSelect,
 }: {
   day: number;
-  markets: MarketCloseSnapshotItem[];
-  indices: OverseasIndexCloseSnapshotItem[];
+  issues: DailyIssueItem[];
   isToday: boolean;
   isSelected: boolean;
   disabled: boolean;
   onSelect: () => void;
 }) {
+  const shown = issues.slice(0, 3);
+  const extra = issues.length - shown.length;
   return (
     <motion.div
       onClick={disabled ? undefined : onSelect}
@@ -176,33 +144,17 @@ function DayCell({
         {isToday && <span className="ml-1 text-[10px]">오늘</span>}
       </span>
 
-      <div className="flex flex-col gap-1.5">
-        {ordered(markets).map((mk) => (
-          <div key={mk.market} className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-medium text-zinc-400">{MARKET_LABEL[mk.market]}</span>
-            <div className="flex flex-wrap gap-x-1.5 text-[10px] num leading-tight">
-              <NetPart label="개" eok={mk.individualEok} />
-              <NetPart label="외" eok={mk.foreignEok} />
-              <NetPart label="기" eok={mk.institutionEok} />
-            </div>
+      <div className="flex flex-col gap-1">
+        {shown.map((it) => (
+          <div key={it.id} className="flex items-start gap-1">
+            <span className="mt-[3px] w-1 h-1 rounded-full bg-amber-400/70 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-[10px] leading-tight text-zinc-300">
+              {it.content}
+            </span>
           </div>
         ))}
-        {indices.map((ix) => (
-          <div key={ix.code} className="flex items-baseline gap-1 text-[10px] num leading-tight">
-            <span className="font-medium text-zinc-400">{ix.name}</span>
-            <span className={rateClass(ix.changeRate)}>{rateText(ix.changeRate)}</span>
-          </div>
-        ))}
+        {extra > 0 && <span className="text-[10px] text-zinc-600">+{extra}개</span>}
       </div>
     </motion.div>
-  );
-}
-
-function NetPart({ label, eok: v }: { label: string; eok: number }) {
-  return (
-    <span className="whitespace-nowrap">
-      <span className="text-zinc-600">{label}</span>
-      <span className={netClass(v)}>{signed(v)}</span>
-    </span>
   );
 }
