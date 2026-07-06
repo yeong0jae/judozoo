@@ -210,7 +210,7 @@ function renderMarketRow(
               </tr>
             </thead>
             <tbody>
-              {[...journey].reverse().map((j, k) => {
+              {journey.map((j, k) => {
                 const p = marketParts(j);
                 return (
                   <tr key={`${j.kind}-${j.occurredAt}-${k}`}>
