@@ -16,7 +16,7 @@ const TYPE_LABEL: Record<SignalEventType, string> = {
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 const INVESTOR_LABEL: Record<InvestorType, string> = {
-  FOREIGN: "외국인",
+  FOREIGN: "외인",
   INSTITUTION: "기관",
   INDIVIDUAL: "개인",
 };

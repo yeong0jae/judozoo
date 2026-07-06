@@ -218,7 +218,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   if (isLoading) {
     return (
       <section>
-        <span className="text-sm font-semibold text-zinc-400 block mb-2">외국인·기관 자금 흐름</span>
+        <span className="text-sm font-semibold text-zinc-400 block mb-2">외인·기관 자금 흐름</span>
         <Skeleton className="h-24 w-full" />
       </section>
     );
@@ -233,7 +233,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
-        <span className="text-sm font-semibold text-zinc-400">외국인·기관 자금 흐름</span>
+        <span className="text-sm font-semibold text-zinc-400">외인·기관 자금 흐름</span>
         <span className="text-xs text-zinc-600">5분 갱신</span>
       </div>
       <div className="bg-zinc-900 rounded-2xl p-4 space-y-4">
@@ -241,7 +241,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
           label={`오늘 ${today.date.slice(5)}`}
           rows={[
             { name: "개인", total: today.individualNet, nxt: today.individualNetNxt },
-            { name: "외국인", total: today.foreignNet, nxt: today.foreignNetNxt },
+            { name: "외인", total: today.foreignNet, nxt: today.foreignNetNxt },
             { name: "기관", total: today.institutionNet, nxt: today.institutionNetNxt },
           ]}
         />
@@ -250,7 +250,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
           label={`최근 ${last5.length}일 누적`}
           rows={[
             { name: "개인", total: sum((d) => d.individualNet), nxt: sum((d) => d.individualNetNxt) },
-            { name: "외국인", total: sum((d) => d.foreignNet), nxt: sum((d) => d.foreignNetNxt) },
+            { name: "외인", total: sum((d) => d.foreignNet), nxt: sum((d) => d.foreignNetNxt) },
             { name: "기관", total: sum((d) => d.institutionNet), nxt: sum((d) => d.institutionNetNxt) },
           ]}
         />

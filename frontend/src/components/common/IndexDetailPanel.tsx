@@ -129,7 +129,7 @@ function NetBuyDetail({ items }: { items: MarketInvestorNetBuyItem[] }) {
           </div>
           <div className="grid grid-cols-3 gap-2">
             <NetBuyCell label="개인" eok={m.individualEok} />
-            <NetBuyCell label="외국인" eok={m.foreignEok} />
+            <NetBuyCell label="외인" eok={m.foreignEok} />
             <NetBuyCell label="기관" eok={m.institutionEok} />
           </div>
         </div>

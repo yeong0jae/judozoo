@@ -99,7 +99,7 @@ const MARKET_CHIP: Record<MarketType, string> = {
 };
 
 const INVESTOR_LABEL: Record<InvestorType, string> = {
-  FOREIGN: "외국인",
+  FOREIGN: "외인",
   INSTITUTION: "기관",
   INDIVIDUAL: "개인",
 };
