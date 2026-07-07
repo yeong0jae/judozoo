@@ -17,14 +17,20 @@ data class IndexMinuteCandle(
 )
 
 /**
- * 지수 5분봉 20이평 반등(상향 돌파) 판정.
- * [crossedUp]: 최신 확정 5분봉이 20이평을 아래→위로 뚫은 봉인지. [belowBand]: 이평보다 마진 이상 아래인지(재무장).
+ * 지수 5분봉 20이평 돌파 판정. 반등(상향)과 꺾임(하향)을 대칭으로 함께 담는다.
+ * [crossedUp]/[crossedDown]: 최신 확정 5분봉이 20이평을 아래→위/위→아래로 뚫은 봉인지.
+ * [belowBand]/[aboveBand]: 이평보다 마진 이상 아래/위인지(각각 반등/꺾임 재무장).
  */
-data class IndexMa20Signal(val crossedUp: Boolean, val belowBand: Boolean)
+data class IndexMa20Signal(
+    val crossedUp: Boolean,
+    val belowBand: Boolean,
+    val crossedDown: Boolean,
+    val aboveBand: Boolean,
+)
 
 /**
  * 지수 1분봉 모음 — 시간 오름차순으로 정규화해 보관한다.
- * 10초 틱을 분 단위로 묶어 만들며(시가=첫 틱, 종가=마지막 틱), 5분봉 20이평 반등을 판정한다.
+ * 10초 틱을 분 단위로 묶어 만들며(시가=첫 틱, 종가=마지막 틱), 5분봉 20이평 반등·꺾임을 판정한다.
  */
 class IndexMinuteCandles(candles: List<IndexMinuteCandle>) {
 
@@ -35,7 +41,7 @@ class IndexMinuteCandles(candles: List<IndexMinuteCandle>) {
 
     /**
      * 1분봉을 [intervalMinutes]분봉으로 합성한 뒤, 진행 중인 마지막 봉을 뺀 확정 봉 이력에서 최신 확정봉이
-     * [period]-이평을 아래→위로 뚫은 반등봉인지 직접 판정한다. 확정 봉이 [period]+1개 미만이면 null.
+     * [period]-이평을 아래→위(반등)/위→아래(꺾임)로 뚫었는지 직접 판정한다. 확정 봉이 [period]+1개 미만이면 null.
      * 종목 돌림(MinuteCandles.movingAverage)과 동일 규칙.
      */
     fun movingAverage(intervalMinutes: Int, period: Int, rearmMargin: Double): IndexMa20Signal? {
@@ -46,8 +52,10 @@ class IndexMinuteCandles(candles: List<IndexMinuteCandle>) {
         val maLatest = bars.takeLast(period).map { it.close }.average()
         val maPrev = bars.subList(bars.size - period - 1, bars.size - 1).map { it.close }.average()
         val crossedUp = prev.close <= maPrev && latest.close > maLatest
+        val crossedDown = prev.close >= maPrev && latest.close < maLatest
         val belowBand = latest.close < maLatest * (1 - rearmMargin)
-        return IndexMa20Signal(crossedUp, belowBand)
+        val aboveBand = latest.close > maLatest * (1 + rearmMargin)
+        return IndexMa20Signal(crossedUp, belowBand, crossedDown, aboveBand)
     }
 
     /** 1분봉을 [intervalMinutes]분 경계로 묶어 종가=끝봉 종가로 합성(반등 판정은 종가만 사용). */

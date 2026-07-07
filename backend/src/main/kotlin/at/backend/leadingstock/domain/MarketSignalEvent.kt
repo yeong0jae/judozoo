@@ -134,5 +134,22 @@ class MarketSignalEvent(
             indexValue = indexValue,
             changeRate = changeRate,
         )
+
+        /** 지수 5분봉 20이평 꺾임(하향 돌파). 방향은 항상 매도(SELL). [indexValue]·[changeRate]는 발생 시점 값. */
+        fun ma20Breakdown(
+            occurredAt: LocalDateTime,
+            tradeDate: LocalDate,
+            market: Market,
+            indexValue: Double?,
+            changeRate: Double?,
+        ) = MarketSignalEvent(
+            occurredAt = occurredAt,
+            tradeDate = tradeDate,
+            kind = MarketSignalType.MA20_BREAKDOWN,
+            market = market,
+            side = NetTradeSide.SELL,
+            indexValue = indexValue,
+            changeRate = changeRate,
+        )
     }
 }

@@ -10,4 +10,7 @@ enum class MarketSignalType {
 
     /** 지수 5분봉 종가가 5분봉 20이평을 아래에서 위로 뚫은 반등. */
     MA20_REBOUND,
+
+    /** 지수 5분봉 종가가 5분봉 20이평을 위에서 아래로 뚫은 꺾임. */
+    MA20_BREAKDOWN,
 }

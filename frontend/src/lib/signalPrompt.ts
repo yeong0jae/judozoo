@@ -37,9 +37,11 @@ function marketLine(m: MarketSignalEventItem): string {
   const desc =
     m.kind === "MA20_REBOUND"
       ? "5분 20이평 반등"
-      : m.kind === "NET_FLOW_TURN"
-        ? `${investor} ${side} 전환`
-        : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
+      : m.kind === "MA20_BREAKDOWN"
+        ? "5분 20이평 꺾임"
+        : m.kind === "NET_FLOW_TURN"
+          ? `${investor} ${side} 전환`
+          : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
   const idx =
     m.indexValue != null
       ? ` · 지수 ${m.indexValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

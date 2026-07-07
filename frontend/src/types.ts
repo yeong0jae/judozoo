@@ -106,7 +106,7 @@ export interface SignalEventsResponse {
 export type MarketType = "KOSPI" | "KOSDAQ";
 export type InvestorType = "FOREIGN" | "INSTITUTION" | "INDIVIDUAL";
 export type NetTradeSide = "BUY" | "SELL";
-export type MarketSignalType = "NET_BUY_LEVEL" | "NET_FLOW_TURN" | "MA20_REBOUND";
+export type MarketSignalType = "NET_BUY_LEVEL" | "NET_FLOW_TURN" | "MA20_REBOUND" | "MA20_BREAKDOWN";
 
 export interface MarketSignalEventItem {
   occurredAt: string;

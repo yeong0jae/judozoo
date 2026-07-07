@@ -63,4 +63,36 @@ class IndexMinuteCandlesTest : FunSpec({
             candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005).shouldBeNull()
         }
     }
+
+    context("5분봉 20이평 꺾임 판정") {
+        fun fiveMinBar(bucket: Int, close: Double) = (0..4).map { m ->
+            IndexMinuteCandle(base.plusMinutes((bucket * 5 + m).toLong()), close, close, close, close, 0)
+        }
+
+        test("직전 확정봉은 이평 이상이었고 최신 확정봉이 이평 아래로 내려서면 꺾임봉이다") {
+            // period=3, 확정 [40,40,40,10] → 최신 이평 30, 끝봉 10<30 · 직전 이평 40, 직전봉 40>=40
+            val candles = IndexMinuteCandles(
+                fiveMinBar(0, 40.0) + fiveMinBar(1, 40.0) + fiveMinBar(2, 40.0) + fiveMinBar(3, 10.0) + fiveMinBar(4, 999.0),
+            )
+            val ma = candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005)!!
+            ma.crossedDown shouldBe true
+            ma.aboveBand shouldBe false
+        }
+
+        test("이미 이평 아래에 쭉 있던 봉은 꺾임봉이 아니다") {
+            val candles = IndexMinuteCandles(
+                fiveMinBar(0, 50.0) + fiveMinBar(1, 50.0) + fiveMinBar(2, 20.0) + fiveMinBar(3, 10.0) + fiveMinBar(4, 999.0),
+            )
+            candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005)!!.crossedDown shouldBe false
+        }
+
+        test("최신 확정봉이 이평보다 마진 이상 위면 꺾임봉 아님 + 재무장 신호를 켠다") {
+            val candles = IndexMinuteCandles(
+                fiveMinBar(0, 10.0) + fiveMinBar(1, 10.0) + fiveMinBar(2, 10.0) + fiveMinBar(3, 40.0) + fiveMinBar(4, 999.0),
+            )
+            val ma = candles.movingAverage(intervalMinutes = 5, period = 3, rearmMargin = 0.005)!!
+            ma.crossedDown shouldBe false
+            ma.aboveBand shouldBe true
+        }
+    }
 })
