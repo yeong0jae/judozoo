@@ -193,6 +193,9 @@ function FlowRow({ item }: { item: MarketCloseSnapshotItem }) {
         <span className="text-zinc-700">·</span>
         <Net label="기관" v={item.institutionEok} />
       </div>
+      {item.indexValue != null && (
+        <span className="num text-sm shrink-0 text-zinc-400">{fmtIndex(item.indexValue)}</span>
+      )}
       {item.changeRate !== null && (
         <span className={`num text-sm shrink-0 ${upDown(item.changeRate)}`}>{rateText(item.changeRate)}</span>
       )}
