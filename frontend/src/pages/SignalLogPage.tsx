@@ -444,7 +444,7 @@ function DomesticSignalLog({
     return () => window.removeEventListener("keydown", onKey);
   }, [events, openKey]);
 
-  // LLM 분석용 프롬프트 복사 — 정제 데이터를 클립보드로.
+  // 정제된 시그널 로그를 클립보드로 — 분석 지시 없이 데이터만(사용자가 직접 프롬프트 작성).
   // Clipboard API는 HTTPS/localhost에서만 동작하므로 HTTP 배포본을 위해 execCommand로 폴백한다.
   const [copied, setCopied] = useState(false);
   const copyPrompt = async () => {
@@ -503,7 +503,7 @@ function DomesticSignalLog({
             disabled={events.length === 0 && allMarketEvents.length === 0}
             className="text-xs px-2.5 py-1 rounded-md bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {copied ? "복사됨" : "📋 분석 프롬프트 복사"}
+            {copied ? "복사됨" : "📋 로그 복사"}
           </button>
           {(data || marketQ.data) && (
             <span className="text-xs text-zinc-300 font-medium">{feed.length}건</span>
