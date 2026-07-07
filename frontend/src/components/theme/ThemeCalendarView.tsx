@@ -36,6 +36,24 @@ function rateClass(rate: number | null): string {
   return rate >= 0 ? "text-red-400" : "text-blue-400";
 }
 
+/** 그날 시장 대표 등락 = 테마 등락률을 거래대금으로 가중평균(등락률 없는 테마 제외). 칸 배경 색조에 쓴다. */
+function dayRate(themes: ThemeItem[]): number | null {
+  let weighted = 0;
+  let total = 0;
+  for (const t of themes) {
+    const r = themeRate(t);
+    if (r === null) continue;
+    weighted += r * t.tradingValue;
+    total += t.tradingValue;
+  }
+  return total > 0 ? weighted / total : null;
+}
+/** 그날 등락 방향 배경 색조 — 상승 붉게, 하락 푸르게(옅게). 데이터 없으면 색조 없음. */
+function dayTint(rate: number | null): string {
+  if (rate === null) return "";
+  return rate >= 0 ? "bg-red-500/[0.03]" : "bg-blue-500/[0.03]";
+}
+
 /**
  * 테마 캘린더 프레젠테이션 — 데이터(month/days)는 props로 받아 순수 렌더.
  * 큰 월 그리드(풀폭) + 하단 섹터 트리맵(선택일 기준). 칸 hover 시 그날 전체 테마+등락 팝오버.
@@ -188,15 +206,16 @@ function DayCell({
   onSelect: () => void;
 }) {
   const extra = themes.length - CELL_THEMES;
+  const tint = dayTint(dayRate(themes));
   return (
     <motion.div
       onClick={onSelect}
       whileTap={{ scale: 0.98 }}
-      className={`group relative min-h-28 rounded-xl p-2 flex flex-col gap-1.5 cursor-pointer transition-colors ${
+      className={`group relative min-h-28 rounded-xl p-2 flex flex-col gap-1.5 cursor-pointer transition-colors ${tint} ${
         isSelected
-          ? "ring-1 ring-inset ring-emerald-600 bg-zinc-900"
+          ? "ring-1 ring-inset ring-emerald-600"
           : isToday
-            ? "ring-1 ring-inset ring-zinc-700 bg-zinc-900/60"
+            ? "ring-1 ring-inset ring-zinc-700"
             : "hover:bg-zinc-900/60"
       }`}
     >

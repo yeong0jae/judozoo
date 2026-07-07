@@ -1,11 +1,19 @@
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import type { DailyIssueItem } from "../../types";
+import type { DailyIssueItem, MarketCloseSnapshotItem } from "../../types";
 import type { TimelineDay } from "./TimelineView";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
+
+/** 그날 코스피·코스닥 마감 등락률 평균으로 칸 배경 색조 — 상승 붉게, 하락 푸르게(옅게). 데이터 없으면 없음. */
+function marketTint(markets: MarketCloseSnapshotItem[]): string {
+  const rates = markets.map((m) => m.changeRate).filter((r): r is number => r != null);
+  if (rates.length === 0) return "";
+  const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
+  return avg >= 0 ? "bg-red-500/[0.03]" : "bg-blue-500/[0.03]";
+}
 
 /**
  * 큰 월 캘린더 — 테마 캘린더와 같은 7열 풀 그리드 룩. 각 칸에 그날 내가 남긴 이슈를 작게 보여준다.
@@ -90,6 +98,7 @@ export default function MonthCalendar({
               key={ds}
               day={d}
               issues={byDate.get(ds)?.issues ?? []}
+              markets={byDate.get(ds)?.markets ?? []}
               isToday={ds === today}
               isSelected={ds === selected}
               disabled={disabled}
@@ -105,6 +114,7 @@ export default function MonthCalendar({
 function DayCell({
   day,
   issues,
+  markets,
   isToday,
   isSelected,
   disabled,
@@ -112,6 +122,7 @@ function DayCell({
 }: {
   day: number;
   issues: DailyIssueItem[];
+  markets: MarketCloseSnapshotItem[];
   isToday: boolean;
   isSelected: boolean;
   disabled: boolean;
@@ -119,17 +130,18 @@ function DayCell({
 }) {
   const shown = issues.slice(0, 3);
   const extra = issues.length - shown.length;
+  const tint = marketTint(markets);
   return (
     <motion.div
       onClick={disabled ? undefined : onSelect}
       whileTap={disabled ? undefined : { scale: 0.98 }}
-      className={`min-h-28 rounded-xl p-2 flex flex-col gap-1.5 transition-colors ${
+      className={`min-h-28 rounded-xl p-2 flex flex-col gap-1.5 transition-colors ${tint} ${
         disabled ? "cursor-default" : "cursor-pointer"
       } ${
         isSelected
-          ? "ring-1 ring-inset ring-blue-600 bg-zinc-900"
+          ? "ring-1 ring-inset ring-blue-600"
           : isToday
-            ? "ring-1 ring-inset ring-zinc-700 bg-zinc-900/60"
+            ? "ring-1 ring-inset ring-zinc-700"
             : disabled
               ? ""
               : "hover:bg-zinc-900/60"
