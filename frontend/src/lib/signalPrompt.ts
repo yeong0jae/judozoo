@@ -35,13 +35,11 @@ function marketLine(m: MarketSignalEventItem): string {
   const side = m.side === "BUY" ? "매수" : "매도";
   const investor = INVESTOR_LABEL[m.investor ?? "FOREIGN"];
   const desc =
-    m.kind === "CANDLE_STREAK"
-      ? `${m.streak}연속 ${m.side === "BUY" ? "상승" : "하락"}`
-      : m.kind === "MA20_REBOUND"
-        ? "5분 20이평 반등"
-        : m.kind === "NET_FLOW_TURN"
-          ? `${investor} ${side} 전환`
-          : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
+    m.kind === "MA20_REBOUND"
+      ? "5분 20이평 반등"
+      : m.kind === "NET_FLOW_TURN"
+        ? `${investor} ${side} 전환`
+        : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
   const idx =
     m.indexValue != null
       ? ` · 지수 ${m.indexValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -170,12 +168,12 @@ export function buildSignalPrompt(
   );
 
   return [
-    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크/반등 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·지수 캔들 연속)을 시간순으로 기록한 거야.`,
+    `다음은 ${date} 주도주 실시간 로그야. 장중 발생한 돌파/임박/스파이크/반등 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·지수 반등)을 시간순으로 기록한 거야.`,
     `이걸 근거로 오늘 시장 흐름을 분석하고 매매를 복기해줘:`,
     `1) 주도 테마와 테마 순환`,
     `2) 시간대별 수급 흐름`,
     `3) 주목 종목(임박→돌파→스파이크로 이어진 종목 등)`,
-    `4) 전반적 시장 톤 (지수 시그널 — 외인/기관/개인 순매수 단계, 지수 양/음봉 연속 — 을 근거로)`,
+    `4) 전반적 시장 톤 (지수 시그널 — 외인/기관/개인 순매수 단계·흐름 전환, 지수 반등 — 을 근거로)`,
     `5) 이상적 매매 복기 — 어느 종목·어느 신호에서 진입했어야 했고 언제 정리했어야 했는지, 믿을 만한 신호와 무시했어야 할 신호(돌파 실패·임박 무산·고점 스파이크 등)는 무엇이었는지`,
     `주의: 각 종목 가격은 '시그널 발생 시점' 값만 있고 그 사이 고저는 없어. 주어진 시점 가격들 안에서만 복기하고, 없는 값은 추정하지 마.`,
     `주의: '테마 미상'은 키움에 테마 정보가 없을 뿐 시장적 의미가 아니야 — 테마·순환 분석에서 제외해.`,
@@ -203,7 +201,7 @@ export function buildSignalPrompt(
     ...(marketAsc.length > 0
       ? [
           `## 지수 시그널 (시간순)`,
-          `시각 · 시장 · 내용(순매수 단계 또는 N연속 매수/매도) · 지수값 · 등락률`,
+          `시각 · 시장 · 내용(순매수 단계·흐름 전환·반등) · 지수값 · 등락률`,
           ...marketAsc.map(marketLine),
           ``,
         ]

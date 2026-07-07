@@ -15,10 +15,9 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
- * 시장(코스피/코스닥) 단위 시그널 전이 한 건. [kind]로 두 종류를 구분한다.
+ * 시장(코스피/코스닥) 단위 시그널 전이 한 건. [kind]로 종류를 구분한다.
  * - NET_BUY_LEVEL: 투자자 누적 순매수 단계 — [investor]/[level]/[netAmountEok] 채움.
- * - CANDLE_STREAK: 지수 1분봉 같은 색 연속 — [streak] 채움.
- * [side]는 두 종류 공통(순매수/순매도, 양봉=매수/음봉=매도).
+ * [side]는 공통(순매수/순매도).
  */
 @Entity
 @Table(
@@ -58,9 +57,6 @@ class MarketSignalEvent(
     @Column(name = "net_amount_eok")
     val netAmountEok: Long? = null,
 
-    @Column(name = "streak")
-    val streak: Int? = null,
-
     @Column(name = "index_value")
     val indexValue: Double? = null,
 
@@ -93,26 +89,6 @@ class MarketSignalEvent(
             investor = investor,
             level = level,
             netAmountEok = netAmountEok,
-            indexValue = indexValue,
-            changeRate = changeRate,
-        )
-
-        /** 지수 1분봉 같은 색 연속 전이. [indexValue]·[changeRate]는 발생 시점 지수값/등락률. */
-        fun candleStreak(
-            occurredAt: LocalDateTime,
-            tradeDate: LocalDate,
-            market: Market,
-            side: NetTradeSide,
-            streak: Int,
-            indexValue: Double?,
-            changeRate: Double?,
-        ) = MarketSignalEvent(
-            occurredAt = occurredAt,
-            tradeDate = tradeDate,
-            kind = MarketSignalType.CANDLE_STREAK,
-            market = market,
-            side = side,
-            streak = streak,
             indexValue = indexValue,
             changeRate = changeRate,
         )

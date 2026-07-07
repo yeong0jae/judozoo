@@ -164,7 +164,6 @@ class LeadingStockController(
                 level = e.level,
                 thresholdEok = e.level?.let { it * MarketSignalThresholds.stepEok(e.market) },
                 netAmountEok = e.netAmountEok,
-                streak = e.streak,
                 indexValue = e.indexValue,
                 changeRate = e.changeRate,
             )

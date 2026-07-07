@@ -118,10 +118,8 @@ type FeedRow =
 /** 지수 시그널 한 줄 요약 — 왼쪽 라벨/색, 오른쪽(순매수 금액). 행·여정에서 공용. */
 function marketParts(m: MarketSignalEventItem) {
   const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
-  // accent=라벨을 방향색으로 강조(캔들 연속·반등처럼 투자자 순매수가 아닌 신호). 순매수 금액 표시도 숨긴다.
+  // accent=라벨을 방향색으로 강조(반등처럼 투자자 순매수가 아닌 신호). 순매수 금액 표시도 숨긴다.
   switch (m.kind) {
-    case "CANDLE_STREAK":
-      return { sideCls, accent: true, leftLabel: `${m.streak}연속 ${m.side === "BUY" ? "상승" : "하락"}`, rightLabel: "" };
     case "MA20_REBOUND":
       return { sideCls, accent: true, leftLabel: "반등", rightLabel: "" };
     case "NET_FLOW_TURN":
@@ -140,7 +138,7 @@ function marketParts(m: MarketSignalEventItem) {
 }
 
 /**
- * 지수(코스피/코스닥) 시그널 한 행. kind=NET_BUY_LEVEL은 투자자 순매수 단계, CANDLE_STREAK은 1분봉 연속.
+ * 지수(코스피/코스닥) 시그널 한 행. kind=NET_BUY_LEVEL은 투자자 순매수 단계, MA20_REBOUND는 지수 반등.
  * 누르면 그 시장의 그날 지수 시그널 여정을 펼치고, 우측에 지수 1분봉 차트를 띄운다.
  */
 function renderMarketRow(

@@ -65,13 +65,6 @@ class MarketSignalEventService(
     fun eventsOn(date: LocalDate): List<MarketSignalEvent> =
         repository.findByTradeDateOrderByOccurredAtDesc(date)
 
-    /** 그날 한 시장의 최신 캔들 연속 시그널 — 폴러 디바운스 상태 복원용. */
-    @Transactional(readOnly = true)
-    fun latestCandleStreak(market: Market, date: LocalDate): MarketSignalEvent? =
-        repository.findFirstByMarketAndKindAndTradeDateOrderByOccurredAtDesc(
-            market, MarketSignalType.CANDLE_STREAK, date,
-        )
-
     /** 그날 같은 (시장·투자자·방향·단계) 순매수 시그널이 이미 적재됐는지. */
     @Transactional(readOnly = true)
     fun alreadyFiredNetBuyLevel(

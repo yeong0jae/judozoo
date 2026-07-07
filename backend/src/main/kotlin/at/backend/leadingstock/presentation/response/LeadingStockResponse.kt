@@ -88,19 +88,18 @@ data class MarketSignalEventsResponse(
 )
 
 /**
- * [kind]=NET_BUY_LEVEL이면 investor/level/thresholdEok/netAmountEok(억원), CANDLE_STREAK이면 streak가 채워진다.
+ * [kind]=NET_BUY_LEVEL이면 investor/level/thresholdEok/netAmountEok(억원)이 채워진다.
  * [thresholdEok]=도달 단계의 기준선(level×단계크기).
  */
 data class MarketSignalEventItem(
     val occurredAt: LocalDateTime,
-    val kind: String,      // NET_BUY_LEVEL | CANDLE_STREAK
+    val kind: String,      // NET_BUY_LEVEL | NET_FLOW_TURN | MA20_REBOUND
     val market: String,    // KOSPI | KOSDAQ
     val side: String,      // BUY | SELL
     val investor: String?, // 순매수: FOREIGN | INSTITUTION | INDIVIDUAL
     val level: Int?,       // 순매수: 도달 단계 (1=1단계)
     val thresholdEok: Long?, // 순매수: 단계 기준선(억원)
     val netAmountEok: Long?, // 순매수: 발생 시점 누적 순매수(억원, 부호 포함)
-    val streak: Int?,      // 캔들: 같은 색 연속 봉 수
     val indexValue: Double?, // 발생 시점 지수값
     val changeRate: Double?, // 발생 시점 등락률(%)
 )
