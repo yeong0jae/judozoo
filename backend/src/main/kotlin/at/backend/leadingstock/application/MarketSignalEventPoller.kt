@@ -93,7 +93,7 @@ class MarketSignalEventPoller(
                 val turnEvent = turn?.let {
                     MarketSignalEvent.netFlowTurn(
                         occurredAt = now, tradeDate = today, market = market, investor = investor,
-                        side = it.to, netAmountEok = netEok,
+                        side = it.to, extremeAmountEok = it.extremeEok, netAmountEok = netEok,
                         indexValue = snapshot.indexValue, changeRate = snapshot.changeRate,
                     )
                 }

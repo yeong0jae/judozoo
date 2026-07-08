@@ -117,6 +117,7 @@ export interface MarketSignalEventItem {
   level: number | null;
   thresholdEok: number | null;
   netAmountEok: number | null;
+  extremeAmountEok: number | null;
   indexValue: number | null;
   changeRate: number | null;
 }

@@ -40,7 +40,9 @@ function marketLine(m: MarketSignalEventItem): string {
       : m.kind === "MA20_BREAKDOWN"
         ? "5분 20이평 꺾임"
         : m.kind === "NET_FLOW_TURN"
-          ? `${investor} ${side} 전환`
+          ? m.extremeAmountEok != null && m.netAmountEok != null
+            ? `${investor} 누적 ${fmtEok(Math.abs(m.extremeAmountEok))}→${fmtEok(Math.abs(m.netAmountEok))} ${side} 전환`
+            : `${investor} ${side} 전환`
           : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
   const idx =
     m.indexValue != null

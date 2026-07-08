@@ -1,7 +1,7 @@
 package at.backend.leadingstock.domain
 
-/** 순매수 흐름 전환 — 어느 방향으로 전환했는지([to]). */
-data class FlowTurn(val to: NetTradeSide)
+/** 순매수 흐름 전환 — 어느 방향으로 전환했는지([to])와 되돌리기 직전의 정점 누적([extremeEok], 억원·부호 포함). */
+data class FlowTurn(val to: NetTradeSide, val extremeEok: Long)
 
 /**
  * 한 (시장·투자자)의 누적 순매수 흐름 전환 감지.
@@ -35,7 +35,7 @@ class InvestorFlowState private constructor(
         val pullback = extProg - curProg
         if (pullback >= reversalEok) {
             val to = side.opposite()
-            return FlowTurn(to) to InvestorFlowState(to, netEok) // 전환 — 반대 방향 정점 새로 시작
+            return FlowTurn(to, extremeEok) to InvestorFlowState(to, netEok) // 전환 — 정점 실어 보내고 반대 방향 정점 새로 시작
         }
         // 임계 미달 — 정점 유지, 전환 없음.
         return null to InvestorFlowState(side, extremeEok)

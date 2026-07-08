@@ -57,6 +57,9 @@ class MarketSignalEvent(
     @Column(name = "net_amount_eok")
     val netAmountEok: Long? = null,
 
+    @Column(name = "extreme_amount_eok")
+    val extremeAmountEok: Long? = null,
+
     @Column(name = "index_value")
     val indexValue: Double? = null,
 
@@ -95,7 +98,7 @@ class MarketSignalEvent(
 
         /**
          * 투자자 누적 순매수 흐름 전환. [side]=전환해 향하는 방향(매수 전환이면 BUY).
-         * [netAmountEok]=전환 시점 누적(억원, 부호 포함) — 부호는 아직 직전 방향일 수 있다.
+         * [extremeAmountEok]=되돌리기 직전 정점 누적, [netAmountEok]=전환 시점 누적(둘 다 억원·부호 포함).
          */
         fun netFlowTurn(
             occurredAt: LocalDateTime,
@@ -103,6 +106,7 @@ class MarketSignalEvent(
             market: Market,
             investor: InvestorType,
             side: NetTradeSide,
+            extremeAmountEok: Long,
             netAmountEok: Long,
             indexValue: Double?,
             changeRate: Double?,
@@ -114,6 +118,7 @@ class MarketSignalEvent(
             side = side,
             investor = investor,
             netAmountEok = netAmountEok,
+            extremeAmountEok = extremeAmountEok,
             indexValue = indexValue,
             changeRate = changeRate,
         )

@@ -118,23 +118,30 @@ type FeedRow =
 /** 지수 시그널 한 줄 요약 — 왼쪽 라벨/색, 오른쪽(순매수 금액). 행·여정에서 공용. */
 function marketParts(m: MarketSignalEventItem) {
   const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
-  // accent=라벨을 방향색으로 강조(반등·꺾임처럼 투자자 순매수가 아닌 신호). 순매수 금액 표시도 숨긴다.
+  // accent=라벨을 방향색으로 강조(반등·꺾임처럼 투자자 순매수가 아닌 신호). netText=누적 칸에 표시할 금액.
+  const netText: string | null = m.netAmountEok != null ? formatEok(Math.abs(m.netAmountEok)) : null;
   switch (m.kind) {
     case "MA20_REBOUND":
-      return { sideCls, accent: true, leftLabel: "반등", rightLabel: "" };
+      return { sideCls, accent: true, leftLabel: "반등", rightLabel: "", netText: null };
     case "MA20_BREAKDOWN":
-      return { sideCls, accent: true, leftLabel: "꺾임", rightLabel: "" };
+      return { sideCls, accent: true, leftLabel: "꺾임", rightLabel: "", netText: null };
     case "NET_FLOW_TURN":
+      // 정점 → 전환 시점 누적 (예: 9,000억 → 8,000억). 정점 없는 과거 행은 전환 시점만.
       return {
         sideCls, accent: false,
         leftLabel: INVESTOR_LABEL[m.investor ?? "FOREIGN"],
         rightLabel: `${m.side === "BUY" ? "매수" : "매도"} 전환`,
+        netText:
+          m.extremeAmountEok != null && m.netAmountEok != null
+            ? `${formatEok(Math.abs(m.extremeAmountEok))} → ${formatEok(Math.abs(m.netAmountEok))}`
+            : netText,
       };
     default:
       return {
         sideCls, accent: false,
         leftLabel: INVESTOR_LABEL[m.investor ?? "FOREIGN"],
         rightLabel: `${formatEok(m.thresholdEok ?? 0)} ${m.side === "BUY" ? "순매수" : "순매도"}`,
+        netText,
       };
   }
 }
@@ -152,7 +159,7 @@ function renderMarketRow(
   journey: MarketSignalEventItem[],
 ) {
   const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
-  const { sideCls, accent, leftLabel, rightLabel } = marketParts(m);
+  const { sideCls, accent, leftLabel, rightLabel, netText } = marketParts(m);
   const leftCls = accent ? `text-sm font-semibold ${sideCls}` : "text-sm font-semibold text-zinc-100";
   return (
     <motion.li
@@ -183,8 +190,8 @@ function renderMarketRow(
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
           {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
-          {!accent && m.netAmountEok != null && (
-            <span className="num text-xs text-zinc-500">누적 {formatEok(Math.abs(m.netAmountEok))}</span>
+          {netText && (
+            <span className="num text-xs text-zinc-500">누적 {netText}</span>
           )}
           <span className="num text-xs text-zinc-100 w-20 text-right">
             {m.indexValue != null ? fmtIndex(m.indexValue) : ""}
@@ -220,9 +227,7 @@ function renderMarketRow(
                       {p.rightLabel && <span className={p.sideCls}> {p.rightLabel}</span>}
                     </td>
                     <td className="text-right text-zinc-400">
-                      {!p.accent && j.netAmountEok != null
-                        ? formatEok(Math.abs(j.netAmountEok))
-                        : "—"}
+                      {p.netText ?? "—"}
                     </td>
                     <td className="text-right text-zinc-400">
                       {j.indexValue != null ? fmtIndex(j.indexValue) : ""}
