@@ -115,6 +115,11 @@ type FeedRow =
   | { kind: "stock"; key: string; at: string; e: SignalEventItem }
   | { kind: "market"; key: string; at: string; m: MarketSignalEventItem };
 
+/** 부호 포함 억원 표기 — 예: +2,615억 / -4,069억. 흐름 전환처럼 0을 넘나드는 값에 방향을 분명히. */
+function signedEok(eok: number): string {
+  return `${eok > 0 ? "+" : eok < 0 ? "-" : ""}${formatEok(Math.abs(eok))}`;
+}
+
 /** 지수 시그널 한 줄 요약 — 왼쪽 라벨/색, 오른쪽(순매수 금액). 행·여정에서 공용. */
 function marketParts(m: MarketSignalEventItem) {
   const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
@@ -133,7 +138,7 @@ function marketParts(m: MarketSignalEventItem) {
         rightLabel: `${m.side === "BUY" ? "매수" : "매도"} 전환`,
         netText:
           m.extremeAmountEok != null && m.netAmountEok != null
-            ? `${formatEok(Math.abs(m.extremeAmountEok))} → ${formatEok(Math.abs(m.netAmountEok))}`
+            ? `${signedEok(m.extremeAmountEok)} → ${signedEok(m.netAmountEok)}`
             : netText,
       };
     default:

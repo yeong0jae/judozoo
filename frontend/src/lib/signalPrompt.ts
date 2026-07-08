@@ -30,6 +30,11 @@ function fmtEok(eok: number): string {
   return `${eok.toLocaleString()}억`;
 }
 
+/** 부호 포함 — 예: +2,615억 / -4,069억. */
+function signedFmtEok(eok: number): string {
+  return `${eok > 0 ? "+" : eok < 0 ? "-" : ""}${fmtEok(Math.abs(eok))}`;
+}
+
 /** 지수 시그널 한 줄 — 시각 · 시장 · 내용 · 지수값 · 등락률. */
 function marketLine(m: MarketSignalEventItem): string {
   const side = m.side === "BUY" ? "매수" : "매도";
@@ -41,7 +46,7 @@ function marketLine(m: MarketSignalEventItem): string {
         ? "5분 20이평 꺾임"
         : m.kind === "NET_FLOW_TURN"
           ? m.extremeAmountEok != null && m.netAmountEok != null
-            ? `${investor} 누적 ${fmtEok(Math.abs(m.extremeAmountEok))}→${fmtEok(Math.abs(m.netAmountEok))} ${side} 전환`
+            ? `${investor} 누적 ${signedFmtEok(m.extremeAmountEok)}→${signedFmtEok(m.netAmountEok)} ${side} 전환`
             : `${investor} ${side} 전환`
           : `${investor} ${fmtEok(m.thresholdEok ?? 0)} 순${side}`;
   const idx =
