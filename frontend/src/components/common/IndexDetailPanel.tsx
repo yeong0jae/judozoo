@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   useIndexMinuteCandles,
   useMarketInvestorNetBuy,
+  useMarketInvestorNetBuyAt,
 } from "../../api/queries";
 import type { MarketInvestorNetBuyItem, MarketType } from "../../types";
 import { formatEok, formatPct } from "../../lib/format";
@@ -28,14 +29,25 @@ export default function IndexDetailPanel({
   market,
   date,
   changeRate,
+  at = null,
 }: {
   market: MarketType | null;
   date: string;
   changeRate?: number | null;
+  /** 선택한 시그널 발생 시각(ISO). 있으면 그 시점 스냅샷, 없으면 라이브 현재값. */
+  at?: string | null;
 }) {
   const [tab, setTab] = useState<DetailTab>("detail");
   const candlesQ = useIndexMinuteCandles(tab === "minute" ? market : null, date);
-  const netBuyQ = useMarketInvestorNetBuy(tab === "detail" && market !== null);
+  const detailOn = tab === "detail" && market !== null;
+  const netBuyLiveQ = useMarketInvestorNetBuy(detailOn);
+  const netBuyAtQ = useMarketInvestorNetBuyAt(detailOn ? at : null, detailOn);
+  // at 지정 & 그 시점 스냅샷이 있으면 스냅샷, 없으면(과거·적치 이전) 라이브로 폴백.
+  const snapshot = at != null && netBuyAtQ.data && netBuyAtQ.data.length > 0 ? netBuyAtQ.data : null;
+  const netBuyItems = snapshot ?? netBuyLiveQ.data ?? [];
+  const netBuyLoading = (at != null && netBuyAtQ.isLoading) || (snapshot == null && netBuyLiveQ.isLoading);
+  const netBuyTitle =
+    snapshot != null ? `${at!.slice(11, 16)} 시점 투자자 순매수` : "당일 누적 투자자 순매수";
   const candles = candlesQ.data ?? [];
   const lastValue = candles.length > 0 ? candles[candles.length - 1].close : null;
 
@@ -91,14 +103,14 @@ export default function IndexDetailPanel({
           ) : (
             <IndexLineChart items={candles} changeRate={changeRate} className="w-full h-[28rem]" />
           )
-        ) : netBuyQ.isLoading ? (
+        ) : netBuyLoading ? (
           <Skeleton className="h-[28rem] w-full" />
-        ) : !netBuyQ.data || netBuyQ.data.length === 0 ? (
+        ) : netBuyItems.length === 0 ? (
           <div className="h-[28rem] flex items-center justify-center">
             <EmptyState message="장중에 투자자 순매수가 표시됩니다" />
           </div>
         ) : (
-          <NetBuyDetail items={netBuyQ.data} />
+          <NetBuyDetail items={netBuyItems} title={netBuyTitle} />
         )}
       </div>
     </div>
@@ -109,12 +121,12 @@ export default function IndexDetailPanel({
 // 상세 — 코스피·코스닥 투자자 순매수
 // ============================================================
 
-function NetBuyDetail({ items }: { items: MarketInvestorNetBuyItem[] }) {
+function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; title: string }) {
   // 코스피 먼저
   const sorted = [...items].sort((a) => (a.market === "KOSPI" ? -1 : 1));
   return (
     <div className="p-1 sm:p-3 space-y-4">
-      <p className="text-xs text-zinc-500">당일 누적 투자자 순매수</p>
+      <p className="text-xs text-zinc-500">{title}</p>
       {sorted.map((m) => (
         <div
           key={m.market}

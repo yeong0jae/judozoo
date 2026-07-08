@@ -3,6 +3,7 @@ package at.backend.leadingstock.application
 import at.backend.leadingstock.domain.InvestorFlowState
 import at.backend.leadingstock.domain.InvestorNetBuyState
 import at.backend.leadingstock.domain.InvestorType
+import at.backend.leadingstock.domain.MarketInvestorSnapshot
 import at.backend.leadingstock.domain.MarketSignalEvent
 import at.backend.leadingstock.domain.MarketSignalThresholds
 import at.backend.library.time.TimeProvider
@@ -60,8 +61,16 @@ class MarketSignalEventPoller(
         }
 
         val now = timeProvider.now()
+        val snapshots = mutableListOf<MarketInvestorSnapshot>()
         val recorded = Market.entries.flatMap { market ->
             val snapshot = sectorInvestorClient.fetchSectorNetBuy(market.mrktTp()) ?: return@flatMap emptyList()
+            // 시그널 발생 시점 조회용으로 매 폴의 순매수를 그대로 적재(전이 여부와 무관).
+            snapshots += MarketInvestorSnapshot(
+                market = market, tradeDate = today, capturedAt = now,
+                foreignEok = snapshot.foreignEok, institutionEok = snapshot.institutionEok,
+                individualEok = snapshot.individualEok,
+                indexValue = snapshot.indexValue, changeRate = snapshot.changeRate,
+            )
             val step = MarketSignalThresholds.stepEok(market)
             val buffer = MarketSignalThresholds.bufferEok(market)
 
@@ -102,6 +111,7 @@ class MarketSignalEventPoller(
             }
         }
 
+        marketSignalEventService.recordInvestorSnapshots(snapshots)
         marketSignalEventService.recordAll(recorded)
         if (recorded.isNotEmpty()) log.info { "시장 시그널 ${recorded.size}건 적재" }
     }

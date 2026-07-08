@@ -197,18 +197,38 @@ class LeadingStockController(
         return ApiResponse.ok(items)
     }
 
-    /** 코스피·코스닥 당일 누적 투자자(외인·기관·개인) 순매수 — 지수 상세 패널용. */
+    /**
+     * 코스피·코스닥 투자자(외인·기관·개인) 순매수 — 지수 상세 패널용.
+     * [at] 지정 시 그 시각 이하 가장 가까운 스냅샷(시그널 발생 시점 값), 미지정 시 당일 라이브 누적.
+     */
     @GetMapping("/market/investor-net-buy")
-    fun getMarketInvestorNetBuy(): ApiResponse<List<MarketInvestorNetBuyItem>> {
-        val items = marketSignalEventService.investorNetBuy().map { (market, nb) ->
-            MarketInvestorNetBuyItem(
-                market = market.name,
-                foreignEok = nb.foreignEok,
-                institutionEok = nb.institutionEok,
-                individualEok = nb.individualEok,
-                indexValue = nb.indexValue,
-                changeRate = nb.changeRate,
-            )
+    fun getMarketInvestorNetBuy(
+        @RequestParam(required = false)
+        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+        at: java.time.LocalDateTime?,
+    ): ApiResponse<List<MarketInvestorNetBuyItem>> {
+        val items = if (at != null) {
+            marketSignalEventService.investorNetBuyAt(at).map { s ->
+                MarketInvestorNetBuyItem(
+                    market = s.market.name,
+                    foreignEok = s.foreignEok,
+                    institutionEok = s.institutionEok,
+                    individualEok = s.individualEok,
+                    indexValue = s.indexValue,
+                    changeRate = s.changeRate,
+                )
+            }
+        } else {
+            marketSignalEventService.investorNetBuy().map { (market, nb) ->
+                MarketInvestorNetBuyItem(
+                    market = market.name,
+                    foreignEok = nb.foreignEok,
+                    institutionEok = nb.institutionEok,
+                    individualEok = nb.individualEok,
+                    indexValue = nb.indexValue,
+                    changeRate = nb.changeRate,
+                )
+            }
         }
         return ApiResponse.ok(items)
     }

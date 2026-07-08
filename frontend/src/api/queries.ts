@@ -41,6 +41,8 @@ export const QK = {
   overseasIndexCloseSnapshots: (date: string) =>
     ["overseas-leading-stocks", "index-close-snapshots", date] as const,
   marketInvestorNetBuy: ["leading-stocks", "market-investor-net-buy"] as const,
+  marketInvestorNetBuyAt: (at: string) =>
+    ["leading-stocks", "market-investor-net-buy", "at", at] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
   investorTrend: (code: string) =>
@@ -162,6 +164,18 @@ export function useMarketInvestorNetBuy(enabled: boolean) {
       ),
     enabled,
     refetchInterval: 30_000,
+  });
+}
+
+/** 시그널 발생 시각([at], ISO LocalDateTime) 기준 스냅샷 순매수. 그 시각 스냅샷이 없으면 빈 배열. */
+export function useMarketInvestorNetBuyAt(at: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: at ? QK.marketInvestorNetBuyAt(at) : ["leading-stocks", "market-investor-net-buy", "at", "null"],
+    queryFn: () =>
+      apiFetch<MarketInvestorNetBuyItem[]>(
+        `/api/leading-stocks/market/investor-net-buy?at=${encodeURIComponent(at as string)}`,
+      ),
+    enabled: enabled && at !== null,
   });
 }
 

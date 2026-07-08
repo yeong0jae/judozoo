@@ -424,6 +424,7 @@ function DomesticSignalLog({
   // 우측 패널 선택 — 종목(차트) 또는 지수(시장 차트). 둘 중 하나만 활성.
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<MarketType | null>(null);
+  const [selectedMarketAt, setSelectedMarketAt] = useState<string | null>(null); // 선택한 지수 시그널 발생 시각
   useEffect(() => {
     // 첫 로드 시 최신 종목 자동 선택 — 단, 사용자가 지수를 고른 상태면 건드리지 않는다.
     if (selectedCode === null && selectedMarket === null && events.length > 0) {
@@ -576,6 +577,7 @@ function DomesticSignalLog({
                   const journey = open ? allMarketEvents.filter((x) => x.market === m.market) : [];
                   return renderMarketRow(row.key, m, open, selected, () => {
                     setSelectedMarket(m.market);
+                    setSelectedMarketAt(m.occurredAt);
                     setSelectedCode(null);
                     setOpenKey(open ? null : row.key);
                   }, journey);
@@ -650,6 +652,7 @@ function DomesticSignalLog({
           <IndexDetailPanel
             market={selectedMarket}
             date={date}
+            at={selectedMarketAt}
             changeRate={allMarketEvents.find((m) => m.market === selectedMarket)?.changeRate ?? null}
           />
         ) : (

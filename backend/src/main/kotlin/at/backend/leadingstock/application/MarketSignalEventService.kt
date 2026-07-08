@@ -3,16 +3,19 @@ package at.backend.leadingstock.application
 import at.backend.leadingstock.domain.InvestorFlowState
 import at.backend.leadingstock.domain.InvestorType
 import at.backend.leadingstock.domain.MarketFlowStateSnapshot
+import at.backend.leadingstock.domain.MarketInvestorSnapshot
 import at.backend.leadingstock.domain.MarketSignalEvent
 import at.backend.leadingstock.domain.MarketSignalType
 import at.backend.leadingstock.domain.NetTradeSide
 import at.backend.leadingstock.infrastructure.repository.MarketFlowStateSnapshotRepository
+import at.backend.leadingstock.infrastructure.repository.MarketInvestorSnapshotRepository
 import at.backend.leadingstock.infrastructure.repository.MarketSignalEventRepository
 import at.backend.platform.kiwoom.client.KiwoomSectorInvestorClient
 import at.backend.stock.domain.Market
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 /** 시장 단위 시그널 전이 적재/조회. 적재는 폴러가, 조회는 실시간 로그가 쓴다. */
 @Service
@@ -20,7 +23,24 @@ class MarketSignalEventService(
     private val repository: MarketSignalEventRepository,
     private val sectorInvestorClient: KiwoomSectorInvestorClient,
     private val flowStateRepository: MarketFlowStateSnapshotRepository,
+    private val investorSnapshotRepository: MarketInvestorSnapshotRepository,
 ) {
+
+    /** 장중 투자자 순매수 스냅샷 적재 — 폴러가 매 폴마다 시장별 한 줄씩. */
+    @Transactional
+    fun recordInvestorSnapshots(snapshots: List<MarketInvestorSnapshot>) {
+        if (snapshots.isNotEmpty()) investorSnapshotRepository.saveAll(snapshots)
+    }
+
+    /** 각 시장의 [dateTime] 이하 가장 가까운 순매수 스냅샷. 그 시각 이전 스냅샷이 없는 시장은 제외. */
+    @Transactional(readOnly = true)
+    fun investorNetBuyAt(dateTime: LocalDateTime): List<MarketInvestorSnapshot> =
+        Market.entries.mapNotNull { market ->
+            investorSnapshotRepository
+                .findFirstByMarketAndTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(
+                    market, dateTime.toLocalDate(), dateTime,
+                )
+        }
 
     /** 그날 흐름 전환 상태 스냅샷 복원 — 키 "market|investor". 재시작으로 메모리가 비었을 때 정점을 되살린다. */
     @Transactional(readOnly = true)
