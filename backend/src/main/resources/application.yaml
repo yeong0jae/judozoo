@@ -39,7 +39,7 @@ stock:
 leading-stock:
   criteria:
     min-market-cap: 3000                   # 3,000억원 (억원 단위)
-    max-trading-value-rank: 40             # 거래대금 상위 40위
+    max-trading-value-rank: 30             # 거래대금 상위 30위
     min-daily-price-change-rate: 7.0       # 당일 등락률 7% 이상
     max-high-position-drop-rate: -5.0      # 60봉 고가 대비 -5% 이내
     min-minute-volume-increase-rate: 500.0 # 1분봉 거래대금 증가율 500%
