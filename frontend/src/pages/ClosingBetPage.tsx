@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useKospiIndex,
@@ -91,7 +91,7 @@ const stripCardCls = (active: boolean) =>
   `flex flex-col gap-0.5 px-3.5 py-2.5 min-w-[10rem] rounded-xl text-left transition-all duration-150 active:scale-[0.98] ${
     active
       ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/40"
-      : "bg-zinc-900 hover:bg-zinc-800/70 hover:-translate-y-px"
+      : "bg-white/[0.03] hover:bg-white/[0.06] hover:-translate-y-px"
   }`;
 
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
@@ -166,7 +166,7 @@ function ThemeWatchlist({
   const q = query.trim();
 
   return (
-    <div className="min-h-0 flex flex-col rounded-2xl bg-zinc-900 overflow-hidden">
+    <div className="min-h-0 flex flex-col overflow-hidden">
       <div className="px-4 pt-4 pb-2">
         <span className="text-base font-bold text-zinc-100">테마</span>
       </div>
@@ -256,7 +256,9 @@ function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: strin
   }
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
-    return ix ? <IndexDetail index={ix} /> : null;
+    if (!ix) return null;
+    const liveMarket = LIVE_MARKET[ix.id];
+    return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
   }
   const entry = stockByName[sel.name];
   return entry ? <StockDetail name={sel.name} theme={entry.theme} /> : null;
@@ -277,33 +279,90 @@ function Amount({ eok }: { eok: number }) {
   );
 }
 
-function ChartCard({ chartKey, subtitle }: { chartKey: string; subtitle: string }) {
-  const [minute, setMinute] = useState(true);
-  const series = useMemo(() => mockSeries(chartKey, minute), [chartKey, minute]);
+type DetailTab = "detail" | "minute" | "daily";
+const DETAIL_TABS: { key: DetailTab; label: string }[] = [
+  { key: "detail", label: "상세" },
+  { key: "minute", label: "1분봉" },
+  { key: "daily", label: "일봉" },
+];
+
+/** 주도주 후보 조회 상세 패널 톤 헤더 — 아바타·이름·코드·분류 / 가격·등락 / 상세·1분봉·일봉 탭. */
+function DetailHeader({
+  avatar,
+  name,
+  code,
+  category,
+  price,
+  pct,
+  extra,
+  tab,
+  setTab,
+}: {
+  avatar: ReactNode;
+  name: string;
+  code?: string;
+  category: string;
+  price: number;
+  pct: number;
+  extra?: ReactNode;
+  tab: DetailTab;
+  setTab: (t: DetailTab) => void;
+}) {
+  const chg = changeAmount(price, pct);
   return (
-    <div className={cardCls}>
-      <div className="flex items-center justify-between mb-3">
-        <span className={titleCls}>
-          차트 <span className="text-zinc-600 font-normal">· {subtitle}</span>
-        </span>
+    <header className="pb-4 border-b border-zinc-800">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            {avatar}
+            <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+              <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
+              {code && <span className="num text-xs text-zinc-500">{code}</span>}
+              <span className="text-xs text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">{category}</span>
+            </div>
+          </div>
+          <div className="mt-1 flex items-baseline gap-2 flex-wrap">
+            <span className="num text-xl font-bold text-zinc-100">{formatPrice(price)}</span>
+            <span className={`num text-sm font-semibold ${colorByPnL(pct)}`}>
+              {chg > 0 ? "+" : chg < 0 ? "−" : ""}
+              {Math.abs(chg).toLocaleString("ko-KR")} ({formatPct(pct / 100)})
+            </span>
+            {extra}
+          </div>
+        </div>
         <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
-          {[
-            { k: true, label: "1분봉" },
-            { k: false, label: "일봉" },
-          ].map((o) => (
+          {DETAIL_TABS.map((t) => (
             <button
-              key={o.label}
+              key={t.key}
               type="button"
-              onClick={() => setMinute(o.k)}
+              onClick={() => setTab(t.key)}
               className={`px-3 py-1.5 rounded-lg transition-colors ${
-                minute === o.k ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+                tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
-              {o.label}
+              {t.label}
             </button>
           ))}
         </div>
       </div>
+    </header>
+  );
+}
+
+/** 지수/테마용 원형 아바타. */
+function CircleAvatar({ name }: { name: string }) {
+  return (
+    <span className="w-10 h-10 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm shrink-0">
+      {name.slice(0, 2)}
+    </span>
+  );
+}
+
+/** 목 차트(1분봉/일봉) — 카드에 차트만. */
+function MockChart({ chartKey, minute }: { chartKey: string; minute: boolean }) {
+  const series = useMemo(() => mockSeries(chartKey, minute), [chartKey, minute]);
+  return (
+    <div className={cardCls}>
       <CandleChart key={`${chartKey}-${minute}`} series={series} timeVisible={minute} className="w-full h-72" />
     </div>
   );
@@ -445,100 +504,102 @@ function NxtCard({ dataKey }: { dataKey: string }) {
 
 function StockDetail({ name, theme }: { name: string; theme: string }) {
   const { stock } = stockByName[name];
-  const chg = changeAmount(stock.price, stock.pct);
   const hi = highDistance(name);
+  const [tab, setTab] = useState<DetailTab>("detail");
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-3 pb-1">
-        <StockAvatar name={name} code={stock.code} size={42} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
-            <span className="num text-xs text-zinc-500 bg-white/[0.04] rounded px-1.5 py-0.5">{stock.code}</span>
-          </div>
-          <div className="text-xs text-zinc-500 mt-0.5">{theme} · KOSPI</div>
-          <span className="inline-flex items-center gap-1.5 mt-1.5 text-xs bg-white/[0.04] rounded-lg px-2.5 py-1">
+      <DetailHeader
+        avatar={<StockAvatar name={name} code={stock.code} size={40} />}
+        name={name}
+        code={stock.code}
+        category={theme}
+        price={stock.price}
+        pct={stock.pct}
+        extra={
+          <span className="inline-flex items-center gap-1.5 text-xs bg-white/[0.04] rounded-lg px-2.5 py-1">
             <span className="text-zinc-500">신고가까지</span>
             <span className="num text-blue-400 font-medium">{hi.toFixed(1)}%</span>
             <span className="text-zinc-600">· 52주</span>
           </span>
-        </div>
-        <div className="text-right">
-          <div className="num text-xl font-bold text-zinc-100">{formatPrice(stock.price)}</div>
-          <div className={`num text-sm ${colorByPnL(stock.pct)}`}>
-            {chg > 0 ? "+" : chg < 0 ? "−" : ""}
-            {Math.abs(chg).toLocaleString("ko-KR")} ({formatPct(stock.pct / 100)})
+        }
+        tab={tab}
+        setTab={setTab}
+      />
+      {tab === "detail" ? (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <InvestorTable dataKey={name} />
+            <TradingValueCard dataKey={name} />
           </div>
-        </div>
-      </div>
-
-      <ChartCard chartKey={name} subtitle={theme} />
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <InvestorTable dataKey={name} />
-        <TradingValueCard dataKey={name} />
-      </div>
-      <SessionsCard dataKey={name} />
-      <NxtCard dataKey={name} />
+          <SessionsCard dataKey={name} />
+          <NxtCard dataKey={name} />
+        </>
+      ) : (
+        <MockChart chartKey={name} minute={tab === "minute"} />
+      )}
     </div>
   );
 }
 
+/** 목데이터 지수 상세(비-코스피). */
 function IndexDetail({ index }: { index: CbIndex }) {
-  const liveMarket = LIVE_MARKET[index.id];
-  if (liveMarket) return <LiveIndexDetail market={liveMarket} fallback={index} />;
-
+  const [tab, setTab] = useState<DetailTab>("detail");
   return (
     <div className="flex flex-col gap-4">
-      <IndexHeader name={index.name} value={index.value} pct={index.pct} />
-      <ChartCard chartKey={index.id} subtitle="지수" />
-      <InvestorTable dataKey={index.id} />
-      <SessionsCard dataKey={index.id} />
+      <DetailHeader
+        avatar={<CircleAvatar name={index.name} />}
+        name={index.name}
+        category="지수"
+        price={index.value}
+        pct={index.pct}
+        tab={tab}
+        setTab={setTab}
+      />
+      {tab === "detail" ? (
+        <>
+          <InvestorTable dataKey={index.id} />
+          <SessionsCard dataKey={index.id} />
+        </>
+      ) : (
+        <MockChart chartKey={index.id} minute={tab === "minute"} />
+      )}
     </div>
   );
 }
 
-function IndexHeader({ name, value, pct }: { name: string; value: number; pct: number }) {
-  const chg = changeAmount(value, pct);
-  return (
-    <div className="flex items-start gap-3 pb-1">
-      <span className="w-[42px] h-[42px] rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm shrink-0">
-        {name.slice(0, 2)}
-      </span>
-      <div className="flex-1 min-w-0">
-        <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
-        <div className="text-xs text-zinc-500 mt-0.5">지수</div>
-      </div>
-      <div className="text-right">
-        <div className="num text-xl font-bold text-zinc-100">{formatPrice(value)}</div>
-        <div className={`num text-sm ${colorByPnL(pct)}`}>
-          {chg > 0 ? "+" : chg < 0 ? "−" : ""}
-          {Math.abs(chg).toLocaleString("ko-KR")} ({formatPct(pct / 100)})
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** 실데이터 지수 상세(코스피) — 지수값·분봉·일봉·10일 수급·세션 전부 토스. */
+/** 실데이터 지수 상세(코스피) — 지수값·1분봉·일봉은 토스, 거래원은 키움. */
 function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: CbIndex }) {
   const date = todayStr();
   const priceQ = useKospiIndex();
   const value = priceQ.data?.currentValue ?? fallback.value;
   const pct = priceQ.data?.changeRate ?? fallback.pct;
+  const [tab, setTab] = useState<DetailTab>("detail");
 
   return (
     <div className="flex flex-col gap-4">
-      <IndexHeader name={fallback.name} value={value} pct={pct} />
-      <LiveIndexChartCard market={market} />
-      <RealInvestorTable market={market} />
-      <RealSessionsCard market={market} date={date} />
+      <DetailHeader
+        avatar={<CircleAvatar name={fallback.name} />}
+        name={fallback.name}
+        category="지수"
+        price={value}
+        pct={pct}
+        tab={tab}
+        setTab={setTab}
+      />
+      {tab === "detail" ? (
+        <>
+          <RealInvestorTable market={market} />
+          <RealSessionsCard market={market} date={date} />
+        </>
+      ) : (
+        <LiveChart market={market} interval={tab === "daily" ? "1d" : "1m"} />
+      )}
     </div>
   );
 }
 
-/** 지수 분봉/일봉 — 토스 캔들(OHLCV) 그대로 캔들차트. */
-function LiveIndexChartCard({ market }: { market: MarketType }) {
-  const [interval, setInterval] = useState<"1m" | "1d">("1m");
+/** 지수 1분봉/일봉 — 토스 캔들(OHLCV). */
+function LiveChart({ market, interval }: { market: MarketType; interval: "1m" | "1d" }) {
   const { data, isLoading } = useMarketCandles(market, interval);
   const items = data ?? [];
   const series = useMemo(
@@ -547,26 +608,6 @@ function LiveIndexChartCard({ market }: { market: MarketType }) {
   );
   return (
     <div className={cardCls}>
-      <div className="flex items-center justify-between mb-3">
-        <span className={titleCls}>차트</span>
-        <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
-          {[
-            { k: "1m" as const, label: "1분봉" },
-            { k: "1d" as const, label: "일봉" },
-          ].map((o) => (
-            <button
-              key={o.label}
-              type="button"
-              onClick={() => setInterval(o.k)}
-              className={`px-3 py-1.5 rounded-lg transition-colors ${
-                interval === o.k ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
       {isLoading ? (
         <Skeleton className="h-72 w-full" />
       ) : items.length === 0 ? (
@@ -824,7 +865,7 @@ function NewsPanel({ sel }: { sel: Selection }) {
     items = MARKET_NEWS;
   }
   return (
-    <div className="min-h-0 flex flex-col rounded-2xl bg-zinc-900 overflow-hidden">
+    <div className="min-h-0 flex flex-col overflow-hidden">
       <div className="px-4 pt-4 pb-2.5">
         <div className="text-base font-bold text-zinc-100">뉴스</div>
         <div className="text-[11px] text-zinc-500 mt-0.5">{label}</div>
