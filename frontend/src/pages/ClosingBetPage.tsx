@@ -101,11 +101,19 @@ const chgText = (value: number, pct: number) => {
 /** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 5칸을 얇은 구분선으로만 분리. */
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
   const kospi = useKospiIndex();
+  const futures = useFuturesQuote();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
-        const value = ix.id === "kospi" ? kospi.data?.currentValue ?? ix.value : ix.value;
-        const pct = ix.id === "kospi" ? kospi.data?.changeRate ?? ix.pct : ix.pct;
+        let value = ix.value;
+        let pct = ix.pct;
+        if (ix.id === "kospi") {
+          value = kospi.data?.currentValue ?? value;
+          pct = kospi.data?.changeRate ?? pct;
+        } else if (ix.id === "kospiF") {
+          value = futures.data?.futuresPrice ?? value;
+          pct = futures.data?.changeRate ?? pct;
+        }
         return (
           <IndexCell
             key={ix.id}
@@ -634,10 +642,7 @@ function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: C
   );
 }
 
-/**
- * 코스피 선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트.
- * ⚠️ 목데이터(화면 구성 우선). KIS 선물시세(FHMIF10000000) 연동 시 값 교체 예정.
- */
+/** 코스피 선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트. KIS 근월물 실시세. */
 function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1d");
   const { data } = useFuturesQuote();
@@ -652,6 +657,10 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
   const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
   const expiryDate = data?.expiryDate ?? "2026-09-10"; // 만기일
+  const dday = Math.max(
+    0,
+    Math.ceil((new Date(`${expiryDate}T00:00:00+09:00`).getTime() - Date.now()) / 86_400_000),
+  ); // 만기까지 남은 일수
   const strengthDiff = futPct - spotPct; // 선물 − 현물 상대강도(%p)
   const contango = basis >= 0;
   const tone = contango ? "text-red-400" : "text-blue-400";
@@ -722,6 +731,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
         <div className="mt-1.5 flex items-baseline gap-2 text-sm">
           <span className="text-xs text-zinc-500">만기일</span>
           <span className="num font-semibold text-zinc-100">{expiryDate}</span>
+          <span className="num text-xs text-zinc-500">D-{dday}</span>
         </div>
       </div>
 

@@ -47,7 +47,7 @@ class MarketFuturesService(
         return firstThu.plusWeeks(1).toString()
     }
 
-    /** 근월물 캔들 — interval "1d"(최근 [count]봉)/"1m"(당일). */
+    /** 근월물 캔들 — interval "1d"(최근 [count]봉)/"1m"(최근 1거래일). */
     fun candles(interval: String, count: Int): List<KisFuturesClient.FuturesBar> {
         val near = client.fetchNearMonth() ?: return emptyList()
         val today = timeProvider.today()
@@ -58,18 +58,39 @@ class MarketFuturesService(
         }
     }
 
-    /** 분봉 — 오늘부터 뒤로 밀며 데이터 있는 최근 영업일의 당일 분봉(주말·휴장·개장전 대응). */
+    /** 분봉 — 오늘부터 뒤로 밀며 데이터 있는 최근 영업일 하루치(주말·휴장·개장전 대응). */
     private fun recentMinutes(iscd: String): List<KisFuturesClient.FuturesBar> {
         val today = timeProvider.today()
         val nowTime = timeProvider.now().toLocalTime()
         var day = today
         repeat(5) {
-            val hour = if (day == today) nowTime else LocalTime.of(15, 45)
-            val bars = client.fetchMinute(iscd, day, hour)
+            val end = if (day == today) nowTime else SESSION_END
+            val bars = minutesOfDay(iscd, day, end)
             if (bars.isNotEmpty()) return bars
             day = day.minusDays(1)
         }
         return emptyList()
+    }
+
+    /** [day] 하루치 분봉 — 한 번에 102봉만 오므로 [end]부터 장 시작까지 뒤로 페이징. */
+    private fun minutesOfDay(iscd: String, day: LocalDate, end: LocalTime): List<KisFuturesClient.FuturesBar> {
+        val byTime = sortedMapOf<String, KisFuturesClient.FuturesBar>()
+        var hour = end
+        repeat(MINUTE_PAGES) {
+            val page = client.fetchMinute(iscd, day, hour)
+            if (page.isEmpty()) return byTime.values.toList()
+            page.forEach { byTime[it.time] = it }
+            val earliest = LocalTime.parse(page.first().time)
+            if (!earliest.isAfter(SESSION_START)) return byTime.values.toList()
+            hour = earliest.minusMinutes(1)
+        }
+        return byTime.values.toList()
+    }
+
+    companion object {
+        private const val MINUTE_PAGES = 7 // 하루(08:45~15:45=420분)를 102봉씩 덮는 최대 페이지 수
+        private val SESSION_START: LocalTime = LocalTime.of(8, 45) // 선물 개장(동시호가 08:30~08:45)
+        private val SESSION_END: LocalTime = LocalTime.of(15, 45) // 조회 상한(마감 동시호가 체결까지 포함)
     }
 }
 
