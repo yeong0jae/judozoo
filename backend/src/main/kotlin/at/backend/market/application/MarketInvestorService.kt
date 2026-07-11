@@ -91,12 +91,13 @@ data class Nets(
 }
 
 /**
- * 세션 기관 세부(억원) — 스냅샷 보유 6종(기타금융 제외). 표시 순서: 금융투자·보험·투신·사모펀드·연기금등·은행.
- * 일별(ka10051)의 7종과 달리 스냅샷엔 기타금융이 없어 6종만 제공한다.
+ * 세션 기관 세부(억원) — 일별(ka10051)과 동일한 7종. 표시 순서: 금융투자·보험·기타금융·투신·사모펀드·연기금등·은행.
+ * 기타금융은 스냅샷 컬럼 추가 이후 폴부터 채워진다(과거 스냅샷은 0).
  */
 data class SessionOrg(
     val financialInvestmentEok: Long,
     val insuranceEok: Long,
+    val otherFinanceEok: Long,
     val trustEok: Long,
     val privateEquityEok: Long,
     val pensionFundEok: Long,
@@ -105,6 +106,7 @@ data class SessionOrg(
     operator fun minus(o: SessionOrg) = SessionOrg(
         financialInvestmentEok - o.financialInvestmentEok,
         insuranceEok - o.insuranceEok,
+        otherFinanceEok - o.otherFinanceEok,
         trustEok - o.trustEok,
         privateEquityEok - o.privateEquityEok,
         pensionFundEok - o.pensionFundEok,
@@ -120,6 +122,7 @@ fun MarketInvestorSnapshot.nets() = Nets(
     breakdown = SessionOrg(
         financialInvestmentEok = financialInvestmentEok,
         insuranceEok = insuranceEok,
+        otherFinanceEok = otherFinanceEok,
         trustEok = trustEok,
         privateEquityEok = privateEquityEok,
         pensionFundEok = pensionFundEok,

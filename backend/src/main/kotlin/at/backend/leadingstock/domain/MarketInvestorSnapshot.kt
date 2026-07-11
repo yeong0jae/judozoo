@@ -68,6 +68,9 @@ class MarketInvestorSnapshot(
     @Column(name = "bank_eok", nullable = false)
     val bankEok: Long = 0,
 
+    @Column(name = "other_finance_eok", nullable = false)
+    val otherFinanceEok: Long = 0,
+
     @Column(name = "index_value", nullable = false)
     val indexValue: Double,
 

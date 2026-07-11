@@ -72,6 +72,7 @@ class MarketSignalEventPoller(
                 financialInvestmentEok = snapshot.financialInvestmentEok, trustEok = snapshot.trustEok,
                 pensionFundEok = snapshot.pensionFundEok, privateEquityEok = snapshot.privateEquityEok,
                 insuranceEok = snapshot.insuranceEok, bankEok = snapshot.bankEok,
+                otherFinanceEok = snapshot.otherFinanceEok,
                 indexValue = snapshot.indexValue, changeRate = snapshot.changeRate,
             )
             val step = MarketSignalThresholds.stepEok(market)
