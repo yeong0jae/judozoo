@@ -28,7 +28,7 @@ class MarketFuturesService(
             changeRate = s.changeRate,
             spot = s.spot,
             spotChangeRate = s.spotChangeRate,
-            basis = s.futuresPrice - s.spot, // 시장 베이시스 = 선물 − 현물(KOSPI200)
+            basis = s.basis, // 시장 베이시스 = 선물 − 현물(KOSPI200)
             dprt = s.dprt,
             openInterest = s.openInterest,
             openInterestChange = s.openInterestChange,

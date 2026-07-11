@@ -99,7 +99,8 @@ class KisFuturesClient(
                 futuresPrice = futsPrice,
                 changeRate = signed(o.futs_prdy_ctrt, o.prdy_vrss_sign),
                 spot = spot,
-                spotChangeRate = signed(o.kospi200_prdy_ctrt, o.kospi200_prdy_vrss_sign),
+                spotChangeRate = spotChangeRate(o, spot),
+                basis = o.basis?.trim()?.toDoubleOrNull() ?: (futsPrice - spot),
                 dprt = o.dprt?.trim()?.toDoubleOrNull() ?: 0.0,
                 openInterest = o.hts_otst_stpl_qty?.trim()?.toLongOrNull() ?: 0L,
                 openInterestChange = o.otst_stpl_qty_icdc?.trim()?.toLongOrNull() ?: 0L,
@@ -154,6 +155,15 @@ class KisFuturesClient(
         return if (sign?.trim() in setOf("4", "5")) -mag else mag
     }
 
+    /** KOSPI200 등락률 — ctrt가 0으로 오는 경우가 있어, 전일 대비 포인트에서 역산해 보완. */
+    private fun spotChangeRate(o: DailySummary, spot: Double): Double {
+        val ctrt = signed(o.kospi200_prdy_ctrt, o.kospi200_prdy_vrss_sign)
+        if (ctrt != 0.0) return ctrt
+        val diff = signed(o.kospi200_prdy_vrss, o.kospi200_prdy_vrss_sign)
+        val prevClose = spot - diff
+        return if (diff == 0.0 || prevClose <= 0.0) 0.0 else diff / prevClose * 100
+    }
+
     // ── 응답 DTO (필요 필드만) ──
     data class BoardResponse(
         val rt_cd: String? = null,
@@ -181,7 +191,9 @@ class KisFuturesClient(
         val futs_prpr: String? = null,
         val futs_prdy_ctrt: String? = null,
         val prdy_vrss_sign: String? = null,
+        val basis: String? = null,
         val kospi200_nmix: String? = null,
+        val kospi200_prdy_vrss: String? = null,
         val kospi200_prdy_ctrt: String? = null,
         val kospi200_prdy_vrss_sign: String? = null,
         val hts_otst_stpl_qty: String? = null,
@@ -253,6 +265,7 @@ class KisFuturesClient(
         val changeRate: Double,
         val spot: Double,
         val spotChangeRate: Double,
+        val basis: Double, // KIS 제공 베이시스(없으면 선물 − 현물)
         val dprt: Double,
         val openInterest: Long,
         val openInterestChange: Long,
