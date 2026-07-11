@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   useKospiIndex,
   useMarketCandles,
@@ -65,7 +66,17 @@ export default function ClosingBetPage() {
           onStock={(name) => setSel({ kind: "stock", name })}
         />
         <div className="min-h-0 lg:overflow-y-auto pr-1">
-          <SubjectDetail sel={sel} onStock={(name) => setSel({ kind: "stock", name })} />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${sel.kind}-${sel.kind === "index" ? sel.id : sel.name}`}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <SubjectDetail sel={sel} onStock={(name) => setSel({ kind: "stock", name })} />
+            </motion.div>
+          </AnimatePresence>
         </div>
         <NewsPanel sel={sel} />
       </div>
@@ -77,8 +88,10 @@ export default function ClosingBetPage() {
 // 상단 시장 스트립 — 지수/선물 카드 + 분위기 메모
 // ============================================================
 const stripCardCls = (active: boolean) =>
-  `flex flex-col gap-0.5 px-3.5 py-2.5 min-w-[10rem] rounded-xl border text-left transition-colors ${
-    active ? "border-blue-500 bg-blue-500/[0.08]" : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+  `flex flex-col gap-0.5 px-3.5 py-2.5 min-w-[10rem] rounded-xl text-left transition-all duration-150 active:scale-[0.98] ${
+    active
+      ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/40"
+      : "bg-zinc-900 hover:bg-zinc-800/70 hover:-translate-y-px"
   }`;
 
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
@@ -97,7 +110,7 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
           </button>
         );
       })}
-      <div className="flex-1 min-w-[16rem] flex flex-col gap-1 px-4 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900">
+      <div className="flex-1 min-w-[16rem] flex flex-col gap-1 px-4 py-2.5 rounded-xl bg-zinc-900">
         <span className="text-[11px] text-zinc-500 tracking-wide">오늘 시장 분위기 · 재료</span>
         <div
           contentEditable
@@ -173,7 +186,7 @@ function ThemeWatchlist({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="종목 검색"
-          className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-600"
+          className="w-full rounded-xl bg-zinc-950/70 border border-white/[0.06] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none transition-colors focus:border-white/20 focus:bg-zinc-950"
         />
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -185,7 +198,7 @@ function ThemeWatchlist({
           return (
             <div key={t.name} className="border-t border-white/[0.04]">
               <div
-                className={`flex items-center justify-between pl-3.5 pr-2 py-2 border-l-2 ${
+                className={`flex items-center justify-between pl-3.5 pr-2 py-2 border-l-2 transition-colors ${
                   themeSel ? "border-blue-500 bg-blue-500/[0.08]" : "border-transparent hover:bg-white/[0.03]"
                 }`}
               >
@@ -215,7 +228,7 @@ function ThemeWatchlist({
               {isOpen && (
                 <>
                   {!q && (
-                    <div className="mx-3.5 mb-1 flex items-center gap-2 rounded-lg bg-zinc-950 border border-white/[0.04] px-2.5 py-1.5">
+                    <div className="mx-3.5 mb-1 flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5">
                       <span className="text-[10px] font-bold text-blue-500 shrink-0">AI</span>
                       <span className="text-[11px] text-zinc-400 leading-snug">{t.news}</span>
                     </div>
@@ -227,7 +240,7 @@ function ThemeWatchlist({
                         key={s.code}
                         type="button"
                         onClick={() => onStock(s.name)}
-                        className={`w-full flex items-center gap-2.5 pl-3.5 pr-4 py-2 border-l-2 text-left ${
+                        className={`w-full flex items-center gap-2.5 pl-3.5 pr-4 py-2 border-l-2 text-left transition-colors ${
                           active ? "border-blue-500 bg-blue-500/[0.08]" : "border-transparent hover:bg-white/[0.03]"
                         }`}
                       >
@@ -395,7 +408,7 @@ function SessionsCard({ dataKey }: { dataKey: string }) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         {list.map((s) => (
-          <div key={s.name} className="rounded-xl bg-zinc-950 border border-zinc-800 p-3">
+          <div key={s.name} className="rounded-xl bg-white/[0.02] p-3">
             <div className="flex items-start justify-between mb-2">
               <div>
                 <div className="text-xs text-zinc-300">{s.name}</div>
@@ -458,10 +471,10 @@ function StockDetail({ name, theme }: { name: string; theme: string }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
-            <span className="num text-xs text-zinc-500 border border-zinc-800 rounded px-1.5 py-0.5">{stock.code}</span>
+            <span className="num text-xs text-zinc-500 bg-white/[0.04] rounded px-1.5 py-0.5">{stock.code}</span>
           </div>
           <div className="text-xs text-zinc-500 mt-0.5">{theme} · KOSPI</div>
-          <span className="inline-flex items-center gap-1.5 mt-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 mt-1.5 text-xs bg-white/[0.04] rounded-lg px-2.5 py-1">
             <span className="text-zinc-500">신고가까지</span>
             <span className="num text-blue-400 font-medium">{hi.toFixed(1)}%</span>
             <span className="text-zinc-600">· 52주</span>
@@ -688,7 +701,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {list.map((s) => (
-            <div key={s.name} className="rounded-xl bg-zinc-950 border border-zinc-800 p-3">
+            <div key={s.name} className="rounded-xl bg-white/[0.02] p-3">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className="text-xs text-zinc-300">{s.name}</div>
@@ -745,7 +758,7 @@ function ThemeDetail({ theme, onStock }: { theme: CbTheme; onStock: (name: strin
           {theme.related.map((nm) => {
             const r = relIndicator(nm);
             return (
-              <div key={nm} className="rounded-xl bg-zinc-950 border border-zinc-800 p-3">
+              <div key={nm} className="rounded-xl bg-white/[0.02] p-3">
                 <div className="text-xs text-zinc-400">{r.name}</div>
                 <div className="num text-base font-bold text-zinc-100 mt-0.5">{formatPrice(r.value)}</div>
                 <div className={`num text-[11px] ${colorByPnL(r.pct)}`}>{formatPct(r.pct / 100)}</div>
@@ -766,7 +779,7 @@ function ThemeDetail({ theme, onStock }: { theme: CbTheme; onStock: (name: strin
               key={s.code}
               type="button"
               onClick={() => onStock(s.name)}
-              className="flex items-center gap-2.5 py-2 border-t border-zinc-800/60 first:border-t-0 hover:bg-white/[0.03] -mx-1 px-1 rounded-lg"
+              className="flex items-center gap-2.5 py-2 border-t border-zinc-800/60 first:border-t-0 hover:bg-white/[0.03] transition-colors -mx-1 px-1 rounded-lg"
             >
               <StockAvatar name={s.name} code={s.code} size={26} />
               <span className="flex-1 text-left text-[13px] text-zinc-200">{s.name}</span>
@@ -807,7 +820,7 @@ function NewsPanel({ sel }: { sel: Selection }) {
           <button
             key={i}
             type="button"
-            className="w-full text-left px-4 py-3 border-t border-white/[0.04] hover:bg-white/[0.03]"
+            className="w-full text-left px-4 py-3 border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors"
           >
             <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 mb-1">
               <span className={`font-semibold ${n.hot ? "text-red-400" : "text-blue-500"}`}>{n.src}</span>
