@@ -3,6 +3,7 @@ package at.backend.market.application
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisFuturesClient
 import org.springframework.stereotype.Service
+import java.time.LocalTime
 
 /**
  * 코스피 선물(근월물) 시세 — KIS 국내선물옵션. 종가베팅 지수 상세용.
@@ -39,9 +40,23 @@ class MarketFuturesService(
         val today = timeProvider.today()
         return when (interval) {
             "1d" -> client.fetchDaily(near.iscd, today.minusDays(count.toLong() * 2 + 10), today)?.candles ?: emptyList()
-            "1m" -> client.fetchMinute(near.iscd, today, timeProvider.now().toLocalTime())
+            "1m" -> recentMinutes(near.iscd)
             else -> emptyList()
         }
+    }
+
+    /** 분봉 — 오늘부터 뒤로 밀며 데이터 있는 최근 영업일의 당일 분봉(주말·휴장·개장전 대응). */
+    private fun recentMinutes(iscd: String): List<KisFuturesClient.FuturesBar> {
+        val today = timeProvider.today()
+        val nowTime = timeProvider.now().toLocalTime()
+        var day = today
+        repeat(5) {
+            val hour = if (day == today) nowTime else LocalTime.of(15, 45)
+            val bars = client.fetchMinute(iscd, day, hour)
+            if (bars.isNotEmpty()) return bars
+            day = day.minusDays(1)
+        }
+        return emptyList()
     }
 }
 
