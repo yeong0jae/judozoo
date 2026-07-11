@@ -651,6 +651,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const spotPct = data?.spotChangeRate ?? 0.82; // 현물 등락률
   const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
   const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
+  const expiryDate = data?.expiryDate ?? "2026-09-10"; // 만기일
   const strengthDiff = futPct - spotPct; // 선물 − 현물 상대강도(%p)
   const contango = basis >= 0;
   const tone = contango ? "text-red-400" : "text-blue-400";
@@ -717,6 +718,10 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
             {oiChg >= 0 ? "+" : "−"}
             {Math.abs(oiChg).toLocaleString("ko-KR")} 전일
           </span>
+        </div>
+        <div className="mt-1.5 flex items-baseline gap-2 text-sm">
+          <span className="text-xs text-zinc-500">만기일</span>
+          <span className="num font-semibold text-zinc-100">{expiryDate}</span>
         </div>
       </div>
 

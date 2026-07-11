@@ -72,6 +72,7 @@ export interface FuturesQuote {
   openInterest: number; // 미결제약정(계약)
   openInterestChange: number; // 전일 대비 증감
   rmnnDays: number; // 만기 잔존일수
+  expiryDate: string; // 만기일 yyyy-MM-dd
 }
 
 /** 시장 지수 캔들(OHLCV) — 토스 Market Indicators. date는 KST, time은 1d일 땐 00:00:00 고정. */

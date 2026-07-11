@@ -3,6 +3,8 @@ package at.backend.market.application
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisFuturesClient
 import org.springframework.stereotype.Service
+import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalTime
 
 /**
@@ -31,7 +33,18 @@ class MarketFuturesService(
             openInterest = s.openInterest,
             openInterestChange = s.openInterestChange,
             rmnnDays = near.rmnnDays,
+            expiryDate = expiryOf(near.name) ?: "",
         )
+    }
+
+    /** 근월물 이름("F 202609")의 만기월 둘째 목요일 = KRX 파생 최종거래일. */
+    private fun expiryOf(name: String): String? {
+        val ym = Regex("(\\d{6})").find(name)?.value ?: return null
+        val year = ym.substring(0, 4).toIntOrNull() ?: return null
+        val month = ym.substring(4, 6).toIntOrNull() ?: return null
+        val first = LocalDate.of(year, month, 1)
+        val firstThu = first.plusDays(((DayOfWeek.THURSDAY.value - first.dayOfWeek.value + 7) % 7).toLong())
+        return firstThu.plusWeeks(1).toString()
     }
 
     /** 근월물 캔들 — interval "1d"(최근 [count]봉)/"1m"(당일). */
@@ -71,4 +84,5 @@ data class FuturesQuote(
     val openInterest: Long, // 미결제약정(계약)
     val openInterestChange: Long, // 전일 대비 증감
     val rmnnDays: Int, // 만기 잔존일수
+    val expiryDate: String, // 만기일 yyyy-MM-dd (근월물 최종거래일)
 )
