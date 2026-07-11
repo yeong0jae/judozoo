@@ -9,9 +9,10 @@ import java.time.OffsetDateTime
 import kotlin.math.roundToLong
 
 /**
- * 토스 Market Indicators — 투자자별 매매대금(코스피/코스닥). ka 아닌 REST GET.
- * 매수/매도 거래대금(원)을 주므로 **순매수 = 매수 − 매도**로 계산해 억원(Long)으로 환산한다.
+ * 토스 Market Indicators — 투자자별 매매대금 + 캔들(OHLCV), 코스피/코스닥. ka 아닌 REST GET.
+ * 투자자별 매매대금은 매수/매도 거래대금(원)을 주므로 **순매수 = 매수 − 매도**로 계산해 억원(Long)으로 환산한다.
  * 기관은 7개 세부(연기금·투신·금융투자·사모·보험·은행·기타금융)를 함께 준다.
+ * 캔들은 실제 OHLCV라 국내 지수 일봉/분봉 모두 캔들차트로 그릴 수 있다(키움 지수값 합성과 달리 정직한 시가·고가·저가).
  */
 @Component
 class TossMarketIndicatorClient(
@@ -49,6 +50,40 @@ class TossMarketIndicatorClient(
         } catch (e: Exception) {
             log.error("Toss 투자자별 매매대금 조회 실패 (symbol={}, interval={})", symbol, interval, e)
             emptyList()
+        }
+    }
+
+    /**
+     * 캔들(OHLCV) 조회. [interval] 1m/1d. [count] 최대 200. [before] 페이지네이션 커서(직전 응답의 nextBefore 그대로 전달).
+     * 최신순 반환. 실패 시 빈 페이지.
+     */
+    fun fetchCandles(
+        symbol: String,
+        interval: String,
+        count: Int,
+        before: String? = null,
+    ): CandlesPage {
+        return try {
+            val token = authClient.getAccessToken()
+            val response = tossRestClient.get()
+                .uri { b ->
+                    b.path("/api/v1/market-indicators/{symbol}/candles")
+                        .queryParam("interval", interval)
+                        .queryParam("count", count)
+                        .also { if (before != null) it.queryParam("before", before) }
+                        .build(symbol)
+                }
+                .header("Authorization", "Bearer $token")
+                .retrieve()
+                .body(CandlesResponse::class.java)
+
+            CandlesPage(
+                candles = response?.result?.candles.orEmpty().mapNotNull { it.toDomain() },
+                nextBefore = response?.result?.nextBefore,
+            )
+        } catch (e: Exception) {
+            log.error("Toss 캔들 조회 실패 (symbol={}, interval={})", symbol, interval, e)
+            CandlesPage(emptyList(), null)
         }
     }
 
@@ -128,6 +163,47 @@ class TossMarketIndicatorClient(
     data class Amount(
         val buyAmount: String? = null,
         val sellAmount: String? = null,
+    )
+
+    // ── 캔들 응답 DTO ─────────────────────────────────────────
+    data class CandlesResponse(val result: Result? = null) {
+        data class Result(val candles: List<CandleItem>? = null, val nextBefore: String? = null)
+    }
+
+    data class CandleItem(
+        val timestamp: String? = null,
+        val openPrice: String? = null,
+        val highPrice: String? = null,
+        val lowPrice: String? = null,
+        val closePrice: String? = null,
+        val volume: String? = null,
+    ) {
+        fun toDomain(): TossCandle? {
+            val ts = runCatching { OffsetDateTime.parse(timestamp) }.getOrNull() ?: return null
+            return TossCandle(
+                timestamp = ts,
+                open = openPrice?.trim()?.toDoubleOrNull() ?: return null,
+                high = highPrice?.trim()?.toDoubleOrNull() ?: return null,
+                low = lowPrice?.trim()?.toDoubleOrNull() ?: return null,
+                close = closePrice?.trim()?.toDoubleOrNull() ?: return null,
+                volume = volume?.trim()?.toDoubleOrNull() ?: 0.0,
+            )
+        }
+    }
+
+    data class TossCandle(
+        val timestamp: OffsetDateTime,
+        val open: Double,
+        val high: Double,
+        val low: Double,
+        val close: Double,
+        val volume: Double,
+    )
+
+    data class CandlesPage(
+        val candles: List<TossCandle>,
+        /** 다음 페이지 커서(직전 응답 값 그대로) — 더 이전 페이지가 없으면 null. */
+        val nextBefore: String?,
     )
 
     // ── 도메인 반환형 ─────────────────────────────────────────

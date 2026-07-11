@@ -55,10 +55,11 @@ class TossAuthClient(
     }
 
     private fun requestNewToken(): TokenResponse {
+        // 시크릿 주입 시 끼어든 개행/공백을 흡수 — 남아 있으면 401 invalid_client 로 거부된다.
         val form = LinkedMultiValueMap<String, String>().apply {
             add("grant_type", "client_credentials")
-            add("client_id", properties.clientId)
-            add("client_secret", properties.clientSecret)
+            add("client_id", properties.clientId.trim())
+            add("client_secret", properties.clientSecret.trim())
         }
         return tossRestClient.post()
             .uri("/oauth2/token")

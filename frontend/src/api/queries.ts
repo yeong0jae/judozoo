@@ -14,6 +14,7 @@ import type {
   MarketSignalEventsResponse,
   MarketInvestorNetBuyItem,
   MarketInvestorIntradayPoint,
+  MarketCandleItem,
   MarketInvestorRecord,
   MarketInvestorSession,
   MarketType,
@@ -64,6 +65,8 @@ export const QK = {
     ["market", market, "investor", "sessions", date] as const,
   marketInvestorIntraday: (market: string, date: string) =>
     ["market", market, "investor", "intraday", date] as const,
+  marketCandles: (market: string, interval: string) =>
+    ["market", market, "candles", interval] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
@@ -231,6 +234,22 @@ export function useMarketInvestorIntraday(market: "KOSPI" | "KOSDAQ", date: stri
     queryFn: () =>
       apiFetch<MarketInvestorIntradayPoint[]>(`/api/market/${market}/investor/intraday?date=${date}`),
     refetchInterval: 60_000,
+  });
+}
+
+/** 시장 지수 캔들(OHLCV) — 토스. interval "1d"는 최근 [count]봉, "1m"은 오늘 하루치(count 무시). */
+export function useMarketCandles(
+  market: "KOSPI" | "KOSDAQ",
+  interval: "1d" | "1m",
+  count = 90,
+) {
+  return useQuery({
+    queryKey: QK.marketCandles(market, interval),
+    queryFn: () =>
+      apiFetch<MarketCandleItem[]>(
+        `/api/market/${market}/candles?interval=${interval}&count=${count}`,
+      ),
+    refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }
 

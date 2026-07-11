@@ -47,7 +47,7 @@ function AppShell() {
               <Route path="/" element={<Navigate to="/leading-stocks" replace />} />
               <Route path="/leading-stocks" element={<LeadingStocksPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
-              <Route path="/closing-bet" element={<ClosingBetPage />} />
+              <Route path="/market-analysis" element={<ClosingBetPage />} />
               <Route path="/signal-log" element={<SignalLogPage />} />
               <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
               <Route path="/timeline" element={<TimelinePage />} />

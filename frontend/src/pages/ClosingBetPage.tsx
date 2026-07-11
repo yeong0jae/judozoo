@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
 import {
-  useIndexMinuteCandles,
   useKospiIndex,
+  useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
 } from "../api/queries";
 import CandleChart from "../components/common/CandleChart";
 import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
-import IndexLineChart from "../components/common/IndexLineChart";
 import Skeleton from "../components/common/Skeleton";
 import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatEok, formatPct, formatPrice } from "../lib/format";
@@ -34,6 +33,7 @@ import {
   themeNews,
   tradingValues,
 } from "../components/closingbet/mockData";
+import { marketDailySeries, marketMinuteSeries } from "../components/closingbet/tossCandles";
 
 // 선택 대상 — 종목 / 테마 / 지수
 type Selection =
@@ -45,7 +45,7 @@ type Selection =
 const LIVE_MARKET: Record<string, MarketType> = { kospi: "KOSPI" };
 
 /**
- * 종가 베팅 — 장 막판 매수 판단용 지표 집약 대시보드. (프론트 목 데이터, 백엔드 미연동)
+ * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드. 코스피는 실데이터(토스), 나머지는 목 데이터.
  * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 뉴스.
  */
 export default function ClosingBetPage() {
@@ -523,7 +523,7 @@ function IndexHeader({ name, value, pct }: { name: string; value: number; pct: n
   );
 }
 
-/** 실데이터 지수 상세(코스피) — 지수값·분봉(키움) + 10일 수급·세션(토스). */
+/** 실데이터 지수 상세(코스피) — 지수값·분봉·일봉·10일 수급·세션 전부 토스. */
 function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: CbIndex }) {
   const date = todayStr();
   const priceQ = useKospiIndex();
@@ -533,40 +533,60 @@ function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: C
   return (
     <div className="flex flex-col gap-4">
       <IndexHeader name={fallback.name} value={value} pct={pct} />
-      <LiveIndexChartCard market={market} date={date} changeRate={pct} />
+      <LiveIndexChartCard market={market} />
       <RealInvestorTable market={market} />
       <RealSessionsCard market={market} date={date} />
     </div>
   );
 }
 
-/** 지수 분봉 — 캔들이 아니라 선차트(지수값은 10초 샘플 합성이라 선이 정직). 일봉은 아직 미연동. */
-function LiveIndexChartCard({
-  market,
-  date,
-  changeRate,
-}: {
-  market: MarketType;
-  date: string;
-  changeRate: number;
-}) {
-  const { data, isLoading } = useIndexMinuteCandles(market, date);
-  const candles = data ?? [];
+/** 지수 분봉/일봉 — 토스 캔들(OHLCV) 그대로 캔들차트. */
+function LiveIndexChartCard({ market }: { market: MarketType }) {
+  const [interval, setInterval] = useState<"1m" | "1d">("1m");
+  const { data, isLoading } = useMarketCandles(market, interval);
+  const items = data ?? [];
+  const series = useMemo(
+    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
+    [items, interval],
+  );
   return (
     <div className={cardCls}>
       <div className="flex items-center justify-between mb-3">
         <span className={titleCls}>
-          차트 <span className="text-zinc-600 font-normal">· 1분봉</span>
+          차트 <span className="text-zinc-600 font-normal">· 토스</span>
         </span>
+        <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+          {[
+            { k: "1m" as const, label: "분봉" },
+            { k: "1d" as const, label: "일봉" },
+          ].map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              onClick={() => setInterval(o.k)}
+              className={`px-3 py-1.5 rounded-lg transition-colors ${
+                interval === o.k ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
       {isLoading ? (
         <Skeleton className="h-72 w-full" />
-      ) : candles.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="h-72 flex items-center justify-center">
-          <EmptyState message="장중에 지수 분봉이 표시됩니다" />
+          <EmptyState message={interval === "1m" ? "장중에 분봉이 표시됩니다" : "일봉 데이터가 없습니다"} />
         </div>
       ) : (
-        <IndexLineChart items={candles} changeRate={changeRate} className="w-full h-72" />
+        <CandleChart
+          key={`${market}-${interval}`}
+          series={series}
+          timeVisible={interval === "1m"}
+          priceDecimals={2}
+          className="w-full h-72"
+        />
       )}
     </div>
   );

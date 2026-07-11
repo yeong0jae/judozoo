@@ -69,6 +69,17 @@ export interface MarketInvestorIntradayPoint {
   otherCorpEok: number;
 }
 
+/** 시장 지수 캔들(OHLCV) — 토스 Market Indicators. date는 KST, time은 1d일 땐 00:00:00 고정. */
+export interface MarketCandleItem {
+  date: string;
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 // === 주도주 (Leading Stocks) ===
 
 export interface CandidateStockItem {
