@@ -87,52 +87,125 @@ export default function ClosingBetPage() {
 // ============================================================
 // 상단 시장 스트립 — 지수/선물 카드 + 분위기 메모
 // ============================================================
-const stripCardCls = (active: boolean) =>
-  `flex flex-col gap-0.5 px-3.5 py-2.5 min-w-[10rem] rounded-xl text-left transition-all duration-150 active:scale-[0.98] ${
-    active
-      ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/40"
-      : "bg-white/[0.03] hover:bg-white/[0.06] hover:-translate-y-px"
-  }`;
+const fmt2 = (v: number) =>
+  v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
+  // 코스피만 실데이터 — 나머지는 목값(선물·나스닥)
+  const kospi = useKospiIndex();
   return (
-    <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
       {INDICES.map((ix) => {
-        const active = sel.kind === "index" && sel.id === ix.id;
-        if (ix.id === "kospi") {
-          return <KospiStripCard key={ix.id} active={active} fallback={ix} onSelect={() => onSelect(ix.id)} />;
-        }
+        const value = ix.id === "kospi" ? kospi.data?.currentValue ?? ix.value : ix.value;
+        const pct = ix.id === "kospi" ? kospi.data?.changeRate ?? ix.pct : ix.pct;
         return (
-          <button key={ix.id} type="button" onClick={() => onSelect(ix.id)} className={stripCardCls(active)}>
-            <span className="text-xs text-zinc-400">{ix.name}</span>
-            <span className="num text-lg font-bold text-zinc-100">{formatPrice(ix.value)}</span>
-            <span className={`num text-xs ${colorByPnL(ix.pct)}`}>{formatPct(ix.pct / 100)}</span>
-          </button>
+          <StripCard
+            key={ix.id}
+            id={ix.id}
+            name={ix.name}
+            value={value}
+            pct={pct}
+            active={sel.kind === "index" && sel.id === ix.id}
+            onSelect={() => onSelect(ix.id)}
+          />
         );
       })}
     </div>
   );
 }
 
-/** 코스피 카드 — 실데이터(useKospiIndex). 로딩 중엔 목데이터로 폴백해 깜빡임 방지. */
-function KospiStripCard({
+function StripCard({
+  id,
+  name,
+  value,
+  pct,
   active,
   onSelect,
-  fallback,
 }: {
+  id: string;
+  name: string;
+  value: number;
+  pct: number;
   active: boolean;
   onSelect: () => void;
-  fallback: CbIndex;
 }) {
-  const { data } = useKospiIndex();
-  const value = data?.currentValue ?? fallback.value;
-  const pct = data?.changeRate ?? fallback.pct;
+  const chg = value - value / (1 + pct / 100);
   return (
-    <button type="button" onClick={onSelect} className={stripCardCls(active)}>
-      <span className="text-xs text-zinc-400">{fallback.name}</span>
-      <span className="num text-lg font-bold text-zinc-100">{formatPrice(value)}</span>
-      <span className={`num text-xs ${colorByPnL(pct)}`}>{formatPct(pct / 100)}</span>
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`relative flex flex-col p-3 rounded-xl text-left overflow-hidden transition-all duration-150 active:scale-[0.99] ${
+        active ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/40" : "bg-white/[0.03] hover:bg-white/[0.06]"
+      }`}
+    >
+      <span className="text-[11px] text-zinc-400">{name}</span>
+      <div className="flex items-baseline gap-1.5 flex-wrap mt-0.5">
+        <span className="num text-[15px] font-bold text-zinc-100">{fmt2(value)}</span>
+        <span className={`num text-[11px] font-medium ${colorByPnL(pct)}`}>
+          {chg > 0 ? "+" : chg < 0 ? "−" : ""}
+          {Math.abs(chg).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} ({formatPct(pct / 100)})
+        </span>
+      </div>
+      <Sparkline seed={id} up={pct >= 0} className="w-full h-12 mt-1.5" />
     </button>
+  );
+}
+
+// 카드 배경 스파크라인(면적) — 시드 기반 목 곡선, 부호색, 점선 기준선.
+function sparkRng(str: string) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+}
+
+function Sparkline({ seed, up, className }: { seed: string; up: boolean; className?: string }) {
+  const coords = useMemo(() => {
+    const rng = sparkRng(seed);
+    const n = 48;
+    const W = 100;
+    const H = 40;
+    const step = W / (n - 1);
+    let y = 45 + (rng() - 0.5) * 20;
+    const arr: string[] = [];
+    for (let i = 0; i < n; i++) {
+      y += (rng() - 0.5) * 10;
+      y = Math.max(8, Math.min(92, y));
+      arr.push(`${(i * step).toFixed(1)},${((y / 100) * H).toFixed(1)}`);
+    }
+    return arr;
+  }, [seed]);
+  const color = up ? "#f0454a" : "#3b82f6";
+  const gid = `spk-${seed.replace(/[^a-z0-9]/gi, "")}`;
+  const baseY = coords[0].split(",")[1];
+  return (
+    <svg viewBox="0 0 100 40" preserveAspectRatio="none" className={className} aria-hidden>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,40 ${coords.join(" ")} 100,40`} fill={`url(#${gid})`} />
+      <polyline points={coords.join(" ")} fill="none" stroke={color} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
+      <line
+        x1="0"
+        y1={baseY}
+        x2="100"
+        y2={baseY}
+        stroke="currentColor"
+        strokeWidth="0.5"
+        strokeDasharray="2.5 2.5"
+        className="text-zinc-600"
+      />
+    </svg>
   );
 }
 
