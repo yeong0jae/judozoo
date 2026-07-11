@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 /**
  * 해외지수 기간별시세 (FHKST03030100, /uapi/overseas-price/v1/quotations/inquire-daily-chartprice).
@@ -56,9 +57,11 @@ class KisOverseasIndexClient(
 
             val o = response.output1 ?: return null
             val price = o.ovrs_nmix_prpr?.trim()?.toDoubleOrNull() ?: return null
-            // prdy_ctrt(전일대비율)는 절댓값일 수 있어 부호는 prdy_vrss_sign으로 — 4:하한 5:하락이면 음수.
-            val magnitude = o.prdy_ctrt?.trim()?.toDoubleOrNull() ?: 0.0
-            val changeRate = if (o.prdy_vrss_sign?.trim() in setOf("4", "5")) -magnitude else magnitude
+            // prdy_ctrt(전일대비율)는 응답에 따라 부호가 붙어 오기도 해, 크기만 쓴다.
+            // 방향은 현재가·전일종가 비교로 확정(부호코드·부호유무 관례에 의존하지 않음).
+            val prevClose = o.ovrs_nmix_prdy_clpr?.trim()?.toDoubleOrNull()
+            val magnitude = abs(o.prdy_ctrt?.trim()?.toDoubleOrNull() ?: 0.0)
+            val changeRate = if (prevClose != null && price < prevClose) -magnitude else magnitude
             // 실제 영업일은 일자별(output2)의 최신 stck_bsop_date — 미국 휴장일에도 종가가 찍힌 진짜 날짜를 쓴다.
             val tradeDate = response.output2.orEmpty()
                 .mapNotNull { runCatching { LocalDate.parse(it.stck_bsop_date?.trim(), dateFmt) }.getOrNull() }
@@ -86,11 +89,10 @@ class KisOverseasIndexClient(
     )
 
     data class IndexBasicInfo(
-        val ovrs_nmix_prpr: String? = null,    // 현재가(마감 후 종가)
-        val prdy_ctrt: String? = null,         // 전일 대비율(절댓값일 수 있음)
-        val prdy_vrss_sign: String? = null,    // 전일 대비 부호 (4·5=하락)
-        val ovrs_nmix_prdy_vrss: String? = null, // 전일 대비
-        val hts_kor_isnm: String? = null,      // HTS 한글 종목명
+        val ovrs_nmix_prpr: String? = null,        // 현재가(마감 후 종가)
+        val ovrs_nmix_prdy_clpr: String? = null,   // 전일 종가(등락 방향 판정용)
+        val prdy_ctrt: String? = null,             // 전일 대비율(부호 포함 여부 불확실 → 크기만)
+        val hts_kor_isnm: String? = null,          // HTS 한글 종목명
     )
 
     data class IndexDailyItem(
