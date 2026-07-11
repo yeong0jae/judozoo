@@ -819,12 +819,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                   className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
                 >
                   <td className="text-left py-2 pr-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-zinc-300">{s.name}</span>
-                      {s.name === "막판 동시호가" && (
-                        <span className="text-[9px] text-blue-500 font-semibold">종가 결정</span>
-                      )}
-                    </div>
+                    <div className="text-zinc-300">{s.name}</div>
                     <div className="text-[10px] text-zinc-600 num">{s.time}</div>
                   </td>
                   {s.nets == null ? (

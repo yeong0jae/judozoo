@@ -50,8 +50,8 @@ class MarketInvestorService(
         val close = signalEventService.investorSnapshotAt(market, date.atTime(CLOSE))
         return listOf(
             SessionNet("오전", "09:00~12:00", morning?.nets()),
-            SessionNet("오후", "12:00~14:40", diff(afternoon, morning)),
-            SessionNet("막판 동시호가", "14:40~15:30", diff(close, afternoon)),
+            SessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
+            SessionNet("막판 동시호가", "15:00~15:40", diff(close, afternoon)),
         )
     }
 
@@ -68,8 +68,8 @@ class MarketInvestorService(
     companion object {
         private val DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd")
         private val MORNING_END = LocalTime.of(12, 0)
-        private val AFTERNOON_END = LocalTime.of(14, 40)
-        private val CLOSE = LocalTime.of(15, 30)
+        private val AFTERNOON_END = LocalTime.of(15, 0)
+        private val CLOSE = LocalTime.of(15, 40)
     }
 }
 
