@@ -326,9 +326,9 @@ function InvestorTable({ dataKey }: { dataKey: string }) {
         <thead>
           <tr className="text-zinc-500">
             <th className="text-left font-medium pb-1.5">일자</th>
+            <th className="text-right font-medium pb-1.5">개인</th>
             <th className="text-right font-medium pb-1.5">외국인</th>
             <th className="text-right font-medium pb-1.5">기관</th>
-            <th className="text-right font-medium pb-1.5">개인</th>
           </tr>
         </thead>
         <tbody>
@@ -336,13 +336,13 @@ function InvestorTable({ dataKey }: { dataKey: string }) {
             <tr key={d.date} className="border-t border-zinc-800/60">
               <td className="text-left text-zinc-400 num py-1">{d.date}</td>
               <td className="text-right py-1">
+                <Amount eok={d.indiv} />
+              </td>
+              <td className="text-right py-1">
                 <Amount eok={d.foreign} />
               </td>
               <td className="text-right py-1">
                 <Amount eok={d.inst} />
-              </td>
-              <td className="text-right py-1">
-                <Amount eok={d.indiv} />
               </td>
             </tr>
           ))}
@@ -627,9 +627,9 @@ function RealInvestorTable({ market }: { market: MarketType }) {
           <thead>
             <tr className="text-zinc-500">
               <th className="text-left font-medium pb-1.5">일자</th>
+              <th className="text-right font-medium pb-1.5">개인</th>
               <th className="text-right font-medium pb-1.5">외국인</th>
               <th className="text-right font-medium pb-1.5">기관</th>
-              <th className="text-right font-medium pb-1.5">개인</th>
               <th className="text-right font-medium pb-1.5">기타법인</th>
             </tr>
           </thead>
@@ -649,13 +649,13 @@ function RealInvestorTable({ market }: { market: MarketType }) {
                       {r.date.slice(5)}
                     </td>
                     <td className="text-right py-2">
+                      <Amount eok={r.individualNetEok} />
+                    </td>
+                    <td className="text-right py-2">
                       <Amount eok={r.foreignNetEok} />
                     </td>
                     <td className="text-right py-2 font-medium">
                       <Amount eok={r.institutionNetEok} />
-                    </td>
-                    <td className="text-right py-2">
-                      <Amount eok={r.individualNetEok} />
                     </td>
                     <td className="text-right py-2">
                       <Amount eok={r.otherCorpNetEok} />
@@ -689,9 +689,9 @@ function RealInvestorTable({ market }: { market: MarketType }) {
 }
 
 const SESSION_ROWS: { key: keyof NonNullable<MarketInvestorSession["nets"]>; label: string }[] = [
+  { key: "individual", label: "개인" },
   { key: "foreign", label: "외인" },
   { key: "institution", label: "기관" },
-  { key: "individual", label: "개인" },
   { key: "otherCorp", label: "기타법인" },
 ];
 
