@@ -1,5 +1,6 @@
 package at.backend.market.application
 
+import java.time.LocalDate
 import at.backend.library.time.TimeProvider
 import at.backend.platform.toss.client.TossMarketIndicatorClient
 import at.backend.platform.toss.client.TossMarketIndicatorClient.TossCandle
@@ -18,22 +19,29 @@ class MarketCandleService(
         client.fetchCandles(market.name, "1d", count.coerceIn(1, MAX_PAGE_SIZE))
             .candles.sortedBy { it.timestamp }
 
-    /** 오늘 하루 1분봉(오름차순) — 한 페이지(최대 200봉)로 정규장을 못 덮어 nextBefore로 이어 받는다. */
+    /** 가장 최근 영업일의 1분봉(오름차순) — 한 페이지(최대 200봉)로 정규장을 못 덮어 nextBefore로 이어 받는다. */
     fun minuteToday(market: Market): List<TossCandle> {
-        val today = timeProvider.today()
         val collected = mutableListOf<TossCandle>()
         var before: String? = null
         var page = 0
+        var targetDate: LocalDate? = null
         while (page < MAX_PAGES) {
             val res = client.fetchCandles(market.name, "1m", MAX_PAGE_SIZE, before)
             if (res.candles.isEmpty()) break
+
+            if (targetDate == null) {
+                targetDate = res.candles.maxOfOrNull { it.timestamp }?.toLocalDate()
+            }
+            val currentTarget = targetDate ?: break
+
             collected += res.candles
             val earliestDate = res.candles.minOf { it.timestamp }.toLocalDate()
-            if (earliestDate < today || res.nextBefore == null) break
+            if (earliestDate.isBefore(currentTarget) || res.nextBefore == null) break
             before = res.nextBefore
             page++
         }
-        return collected.filter { it.timestamp.toLocalDate() == today }.sortedBy { it.timestamp }
+        val date = targetDate ?: return emptyList()
+        return collected.filter { it.timestamp.toLocalDate() == date }.sortedBy { it.timestamp }
     }
 
     companion object {

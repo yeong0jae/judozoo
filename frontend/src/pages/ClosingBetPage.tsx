@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, Fragment } from "react";
 import {
   useKospiIndex,
   useMarketCandles,
@@ -292,7 +292,7 @@ function ChartCard({ chartKey, subtitle }: { chartKey: string; subtitle: string 
         </span>
         <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
           {[
-            { k: true, label: "분봉" },
+            { k: true, label: "1분봉" },
             { k: false, label: "일봉" },
           ].map((o) => (
             <button
@@ -557,7 +557,7 @@ function LiveIndexChartCard({ market }: { market: MarketType }) {
         </span>
         <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
           {[
-            { k: "1m" as const, label: "분봉" },
+            { k: "1m" as const, label: "1분봉" },
             { k: "1d" as const, label: "일봉" },
           ].map((o) => (
             <button
@@ -577,7 +577,7 @@ function LiveIndexChartCard({ market }: { market: MarketType }) {
         <Skeleton className="h-72 w-full" />
       ) : items.length === 0 ? (
         <div className="h-72 flex items-center justify-center">
-          <EmptyState message={interval === "1m" ? "장중에 분봉이 표시됩니다" : "일봉 데이터가 없습니다"} />
+          <EmptyState message={interval === "1m" ? "장중에 1분봉이 표시됩니다" : "일봉 데이터가 없습니다"} />
         </div>
       ) : (
         <CandleChart
@@ -606,63 +606,85 @@ const REAL_INVESTOR_LABELS: { key: keyof MarketInvestorRecord["breakdown"]; labe
 function RealInvestorTable({ market }: { market: MarketType }) {
   const { data, isLoading } = useMarketInvestorDaily(market, 10);
   const records = data ?? [];
-  const latest = records[0];
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (records.length > 0 && !expandedDate) {
+      setExpandedDate(records[0].date);
+    }
+  }, [records, expandedDate]);
 
   return (
     <div className={cardCls}>
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>최근 10일 수급</span>
-        <span className="text-xs text-zinc-600">억원 · 토스</span>
+        <span className="text-xs text-zinc-600">억원 · 토스 (일자 클릭 시 기관 세부 보기)</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-48 w-full" />
       ) : records.length === 0 ? (
         <EmptyState message="일별 수급 데이터가 없습니다" />
       ) : (
-        <>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-zinc-500">
-                <th className="text-left font-medium pb-1.5">일자</th>
-                <th className="text-right font-medium pb-1.5">외국인</th>
-                <th className="text-right font-medium pb-1.5">기관</th>
-                <th className="text-right font-medium pb-1.5">개인</th>
-                <th className="text-right font-medium pb-1.5">기타법인</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r) => (
-                <tr key={r.date} className="border-t border-zinc-800/60">
-                  <td className="text-left text-zinc-400 num py-1">{r.date.slice(5)}</td>
-                  <td className="text-right py-1">
-                    <Amount eok={r.foreignNetEok} />
-                  </td>
-                  <td className="text-right py-1">
-                    <Amount eok={r.institutionNetEok} />
-                  </td>
-                  <td className="text-right py-1">
-                    <Amount eok={r.individualNetEok} />
-                  </td>
-                  <td className="text-right py-1">
-                    <Amount eok={r.otherCorpNetEok} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {latest && (
-            <>
-              <div className="mt-3 text-[11px] text-zinc-500">기관 세부 순매수 · {latest.date.slice(5)}</div>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {REAL_INVESTOR_LABELS.map(({ key, label }) => (
-                  <span key={key} className="text-[11px] rounded-md bg-zinc-800/60 px-2 py-1 text-zinc-400">
-                    {label} <Amount eok={latest.breakdown[key]} />
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-zinc-500">
+              <th className="text-left font-medium pb-1.5">일자</th>
+              <th className="text-right font-medium pb-1.5">외국인</th>
+              <th className="text-right font-medium pb-1.5">기관</th>
+              <th className="text-right font-medium pb-1.5">개인</th>
+              <th className="text-right font-medium pb-1.5">기타법인</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((r) => {
+              const isExpanded = expandedDate === r.date;
+              return (
+                <Fragment key={r.date}>
+                  <tr
+                    onClick={() => setExpandedDate(isExpanded ? null : r.date)}
+                    className="border-t border-zinc-800/60 cursor-pointer hover:bg-white/[0.02] active:bg-white/[0.04] transition-colors select-none"
+                  >
+                    <td className="text-left text-zinc-400 num py-2">
+                      <span className="inline-block w-2 text-[9px] text-zinc-600 mr-1 align-middle">
+                        {isExpanded ? "▼" : "▶"}
+                      </span>
+                      {r.date.slice(5)}
+                    </td>
+                    <td className="text-right py-2">
+                      <Amount eok={r.foreignNetEok} />
+                    </td>
+                    <td className="text-right py-2 font-medium">
+                      <Amount eok={r.institutionNetEok} />
+                    </td>
+                    <td className="text-right py-2">
+                      <Amount eok={r.individualNetEok} />
+                    </td>
+                    <td className="text-right py-2">
+                      <Amount eok={r.otherCorpNetEok} />
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr className="bg-zinc-900/30">
+                      <td colSpan={5} className="py-2 px-3 border-t border-zinc-800/40">
+                        <div className="text-[10px] text-zinc-500 mb-1.5 font-medium">기관 세부 순매수</div>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {REAL_INVESTOR_LABELS.map(({ key, label }) => (
+                            <div key={key} className="flex justify-between items-center px-2 py-1 rounded bg-white/[0.01] border border-zinc-800/40">
+                              <span className="text-zinc-500 text-[10px]">{label}</span>
+                              <span className="text-[10px]">
+                                <Amount eok={r.breakdown[key]} />
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       )}
     </div>
   );
