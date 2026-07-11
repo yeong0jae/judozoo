@@ -35,12 +35,15 @@ class MarketSignalEventService(
     /** 각 시장의 [dateTime] 이하 가장 가까운 순매수 스냅샷. 그 시각 이전 스냅샷이 없는 시장은 제외. */
     @Transactional(readOnly = true)
     fun investorNetBuyAt(dateTime: LocalDateTime): List<MarketInvestorSnapshot> =
-        Market.entries.mapNotNull { market ->
-            investorSnapshotRepository
-                .findFirstByMarketAndTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(
-                    market, dateTime.toLocalDate(), dateTime,
-                )
-        }
+        Market.entries.mapNotNull { market -> investorSnapshotAt(market, dateTime) }
+
+    /** 한 시장의 [dateTime] 이하 가장 가까운 순매수 스냅샷 — 세션(시간대) 경계값 조회용. */
+    @Transactional(readOnly = true)
+    fun investorSnapshotAt(market: Market, dateTime: LocalDateTime): MarketInvestorSnapshot? =
+        investorSnapshotRepository
+            .findFirstByMarketAndTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(
+                market, dateTime.toLocalDate(), dateTime,
+            )
 
     /** 그날 흐름 전환 상태 스냅샷 복원 — 키 "market|investor". 재시작으로 메모리가 비었을 때 정점을 되살린다. */
     @Transactional(readOnly = true)

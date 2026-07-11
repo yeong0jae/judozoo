@@ -25,26 +25,25 @@ export interface MarketIndex {
 
 export type KospiIndex = MarketIndex;
 
-// === 시장 투자자 매매대금 (토스, 종가 베팅 코스피/코스닥 상세용) ===
+// === 시장 투자자 순매수 (키움 ka10051, 시황분석 코스피/코스닥 상세용) ===
 
-export interface InstitutionBreakdown {
-  pensionFundEok: number;
-  trustEok: number;
+/** 기관 세부 순매수(억원) — 키움 6종. */
+export interface OrgBreakdown {
   financialInvestmentEok: number;
+  trustEok: number;
+  pensionFundEok: number;
   privateEquityEok: number;
   insuranceEok: number;
   bankEok: number;
-  otherFinanceEok: number;
 }
 
-export interface MarketInvestorRecord {
+export interface MarketInvestorDay {
   date: string; // yyyy-MM-dd
-  sourceUpdatedAt: string;
-  individualNetEok: number;
-  foreignNetEok: number;
-  institutionNetEok: number;
-  otherCorpNetEok: number;
-  breakdown: InstitutionBreakdown;
+  individualEok: number;
+  foreignEok: number;
+  institutionEok: number;
+  otherCorpEok: number;
+  breakdown: OrgBreakdown;
 }
 
 export interface MarketInvestorNets {
@@ -58,15 +57,6 @@ export interface MarketInvestorSession {
   name: string;
   time: string;
   nets: MarketInvestorNets | null;
-}
-
-export interface MarketInvestorIntradayPoint {
-  capturedAt: string;
-  sourceUpdatedAt: string;
-  individualEok: number;
-  foreignEok: number;
-  institutionEok: number;
-  otherCorpEok: number;
 }
 
 /** 시장 지수 캔들(OHLCV) — 토스 Market Indicators. date는 KST, time은 1d일 땐 00:00:00 고정. */

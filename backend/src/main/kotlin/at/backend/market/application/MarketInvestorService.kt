@@ -1,62 +1,53 @@
 package at.backend.market.application
 
-import at.backend.market.domain.MarketInvestorTrading
-import at.backend.market.infrastructure.repository.MarketInvestorTradingRepository
-import at.backend.platform.toss.client.TossMarketIndicatorClient
-import at.backend.platform.toss.client.TossMarketIndicatorClient.MarketInvestorRecord
+import at.backend.leadingstock.application.MarketSignalEventService
+import at.backend.leadingstock.domain.MarketInvestorSnapshot
+import at.backend.library.time.TimeProvider
+import at.backend.platform.kiwoom.client.KiwoomSectorInvestorClient
 import at.backend.stock.domain.Market
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 /**
- * 시장(코스피/코스닥) 투자자 매매대금 — 토스 조회 + 장중 스냅샷 적재/조회 + 세션(오전/오후/막판) 산출.
- * 세션은 API가 직접 주지 않아, 당일 누적 스냅샷을 경계 시각에 뽑아 차이(diff)로 계산한다.
+ * 시장(코스피/코스닥) 투자자 순매수 — 전부 키움 ka10051 기반.
+ * 일별 히스토리는 base_dt를 날짜별로 조회하고, 세션(시간대)은 폴러가 적재한 당일 누적 스냅샷의 경계 diff로 계산한다.
  */
 @Service
 class MarketInvestorService(
-    private val repository: MarketInvestorTradingRepository,
-    private val client: TossMarketIndicatorClient,
+    private val kiwoom: KiwoomSectorInvestorClient,
+    private val signalEventService: MarketSignalEventService,
+    private val timeProvider: TimeProvider,
 ) {
 
-    /** 폴러가 받은 당일 레코드를 스냅샷 한 줄로 적재. */
-    @Transactional
-    fun recordSnapshot(market: Market, capturedAt: LocalDateTime, rec: MarketInvestorRecord) {
-        val b = rec.breakdown
-        repository.save(
-            MarketInvestorTrading(
-                market = market,
-                tradeDate = rec.date,
-                capturedAt = capturedAt,
-                sourceUpdatedAt = rec.sourceUpdatedAt,
-                individualEok = rec.individualNetEok,
-                foreignEok = rec.foreignNetEok,
-                institutionEok = rec.institutionNetEok,
-                otherCorpEok = rec.otherCorpNetEok,
-                pensionFundEok = b.pensionFundEok,
-                trustEok = b.trustEok,
-                financialInvestmentEok = b.financialInvestmentEok,
-                privateEquityEok = b.privateEquityEok,
-                insuranceEok = b.insuranceEok,
-                bankEok = b.bankEok,
-                otherFinanceEok = b.otherFinanceEok,
-            ),
-        )
+    /**
+     * 최근 [count] 거래일 일별 순매수(외/기/개/기타법인 + 기관 세부). 키움 ka10051을 base_dt로 날짜별 조회.
+     * 주말은 건너뛴다(공휴일은 근사 — 그 날 base_dt가 직전 영업일 값을 줄 수 있음). 최신순.
+     */
+    fun dailyHistory(market: Market, count: Int): List<MarketInvestorDay> {
+        val mrktTp = market.mrktTp()
+        val out = mutableListOf<MarketInvestorDay>()
+        var day = timeProvider.today()
+        var guard = 0
+        while (out.size < count && guard < count * 3 + 10) {
+            guard++
+            if (day.dayOfWeek == DayOfWeek.SATURDAY || day.dayOfWeek == DayOfWeek.SUNDAY) {
+                day = day.minusDays(1)
+                continue
+            }
+            kiwoom.fetchSectorNetBuy(mrktTp, day.format(DATE_FMT))?.let { out += MarketInvestorDay.of(day, it) }
+            day = day.minusDays(1)
+        }
+        return out
     }
 
-    /** 그날 장중 스냅샷 전체(시각 오름차순). 갱신주기 확인·누적 곡선용. */
-    @Transactional(readOnly = true)
-    fun intraday(market: Market, date: LocalDate): List<MarketInvestorTrading> =
-        repository.findByMarketAndTradeDateOrderByCapturedAtAsc(market, date)
-
-    /** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷의 경계 diff. 데이터 없는 세션은 nets=null. */
-    @Transactional(readOnly = true)
+    /** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff. 데이터 없는 세션은 nets=null. */
     fun sessions(market: Market, date: LocalDate): List<SessionNet> {
-        val morning = snapshotAt(market, date, MORNING_END)
-        val afternoon = snapshotAt(market, date, AFTERNOON_END)
-        val close = snapshotAt(market, date, CLOSE)
+        val morning = signalEventService.investorSnapshotAt(market, date.atTime(MORNING_END))
+        val afternoon = signalEventService.investorSnapshotAt(market, date.atTime(AFTERNOON_END))
+        val close = signalEventService.investorSnapshotAt(market, date.atTime(CLOSE))
         return listOf(
             SessionNet("오전", "09:00~12:00", morning?.nets()),
             SessionNet("오후", "12:00~14:40", diff(afternoon, morning)),
@@ -64,21 +55,18 @@ class MarketInvestorService(
         )
     }
 
-    /** 최근 [count]일 일별 순매수(외/기/개/기타법인 + 기관 세부). 토스 직접 조회. */
-    fun dailyHistory(market: Market, count: Int): List<MarketInvestorRecord> =
-        client.fetchInvestorTrading(market.name, interval = "1d", count = count)
-
-    private fun snapshotAt(market: Market, date: LocalDate, at: LocalTime): MarketInvestorTrading? =
-        repository.findFirstByMarketAndTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(
-            market, date, date.atTime(at),
-        )
-
-    private fun diff(later: MarketInvestorTrading?, earlier: MarketInvestorTrading?): Nets? {
+    private fun diff(later: MarketInvestorSnapshot?, earlier: MarketInvestorSnapshot?): Nets? {
         if (later == null || earlier == null) return null
         return later.nets() - earlier.nets()
     }
 
+    private fun Market.mrktTp() = when (this) {
+        Market.KOSPI -> "0"
+        Market.KOSDAQ -> "1"
+    }
+
     companion object {
+        private val DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd")
         private val MORNING_END = LocalTime.of(12, 0)
         private val AFTERNOON_END = LocalTime.of(14, 40)
         private val CLOSE = LocalTime.of(15, 30)
@@ -100,10 +88,48 @@ data class Nets(
     )
 }
 
-fun MarketInvestorTrading.nets() = Nets(individualEok, foreignEok, institutionEok, otherCorpEok)
+fun MarketInvestorSnapshot.nets() = Nets(individualEok, foreignEok, institutionEok, otherCorpEok)
 
 data class SessionNet(
     val name: String,
     val time: String,
     val nets: Nets?,
 )
+
+/** 기관 세부 순매수(억원) — 키움 6종. */
+data class OrgBreakdown(
+    val financialInvestmentEok: Long,
+    val trustEok: Long,
+    val pensionFundEok: Long,
+    val privateEquityEok: Long,
+    val insuranceEok: Long,
+    val bankEok: Long,
+)
+
+/** 하루치 시장 투자자 순매수. */
+data class MarketInvestorDay(
+    val date: LocalDate,
+    val individualEok: Long,
+    val foreignEok: Long,
+    val institutionEok: Long,
+    val otherCorpEok: Long,
+    val breakdown: OrgBreakdown,
+) {
+    companion object {
+        fun of(date: LocalDate, nb: KiwoomSectorInvestorClient.SectorInvestorNetBuy) = MarketInvestorDay(
+            date = date,
+            individualEok = nb.individualEok,
+            foreignEok = nb.foreignEok,
+            institutionEok = nb.institutionEok,
+            otherCorpEok = nb.otherCorpEok,
+            breakdown = OrgBreakdown(
+                financialInvestmentEok = nb.financialInvestmentEok,
+                trustEok = nb.trustEok,
+                pensionFundEok = nb.pensionFundEok,
+                privateEquityEok = nb.privateEquityEok,
+                insuranceEok = nb.insuranceEok,
+                bankEok = nb.bankEok,
+            ),
+        )
+    }
+}

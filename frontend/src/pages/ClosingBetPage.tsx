@@ -11,7 +11,7 @@ import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatEok, formatPct, formatPrice } from "../lib/format";
-import type { MarketInvestorRecord, MarketInvestorSession, MarketType } from "../types";
+import type { MarketInvestorDay, MarketInvestorSession, MarketType } from "../types";
 import {
   changeAmount,
   highDistance,
@@ -33,7 +33,7 @@ import {
   themeNews,
   tradingValues,
 } from "../components/closingbet/mockData";
-import { marketDailySeries, marketMinuteSeries } from "../components/closingbet/tossCandles";
+import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
 // 선택 대상 — 종목 / 테마 / 지수
 type Selection =
@@ -590,14 +590,13 @@ function LiveIndexChartCard({ market }: { market: MarketType }) {
   );
 }
 
-const REAL_INVESTOR_LABELS: { key: keyof MarketInvestorRecord["breakdown"]; label: string }[] = [
+const REAL_INVESTOR_LABELS: { key: keyof MarketInvestorDay["breakdown"]; label: string }[] = [
   { key: "pensionFundEok", label: "연기금" },
   { key: "trustEok", label: "투신" },
   { key: "financialInvestmentEok", label: "금융투자" },
   { key: "privateEquityEok", label: "사모" },
   { key: "insuranceEok", label: "보험" },
   { key: "bankEok", label: "은행" },
-  { key: "otherFinanceEok", label: "기타금융" },
 ];
 
 function NetLabel({ label, eok }: { label: string; eok: number }) {
@@ -627,7 +626,7 @@ function InstitutionBreakdownRow({ items }: { items: { label: string; eok: numbe
   );
 }
 
-/** 최근 10일 수급 — 토스 투자자별 매매대금. 일자마다 개인·외국인·기관·기타법인 + 기관 7세부(상시). */
+/** 최근 10일 수급 — 키움 ka10051. 일자마다 개인·외국인·기관·기타법인 + 기관 6세부(상시). */
 function RealInvestorTable({ market }: { market: MarketType }) {
   const { data, isLoading } = useMarketInvestorDaily(market, 10);
   const records = data ?? [];
@@ -649,10 +648,10 @@ function RealInvestorTable({ market }: { market: MarketType }) {
               <div className="flex items-center justify-between mb-1.5">
                 <span className="num text-[13px] font-semibold text-zinc-300">{r.date.slice(5)}</span>
                 <div className="flex gap-4 text-xs">
-                  <NetLabel label="개인" eok={r.individualNetEok} />
-                  <NetLabel label="외국인" eok={r.foreignNetEok} />
-                  <NetLabel label="기관" eok={r.institutionNetEok} />
-                  <NetLabel label="기타법인" eok={r.otherCorpNetEok} />
+                  <NetLabel label="개인" eok={r.individualEok} />
+                  <NetLabel label="외국인" eok={r.foreignEok} />
+                  <NetLabel label="기관" eok={r.institutionEok} />
+                  <NetLabel label="기타법인" eok={r.otherCorpEok} />
                 </div>
               </div>
               <InstitutionBreakdownRow

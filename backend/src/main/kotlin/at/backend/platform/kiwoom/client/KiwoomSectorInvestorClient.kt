@@ -17,9 +17,12 @@ class KiwoomSectorInvestorClient(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** [mrktTp] 0=코스피, 1=코스닥. 종합 업종 행이 없거나 실패 시 null. 폴러(2분)와 상세 패널이 캐시 공유. */
-    @Cacheable("sectorNetBuy", key = "#mrktTp", unless = "#result == null")
-    fun fetchSectorNetBuy(mrktTp: String): SectorInvestorNetBuy? {
+    /**
+     * [mrktTp] 0=코스피, 1=코스닥. [baseDt] 기준일자(YYYYMMDD) — null이면 당일 누적(라이브), 지정 시 그 날 순매수.
+     * 종합 업종 행이 없거나 실패 시 null. 라이브(폴러·상세 패널)는 캐시 공유, 일자별은 (시장,일자)로 캐시.
+     */
+    @Cacheable("sectorNetBuy", key = "#mrktTp + '|' + (#baseDt ?: '')", unless = "#result == null")
+    fun fetchSectorNetBuy(mrktTp: String, baseDt: String? = null): SectorInvestorNetBuy? {
         try {
             val token = authClient.getAccessToken()
 
@@ -29,11 +32,12 @@ class KiwoomSectorInvestorClient(
                 .header("Content-Type", "application/json;charset=UTF-8")
                 .header("api-id", "ka10051")
                 .body(
-                    mapOf(
-                        "mrkt_tp" to mrktTp,   // 0=코스피, 1=코스닥
-                        "amt_qty_tp" to "0",   // 0=금액(억원)
-                        "stex_tp" to "3",      // 3=통합(KRX+NXT)
-                    ),
+                    buildMap {
+                        put("mrkt_tp", mrktTp)   // 0=코스피, 1=코스닥
+                        put("amt_qty_tp", "0")   // 0=금액(억원)
+                        put("stex_tp", "3")      // 3=통합(KRX+NXT)
+                        if (baseDt != null) put("base_dt", baseDt) // 기준일자 YYYYMMDD
+                    },
                 )
                 .retrieve()
                 .body(SectorNetBuyResponse::class.java)

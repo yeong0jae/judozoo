@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  useIndexMinuteCandles,
+  useMarketCandles,
   useMarketInvestorNetBuy,
   useMarketInvestorNetBuyAt,
 } from "../../api/queries";
 import type { MarketInvestorNetBuyItem, MarketType } from "../../types";
 import { formatEok, formatPct } from "../../lib/format";
-import IndexLineChart from "./IndexLineChart";
+import CandleChart from "./CandleChart";
+import { marketDailySeries, marketMinuteSeries } from "./tossCandles";
 import ProfitText from "./ProfitText";
 import EmptyState from "./EmptyState";
 import Skeleton from "./Skeleton";
@@ -17,28 +18,33 @@ const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "
 const fmtIndex = (v: number) =>
   v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-type DetailTab = "detail" | "minute";
+type DetailTab = "detail" | "minute" | "daily";
 
 const DETAIL_TABS: { key: DetailTab; label: string }[] = [
   { key: "detail", label: "상세" },
   { key: "minute", label: "1분봉" },
+  { key: "daily", label: "일봉" },
 ];
 
 /** 지수(코스피/코스닥) 상세/1분봉 패널 — 실시간 로그에서 지수 행 선택 시 우측에. */
 export default function IndexDetailPanel({
   market,
-  date,
   changeRate,
   at = null,
 }: {
   market: MarketType | null;
-  date: string;
   changeRate?: number | null;
   /** 선택한 시그널 발생 시각(ISO). 있으면 그 시점 스냅샷, 없으면 라이브 현재값. */
   at?: string | null;
 }) {
   const [tab, setTab] = useState<DetailTab>("detail");
-  const candlesQ = useIndexMinuteCandles(tab === "minute" ? market : null, date);
+  const chartInterval = tab === "daily" ? "1d" : "1m";
+  const candlesQ = useMarketCandles(tab !== "detail" ? market : null, chartInterval);
+  const chartItems = candlesQ.data ?? [];
+  const chartSeries = useMemo(
+    () => (chartInterval === "1d" ? marketDailySeries(chartItems) : marketMinuteSeries(chartItems)),
+    [chartItems, chartInterval],
+  );
   const detailOn = tab === "detail" && market !== null;
   const netBuyLiveQ = useMarketInvestorNetBuy(detailOn);
   const netBuyAtQ = useMarketInvestorNetBuyAt(detailOn ? at : null, detailOn);
@@ -48,8 +54,7 @@ export default function IndexDetailPanel({
   const netBuyLoading = (at != null && netBuyAtQ.isLoading) || (snapshot == null && netBuyLiveQ.isLoading);
   const netBuyTitle =
     snapshot != null ? `${at!.slice(11, 16)} 시점 투자자 순매수` : "당일 누적 투자자 순매수";
-  const candles = candlesQ.data ?? [];
-  const lastValue = candles.length > 0 ? candles[candles.length - 1].close : null;
+  const lastValue = chartItems.length > 0 ? chartItems[chartItems.length - 1].close : null;
 
   if (!market) {
     return (
@@ -93,15 +98,21 @@ export default function IndexDetailPanel({
       </header>
 
       <div className="pt-4">
-        {tab === "minute" ? (
+        {tab !== "detail" ? (
           candlesQ.isLoading ? (
             <Skeleton className="h-[28rem] w-full" />
-          ) : candles.length === 0 ? (
+          ) : chartItems.length === 0 ? (
             <div className="h-[28rem] flex items-center justify-center">
-              <EmptyState message="장중에 지수 분봉이 표시됩니다" />
+              <EmptyState message={tab === "minute" ? "장중에 지수 분봉이 표시됩니다" : "일봉 데이터가 없습니다"} />
             </div>
           ) : (
-            <IndexLineChart items={candles} changeRate={changeRate} className="w-full h-[28rem]" />
+            <CandleChart
+              key={`${market}-${chartInterval}`}
+              series={chartSeries}
+              timeVisible={chartInterval === "1m"}
+              priceDecimals={2}
+              className="w-full h-[28rem]"
+            />
           )
         ) : netBuyLoading ? (
           <Skeleton className="h-[28rem] w-full" />

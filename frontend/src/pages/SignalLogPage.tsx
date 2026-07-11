@@ -651,7 +651,6 @@ function DomesticSignalLog({
         {selectedMarket ? (
           <IndexDetailPanel
             market={selectedMarket}
-            date={date}
             at={selectedMarketAt}
             changeRate={allMarketEvents.find((m) => m.market === selectedMarket)?.changeRate ?? null}
           />

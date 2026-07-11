@@ -13,9 +13,8 @@ import type {
   IndexMinuteCandleItem,
   MarketSignalEventsResponse,
   MarketInvestorNetBuyItem,
-  MarketInvestorIntradayPoint,
   MarketCandleItem,
-  MarketInvestorRecord,
+  MarketInvestorDay,
   MarketInvestorSession,
   MarketType,
   MarketStatus,
@@ -63,8 +62,6 @@ export const QK = {
     ["market", market, "investor", "daily", count] as const,
   marketInvestorSessions: (market: string, date: string) =>
     ["market", market, "investor", "sessions", date] as const,
-  marketInvestorIntraday: (market: string, date: string) =>
-    ["market", market, "investor", "intraday", date] as const,
   marketCandles: (market: string, interval: string) =>
     ["market", market, "candles", interval] as const,
   themeCalendar: (from: string, to: string) =>
@@ -212,7 +209,7 @@ export function useMarketInvestorDaily(market: "KOSPI" | "KOSDAQ", count = 10) {
   return useQuery({
     queryKey: QK.marketInvestorDaily(market, count),
     queryFn: () =>
-      apiFetch<MarketInvestorRecord[]>(`/api/market/${market}/investor/daily?count=${count}`),
+      apiFetch<MarketInvestorDay[]>(`/api/market/${market}/investor/daily?count=${count}`),
     staleTime: 60_000,
   });
 }
@@ -227,28 +224,19 @@ export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: stri
   });
 }
 
-/** 그날 장중 스냅샷 시계열 — 갱신주기 확인·누적 곡선용. */
-export function useMarketInvestorIntraday(market: "KOSPI" | "KOSDAQ", date: string) {
-  return useQuery({
-    queryKey: QK.marketInvestorIntraday(market, date),
-    queryFn: () =>
-      apiFetch<MarketInvestorIntradayPoint[]>(`/api/market/${market}/investor/intraday?date=${date}`),
-    refetchInterval: 60_000,
-  });
-}
-
-/** 시장 지수 캔들(OHLCV) — 토스. interval "1d"는 최근 [count]봉, "1m"은 오늘 하루치(count 무시). */
+/** 시장 지수 캔들(OHLCV) — 토스. interval "1d"는 최근 [count]봉, "1m"은 최근 거래일치. market=null이면 비활성. */
 export function useMarketCandles(
-  market: "KOSPI" | "KOSDAQ",
+  market: "KOSPI" | "KOSDAQ" | null,
   interval: "1d" | "1m",
   count = 90,
 ) {
   return useQuery({
-    queryKey: QK.marketCandles(market, interval),
+    queryKey: QK.marketCandles(market ?? "none", interval),
     queryFn: () =>
       apiFetch<MarketCandleItem[]>(
         `/api/market/${market}/candles?interval=${interval}&count=${count}`,
       ),
+    enabled: market !== null,
     refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }
