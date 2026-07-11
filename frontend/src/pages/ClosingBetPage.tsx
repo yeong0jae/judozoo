@@ -552,9 +552,7 @@ function LiveIndexChartCard({ market }: { market: MarketType }) {
   return (
     <div className={cardCls}>
       <div className="flex items-center justify-between mb-3">
-        <span className={titleCls}>
-          차트 <span className="text-zinc-600 font-normal">· 토스</span>
-        </span>
+        <span className={titleCls}>차트</span>
         <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
           {[
             { k: "1m" as const, label: "1분봉" },
@@ -618,7 +616,7 @@ function RealInvestorTable({ market }: { market: MarketType }) {
     <div className={cardCls}>
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>최근 10일 수급</span>
-        <span className="text-xs text-zinc-600">억원 · 토스 (일자 클릭 시 기관 세부 보기)</span>
+        <span className="text-xs text-zinc-600">억원 (일자 클릭 시 기관 세부 보기)</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-48 w-full" />
@@ -706,7 +704,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
     <div className={cardCls}>
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>정규장 세션별 수급</span>
-        <span className="text-xs text-zinc-600">오늘 · 억원 · 토스</span>
+        <span className="text-xs text-zinc-600">오늘 · 억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
