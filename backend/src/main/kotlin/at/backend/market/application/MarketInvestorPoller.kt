@@ -28,7 +28,7 @@ class MarketInvestorPoller(
     private val sessionStart: LocalTime = LocalTime.parse(sessionStart)
     private val sessionEnd: LocalTime = LocalTime.parse(sessionEnd)
 
-    @Scheduled(fixedDelayString = "\${toss.investor.poll-interval-millis:60000}")
+    @Scheduled(fixedDelayString = "\${toss.investor.poll-interval-millis:300000}")
     fun onSchedule() {
         val now = timeProvider.now()
         if (now.dayOfWeek == DayOfWeek.SATURDAY || now.dayOfWeek == DayOfWeek.SUNDAY) return
