@@ -50,7 +50,7 @@ const LIVE_MARKET: Record<string, MarketType> = { kospi: "KOSPI" };
  * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 뉴스.
  */
 export default function ClosingBetPage() {
-  const [sel, setSel] = useState<Selection>({ kind: "stock", name: "SK하이닉스" });
+  const [sel, setSel] = useState<Selection>({ kind: "index", id: "kospi" });
   const [query, setQuery] = useState("");
 
   return (
@@ -90,19 +90,24 @@ export default function ClosingBetPage() {
 const fmt2 = (v: number) =>
   v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const chgText = (value: number, pct: number) => {
+  const chg = value - value / (1 + pct / 100);
+  const sign = chg > 0 ? "+" : chg < 0 ? "−" : "";
+  return `${sign}${Math.abs(chg).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} (${formatPct(pct / 100)})`;
+};
+
+/** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 5칸을 얇은 구분선으로만 분리. */
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
-  // 코스피만 실데이터 — 나머지는 목값(선물·나스닥)
   const kospi = useKospiIndex();
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
         const value = ix.id === "kospi" ? kospi.data?.currentValue ?? ix.value : ix.value;
         const pct = ix.id === "kospi" ? kospi.data?.changeRate ?? ix.pct : ix.pct;
         return (
-          <StripCard
+          <IndexCell
             key={ix.id}
-            id={ix.id}
-            name={ix.name}
+            ix={ix}
             value={value}
             pct={pct}
             active={sel.kind === "index" && sel.id === ix.id}
@@ -114,98 +119,33 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   );
 }
 
-function StripCard({
-  id,
-  name,
+function IndexCell({
+  ix,
   value,
   pct,
   active,
   onSelect,
 }: {
-  id: string;
-  name: string;
+  ix: CbIndex;
   value: number;
   pct: number;
   active: boolean;
   onSelect: () => void;
 }) {
-  const chg = value - value / (1 + pct / 100);
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`relative flex flex-col p-3 rounded-xl text-left overflow-hidden transition-all duration-150 active:scale-[0.99] ${
-        active ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/40" : "bg-white/[0.03] hover:bg-white/[0.06]"
+      className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
+        active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
       }`}
     >
-      <span className="text-[11px] text-zinc-400">{name}</span>
+      <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
       <div className="flex items-baseline gap-1.5 flex-wrap mt-0.5">
-        <span className="num text-[15px] font-bold text-zinc-100">{fmt2(value)}</span>
-        <span className={`num text-[11px] font-medium ${colorByPnL(pct)}`}>
-          {chg > 0 ? "+" : chg < 0 ? "−" : ""}
-          {Math.abs(chg).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} ({formatPct(pct / 100)})
-        </span>
+        <span className="num text-[17px] font-bold text-zinc-100">{fmt2(value)}</span>
+        <span className={`num text-[14px] font-medium ${colorByPnL(pct)}`}>{chgText(value, pct)}</span>
       </div>
-      <Sparkline seed={id} up={pct >= 0} className="w-full h-12 mt-1.5" />
     </button>
-  );
-}
-
-// 카드 배경 스파크라인(면적) — 시드 기반 목 곡선, 부호색, 점선 기준선.
-function sparkRng(str: string) {
-  let h = 1779033703 ^ str.length;
-  for (let i = 0; i < str.length; i++) {
-    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-    h = (h << 13) | (h >>> 19);
-  }
-  return () => {
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
-}
-
-function Sparkline({ seed, up, className }: { seed: string; up: boolean; className?: string }) {
-  const coords = useMemo(() => {
-    const rng = sparkRng(seed);
-    const n = 48;
-    const W = 100;
-    const H = 40;
-    const step = W / (n - 1);
-    let y = 45 + (rng() - 0.5) * 20;
-    const arr: string[] = [];
-    for (let i = 0; i < n; i++) {
-      y += (rng() - 0.5) * 10;
-      y = Math.max(8, Math.min(92, y));
-      arr.push(`${(i * step).toFixed(1)},${((y / 100) * H).toFixed(1)}`);
-    }
-    return arr;
-  }, [seed]);
-  const color = up ? "#f0454a" : "#3b82f6";
-  const gid = `spk-${seed.replace(/[^a-z0-9]/gi, "")}`;
-  const baseY = coords[0].split(",")[1];
-  return (
-    <svg viewBox="0 0 100 40" preserveAspectRatio="none" className={className} aria-hidden>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.32" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={`0,40 ${coords.join(" ")} 100,40`} fill={`url(#${gid})`} />
-      <polyline points={coords.join(" ")} fill="none" stroke={color} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-      <line
-        x1="0"
-        y1={baseY}
-        x2="100"
-        y2={baseY}
-        stroke="currentColor"
-        strokeWidth="0.5"
-        strokeDasharray="2.5 2.5"
-        className="text-zinc-600"
-      />
-    </svg>
   );
 }
 
@@ -260,12 +200,12 @@ function ThemeWatchlist({
           return (
             <div key={t.name} className="border-t border-white/[0.04]">
               <div
-                className={`flex items-center justify-between pl-3.5 pr-2 py-2 border-l-2 transition-colors ${
-                  themeSel ? "border-blue-500 bg-blue-500/[0.08]" : "border-transparent hover:bg-white/[0.03]"
+                className={`flex items-center justify-between pl-3.5 pr-2 py-2 rounded-xl transition-colors ${
+                  themeSel ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
                 }`}
               >
                 <button type="button" onClick={() => onTheme(t.name)} className="flex-1 flex items-baseline gap-2 text-left">
-                  <span className={`text-sm font-bold ${themeSel ? "text-blue-500" : "text-zinc-100"}`}>{t.name}</span>
+                  <span className="text-sm font-bold text-zinc-100">{t.name}</span>
                   <span className="text-[11px] text-zinc-500">{t.stocks.length}</span>
                 </button>
                 <button
@@ -296,8 +236,8 @@ function ThemeWatchlist({
                         key={s.code}
                         type="button"
                         onClick={() => onStock(s.name)}
-                        className={`w-full flex items-center gap-2.5 pl-3.5 pr-4 py-2 border-l-2 text-left transition-colors ${
-                          active ? "border-blue-500 bg-blue-500/[0.08]" : "border-transparent hover:bg-white/[0.03]"
+                        className={`w-full flex items-center gap-2.5 pl-3.5 pr-4 py-2 rounded-xl text-left transition-colors ${
+                          active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
                         }`}
                       >
                         <StockAvatar name={s.name} code={s.code} size={30} />
@@ -370,64 +310,72 @@ function DetailHeader({
   extra,
   tab,
   setTab,
+  priceInline = false,
 }: {
-  avatar: ReactNode;
+  avatar?: ReactNode;
   name: string;
   code?: string;
   category: string;
   price: number;
   pct: number;
   extra?: ReactNode;
-  tab: DetailTab;
-  setTab: (t: DetailTab) => void;
+  tab?: DetailTab;
+  setTab?: (t: DetailTab) => void;
+  priceInline?: boolean;
 }) {
   const chg = changeAmount(price, pct);
+  const priceGroup = (
+    <>
+      <span className="num text-xl font-bold text-zinc-100">{formatPrice(price)}</span>
+      <span className={`num text-sm font-semibold ${colorByPnL(pct)}`}>
+        {chg > 0 ? "+" : chg < 0 ? "−" : ""}
+        {Math.abs(chg).toLocaleString("ko-KR")} ({formatPct(pct / 100)})
+      </span>
+      {extra}
+    </>
+  );
   return (
     <header className="pb-4 border-b border-zinc-800">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            {avatar}
-            <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+          {priceInline ? (
+            <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
               <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
-              {code && <span className="num text-xs text-zinc-500">{code}</span>}
-              <span className="text-xs text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">{category}</span>
+              <span className="inline-flex items-baseline gap-2">{priceGroup}</span>
+              <span className="self-center text-xs text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">{category}</span>
             </div>
-          </div>
-          <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-            <span className="num text-xl font-bold text-zinc-100">{formatPrice(price)}</span>
-            <span className={`num text-sm font-semibold ${colorByPnL(pct)}`}>
-              {chg > 0 ? "+" : chg < 0 ? "−" : ""}
-              {Math.abs(chg).toLocaleString("ko-KR")} ({formatPct(pct / 100)})
-            </span>
-            {extra}
-          </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                {avatar}
+                <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                  <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
+                  {code && <span className="num text-xs text-zinc-500">{code}</span>}
+                  <span className="text-xs text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">{category}</span>
+                </div>
+              </div>
+              <div className="mt-1 flex items-baseline gap-2 flex-wrap">{priceGroup}</div>
+            </>
+          )}
         </div>
-        <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
-          {DETAIL_TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`px-3 py-1.5 rounded-lg transition-colors ${
-                tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {tab && setTab && (
+          <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+            {DETAIL_TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                  tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </header>
-  );
-}
-
-/** 지수/테마용 원형 아바타. */
-function CircleAvatar({ name }: { name: string }) {
-  return (
-    <span className="w-10 h-10 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm shrink-0">
-      {name.slice(0, 2)}
-    </span>
   );
 }
 
@@ -435,8 +383,8 @@ function CircleAvatar({ name }: { name: string }) {
 function MockChart({ chartKey, minute }: { chartKey: string; minute: boolean }) {
   const series = useMemo(() => mockSeries(chartKey, minute), [chartKey, minute]);
   return (
-    <div className={cardCls}>
-      <CandleChart key={`${chartKey}-${minute}`} series={series} timeVisible={minute} className="w-full h-72" />
+    <div className="px-1">
+      <CandleChart key={`${chartKey}-${minute}`} series={series} timeVisible={minute} className="w-full h-[21.25rem]" />
     </div>
   );
 }
@@ -614,28 +562,47 @@ function StockDetail({ name, theme }: { name: string; theme: string }) {
   );
 }
 
+type ChartInterval = "1m" | "1d";
+const INTERVAL_TABS: { key: ChartInterval; label: string }[] = [
+  { key: "1m", label: "1분봉" },
+  { key: "1d", label: "일봉" },
+];
+
+/** 차트 위 1분봉/일봉 토글. */
+function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (v: ChartInterval) => void }) {
+  return (
+    <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+      {INTERVAL_TABS.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => onChange(t.key)}
+          className={`px-3 py-1.5 rounded-lg transition-colors ${
+            value === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** 목데이터 지수 상세(비-코스피). */
 function IndexDetail({ index }: { index: CbIndex }) {
-  const [tab, setTab] = useState<DetailTab>("detail");
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader
-        avatar={<CircleAvatar name={index.name} />}
-        name={index.name}
-        category="지수"
-        price={index.value}
-        pct={index.pct}
-        tab={tab}
-        setTab={setTab}
-      />
-      {tab === "detail" ? (
-        <>
-          <InvestorTable dataKey={index.id} />
-          <SessionsCard dataKey={index.id} />
-        </>
-      ) : (
-        <MockChart chartKey={index.id} minute={tab === "minute"} />
-      )}
+      <DetailHeader name={index.name} category="지수" price={index.value} pct={index.pct} priceInline />
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>지수 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <MockChart chartKey={index.id} minute={chartInterval === "1m"} />
+      </div>
+      <SessionsCard dataKey={index.id} />
+      <InvestorTable dataKey={index.id} />
     </div>
   );
 }
@@ -646,27 +613,20 @@ function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: C
   const priceQ = useKospiIndex();
   const value = priceQ.data?.currentValue ?? fallback.value;
   const pct = priceQ.data?.changeRate ?? fallback.pct;
-  const [tab, setTab] = useState<DetailTab>("detail");
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
 
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader
-        avatar={<CircleAvatar name={fallback.name} />}
-        name={fallback.name}
-        category="지수"
-        price={value}
-        pct={pct}
-        tab={tab}
-        setTab={setTab}
-      />
-      {tab === "detail" ? (
-        <>
-          <RealInvestorTable market={market} />
-          <RealSessionsCard market={market} date={date} />
-        </>
-      ) : (
-        <LiveChart market={market} interval={tab === "daily" ? "1d" : "1m"} />
-      )}
+      <DetailHeader name={fallback.name} category="지수" price={value} pct={pct} priceInline />
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>지수 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <LiveChart market={market} interval={chartInterval} />
+      </div>
+      <RealSessionsCard market={market} date={date} />
+      <RealInvestorTable market={market} />
     </div>
   );
 }
@@ -680,11 +640,11 @@ function LiveChart({ market, interval }: { market: MarketType; interval: "1m" | 
     [items, interval],
   );
   return (
-    <div className={cardCls}>
+    <div className="px-1">
       {isLoading ? (
-        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-[21.25rem] w-full" />
       ) : items.length === 0 ? (
-        <div className="h-72 flex items-center justify-center">
+        <div className="h-[21.25rem] flex items-center justify-center">
           <EmptyState message={interval === "1m" ? "장중에 1분봉이 표시됩니다" : "일봉 데이터가 없습니다"} />
         </div>
       ) : (
@@ -693,7 +653,7 @@ function LiveChart({ market, interval }: { market: MarketType; interval: "1m" | 
           series={series}
           timeVisible={interval === "1m"}
           priceDecimals={2}
-          className="w-full h-72"
+          className="w-full h-[21.25rem]"
         />
       )}
     </div>
@@ -733,10 +693,10 @@ function fmtDay(iso: string) {
 function RealInvestorTable({ market }: { market: MarketType }) {
   const { data, isLoading } = useMarketInvestorDaily(market, 10);
   const records = data ?? [];
-  const grp = "bg-white/[0.025]"; // 기관상세 묶음 음영
+  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
 
   return (
-    <div className={cardCls}>
+    <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>최근 10일 수급</span>
         <span className="text-xs text-zinc-600">순매수 · 억원</span>
@@ -754,22 +714,22 @@ function RealInvestorTable({ market }: { market: MarketType }) {
                 <th className="text-right font-medium pb-1 px-2.5">개인</th>
                 <th className="text-right font-medium pb-1 px-2.5">외국인</th>
                 <th className="text-right font-medium pb-1 px-2.5">기관계</th>
-                <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1 text-zinc-400 rounded-t-md ${grp}`}>
+                <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
                   기관상세
                 </th>
-                <th className="text-right font-medium pb-1 px-2.5">기타법인</th>
+                <th className={`text-right font-medium pb-1 px-2.5 ${edge}`}>기타법인</th>
               </tr>
               <tr>
                 <th className="text-left font-medium pb-1.5 pr-3">일자</th>
                 <th />
                 <th />
                 <th />
-                {ORG_COLS.map((c) => (
-                  <th key={c.key} className={`text-right font-medium pb-1.5 px-2.5 ${grp}`}>
+                {ORG_COLS.map((c, i) => (
+                  <th key={c.key} className={`text-right font-medium pb-1.5 px-2.5 ${i === 0 ? edge : ""}`}>
                     {c.label}
                   </th>
                 ))}
-                <th />
+                <th className={edge} />
               </tr>
             </thead>
             <tbody>
@@ -788,12 +748,12 @@ function RealInvestorTable({ market }: { market: MarketType }) {
                   <td className="text-right py-2 px-2.5 font-medium">
                     <NetNum eok={r.institutionEok} />
                   </td>
-                  {ORG_COLS.map((c) => (
-                    <td key={c.key} className={`text-right py-2 px-2.5 ${grp}`}>
+                  {ORG_COLS.map((c, i) => (
+                    <td key={c.key} className={`text-right py-2 px-2.5 ${i === 0 ? edge : ""}`}>
                       <NetNum eok={r.breakdown[c.key]} />
                     </td>
                   ))}
-                  <td className="text-right py-2 px-2.5">
+                  <td className={`text-right py-2 px-2.5 ${edge}`}>
                     <NetNum eok={r.otherCorpEok} />
                   </td>
                 </tr>
@@ -808,7 +768,7 @@ function RealInvestorTable({ market }: { market: MarketType }) {
 
 const SESSION_ROWS: { key: keyof NonNullable<MarketInvestorSession["nets"]>; label: string }[] = [
   { key: "individual", label: "개인" },
-  { key: "foreign", label: "외인" },
+  { key: "foreign", label: "외국인" },
   { key: "institution", label: "기관" },
   { key: "otherCorp", label: "기타법인" },
 ];
@@ -819,7 +779,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   const list = data ?? [];
 
   return (
-    <div className={cardCls}>
+    <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>정규장 시간대별 수급</span>
         <span className="text-xs text-zinc-600">오늘 · 억원</span>
@@ -827,30 +787,48 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          {list.map((s) => (
-            <div key={s.name} className="rounded-xl bg-white/[0.02] p-3">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <div className="text-xs text-zinc-300">{s.name}</div>
-                  <div className="text-[10px] text-zinc-600 num">{s.time}</div>
-                </div>
-                {s.name === "막판 동시호가" && (
-                  <span className="text-[9px] text-blue-500 font-semibold">종가 결정</span>
-                )}
-              </div>
-              {s.nets == null ? (
-                <div className="text-[11px] text-zinc-600 py-1">집계 전</div>
-              ) : (
-                SESSION_ROWS.map(({ key, label }) => (
-                  <div key={key} className="flex justify-between text-xs py-0.5">
-                    <span className="text-zinc-500">{label}</span>
-                    <Amount eok={s.nets![key]} />
-                  </div>
-                ))
-              )}
-            </div>
-          ))}
+        <div className="overflow-x-auto -mx-1 px-1">
+          <table className="w-full text-xs whitespace-nowrap">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
+                {SESSION_ROWS.map(({ key, label }) => (
+                  <th key={key} className="text-right font-medium pb-1.5 px-2.5">
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((s) => (
+                <tr
+                  key={s.name}
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                >
+                  <td className="text-left py-2 pr-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-zinc-300">{s.name}</span>
+                      {s.name === "막판 동시호가" && (
+                        <span className="text-[9px] text-blue-500 font-semibold">종가 결정</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+                  </td>
+                  {s.nets == null ? (
+                    <td colSpan={SESSION_ROWS.length} className="text-right py-2 px-2.5 text-zinc-600">
+                      집계 전
+                    </td>
+                  ) : (
+                    SESSION_ROWS.map(({ key }) => (
+                      <td key={key} className="text-right py-2 px-2.5">
+                        <NetNum eok={s.nets![key]} />
+                      </td>
+                    ))
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
