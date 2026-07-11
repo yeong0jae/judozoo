@@ -51,7 +51,7 @@ class KisFuturesClient(
                 log.error("KIS 선물 전광판 오류: code={}, msg={}", response.msg_cd, response.msg1)
                 return null
             }
-            return response.output1.orEmpty()
+            return response.output.orEmpty()
                 .mapNotNull { row ->
                     val iscd = row.futs_shrn_iscd?.trim() ?: return@mapNotNull null
                     val days = row.hts_rmnn_dynu?.trim()?.toIntOrNull() ?: return@mapNotNull null
@@ -159,7 +159,7 @@ class KisFuturesClient(
         val rt_cd: String? = null,
         val msg_cd: String? = null,
         val msg1: String? = null,
-        val output1: List<BoardRow>? = null,
+        val output: List<BoardRow>? = null, // 전광판_선물은 응답 키가 output(단수)
     )
 
     data class BoardRow(
