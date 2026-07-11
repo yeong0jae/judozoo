@@ -19,33 +19,33 @@ class MarketCandleService(
         client.fetchCandles(market.name, "1d", count.coerceIn(1, MAX_PAGE_SIZE))
             .candles.sortedBy { it.timestamp }
 
-    /** 가장 최근 영업일의 1분봉(오름차순) — 한 페이지(최대 200봉)로 정규장을 못 덮어 nextBefore로 이어 받는다. */
+    /** 가장 최근 2 영업일의 1분봉(오름차순) — 2일치 정규장을 덮기 위해 여러 페이지를 조회한다. */
     fun minuteToday(market: Market): List<TossCandle> {
         val collected = mutableListOf<TossCandle>()
         var before: String? = null
         var page = 0
-        var targetDate: LocalDate? = null
+        val targetDates = mutableSetOf<LocalDate>()
         while (page < MAX_PAGES) {
             val res = client.fetchCandles(market.name, "1m", MAX_PAGE_SIZE, before)
             if (res.candles.isEmpty()) break
 
-            if (targetDate == null) {
-                targetDate = res.candles.maxOfOrNull { it.timestamp }?.toLocalDate()
-            }
-            val currentTarget = targetDate ?: break
-
             collected += res.candles
-            val earliestDate = res.candles.minOf { it.timestamp }.toLocalDate()
-            if (earliestDate.isBefore(currentTarget) || res.nextBefore == null) break
+            val pageDates = res.candles.map { it.timestamp.toLocalDate() }
+            targetDates.addAll(pageDates)
+
+            // 고유 거래일이 3개 이상 감지되면 2일치 수집이 완료된 것이므로 종료
+            if (targetDates.size > 2 || res.nextBefore == null) {
+                break
+            }
             before = res.nextBefore
             page++
         }
-        val date = targetDate ?: return emptyList()
-        return collected.filter { it.timestamp.toLocalDate() == date }.sortedBy { it.timestamp }
+        val validDates = targetDates.sortedDescending().take(2).toSet()
+        return collected.filter { it.timestamp.toLocalDate() in validDates }.sortedBy { it.timestamp }
     }
 
     companion object {
         private const val MAX_PAGE_SIZE = 200
-        private const val MAX_PAGES = 3 // 200×3=600봉 — 정규장(390분) 여유 있게 커버
+        private const val MAX_PAGES = 6 // 200×6=1200봉 — 2일치 정규장(780분) 여유 있게 커버
     }
 }
