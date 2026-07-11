@@ -209,6 +209,14 @@ export interface MarketInvestorNetBuyItem {
   foreignEok: number;
   institutionEok: number;
   individualEok: number;
+  otherCorpEok: number;
+  // 기관 세부 (억원). 시그널 시점 조회는 컬럼 추가 이후 값부터 채워짐.
+  financialInvestmentEok: number;
+  trustEok: number;
+  pensionFundEok: number;
+  privateEquityEok: number;
+  insuranceEok: number;
+  bankEok: number;
   indexValue: number;
   changeRate: number;
 }

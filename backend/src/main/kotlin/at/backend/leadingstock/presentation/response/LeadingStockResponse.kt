@@ -123,6 +123,14 @@ data class MarketInvestorNetBuyItem(
     val foreignEok: Long,      // 외국인
     val institutionEok: Long,  // 기관
     val individualEok: Long,   // 개인
+    val otherCorpEok: Long,    // 기타법인
+    // 기관 세부 — 시그널 시점(at) 조회는 컬럼 추가 이후 스냅샷부터 채워진다(과거는 0).
+    val financialInvestmentEok: Long, // 금융투자
+    val trustEok: Long,        // 투신
+    val pensionFundEok: Long,  // 연기금
+    val privateEquityEok: Long, // 사모
+    val insuranceEok: Long,    // 보험
+    val bankEok: Long,         // 은행
     val indexValue: Double,
     val changeRate: Double,    // %
 )

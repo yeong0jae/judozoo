@@ -54,6 +54,13 @@ class KiwoomSectorInvestorClient(
                 foreignEok = parseSignedLong(total.frgnr_netprps),
                 institutionEok = parseSignedLong(total.orgn_netprps),
                 individualEok = parseSignedLong(total.ind_netprps),
+                otherCorpEok = parseSignedLong(total.etc_corp_netprps),
+                financialInvestmentEok = parseSignedLong(total.sc_netprps),
+                trustEok = parseSignedLong(total.invtrt_netprps),
+                pensionFundEok = parseSignedLong(total.endw_netprps),
+                privateEquityEok = parseSignedLong(total.samo_fund_netprps),
+                insuranceEok = parseSignedLong(total.insrnc_netprps),
+                bankEok = parseSignedLong(total.bank_netprps),
                 // ka10051의 cur_prc/flu_rt는 소수점 빠진 정수(×100) — 2653.81이 "+265381", 3.52%가 "352".
                 indexValue = kotlin.math.abs(parseSignedLong(total.cur_prc)) / 100.0,
                 changeRate = parseSignedLong(total.flu_rt) / 100.0,
@@ -85,18 +92,33 @@ class KiwoomSectorInvestorClient(
     data class SectorNetBuyItem(
         val inds_cd: String? = null,
         val inds_nm: String? = null,
-        val cur_prc: String? = null,       // 지수 현재가(×100 정수, 부호 포함)
-        val flu_rt: String? = null,        // 등락률(×100 정수, 부호 포함)
-        val frgnr_netprps: String? = null, // 외국인 순매수
-        val orgn_netprps: String? = null,  // 기관계 순매수
-        val ind_netprps: String? = null,   // 개인 순매수
+        val cur_prc: String? = null,        // 지수 현재가(×100 정수, 부호 포함)
+        val flu_rt: String? = null,         // 등락률(×100 정수, 부호 포함)
+        val frgnr_netprps: String? = null,  // 외국인 순매수
+        val orgn_netprps: String? = null,   // 기관계 순매수
+        val ind_netprps: String? = null,    // 개인 순매수
+        val etc_corp_netprps: String? = null, // 기타법인
+        val sc_netprps: String? = null,     // 금융투자(증권)
+        val invtrt_netprps: String? = null, // 투신
+        val endw_netprps: String? = null,   // 연기금(기금)
+        val samo_fund_netprps: String? = null, // 사모펀드
+        val insrnc_netprps: String? = null, // 보험
+        val bank_netprps: String? = null,   // 은행
     )
 
-    /** 한 시장의 투자자별 당일 누적 순매수(억원, 양수=순매수/음수=순매도) + 지수값/등락률. */
+    /** 한 시장의 투자자별 당일 누적 순매수(억원, 양수=순매수/음수=순매도) + 기관 세부 + 지수값/등락률. */
     data class SectorInvestorNetBuy(
         val foreignEok: Long,
         val institutionEok: Long,
         val individualEok: Long,
+        val otherCorpEok: Long,
+        // 기관 세부 (기관계 = 아래 합계 근사)
+        val financialInvestmentEok: Long,
+        val trustEok: Long,
+        val pensionFundEok: Long,
+        val privateEquityEok: Long,
+        val insuranceEok: Long,
+        val bankEok: Long,
         val indexValue: Double,
         val changeRate: Double,
     )

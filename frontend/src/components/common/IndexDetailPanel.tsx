@@ -139,13 +139,55 @@ function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; tit
               <ProfitText value={m.changeRate / 100} format={formatPct} className="num ml-1.5" />
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <NetBuyCell label="개인" eok={m.individualEok} />
             <NetBuyCell label="외인" eok={m.foreignEok} />
             <NetBuyCell label="기관" eok={m.institutionEok} />
+            <NetBuyCell label="기타법인" eok={m.otherCorpEok} />
           </div>
+          {ORG_DETAIL.some(({ key }) => m[key] !== 0) && (
+            <div className="mt-2.5">
+              <div className="text-[11px] text-zinc-600 mb-1">기관 세부</div>
+              <div className="grid grid-cols-6 gap-1.5">
+                {ORG_DETAIL.map(({ key, label }) => (
+                  <OrgCell key={key} label={label} eok={m[key]} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// 키움 ka10051 기관 세부 (연기금·투신·금융투자·사모·보험·은행)
+type OrgKey =
+  | "pensionFundEok"
+  | "trustEok"
+  | "financialInvestmentEok"
+  | "privateEquityEok"
+  | "insuranceEok"
+  | "bankEok";
+const ORG_DETAIL: { key: OrgKey; label: string }[] = [
+  { key: "pensionFundEok", label: "연기금" },
+  { key: "trustEok", label: "투신" },
+  { key: "financialInvestmentEok", label: "금융투자" },
+  { key: "privateEquityEok", label: "사모" },
+  { key: "insuranceEok", label: "보험" },
+  { key: "bankEok", label: "은행" },
+];
+
+function OrgCell({ label, eok }: { label: string; eok: number }) {
+  const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
+  const sign = eok > 0 ? "+" : eok < 0 ? "-" : "";
+  return (
+    <div className="rounded-md bg-white/[0.03] px-1.5 py-1 text-center">
+      <div className="text-[11px] text-zinc-500">{label}</div>
+      <div className={`num text-xs font-medium mt-0.5 ${tone}`}>
+        {sign}
+        {formatEok(Math.abs(eok))}
+      </div>
     </div>
   );
 }

@@ -46,6 +46,28 @@ class MarketInvestorSnapshot(
     @Column(name = "individual_eok", nullable = false)
     val individualEok: Long,
 
+    @Column(name = "other_corp_eok", nullable = false)
+    val otherCorpEok: Long = 0,
+
+    // 기관 세부 순매수 — 컬럼 추가 이후 폴부터 채워진다(과거 스냅샷은 0).
+    @Column(name = "financial_investment_eok", nullable = false)
+    val financialInvestmentEok: Long = 0,
+
+    @Column(name = "trust_eok", nullable = false)
+    val trustEok: Long = 0,
+
+    @Column(name = "pension_fund_eok", nullable = false)
+    val pensionFundEok: Long = 0,
+
+    @Column(name = "private_equity_eok", nullable = false)
+    val privateEquityEok: Long = 0,
+
+    @Column(name = "insurance_eok", nullable = false)
+    val insuranceEok: Long = 0,
+
+    @Column(name = "bank_eok", nullable = false)
+    val bankEok: Long = 0,
+
     @Column(name = "index_value", nullable = false)
     val indexValue: Double,
 
