@@ -7,6 +7,7 @@ import type {
   CandidateStocksResponse,
   InvestorTrendDay,
   KospiIndex,
+  FuturesQuote,
   MarketIndex,
   LeadingStockDetailResponse,
   MinuteCandleItem,
@@ -64,6 +65,9 @@ export const QK = {
     ["market", market, "investor", "sessions", date] as const,
   marketCandles: (market: string, interval: string) =>
     ["market", market, "candles", interval] as const,
+  futuresQuote: ["market", "futures", "kospi", "quote"] as const,
+  futuresCandles: (interval: string) =>
+    ["market", "futures", "kospi", "candles", interval] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
@@ -237,6 +241,27 @@ export function useMarketCandles(
         `/api/market/${market}/candles?interval=${interval}&count=${count}`,
       ),
     enabled: market !== null,
+    refetchInterval: interval === "1m" ? 30_000 : false,
+  });
+}
+
+/** 코스피 선물(근월물) 시세 요약 — KIS. 선물·현물·베이시스·괴리율·미결제. */
+export function useFuturesQuote() {
+  return useQuery({
+    queryKey: QK.futuresQuote,
+    queryFn: () => apiFetch<FuturesQuote | null>("/api/market/futures/kospi/quote"),
+    refetchInterval: 30_000,
+  });
+}
+
+/** 코스피 선물(근월물) 캔들 — KIS. interval "1d"/"1m". */
+export function useFuturesCandles(interval: "1d" | "1m", count = 90) {
+  return useQuery({
+    queryKey: QK.futuresCandles(interval),
+    queryFn: () =>
+      apiFetch<MarketCandleItem[]>(
+        `/api/market/futures/kospi/candles?interval=${interval}&count=${count}`,
+      ),
     refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }

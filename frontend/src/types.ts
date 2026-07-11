@@ -61,6 +61,19 @@ export interface MarketInvestorSession {
   nets: MarketInvestorNets | null;
 }
 
+/** 코스피 선물(근월물) 시세 요약 — KIS 국내선물옵션. 값은 지수 포인트. */
+export interface FuturesQuote {
+  futuresPrice: number;
+  changeRate: number; // 선물 등락률(%)
+  spot: number; // 현물 KOSPI200
+  spotChangeRate: number; // 현물 등락률(%)
+  basis: number; // 선물 − 현물
+  dprt: number; // 괴리율(%)
+  openInterest: number; // 미결제약정(계약)
+  openInterestChange: number; // 전일 대비 증감
+  rmnnDays: number; // 만기 잔존일수
+}
+
 /** 시장 지수 캔들(OHLCV) — 토스 Market Indicators. date는 KST, time은 1d일 땐 00:00:00 고정. */
 export interface MarketCandleItem {
   date: string;

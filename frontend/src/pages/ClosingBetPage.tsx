@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  useFuturesCandles,
+  useFuturesQuote,
   useKospiIndex,
   useMarketCandles,
   useMarketInvestorDaily,
@@ -270,6 +272,7 @@ function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: strin
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
+    if (ix.id === "kospiF") return <FuturesIndexDetail index={ix} />;
     const liveMarket = LIVE_MARKET[ix.id];
     return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
   }
@@ -628,6 +631,128 @@ function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: C
       <RealSessionsCard market={market} date={date} />
       <RealInvestorTable market={market} />
     </div>
+  );
+}
+
+/**
+ * 코스피 선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트.
+ * ⚠️ 목데이터(화면 구성 우선). KIS 선물시세(FHMIF10000000) 연동 시 값 교체 예정.
+ */
+function FuturesIndexDetail({ index }: { index: CbIndex }) {
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1d");
+  const { data } = useFuturesQuote();
+
+  // 실데이터 우선, 없으면 목값(fallback)
+  const futValue = data?.futuresPrice ?? index.value;
+  const futPct = data?.changeRate ?? index.pct;
+  const basis = data?.basis ?? 0.45; // 시장 베이시스 = 선물 − 현물(KOSPI200)
+  const spot = data?.spot ?? futValue - basis; // 현물 KOSPI200
+  const dprt = data?.dprt ?? 0.11; // 괴리율(%)
+  const spotPct = data?.spotChangeRate ?? 0.82; // 현물 등락률
+  const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
+  const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
+  const strengthDiff = futPct - spotPct; // 선물 − 현물 상대강도(%p)
+  const contango = basis >= 0;
+  const tone = contango ? "text-red-400" : "text-blue-400";
+  const badge = contango ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
+  const sTone = strengthDiff >= 0 ? "text-red-400" : "text-blue-400";
+  const sBadge = strengthDiff >= 0 ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DetailHeader name={index.name} category="지수선물" price={futValue} pct={futPct} priceInline />
+
+      <div className="px-1">
+        <div className="flex items-baseline justify-between mb-3">
+          <span className={titleCls}>베이시스</span>
+          <span className="text-xs text-zinc-600">선물 − 현물(KOSPI200)</span>
+        </div>
+        <div className="flex items-end gap-3 flex-wrap">
+          <span className={`num text-3xl font-bold ${tone}`}>
+            {basis >= 0 ? "+" : "−"}
+            {Math.abs(basis).toFixed(2)}
+          </span>
+          <span className={`mb-1 text-xs font-medium rounded-md px-2 py-1 ${badge}`}>
+            {contango ? "콘탱고 · 선물 우위" : "백워데이션 · 현물 우위"}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {[
+            { label: "선물", value: fmt2(futValue) },
+            { label: "현물 K200", value: fmt2(spot) },
+            { label: "괴리율", value: `${dprt >= 0 ? "+" : "−"}${Math.abs(dprt).toFixed(2)}%` },
+          ].map((c) => (
+            <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
+              <div className="text-xs text-zinc-500">{c.label}</div>
+              <div className="num text-lg font-semibold text-zinc-100 mt-0.5">{c.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-1">
+        <div className="flex items-baseline justify-between mb-3">
+          <span className={titleCls}>선물 강도 · 미결제</span>
+          <span className="text-xs text-zinc-600">전일 대비</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap text-sm">
+          <span className="text-xs text-zinc-500">선물</span>
+          <span className={`num font-semibold ${colorByPnL(futPct)}`}>{formatPct(futPct / 100)}</span>
+          <span className="text-xs text-zinc-600">vs 현물</span>
+          <span className={`num font-semibold ${colorByPnL(spotPct)}`}>{formatPct(spotPct / 100)}</span>
+          <span className="text-zinc-600">→</span>
+          <span className={`num font-semibold ${sTone}`}>
+            {strengthDiff >= 0 ? "+" : "−"}
+            {Math.abs(strengthDiff).toFixed(2)}%p
+          </span>
+          <span className={`text-xs font-medium rounded-md px-2 py-0.5 ${sBadge}`}>
+            {strengthDiff >= 0 ? "선물 우위" : "현물 우위"}
+          </span>
+        </div>
+        <div className="mt-2.5 flex items-baseline gap-2 text-sm">
+          <span className="text-xs text-zinc-500">미결제약정</span>
+          <span className="num font-semibold text-zinc-100">{oi.toLocaleString("ko-KR")}</span>
+          <span className="text-xs text-zinc-600">계약</span>
+          <span className="num text-xs text-zinc-400">
+            {oiChg >= 0 ? "+" : "−"}
+            {Math.abs(oiChg).toLocaleString("ko-KR")} 전일
+          </span>
+        </div>
+      </div>
+
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>선물 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <FuturesChart interval={chartInterval} />
+      </div>
+    </div>
+  );
+}
+
+/** 코스피 선물 1분봉/일봉 — KIS 근월물 캔들(OHLCV). */
+function FuturesChart({ interval }: { interval: ChartInterval }) {
+  const { data, isLoading } = useFuturesCandles(interval);
+  const items = data ?? [];
+  const series = useMemo(
+    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
+    [items, interval],
+  );
+  return isLoading ? (
+    <Skeleton className="h-[21.25rem] w-full" />
+  ) : items.length === 0 ? (
+    <div className="h-[21.25rem] flex items-center justify-center">
+      <EmptyState message={interval === "1m" ? "장중에 1분봉이 표시됩니다" : "일봉 데이터가 없습니다"} />
+    </div>
+  ) : (
+    <CandleChart
+      key={`futures-${interval}`}
+      series={series}
+      timeVisible={interval === "1m"}
+      priceDecimals={2}
+      className="w-full h-[21.25rem]"
+    />
   );
 }
 
