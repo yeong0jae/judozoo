@@ -79,16 +79,53 @@ data class Nets(
     val foreign: Long,
     val institution: Long,
     val otherCorp: Long,
+    val breakdown: SessionOrg,
 ) {
     operator fun minus(o: Nets) = Nets(
         individual - o.individual,
         foreign - o.foreign,
         institution - o.institution,
         otherCorp - o.otherCorp,
+        breakdown - o.breakdown,
     )
 }
 
-fun MarketInvestorSnapshot.nets() = Nets(individualEok, foreignEok, institutionEok, otherCorpEok)
+/**
+ * 세션 기관 세부(억원) — 스냅샷 보유 6종(기타금융 제외). 표시 순서: 금융투자·보험·투신·사모펀드·연기금등·은행.
+ * 일별(ka10051)의 7종과 달리 스냅샷엔 기타금융이 없어 6종만 제공한다.
+ */
+data class SessionOrg(
+    val financialInvestmentEok: Long,
+    val insuranceEok: Long,
+    val trustEok: Long,
+    val privateEquityEok: Long,
+    val pensionFundEok: Long,
+    val bankEok: Long,
+) {
+    operator fun minus(o: SessionOrg) = SessionOrg(
+        financialInvestmentEok - o.financialInvestmentEok,
+        insuranceEok - o.insuranceEok,
+        trustEok - o.trustEok,
+        privateEquityEok - o.privateEquityEok,
+        pensionFundEok - o.pensionFundEok,
+        bankEok - o.bankEok,
+    )
+}
+
+fun MarketInvestorSnapshot.nets() = Nets(
+    individual = individualEok,
+    foreign = foreignEok,
+    institution = institutionEok,
+    otherCorp = otherCorpEok,
+    breakdown = SessionOrg(
+        financialInvestmentEok = financialInvestmentEok,
+        insuranceEok = insuranceEok,
+        trustEok = trustEok,
+        privateEquityEok = privateEquityEok,
+        pensionFundEok = pensionFundEok,
+        bankEok = bankEok,
+    ),
+)
 
 data class SessionNet(
     val name: String,

@@ -47,11 +47,22 @@ export interface MarketInvestorDay {
   breakdown: OrgBreakdown;
 }
 
+/** 세션 기관 세부(억원) — 스냅샷 6종(기타금융 제외). */
+export interface SessionOrgBreakdown {
+  financialInvestmentEok: number;
+  insuranceEok: number;
+  trustEok: number;
+  privateEquityEok: number;
+  pensionFundEok: number;
+  bankEok: number;
+}
+
 export interface MarketInvestorNets {
   individual: number;
   foreign: number;
   institution: number;
   otherCorp: number;
+  breakdown: SessionOrgBreakdown;
 }
 
 export interface MarketInvestorSession {

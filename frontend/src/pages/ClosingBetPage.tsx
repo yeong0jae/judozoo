@@ -12,7 +12,7 @@ import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatEok, formatPct, formatPrice } from "../lib/format";
-import type { MarketInvestorDay, MarketInvestorSession, MarketType } from "../types";
+import type { MarketInvestorDay, MarketType, SessionOrgBreakdown } from "../types";
 import {
   changeAmount,
   highDistance,
@@ -671,6 +671,10 @@ const ORG_COLS: { key: keyof MarketInvestorDay["breakdown"]; label: string }[] =
   { key: "bankEok", label: "은행" },
 ];
 
+// 기관상세 셀 좌우 패딩 — 그룹 경계선에 붙지 않게 첫·끝 셀만 바깥쪽 여백을 넓힘.
+const orgPad = (i: number, len: number) =>
+  `${i === 0 ? "pl-5" : "pl-2.5"} ${i === len - 1 ? "pr-5" : "pr-2.5"}`;
+
 /** 순매수 숫자 — 부호색(+빨강/−파랑) · 천단위 · 축약 없음(억원 그대로). */
 function NetNum({ eok }: { eok: number }) {
   const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-600";
@@ -713,11 +717,11 @@ function RealInvestorTable({ market }: { market: MarketType }) {
                 <th className="pb-1 pr-3" />
                 <th className="text-right font-medium pb-1 px-2.5">개인</th>
                 <th className="text-right font-medium pb-1 px-2.5">외국인</th>
-                <th className="text-right font-medium pb-1 px-2.5">기관계</th>
+                <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
                 <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
                   기관상세
                 </th>
-                <th className={`text-right font-medium pb-1 px-2.5 ${edge}`}>기타법인</th>
+                <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
               </tr>
               <tr>
                 <th className="text-left font-medium pb-1.5 pr-3">일자</th>
@@ -725,7 +729,7 @@ function RealInvestorTable({ market }: { market: MarketType }) {
                 <th />
                 <th />
                 {ORG_COLS.map((c, i) => (
-                  <th key={c.key} className={`text-right font-medium pb-1.5 px-2.5 ${i === 0 ? edge : ""}`}>
+                  <th key={c.key} className={`text-right font-medium pb-1.5 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
                     {c.label}
                   </th>
                 ))}
@@ -745,15 +749,15 @@ function RealInvestorTable({ market }: { market: MarketType }) {
                   <td className="text-right py-2 px-2.5">
                     <NetNum eok={r.foreignEok} />
                   </td>
-                  <td className="text-right py-2 px-2.5 font-medium">
+                  <td className="text-right py-2 pl-2.5 pr-5 font-medium">
                     <NetNum eok={r.institutionEok} />
                   </td>
                   {ORG_COLS.map((c, i) => (
-                    <td key={c.key} className={`text-right py-2 px-2.5 ${i === 0 ? edge : ""}`}>
+                    <td key={c.key} className={`text-right py-2 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
                       <NetNum eok={r.breakdown[c.key]} />
                     </td>
                   ))}
-                  <td className={`text-right py-2 px-2.5 ${edge}`}>
+                  <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
                     <NetNum eok={r.otherCorpEok} />
                   </td>
                 </tr>
@@ -766,17 +770,22 @@ function RealInvestorTable({ market }: { market: MarketType }) {
   );
 }
 
-const SESSION_ROWS: { key: keyof NonNullable<MarketInvestorSession["nets"]>; label: string }[] = [
-  { key: "individual", label: "개인" },
-  { key: "foreign", label: "외국인" },
-  { key: "institution", label: "기관" },
-  { key: "otherCorp", label: "기타법인" },
+// 세션 기관상세 컬럼 (스냅샷 6종, 기타금융 없음) — 10일 수급과 표시 순서 통일.
+const SESSION_ORG_COLS: { key: keyof SessionOrgBreakdown; label: string }[] = [
+  { key: "financialInvestmentEok", label: "금융투자" },
+  { key: "insuranceEok", label: "보험" },
+  { key: "trustEok", label: "투신" },
+  { key: "privateEquityEok", label: "사모펀드" },
+  { key: "pensionFundEok", label: "연기금등" },
+  { key: "bankEok", label: "은행" },
 ];
 
-/** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff. 스냅샷이 아직 없는 세션은 "집계 전". */
+/** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff(구간별 증분). 스냅샷이 아직 없는 세션은 "집계 전". */
 function RealSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketInvestorSessions(market, date);
   const list = data ?? [];
+  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
+  const numCols = 3 + SESSION_ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
 
   return (
     <div className="px-1">
@@ -791,12 +800,26 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
           <table className="w-full text-xs whitespace-nowrap">
             <thead className="text-zinc-500">
               <tr>
+                <th className="pb-1 pr-3" />
+                <th className="text-right font-medium pb-1 px-2.5">개인</th>
+                <th className="text-right font-medium pb-1 px-2.5">외국인</th>
+                <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
+                <th colSpan={SESSION_ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
+                  기관상세
+                </th>
+                <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
+              </tr>
+              <tr>
                 <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
-                {SESSION_ROWS.map(({ key, label }) => (
-                  <th key={key} className="text-right font-medium pb-1.5 px-2.5">
-                    {label}
+                <th />
+                <th />
+                <th />
+                {SESSION_ORG_COLS.map((c, i) => (
+                  <th key={c.key} className={`text-right font-medium pb-1.5 ${orgPad(i, SESSION_ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
+                    {c.label}
                   </th>
                 ))}
+                <th className={edge} />
               </tr>
             </thead>
             <tbody>
@@ -815,15 +838,29 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                     <div className="text-[10px] text-zinc-600 num">{s.time}</div>
                   </td>
                   {s.nets == null ? (
-                    <td colSpan={SESSION_ROWS.length} className="text-right py-2 px-2.5 text-zinc-600">
+                    <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
                       집계 전
                     </td>
                   ) : (
-                    SESSION_ROWS.map(({ key }) => (
-                      <td key={key} className="text-right py-2 px-2.5">
-                        <NetNum eok={s.nets![key]} />
+                    <>
+                      <td className="text-right py-2 px-2.5">
+                        <NetNum eok={s.nets.individual} />
                       </td>
-                    ))
+                      <td className="text-right py-2 px-2.5">
+                        <NetNum eok={s.nets.foreign} />
+                      </td>
+                      <td className="text-right py-2 pl-2.5 pr-5 font-medium">
+                        <NetNum eok={s.nets.institution} />
+                      </td>
+                      {SESSION_ORG_COLS.map((c, i) => (
+                        <td key={c.key} className={`text-right py-2 ${orgPad(i, SESSION_ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
+                          <NetNum eok={s.nets!.breakdown[c.key]} />
+                        </td>
+                      ))}
+                      <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
+                        <NetNum eok={s.nets.otherCorp} />
+                      </td>
+                    </>
                   )}
                 </tr>
               ))}
