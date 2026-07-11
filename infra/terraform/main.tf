@@ -149,6 +149,8 @@ locals {
     "AT_KIWOOM_ACCOUNT_NO",
     "AT_REAL_KIS_APP_KEY", # KIS 해외주식 거래대금순위 조회
     "AT_REAL_KIS_APP_SECRET",
+    "AT_REAL_TOSS_CLIENT_ID", # 토스 Market Indicators (지수·투자자 매매대금)
+    "AT_REAL_TOSS_CLIENT_SECRET",
   ])
 }
 

@@ -6,6 +6,7 @@ import BreakoutRadarPage from "./pages/BreakoutRadarPage";
 import SignalLogPage from "./pages/SignalLogPage";
 import TimelinePage from "./pages/TimelinePage";
 import ThemeCalendarPage from "./pages/ThemeCalendarPage";
+import ClosingBetPage from "./pages/ClosingBetPage";
 import Header from "./components/layout/Header";
 import { ToastProvider } from "./components/toast/Toast";
 import { SettingsProvider } from "./settings/settings";
@@ -46,6 +47,7 @@ function AppShell() {
               <Route path="/" element={<Navigate to="/leading-stocks" replace />} />
               <Route path="/leading-stocks" element={<LeadingStocksPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
+              <Route path="/closing-bet" element={<ClosingBetPage />} />
               <Route path="/signal-log" element={<SignalLogPage />} />
               <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
               <Route path="/timeline" element={<TimelinePage />} />

@@ -13,6 +13,9 @@ import type {
   IndexMinuteCandleItem,
   MarketSignalEventsResponse,
   MarketInvestorNetBuyItem,
+  MarketInvestorIntradayPoint,
+  MarketInvestorRecord,
+  MarketInvestorSession,
   MarketType,
   MarketStatus,
   OverseasBreakoutRadarItem,
@@ -55,6 +58,12 @@ export const QK = {
     ["leading-stocks", "daily-candles", code, date] as const,
   kospiIndex: ["market", "kospi"] as const,
   kosdaqIndex: ["market", "kosdaq"] as const,
+  marketInvestorDaily: (market: string, count: number) =>
+    ["market", market, "investor", "daily", count] as const,
+  marketInvestorSessions: (market: string, date: string) =>
+    ["market", market, "investor", "sessions", date] as const,
+  marketInvestorIntraday: (market: string, date: string) =>
+    ["market", market, "investor", "intraday", date] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
@@ -192,6 +201,36 @@ export function useKosdaqIndex() {
     queryKey: QK.kosdaqIndex,
     queryFn: () => apiFetch<MarketIndex>("/api/market/kosdaq"),
     refetchInterval: 30_000,
+  });
+}
+
+/** 최근 [count]일 일별 순매수(외/기/개/기타법인 + 기관 세부) — 토스 Market Indicators. */
+export function useMarketInvestorDaily(market: "KOSPI" | "KOSDAQ", count = 10) {
+  return useQuery({
+    queryKey: QK.marketInvestorDaily(market, count),
+    queryFn: () =>
+      apiFetch<MarketInvestorRecord[]>(`/api/market/${market}/investor/daily?count=${count}`),
+    staleTime: 60_000,
+  });
+}
+
+/** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff. */
+export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: string) {
+  return useQuery({
+    queryKey: QK.marketInvestorSessions(market, date),
+    queryFn: () =>
+      apiFetch<MarketInvestorSession[]>(`/api/market/${market}/investor/sessions?date=${date}`),
+    refetchInterval: 60_000,
+  });
+}
+
+/** 그날 장중 스냅샷 시계열 — 갱신주기 확인·누적 곡선용. */
+export function useMarketInvestorIntraday(market: "KOSPI" | "KOSDAQ", date: string) {
+  return useQuery({
+    queryKey: QK.marketInvestorIntraday(market, date),
+    queryFn: () =>
+      apiFetch<MarketInvestorIntradayPoint[]>(`/api/market/${market}/investor/intraday?date=${date}`),
+    refetchInterval: 60_000,
   });
 }
 

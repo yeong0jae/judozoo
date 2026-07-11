@@ -9,3 +9,7 @@ infra/terraform/terraform.tfvars
 
 # 에디터 설정 (개인)
 .vscode/
+.DS_Store
+
+# 일회성 프로토타입 스캐치 (화면 확정 전 로컬 확인용)
+prototype/
