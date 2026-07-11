@@ -145,16 +145,14 @@ function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; tit
             <NetBuyCell label="기관" eok={m.institutionEok} />
             <NetBuyCell label="기타법인" eok={m.otherCorpEok} />
           </div>
-          {ORG_DETAIL.some(({ key }) => m[key] !== 0) && (
-            <div className="mt-2.5">
-              <div className="text-[11px] text-zinc-600 mb-1">기관 세부</div>
-              <div className="grid grid-cols-6 gap-1.5">
-                {ORG_DETAIL.map(({ key, label }) => (
-                  <OrgCell key={key} label={label} eok={m[key]} />
-                ))}
-              </div>
+          <div className="mt-2.5">
+            <div className="text-[11px] text-zinc-600 mb-1">기관 세부</div>
+            <div className="grid grid-cols-6 gap-1.5">
+              {ORG_DETAIL.map(({ key, label }) => (
+                <OrgCell key={key} label={label} eok={m[key] ?? 0} />
+              ))}
             </div>
-          )}
+          </div>
         </div>
       ))}
     </div>
