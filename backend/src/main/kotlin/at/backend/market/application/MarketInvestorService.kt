@@ -96,7 +96,7 @@ data class SessionNet(
     val nets: Nets?,
 )
 
-/** 기관 세부 순매수(억원) — 키움 6종. */
+/** 기관 세부 순매수(억원) — 키움 7종. */
 data class OrgBreakdown(
     val financialInvestmentEok: Long,
     val trustEok: Long,
@@ -104,6 +104,7 @@ data class OrgBreakdown(
     val privateEquityEok: Long,
     val insuranceEok: Long,
     val bankEok: Long,
+    val otherFinanceEok: Long,
 )
 
 /** 하루치 시장 투자자 순매수. */
@@ -129,6 +130,7 @@ data class MarketInvestorDay(
                 privateEquityEok = nb.privateEquityEok,
                 insuranceEok = nb.insuranceEok,
                 bankEok = nb.bankEok,
+                otherFinanceEok = nb.otherFinanceEok,
             ),
         )
     }

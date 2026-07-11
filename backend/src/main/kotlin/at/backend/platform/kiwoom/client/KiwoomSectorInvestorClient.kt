@@ -65,6 +65,7 @@ class KiwoomSectorInvestorClient(
                 privateEquityEok = parseSignedLong(total.samo_fund_netprps),
                 insuranceEok = parseSignedLong(total.insrnc_netprps),
                 bankEok = parseSignedLong(total.bank_netprps),
+                otherFinanceEok = parseSignedLong(total.jnsinkm_netprps),
                 // ka10051의 cur_prc/flu_rt는 소수점 빠진 정수(×100) — 2653.81이 "+265381", 3.52%가 "352".
                 indexValue = kotlin.math.abs(parseSignedLong(total.cur_prc)) / 100.0,
                 changeRate = parseSignedLong(total.flu_rt) / 100.0,
@@ -108,6 +109,7 @@ class KiwoomSectorInvestorClient(
         val samo_fund_netprps: String? = null, // 사모펀드
         val insrnc_netprps: String? = null, // 보험
         val bank_netprps: String? = null,   // 은행
+        val jnsinkm_netprps: String? = null, // 종금(기타금융)
     )
 
     /** 한 시장의 투자자별 당일 누적 순매수(억원, 양수=순매수/음수=순매도) + 기관 세부 + 지수값/등락률. */
@@ -123,6 +125,7 @@ class KiwoomSectorInvestorClient(
         val privateEquityEok: Long,
         val insuranceEok: Long,
         val bankEok: Long,
+        val otherFinanceEok: Long,
         val indexValue: Double,
         val changeRate: Double,
     )

@@ -27,7 +27,7 @@ export type KospiIndex = MarketIndex;
 
 // === 시장 투자자 순매수 (키움 ka10051, 시황분석 코스피/코스닥 상세용) ===
 
-/** 기관 세부 순매수(억원) — 키움 6종. */
+/** 기관 세부 순매수(억원) — 키움 7종. */
 export interface OrgBreakdown {
   financialInvestmentEok: number;
   trustEok: number;
@@ -35,6 +35,7 @@ export interface OrgBreakdown {
   privateEquityEok: number;
   insuranceEok: number;
   bankEok: number;
+  otherFinanceEok: number;
 }
 
 export interface MarketInvestorDay {

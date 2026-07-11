@@ -110,17 +110,6 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
           </button>
         );
       })}
-      <div className="flex-1 min-w-[16rem] flex flex-col gap-1 px-4 py-2.5 rounded-xl bg-zinc-900">
-        <span className="text-[11px] text-zinc-500 tracking-wide">오늘 시장 분위기 · 재료</span>
-        <div
-          contentEditable
-          suppressContentEditableWarning
-          className="text-sm text-zinc-200 outline-none leading-relaxed empty:before:content-[attr(data-ph)] empty:before:text-zinc-600"
-          data-ph="글로벌·정책·테마 재료를 메모…"
-        >
-          엔비디아 실적 서프라이즈 → 반도체 수급 지속. 정부 전력망 투자 발표(연속성 ○). 조선 수주 모멘텀 유지.
-        </div>
-      </div>
     </div>
   );
 }
@@ -227,12 +216,6 @@ function ThemeWatchlist({
               </div>
               {isOpen && (
                 <>
-                  {!q && (
-                    <div className="mx-3.5 mb-1 flex items-center gap-2 rounded-lg bg-white/[0.02] px-2.5 py-1.5">
-                      <span className="text-[10px] font-bold text-blue-500 shrink-0">AI</span>
-                      <span className="text-[11px] text-zinc-400 leading-snug">{t.news}</span>
-                    </div>
-                  )}
                   {rows.map((s) => {
                     const active = sel.kind === "stock" && sel.name === s.name;
                     return (
@@ -603,75 +586,106 @@ function LiveIndexChartCard({ market }: { market: MarketType }) {
   );
 }
 
-const REAL_INVESTOR_LABELS: { key: keyof MarketInvestorDay["breakdown"]; label: string }[] = [
-  { key: "pensionFundEok", label: "연기금" },
-  { key: "trustEok", label: "투신" },
+// 기관상세 컬럼 (이미지 순서: 금융투자·보험·기타금융·투신·사모펀드·연기금등·은행)
+const ORG_COLS: { key: keyof MarketInvestorDay["breakdown"]; label: string }[] = [
   { key: "financialInvestmentEok", label: "금융투자" },
-  { key: "privateEquityEok", label: "사모" },
   { key: "insuranceEok", label: "보험" },
+  { key: "otherFinanceEok", label: "기타금융" },
+  { key: "trustEok", label: "투신" },
+  { key: "privateEquityEok", label: "사모펀드" },
+  { key: "pensionFundEok", label: "연기금등" },
   { key: "bankEok", label: "은행" },
 ];
 
-function NetLabel({ label, eok }: { label: string; eok: number }) {
+/** 순매수 숫자 — 부호색(+빨강/−파랑) · 천단위 · 축약 없음(억원 그대로). */
+function NetNum({ eok }: { eok: number }) {
+  const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-600";
+  const sign = eok > 0 ? "+" : eok < 0 ? "−" : "";
   return (
-    <span className="text-zinc-500">
-      {label} <Amount eok={eok} />
+    <span className={`num ${tone}`}>
+      {sign}
+      {Math.abs(eok).toLocaleString("ko-KR")}
     </span>
   );
 }
 
-/** 기관 세부 순매수 한 줄 — 항목 수만큼 균등 컬럼(7개=토스, 6개=키움). 라벨 위·금액 아래. */
-function InstitutionBreakdownRow({ items }: { items: { label: string; eok: number }[] }) {
-  return (
-    <div
-      className="grid gap-1.5"
-      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0,1fr))` }}
-    >
-      {items.map((it) => (
-        <div key={it.label} className="rounded-md bg-zinc-800/40 px-2 py-1.5 text-center">
-          <div className="text-xs text-zinc-500">{it.label}</div>
-          <div className="num text-[13px] font-semibold mt-0.5">
-            <Amount eok={it.eok} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+/** "2026-07-10" → "26년 7월 10일" */
+function fmtDay(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${y.slice(2)}년 ${Number(m)}월 ${Number(d)}일`;
 }
 
-/** 최근 10일 수급 — 키움 ka10051. 일자마다 개인·외국인·기관·기타법인 + 기관 6세부(상시). */
+/** 최근 10일 수급 — 키움 ka10051. 한 행에 개인·외국인·기관계 + 기관상세 7 + 기타법인. */
 function RealInvestorTable({ market }: { market: MarketType }) {
   const { data, isLoading } = useMarketInvestorDaily(market, 10);
   const records = data ?? [];
+  const grp = "bg-white/[0.025]"; // 기관상세 묶음 음영
 
   return (
     <div className={cardCls}>
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>최근 10일 수급</span>
-        <span className="text-xs text-zinc-600">억원</span>
+        <span className="text-xs text-zinc-600">순매수 · 억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-48 w-full" />
       ) : records.length === 0 ? (
         <EmptyState message="일별 수급 데이터가 없습니다" />
       ) : (
-        <div className="flex flex-col gap-3">
-          {records.map((r) => (
-            <div key={r.date} className="border-t border-zinc-800/60 pt-2.5 first:border-t-0 first:pt-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="num text-[13px] font-semibold text-zinc-300">{r.date.slice(5)}</span>
-                <div className="flex gap-4 text-xs">
-                  <NetLabel label="개인" eok={r.individualEok} />
-                  <NetLabel label="외국인" eok={r.foreignEok} />
-                  <NetLabel label="기관" eok={r.institutionEok} />
-                  <NetLabel label="기타법인" eok={r.otherCorpEok} />
-                </div>
-              </div>
-              <InstitutionBreakdownRow
-                items={REAL_INVESTOR_LABELS.map(({ key, label }) => ({ label, eok: r.breakdown[key] }))}
-              />
-            </div>
-          ))}
+        <div className="overflow-x-auto -mx-1 px-1">
+          <table className="w-full text-xs whitespace-nowrap">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="pb-1 pr-3" />
+                <th className="text-right font-medium pb-1 px-2.5">개인</th>
+                <th className="text-right font-medium pb-1 px-2.5">외국인</th>
+                <th className="text-right font-medium pb-1 px-2.5">기관계</th>
+                <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1 text-zinc-400 rounded-t-md ${grp}`}>
+                  기관상세
+                </th>
+                <th className="text-right font-medium pb-1 px-2.5">기타법인</th>
+              </tr>
+              <tr>
+                <th className="text-left font-medium pb-1.5 pr-3">일자</th>
+                <th />
+                <th />
+                <th />
+                {ORG_COLS.map((c) => (
+                  <th key={c.key} className={`text-right font-medium pb-1.5 px-2.5 ${grp}`}>
+                    {c.label}
+                  </th>
+                ))}
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((r) => (
+                <tr
+                  key={r.date}
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                >
+                  <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
+                  <td className="text-right py-2 px-2.5">
+                    <NetNum eok={r.individualEok} />
+                  </td>
+                  <td className="text-right py-2 px-2.5">
+                    <NetNum eok={r.foreignEok} />
+                  </td>
+                  <td className="text-right py-2 px-2.5 font-medium">
+                    <NetNum eok={r.institutionEok} />
+                  </td>
+                  {ORG_COLS.map((c) => (
+                    <td key={c.key} className={`text-right py-2 px-2.5 ${grp}`}>
+                      <NetNum eok={r.breakdown[c.key]} />
+                    </td>
+                  ))}
+                  <td className="text-right py-2 px-2.5">
+                    <NetNum eok={r.otherCorpEok} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
