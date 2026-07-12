@@ -796,11 +796,12 @@ function NightFuturesDetail({ index }: { index: CbIndex }) {
 
       <div className="px-1">
         <div className="flex items-baseline justify-between mb-3">
-          <span className={titleCls}>정규장 선물 종가 대비 갭</span>
-          <span className="text-xs text-zinc-600">야간선물 − 정규장 선물 종가</span>
+          <span className={titleCls}>코스피200 선물 종가 대비 등락률</span>
+          <span className="text-xs text-zinc-600">야간선물 − 코스피200 선물 종가</span>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
-          <span className={`num text-2xl font-bold ${tone}`}>{signed2(data.gap)}</span>
+          <span className={`num text-2xl font-bold ${tone}`}>{signed2(data.changeRate)}%</span>
+          <span className={`num mb-0.5 text-sm font-semibold ${tone}`}>{signed2(data.gap)}</span>
           <span className={`mb-0.5 text-[11px] font-medium rounded-md px-2 py-0.5 ${badge}`}>
             {up ? "갭 상승 · 시초 강세 시사" : "갭 하락 · 시초 약세 시사"}
           </span>
@@ -808,7 +809,7 @@ function NightFuturesDetail({ index }: { index: CbIndex }) {
         <div className="mt-3 grid grid-cols-2 gap-2">
           {[
             { label: "야간선물", value: fmt2(data.price) },
-            { label: "정규장 선물 종가", value: fmt2(data.dayClose) },
+            { label: "코스피200 선물 종가", value: fmt2(data.dayClose) },
           ].map((c) => (
             <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
               <div className="text-xs text-zinc-500">{c.label}</div>
