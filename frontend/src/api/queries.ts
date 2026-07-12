@@ -577,3 +577,27 @@ export function useRemoveWatchStock() {
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
   });
 }
+
+export function useReorderWatchThemes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (themeIds: number[]) =>
+      apiFetch<void>("/api/watch-themes/order", {
+        method: "PATCH",
+        body: JSON.stringify({ themeIds }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
+  });
+}
+
+export function useReorderWatchStocks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ themeId, stockCodes }: { themeId: number; stockCodes: string[] }) =>
+      apiFetch<WatchTheme>(`/api/watch-themes/${themeId}/stocks/order`, {
+        method: "PATCH",
+        body: JSON.stringify({ stockCodes }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
+  });
+}

@@ -36,6 +36,22 @@ class WatchThemeService(
         return theme.toView()
     }
 
+    /** [orderedIds] 순서대로 테마를 재배치한다. */
+    @Transactional
+    fun reorderThemes(orderedIds: List<Long>) {
+        val rank = orderedIds.withIndex().associate { (i, id) -> id to i }
+        repository.findAllByOrderBySortOrderAsc()
+            .sortedBy { rank[it.id] ?: Int.MAX_VALUE }
+            .forEachIndexed { i, theme -> theme.sortOrder = i }
+    }
+
+    @Transactional
+    fun reorderStocks(themeId: Long, orderedCodes: List<String>): WatchThemeView {
+        val theme = repository.findById(themeId).orElseThrow { IllegalArgumentException("없는 테마입니다: $themeId") }
+        theme.reorderStocks(orderedCodes)
+        return theme.toView()
+    }
+
     @Transactional
     fun removeStock(themeId: Long, stockCode: String): WatchThemeView {
         val theme = repository.findById(themeId).orElseThrow { IllegalArgumentException("없는 테마입니다: $themeId") }

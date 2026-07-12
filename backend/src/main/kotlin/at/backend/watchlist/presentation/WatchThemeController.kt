@@ -7,6 +7,7 @@ import at.backend.watchlist.application.WatchThemeService
 import at.backend.watchlist.application.WatchThemeView
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -46,12 +47,30 @@ class WatchThemeController(
         @PathVariable stockCode: String,
     ): ApiResponse<WatchThemeView> = ApiResponse.ok(service.removeStock(themeId, stockCode))
 
+    /** 테마 순서 변경 — 드래그앤드롭 결과 전체 순서를 받는다. */
+    @PatchMapping("/api/watch-themes/order")
+    fun reorderThemes(@RequestBody request: ReorderThemesRequest): ApiResponse<Unit> {
+        service.reorderThemes(request.themeIds)
+        return ApiResponse.ok(Unit)
+    }
+
+    /** 테마 내 종목 순서 변경. */
+    @PatchMapping("/api/watch-themes/{themeId}/stocks/order")
+    fun reorderStocks(
+        @PathVariable themeId: Long,
+        @RequestBody request: ReorderStocksRequest,
+    ): ApiResponse<WatchThemeView> = ApiResponse.ok(service.reorderStocks(themeId, request.stockCodes))
+
     /** 선택한 테마의 종목 시세 — codes=005930,000660 */
     @GetMapping("/api/watch-themes/quotes")
     fun quotes(@RequestParam codes: List<String>): ApiResponse<List<StockQuote>> =
         ApiResponse.ok(quoteService.quotes(codes))
 
     data class CreateThemeRequest(val name: String)
+
+    data class ReorderThemesRequest(val themeIds: List<Long>)
+
+    data class ReorderStocksRequest(val stockCodes: List<String>)
 
     data class AddStockRequest(val stockCode: String, val stockName: String)
 }

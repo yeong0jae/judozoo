@@ -31,7 +31,7 @@ class WatchThemeStock(
     val stockName: String,
 
     @Column(name = "sort_order", nullable = false)
-    val sortOrder: Int = 0,
+    var sortOrder: Int = 0,
 ) : BaseEntity() {
 
     @Id

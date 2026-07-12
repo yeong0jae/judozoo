@@ -50,4 +50,11 @@ class WatchTheme(
     fun removeStock(stockCode: String) {
         stockList.removeIf { it.stockCode == stockCode }
     }
+
+    /** [orderedCodes] 순서대로 재배치한다. 목록에 없는 코드는 무시하고, 빠진 종목은 뒤에 그대로 남는다. */
+    fun reorderStocks(orderedCodes: List<String>) {
+        val rank = orderedCodes.withIndex().associate { (i, code) -> code to i }
+        stockList.sortBy { rank[it.stockCode] ?: Int.MAX_VALUE }
+        stockList.forEachIndexed { i, stock -> stock.sortOrder = i }
+    }
 }

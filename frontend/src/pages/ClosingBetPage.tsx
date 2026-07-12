@@ -18,6 +18,8 @@ import {
   useCreateWatchTheme,
   useDeleteWatchTheme,
   useRemoveWatchStock,
+  useReorderWatchStocks,
+  useReorderWatchThemes,
   useStockSearch,
   useWatchThemeQuotes,
   useWatchThemes,
@@ -56,6 +58,14 @@ const LIVE_MARKET: Record<string, MarketType> = { kospi: "KOSPI" };
 /**
  * 전환 애니메이션 단위 — 테마 안에서 종목만 바꿀 땐 리마운트하지 않는다(왼쪽 종목 리스트가 깜빡이지 않게).
  */
+/** 드래그앤드롭 결과 — [from]을 [to] 자리로 옮긴 새 배열. */
+function move<T>(list: T[], from: number, to: number): T[] {
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 const subjectKey = (sel: Selection) =>
   sel.kind === "index" ? `index-${sel.id}` : `theme-${sel.themeId}`;
 
@@ -195,8 +205,10 @@ function ThemeWatchlist({
 }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const create = useCreateWatchTheme();
   const remove = useDeleteWatchTheme();
+  const reorder = useReorderWatchThemes();
 
   const submit = () => {
     const trimmed = name.trim();
@@ -221,14 +233,23 @@ function ThemeWatchlist({
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-1.5">
-        {themes.map((t) => {
+        {themes.map((t, i) => {
           const active = sel.kind !== "index" && sel.themeId === t.id;
           return (
             <div
               key={t.id}
-              className={`group flex items-center justify-between pl-2.5 pr-1.5 py-2.5 rounded-xl transition-colors ${
-                active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
-              }`}
+              draggable
+              onDragStart={() => setDragIdx(i)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (dragIdx === null || dragIdx === i) return;
+                reorder.mutate(move(themes, dragIdx, i).map((x) => x.id));
+                setDragIdx(null);
+              }}
+              onDragEnd={() => setDragIdx(null)}
+              className={`group flex items-center justify-between pl-2.5 pr-1.5 py-2.5 rounded-xl transition-colors cursor-grab active:cursor-grabbing ${
+                dragIdx === i ? "opacity-40" : ""
+              } ${active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"}`}
             >
               <button type="button" onClick={() => onTheme(t.id)} className="flex-1 flex items-baseline justify-between gap-2 text-left">
                 <span className="text-[15px] font-medium text-zinc-300">{t.name}</span>
@@ -328,7 +349,9 @@ function ThemeStockList({
   const { data: quotes = [] } = useWatchThemeQuotes(codes);
   const quoteBy = useMemo(() => new Map(quotes.map((q) => [q.stockCode, q])), [quotes]);
   const remove = useRemoveWatchStock();
+  const reorder = useReorderWatchStocks();
   const [adding, setAdding] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   return (
     <div className="flex flex-col min-w-0">
@@ -352,15 +375,27 @@ function ThemeStockList({
       {adding && <StockSearchBox themeId={theme.id} onDone={() => setAdding(false)} />}
 
       <div className="flex flex-col gap-0.5">
-        {theme.stocks.map((s) => {
+        {theme.stocks.map((s, i) => {
           const q = quoteBy.get(s.stockCode);
           const active = sel.kind === "stock" && sel.code === s.stockCode;
           return (
             <div
               key={s.stockCode}
-              className={`group w-full flex items-center gap-2.5 px-2 py-2.5 rounded-xl transition-colors ${
-                active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
-              }`}
+              draggable
+              onDragStart={() => setDragIdx(i)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (dragIdx === null || dragIdx === i) return;
+                reorder.mutate({
+                  themeId: theme.id,
+                  stockCodes: move(theme.stocks, dragIdx, i).map((x) => x.stockCode),
+                });
+                setDragIdx(null);
+              }}
+              onDragEnd={() => setDragIdx(null)}
+              className={`group w-full flex items-center gap-2.5 px-2 py-2.5 rounded-xl transition-colors cursor-grab active:cursor-grabbing ${
+                dragIdx === i ? "opacity-40" : ""
+              } ${active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"}`}
             >
               <button
                 type="button"
