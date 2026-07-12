@@ -681,8 +681,6 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const futValue = data?.futuresPrice ?? index.value;
   const futPct = data?.changeRate ?? index.pct;
   const basis = data?.basis ?? 0.45; // 시장 베이시스 = 선물 − 현물(KOSPI200)
-  const spot = data?.spot ?? futValue - basis; // 현물 KOSPI200
-  const dprt = data?.dprt ?? 0.11; // 괴리율(%) — 선물이 이론가 대비 고평가인 정도
   const investors = data?.investors ?? null; // 투자자별 순매수(계약)
   const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
   const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
@@ -710,18 +708,6 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
           <span className={`mb-0.5 text-[11px] font-medium rounded-md px-2 py-0.5 ${badge}`}>
             {contango ? "콘탱고 · 선물 우위" : "백워데이션 · 현물 우위"}
           </span>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {[
-            { label: "선물", value: fmt2(futValue) },
-            { label: "현물 K200", value: fmt2(spot) },
-            { label: "괴리율", value: `${signed2(dprt)}%` },
-          ].map((c) => (
-            <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
-              <div className="text-xs text-zinc-500">{c.label}</div>
-              <div className="num text-lg font-semibold text-zinc-100 mt-0.5">{c.value}</div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -819,17 +805,6 @@ function NightFuturesDetail({ index }: { index: CbIndex }) {
           <span className={`mb-0.5 text-[11px] font-medium rounded-md px-2 py-0.5 ${badge}`}>
             {up ? "갭 상승 · 시초 강세 시사" : "갭 하락 · 시초 약세 시사"}
           </span>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {[
-            { label: "야간선물", value: fmt2(data.price) },
-            { label: "코스피200 선물 종가", value: fmt2(data.dayClose) },
-          ].map((c) => (
-            <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
-              <div className="text-xs text-zinc-500">{c.label}</div>
-              <div className="num text-lg font-semibold text-zinc-100 mt-0.5">{c.value}</div>
-            </div>
-          ))}
         </div>
       </div>
 
