@@ -190,11 +190,13 @@ class KisFuturesClient(
             }
             val o = response.output1 ?: return null
             val price = o.futs_prpr?.trim()?.toDoubleOrNull() ?: return null
-            val prevClose = o.futs_prdy_clpr?.trim()?.toDoubleOrNull() ?: return null
+            // futs_prdy_clpr은 야간(CM)에서 정규장 종가가 아닌 값이 온다. 전일 대비로 역산해야 맞는다.
+            val diff = signed(o.futs_prdy_vrss, o.prdy_vrss_sign)
             return FuturesPrice(
                 name = o.hts_kor_isnm?.trim().orEmpty(),
                 price = price,
-                prevClose = prevClose,
+                prevClose = price - diff,
+                priceChange = diff,
                 changeRate = signed(o.futs_prdy_ctrt, o.prdy_vrss_sign),
                 open = o.futs_oprc?.trim()?.toDoubleOrNull() ?: price,
                 high = o.futs_hgpr?.trim()?.toDoubleOrNull() ?: price,
@@ -369,7 +371,7 @@ class KisFuturesClient(
     data class PriceRow(
         val hts_kor_isnm: String? = null,
         val futs_prpr: String? = null,
-        val futs_prdy_clpr: String? = null,
+        val futs_prdy_vrss: String? = null,
         val futs_prdy_ctrt: String? = null,
         val prdy_vrss_sign: String? = null,
         val futs_oprc: String? = null,
@@ -406,11 +408,12 @@ class KisFuturesClient(
     // ── 결과 타입 ──
     data class NearMonth(val iscd: String, val name: String, val rmnnDays: Int)
 
-    /** 선물 현재가 스냅샷. 야간(CM)이면 prevClose가 직전 정규장 종가라 price − prevClose가 곧 갭. */
+    /** 선물 현재가 스냅샷. 야간(CM)이면 priceChange가 직전 정규장 종가 대비 갭. */
     data class FuturesPrice(
         val name: String,
         val price: Double,
-        val prevClose: Double,
+        val prevClose: Double, // 전일 대비로 역산 — KIS의 futs_prdy_clpr은 야간에서 못 믿는다
+        val priceChange: Double, // 전일 대비(포인트)
         val changeRate: Double,
         val open: Double,
         val high: Double,

@@ -331,6 +331,7 @@ function DetailHeader({
   setTab,
   priceInline = false,
   decimal = false,
+  chg: chgProp,
 }: {
   avatar?: ReactNode;
   name: string;
@@ -343,9 +344,10 @@ function DetailHeader({
   setTab?: (t: DetailTab) => void;
   priceInline?: boolean;
   decimal?: boolean;
+  chg?: number; // 전일 대비를 API가 정확히 줄 때. 없으면 등락률에서 역산
 }) {
   // 지수·선물은 소수 2자리(주가용 정수 반올림을 쓰면 1,210.50이 1,211로 뭉개짐)
-  const chg = decimal ? price - price / (1 + pct / 100) : changeAmount(price, pct);
+  const chg = chgProp ?? (decimal ? price - price / (1 + pct / 100) : changeAmount(price, pct));
   const priceGroup = (
     <>
       <span className="num text-xl font-bold text-zinc-100">
@@ -787,6 +789,7 @@ function NightFuturesDetail({ index }: { index: CbIndex }) {
         category="야간선물"
         price={data.price}
         pct={data.changeRate}
+        chg={data.gap}
         priceInline
         decimal
       />

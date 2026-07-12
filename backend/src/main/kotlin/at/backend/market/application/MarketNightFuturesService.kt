@@ -25,8 +25,8 @@ class MarketNightFuturesService(
         return NightFuturesQuote(
             price = p.price,
             changeRate = p.changeRate,
-            dayClose = p.prevClose, // 야간의 전일 종가 = 직전 정규장 종가
-            gap = p.price - p.prevClose,
+            dayClose = p.prevClose, // 직전 정규장 종가(전일 대비로 역산)
+            gap = p.priceChange,
             open = p.open,
             high = p.high,
             low = p.low,
