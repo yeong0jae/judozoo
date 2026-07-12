@@ -8,6 +8,8 @@ import {
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
+  useNasdaqFuturesCandles,
+  useNasdaqFuturesQuote,
   useNightFuturesCandles,
   useNightFuturesQuote,
 } from "../api/queries";
@@ -106,6 +108,7 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   const kospi = useKospiIndex();
   const futures = useFuturesQuote();
   const night = useNightFuturesQuote();
+  const nasdaq = useNasdaqFuturesQuote();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
@@ -120,6 +123,9 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
         } else if (ix.id === "nightF") {
           value = night.data?.price ?? value;
           pct = night.data?.changeRate ?? pct;
+        } else if (ix.id === "nasF") {
+          value = nasdaq.data?.price ?? value;
+          pct = nasdaq.data?.changeRate ?? pct;
         }
         return (
           <IndexCell
@@ -289,6 +295,7 @@ function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: strin
     if (!ix) return null;
     if (ix.id === "kospiF") return <FuturesIndexDetail index={ix} />;
     if (ix.id === "nightF") return <NightFuturesDetail index={ix} />;
+    if (ix.id === "nasF") return <NasdaqFuturesDetail index={ix} />;
     const liveMarket = LIVE_MARKET[ix.id];
     return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
   }
@@ -848,6 +855,81 @@ function NightFuturesDetail({ index }: { index: CbIndex }) {
         <NightFuturesChart interval={chartInterval} />
       </div>
     </div>
+  );
+}
+
+/**
+ * 나스닥100 선물(CME NQ) 상세 — 야후 파이낸스.
+ * 대응 현물(나스닥100)이 우리 장중엔 닫혀 있어 베이시스·수급은 없다.
+ * 우리 장중에 미국 심리가 어디로 기우는지 보는 용도라 등락률과 분봉이 전부다.
+ */
+function NasdaqFuturesDetail({ index }: { index: CbIndex }) {
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
+  const { data, isLoading } = useNasdaqFuturesQuote();
+
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!data) return <EmptyState message="나스닥 선물 시세를 불러오지 못했습니다" />;
+
+  const signed2 = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}`;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DetailHeader
+        name={index.name}
+        category="지수선물"
+        price={data.price}
+        pct={data.changeRate}
+        chg={data.priceChange}
+        priceInline
+        decimal
+      />
+
+      <div className="px-1">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "나스닥 선물", value: fmt2(data.price) },
+            { label: "전일 종가", value: fmt2(data.prevClose) },
+          ].map((c) => (
+            <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
+              <div className="text-xs text-zinc-500">{c.label}</div>
+              <div className="num text-lg font-semibold text-zinc-100 mt-0.5">{c.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 text-xs text-zinc-600">
+          전일 대비 {signed2(data.priceChange)} · CME 근월물 · 야후 파이낸스
+        </div>
+      </div>
+
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>나스닥 선물 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <NasdaqFuturesChart interval={chartInterval} />
+      </div>
+    </div>
+  );
+}
+
+/** 나스닥 선물 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
+function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
+  const { data, isLoading } = useNasdaqFuturesCandles(interval);
+  const items = data ?? [];
+  const series = useMemo(
+    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
+    [items, interval],
+  );
+  if (isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
+  if (!items.length) return <EmptyState message="캔들 데이터가 없습니다" />;
+  return (
+    <CandleChart
+      key={`nasf-${interval}`}
+      series={series}
+      timeVisible={interval === "1m"}
+      priceDecimals={2}
+      className="w-full h-[21.25rem]"
+    />
   );
 }
 

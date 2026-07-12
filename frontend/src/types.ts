@@ -96,6 +96,14 @@ export interface NightFuturesQuote {
   openInterestChange: number;
 }
 
+/** 나스닥100 선물(CME NQ) 시세 — 야후 파이낸스. 값은 지수 포인트(USD). */
+export interface NasdaqFuturesQuote {
+  price: number;
+  prevClose: number; // 전일 종가
+  priceChange: number; // 전일 대비(포인트)
+  changeRate: number; // 전일 대비 등락률(%)
+}
+
 /** 선물 기관 세부 순매수(계약) — KIS 선물 분류. */
 export interface FuturesOrgBreakdown {
   securities: number; // 증권
