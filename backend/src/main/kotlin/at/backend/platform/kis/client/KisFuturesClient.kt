@@ -238,7 +238,7 @@ class KisFuturesClient(
                 log.error("KIS 선물 투자자 오류: code={}, msg={}", response.msg_cd, response.msg1)
                 return null
             }
-            val o = response.output ?: return null
+            val o = response.output?.firstOrNull() ?: return null
             fun qty(v: String?) = v?.trim()?.toLongOrNull() ?: 0L
             return FuturesInvestors(
                 foreign = qty(o.frgn_ntby_qty),
@@ -386,7 +386,7 @@ class KisFuturesClient(
         val rt_cd: String? = null,
         val msg_cd: String? = null,
         val msg1: String? = null,
-        val output: InvestorRow? = null,
+        val output: List<InvestorRow>? = null, // 문서는 Object라 하지만 실제로는 배열로 온다
     )
 
     data class InvestorRow(
