@@ -452,3 +452,24 @@ export interface DailyIssueItem {
   date: string; // YYYY-MM-DD
   content: string;
 }
+
+// === 관심 테마 (사용자 큐레이션) ===
+
+export interface WatchStock {
+  stockCode: string;
+  stockName: string;
+}
+
+export interface WatchTheme {
+  id: number;
+  name: string;
+  stocks: WatchStock[];
+}
+
+/** 관심 종목 시세 — 키움 ka10001. */
+export interface StockQuote {
+  stockCode: string;
+  stockName: string;
+  currentPrice: number;
+  priceChangeRate: number;
+}

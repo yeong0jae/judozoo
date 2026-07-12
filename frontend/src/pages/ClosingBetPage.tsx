@@ -14,41 +14,40 @@ import {
   useNasdaqIndexQuote,
   useNightFuturesCandles,
   useNightFuturesQuote,
+  useAddWatchStock,
+  useCreateWatchTheme,
+  useDeleteWatchTheme,
+  useRemoveWatchStock,
+  useStockSearch,
+  useWatchThemeQuotes,
+  useWatchThemes,
 } from "../api/queries";
 import CandleChart from "../components/common/CandleChart";
+import StockDetailPanel from "../components/common/StockDetailPanel";
 import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatEok, formatPct, formatPrice } from "../lib/format";
-import type { FuturesOrgBreakdown, MarketInvestorDay, MarketType } from "../types";
+import type { FuturesOrgBreakdown, MarketInvestorDay, MarketType, WatchTheme } from "../types";
 import {
   changeAmount,
-  highDistance,
   INDICES,
   investorDays,
   MARKET_NEWS,
   mockSeries,
   type CbIndex,
-  type CbTheme,
   type NewsItem,
-  nxtFlow,
   orgBreakdown,
-  relIndicator,
   sessions,
-  stockByName,
   stockNews,
-  themeByName,
-  THEMES,
-  themeNews,
-  tradingValues,
 } from "../components/closingbet/mockData";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
 // 선택 대상 — 종목 / 테마 / 지수
 type Selection =
-  | { kind: "stock"; name: string }
-  | { kind: "theme"; name: string }
+  | { kind: "stock"; themeId: number; code: string; name: string }
+  | { kind: "theme"; themeId: number }
   | { kind: "index"; id: string };
 
 /** 실데이터(토스 Market Indicators) 연동이 끝난 지수 — 그 외는 아직 목데이터. */
@@ -57,11 +56,8 @@ const LIVE_MARKET: Record<string, MarketType> = { kospi: "KOSPI" };
 /**
  * 전환 애니메이션 단위 — 테마 안에서 종목만 바꿀 땐 리마운트하지 않는다(왼쪽 종목 리스트가 깜빡이지 않게).
  */
-const subjectKey = (sel: Selection) => {
-  if (sel.kind === "index") return `index-${sel.id}`;
-  const theme = sel.kind === "theme" ? sel.name : stockByName[sel.name]?.theme;
-  return `theme-${theme ?? sel.name}`;
-};
+const subjectKey = (sel: Selection) =>
+  sel.kind === "index" ? `index-${sel.id}` : `theme-${sel.themeId}`;
 
 /**
  * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드. 코스피는 실데이터(토스), 나머지는 목 데이터.
@@ -69,13 +65,18 @@ const subjectKey = (sel: Selection) => {
  */
 export default function ClosingBetPage() {
   const [sel, setSel] = useState<Selection>({ kind: "index", id: "kospi" });
+  const { data: themes = [] } = useWatchThemes();
 
   return (
     <div className="flex flex-col gap-4">
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)_18rem] gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem]">
-        <ThemeWatchlist sel={sel} onTheme={(name) => setSel({ kind: "theme", name })} />
+        <ThemeWatchlist
+          themes={themes}
+          sel={sel}
+          onTheme={(themeId) => setSel({ kind: "theme", themeId })}
+        />
         <div className="min-h-0 lg:overflow-y-auto pr-1">
           <AnimatePresence mode="wait">
             <motion.div
@@ -85,11 +86,11 @@ export default function ClosingBetPage() {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
-              <SubjectDetail sel={sel} onStock={(name) => setSel({ kind: "stock", name })} />
+              <SubjectDetail sel={sel} themes={themes} onSelect={setSel} />
             </motion.div>
           </AnimatePresence>
         </div>
-        <NewsPanel sel={sel} />
+        <NewsPanel sel={sel} themes={themes} />
       </div>
     </div>
   );
@@ -184,35 +185,91 @@ function IndexCell({
 // 좌: 테마 목록 — 종목은 상세 영역의 리스트에서 고른다(아코디언 없음).
 // ============================================================
 function ThemeWatchlist({
+  themes,
   sel,
   onTheme,
 }: {
+  themes: WatchTheme[];
   sel: Selection;
-  onTheme: (name: string) => void;
+  onTheme: (themeId: number) => void;
 }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const create = useCreateWatchTheme();
+  const remove = useDeleteWatchTheme();
+
+  const submit = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return setAdding(false);
+    create.mutate(trimmed, { onSuccess: () => setName("") });
+    setAdding(false);
+  };
+
   return (
     <div className="min-h-0 flex flex-col overflow-hidden">
-      <div className="px-3 pt-4 pb-2">
+      <div className="flex items-center justify-between px-3 pt-4 pb-2">
         <span className="text-base font-bold text-zinc-100">테마</span>
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300"
+          aria-label="테마 추가"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto px-1.5">
-        {THEMES.map((t) => {
-          const active = sel.kind === "theme" && sel.name === t.name;
-          const inTheme = sel.kind === "stock" && stockByName[sel.name]?.theme === t.name;
+        {themes.map((t) => {
+          const active = sel.kind !== "index" && sel.themeId === t.id;
           return (
-            <button
-              key={t.name}
-              type="button"
-              onClick={() => onTheme(t.name)}
-              className={`w-full flex items-baseline justify-between px-2.5 py-2.5 rounded-xl text-left transition-colors ${
-                active || inTheme ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
+            <div
+              key={t.id}
+              className={`group flex items-center justify-between pl-2.5 pr-1.5 py-2.5 rounded-xl transition-colors ${
+                active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
               }`}
             >
-              <span className="text-[15px] font-medium text-zinc-300">{t.name}</span>
-              <span className="text-xs text-zinc-500">{t.stocks.length}</span>
-            </button>
+              <button type="button" onClick={() => onTheme(t.id)} className="flex-1 flex items-baseline justify-between gap-2 text-left">
+                <span className="text-[15px] font-medium text-zinc-300">{t.name}</span>
+                <span className="text-xs text-zinc-500">{t.stocks.length}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => remove.mutate(t.id)}
+                className="ml-1 p-0.5 rounded text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400"
+                aria-label={`${t.name} 삭제`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           );
         })}
+        {adding && (
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={submit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+              if (e.key === "Escape") {
+                setName("");
+                setAdding(false);
+              }
+            }}
+            placeholder="테마 이름"
+            className="w-full mt-1 rounded-xl bg-zinc-950/70 border border-white/[0.06] px-2.5 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-white/20"
+          />
+        )}
+        {!themes.length && !adding && (
+          <p className="px-2.5 py-6 text-xs text-zinc-600 leading-relaxed">
+            테마가 없습니다.
+            <br />+ 를 눌러 만들어보세요.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -221,7 +278,15 @@ function ThemeWatchlist({
 // ============================================================
 // 중앙: 선택 대상 상세
 // ============================================================
-function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: string) => void }) {
+function SubjectDetail({
+  sel,
+  themes,
+  onSelect,
+}: {
+  sel: Selection;
+  themes: WatchTheme[];
+  onSelect: (sel: Selection) => void;
+}) {
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
@@ -233,61 +298,142 @@ function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: strin
     return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
   }
 
-  // 테마·종목은 [테마 종목 리스트 | 상세] 2열. 종목을 바꿔가며 눌러도 리스트가 남는다.
-  const themeName = sel.kind === "theme" ? sel.name : stockByName[sel.name]?.theme;
-  const theme = themeName ? themeByName[themeName] : undefined;
+  const theme = themes.find((t) => t.id === sel.themeId);
   if (!theme) return null;
 
+  // 테마·종목은 [테마 종목 리스트 | 상세] 2열. 종목을 바꿔가며 눌러도 리스트가 남는다.
   return (
     <div className="grid grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] gap-4">
-      <ThemeStockList theme={theme} sel={sel} onStock={onStock} />
+      <ThemeStockList theme={theme} sel={sel} onSelect={onSelect} />
       {sel.kind === "stock" ? (
-        <StockDetail name={sel.name} theme={theme.name} />
+        <StockDetailPanel stockCode={sel.code} />
       ) : (
-        <ThemeDetail theme={theme} onStock={onStock} />
+        <EmptyState message="종목을 선택하세요" />
       )}
     </div>
   );
 }
 
-/** 테마에 속한 종목 리스트 — 상세 영역 왼쪽. 클릭하면 오른쪽이 그 종목 상세로 바뀐다. */
+/** 테마 종목 리스트 — 시세는 이 테마의 종목만 조회한다(키움 rate limit). */
 function ThemeStockList({
   theme,
   sel,
-  onStock,
+  onSelect,
 }: {
-  theme: CbTheme;
+  theme: WatchTheme;
   sel: Selection;
-  onStock: (name: string) => void;
+  onSelect: (sel: Selection) => void;
 }) {
+  const codes = useMemo(() => theme.stocks.map((s) => s.stockCode), [theme.stocks]);
+  const { data: quotes = [] } = useWatchThemeQuotes(codes);
+  const quoteBy = useMemo(() => new Map(quotes.map((q) => [q.stockCode, q])), [quotes]);
+  const remove = useRemoveWatchStock();
+  const [adding, setAdding] = useState(false);
+
   return (
     <div className="flex flex-col min-w-0">
-      <div className="flex items-baseline gap-2 px-1 pb-2">
-        <span className="text-sm font-bold text-zinc-100">{theme.name}</span>
-        <span className="text-[11px] text-zinc-500">{theme.stocks.length}</span>
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-bold text-zinc-100">{theme.name}</span>
+          <span className="text-[11px] text-zinc-500">{theme.stocks.length}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAdding((v) => !v)}
+          className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300"
+          aria-label="종목 추가"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
       </div>
+
+      {adding && <StockSearchBox themeId={theme.id} onDone={() => setAdding(false)} />}
+
       <div className="flex flex-col gap-0.5">
         {theme.stocks.map((s) => {
-          const active = sel.kind === "stock" && sel.name === s.name;
+          const q = quoteBy.get(s.stockCode);
+          const active = sel.kind === "stock" && sel.code === s.stockCode;
           return (
-            <button
-              key={s.code}
-              type="button"
-              onClick={() => onStock(s.name)}
-              className={`w-full flex items-center gap-2.5 px-2 py-2.5 rounded-xl text-left transition-colors ${
+            <div
+              key={s.stockCode}
+              className={`group w-full flex items-center gap-2.5 px-2 py-2.5 rounded-xl transition-colors ${
                 active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
               }`}
             >
-              <StockAvatar name={s.name} code={s.code} size={32} />
-              <span className="flex-1 min-w-0 text-[13.5px] text-zinc-200 leading-tight line-clamp-2">{s.name}</span>
-              <span className="text-right shrink-0">
-                <span className="block num text-[13.5px] font-semibold text-zinc-100">{formatPrice(s.price)}</span>
-                <span className={`block num text-[11.5px] ${colorByPnL(s.pct)}`}>{formatPct(s.pct / 100)}</span>
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => onSelect({ kind: "stock", themeId: theme.id, code: s.stockCode, name: s.stockName })}
+                className="flex-1 min-w-0 flex items-center gap-2.5 text-left"
+              >
+                <StockAvatar name={s.stockName} code={s.stockCode} size={32} />
+                <span className="flex-1 min-w-0 text-[13.5px] text-zinc-200 leading-tight line-clamp-2">{s.stockName}</span>
+                <span className="text-right shrink-0">
+                  <span className="block num text-[13.5px] font-semibold text-zinc-100">
+                    {q ? formatPrice(q.currentPrice) : "—"}
+                  </span>
+                  <span className={`block num text-[11.5px] ${colorByPnL(q?.priceChangeRate ?? 0)}`}>
+                    {q ? formatPct(q.priceChangeRate / 100) : ""}
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => remove.mutate({ themeId: theme.id, stockCode: s.stockCode })}
+                className="p-0.5 rounded text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400"
+                aria-label={`${s.stockName} 삭제`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           );
         })}
+        {!theme.stocks.length && !adding && (
+          <p className="px-2 py-6 text-xs text-zinc-600">+ 를 눌러 종목을 담아보세요.</p>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** 종목 검색 → 테마에 추가. 종목 카탈로그(stocks 테이블) 기준. */
+function StockSearchBox({ themeId, onDone }: { themeId: number; onDone: () => void }) {
+  const [query, setQuery] = useState("");
+  const { data: results = [] } = useStockSearch(query);
+  const add = useAddWatchStock();
+
+  return (
+    <div className="mb-2">
+      <input
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && onDone()}
+        placeholder="종목명 검색"
+        className="w-full rounded-xl bg-zinc-950/70 border border-white/[0.06] px-2.5 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-white/20"
+      />
+      {results.length > 0 && (
+        <div className="mt-1 max-h-56 overflow-y-auto rounded-xl bg-zinc-950/70 border border-white/[0.06]">
+          {results.map((r) => (
+            <button
+              key={r.stockCode}
+              type="button"
+              onClick={() => {
+                add.mutate({ themeId, stockCode: r.stockCode, stockName: r.stockName });
+                setQuery("");
+                onDone();
+              }}
+              className="w-full flex items-baseline justify-between gap-2 px-2.5 py-2 text-left hover:bg-white/[0.04]"
+            >
+              <span className="text-[13px] text-zinc-200 truncate">{r.stockName}</span>
+              <span className="num text-[11px] text-zinc-600">{r.stockCode}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -459,31 +605,6 @@ function InvestorTable({ dataKey }: { dataKey: string }) {
   );
 }
 
-function TradingValueCard({ dataKey }: { dataKey: string }) {
-  const vals = tradingValues(dataKey);
-  const max = Math.max(...vals.map((v) => v.eok));
-  return (
-    <div className={cardCls}>
-      <span className={titleCls}>일별 거래대금</span>
-      <div className="mt-3 flex items-end gap-1.5 h-28">
-        {vals.map((v) => {
-          const hot = v.eok > max * 0.8;
-          return (
-            <div key={v.date} className="flex-1 flex flex-col items-center gap-1.5">
-              <span className="num text-[9px] text-zinc-500">{(v.eok / 1000).toFixed(1)}천억</span>
-              <div
-                className={`w-3/5 rounded-t ${hot ? "bg-red-400" : "bg-zinc-700"}`}
-                style={{ height: `${Math.round((v.eok / max) * 70)}px` }}
-              />
-              <span className="num text-[9px] text-zinc-600">{v.date}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function SessionsCard({ dataKey }: { dataKey: string }) {
   const list = sessions(dataKey);
   return (
@@ -519,77 +640,12 @@ function SessionsCard({ dataKey }: { dataKey: string }) {
   );
 }
 
-function NxtCard({ dataKey }: { dataKey: string }) {
-  const series = useMemo(() => mockSeries(dataKey + "nxt", true), [dataKey]);
-  const flow = nxtFlow(dataKey);
-  return (
-    <div className={cardCls}>
-      <div className="flex items-center justify-between mb-3">
-        <span className={titleCls}>
-          NXT <span className="text-zinc-600 font-normal">· 넥스트레이드</span>
-        </span>
-        <span className="text-xs px-2 py-0.5 rounded-md bg-red-400/10 text-red-400">추세 강세</span>
-      </div>
-      <CandleChart key={`${dataKey}-nxt`} series={series} timeVisible className="w-full h-56" />
-      <div className="mt-3 flex gap-5 text-xs">
-        <span className="text-zinc-500">
-          외인 <Amount eok={flow.foreign} />
-        </span>
-        <span className="text-zinc-500">
-          기관 <Amount eok={flow.inst} />
-        </span>
-        <span className="text-zinc-500">
-          개인 <Amount eok={flow.indiv} />
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function StockDetail({ name, theme }: { name: string; theme: string }) {
-  const { stock } = stockByName[name];
-  const hi = highDistance(name);
-  const [tab, setTab] = useState<DetailTab>("detail");
-  return (
-    <div className="flex flex-col gap-4">
-      <DetailHeader
-        avatar={<StockAvatar name={name} code={stock.code} size={40} />}
-        name={name}
-        code={stock.code}
-        category={theme}
-        price={stock.price}
-        pct={stock.pct}
-        extra={
-          <span className="inline-flex items-center gap-1.5 text-xs bg-white/[0.04] rounded-lg px-2.5 py-1">
-            <span className="text-zinc-500">신고가까지</span>
-            <span className="num text-blue-400 font-medium">{hi.toFixed(1)}%</span>
-            <span className="text-zinc-600">· 52주</span>
-          </span>
-        }
-        tab={tab}
-        setTab={setTab}
-      />
-      {tab === "detail" ? (
-        <>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <InvestorTable dataKey={name} />
-            <TradingValueCard dataKey={name} />
-          </div>
-          <SessionsCard dataKey={name} />
-          <NxtCard dataKey={name} />
-        </>
-      ) : (
-        <MockChart chartKey={name} minute={tab === "minute"} />
-      )}
-    </div>
-  );
-}
-
-type ChartInterval = "1m" | "1d";
 const INTERVAL_TABS: { key: ChartInterval; label: string }[] = [
   { key: "1m", label: "1분봉" },
   { key: "1d", label: "일봉" },
 ];
+
+type ChartInterval = "1m" | "1d";
 
 /** 차트 위 1분봉/일봉 토글. */
 function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (v: ChartInterval) => void }) {
@@ -1316,82 +1372,18 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   );
 }
 
-function ThemeDetail({ theme, onStock }: { theme: CbTheme; onStock: (name: string) => void }) {
-  const avg = theme.stocks.reduce((s, x) => s + x.pct, 0) / theme.stocks.length;
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-start gap-3 pb-1">
-        <span className="w-[42px] h-[42px] rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-sm shrink-0">
-          {theme.name.slice(0, 2)}
-        </span>
-        <div className="flex-1 min-w-0">
-          <span className="text-lg font-bold tracking-tight text-zinc-100">{theme.name} 테마</span>
-          <div className="text-xs text-zinc-500 mt-0.5">
-            {theme.stocks.length}개 종목 · {theme.news}
-          </div>
-        </div>
-        <div className="text-right">
-          <div className={`num text-xl font-bold ${colorByPnL(avg)}`}>{formatPct(avg / 100)}</div>
-          <div className="text-xs text-zinc-600">테마 평균 등락</div>
-        </div>
-      </div>
-
-      <div className={cardCls}>
-        <div className="flex items-baseline justify-between mb-3">
-          <span className={titleCls}>관련 지표 · ETF</span>
-          <span className="text-xs text-zinc-600">DRAM · SOXX 등</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          {theme.related.map((nm) => {
-            const r = relIndicator(nm);
-            return (
-              <div key={nm} className="rounded-xl bg-white/[0.02] p-3">
-                <div className="text-xs text-zinc-400">{r.name}</div>
-                <div className="num text-base font-bold text-zinc-100 mt-0.5">{formatPrice(r.value)}</div>
-                <div className={`num text-[11px] ${colorByPnL(r.pct)}`}>{formatPct(r.pct / 100)}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className={cardCls}>
-        <div className="flex items-baseline justify-between mb-2">
-          <span className={titleCls}>테마 종목</span>
-          <span className="text-xs text-zinc-600">{theme.stocks.length}</span>
-        </div>
-        <div className="flex flex-col">
-          {theme.stocks.map((s) => (
-            <button
-              key={s.code}
-              type="button"
-              onClick={() => onStock(s.name)}
-              className="flex items-center gap-2.5 py-2 border-t border-zinc-800/60 first:border-t-0 hover:bg-white/[0.03] transition-colors -mx-1 px-1 rounded-lg"
-            >
-              <StockAvatar name={s.name} code={s.code} size={26} />
-              <span className="flex-1 text-left text-[13px] text-zinc-200">{s.name}</span>
-              <span className="num text-[13px] font-semibold text-zinc-100">{formatPrice(s.price)}</span>
-              <span className={`num text-[12px] w-16 text-right ${colorByPnL(s.pct)}`}>{formatPct(s.pct / 100)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ============================================================
 // 우: 뉴스 (선택 대상 따라감)
 // ============================================================
-function NewsPanel({ sel }: { sel: Selection }) {
+function NewsPanel({ sel, themes }: { sel: Selection; themes: WatchTheme[] }) {
   let label: string;
   let items: NewsItem[];
   if (sel.kind === "stock") {
     label = sel.name;
     items = stockNews(sel.name);
   } else if (sel.kind === "theme") {
-    label = `${sel.name} 테마`;
-    items = themeNews(themeByName[sel.name]);
+    label = `${themes.find((t) => t.id === sel.themeId)?.name ?? ""} 테마`;
+    items = MARKET_NEWS; // 사용자 정의 테마라 테마별 목뉴스가 없다
   } else {
     label = "시장 · 재료";
     items = MARKET_NEWS;

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import { todayStr } from "../components/common/DateNavigator";
 import type {
@@ -29,6 +29,8 @@ import type {
   OverseasStockRankItem,
   SignalEventsResponse,
   StockSearchResult,
+  StockQuote,
+  WatchTheme,
   ThemeCalendarResponse,
 } from "../types";
 
@@ -98,6 +100,8 @@ export const QK = {
   overseasDailyCandles: (exchange: string, symbol: string) =>
     ["overseas-leading-stocks", "daily-candles", exchange, symbol] as const,
   issues: (date: string) => ["issues", date] as const,
+  watchThemes: ["watch-themes"] as const,
+  watchThemeQuotes: (codes: string[]) => ["watch-themes", "quotes", codes.join(",")] as const,
 };
 
 export interface InstanceInfo {
@@ -509,5 +513,67 @@ export function useThemeCalendar(from: string, to: string) {
         `/api/themes/calendar?from=${from}&to=${to}`,
       ),
     staleTime: 60_000,
+  });
+}
+
+// === 관심 테마 ===
+
+export function useWatchThemes() {
+  return useQuery({
+    queryKey: QK.watchThemes,
+    queryFn: () => apiFetch<WatchTheme[]>("/api/watch-themes"),
+  });
+}
+
+/** 선택한 테마의 종목 시세만 조회 — 전체를 매번 부르면 키움 rate limit에 걸린다. */
+export function useWatchThemeQuotes(codes: string[]) {
+  return useQuery({
+    queryKey: QK.watchThemeQuotes(codes),
+    queryFn: () =>
+      apiFetch<StockQuote[]>(`/api/watch-themes/quotes?codes=${codes.join(",")}`),
+    enabled: codes.length > 0,
+    refetchInterval: 5_000,
+  });
+}
+
+export function useCreateWatchTheme() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<WatchTheme>("/api/watch-themes", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
+  });
+}
+
+export function useDeleteWatchTheme() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (themeId: number) =>
+      apiFetch<void>(`/api/watch-themes/${themeId}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
+  });
+}
+
+export function useAddWatchStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ themeId, stockCode, stockName }: { themeId: number; stockCode: string; stockName: string }) =>
+      apiFetch<WatchTheme>(`/api/watch-themes/${themeId}/stocks`, {
+        method: "POST",
+        body: JSON.stringify({ stockCode, stockName }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
+  });
+}
+
+export function useRemoveWatchStock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ themeId, stockCode }: { themeId: number; stockCode: string }) =>
+      apiFetch<WatchTheme>(`/api/watch-themes/${themeId}/stocks/${stockCode}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
   });
 }
