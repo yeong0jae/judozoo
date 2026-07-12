@@ -683,8 +683,8 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
           <span className="text-xs text-zinc-600">선물 − 현물(KOSPI200)</span>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
-          <span className={`num text-3xl font-bold ${tone}`}>{signed2(basis)}</span>
-          <span className={`mb-1 text-xs font-medium rounded-md px-2 py-1 ${badge}`}>
+          <span className={`num text-2xl font-bold ${tone}`}>{signed2(basis)}</span>
+          <span className={`mb-0.5 text-[11px] font-medium rounded-md px-2 py-0.5 ${badge}`}>
             {contango ? "콘탱고 · 선물 우위" : "백워데이션 · 현물 우위"}
           </span>
         </div>
