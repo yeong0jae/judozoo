@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useFuturesCandles,
+  useFuturesInvestorSessions,
   useFuturesQuote,
   useKospiIndex,
   useMarketCandles,
@@ -659,6 +660,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const basis = data?.basis ?? 0.45; // 시장 베이시스 = 선물 − 현물(KOSPI200)
   const spot = data?.spot ?? futValue - basis; // 현물 KOSPI200
   const dprt = data?.dprt ?? 0.11; // 괴리율(%) — 선물이 이론가 대비 고평가인 정도
+  const investors = data?.investors ?? null; // 투자자별 순매수(계약)
   const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
   const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
   const expiryDate = data?.expiryDate ?? "2026-09-10"; // 만기일
@@ -700,6 +702,32 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
         </div>
       </div>
 
+      {investors && (
+        <div className="px-1">
+          <div className="flex items-baseline justify-between mb-3">
+            <span className={titleCls}>투자자 순매수</span>
+            <span className="text-xs text-zinc-600">당일 누적 · 계약</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "외국인", value: investors.foreign },
+              { label: "기관", value: investors.institution },
+              { label: "개인", value: investors.individual },
+            ].map((c) => (
+              <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
+                <div className="text-xs text-zinc-500">{c.label}</div>
+                <div className={`num text-lg font-semibold mt-0.5 ${colorByPnL(c.value)}`}>
+                  {c.value >= 0 ? "+" : "−"}
+                  {Math.abs(c.value).toLocaleString("ko-KR")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <FuturesSessionsCard date={todayStr()} />
+
       <div className="px-1">
         <div className="flex items-baseline gap-2 text-sm">
           <span className="text-xs text-zinc-500">미결제약정</span>
@@ -724,6 +752,67 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
         </div>
         <FuturesChart interval={chartInterval} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * 선물 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷의 경계 diff(구간별 증분).
+ * 폴러가 적재한 스냅샷이 있어야 하므로, 아직 없는 세션은 "집계 전".
+ */
+function FuturesSessionsCard({ date }: { date: string }) {
+  const { data, isLoading } = useFuturesInvestorSessions(date);
+  const list = data ?? [];
+  return (
+    <div className="px-1">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className={titleCls}>정규장 시간대별 수급</span>
+        <span className="text-xs text-zinc-600">오늘 · 계약</span>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : (
+        <table className="w-full text-xs whitespace-nowrap">
+          <thead className="text-zinc-500">
+            <tr>
+              <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
+              <th className="text-right font-medium pb-1.5 px-2.5">개인</th>
+              <th className="text-right font-medium pb-1.5 px-2.5">외국인</th>
+              <th className="text-right font-medium pb-1.5 pl-2.5">기관계</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((s) => (
+              <tr
+                key={s.name}
+                className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+              >
+                <td className="text-left py-2 pr-3">
+                  <div className="text-zinc-300">{s.name}</div>
+                  <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+                </td>
+                {s.nets == null ? (
+                  <td colSpan={3} className="text-right py-2 px-2.5 text-zinc-600">
+                    집계 전
+                  </td>
+                ) : (
+                  <>
+                    <td className="text-right py-2 px-2.5">
+                      <NetNum eok={s.nets.individual} />
+                    </td>
+                    <td className="text-right py-2 px-2.5">
+                      <NetNum eok={s.nets.foreign} />
+                    </td>
+                    <td className="text-right py-2 pl-2.5 font-medium">
+                      <NetNum eok={s.nets.institution} />
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

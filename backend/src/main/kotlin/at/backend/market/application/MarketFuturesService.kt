@@ -35,6 +35,9 @@ class MarketFuturesService(
             openInterestChange = s.openInterestChange,
             rmnnDays = near.rmnnDays,
             expiryDate = expiryOf(near.name) ?: "",
+            investors = client.fetchInvestors()?.let {
+                FuturesInvestors(it.foreign, it.individual, it.institution)
+            },
         )
     }
 
@@ -118,4 +121,12 @@ data class FuturesQuote(
     val openInterestChange: Long, // 전일 대비 증감
     val rmnnDays: Int, // 만기 잔존일수
     val expiryDate: String, // 만기일 yyyy-MM-dd (근월물 최종거래일)
+    val investors: FuturesInvestors?, // 투자자별 순매수. 조회 실패 시 null
+)
+
+/** 선물 시장 투자자별 순매수(계약). 양수 = 순매수. */
+data class FuturesInvestors(
+    val foreign: Long, // 외국인
+    val individual: Long, // 개인
+    val institution: Long, // 기관계
 )

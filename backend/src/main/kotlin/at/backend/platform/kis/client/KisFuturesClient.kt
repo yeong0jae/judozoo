@@ -149,6 +149,45 @@ class KisFuturesClient(
         }
     }
 
+    /**
+     * 선물 시장 투자자별 순매수(장중 시세성) — 외국인·개인·기관계. 단위: 계약.
+     * 시장별 투자자매매동향(FHPTJ04030000), 시장구분 K2I + 업종구분 F001(선물).
+     */
+    fun fetchInvestors(): FuturesInvestors? {
+        try {
+            val token = authClient.getAccessToken()
+            val response = kisRestClient.get()
+                .uri { b ->
+                    b.path("/uapi/domestic-stock/v1/quotations/inquire-investor-time-by-market")
+                        .queryParam("fid_input_iscd", "K2I") // 선물·콜·풋
+                        .queryParam("fid_input_iscd_2", "F001") // 선물
+                        .build()
+                }
+                .header("content-type", "application/json; charset=utf-8")
+                .header("authorization", "Bearer $token")
+                .header("appkey", properties.appKey)
+                .header("appsecret", properties.appSecret)
+                .header("tr_id", "FHPTJ04030000")
+                .header("custtype", "P")
+                .retrieve()
+                .body(InvestorResponse::class.java)
+                ?: return null
+            if (response.rt_cd != "0") {
+                log.error("KIS 선물 투자자 오류: code={}, msg={}", response.msg_cd, response.msg1)
+                return null
+            }
+            val o = response.output ?: return null
+            return FuturesInvestors(
+                foreign = o.frgn_ntby_qty?.trim()?.toLongOrNull() ?: 0L,
+                individual = o.prsn_ntby_qty?.trim()?.toLongOrNull() ?: 0L,
+                institution = o.orgn_ntby_qty?.trim()?.toLongOrNull() ?: 0L,
+            )
+        } catch (e: Exception) {
+            log.error("KIS 선물 투자자 조회 실패", e)
+            return null
+        }
+    }
+
     /** 등락률 크기(ctrt)에 부호코드(1상한2상승3보합4하한5하락)를 적용해 부호 포함 %로. */
     private fun signed(ctrt: String?, sign: String?): Double {
         val mag = abs(ctrt?.trim()?.toDoubleOrNull() ?: 0.0)
@@ -243,8 +282,24 @@ class KisFuturesClient(
         }
     }
 
+    data class InvestorResponse(
+        val rt_cd: String? = null,
+        val msg_cd: String? = null,
+        val msg1: String? = null,
+        val output: InvestorRow? = null,
+    )
+
+    data class InvestorRow(
+        val frgn_ntby_qty: String? = null,
+        val prsn_ntby_qty: String? = null,
+        val orgn_ntby_qty: String? = null,
+    )
+
     // ── 결과 타입 ──
     data class NearMonth(val iscd: String, val name: String, val rmnnDays: Int)
+
+    /** 선물 시장 투자자별 순매수(계약). 양수 = 순매수. */
+    data class FuturesInvestors(val foreign: Long, val individual: Long, val institution: Long)
 
     data class FuturesSummary(
         val name: String,

@@ -72,6 +72,21 @@ export interface FuturesQuote {
   openInterestChange: number; // 전일 대비 증감
   rmnnDays: number; // 만기 잔존일수
   expiryDate: string; // 만기일 yyyy-MM-dd
+  investors: FuturesInvestors | null; // 투자자별 순매수(계약). 조회 실패 시 null
+}
+
+/** 선물 시장 투자자별 순매수(계약). 양수 = 순매수. */
+export interface FuturesInvestors {
+  foreign: number;
+  individual: number;
+  institution: number;
+}
+
+/** 선물 세션별(오전/오후/막판) 순매수(계약). 스냅샷이 없는 세션은 nets=null. */
+export interface FuturesSession {
+  name: string;
+  time: string;
+  nets: FuturesInvestors | null;
 }
 
 /** 시장 지수 캔들(OHLCV) — 토스 Market Indicators. date는 KST, time은 1d일 땐 00:00:00 고정. */

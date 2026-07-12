@@ -8,6 +8,7 @@ import type {
   InvestorTrendDay,
   KospiIndex,
   FuturesQuote,
+  FuturesSession,
   MarketIndex,
   LeadingStockDetailResponse,
   MinuteCandleItem,
@@ -68,6 +69,8 @@ export const QK = {
   futuresQuote: ["market", "futures", "kospi", "quote"] as const,
   futuresCandles: (interval: string) =>
     ["market", "futures", "kospi", "candles", interval] as const,
+  futuresInvestorSessions: (date: string) =>
+    ["market", "futures", "kospi", "investor", "sessions", date] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
@@ -251,6 +254,16 @@ export function useFuturesQuote() {
     queryKey: QK.futuresQuote,
     queryFn: () => apiFetch<FuturesQuote | null>("/api/market/futures/kospi/quote"),
     refetchInterval: 30_000,
+  });
+}
+
+/** 코스피 선물 세션별(오전/오후/막판) 투자자 순매수 — 계약. */
+export function useFuturesInvestorSessions(date: string) {
+  return useQuery({
+    queryKey: QK.futuresInvestorSessions(date),
+    queryFn: () =>
+      apiFetch<FuturesSession[]>(`/api/market/futures/kospi/investor/sessions?date=${date}`),
+    refetchInterval: 60_000,
   });
 }
 
