@@ -171,6 +171,20 @@ class CacheConfig {
                 .maximumSize(2)
                 .build(),
         )
+        manager.registerCustomCache(
+            "nasdaqIndexQuote", // 나스닥 종합지수(야후) — 단일 슬롯, 10s
+            Caffeine.newBuilder()
+                .expireAfterWrite(10, TimeUnit.SECONDS)
+                .maximumSize(1)
+                .build(),
+        )
+        manager.registerCustomCache(
+            "nasdaqIndexCandles", // 나스닥 종합지수 캔들(야후) — interval별 슬롯
+            Caffeine.newBuilder()
+                .expireAfterWrite(60, TimeUnit.SECONDS)
+                .maximumSize(2)
+                .build(),
+        )
         return manager
     }
 }

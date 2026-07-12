@@ -10,6 +10,7 @@ import type {
   FuturesQuote,
   FuturesSession,
   NasdaqFuturesQuote,
+  NasdaqIndexQuote,
   NightFuturesQuote,
   MarketIndex,
   LeadingStockDetailResponse,
@@ -79,6 +80,9 @@ export const QK = {
   nasdaqFuturesQuote: ["market", "futures", "nasdaq", "quote"] as const,
   nasdaqFuturesCandles: (interval: string) =>
     ["market", "futures", "nasdaq", "candles", interval] as const,
+  nasdaqIndexQuote: ["market", "nasdaq", "quote"] as const,
+  nasdaqIndexCandles: (interval: string) =>
+    ["market", "nasdaq", "candles", interval] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
@@ -301,6 +305,25 @@ export function useNasdaqFuturesCandles(interval: "1d" | "1m") {
     queryKey: QK.nasdaqFuturesCandles(interval),
     queryFn: () =>
       apiFetch<MarketCandleItem[]>(`/api/market/futures/nasdaq/candles?interval=${interval}`),
+    refetchInterval: interval === "1m" ? 30_000 : false,
+  });
+}
+
+/** 나스닥 종합지수(^IXIC) 시세 — 야후. */
+export function useNasdaqIndexQuote() {
+  return useQuery({
+    queryKey: QK.nasdaqIndexQuote,
+    queryFn: () => apiFetch<NasdaqIndexQuote | null>("/api/market/nasdaq/quote"),
+    refetchInterval: 30_000,
+  });
+}
+
+/** 나스닥 종합지수 캔들 — interval "1d"/"1m". */
+export function useNasdaqIndexCandles(interval: "1d" | "1m") {
+  return useQuery({
+    queryKey: QK.nasdaqIndexCandles(interval),
+    queryFn: () =>
+      apiFetch<MarketCandleItem[]>(`/api/market/nasdaq/candles?interval=${interval}`),
     refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }

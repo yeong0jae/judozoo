@@ -7,8 +7,10 @@ import at.backend.market.application.FuturesSessionNet
 import at.backend.market.application.MarketFuturesInvestorService
 import at.backend.market.application.MarketFuturesService
 import at.backend.market.application.MarketNasdaqFuturesService
+import at.backend.market.application.MarketNasdaqIndexService
 import at.backend.market.application.MarketNightFuturesService
 import at.backend.market.application.NasdaqFuturesQuote
+import at.backend.market.application.NasdaqIndexQuote
 import at.backend.market.application.NightFuturesQuote
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.web.bind.annotation.GetMapping
@@ -22,6 +24,7 @@ class MarketFuturesController(
     private val service: MarketFuturesService,
     private val nightService: MarketNightFuturesService,
     private val nasdaqService: MarketNasdaqFuturesService,
+    private val nasdaqIndexService: MarketNasdaqIndexService,
     private val investorService: MarketFuturesInvestorService,
     private val timeProvider: TimeProvider,
 ) {
@@ -76,6 +79,21 @@ class MarketFuturesController(
     ): ApiResponse<List<FuturesCandleItem>> =
         ApiResponse.ok(
             nasdaqService.candles(interval).map {
+                FuturesCandleItem(it.date, it.time, it.open, it.high, it.low, it.close, it.volume)
+            },
+        )
+
+    /** 나스닥 종합지수(^IXIC) 시세 — 야후. */
+    @GetMapping("/api/market/nasdaq/quote")
+    fun nasdaqIndexQuote(): ApiResponse<NasdaqIndexQuote?> = ApiResponse.ok(nasdaqIndexService.quote())
+
+    /** 나스닥 종합지수 캔들 — interval "1d"/"1m". */
+    @GetMapping("/api/market/nasdaq/candles")
+    fun nasdaqIndexCandles(
+        @RequestParam interval: String,
+    ): ApiResponse<List<FuturesCandleItem>> =
+        ApiResponse.ok(
+            nasdaqIndexService.candles(interval).map {
                 FuturesCandleItem(it.date, it.time, it.open, it.high, it.low, it.close, it.volume)
             },
         )

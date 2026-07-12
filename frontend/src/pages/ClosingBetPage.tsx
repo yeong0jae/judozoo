@@ -10,6 +10,8 @@ import {
   useMarketInvestorSessions,
   useNasdaqFuturesCandles,
   useNasdaqFuturesQuote,
+  useNasdaqIndexCandles,
+  useNasdaqIndexQuote,
   useNightFuturesCandles,
   useNightFuturesQuote,
 } from "../api/queries";
@@ -109,6 +111,7 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   const futures = useFuturesQuote();
   const night = useNightFuturesQuote();
   const nasdaq = useNasdaqFuturesQuote();
+  const nasdaqIndex = useNasdaqIndexQuote();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
@@ -126,6 +129,9 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
         } else if (ix.id === "nasF") {
           value = nasdaq.data?.price ?? value;
           pct = nasdaq.data?.changeRate ?? pct;
+        } else if (ix.id === "nasdaq") {
+          value = nasdaqIndex.data?.price ?? value;
+          pct = nasdaqIndex.data?.changeRate ?? pct;
         }
         return (
           <IndexCell
@@ -296,6 +302,7 @@ function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: strin
     if (ix.id === "kospiF") return <FuturesIndexDetail index={ix} />;
     if (ix.id === "nightF") return <NightFuturesDetail index={ix} />;
     if (ix.id === "nasF") return <NasdaqFuturesDetail index={ix} />;
+    if (ix.id === "nasdaq") return <NasdaqIndexDetail index={ix} />;
     const liveMarket = LIVE_MARKET[ix.id];
     return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
   }
@@ -906,6 +913,61 @@ function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
   return (
     <CandleChart
       key={`nasf-${interval}`}
+      series={series}
+      timeVisible={interval === "1m"}
+      priceDecimals={2}
+      className="w-full h-[21.25rem]"
+    />
+  );
+}
+
+/**
+ * 나스닥 종합지수(^IXIC) 상세 — 야후 파이낸스.
+ * 현물이라 미 정규장(23:30~06:00 KST)에만 움직인다. 우리 장중엔 직전 마감가에 멈춰 있다.
+ */
+function NasdaqIndexDetail({ index }: { index: CbIndex }) {
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
+  const { data, isLoading } = useNasdaqIndexQuote();
+
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!data) return <EmptyState message="나스닥 지수를 불러오지 못했습니다" />;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DetailHeader
+        name={index.name}
+        category="지수"
+        price={data.price}
+        pct={data.changeRate}
+        chg={data.priceChange}
+        priceInline
+        decimal
+      />
+
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>나스닥 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <NasdaqIndexChart interval={chartInterval} />
+      </div>
+    </div>
+  );
+}
+
+/** 나스닥 지수 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
+function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
+  const { data, isLoading } = useNasdaqIndexCandles(interval);
+  const items = data ?? [];
+  const series = useMemo(
+    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
+    [items, interval],
+  );
+  if (isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
+  if (!items.length) return <EmptyState message="캔들 데이터가 없습니다" />;
+  return (
+    <CandleChart
+      key={`nasdaq-${interval}`}
       series={series}
       timeVisible={interval === "1m"}
       priceDecimals={2}
