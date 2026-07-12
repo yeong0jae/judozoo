@@ -11,4 +11,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class StockMasterProperties(
     val kospiUrl: String,
     val kosdaqUrl: String,
+    val overseasUrls: List<String> = emptyList(), // 나스닥/뉴욕/아멕스 마스터
 )

@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 /** 관심 테마 — 사용자가 직접 만드는 테마·종목 목록. (시황분석 좌측 패널) */
@@ -39,7 +38,7 @@ class WatchThemeController(
         @PathVariable themeId: Long,
         @RequestBody request: AddStockRequest,
     ): ApiResponse<WatchThemeView> =
-        ApiResponse.ok(service.addStock(themeId, request.stockCode, request.stockName))
+        ApiResponse.ok(service.addStock(themeId, request.stockCode, request.stockName, request.exchange))
 
     @DeleteMapping("/api/watch-themes/{themeId}/stocks/{stockCode}")
     fun removeStock(
@@ -61,10 +60,10 @@ class WatchThemeController(
         @RequestBody request: ReorderStocksRequest,
     ): ApiResponse<WatchThemeView> = ApiResponse.ok(service.reorderStocks(themeId, request.stockCodes))
 
-    /** 선택한 테마의 종목 시세 — codes=005930,000660 */
-    @GetMapping("/api/watch-themes/quotes")
-    fun quotes(@RequestParam codes: List<String>): ApiResponse<List<StockQuote>> =
-        ApiResponse.ok(quoteService.quotes(codes))
+    /** 선택한 테마의 종목 시세 — 국내/해외는 서버가 거래소로 갈라 조회한다. */
+    @GetMapping("/api/watch-themes/{themeId}/quotes")
+    fun quotes(@PathVariable themeId: Long): ApiResponse<List<StockQuote>> =
+        ApiResponse.ok(quoteService.quotesOf(themeId))
 
     data class CreateThemeRequest(val name: String)
 
@@ -72,5 +71,5 @@ class WatchThemeController(
 
     data class ReorderStocksRequest(val stockCodes: List<String>)
 
-    data class AddStockRequest(val stockCode: String, val stockName: String)
+    data class AddStockRequest(val stockCode: String, val stockName: String, val exchange: String? = null)
 }

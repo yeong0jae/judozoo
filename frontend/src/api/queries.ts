@@ -101,7 +101,7 @@ export const QK = {
     ["overseas-leading-stocks", "daily-candles", exchange, symbol] as const,
   issues: (date: string) => ["issues", date] as const,
   watchThemes: ["watch-themes"] as const,
-  watchThemeQuotes: (codes: string[]) => ["watch-themes", "quotes", codes.join(",")] as const,
+  watchThemeQuotes: (themeId: number) => ["watch-themes", themeId, "quotes"] as const,
 };
 
 export interface InstanceInfo {
@@ -526,12 +526,11 @@ export function useWatchThemes() {
 }
 
 /** 선택한 테마의 종목 시세만 조회 — 전체를 매번 부르면 키움 rate limit에 걸린다. */
-export function useWatchThemeQuotes(codes: string[]) {
+export function useWatchThemeQuotes(themeId: number, enabled: boolean) {
   return useQuery({
-    queryKey: QK.watchThemeQuotes(codes),
-    queryFn: () =>
-      apiFetch<StockQuote[]>(`/api/watch-themes/quotes?codes=${codes.join(",")}`),
-    enabled: codes.length > 0,
+    queryKey: QK.watchThemeQuotes(themeId),
+    queryFn: () => apiFetch<StockQuote[]>(`/api/watch-themes/${themeId}/quotes`),
+    enabled,
     refetchInterval: 5_000,
   });
 }
@@ -560,10 +559,20 @@ export function useDeleteWatchTheme() {
 export function useAddWatchStock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ themeId, stockCode, stockName }: { themeId: number; stockCode: string; stockName: string }) =>
+    mutationFn: ({
+      themeId,
+      stockCode,
+      stockName,
+      exchange,
+    }: {
+      themeId: number;
+      stockCode: string;
+      stockName: string;
+      exchange: string | null;
+    }) =>
       apiFetch<WatchTheme>(`/api/watch-themes/${themeId}/stocks`, {
         method: "POST",
-        body: JSON.stringify({ stockCode, stockName }),
+        body: JSON.stringify({ stockCode, stockName, exchange }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
   });

@@ -30,9 +30,9 @@ class WatchThemeService(
     fun deleteTheme(themeId: Long) = repository.deleteById(themeId)
 
     @Transactional
-    fun addStock(themeId: Long, stockCode: String, stockName: String): WatchThemeView {
+    fun addStock(themeId: Long, stockCode: String, stockName: String, exchange: String?): WatchThemeView {
         val theme = repository.findById(themeId).orElseThrow { IllegalArgumentException("없는 테마입니다: $themeId") }
-        theme.addStock(stockCode, stockName)
+        theme.addStock(stockCode, stockName, exchange)
         return theme.toView()
     }
 
@@ -62,7 +62,7 @@ class WatchThemeService(
     private fun WatchTheme.toView() = WatchThemeView(
         id = id,
         name = name,
-        stocks = stocks.map { WatchStockView(it.stockCode, it.stockName) },
+        stocks = stocks.map { WatchStockView(it.stockCode, it.stockName, it.exchange) },
     )
 }
 
@@ -76,4 +76,5 @@ data class WatchThemeView(
 data class WatchStockView(
     val stockCode: String,
     val stockName: String,
+    val exchange: String?, // 해외 거래소. null이면 국내
 )

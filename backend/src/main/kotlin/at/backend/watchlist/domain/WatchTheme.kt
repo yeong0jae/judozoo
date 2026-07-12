@@ -36,13 +36,14 @@ class WatchTheme(
 
     val stocks: List<WatchThemeStock> get() = stockList.toList()
 
-    /** 이미 담긴 종목이면 무시한다(중복 추가 방지). */
-    fun addStock(stockCode: String, stockName: String) {
-        if (stockList.any { it.stockCode == stockCode }) return
+    /** 이미 담긴 종목이면 무시한다(중복 추가 방지). [exchange]가 null이면 국내 종목. */
+    fun addStock(stockCode: String, stockName: String, exchange: String?) {
+        if (stockList.any { it.stockCode == stockCode && it.exchange == exchange }) return
         stockList += WatchThemeStock(
             theme = this,
             stockCode = stockCode,
             stockName = stockName,
+            exchange = exchange,
             sortOrder = (stockList.maxOfOrNull { it.sortOrder } ?: -1) + 1,
         )
     }

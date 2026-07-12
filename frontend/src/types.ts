@@ -14,6 +14,7 @@ export interface MarketStatus {
 export interface StockSearchResult {
   stockCode: string;
   stockName: string;
+  exchange: string | null; // NAS/NYS/AMS. null이면 국내
 }
 
 // === 시장 지수 ===
@@ -458,6 +459,7 @@ export interface DailyIssueItem {
 export interface WatchStock {
   stockCode: string;
   stockName: string;
+  exchange: string | null; // NAS/NYS/AMS. null이면 국내
 }
 
 export interface WatchTheme {
@@ -466,10 +468,11 @@ export interface WatchTheme {
   stocks: WatchStock[];
 }
 
-/** 관심 종목 시세 — 키움 ka10001. */
+/** 관심 종목 시세 — 국내는 키움, 해외는 야후. */
 export interface StockQuote {
   stockCode: string;
   stockName: string;
   currentPrice: number;
   priceChangeRate: number;
+  overseas: boolean;
 }

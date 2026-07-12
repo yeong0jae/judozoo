@@ -27,8 +27,12 @@ class WatchThemeStock(
     @Column(name = "stock_code", nullable = false, length = 12)
     val stockCode: String,
 
-    @Column(name = "stock_name", nullable = false, length = 50)
+    @Column(name = "stock_name", nullable = false, length = 100)
     val stockName: String,
+
+    /** 해외 거래소(NAS/NYS/AMS). null이면 국내 종목. 시세 조회 경로가 갈린다. */
+    @Column(length = 3)
+    val exchange: String? = null,
 
     @Column(name = "sort_order", nullable = false)
     var sortOrder: Int = 0,

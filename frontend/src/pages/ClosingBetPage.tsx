@@ -25,6 +25,7 @@ import {
   useWatchThemes,
 } from "../api/queries";
 import CandleChart from "../components/common/CandleChart";
+import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
@@ -48,7 +49,7 @@ import { marketDailySeries, marketMinuteSeries } from "../components/common/toss
 
 // 선택 대상 — 종목 / 테마 / 지수
 type Selection =
-  | { kind: "stock"; themeId: number; code: string; name: string }
+  | { kind: "stock"; themeId: number; code: string; name: string; exchange: string | null }
   | { kind: "theme"; themeId: number }
   | { kind: "index"; id: string };
 
@@ -327,7 +328,11 @@ function SubjectDetail({
     <div className="grid grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] gap-4">
       <ThemeStockList theme={theme} sel={sel} onSelect={onSelect} />
       {sel.kind === "stock" ? (
-        <StockDetailPanel stockCode={sel.code} />
+        sel.exchange ? (
+          <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} />
+        ) : (
+          <StockDetailPanel stockCode={sel.code} />
+        )
       ) : (
         <EmptyState message="종목을 선택하세요" />
       )}
@@ -345,8 +350,7 @@ function ThemeStockList({
   sel: Selection;
   onSelect: (sel: Selection) => void;
 }) {
-  const codes = useMemo(() => theme.stocks.map((s) => s.stockCode), [theme.stocks]);
-  const { data: quotes = [] } = useWatchThemeQuotes(codes);
+  const { data: quotes = [] } = useWatchThemeQuotes(theme.id, theme.stocks.length > 0);
   const quoteBy = useMemo(() => new Map(quotes.map((q) => [q.stockCode, q])), [quotes]);
   const remove = useRemoveWatchStock();
   const reorder = useReorderWatchStocks();
@@ -399,14 +403,22 @@ function ThemeStockList({
             >
               <button
                 type="button"
-                onClick={() => onSelect({ kind: "stock", themeId: theme.id, code: s.stockCode, name: s.stockName })}
+                onClick={() =>
+                  onSelect({
+                    kind: "stock",
+                    themeId: theme.id,
+                    code: s.stockCode,
+                    name: s.stockName,
+                    exchange: s.exchange,
+                  })
+                }
                 className="flex-1 min-w-0 flex items-center gap-2.5 text-left"
               >
                 <StockAvatar name={s.stockName} code={s.stockCode} size={32} />
                 <span className="flex-1 min-w-0 text-[13.5px] text-zinc-200 leading-tight line-clamp-2">{s.stockName}</span>
                 <span className="text-right shrink-0">
                   <span className="block num text-[13.5px] font-semibold text-zinc-100">
-                    {q ? formatPrice(q.currentPrice) : "—"}
+                    {q ? (q.overseas ? `$${q.currentPrice.toFixed(2)}` : formatPrice(q.currentPrice)) : "—"}
                   </span>
                   <span className={`block num text-[11.5px] ${colorByPnL(q?.priceChangeRate ?? 0)}`}>
                     {q ? formatPct(q.priceChangeRate / 100) : ""}
@@ -457,13 +469,25 @@ function StockSearchBox({ themeId, onDone }: { themeId: number; onDone: () => vo
               key={r.stockCode}
               type="button"
               onClick={() => {
-                add.mutate({ themeId, stockCode: r.stockCode, stockName: r.stockName });
+                add.mutate({
+                  themeId,
+                  stockCode: r.stockCode,
+                  stockName: r.stockName,
+                  exchange: r.exchange,
+                });
                 setQuery("");
                 onDone();
               }}
               className="w-full flex items-baseline justify-between gap-2 px-2.5 py-2 text-left hover:bg-white/[0.04]"
             >
-              <span className="text-[13px] text-zinc-200 truncate">{r.stockName}</span>
+              <span className="flex items-baseline gap-1.5 min-w-0">
+                <span className="text-[13px] text-zinc-200 truncate">{r.stockName}</span>
+                {r.exchange && (
+                  <span className="shrink-0 text-[10px] text-blue-400 bg-blue-500/10 rounded px-1 py-px">
+                    {r.exchange}
+                  </span>
+                )}
+              </span>
               <span className="num text-[11px] text-zinc-600">{r.stockCode}</span>
             </button>
           ))}

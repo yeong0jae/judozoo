@@ -1,6 +1,7 @@
 package at.backend.stock.application
 
 import at.backend.library.time.TimeProvider
+import at.backend.stock.infrastructure.KisOverseasStockMasterClient
 import at.backend.stock.infrastructure.KisStockMasterClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.context.event.ApplicationReadyEvent
@@ -21,6 +22,9 @@ class StockCatalogRefresher(
     private val client: KisStockMasterClient,
     private val store: StockCatalogStore,
     private val catalog: StockCatalog,
+    private val overseasClient: KisOverseasStockMasterClient,
+    private val overseasStore: OverseasStockCatalogStore,
+    private val overseasCatalog: OverseasStockCatalog,
     private val timeProvider: TimeProvider,
 ) {
 
@@ -33,6 +37,11 @@ class StockCatalogRefresher(
     fun onSchedule() = refresh()
 
     fun refresh() {
+        refreshDomestic()
+        refreshOverseas()
+    }
+
+    private fun refreshDomestic() {
         runCatching {
             if (store.lastSyncedDate() == timeProvider.today()) {
                 val cached = store.loadAll()
@@ -47,6 +56,24 @@ class StockCatalogRefresher(
         }.onFailure { e ->
             log.warn(e) { "종목 카탈로그 갱신 실패 — DB의 직전 데이터로 폴백" }
             runCatching { catalog.replace(store.loadAll()) }
+        }
+    }
+
+    private fun refreshOverseas() {
+        runCatching {
+            if (overseasStore.lastSyncedDate() == timeProvider.today()) {
+                val cached = overseasStore.loadAll()
+                overseasCatalog.replace(cached)
+                log.info { "해외 종목 카탈로그 — 오늘 이미 동기화됨, DB에서 ${cached.size}건 적재" }
+            } else {
+                val fetched = overseasClient.fetchAll()
+                overseasStore.replaceAll(fetched)
+                overseasCatalog.replace(fetched)
+                log.info { "해외 종목 카탈로그 갱신 완료 — ${fetched.size}건" }
+            }
+        }.onFailure { e ->
+            log.warn(e) { "해외 종목 카탈로그 갱신 실패 — DB의 직전 데이터로 폴백" }
+            runCatching { overseasCatalog.replace(overseasStore.loadAll()) }
         }
     }
 }
