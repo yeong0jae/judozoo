@@ -99,7 +99,8 @@ class KisFuturesClient(
                 futuresPrice = futsPrice,
                 changeRate = signed(o.futs_prdy_ctrt, o.prdy_vrss_sign),
                 spot = spot,
-                basis = o.basis?.trim()?.toDoubleOrNull() ?: (futsPrice - spot),
+                // 시장 베이시스 = 선물 − 현물. KIS의 basis 필드는 이론가 − 현물(캐리)이라 쓰지 않는다.
+                basis = futsPrice - spot,
                 dprt = o.dprt?.trim()?.toDoubleOrNull() ?: 0.0,
                 openInterest = o.hts_otst_stpl_qty?.trim()?.toLongOrNull() ?: 0L,
                 openInterestChange = o.otst_stpl_qty_icdc?.trim()?.toLongOrNull() ?: 0L,
@@ -181,7 +182,6 @@ class KisFuturesClient(
         val futs_prpr: String? = null,
         val futs_prdy_ctrt: String? = null,
         val prdy_vrss_sign: String? = null,
-        val basis: String? = null,
         val kospi200_nmix: String? = null,
         val hts_otst_stpl_qty: String? = null,
         val otst_stpl_qty_icdc: String? = null,
@@ -251,7 +251,7 @@ class KisFuturesClient(
         val futuresPrice: Double,
         val changeRate: Double,
         val spot: Double,
-        val basis: Double, // KIS 제공 베이시스(없으면 선물 − 현물)
+        val basis: Double, // 시장 베이시스 = 선물 − 현물
         val dprt: Double,
         val openInterest: Long,
         val openInterestChange: Long,

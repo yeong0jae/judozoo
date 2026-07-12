@@ -658,7 +658,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const futPct = data?.changeRate ?? index.pct;
   const basis = data?.basis ?? 0.45; // 시장 베이시스 = 선물 − 현물(KOSPI200)
   const spot = data?.spot ?? futValue - basis; // 현물 KOSPI200
-  const dprt = data?.dprt ?? 0.11; // 괴리율(%)
+  const dprt = data?.dprt ?? 0.11; // 괴리율(%) — 선물이 이론가 대비 고평가인 정도
   const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
   const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
   const expiryDate = data?.expiryDate ?? "2026-09-10"; // 만기일
@@ -669,6 +669,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const contango = basis >= 0;
   const tone = contango ? "text-red-400" : "text-blue-400";
   const badge = contango ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
+  const signed2 = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -680,10 +681,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
           <span className="text-xs text-zinc-600">선물 − 현물(KOSPI200)</span>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
-          <span className={`num text-3xl font-bold ${tone}`}>
-            {basis >= 0 ? "+" : "−"}
-            {Math.abs(basis).toFixed(2)}
-          </span>
+          <span className={`num text-3xl font-bold ${tone}`}>{signed2(basis)}</span>
           <span className={`mb-1 text-xs font-medium rounded-md px-2 py-1 ${badge}`}>
             {contango ? "콘탱고 · 선물 우위" : "백워데이션 · 현물 우위"}
           </span>
@@ -692,7 +690,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
           {[
             { label: "선물", value: fmt2(futValue) },
             { label: "현물 K200", value: fmt2(spot) },
-            { label: "괴리율", value: `${dprt >= 0 ? "+" : "−"}${Math.abs(dprt).toFixed(2)}%` },
+            { label: "괴리율", value: `${signed2(dprt)}%` },
           ].map((c) => (
             <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
               <div className="text-xs text-zinc-500">{c.label}</div>

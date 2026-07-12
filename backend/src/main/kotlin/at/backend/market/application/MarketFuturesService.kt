@@ -99,7 +99,7 @@ data class FuturesQuote(
     val changeRate: Double, // 선물 등락률(%)
     val spot: Double, // 현물 KOSPI200
     val basis: Double, // 선물 − 현물
-    val dprt: Double, // 괴리율(%)
+    val dprt: Double, // 괴리율(%) — 선물이 이론가 대비 얼마나 고평가인가
     val openInterest: Long, // 미결제약정(계약)
     val openInterestChange: Long, // 전일 대비 증감
     val rmnnDays: Int, // 만기 잔존일수

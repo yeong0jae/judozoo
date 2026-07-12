@@ -67,7 +67,7 @@ export interface FuturesQuote {
   changeRate: number; // 선물 등락률(%)
   spot: number; // 현물 KOSPI200
   basis: number; // 선물 − 현물
-  dprt: number; // 괴리율(%)
+  dprt: number; // 괴리율(%) — 선물이 이론가 대비 얼마나 고평가인가
   openInterest: number; // 미결제약정(계약)
   openInterestChange: number; // 전일 대비 증감
   rmnnDays: number; // 만기 잔존일수
