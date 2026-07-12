@@ -31,20 +31,8 @@ import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import StockAvatar from "../components/common/StockAvatar";
-import { colorByPnL, formatEok, formatPct, formatPrice } from "../lib/format";
+import { colorByPnL, formatPct, formatPrice } from "../lib/format";
 import type { FuturesOrgBreakdown, MarketInvestorDay, MarketType, WatchTheme } from "../types";
-import {
-  changeAmount,
-  INDICES,
-  investorDays,
-  MARKET_NEWS,
-  mockSeries,
-  type CbIndex,
-  type NewsItem,
-  orgBreakdown,
-  sessions,
-  stockNews,
-} from "../components/closingbet/mockData";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
 // 선택 대상 — 종목 / 테마 / 지수
@@ -53,8 +41,15 @@ type Selection =
   | { kind: "theme"; themeId: number }
   | { kind: "index"; id: string };
 
-/** 실데이터(토스 Market Indicators) 연동이 끝난 지수 — 그 외는 아직 목데이터. */
-const LIVE_MARKET: Record<string, MarketType> = { kospi: "KOSPI" };
+/** 상단 스트립 지수 — 값은 전부 API에서 온다. 여기엔 이름·라우팅만 둔다. */
+type IndexInfo = { id: string; name: string };
+const INDICES: IndexInfo[] = [
+  { id: "kospi", name: "코스피" },
+  { id: "kospiF", name: "코스피 선물" },
+  { id: "nightF", name: "야간 선물" },
+  { id: "nasF", name: "나스닥 선물" },
+  { id: "nasdaq", name: "나스닥" },
+];
 
 /**
  * 전환 애니메이션 단위 — 테마 안에서 종목만 바꿀 땐 리마운트하지 않는다(왼쪽 종목 리스트가 깜빡이지 않게).
@@ -82,13 +77,13 @@ export default function ClosingBetPage() {
     <div className="flex flex-col gap-4">
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)_18rem] gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem]">
+      <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)] gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem]">
         <ThemeWatchlist
           themes={themes}
           sel={sel}
           onTheme={(themeId) => setSel({ kind: "theme", themeId })}
         />
-        <div className="min-h-0 lg:overflow-y-auto pr-1">
+        <div className="min-h-0 lg:overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={subjectKey(sel)}
@@ -96,12 +91,12 @@ export default function ClosingBetPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              className="h-full min-h-0"
             >
               <SubjectDetail sel={sel} themes={themes} onSelect={setSel} />
             </motion.div>
           </AnimatePresence>
         </div>
-        <NewsPanel sel={sel} themes={themes} />
       </div>
     </div>
   );
@@ -110,6 +105,12 @@ export default function ClosingBetPage() {
 // ============================================================
 // 상단 시장 스트립 — 지수/선물 카드 + 분위기 메모
 // ============================================================
+/** 전일 대비 등락금액(원) 근사 — 등락률로 역산. 주가는 정수라 전일 종가를 반올림한다. */
+function changeAmount(price: number, pct: number): number {
+  const prev = Math.round(price / (1 + pct / 100));
+  return price - prev;
+}
+
 const fmt2 = (v: number) =>
   v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -118,6 +119,10 @@ const chgText = (value: number, pct: number) => {
   const sign = chg > 0 ? "+" : chg < 0 ? "−" : "";
   return `${sign}${Math.abs(chg).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} (${formatPct(pct / 100)})`;
 };
+
+/** 값이 아직 안 온 칸은 대시로 둔다(목값을 보여줬다 실값으로 바뀌면 오독한다). */
+const toCell = (value?: number, pct?: number) =>
+  value === undefined || pct === undefined ? null : { value, pct };
 
 /** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 5칸을 얇은 구분선으로만 분리. */
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
@@ -129,30 +134,18 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
-        let value = ix.value;
-        let pct = ix.pct;
-        if (ix.id === "kospi") {
-          value = kospi.data?.currentValue ?? value;
-          pct = kospi.data?.changeRate ?? pct;
-        } else if (ix.id === "kospiF") {
-          value = futures.data?.futuresPrice ?? value;
-          pct = futures.data?.changeRate ?? pct;
-        } else if (ix.id === "nightF") {
-          value = night.data?.price ?? value;
-          pct = night.data?.changeRate ?? pct;
-        } else if (ix.id === "nasF") {
-          value = nasdaq.data?.price ?? value;
-          pct = nasdaq.data?.changeRate ?? pct;
-        } else if (ix.id === "nasdaq") {
-          value = nasdaqIndex.data?.price ?? value;
-          pct = nasdaqIndex.data?.changeRate ?? pct;
-        }
+        const q =
+          ix.id === "kospi" ? toCell(kospi.data?.currentValue, kospi.data?.changeRate)
+          : ix.id === "kospiF" ? toCell(futures.data?.futuresPrice, futures.data?.changeRate)
+          : ix.id === "nightF" ? toCell(night.data?.price, night.data?.changeRate)
+          : ix.id === "nasF" ? toCell(nasdaq.data?.price, nasdaq.data?.changeRate)
+          : toCell(nasdaqIndex.data?.price, nasdaqIndex.data?.changeRate);
         return (
           <IndexCell
             key={ix.id}
             ix={ix}
-            value={value}
-            pct={pct}
+            value={q?.value ?? null}
+            pct={q?.pct ?? null}
             active={sel.kind === "index" && sel.id === ix.id}
             onSelect={() => onSelect(ix.id)}
           />
@@ -169,9 +162,9 @@ function IndexCell({
   active,
   onSelect,
 }: {
-  ix: CbIndex;
-  value: number;
-  pct: number;
+  ix: IndexInfo;
+  value: number | null;
+  pct: number | null;
   active: boolean;
   onSelect: () => void;
 }) {
@@ -185,8 +178,14 @@ function IndexCell({
     >
       <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
       <div className="flex items-baseline gap-1.5 flex-wrap mt-0.5">
-        <span className="num text-[17px] font-bold text-zinc-100">{fmt2(value)}</span>
-        <span className={`num text-[14px] font-medium ${colorByPnL(pct)}`}>{chgText(value, pct)}</span>
+        {value === null || pct === null ? (
+          <span className="num text-[17px] font-bold text-zinc-700">—</span>
+        ) : (
+          <>
+            <span className="num text-[17px] font-bold text-zinc-100">{fmt2(value)}</span>
+            <span className={`num text-[14px] font-medium ${colorByPnL(pct)}`}>{chgText(value, pct)}</span>
+          </>
+        )}
       </div>
     </button>
   );
@@ -312,12 +311,13 @@ function SubjectDetail({
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
-    if (ix.id === "kospiF") return <FuturesIndexDetail index={ix} />;
-    if (ix.id === "nightF") return <NightFuturesDetail index={ix} />;
-    if (ix.id === "nasF") return <NasdaqFuturesDetail index={ix} />;
-    if (ix.id === "nasdaq") return <NasdaqIndexDetail index={ix} />;
-    const liveMarket = LIVE_MARKET[ix.id];
-    return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
+    const detail =
+      ix.id === "kospiF" ? <FuturesIndexDetail index={ix} />
+      : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
+      : ix.id === "nasF" ? <NasdaqFuturesDetail index={ix} />
+      : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
+      : <LiveIndexDetail market="KOSPI" name={ix.name} />;
+    return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
   }
 
   const theme = themes.find((t) => t.id === sel.themeId);
@@ -325,17 +325,21 @@ function SubjectDetail({
 
   // 테마·종목은 [테마 종목 리스트 | 상세] 2열. 종목을 바꿔가며 눌러도 리스트가 남는다.
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] gap-4">
-      <ThemeStockList theme={theme} sel={sel} onSelect={onSelect} />
-      {sel.kind === "stock" ? (
-        sel.exchange ? (
-          <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} />
+    <div className="grid grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] gap-4 h-full min-h-0">
+      <div className="min-h-0 lg:overflow-y-auto pr-1">
+        <ThemeStockList theme={theme} sel={sel} onSelect={onSelect} />
+      </div>
+      <div className="min-h-0 lg:overflow-y-auto pr-1">
+        {sel.kind === "stock" ? (
+          sel.exchange ? (
+            <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} />
+          ) : (
+            <StockDetailPanel stockCode={sel.code} />
+          )
         ) : (
-          <StockDetailPanel stockCode={sel.code} />
-        )
-      ) : (
-        <EmptyState message="종목을 선택하세요" />
-      )}
+          <EmptyState message="종목을 선택하세요" />
+        )}
+      </div>
     </div>
   );
 }
@@ -497,20 +501,7 @@ function StockSearchBox({ themeId, onDone }: { themeId: number; onDone: () => vo
   );
 }
 
-const cardCls = "bg-zinc-900 rounded-2xl p-4";
 const titleCls = "text-sm font-semibold text-zinc-400";
-
-function Amount({ eok }: { eok: number }) {
-  // 한국 관행 — 매수(양) 빨강 / 매도(음) 파랑
-  const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
-  const sign = eok > 0 ? "+" : eok < 0 ? "−" : "";
-  return (
-    <span className={`num ${tone}`}>
-      {sign}
-      {formatEok(Math.abs(eok))}
-    </span>
-  );
-}
 
 type DetailTab = "detail" | "minute" | "daily";
 const DETAIL_TABS: { key: DetailTab; label: string }[] = [
@@ -607,98 +598,6 @@ function DetailHeader({
   );
 }
 
-/** 목 차트(1분봉/일봉) — 카드에 차트만. */
-function MockChart({ chartKey, minute }: { chartKey: string; minute: boolean }) {
-  const series = useMemo(() => mockSeries(chartKey, minute), [chartKey, minute]);
-  return (
-    <div className="px-1">
-      <CandleChart key={`${chartKey}-${minute}`} series={series} timeVisible={minute} className="w-full h-[21.25rem]" />
-    </div>
-  );
-}
-
-function InvestorTable({ dataKey }: { dataKey: string }) {
-  const days = investorDays(dataKey);
-  const org = orgBreakdown(dataKey);
-  return (
-    <div className={cardCls}>
-      <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>최근 10일 수급</span>
-        <span className="text-xs text-zinc-600">단위 억원</span>
-      </div>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="text-zinc-500">
-            <th className="text-left font-medium pb-1.5">일자</th>
-            <th className="text-right font-medium pb-1.5">개인</th>
-            <th className="text-right font-medium pb-1.5">외국인</th>
-            <th className="text-right font-medium pb-1.5">기관</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d) => (
-            <tr key={d.date} className="border-t border-zinc-800/60">
-              <td className="text-left text-zinc-400 num py-1">{d.date}</td>
-              <td className="text-right py-1">
-                <Amount eok={d.indiv} />
-              </td>
-              <td className="text-right py-1">
-                <Amount eok={d.foreign} />
-              </td>
-              <td className="text-right py-1">
-                <Amount eok={d.inst} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="mt-3 text-[11px] text-zinc-500">기관 세부 순매수 · 오늘</div>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {org.map((o) => (
-          <span key={o.label} className="text-[11px] rounded-md bg-zinc-800/60 px-2 py-1 text-zinc-400">
-            {o.label} <Amount eok={o.value} />
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SessionsCard({ dataKey }: { dataKey: string }) {
-  const list = sessions(dataKey);
-  return (
-    <div className={cardCls}>
-      <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>정규장 시간대별 수급</span>
-        <span className="text-xs text-zinc-600">오늘 · 억원</span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        {list.map((s) => (
-          <div key={s.name} className="rounded-xl bg-white/[0.02] p-3">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <div className="text-xs text-zinc-300">{s.name}</div>
-                <div className="text-[10px] text-zinc-600 num">{s.time}</div>
-              </div>
-              {s.tag && <span className="text-[9px] text-blue-500 font-semibold">{s.tag}</span>}
-            </div>
-            {[
-              ["외인", s.foreign],
-              ["기관", s.inst],
-              ["개인", s.indiv],
-            ].map(([label, v]) => (
-              <div key={label as string} className="flex justify-between text-xs py-0.5">
-                <span className="text-zinc-500">{label}</span>
-                <Amount eok={v as number} />
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const INTERVAL_TABS: { key: ChartInterval; label: string }[] = [
   { key: "1m", label: "1분봉" },
   { key: "1d", label: "일봉" },
@@ -726,36 +625,19 @@ function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (
   );
 }
 
-/** 목데이터 지수 상세(비-코스피). */
-function IndexDetail({ index }: { index: CbIndex }) {
-  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
-  return (
-    <div className="flex flex-col gap-4">
-      <DetailHeader name={index.name} category="지수" price={index.value} pct={index.pct} priceInline decimal />
-      <div className="px-1">
-        <div className="flex items-center justify-between mb-3">
-          <span className={titleCls}>지수 차트</span>
-          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
-        </div>
-        <MockChart chartKey={index.id} minute={chartInterval === "1m"} />
-      </div>
-      <SessionsCard dataKey={index.id} />
-      <InvestorTable dataKey={index.id} />
-    </div>
-  );
-}
-
-/** 실데이터 지수 상세(코스피) — 지수값·1분봉·일봉은 토스, 거래원은 키움. */
-function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: CbIndex }) {
+function LiveIndexDetail({ market, name }: { market: MarketType; name: string }) {
   const date = todayStr();
   const priceQ = useKospiIndex();
-  const value = priceQ.data?.currentValue ?? fallback.value;
-  const pct = priceQ.data?.changeRate ?? fallback.pct;
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
+
+  if (priceQ.isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!priceQ.data) return <EmptyState message="지수를 불러오지 못했습니다" />;
+  const value = priceQ.data.currentValue;
+  const pct = priceQ.data.changeRate;
 
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader name={fallback.name} category="지수" price={value} pct={pct} priceInline decimal />
+      <DetailHeader name={name} category="지수" price={value} pct={pct} priceInline decimal />
       <div className="px-1">
         <div className="flex items-center justify-between mb-3">
           <span className={titleCls}>지수 차트</span>
@@ -770,18 +652,20 @@ function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: C
 }
 
 /** 코스피 선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트. KIS 근월물 실시세. */
-function FuturesIndexDetail({ index }: { index: CbIndex }) {
+function FuturesIndexDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
-  const { data } = useFuturesQuote();
+  const { data, isLoading } = useFuturesQuote();
 
-  // 실데이터 우선, 없으면 목값(fallback)
-  const futValue = data?.futuresPrice ?? index.value;
-  const futPct = data?.changeRate ?? index.pct;
-  const basis = data?.basis ?? 0.45; // 시장 베이시스 = 선물 − 현물(KOSPI200)
-  const investors = data?.investors ?? null; // 투자자별 순매수(계약)
-  const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
-  const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
-  const expiryDate = data?.expiryDate ?? "2026-09-10"; // 만기일
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!data) return <EmptyState message="선물 시세를 불러오지 못했습니다" />;
+
+  const futValue = data.futuresPrice;
+  const futPct = data.changeRate;
+  const basis = data.basis; // 시장 베이시스 = 선물 − 현물(KOSPI200)
+  const investors = data.investors;
+  const oi = data.openInterest;
+  const oiChg = data.openInterestChange;
+  const expiryDate = data.expiryDate;
   const dday = Math.max(
     0,
     Math.ceil((new Date(`${expiryDate}T00:00:00+09:00`).getTime() - Date.now()) / 86_400_000),
@@ -867,7 +751,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
  * 야간엔 코스피200 현물이 멈춰 있어 베이시스·괴리율·수급은 의미가 없어 싣지 않는다.
  * 대신 다음날 시초가를 가늠하는 값, 즉 직전 정규장 종가 대비 갭을 전면에 둔다.
  */
-function NightFuturesDetail({ index }: { index: CbIndex }) {
+function NightFuturesDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data, isLoading } = useNightFuturesQuote();
 
@@ -942,7 +826,7 @@ function NightFuturesDetail({ index }: { index: CbIndex }) {
  * 대응 현물(나스닥100)이 우리 장중엔 닫혀 있어 베이시스·수급은 없다.
  * 우리 장중에 미국 심리가 어디로 기우는지 보는 용도라 등락률과 분봉이 전부다.
  */
-function NasdaqFuturesDetail({ index }: { index: CbIndex }) {
+function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data, isLoading } = useNasdaqFuturesQuote();
 
@@ -997,7 +881,7 @@ function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
  * 나스닥 종합지수(^IXIC) 상세 — 야후 파이낸스.
  * 현물이라 미 정규장(23:30~06:00 KST)에만 움직인다. 우리 장중엔 직전 마감가에 멈춰 있다.
  */
-function NasdaqIndexDetail({ index }: { index: CbIndex }) {
+function NasdaqIndexDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data, isLoading } = useNasdaqIndexQuote();
 
@@ -1434,41 +1318,3 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 // ============================================================
 // 우: 뉴스 (선택 대상 따라감)
 // ============================================================
-function NewsPanel({ sel, themes }: { sel: Selection; themes: WatchTheme[] }) {
-  let label: string;
-  let items: NewsItem[];
-  if (sel.kind === "stock") {
-    label = sel.name;
-    items = stockNews(sel.name);
-  } else if (sel.kind === "theme") {
-    label = `${themes.find((t) => t.id === sel.themeId)?.name ?? ""} 테마`;
-    items = MARKET_NEWS; // 사용자 정의 테마라 테마별 목뉴스가 없다
-  } else {
-    label = "시장 · 재료";
-    items = MARKET_NEWS;
-  }
-  return (
-    <div className="min-h-0 flex flex-col overflow-hidden">
-      <div className="px-4 pt-4 pb-2.5">
-        <div className="text-base font-bold text-zinc-100">뉴스</div>
-        <div className="text-[11px] text-zinc-500 mt-0.5">{label}</div>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {items.map((n, i) => (
-          <button
-            key={i}
-            type="button"
-            className="w-full text-left px-4 py-3 border-t border-white/[0.04] hover:bg-white/[0.03] transition-colors"
-          >
-            <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 mb-1">
-              <span className={`font-semibold ${n.hot ? "text-red-400" : "text-blue-500"}`}>{n.src}</span>
-              <span>·</span>
-              <span>{n.time}</span>
-            </div>
-            <div className="text-[13px] text-zinc-200 leading-snug">{n.headline}</div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
