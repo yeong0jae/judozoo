@@ -27,7 +27,6 @@ class MarketFuturesService(
             futuresPrice = s.futuresPrice,
             changeRate = s.changeRate,
             spot = s.spot,
-            spotChangeRate = s.spotChangeRate,
             basis = s.basis, // 시장 베이시스 = 선물 − 현물(KOSPI200)
             dprt = s.dprt,
             openInterest = s.openInterest,
@@ -99,7 +98,6 @@ data class FuturesQuote(
     val futuresPrice: Double,
     val changeRate: Double, // 선물 등락률(%)
     val spot: Double, // 현물 KOSPI200
-    val spotChangeRate: Double, // 현물 등락률(%)
     val basis: Double, // 선물 − 현물
     val dprt: Double, // 괴리율(%)
     val openInterest: Long, // 미결제약정(계약)

@@ -66,7 +66,6 @@ export interface FuturesQuote {
   futuresPrice: number;
   changeRate: number; // 선물 등락률(%)
   spot: number; // 현물 KOSPI200
-  spotChangeRate: number; // 현물 등락률(%)
   basis: number; // 선물 − 현물
   dprt: number; // 괴리율(%)
   openInterest: number; // 미결제약정(계약)

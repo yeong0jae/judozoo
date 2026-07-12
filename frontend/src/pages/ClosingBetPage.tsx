@@ -322,6 +322,7 @@ function DetailHeader({
   tab,
   setTab,
   priceInline = false,
+  decimal = false,
 }: {
   avatar?: ReactNode;
   name: string;
@@ -333,14 +334,19 @@ function DetailHeader({
   tab?: DetailTab;
   setTab?: (t: DetailTab) => void;
   priceInline?: boolean;
+  decimal?: boolean;
 }) {
-  const chg = changeAmount(price, pct);
+  // 지수·선물은 소수 2자리(주가용 정수 반올림을 쓰면 1,210.50이 1,211로 뭉개짐)
+  const chg = decimal ? price - price / (1 + pct / 100) : changeAmount(price, pct);
   const priceGroup = (
     <>
-      <span className="num text-xl font-bold text-zinc-100">{formatPrice(price)}</span>
+      <span className="num text-xl font-bold text-zinc-100">
+        {decimal ? fmt2(price) : formatPrice(price)}
+      </span>
       <span className={`num text-sm font-semibold ${colorByPnL(pct)}`}>
         {chg > 0 ? "+" : chg < 0 ? "−" : ""}
-        {Math.abs(chg).toLocaleString("ko-KR")} ({formatPct(pct / 100)})
+        {Math.abs(chg).toLocaleString("ko-KR", { maximumFractionDigits: decimal ? 2 : 0 })} (
+        {formatPct(pct / 100)})
       </span>
       {extra}
     </>
@@ -604,7 +610,7 @@ function IndexDetail({ index }: { index: CbIndex }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader name={index.name} category="지수" price={index.value} pct={index.pct} priceInline />
+      <DetailHeader name={index.name} category="지수" price={index.value} pct={index.pct} priceInline decimal />
       <div className="px-1">
         <div className="flex items-center justify-between mb-3">
           <span className={titleCls}>지수 차트</span>
@@ -628,7 +634,7 @@ function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: C
 
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader name={fallback.name} category="지수" price={value} pct={pct} priceInline />
+      <DetailHeader name={fallback.name} category="지수" price={value} pct={pct} priceInline decimal />
       <div className="px-1">
         <div className="flex items-center justify-between mb-3">
           <span className={titleCls}>지수 차트</span>
@@ -653,7 +659,6 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
   const basis = data?.basis ?? 0.45; // 시장 베이시스 = 선물 − 현물(KOSPI200)
   const spot = data?.spot ?? futValue - basis; // 현물 KOSPI200
   const dprt = data?.dprt ?? 0.11; // 괴리율(%)
-  const spotPct = data?.spotChangeRate ?? 0.82; // 현물 등락률
   const oi = data?.openInterest ?? 285432; // 미결제약정(계약)
   const oiChg = data?.openInterestChange ?? 3210; // 전일 대비 증감
   const expiryDate = data?.expiryDate ?? "2026-09-10"; // 만기일
@@ -661,16 +666,13 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
     0,
     Math.ceil((new Date(`${expiryDate}T00:00:00+09:00`).getTime() - Date.now()) / 86_400_000),
   ); // 만기까지 남은 일수
-  const strengthDiff = futPct - spotPct; // 선물 − 현물 상대강도(%p)
   const contango = basis >= 0;
   const tone = contango ? "text-red-400" : "text-blue-400";
   const badge = contango ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
-  const sTone = strengthDiff >= 0 ? "text-red-400" : "text-blue-400";
-  const sBadge = strengthDiff >= 0 ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
 
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader name={index.name} category="지수선물" price={futValue} pct={futPct} priceInline />
+      <DetailHeader name={index.name} category="지수선물" price={futValue} pct={futPct} priceInline decimal />
 
       <div className="px-1">
         <div className="flex items-baseline justify-between mb-3">
@@ -701,25 +703,7 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
       </div>
 
       <div className="px-1">
-        <div className="flex items-baseline justify-between mb-3">
-          <span className={titleCls}>선물 강도 · 미결제</span>
-          <span className="text-xs text-zinc-600">전일 대비</span>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap text-sm">
-          <span className="text-xs text-zinc-500">선물</span>
-          <span className={`num font-semibold ${colorByPnL(futPct)}`}>{formatPct(futPct / 100)}</span>
-          <span className="text-xs text-zinc-600">vs 현물</span>
-          <span className={`num font-semibold ${colorByPnL(spotPct)}`}>{formatPct(spotPct / 100)}</span>
-          <span className="text-zinc-600">→</span>
-          <span className={`num font-semibold ${sTone}`}>
-            {strengthDiff >= 0 ? "+" : "−"}
-            {Math.abs(strengthDiff).toFixed(2)}%p
-          </span>
-          <span className={`text-xs font-medium rounded-md px-2 py-0.5 ${sBadge}`}>
-            {strengthDiff >= 0 ? "선물 우위" : "현물 우위"}
-          </span>
-        </div>
-        <div className="mt-2.5 flex items-baseline gap-2 text-sm">
+        <div className="flex items-baseline gap-2 text-sm">
           <span className="text-xs text-zinc-500">미결제약정</span>
           <span className="num font-semibold text-zinc-100">{oi.toLocaleString("ko-KR")}</span>
           <span className="text-xs text-zinc-600">계약</span>
