@@ -870,8 +870,6 @@ function NasdaqFuturesDetail({ index }: { index: CbIndex }) {
   if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (!data) return <EmptyState message="나스닥 선물 시세를 불러오지 못했습니다" />;
 
-  const signed2 = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}`;
-
   return (
     <div className="flex flex-col gap-4">
       <DetailHeader
@@ -883,23 +881,6 @@ function NasdaqFuturesDetail({ index }: { index: CbIndex }) {
         priceInline
         decimal
       />
-
-      <div className="px-1">
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: "나스닥 선물", value: fmt2(data.price) },
-            { label: "전일 종가", value: fmt2(data.prevClose) },
-          ].map((c) => (
-            <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
-              <div className="text-xs text-zinc-500">{c.label}</div>
-              <div className="num text-lg font-semibold text-zinc-100 mt-0.5">{c.value}</div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-2 text-xs text-zinc-600">
-          전일 대비 {signed2(data.priceChange)} · CME 근월물 · 야후 파이낸스
-        </div>
-      </div>
 
       <div className="px-1">
         <div className="flex items-center justify-between mb-3">

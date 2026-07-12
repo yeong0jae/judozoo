@@ -18,11 +18,14 @@ class YahooChartClient(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** [symbol] 시세 요약 — 현재가·전일종가. 등락은 호출측이 계산한다. */
+    /**
+     * [symbol] 시세 요약 — 현재가·전일종가(직전 세션 마감가). 등락은 호출측이 계산한다.
+     * chartPreviousClose는 '조회 창 직전의 종가'라 range에 따라 값이 달라진다. previousClose를 우선한다.
+     */
     fun fetchQuote(symbol: String): YahooQuote? {
         val meta = fetch(symbol, "1m", "1d")?.meta ?: return null
         val price = meta.regularMarketPrice ?: return null
-        val prevClose = meta.chartPreviousClose ?: meta.previousClose ?: return null
+        val prevClose = meta.previousClose ?: meta.chartPreviousClose ?: return null
         return YahooQuote(
             name = meta.shortName.orEmpty(),
             price = price,
@@ -32,16 +35,19 @@ class YahooChartClient(
 
     /**
      * [symbol] 캔들 — [interval]("1m"/"1d"), [range]("1d","5d","6mo" 등).
-     * 거래가 없던 분은 값이 null로 오므로 버린다. 시각 오름차순.
+     * 거래가 없던 분은 값이 null로 오므로 버린다.
+     * 세션 마감 봉은 거래량 0짜리 중복으로 한 번 더 오므로 같은 시각은 뒤엣것으로 덮는다(차트는 시각이 유일해야 한다).
+     * 시각 오름차순.
      */
     fun fetchCandles(symbol: String, interval: String, range: String): List<YahooBar> {
         val result = fetch(symbol, interval, range) ?: return emptyList()
         val times = result.timestamp ?: return emptyList()
         val q = result.indicators?.quote?.firstOrNull() ?: return emptyList()
-        return times.indices.mapNotNull { i ->
-            val close = q.close?.getOrNull(i) ?: return@mapNotNull null
+        val byTime = sortedMapOf<String, YahooBar>()
+        times.indices.forEach { i ->
+            val close = q.close?.getOrNull(i) ?: return@forEach
             val at = Instant.ofEpochSecond(times[i]).atZone(KST)
-            YahooBar(
+            val bar = YahooBar(
                 date = at.toLocalDate().toString(),
                 time = at.toLocalTime().withNano(0).toString().let { if (it.length == 5) "$it:00" else it },
                 open = q.open?.getOrNull(i) ?: close,
@@ -50,7 +56,9 @@ class YahooChartClient(
                 close = close,
                 volume = (q.volume?.getOrNull(i) ?: 0L).toDouble(),
             )
+            byTime["${bar.date} ${bar.time}"] = bar
         }
+        return byTime.values.toList()
     }
 
     private fun fetch(symbol: String, interval: String, range: String): ChartResult? {
