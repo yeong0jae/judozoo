@@ -143,6 +143,20 @@ class CacheConfig {
                 .maximumSize(4)
                 .build(),
         )
+        manager.registerCustomCache(
+            "nightFuturesQuote", // 코스피 야간선물 시세 — 단일 슬롯, 5s
+            Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.SECONDS)
+                .maximumSize(1)
+                .build(),
+        )
+        manager.registerCustomCache(
+            "nightFuturesCandles", // 코스피 야간선물 캔들 — 분봉 한 세션이 KIS 호출 8회라 60s
+            Caffeine.newBuilder()
+                .expireAfterWrite(60, TimeUnit.SECONDS)
+                .maximumSize(4)
+                .build(),
+        )
         return manager
     }
 }

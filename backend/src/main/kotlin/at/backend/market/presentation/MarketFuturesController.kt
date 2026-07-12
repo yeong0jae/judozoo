@@ -6,6 +6,8 @@ import at.backend.market.application.FuturesQuote
 import at.backend.market.application.FuturesSessionNet
 import at.backend.market.application.MarketFuturesInvestorService
 import at.backend.market.application.MarketFuturesService
+import at.backend.market.application.MarketNightFuturesService
+import at.backend.market.application.NightFuturesQuote
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -16,6 +18,7 @@ import java.time.LocalDate
 @RestController
 class MarketFuturesController(
     private val service: MarketFuturesService,
+    private val nightService: MarketNightFuturesService,
     private val investorService: MarketFuturesInvestorService,
     private val timeProvider: TimeProvider,
 ) {
@@ -39,6 +42,22 @@ class MarketFuturesController(
     ): ApiResponse<List<FuturesCandleItem>> =
         ApiResponse.ok(
             service.candles(interval, count).map {
+                FuturesCandleItem(it.date, it.time, it.open, it.high, it.low, it.close, it.volume)
+            },
+        )
+
+    /** 야간선물 시세 — 현재가·갭(직전 정규장 종가 대비)·미결제. */
+    @GetMapping("/api/market/futures/night/quote")
+    fun nightQuote(): ApiResponse<NightFuturesQuote?> = ApiResponse.ok(nightService.quote())
+
+    /** 야간선물 캔들 — interval "1d"/"1m"(최근 세션). */
+    @GetMapping("/api/market/futures/night/candles")
+    fun nightCandles(
+        @RequestParam interval: String,
+        @RequestParam(defaultValue = "90") count: Int,
+    ): ApiResponse<List<FuturesCandleItem>> =
+        ApiResponse.ok(
+            nightService.candles(interval, count).map {
                 FuturesCandleItem(it.date, it.time, it.open, it.high, it.low, it.close, it.volume)
             },
         )

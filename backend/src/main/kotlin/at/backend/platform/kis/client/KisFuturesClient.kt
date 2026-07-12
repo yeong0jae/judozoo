@@ -26,6 +26,11 @@ class KisFuturesClient(
     private val dateFmt = DateTimeFormatter.ofPattern("yyyyMMdd")
     private val hourFmt = DateTimeFormatter.ofPattern("HHmmss")
 
+    companion object {
+        const val DAY = "F" // 정규장 지수선물
+        const val NIGHT = "CM" // 야간선물
+    }
+
     /** 코스피200 선물 근월물(잔존일수 최소, 만기 지난 것 제외). 없으면 null. */
     fun fetchNearMonth(): NearMonth? {
         try {
@@ -64,14 +69,14 @@ class KisFuturesClient(
         }
     }
 
-    /** [iscd] 근월물의 기간별(일봉) 시세 — 요약(현재 선물·현물·미결제·괴리율) + 일봉 OHLC. */
-    fun fetchDaily(iscd: String, from: LocalDate, to: LocalDate): FuturesDaily? {
+    /** [iscd] 근월물의 기간별(일봉) 시세 — 요약(현재 선물·현물·미결제·괴리율) + 일봉 OHLC. [market]: F 정규장 / CM 야간. */
+    fun fetchDaily(iscd: String, from: LocalDate, to: LocalDate, market: String = DAY): FuturesDaily? {
         try {
             val token = authClient.getAccessToken()
             val response = kisRestClient.get()
                 .uri { b ->
                     b.path("/uapi/domestic-futureoption/v1/quotations/inquire-daily-fuopchartprice")
-                        .queryParam("FID_COND_MRKT_DIV_CODE", "F")
+                        .queryParam("FID_COND_MRKT_DIV_CODE", market)
                         .queryParam("FID_INPUT_ISCD", iscd)
                         .queryParam("FID_INPUT_DATE_1", from.format(dateFmt))
                         .queryParam("FID_INPUT_DATE_2", to.format(dateFmt))
@@ -113,20 +118,27 @@ class KisFuturesClient(
         }
     }
 
-    /** [iscd] 근월물 1분봉 — [date] [hour] 기준 이전 102봉(당일). 시각 오름차순. */
-    fun fetchMinute(iscd: String, date: LocalDate, hour: LocalTime): List<FuturesBar> {
+    /** [iscd] 근월물 1분봉 — [date] [hour](HHMMSS) 기준 이전 102봉. 시각 오름차순. */
+    fun fetchMinute(iscd: String, date: LocalDate, hour: LocalTime): List<FuturesBar> =
+        fetchMinute(iscd, date, hour.format(hourFmt), DAY)
+
+    /**
+     * [iscd] 근월물 1분봉 — [market] 시장구분(F 정규장 / CM 야간).
+     * 야간은 자정 이후 시각이 +24시간으로 오고 가므로 [hour]를 HHMMSS 문자열로 받는다(예: 253000 = 01:30).
+     */
+    fun fetchMinute(iscd: String, date: LocalDate, hour: String, market: String): List<FuturesBar> {
         try {
             val token = authClient.getAccessToken()
             val response = kisRestClient.get()
                 .uri { b ->
                     b.path("/uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice")
-                        .queryParam("FID_COND_MRKT_DIV_CODE", "F")
+                        .queryParam("FID_COND_MRKT_DIV_CODE", market)
                         .queryParam("FID_INPUT_ISCD", iscd)
                         .queryParam("FID_HOUR_CLS_CODE", "60") // 1분
                         .queryParam("FID_PW_DATA_INCU_YN", "N") // 당일
                         .queryParam("FID_FAKE_TICK_INCU_YN", "N")
                         .queryParam("FID_INPUT_DATE_1", date.format(dateFmt))
-                        .queryParam("FID_INPUT_HOUR_1", hour.format(hourFmt))
+                        .queryParam("FID_INPUT_HOUR_1", hour)
                         .build()
                 }
                 .header("content-type", "application/json; charset=utf-8")
@@ -139,13 +151,61 @@ class KisFuturesClient(
                 .body(MinuteResponse::class.java)
                 ?: return emptyList()
             if (response.rt_cd != "0") {
-                log.error("KIS 선물 분봉 오류: code={}, msg={} (iscd={})", response.msg_cd, response.msg1, iscd)
+                log.error("KIS 선물 분봉 오류: code={}, msg={} (iscd={}, market={})", response.msg_cd, response.msg1, iscd, market)
                 return emptyList()
             }
-            return response.output2.orEmpty().mapNotNull { it.toBar(minute = true) }.sortedBy { it.date + it.time }
+            return response.output2.orEmpty().mapNotNull { it.toBar() }.sortedBy { it.date + it.time }
         } catch (e: Exception) {
-            log.error("KIS 선물 분봉 조회 실패 (iscd={})", iscd, e)
+            log.error("KIS 선물 분봉 조회 실패 (iscd={}, market={})", iscd, market, e)
             return emptyList()
+        }
+    }
+
+    /**
+     * [iscd] 근월물 시세 — 선물옵션 시세(FHMIF10000000). [market]이 CM이면 야간선물.
+     * 야간의 전일 종가(futs_prdy_clpr)는 직전 정규장 종가라, 현재가와의 차이가 곧 갭이다.
+     */
+    fun fetchPrice(iscd: String, market: String): FuturesPrice? {
+        try {
+            val token = authClient.getAccessToken()
+            val response = kisRestClient.get()
+                .uri { b ->
+                    b.path("/uapi/domestic-futureoption/v1/quotations/inquire-price")
+                        .queryParam("FID_COND_MRKT_DIV_CODE", market)
+                        .queryParam("FID_INPUT_ISCD", iscd)
+                        .build()
+                }
+                .header("content-type", "application/json; charset=utf-8")
+                .header("authorization", "Bearer $token")
+                .header("appkey", properties.appKey)
+                .header("appsecret", properties.appSecret)
+                .header("tr_id", "FHMIF10000000")
+                .header("custtype", "P")
+                .retrieve()
+                .body(PriceResponse::class.java)
+                ?: return null
+            if (response.rt_cd != "0") {
+                log.error("KIS 선물 시세 오류: code={}, msg={} (iscd={}, market={})", response.msg_cd, response.msg1, iscd, market)
+                return null
+            }
+            val o = response.output1 ?: return null
+            val price = o.futs_prpr?.trim()?.toDoubleOrNull() ?: return null
+            val prevClose = o.futs_prdy_clpr?.trim()?.toDoubleOrNull() ?: return null
+            return FuturesPrice(
+                name = o.hts_kor_isnm?.trim().orEmpty(),
+                price = price,
+                prevClose = prevClose,
+                changeRate = signed(o.futs_prdy_ctrt, o.prdy_vrss_sign),
+                open = o.futs_oprc?.trim()?.toDoubleOrNull() ?: price,
+                high = o.futs_hgpr?.trim()?.toDoubleOrNull() ?: price,
+                low = o.futs_lwpr?.trim()?.toDoubleOrNull() ?: price,
+                volume = o.acml_vol?.trim()?.toLongOrNull() ?: 0L,
+                openInterest = o.hts_otst_stpl_qty?.trim()?.toLongOrNull() ?: 0L,
+                openInterestChange = o.otst_stpl_qty_icdc?.trim()?.toLongOrNull() ?: 0L,
+            )
+        } catch (e: Exception) {
+            log.error("KIS 선물 시세 조회 실패 (iscd={}, market={})", iscd, market, e)
+            return null
         }
     }
 
@@ -276,13 +336,20 @@ class KisFuturesClient(
         val futs_lwpr: String? = null,
         val cntg_vol: String? = null,
     ) {
-        fun toBar(minute: Boolean): FuturesBar? {
-            val date = stck_bsop_date?.trim()?.takeIf { it.length == 8 } ?: return null
+        /**
+         * 야간선물은 한 세션을 하나의 영업일로 묶으려고 자정 이후 시각을 +24시간으로 보낸다(25:30 = 익일 01:30).
+         * 24시 이상이면 날짜를 하루 넘기고 시각에서 24시간을 빼, 프론트가 쓰는 정상 타임스탬프로 되돌린다.
+         */
+        fun toBar(): FuturesBar? {
+            val ymd = stck_bsop_date?.trim()?.takeIf { it.length == 8 } ?: return null
             val hms = (stck_cntg_hour?.trim() ?: "000000").padStart(6, '0')
             val close = futs_prpr?.trim()?.toDoubleOrNull() ?: return null
+            val hour = hms.substring(0, 2).toIntOrNull() ?: return null
+            val date = LocalDate.parse(ymd, DateTimeFormatter.BASIC_ISO_DATE)
+                .let { if (hour >= 24) it.plusDays(1) else it }
             return FuturesBar(
-                date = "${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}",
-                time = "${hms.substring(0, 2)}:${hms.substring(2, 4)}:${hms.substring(4, 6)}",
+                date = date.toString(),
+                time = "%02d:%s:%s".format(hour % 24, hms.substring(2, 4), hms.substring(4, 6)),
                 open = futs_oprc?.trim()?.toDoubleOrNull() ?: close,
                 high = futs_hgpr?.trim()?.toDoubleOrNull() ?: close,
                 low = futs_lwpr?.trim()?.toDoubleOrNull() ?: close,
@@ -291,6 +358,27 @@ class KisFuturesClient(
             )
         }
     }
+
+    data class PriceResponse(
+        val rt_cd: String? = null,
+        val msg_cd: String? = null,
+        val msg1: String? = null,
+        val output1: PriceRow? = null,
+    )
+
+    data class PriceRow(
+        val hts_kor_isnm: String? = null,
+        val futs_prpr: String? = null,
+        val futs_prdy_clpr: String? = null,
+        val futs_prdy_ctrt: String? = null,
+        val prdy_vrss_sign: String? = null,
+        val futs_oprc: String? = null,
+        val futs_hgpr: String? = null,
+        val futs_lwpr: String? = null,
+        val acml_vol: String? = null,
+        val hts_otst_stpl_qty: String? = null,
+        val otst_stpl_qty_icdc: String? = null,
+    )
 
     data class InvestorResponse(
         val rt_cd: String? = null,
@@ -317,6 +405,20 @@ class KisFuturesClient(
 
     // ── 결과 타입 ──
     data class NearMonth(val iscd: String, val name: String, val rmnnDays: Int)
+
+    /** 선물 현재가 스냅샷. 야간(CM)이면 prevClose가 직전 정규장 종가라 price − prevClose가 곧 갭. */
+    data class FuturesPrice(
+        val name: String,
+        val price: Double,
+        val prevClose: Double,
+        val changeRate: Double,
+        val open: Double,
+        val high: Double,
+        val low: Double,
+        val volume: Long,
+        val openInterest: Long,
+        val openInterestChange: Long,
+    )
 
     /** 선물 시장 투자자별 순매수(계약). 양수 = 순매수. 기관 세부는 기관계의 내역. */
     data class FuturesInvestors(

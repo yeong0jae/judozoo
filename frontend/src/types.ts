@@ -82,6 +82,20 @@ export interface FuturesInvestors {
   institution: number;
 }
 
+/** 코스피 야간선물(18:00~익일 06:00) 시세 — KIS 시장구분 CM. 값은 지수 포인트. */
+export interface NightFuturesQuote {
+  price: number;
+  changeRate: number; // 직전 정규장 종가 대비 등락률(%)
+  dayClose: number; // 직전 정규장 종가
+  gap: number; // 정규장 종가 대비 갭(포인트)
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  openInterest: number;
+  openInterestChange: number;
+}
+
 /** 선물 기관 세부 순매수(계약) — KIS 선물 분류. */
 export interface FuturesOrgBreakdown {
   securities: number; // 증권

@@ -8,6 +8,8 @@ import {
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
+  useNightFuturesCandles,
+  useNightFuturesQuote,
 } from "../api/queries";
 import CandleChart from "../components/common/CandleChart";
 import { todayStr } from "../components/common/DateNavigator";
@@ -103,6 +105,7 @@ const chgText = (value: number, pct: number) => {
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
   const kospi = useKospiIndex();
   const futures = useFuturesQuote();
+  const night = useNightFuturesQuote();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
@@ -114,6 +117,9 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
         } else if (ix.id === "kospiF") {
           value = futures.data?.futuresPrice ?? value;
           pct = futures.data?.changeRate ?? pct;
+        } else if (ix.id === "nightF") {
+          value = night.data?.price ?? value;
+          pct = night.data?.changeRate ?? pct;
         }
         return (
           <IndexCell
@@ -282,6 +288,7 @@ function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: strin
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
     if (ix.id === "kospiF") return <FuturesIndexDetail index={ix} />;
+    if (ix.id === "nightF") return <NightFuturesDetail index={ix} />;
     const liveMarket = LIVE_MARKET[ix.id];
     return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
   }
@@ -651,7 +658,7 @@ function LiveIndexDetail({ market, fallback }: { market: MarketType; fallback: C
 
 /** 코스피 선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트. KIS 근월물 실시세. */
 function FuturesIndexDetail({ index }: { index: CbIndex }) {
-  const [chartInterval, setChartInterval] = useState<ChartInterval>("1d");
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data } = useFuturesQuote();
 
   // 실데이터 우선, 없으면 목값(fallback)
@@ -753,6 +760,118 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
 
       <FuturesSessionsCard date={todayStr()} />
     </div>
+  );
+}
+
+/**
+ * 야간선물 상세(18:00~익일 06:00) — KIS 시장구분 CM.
+ * 야간엔 코스피200 현물이 멈춰 있어 베이시스·괴리율·수급은 의미가 없어 싣지 않는다.
+ * 대신 다음날 시초가를 가늠하는 값, 즉 직전 정규장 종가 대비 갭을 전면에 둔다.
+ */
+function NightFuturesDetail({ index }: { index: CbIndex }) {
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
+  const { data, isLoading } = useNightFuturesQuote();
+
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!data) return <EmptyState message="야간선물 시세를 불러오지 못했습니다" />;
+
+  const up = data.gap >= 0;
+  const tone = up ? "text-red-400" : "text-blue-400";
+  const badge = up ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
+  const signed2 = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}`;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DetailHeader
+        name={index.name}
+        category="야간선물"
+        price={data.price}
+        pct={data.changeRate}
+        priceInline
+        decimal
+      />
+
+      <div className="px-1">
+        <div className="flex items-baseline justify-between mb-3">
+          <span className={titleCls}>정규장 종가 대비 갭</span>
+          <span className="text-xs text-zinc-600">야간선물 − 정규장 종가</span>
+        </div>
+        <div className="flex items-end gap-3 flex-wrap">
+          <span className={`num text-2xl font-bold ${tone}`}>{signed2(data.gap)}</span>
+          <span className={`mb-0.5 text-[11px] font-medium rounded-md px-2 py-0.5 ${badge}`}>
+            {up ? "갭 상승 · 시초 강세 시사" : "갭 하락 · 시초 약세 시사"}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {[
+            { label: "야간선물", value: fmt2(data.price) },
+            { label: "정규장 종가", value: fmt2(data.dayClose) },
+            { label: "고가 / 저가", value: `${fmt2(data.high)} / ${fmt2(data.low)}` },
+          ].map((c) => (
+            <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
+              <div className="text-xs text-zinc-500">{c.label}</div>
+              <div className="num text-lg font-semibold text-zinc-100 mt-0.5">{c.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-1">
+        <div className="flex items-baseline gap-2 text-sm">
+          <span className="text-xs text-zinc-500">미결제약정</span>
+          <span className="num font-semibold text-zinc-100">
+            {data.openInterest.toLocaleString("ko-KR")}
+          </span>
+          <span className="text-xs text-zinc-600">계약</span>
+          <span className="num text-xs text-zinc-400">
+            {data.openInterestChange >= 0 ? "+" : "−"}
+            {Math.abs(data.openInterestChange).toLocaleString("ko-KR")} 전일
+          </span>
+        </div>
+        <div className="mt-1.5 flex items-baseline gap-2 text-sm">
+          <span className="text-xs text-zinc-500">거래량</span>
+          <span className="num font-semibold text-zinc-100">
+            {data.volume.toLocaleString("ko-KR")}
+          </span>
+          <span className="text-xs text-zinc-600">계약</span>
+        </div>
+      </div>
+
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>야간선물 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <NightFuturesChart interval={chartInterval} />
+      </div>
+    </div>
+  );
+}
+
+/** 야간선물 1분봉(최근 세션)/일봉 — KIS 근월물 캔들. */
+function NightFuturesChart({ interval }: { interval: ChartInterval }) {
+  const { data, isLoading } = useNightFuturesCandles(interval);
+  const items = data ?? [];
+  const series = useMemo(
+    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
+    [items, interval],
+  );
+  if (isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
+  if (!items.length) {
+    return (
+      <EmptyState
+        message={interval === "1m" ? "야간 세션 분봉이 없습니다" : "일봉 데이터가 없습니다"}
+      />
+    );
+  }
+  return (
+    <CandleChart
+      key={`night-${interval}`}
+      series={series}
+      timeVisible={interval === "1m"}
+      priceDecimals={2}
+      className="w-full h-[21.25rem]"
+    />
   );
 }
 

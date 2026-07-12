@@ -9,6 +9,7 @@ import type {
   KospiIndex,
   FuturesQuote,
   FuturesSession,
+  NightFuturesQuote,
   MarketIndex,
   LeadingStockDetailResponse,
   MinuteCandleItem,
@@ -71,6 +72,9 @@ export const QK = {
     ["market", "futures", "kospi", "candles", interval] as const,
   futuresInvestorSessions: (date: string) =>
     ["market", "futures", "kospi", "investor", "sessions", date] as const,
+  nightFuturesQuote: ["market", "futures", "night", "quote"] as const,
+  nightFuturesCandles: (interval: string) =>
+    ["market", "futures", "night", "candles", interval] as const,
   themeCalendar: (from: string, to: string) =>
     ["themes", "calendar", from, to] as const,
   overseasRanking: (minChangeRate: number) =>
@@ -254,6 +258,27 @@ export function useFuturesQuote() {
     queryKey: QK.futuresQuote,
     queryFn: () => apiFetch<FuturesQuote | null>("/api/market/futures/kospi/quote"),
     refetchInterval: 30_000,
+  });
+}
+
+/** 코스피 야간선물 시세 — KIS(CM). 현재가·정규장 종가 대비 갭. */
+export function useNightFuturesQuote() {
+  return useQuery({
+    queryKey: QK.nightFuturesQuote,
+    queryFn: () => apiFetch<NightFuturesQuote | null>("/api/market/futures/night/quote"),
+    refetchInterval: 30_000,
+  });
+}
+
+/** 코스피 야간선물 캔들 — interval "1d"/"1m"(최근 세션). */
+export function useNightFuturesCandles(interval: "1d" | "1m", count = 90) {
+  return useQuery({
+    queryKey: QK.nightFuturesCandles(interval),
+    queryFn: () =>
+      apiFetch<MarketCandleItem[]>(
+        `/api/market/futures/night/candles?interval=${interval}&count=${count}`,
+      ),
+    refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }
 
