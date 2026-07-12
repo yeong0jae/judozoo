@@ -2,6 +2,7 @@ package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisFuturesClient
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -18,6 +19,7 @@ class MarketFuturesService(
 ) {
 
     /** 근월물 시세 요약 — 선물·현물·베이시스·괴리율·미결제. 데이터 없으면 null. */
+    @Cacheable("futuresQuote", unless = "#result == null") // 실패는 캐싱하지 않는다
     fun quote(): FuturesQuote? {
         val near = client.fetchNearMonth() ?: return null
         val today = timeProvider.today()
@@ -46,7 +48,8 @@ class MarketFuturesService(
         return firstThu.plusWeeks(1).toString()
     }
 
-    /** 근월물 캔들 — interval "1d"(최근 [count]봉)/"1m"(최근 1거래일). */
+    /** 근월물 캔들 — interval "1d"(최근 [count]봉)/"1m"(최근 [MINUTE_DAYS]거래일). */
+    @Cacheable("futuresCandles", key = "#interval + ':' + #count", unless = "#result.isEmpty()")
     fun candles(interval: String, count: Int): List<KisFuturesClient.FuturesBar> {
         val near = client.fetchNearMonth() ?: return emptyList()
         val today = timeProvider.today()
@@ -57,18 +60,28 @@ class MarketFuturesService(
         }
     }
 
-    /** 분봉 — 오늘부터 뒤로 밀며 데이터 있는 최근 영업일 하루치(주말·휴장·개장전 대응). */
+    /**
+     * 분봉 — 오늘부터 뒤로 밀며 최근 [MINUTE_DAYS]거래일치(주말·휴장·개장전 대응).
+     * 휴장일을 요청하면 KIS가 직전 영업일 분봉을 주므로, 실제 반환된 날짜의 하루 전부터 다음 회차를 조회한다.
+     * 종료시각은 항상 장 마감. 현재 시각을 넘기면 휴장일에 직전 영업일 분봉이 그 시각에서 잘려 온다.
+     */
     private fun recentMinutes(iscd: String): List<KisFuturesClient.FuturesBar> {
-        val today = timeProvider.today()
-        val nowTime = timeProvider.now().toLocalTime()
-        var day = today
-        repeat(5) {
-            val end = if (day == today) nowTime else SESSION_END
-            val bars = minutesOfDay(iscd, day, end)
-            if (bars.isNotEmpty()) return bars
-            day = day.minusDays(1)
+        val bars = mutableListOf<KisFuturesClient.FuturesBar>()
+        var day = timeProvider.today()
+        var collected = 0
+        repeat(MINUTE_DAYS + 5) {
+            if (collected == MINUTE_DAYS) return bars.sortedBy { it.date + it.time }
+            val dayBars = minutesOfDay(iscd, day, SESSION_END)
+            val date = dayBars.firstOrNull()?.date
+            if (date == null) {
+                day = day.minusDays(1)
+            } else {
+                bars += dayBars
+                collected++
+                day = LocalDate.parse(date).minusDays(1)
+            }
         }
-        return emptyList()
+        return bars.sortedBy { it.date + it.time }
     }
 
     /** [day] 하루치 분봉 — 한 번에 102봉만 오므로 [end]부터 장 시작까지 뒤로 페이징. */
@@ -87,6 +100,7 @@ class MarketFuturesService(
     }
 
     companion object {
+        private const val MINUTE_DAYS = 2 // 분봉 수집 거래일 수
         private const val MINUTE_PAGES = 7 // 하루(08:45~15:45=420분)를 102봉씩 덮는 최대 페이지 수
         private val SESSION_START: LocalTime = LocalTime.of(8, 45) // 선물 개장(동시호가 08:30~08:45)
         private val SESSION_END: LocalTime = LocalTime.of(15, 45) // 조회 상한(마감 동시호가 체결까지 포함)
