@@ -177,10 +177,20 @@ class KisFuturesClient(
                 return null
             }
             val o = response.output ?: return null
+            fun qty(v: String?) = v?.trim()?.toLongOrNull() ?: 0L
             return FuturesInvestors(
-                foreign = o.frgn_ntby_qty?.trim()?.toLongOrNull() ?: 0L,
-                individual = o.prsn_ntby_qty?.trim()?.toLongOrNull() ?: 0L,
-                institution = o.orgn_ntby_qty?.trim()?.toLongOrNull() ?: 0L,
+                foreign = qty(o.frgn_ntby_qty),
+                individual = qty(o.prsn_ntby_qty),
+                institution = qty(o.orgn_ntby_qty),
+                securities = qty(o.scrt_ntby_qty),
+                insurance = qty(o.insu_ntby_qty),
+                merchantBank = qty(o.mrbn_ntby_qty),
+                trust = qty(o.ivtr_ntby_qty),
+                privateEquity = qty(o.pe_fund_ntby_vol),
+                fund = qty(o.fund_ntby_qty),
+                bank = qty(o.bank_ntby_qty),
+                otherOrg = qty(o.etc_orgt_ntby_vol),
+                otherCorp = qty(o.etc_corp_ntby_vol),
             )
         } catch (e: Exception) {
             log.error("KIS 선물 투자자 조회 실패", e)
@@ -293,13 +303,36 @@ class KisFuturesClient(
         val frgn_ntby_qty: String? = null,
         val prsn_ntby_qty: String? = null,
         val orgn_ntby_qty: String? = null,
+        // 기관 세부 — 사모펀드·기타단체·기타법인만 필드명이 _vol, 나머지는 _qty
+        val scrt_ntby_qty: String? = null,
+        val insu_ntby_qty: String? = null,
+        val mrbn_ntby_qty: String? = null,
+        val ivtr_ntby_qty: String? = null,
+        val pe_fund_ntby_vol: String? = null,
+        val fund_ntby_qty: String? = null,
+        val bank_ntby_qty: String? = null,
+        val etc_orgt_ntby_vol: String? = null,
+        val etc_corp_ntby_vol: String? = null,
     )
 
     // ── 결과 타입 ──
     data class NearMonth(val iscd: String, val name: String, val rmnnDays: Int)
 
-    /** 선물 시장 투자자별 순매수(계약). 양수 = 순매수. */
-    data class FuturesInvestors(val foreign: Long, val individual: Long, val institution: Long)
+    /** 선물 시장 투자자별 순매수(계약). 양수 = 순매수. 기관 세부는 기관계의 내역. */
+    data class FuturesInvestors(
+        val foreign: Long,
+        val individual: Long,
+        val institution: Long,
+        val securities: Long, // 증권
+        val insurance: Long, // 보험
+        val merchantBank: Long, // 종금
+        val trust: Long, // 투자신탁
+        val privateEquity: Long, // 사모펀드
+        val fund: Long, // 기금
+        val bank: Long, // 은행
+        val otherOrg: Long, // 기타단체
+        val otherCorp: Long, // 기타법인
+    )
 
     data class FuturesSummary(
         val name: String,

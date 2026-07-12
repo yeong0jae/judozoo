@@ -15,7 +15,7 @@ import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatEok, formatPct, formatPrice } from "../lib/format";
-import type { MarketInvestorDay, MarketType } from "../types";
+import type { FuturesOrgBreakdown, MarketInvestorDay, MarketType } from "../types";
 import {
   changeAmount,
   highDistance,
@@ -726,8 +726,6 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
         </div>
       )}
 
-      <FuturesSessionsCard date={todayStr()} />
-
       <div className="px-1">
         <div className="flex items-baseline gap-2 text-sm">
           <span className="text-xs text-zinc-500">미결제약정</span>
@@ -752,6 +750,8 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
         </div>
         <FuturesChart interval={chartInterval} />
       </div>
+
+      <FuturesSessionsCard date={todayStr()} />
     </div>
   );
 }
@@ -763,6 +763,9 @@ function FuturesIndexDetail({ index }: { index: CbIndex }) {
 function FuturesSessionsCard({ date }: { date: string }) {
   const { data, isLoading } = useFuturesInvestorSessions(date);
   const list = data ?? [];
+  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
+  const numCols = 3 + FUTURES_ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
+
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
@@ -770,48 +773,77 @@ function FuturesSessionsCard({ date }: { date: string }) {
         <span className="text-xs text-zinc-600">오늘 · 계약</span>
       </div>
       {isLoading ? (
-        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-32 w-full" />
       ) : (
-        <table className="w-full text-xs whitespace-nowrap">
-          <thead className="text-zinc-500">
-            <tr>
-              <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
-              <th className="text-right font-medium pb-1.5 px-2.5">개인</th>
-              <th className="text-right font-medium pb-1.5 px-2.5">외국인</th>
-              <th className="text-right font-medium pb-1.5 pl-2.5">기관계</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((s) => (
-              <tr
-                key={s.name}
-                className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
-              >
-                <td className="text-left py-2 pr-3">
-                  <div className="text-zinc-300">{s.name}</div>
-                  <div className="text-[10px] text-zinc-600 num">{s.time}</div>
-                </td>
-                {s.nets == null ? (
-                  <td colSpan={3} className="text-right py-2 px-2.5 text-zinc-600">
-                    집계 전
-                  </td>
-                ) : (
-                  <>
-                    <td className="text-right py-2 px-2.5">
-                      <NetNum eok={s.nets.individual} />
-                    </td>
-                    <td className="text-right py-2 px-2.5">
-                      <NetNum eok={s.nets.foreign} />
-                    </td>
-                    <td className="text-right py-2 pl-2.5 font-medium">
-                      <NetNum eok={s.nets.institution} />
-                    </td>
-                  </>
-                )}
+        <div className="overflow-x-auto -mx-1 px-1">
+          <table className="w-full text-xs whitespace-nowrap">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="pb-1 pr-3" />
+                <th className="text-right font-medium pb-1 px-2.5">개인</th>
+                <th className="text-right font-medium pb-1 px-2.5">외국인</th>
+                <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
+                <th colSpan={FUTURES_ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
+                  기관상세
+                </th>
+                <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+              <tr>
+                <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
+                <th />
+                <th />
+                <th />
+                {FUTURES_ORG_COLS.map((c, i) => (
+                  <th key={c.key} className={`text-right font-medium pt-1.5 pb-1.5 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
+                    {c.label}
+                  </th>
+                ))}
+                <th className={edge} />
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((s) => (
+                <tr
+                  key={s.name}
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                >
+                  <td className="text-left py-2 pr-3">
+                    <div className="text-zinc-300">{s.name}</div>
+                    <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+                  </td>
+                  {s.nets == null ? (
+                    <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
+                      집계 전
+                    </td>
+                  ) : (
+                    <>
+                      <td className="text-right py-2 px-2.5">
+                        <NetNum eok={s.nets.individual} />
+                      </td>
+                      <td className="text-right py-2 px-2.5">
+                        <NetNum eok={s.nets.foreign} />
+                      </td>
+                      <td className="text-right py-2 pl-2.5 pr-5 font-medium">
+                        <NetNum eok={s.nets.institution} />
+                      </td>
+                      {FUTURES_ORG_COLS.map((c, i) => (
+                        <td
+                          key={c.key}
+                          className={`text-right py-2 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}
+                        >
+                          <NetNum eok={s.nets!.breakdown[c.key]} />
+                        </td>
+                      ))}
+                      <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
+                        <NetNum eok={s.nets.otherCorp} />
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -880,6 +912,18 @@ const ORG_COLS: { key: keyof MarketInvestorDay["breakdown"]; label: string }[] =
   { key: "privateEquityEok", label: "사모펀드" },
   { key: "pensionFundEok", label: "연기금등" },
   { key: "bankEok", label: "은행" },
+];
+
+// 선물 기관상세 — KIS 선물 분류(현물의 금융투자↔증권, 연기금등↔기금, 기타금융↔종금에 대응).
+const FUTURES_ORG_COLS: { key: keyof FuturesOrgBreakdown; label: string }[] = [
+  { key: "securities", label: "증권" },
+  { key: "insurance", label: "보험" },
+  { key: "merchantBank", label: "종금" },
+  { key: "trust", label: "투신" },
+  { key: "privateEquity", label: "사모펀드" },
+  { key: "fund", label: "기금" },
+  { key: "bank", label: "은행" },
+  { key: "otherOrg", label: "기타단체" },
 ];
 
 // 기관상세 셀 좌우 패딩 — 그룹 경계선에 붙지 않게 첫·끝 셀만 바깥쪽 여백을 넓힘.

@@ -82,11 +82,32 @@ export interface FuturesInvestors {
   institution: number;
 }
 
+/** 선물 기관 세부 순매수(계약) — KIS 선물 분류. */
+export interface FuturesOrgBreakdown {
+  securities: number; // 증권
+  insurance: number; // 보험
+  merchantBank: number; // 종금
+  trust: number; // 투신
+  privateEquity: number; // 사모펀드
+  fund: number; // 기금
+  bank: number; // 은행
+  otherOrg: number; // 기타단체
+}
+
+/** 선물 세션 순매수(계약). */
+export interface FuturesNets {
+  foreign: number;
+  institution: number;
+  individual: number;
+  otherCorp: number;
+  breakdown: FuturesOrgBreakdown;
+}
+
 /** 선물 세션별(오전/오후/막판) 순매수(계약). 스냅샷이 없는 세션은 nets=null. */
 export interface FuturesSession {
   name: string;
   time: string;
-  nets: FuturesInvestors | null;
+  nets: FuturesNets | null;
 }
 
 /** 시장 지수 캔들(OHLCV) — 토스 Market Indicators. date는 KST, time은 1d일 땐 00:00:00 고정. */

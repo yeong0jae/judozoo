@@ -39,6 +39,34 @@ class FuturesInvestorSnapshot(
 
     @Column(name = "individual_qty", nullable = false)
     val individualQty: Long,
+
+    // 기관 세부 — 기관계의 내역
+    @Column(name = "securities_qty", nullable = false)
+    val securitiesQty: Long = 0,
+
+    @Column(name = "insurance_qty", nullable = false)
+    val insuranceQty: Long = 0,
+
+    @Column(name = "merchant_bank_qty", nullable = false)
+    val merchantBankQty: Long = 0,
+
+    @Column(name = "trust_qty", nullable = false)
+    val trustQty: Long = 0,
+
+    @Column(name = "private_equity_qty", nullable = false)
+    val privateEquityQty: Long = 0,
+
+    @Column(name = "fund_qty", nullable = false)
+    val fundQty: Long = 0,
+
+    @Column(name = "bank_qty", nullable = false)
+    val bankQty: Long = 0,
+
+    @Column(name = "other_org_qty", nullable = false)
+    val otherOrgQty: Long = 0,
+
+    @Column(name = "other_corp_qty", nullable = false)
+    val otherCorpQty: Long = 0,
 ) : BaseEntity() {
 
     @Id

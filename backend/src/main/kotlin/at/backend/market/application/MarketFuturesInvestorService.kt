@@ -27,6 +27,15 @@ class MarketFuturesInvestorService(
                 foreignQty = investors.foreign,
                 institutionQty = investors.institution,
                 individualQty = investors.individual,
+                securitiesQty = investors.securities,
+                insuranceQty = investors.insurance,
+                merchantBankQty = investors.merchantBank,
+                trustQty = investors.trust,
+                privateEquityQty = investors.privateEquity,
+                fundQty = investors.fund,
+                bankQty = investors.bank,
+                otherOrgQty = investors.otherOrg,
+                otherCorpQty = investors.otherCorp,
             ),
         )
     }
@@ -52,7 +61,22 @@ class MarketFuturesInvestorService(
         return later.nets() - earlier.nets()
     }
 
-    private fun FuturesInvestorSnapshot.nets() = FuturesNets(foreignQty, institutionQty, individualQty)
+    private fun FuturesInvestorSnapshot.nets() = FuturesNets(
+        foreign = foreignQty,
+        institution = institutionQty,
+        individual = individualQty,
+        otherCorp = otherCorpQty,
+        breakdown = FuturesOrg(
+            securities = securitiesQty,
+            insurance = insuranceQty,
+            merchantBank = merchantBankQty,
+            trust = trustQty,
+            privateEquity = privateEquityQty,
+            fund = fundQty,
+            bank = bankQty,
+            otherOrg = otherOrgQty,
+        ),
+    )
 
     companion object {
         private val MORNING_END = LocalTime.of(12, 0)
@@ -66,9 +90,39 @@ data class FuturesNets(
     val foreign: Long,
     val institution: Long,
     val individual: Long,
+    val otherCorp: Long,
+    val breakdown: FuturesOrg,
 ) {
-    operator fun minus(o: FuturesNets) =
-        FuturesNets(foreign - o.foreign, institution - o.institution, individual - o.individual)
+    operator fun minus(o: FuturesNets) = FuturesNets(
+        foreign - o.foreign,
+        institution - o.institution,
+        individual - o.individual,
+        otherCorp - o.otherCorp,
+        breakdown - o.breakdown,
+    )
+}
+
+/** 세션 기관 세부 순매수(계약) — KIS 선물 분류. 표시 순서: 증권·보험·종금·투신·사모펀드·기금·은행·기타단체. */
+data class FuturesOrg(
+    val securities: Long,
+    val insurance: Long,
+    val merchantBank: Long,
+    val trust: Long,
+    val privateEquity: Long,
+    val fund: Long,
+    val bank: Long,
+    val otherOrg: Long,
+) {
+    operator fun minus(o: FuturesOrg) = FuturesOrg(
+        securities - o.securities,
+        insurance - o.insurance,
+        merchantBank - o.merchantBank,
+        trust - o.trust,
+        privateEquity - o.privateEquity,
+        fund - o.fund,
+        bank - o.bank,
+        otherOrg - o.otherOrg,
+    )
 }
 
 data class FuturesSessionNet(
