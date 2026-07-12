@@ -55,29 +55,31 @@ type Selection =
 const LIVE_MARKET: Record<string, MarketType> = { kospi: "KOSPI" };
 
 /**
+ * 전환 애니메이션 단위 — 테마 안에서 종목만 바꿀 땐 리마운트하지 않는다(왼쪽 종목 리스트가 깜빡이지 않게).
+ */
+const subjectKey = (sel: Selection) => {
+  if (sel.kind === "index") return `index-${sel.id}`;
+  const theme = sel.kind === "theme" ? sel.name : stockByName[sel.name]?.theme;
+  return `theme-${theme ?? sel.name}`;
+};
+
+/**
  * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드. 코스피는 실데이터(토스), 나머지는 목 데이터.
  * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 뉴스.
  */
 export default function ClosingBetPage() {
   const [sel, setSel] = useState<Selection>({ kind: "index", id: "kospi" });
-  const [query, setQuery] = useState("");
 
   return (
     <div className="flex flex-col gap-4">
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[20rem_minmax(0,1fr)_18rem] gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem]">
-        <ThemeWatchlist
-          sel={sel}
-          query={query}
-          setQuery={setQuery}
-          onTheme={(name) => setSel({ kind: "theme", name })}
-          onStock={(name) => setSel({ kind: "stock", name })}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)_18rem] gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem]">
+        <ThemeWatchlist sel={sel} onTheme={(name) => setSel({ kind: "theme", name })} />
         <div className="min-h-0 lg:overflow-y-auto pr-1">
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${sel.kind}-${sel.kind === "index" ? sel.id : sel.name}`}
+              key={subjectKey(sel)}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
@@ -179,108 +181,36 @@ function IndexCell({
 }
 
 // ============================================================
-// 좌: 테마 관심목록
+// 좌: 테마 목록 — 종목은 상세 영역의 리스트에서 고른다(아코디언 없음).
 // ============================================================
 function ThemeWatchlist({
   sel,
-  query,
-  setQuery,
   onTheme,
-  onStock,
 }: {
   sel: Selection;
-  query: string;
-  setQuery: (v: string) => void;
   onTheme: (name: string) => void;
-  onStock: (name: string) => void;
 }) {
-  // 기본으로 앞 3개만 펼침
-  const [collapsed, setCollapsed] = useState<Set<string>>(
-    () => new Set(THEMES.slice(3).map((t) => t.name)),
-  );
-  const toggle = (name: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
-
-  const q = query.trim();
-
   return (
     <div className="min-h-0 flex flex-col overflow-hidden">
-      <div className="px-4 pt-4 pb-2">
+      <div className="px-3 pt-4 pb-2">
         <span className="text-base font-bold text-zinc-100">테마</span>
       </div>
-      <div className="px-4 pb-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="종목 검색"
-          className="w-full rounded-xl bg-zinc-950/70 border border-white/[0.06] px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none transition-colors focus:border-white/20 focus:bg-zinc-950"
-        />
-      </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto px-1.5">
         {THEMES.map((t) => {
-          const rows = q ? t.stocks.filter((s) => s.name.includes(q)) : t.stocks;
-          if (q && rows.length === 0) return null;
-          const isOpen = q ? true : !collapsed.has(t.name);
-          const themeSel = sel.kind === "theme" && sel.name === t.name;
+          const active = sel.kind === "theme" && sel.name === t.name;
+          const inTheme = sel.kind === "stock" && stockByName[sel.name]?.theme === t.name;
           return (
-            <div key={t.name} className="border-t border-white/[0.04]">
-              <div
-                className={`flex items-center justify-between pl-3.5 pr-2 py-2 rounded-xl transition-colors ${
-                  themeSel ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
-                }`}
-              >
-                <button type="button" onClick={() => onTheme(t.name)} className="flex-1 flex items-baseline gap-2 text-left">
-                  <span className="text-sm font-bold text-zinc-100">{t.name}</span>
-                  <span className="text-[11px] text-zinc-500">{t.stocks.length}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => toggle(t.name)}
-                  aria-label={isOpen ? "접기" : "펼치기"}
-                  className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.06]"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    className={`transition-transform ${isOpen ? "" : "-rotate-90"}`}
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-              </div>
-              {isOpen && (
-                <>
-                  {rows.map((s) => {
-                    const active = sel.kind === "stock" && sel.name === s.name;
-                    return (
-                      <button
-                        key={s.code}
-                        type="button"
-                        onClick={() => onStock(s.name)}
-                        className={`w-full flex items-center gap-2.5 pl-3.5 pr-4 py-2 rounded-xl text-left transition-colors ${
-                          active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
-                        }`}
-                      >
-                        <StockAvatar name={s.name} code={s.code} size={30} />
-                        <span className="flex-1 min-w-0 text-[13px] text-zinc-200 leading-tight line-clamp-2">{s.name}</span>
-                        <span className="text-right shrink-0">
-                          <span className="block num text-[13px] font-semibold text-zinc-100">{formatPrice(s.price)}</span>
-                          <span className={`block num text-[11px] ${colorByPnL(s.pct)}`}>{formatPct(s.pct / 100)}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </>
-              )}
-            </div>
+            <button
+              key={t.name}
+              type="button"
+              onClick={() => onTheme(t.name)}
+              className={`w-full flex items-baseline justify-between px-2.5 py-2.5 rounded-xl text-left transition-colors ${
+                active || inTheme ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
+              }`}
+            >
+              <span className="text-[15px] font-medium text-zinc-300">{t.name}</span>
+              <span className="text-xs text-zinc-500">{t.stocks.length}</span>
+            </button>
           );
         })}
       </div>
@@ -292,10 +222,6 @@ function ThemeWatchlist({
 // 중앙: 선택 대상 상세
 // ============================================================
 function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: string) => void }) {
-  if (sel.kind === "theme") {
-    const t = themeByName[sel.name];
-    return t ? <ThemeDetail theme={t} onStock={onStock} /> : null;
-  }
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
@@ -306,8 +232,64 @@ function SubjectDetail({ sel, onStock }: { sel: Selection; onStock: (name: strin
     const liveMarket = LIVE_MARKET[ix.id];
     return liveMarket ? <LiveIndexDetail market={liveMarket} fallback={ix} /> : <IndexDetail index={ix} />;
   }
-  const entry = stockByName[sel.name];
-  return entry ? <StockDetail name={sel.name} theme={entry.theme} /> : null;
+
+  // 테마·종목은 [테마 종목 리스트 | 상세] 2열. 종목을 바꿔가며 눌러도 리스트가 남는다.
+  const themeName = sel.kind === "theme" ? sel.name : stockByName[sel.name]?.theme;
+  const theme = themeName ? themeByName[themeName] : undefined;
+  if (!theme) return null;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] gap-4">
+      <ThemeStockList theme={theme} sel={sel} onStock={onStock} />
+      {sel.kind === "stock" ? (
+        <StockDetail name={sel.name} theme={theme.name} />
+      ) : (
+        <ThemeDetail theme={theme} onStock={onStock} />
+      )}
+    </div>
+  );
+}
+
+/** 테마에 속한 종목 리스트 — 상세 영역 왼쪽. 클릭하면 오른쪽이 그 종목 상세로 바뀐다. */
+function ThemeStockList({
+  theme,
+  sel,
+  onStock,
+}: {
+  theme: CbTheme;
+  sel: Selection;
+  onStock: (name: string) => void;
+}) {
+  return (
+    <div className="flex flex-col min-w-0">
+      <div className="flex items-baseline gap-2 px-1 pb-2">
+        <span className="text-sm font-bold text-zinc-100">{theme.name}</span>
+        <span className="text-[11px] text-zinc-500">{theme.stocks.length}</span>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        {theme.stocks.map((s) => {
+          const active = sel.kind === "stock" && sel.name === s.name;
+          return (
+            <button
+              key={s.code}
+              type="button"
+              onClick={() => onStock(s.name)}
+              className={`w-full flex items-center gap-2.5 px-2 py-2.5 rounded-xl text-left transition-colors ${
+                active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
+              }`}
+            >
+              <StockAvatar name={s.name} code={s.code} size={32} />
+              <span className="flex-1 min-w-0 text-[13.5px] text-zinc-200 leading-tight line-clamp-2">{s.name}</span>
+              <span className="text-right shrink-0">
+                <span className="block num text-[13.5px] font-semibold text-zinc-100">{formatPrice(s.price)}</span>
+                <span className={`block num text-[11.5px] ${colorByPnL(s.pct)}`}>{formatPct(s.pct / 100)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 const cardCls = "bg-zinc-900 rounded-2xl p-4";
