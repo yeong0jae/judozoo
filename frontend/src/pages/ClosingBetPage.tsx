@@ -5,6 +5,7 @@ import {
   useFuturesInvestorDaily,
   useFuturesInvestorSessions,
   useFuturesQuote,
+  useKosdaqIndex,
   useKospiIndex,
   useMarketCandles,
   useMarketInvestorDaily,
@@ -46,6 +47,7 @@ type Selection =
 type IndexInfo = { id: string; name: string; delayed?: boolean };
 const INDICES: IndexInfo[] = [
   { id: "kospi", name: "코스피" },
+  { id: "kosdaq", name: "코스닥" },
   { id: "kospiF", name: "코스피 선물" },
   // CME 무료 시세는 10분 지연 배포라 야후도 그만큼 늦은 값을 준다(실시간은 유료 피드만).
   { id: "nasF", name: "나스닥 선물", delayed: true },
@@ -133,18 +135,20 @@ const chgText = (value: number, pct: number) => {
 const toCell = (value?: number, pct?: number) =>
   value === undefined || pct === undefined ? null : { value, pct };
 
-/** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 5칸을 얇은 구분선으로만 분리. */
+/** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 6칸을 얇은 구분선으로만 분리. */
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
   const kospi = useKospiIndex();
+  const kosdaq = useKosdaqIndex();
   const futures = useFuturesQuote();
   const night = useNightFuturesQuote();
   const nasdaq = useNasdaqFuturesQuote();
   const nasdaqIndex = useNasdaqIndexQuote();
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
         const q =
           ix.id === "kospi" ? toCell(kospi.data?.currentValue, kospi.data?.changeRate)
+          : ix.id === "kosdaq" ? toCell(kosdaq.data?.currentValue, kosdaq.data?.changeRate)
           : ix.id === "kospiF" ? toCell(futures.data?.futuresPrice, futures.data?.changeRate)
           : ix.id === "nightF" ? toCell(night.data?.price, night.data?.changeRate)
           : ix.id === "nasF" ? toCell(nasdaq.data?.price, nasdaq.data?.changeRate)
@@ -328,6 +332,7 @@ function SubjectDetail({
       : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
       : ix.id === "nasF" ? <NasdaqFuturesDetail index={ix} />
       : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
+      : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} />
       : <LiveIndexDetail market="KOSPI" name={ix.name} />;
     return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
   }
@@ -639,7 +644,9 @@ function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (
 
 function LiveIndexDetail({ market, name }: { market: MarketType; name: string }) {
   const date = todayStr();
-  const priceQ = useKospiIndex();
+  const kospiQ = useKospiIndex();
+  const kosdaqQ = useKosdaqIndex();
+  const priceQ = market === "KOSPI" ? kospiQ : kosdaqQ;
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
 
   if (priceQ.isLoading) return <Skeleton className="h-96 w-full" />;
