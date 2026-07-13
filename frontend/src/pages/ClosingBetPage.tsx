@@ -748,7 +748,6 @@ function NightFuturesDetail({ index }: { index: IndexInfo }) {
 
   const up = data.gap >= 0;
   const tone = up ? "text-red-400" : "text-blue-400";
-  const badge = up ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
   const signed2 = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}`;
 
   return (
@@ -771,9 +770,6 @@ function NightFuturesDetail({ index }: { index: IndexInfo }) {
         <div className="flex items-end gap-3 flex-wrap">
           <span className={`num text-2xl font-bold ${tone}`}>{signed2(data.changeRate)}%</span>
           <span className={`num mb-0.5 text-sm font-semibold ${tone}`}>{signed2(data.gap)}</span>
-          <span className={`mb-0.5 text-[11px] font-medium rounded-md px-2 py-0.5 ${badge}`}>
-            {up ? "갭 상승 · 시초 강세 시사" : "갭 하락 · 시초 약세 시사"}
-          </span>
         </div>
       </div>
 
