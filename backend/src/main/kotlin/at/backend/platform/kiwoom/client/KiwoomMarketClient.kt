@@ -244,6 +244,9 @@ class KiwoomMarketClient(
     fun fetchHistoricalMinuteCandles(stockCode: String, baseDate: LocalDate): List<MinuteCandle> =
         fetchMinuteCandlesRaw(stockCode, baseDate)
 
+    /** 접미사가 없는 코드에 SOR 통합(_AL)을 붙인다. 이미 _AL/_NX가 붙어 있으면 그대로 둔다. */
+    private fun String.withSorSuffix() = if (contains('_')) this else "${this}_AL"
+
     private fun fetchMinuteCandlesRaw(stockCode: String, baseDate: LocalDate): List<MinuteCandle> {
         try {
             val token = authClient.getAccessToken()
@@ -256,8 +259,9 @@ class KiwoomMarketClient(
                 .header("api-id", "ka10080")
                 .body(
                     mapOf(
-                        // ka10080도 ka10001과 동일하게 _AL 시 빈 응답 가능성 — KRX 기본 stk_cd로 호출
-                        "stk_cd" to stockCode,
+                        // KRX 기본 코드는 정규장 봉만 준다. SOR 통합(_AL)이라야 NXT 프리·애프터마켓 봉이 함께 온다.
+                        // 후보 종목은 랭킹에서 이미 접미사를 달고 오므로, 없을 때만 붙인다.
+                        "stk_cd" to stockCode.withSorSuffix(),
                         "tic_scope" to "1",
                         "upd_stkpc_tp" to "1",
                         "base_dt" to baseDate.toString().replace("-", ""),
