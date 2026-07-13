@@ -27,6 +27,18 @@ class WatchThemeService(
     }
 
     @Transactional
+    fun renameTheme(themeId: Long, name: String): WatchThemeView {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "테마 이름이 비어 있습니다" }
+        val theme = repository.findById(themeId).orElseThrow { IllegalArgumentException("없는 테마입니다: $themeId") }
+        if (trimmed != theme.name) {
+            require(!repository.existsByName(trimmed)) { "이미 있는 테마입니다: $trimmed" }
+            theme.name = trimmed
+        }
+        return theme.toView()
+    }
+
+    @Transactional
     fun deleteTheme(themeId: Long) = repository.deleteById(themeId)
 
     @Transactional

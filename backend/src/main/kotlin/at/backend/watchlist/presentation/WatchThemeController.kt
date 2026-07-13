@@ -27,6 +27,12 @@ class WatchThemeController(
     fun createTheme(@RequestBody request: CreateThemeRequest): ApiResponse<WatchThemeView> =
         ApiResponse.ok(service.createTheme(request.name))
 
+    @PatchMapping("/api/watch-themes/{themeId}")
+    fun renameTheme(
+        @PathVariable themeId: Long,
+        @RequestBody request: RenameThemeRequest,
+    ): ApiResponse<WatchThemeView> = ApiResponse.ok(service.renameTheme(themeId, request.name))
+
     @DeleteMapping("/api/watch-themes/{themeId}")
     fun deleteTheme(@PathVariable themeId: Long): ApiResponse<Unit> {
         service.deleteTheme(themeId)
@@ -66,6 +72,8 @@ class WatchThemeController(
         ApiResponse.ok(quoteService.quotesOf(themeId))
 
     data class CreateThemeRequest(val name: String)
+
+    data class RenameThemeRequest(val name: String)
 
     data class ReorderThemesRequest(val themeIds: List<Long>)
 

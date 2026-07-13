@@ -590,6 +590,18 @@ export function useCreateWatchTheme() {
   });
 }
 
+export function useRenameWatchTheme() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ themeId, name }: { themeId: number; name: string }) =>
+      apiFetch<WatchTheme>(`/api/watch-themes/${themeId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.watchThemes }),
+  });
+}
+
 export function useDeleteWatchTheme() {
   const qc = useQueryClient();
   return useMutation({
