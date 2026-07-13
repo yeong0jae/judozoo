@@ -363,7 +363,7 @@ function SubjectDetail({
       <div className="min-h-0 lg:overflow-y-auto pr-1">
         {sel.kind === "stock" ? (
           sel.exchange ? (
-            <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} />
+            <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} chartOnly />
           ) : (
             <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
           )

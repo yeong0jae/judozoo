@@ -31,15 +31,21 @@ const DETAIL_TABS: { key: DetailTab; label: string }[] = [
   { key: "daily", label: "일봉" },
 ];
 
-/** 해외 종목 상세/차트 패널 — exchange/symbol만 받아 detail로 완결. 후보 조회·실시간 로그 공용. */
+/**
+ * 해외 종목 상세/차트 패널 — exchange/symbol만 받아 detail로 완결. 후보 조회·실시간 로그 공용.
+ * [chartOnly]면 상세 탭 없이 1분봉·일봉만 둔다(시황분석은 차트만 본다).
+ */
 export default function OverseasStockDetailPanel({
   exchange,
   symbol,
+  chartOnly = false,
 }: {
   exchange: string | null;
   symbol: string | null;
+  chartOnly?: boolean;
 }) {
-  const [tab, setTab] = useState<DetailTab>("detail");
+  const [tab, setTab] = useState<DetailTab>(chartOnly ? "minute" : "detail");
+  const tabs = chartOnly ? DETAIL_TABS.filter((t) => t.key !== "detail") : DETAIL_TABS;
   const detailQ = useOverseasStockDetail(exchange, symbol);
   const minuteQ = useOverseasMinuteCandles(tab === "minute" ? exchange : null, tab === "minute" ? symbol : null);
   const dailyQ = useOverseasDailyCandles(tab === "daily" ? exchange : null, tab === "daily" ? symbol : null);
@@ -69,7 +75,7 @@ export default function OverseasStockDetailPanel({
             </div>
           </div>
           <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
-            {DETAIL_TABS.map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t.key}
                 type="button"
