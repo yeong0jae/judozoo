@@ -1425,12 +1425,11 @@ function fmtNewsTime(iso: string) {
 }
 
 /**
- * 종목 관련 뉴스·공시 — KIS 종합 시황/공시(제목만, 원문 링크 없음).
- * 해외 종목은 이 API로 조회되지 않아 미지원으로 표시한다.
+ * 종목 관련 뉴스 — KIS(국내는 종합 시황/공시, 해외는 해외뉴스종합). 둘 다 제목만 오고 원문 링크는 없다.
+ * 공시는 국내 목록에만 섞여 온다.
  */
 function StockNewsPanel({ code, exchange }: { code: string; exchange: string | null }) {
-  const domestic = exchange === null;
-  const { data, isLoading } = useStockNews(code, domestic);
+  const { data, isLoading } = useStockNews(code, exchange);
   const items = data ?? [];
 
   return (
@@ -1440,9 +1439,7 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
         <span className="text-xs text-zinc-600">뉴스 · 공시</span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5">
-        {!domestic ? (
-          <EmptyState message="해외 종목 뉴스는 아직 지원하지 않습니다" />
-        ) : isLoading ? (
+        {isLoading ? (
           <Skeleton className="h-40 w-full" />
         ) : items.length === 0 ? (
           <EmptyState message="관련 뉴스가 없습니다" />

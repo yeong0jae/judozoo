@@ -5,6 +5,7 @@ import at.backend.news.application.NewsService
 import at.backend.news.domain.StockNews
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDateTime
 
@@ -14,9 +15,17 @@ class NewsController(
     private val service: NewsService,
 ) {
 
+    /** [exchange](NAS/NYS/AMS)를 주면 해외 종목 뉴스, 없으면 국내 종목 뉴스·공시. */
     @GetMapping("/api/news/stock/{stockCode}")
-    fun stockNews(@PathVariable stockCode: String): ApiResponse<List<NewsItem>> =
-        ApiResponse.ok(service.stockNews(stockCode).map { it.toItem() })
+    fun stockNews(
+        @PathVariable stockCode: String,
+        @RequestParam(required = false) exchange: String?,
+    ): ApiResponse<List<NewsItem>> {
+        val news =
+            if (exchange.isNullOrBlank()) service.stockNews(stockCode)
+            else service.overseasStockNews(exchange, stockCode)
+        return ApiResponse.ok(news.map { it.toItem() })
+    }
 
     private fun StockNews.toItem() = NewsItem(
         seqNo = seqNo,
