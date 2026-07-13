@@ -1599,7 +1599,7 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
               rel="noopener noreferrer"
               className="block rounded-lg px-2.5 py-2 transition-colors hover:bg-white/[0.03]"
             >
-              <p className="text-sm leading-snug text-zinc-200">{n.title}</p>
+              <p className="text-[13.5px] leading-snug text-zinc-200">{n.title}</p>
               <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-600">
                 {n.disclosure && (
                   <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1 py-px">
