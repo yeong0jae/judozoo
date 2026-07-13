@@ -12,4 +12,7 @@ interface FuturesInvestorSnapshotRepository : JpaRepository<FuturesInvestorSnaps
         tradeDate: LocalDate,
         capturedAt: LocalDateTime,
     ): FuturesInvestorSnapshot?
+
+    /** 그날의 마지막 스냅샷 — 당일 누적("전체" 행)용. */
+    fun findFirstByTradeDateOrderByCapturedAtDesc(tradeDate: LocalDate): FuturesInvestorSnapshot?
 }

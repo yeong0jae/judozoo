@@ -662,7 +662,6 @@ function FuturesIndexDetail({ index }: { index: IndexInfo }) {
   const futValue = data.futuresPrice;
   const futPct = data.changeRate;
   const basis = data.basis; // 시장 베이시스 = 선물 − 현물(KOSPI200)
-  const investors = data.investors;
   const oi = data.openInterest;
   const oiChg = data.openInterestChange;
   const expiryDate = data.expiryDate;
@@ -691,30 +690,6 @@ function FuturesIndexDetail({ index }: { index: IndexInfo }) {
           </span>
         </div>
       </div>
-
-      {investors && (
-        <div className="px-1">
-          <div className="flex items-baseline justify-between mb-3">
-            <span className={titleCls}>투자자 순매수</span>
-            <span className="text-xs text-zinc-600">당일 누적 · 계약</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "외국인", value: investors.foreign },
-              { label: "기관", value: investors.institution },
-              { label: "개인", value: investors.individual },
-            ].map((c) => (
-              <div key={c.label} className="rounded-xl bg-white/[0.02] px-3 py-2.5">
-                <div className="text-xs text-zinc-500">{c.label}</div>
-                <div className={`num text-lg font-semibold mt-0.5 ${colorByPnL(c.value)}`}>
-                  {c.value >= 0 ? "+" : "−"}
-                  {Math.abs(c.value).toLocaleString("ko-KR")}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="px-1">
         <div className="flex items-baseline gap-2 text-sm">
@@ -1008,7 +983,11 @@ function FuturesSessionsCard({ date }: { date: string }) {
               {list.map((s) => (
                 <tr
                   key={s.name}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                  className={`[&>td]:border-t [&>td]:transition-colors hover:[&>td]:bg-white/[0.02] ${
+                    s.name === "전체"
+                      ? "[&>td]:border-zinc-700 [&>td]:font-semibold"
+                      : "[&>td]:border-zinc-800/50"
+                  }`}
                 >
                   <td className="text-left py-2 pr-3">
                     <div className="text-zinc-300">{s.name}</div>
@@ -1274,7 +1253,11 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
               {list.map((s) => (
                 <tr
                   key={s.name}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                  className={`[&>td]:border-t [&>td]:transition-colors hover:[&>td]:bg-white/[0.02] ${
+                    s.name === "전체"
+                      ? "[&>td]:border-zinc-700 [&>td]:font-semibold"
+                      : "[&>td]:border-zinc-800/50"
+                  }`}
                 >
                   <td className="text-left py-2 pr-3">
                     <div className="text-zinc-300">{s.name}</div>
