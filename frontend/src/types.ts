@@ -141,6 +141,12 @@ export interface FuturesSession {
   nets: FuturesNets | null;
 }
 
+/** 선물 일별 순매수(계약) — 그날의 당일 누적. 스냅샷을 쌓은 날만 온다. */
+export interface FuturesInvestorDay {
+  date: string; // yyyy-MM-dd
+  nets: FuturesNets;
+}
+
 /** 시장 지수 캔들(OHLCV) — 토스 Market Indicators. date는 KST, time은 1d일 땐 00:00:00 고정. */
 export interface MarketCandleItem {
   date: string;

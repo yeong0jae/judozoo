@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useFuturesCandles,
+  useFuturesInvestorDaily,
   useFuturesInvestorSessions,
   useFuturesQuote,
   useKospiIndex,
@@ -717,6 +718,7 @@ function FuturesIndexDetail({ index }: { index: IndexInfo }) {
       </div>
 
       <FuturesSessionsCard date={todayStr()} />
+      <FuturesDailyCard />
     </div>
   );
 }
@@ -1021,6 +1023,86 @@ function FuturesSessionsCard({ date }: { date: string }) {
                       </td>
                     </>
                   )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 선물 최근 10일 수급 — 거래일별 마지막 스냅샷(= 그날의 당일 누적).
+ * 선물엔 일별 조회 API가 없어 폴러가 쌓은 스냅샷으로만 만든다. 적재 시작 전 과거는 소급되지 않는다.
+ */
+function FuturesDailyCard() {
+  const { data, isLoading } = useFuturesInvestorDaily(10);
+  const records = data ?? [];
+  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
+
+  return (
+    <div className="px-1">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className={titleCls}>최근 10일 수급</span>
+        <span className="text-xs text-zinc-600">순매수 · 계약</span>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-48 w-full" />
+      ) : records.length === 0 ? (
+        <EmptyState message="일별 수급 데이터가 없습니다" />
+      ) : (
+        <div className="overflow-x-auto -mx-1 px-1">
+          <table className="w-full text-xs whitespace-nowrap">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="pb-1 pr-3" />
+                <th className="text-right font-medium pb-1 px-2.5">개인</th>
+                <th className="text-right font-medium pb-1 px-2.5">외국인</th>
+                <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
+                <th colSpan={FUTURES_ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
+                  기관상세
+                </th>
+                <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
+              </tr>
+              <tr>
+                <th className="text-left font-medium pb-1.5 pr-3">일자</th>
+                <th />
+                <th />
+                <th />
+                {FUTURES_ORG_COLS.map((c, i) => (
+                  <th key={c.key} className={`text-right font-medium pt-1.5 pb-1.5 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
+                    {c.label}
+                  </th>
+                ))}
+                <th className={edge} />
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((r) => (
+                <tr
+                  key={r.date}
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                >
+                  <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
+                  <td className="text-right py-2 px-2.5">
+                    <NetNum eok={r.nets.individual} />
+                  </td>
+                  <td className="text-right py-2 px-2.5">
+                    <NetNum eok={r.nets.foreign} />
+                  </td>
+                  <td className="text-right py-2 pl-2.5 pr-5 font-medium">
+                    <NetNum eok={r.nets.institution} />
+                  </td>
+                  {FUTURES_ORG_COLS.map((c, i) => (
+                    <td key={c.key} className={`text-right py-2 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
+                      <NetNum eok={r.nets.breakdown[c.key]} />
+                    </td>
+                  ))}
+                  <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
+                    <NetNum eok={r.nets.otherCorp} />
+                  </td>
                 </tr>
               ))}
             </tbody>

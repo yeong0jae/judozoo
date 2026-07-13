@@ -3,6 +3,7 @@ package at.backend.market.application
 import at.backend.market.domain.FuturesInvestorSnapshot
 import at.backend.market.infrastructure.repository.FuturesInvestorSnapshotRepository
 import at.backend.platform.kis.client.KisFuturesClient
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -39,6 +40,15 @@ class MarketFuturesInvestorService(
             ),
         )
     }
+
+    /**
+     * 최근 [count] 거래일 일별 순매수(계약). 각 거래일의 마지막 스냅샷 = 그날의 당일 누적. 최신순.
+     * 폴러가 적재한 날만 나온다(과거 소급 불가). 당일은 장중이면 진행 중인 누적값.
+     */
+    @Transactional(readOnly = true)
+    fun dailyHistory(count: Int): List<FuturesInvestorDay> =
+        repository.findDailyLatest(PageRequest.of(0, count))
+            .map { FuturesInvestorDay(it.tradeDate, it.nets()) }
 
     /** 세션별(오전/오후/막판) 순매수(계약) — 스냅샷이 없는 세션은 nets=null. */
     @Transactional(readOnly = true)
@@ -132,4 +142,10 @@ data class FuturesSessionNet(
     val name: String,
     val time: String,
     val nets: FuturesNets?,
+)
+
+/** 하루치 선물 투자자 순매수(계약) — 그날 마지막 스냅샷의 당일 누적. */
+data class FuturesInvestorDay(
+    val date: LocalDate,
+    val nets: FuturesNets,
 )

@@ -2,6 +2,7 @@ package at.backend.market.presentation
 
 import at.backend.library.time.TimeProvider
 import at.backend.library.web.ApiResponse
+import at.backend.market.application.FuturesInvestorDay
 import at.backend.market.application.FuturesQuote
 import at.backend.market.application.FuturesSessionNet
 import at.backend.market.application.MarketFuturesInvestorService
@@ -32,6 +33,13 @@ class MarketFuturesController(
     /** 근월물 시세 요약 — 선물·현물·베이시스·괴리율·미결제. */
     @GetMapping("/api/market/futures/kospi/quote")
     fun quote(): ApiResponse<FuturesQuote?> = ApiResponse.ok(service.quote())
+
+    /** 최근 N거래일 일별 투자자 순매수(계약) — 폴러가 적재한 날만. */
+    @GetMapping("/api/market/futures/kospi/investor/daily")
+    fun daily(
+        @RequestParam(defaultValue = "10") count: Int,
+    ): ApiResponse<List<FuturesInvestorDay>> =
+        ApiResponse.ok(investorService.dailyHistory(count))
 
     /** 세션별(오전/오후/막판) 투자자 순매수(계약). */
     @GetMapping("/api/market/futures/kospi/investor/sessions")

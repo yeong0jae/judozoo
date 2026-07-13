@@ -9,6 +9,7 @@ import type {
   KospiIndex,
   FuturesQuote,
   FuturesSession,
+  FuturesInvestorDay,
   NasdaqFuturesQuote,
   NasdaqIndexQuote,
   NightFuturesQuote,
@@ -76,6 +77,8 @@ export const QK = {
     ["market", "futures", "kospi", "candles", interval] as const,
   futuresInvestorSessions: (date: string) =>
     ["market", "futures", "kospi", "investor", "sessions", date] as const,
+  futuresInvestorDaily: (count: number) =>
+    ["market", "futures", "kospi", "investor", "daily", count] as const,
   nightFuturesQuote: ["market", "futures", "night", "quote"] as const,
   nightFuturesCandles: (interval: string) =>
     ["market", "futures", "night", "candles", interval] as const,
@@ -339,6 +342,16 @@ export function useFuturesInvestorSessions(date: string) {
     queryFn: () =>
       apiFetch<FuturesSession[]>(`/api/market/futures/kospi/investor/sessions?date=${date}`),
     refetchInterval: 60_000,
+  });
+}
+
+/** 코스피 선물 일별 투자자 순매수(계약) — 스냅샷을 쌓은 날만 온다. */
+export function useFuturesInvestorDaily(count = 10) {
+  return useQuery({
+    queryKey: QK.futuresInvestorDaily(count),
+    queryFn: () =>
+      apiFetch<FuturesInvestorDay[]>(`/api/market/futures/kospi/investor/daily?count=${count}`),
+    staleTime: 60_000,
   });
 }
 
