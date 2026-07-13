@@ -43,14 +43,22 @@ type Selection =
   | { kind: "index"; id: string };
 
 /** 상단 스트립 지수 — 값은 전부 API에서 온다. 여기엔 이름·라우팅만 둔다. */
-type IndexInfo = { id: string; name: string };
+type IndexInfo = { id: string; name: string; delayed?: boolean };
 const INDICES: IndexInfo[] = [
   { id: "kospi", name: "코스피" },
   { id: "kospiF", name: "코스피 선물" },
+  // CME 무료 시세는 10분 지연 배포라 야후도 그만큼 늦은 값을 준다(실시간은 유료 피드만).
+  { id: "nasF", name: "나스닥 선물", delayed: true },
   { id: "nightF", name: "야간 선물" },
-  { id: "nasF", name: "나스닥 선물" },
   { id: "nasdaq", name: "나스닥" },
 ];
+
+/** 실시간이 아닌 시세임을 알리는 배지. */
+function DelayBadge() {
+  return (
+    <span className="text-[10px] text-zinc-500 bg-white/[0.04] rounded px-1 py-px">10분 지연</span>
+  );
+}
 
 /**
  * 전환 애니메이션 단위 — 테마 안에서 종목만 바꿀 땐 리마운트하지 않는다(왼쪽 종목 리스트가 깜빡이지 않게).
@@ -177,7 +185,10 @@ function IndexCell({
         active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
       }`}
     >
-      <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
+      <span className="flex items-center gap-1.5 text-[14px] font-medium text-zinc-300">
+        {ix.name}
+        {ix.delayed && <DelayBadge />}
+      </span>
       <div className="flex items-baseline gap-1.5 flex-wrap mt-0.5">
         {value === null || pct === null ? (
           <span className="num text-[17px] font-bold text-zinc-700">—</span>
@@ -818,6 +829,7 @@ function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
         price={data.price}
         pct={data.changeRate}
         chg={data.priceChange}
+        extra={<DelayBadge />}
         priceInline
         decimal
       />
