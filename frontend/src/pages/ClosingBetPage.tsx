@@ -7,6 +7,7 @@ import {
   useFuturesQuote,
   useKosdaqIndex,
   useKospiIndex,
+  useStockNews,
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
@@ -77,18 +78,26 @@ const subjectKey = (sel: Selection) =>
   sel.kind === "index" ? `index-${sel.id}` : `theme-${sel.themeId}`;
 
 /**
- * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드. 코스피는 실데이터(토스), 나머지는 목 데이터.
- * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 뉴스.
+ * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드.
+ * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 종목 뉴스(종목을 골랐을 때만).
  */
 export default function ClosingBetPage() {
   const [sel, setSel] = useState<Selection>({ kind: "index", id: "kospi" });
   const { data: themes = [] } = useWatchThemes();
+  // 지수·테마엔 뉴스가 없다(KIS 뉴스 API는 종목코드로만 조회된다). 상세는 그대로 꽉 찬 넓이를 쓴다.
+  const news = sel.kind === "stock" ? sel : null;
 
   return (
     <div className="flex flex-col gap-4">
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[13rem_minmax(0,1fr)] gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem]">
+      <div
+        className={`grid grid-cols-1 gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem] ${
+          news
+            ? "lg:grid-cols-[13rem_minmax(0,1fr)_20rem]"
+            : "lg:grid-cols-[13rem_minmax(0,1fr)]"
+        }`}
+      >
         <ThemeWatchlist
           themes={themes}
           sel={sel}
@@ -108,6 +117,9 @@ export default function ClosingBetPage() {
             </motion.div>
           </AnimatePresence>
         </div>
+        {news && (
+          <StockNewsPanel key={news.code} code={news.code} exchange={news.exchange} />
+        )}
       </div>
     </div>
   );
@@ -1396,5 +1408,70 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 }
 
 // ============================================================
-// 우: 뉴스 (선택 대상 따라감)
+// 우: 뉴스 (종목을 골랐을 때만)
 // ============================================================
+
+/** "2026-07-13T14:13:38" → 오늘이면 "14:13", 아니면 "7/12". */
+function fmtNewsTime(iso: string) {
+  const at = new Date(iso);
+  const today = new Date();
+  const sameDay =
+    at.getFullYear() === today.getFullYear() &&
+    at.getMonth() === today.getMonth() &&
+    at.getDate() === today.getDate();
+  return sameDay
+    ? `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`
+    : `${at.getMonth() + 1}/${at.getDate()}`;
+}
+
+/**
+ * 종목 관련 뉴스·공시 — KIS 종합 시황/공시(제목만, 원문 링크 없음).
+ * 해외 종목은 이 API로 조회되지 않아 미지원으로 표시한다.
+ */
+function StockNewsPanel({ code, exchange }: { code: string; exchange: string | null }) {
+  const domestic = exchange === null;
+  const { data, isLoading } = useStockNews(code, domestic);
+  const items = data ?? [];
+
+  return (
+    <aside className="min-h-0 flex flex-col rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+      <div className="flex items-baseline justify-between px-4 py-3 border-b border-white/[0.06]">
+        <span className={titleCls}>관련 뉴스</span>
+        <span className="text-xs text-zinc-600">뉴스 · 공시</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {!domestic ? (
+          <div className="p-4">
+            <EmptyState message="해외 종목 뉴스는 아직 지원하지 않습니다" />
+          </div>
+        ) : isLoading ? (
+          <div className="p-4">
+            <Skeleton className="h-40 w-full" />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="p-4">
+            <EmptyState message="관련 뉴스가 없습니다" />
+          </div>
+        ) : (
+          <ul className="divide-y divide-white/[0.04]">
+            {items.map((n) => (
+              <li key={n.seqNo} className="px-4 py-3 transition-colors hover:bg-white/[0.02]">
+                <p className="text-[13px] leading-snug text-zinc-200">{n.title}</p>
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-600">
+                  {n.disclosure && (
+                    <span className="rounded px-1 py-px font-medium bg-amber-500/10 text-amber-400/90">
+                      공시
+                    </span>
+                  )}
+                  <span>{n.source}</span>
+                  <span className="text-zinc-700">·</span>
+                  <span className="num">{fmtNewsTime(n.publishedAt)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </aside>
+  );
+}

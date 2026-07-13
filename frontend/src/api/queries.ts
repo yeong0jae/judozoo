@@ -10,6 +10,7 @@ import type {
   FuturesQuote,
   FuturesSession,
   FuturesInvestorDay,
+  StockNewsItem,
   NasdaqFuturesQuote,
   NasdaqIndexQuote,
   NightFuturesQuote,
@@ -79,6 +80,7 @@ export const QK = {
     ["market", "futures", "kospi", "investor", "sessions", date] as const,
   futuresInvestorDaily: (count: number) =>
     ["market", "futures", "kospi", "investor", "daily", count] as const,
+  stockNews: (stockCode: string) => ["news", "stock", stockCode] as const,
   nightFuturesQuote: ["market", "futures", "night", "quote"] as const,
   nightFuturesCandles: (interval: string) =>
     ["market", "futures", "night", "candles", interval] as const,
@@ -341,6 +343,16 @@ export function useFuturesInvestorSessions(date: string) {
     queryKey: QK.futuresInvestorSessions(date),
     queryFn: () =>
       apiFetch<FuturesSession[]>(`/api/market/futures/kospi/investor/sessions?date=${date}`),
+    refetchInterval: 60_000,
+  });
+}
+
+/** 종목 관련 뉴스·공시 — KIS. 국내 종목만 지원한다. */
+export function useStockNews(stockCode: string, enabled: boolean) {
+  return useQuery({
+    queryKey: QK.stockNews(stockCode),
+    queryFn: () => apiFetch<StockNewsItem[]>(`/api/news/stock/${stockCode}`),
+    enabled,
     refetchInterval: 60_000,
   });
 }

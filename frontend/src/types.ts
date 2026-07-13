@@ -141,6 +141,15 @@ export interface FuturesSession {
   nets: FuturesNets | null;
 }
 
+/** 종목 관련 뉴스·공시 한 건 — KIS 종합 시황/공시. 제목만 오고 원문 링크는 없다. */
+export interface StockNewsItem {
+  seqNo: string;
+  title: string;
+  source: string; // 언론사명 또는 "공시"
+  disclosure: boolean;
+  publishedAt: string; // ISO LocalDateTime (KST)
+}
+
 /** 선물 일별 순매수(계약) — 그날의 당일 누적. 스냅샷을 쌓은 날만 온다. */
 export interface FuturesInvestorDay {
   date: string; // yyyy-MM-dd
