@@ -157,8 +157,9 @@ class KiwoomMarketClient(
                 .header("authorization", "Bearer $token")
                 .header("Content-Type", "application/json;charset=UTF-8")
                 .header("api-id", "ka10001")
-                // 후보 stockCode는 랭킹(ka10032)에서 이미 _AL(SOR 통합) 접미사를 달고 들어옴 — 그대로 전달.
-                .body(mapOf("stk_cd" to stockCode))
+                // KRX 기본 코드는 정규장 종가에 멈춘다. SOR 통합(_AL)이라야 NXT 프리·애프터마켓 체결이 반영된다.
+                // 후보 stockCode는 랭킹(ka10032)에서 이미 접미사를 달고 오므로, 없을 때만 붙인다.
+                .body(mapOf("stk_cd" to stockCode.withSorSuffix()))
                 .retrieve()
                 .body(StockDetailResponse::class.java)
                 ?: return null
