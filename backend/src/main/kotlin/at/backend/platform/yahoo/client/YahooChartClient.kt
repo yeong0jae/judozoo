@@ -34,6 +34,37 @@ class YahooChartClient(
     }
 
     /**
+     * [symbol] 시세 — 프리·애프터마켓 체결까지 반영한다(관심 종목 시세용).
+     *
+     * meta는 정규장 값만 담는다: 프리마켓 중엔 regularMarketPrice가 '직전 정규장 종가'에 멈춰 있고,
+     * previousClose는 한 세션 더 과거를 가리킨다. 그래서 확장시간엔 마지막 캔들을 현재가로,
+     * 직전 정규장 종가(regularMarketPrice)를 기준가로 쓴다. 정규장 중엔 meta를 그대로 쓴다.
+     */
+    fun fetchExtendedQuote(symbol: String): YahooQuote? {
+        val result = fetch(symbol, "1m", "1d", includePrePost = true) ?: return null
+        val meta = result.meta ?: return null
+        val regularPrice = meta.regularMarketPrice ?: return null
+        val lastBar = result.lastClose()
+        val extended = lastBar != null && meta.regularMarketTime != null && lastBar.at > meta.regularMarketTime
+        return if (extended) {
+            YahooQuote(name = meta.shortName.orEmpty(), price = lastBar!!.close, prevClose = regularPrice)
+        } else {
+            val prevClose = meta.previousClose ?: meta.chartPreviousClose ?: return null
+            YahooQuote(name = meta.shortName.orEmpty(), price = regularPrice, prevClose = prevClose)
+        }
+    }
+
+    /** 마지막으로 체결된 캔들(거래 없는 분은 close가 null로 온다). */
+    private fun ChartResult.lastClose(): Bar? {
+        val times = timestamp ?: return null
+        val closes = indicators?.quote?.firstOrNull()?.close ?: return null
+        return times.indices.reversed()
+            .firstNotNullOfOrNull { i -> closes.getOrNull(i)?.let { Bar(times[i], it) } }
+    }
+
+    private data class Bar(val at: Long, val close: Double)
+
+    /**
      * [symbol] 캔들 — [interval]("1m"/"1d"), [range]("1d","5d","6mo" 등).
      * 거래가 없던 분은 값이 null로 오므로 버린다.
      * 세션 마감 봉은 거래량 0짜리 중복으로 한 번 더 오므로 같은 시각은 뒤엣것으로 덮는다(차트는 시각이 유일해야 한다).
@@ -61,13 +92,19 @@ class YahooChartClient(
         return byTime.values.toList()
     }
 
-    private fun fetch(symbol: String, interval: String, range: String): ChartResult? {
+    private fun fetch(
+        symbol: String,
+        interval: String,
+        range: String,
+        includePrePost: Boolean = false,
+    ): ChartResult? {
         try {
             val response = yahooRestClient.get()
                 .uri { b ->
                     b.path("/v8/finance/chart/{symbol}")
                         .queryParam("interval", interval)
                         .queryParam("range", range)
+                        .apply { if (includePrePost) queryParam("includePrePost", "true") }
                         .build(symbol)
                 }
                 .retrieve()
@@ -102,6 +139,7 @@ class YahooChartClient(
     data class Meta(
         val shortName: String? = null,
         val regularMarketPrice: Double? = null,
+        val regularMarketTime: Long? = null, // 마지막 정규장 체결 시각(epoch 초)
         val previousClose: Double? = null,
         val chartPreviousClose: Double? = null,
     )

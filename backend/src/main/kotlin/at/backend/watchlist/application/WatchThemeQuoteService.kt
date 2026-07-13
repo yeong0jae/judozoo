@@ -37,7 +37,7 @@ class WatchThemeQuoteService(
         }
 
     private fun overseas(symbol: String): StockQuote? =
-        yahoo.fetchQuote(symbol)?.let {
+        yahoo.fetchExtendedQuote(symbol)?.let {
             val change = it.price - it.prevClose
             StockQuote(
                 stockCode = symbol,
