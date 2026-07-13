@@ -19,8 +19,8 @@ class StockControllerTest : FunSpec({
     context("GET /api/stocks/search") {
         test("검색 결과 목록을 200으로 반환한다") {
             every { stockService.search("삼성") } returns listOf(
-                StockService.StockSearchResult(stockCode = "005930", stockName = "삼성전자"),
-                StockService.StockSearchResult(stockCode = "207940", stockName = "삼성바이오로직스"),
+                StockService.StockSearchResult(stockCode = "005930", stockName = "삼성전자", exchange = null),
+                StockService.StockSearchResult(stockCode = "207940", stockName = "삼성바이오로직스", exchange = null),
             )
 
             mockMvc.get("/api/stocks/search") {
