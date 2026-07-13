@@ -720,13 +720,7 @@ function WatchStockDetail({
         </div>
         <WatchStockChart code={code} date={date} interval={chartInterval} />
       </div>
-      <div className="px-1">
-        <div className="flex items-baseline justify-between mb-3">
-          <span className={titleCls}>최근 10일 수급</span>
-          <span className="text-xs text-zinc-600">순매수 · 억원</span>
-        </div>
-        <StockInvestorTable stockCode={code} />
-      </div>
+      <StockInvestorTable stockCode={code} />
     </div>
   );
 }
