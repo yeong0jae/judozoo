@@ -1434,42 +1434,41 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
   const items = data ?? [];
 
   return (
-    <aside className="min-h-0 flex flex-col rounded-2xl bg-white/[0.02] border border-white/[0.06]">
-      <div className="flex items-baseline justify-between px-4 py-3 border-b border-white/[0.06]">
-        <span className={titleCls}>관련 뉴스</span>
+    <aside className="min-h-0 flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between px-3 pt-4 pb-2">
+        <span className="text-base font-bold text-zinc-100">관련 뉴스</span>
         <span className="text-xs text-zinc-600">뉴스 · 공시</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5">
         {!domestic ? (
-          <div className="p-4">
-            <EmptyState message="해외 종목 뉴스는 아직 지원하지 않습니다" />
-          </div>
+          <EmptyState message="해외 종목 뉴스는 아직 지원하지 않습니다" />
         ) : isLoading ? (
-          <div className="p-4">
-            <Skeleton className="h-40 w-full" />
-          </div>
+          <Skeleton className="h-40 w-full" />
         ) : items.length === 0 ? (
-          <div className="p-4">
-            <EmptyState message="관련 뉴스가 없습니다" />
-          </div>
+          <EmptyState message="관련 뉴스가 없습니다" />
         ) : (
-          <ul className="divide-y divide-white/[0.04]">
-            {items.map((n) => (
-              <li key={n.seqNo} className="px-4 py-3 transition-colors hover:bg-white/[0.02]">
-                <p className="text-[13px] leading-snug text-zinc-200">{n.title}</p>
-                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-600">
-                  {n.disclosure && (
-                    <span className="rounded px-1 py-px font-medium bg-amber-500/10 text-amber-400/90">
-                      공시
-                    </span>
-                  )}
-                  <span>{n.source}</span>
-                  <span className="text-zinc-700">·</span>
-                  <span className="num">{fmtNewsTime(n.publishedAt)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          items.map((n) => (
+            /* 원문 URL을 주지 않는 API라, 제목을 그대로 구글에 검색해 원문을 찾아가게 한다. */
+            <a
+              key={n.seqNo}
+              href={`https://www.google.com/search?q=${encodeURIComponent(n.title)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg px-2.5 py-2 transition-colors hover:bg-white/[0.03]"
+            >
+              <p className="text-[13px] leading-snug text-zinc-200">{n.title}</p>
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-600">
+                {n.disclosure && (
+                  <span className="text-[10px] text-zinc-400 bg-white/[0.04] rounded px-1 py-px">
+                    공시
+                  </span>
+                )}
+                <span>{n.source}</span>
+                <span className="text-zinc-700">·</span>
+                <span className="num">{fmtNewsTime(n.publishedAt)}</span>
+              </div>
+            </a>
+          ))
         )}
       </div>
     </aside>
