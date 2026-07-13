@@ -1,12 +1,15 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  useDailyCandles,
   useFuturesCandles,
   useFuturesInvestorDaily,
   useFuturesInvestorSessions,
   useFuturesQuote,
   useKosdaqIndex,
   useKospiIndex,
+  useMinuteCandles,
+  useStockInvestorDaily,
   useStockNews,
   useMarketCandles,
   useMarketInvestorDaily,
@@ -27,9 +30,8 @@ import {
   useWatchThemeQuotes,
   useWatchThemes,
 } from "../api/queries";
-import CandleChart from "../components/common/CandleChart";
+import CandleChart, { dailySeries, minuteSeries } from "../components/common/CandleChart";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
-import StockDetailPanel from "../components/common/StockDetailPanel";
 import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
@@ -94,7 +96,7 @@ export default function ClosingBetPage() {
       <div
         className={`grid grid-cols-1 gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem] ${
           news
-            ? "lg:grid-cols-[13rem_minmax(0,1fr)_20rem]"
+            ? "lg:grid-cols-[13rem_minmax(0,1fr)_24rem]"
             : "lg:grid-cols-[13rem_minmax(0,1fr)]"
         }`}
       >
@@ -363,7 +365,7 @@ function SubjectDetail({
           sel.exchange ? (
             <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} />
           ) : (
-            <StockDetailPanel stockCode={sel.code} />
+            <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
           )
         ) : (
           <EmptyState message="종목을 선택하세요" />
@@ -679,6 +681,90 @@ function LiveIndexDetail({ market, name }: { market: MarketType; name: string })
       <RealSessionsCard market={market} date={date} />
       <RealInvestorTable market={market} />
     </div>
+  );
+}
+
+/**
+ * 시황분석 종목 상세 — 지수 상세와 같은 짜임(차트 + 최근 10일 수급).
+ * 주도주·시그널 로그가 쓰는 공용 StockDetailPanel과 달리 '상세' 탭이 없다.
+ */
+function WatchStockDetail({
+  themeId,
+  code,
+  name,
+}: {
+  themeId: number;
+  code: string;
+  name: string;
+}) {
+  const date = todayStr();
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
+  // 테마 시세 폴링과 같은 쿼리 키라 추가 호출 없이 캐시를 함께 쓴다.
+  const { data: quotes = [] } = useWatchThemeQuotes(themeId, true);
+  const quote = quotes.find((q) => q.stockCode === code);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DetailHeader
+        name={name}
+        code={code}
+        category="종목"
+        price={quote?.currentPrice ?? 0}
+        pct={quote?.priceChangeRate ?? 0}
+        priceInline
+      />
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>종목 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <WatchStockChart code={code} date={date} interval={chartInterval} />
+      </div>
+      <div className="px-1">
+        <div className="flex items-baseline justify-between mb-3">
+          <span className={titleCls}>최근 10일 수급</span>
+          <span className="text-xs text-zinc-600">순매수 · 억원</span>
+        </div>
+        <StockInvestorTable stockCode={code} />
+      </div>
+    </div>
+  );
+}
+
+/** 종목 1분봉/일봉 — 주도주 상세와 같은 캔들 소스(키움). */
+function WatchStockChart({
+  code,
+  date,
+  interval,
+}: {
+  code: string;
+  date: string;
+  interval: ChartInterval;
+}) {
+  const minuteQ = useMinuteCandles(interval === "1m" ? code : null, date);
+  const dailyQ = useDailyCandles(interval === "1d" ? code : null, date);
+  const q = interval === "1m" ? minuteQ : dailyQ;
+  const items = q.data ?? [];
+
+  if (q.isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
+  if (items.length === 0) {
+    return (
+      <div className="h-[21.25rem] flex items-center justify-center">
+        <EmptyState message={interval === "1m" ? "분봉 데이터가 없습니다" : "일봉 데이터가 없습니다"} />
+      </div>
+    );
+  }
+  return (
+    <CandleChart
+      key={`${code}-${interval}`}
+      series={
+        interval === "1m"
+          ? minuteSeries(minuteQ.data ?? [])
+          : dailySeries(dailyQ.data ?? [])
+      }
+      timeVisible={interval === "1m"}
+      className="w-full h-[21.25rem]"
+    />
   );
 }
 
@@ -1239,10 +1325,26 @@ function fmtDay(iso: string) {
   return `${y.slice(2)}년 ${Number(m)}월 ${Number(d)}일`;
 }
 
-/** 최근 10일 수급 — 키움 ka10051. 한 행에 개인·외국인·기관계 + 기관상세 7 + 기타법인. */
+/** 시장 최근 10일 수급 — 키움 ka10051. */
 function RealInvestorTable({ market }: { market: MarketType }) {
   const { data, isLoading } = useMarketInvestorDaily(market, 10);
-  const records = data ?? [];
+  return <InvestorDailyTable records={data ?? []} isLoading={isLoading} />;
+}
+
+/** 종목 최근 10일 수급 — 키움 ka10059. 시장 표와 같은 구성이라 표를 공유한다. */
+function StockInvestorTable({ stockCode }: { stockCode: string }) {
+  const { data, isLoading } = useStockInvestorDaily(stockCode, 10);
+  return <InvestorDailyTable records={data ?? []} isLoading={isLoading} />;
+}
+
+/** 최근 10일 수급 표 — 한 행에 개인·외국인·기관계 + 기관상세 7 + 기타법인. 시장·종목 공용. */
+function InvestorDailyTable({
+  records,
+  isLoading,
+}: {
+  records: MarketInvestorDay[];
+  isLoading: boolean;
+}) {
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
 
   return (
@@ -1453,10 +1555,10 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
               rel="noopener noreferrer"
               className="block rounded-lg px-2.5 py-2 transition-colors hover:bg-white/[0.03]"
             >
-              <p className="text-[13px] leading-snug text-zinc-200">{n.title}</p>
-              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-600">
+              <p className="text-sm leading-snug text-zinc-200">{n.title}</p>
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-600">
                 {n.disclosure && (
-                  <span className="text-[10px] text-zinc-400 bg-white/[0.04] rounded px-1 py-px">
+                  <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1 py-px">
                     공시
                   </span>
                 )}

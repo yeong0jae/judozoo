@@ -48,6 +48,9 @@ export interface MarketInvestorDay {
   breakdown: OrgBreakdown;
 }
 
+/** 종목 일별 순매수(억원) — 키움 ka10059. 시장 수급과 같은 구성이라 표를 공유한다. */
+export type StockInvestorDay = MarketInvestorDay;
+
 export interface MarketInvestorNets {
   individual: number;
   foreign: number;

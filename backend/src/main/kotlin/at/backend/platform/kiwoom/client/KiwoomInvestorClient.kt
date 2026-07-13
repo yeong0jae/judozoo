@@ -91,8 +91,11 @@ class KiwoomInvestorClient(
         val fnnc_invt: String? = null,    // 금융투자
         val insrnc: String? = null,       // 보험
         val invtrt: String? = null,       // 투자신탁
+        val etc_fnnc: String? = null,     // 기타금융
+        val bank: String? = null,         // 은행
         val penfnd_etc: String? = null,   // 연기금
         val samo_fund: String? = null,    // 사모펀드
+        val etc_corp: String? = null,     // 기타법인
     )
 
     private fun InvestorTrendItem.toDay() = InvestorTrendDay(
@@ -102,6 +105,14 @@ class KiwoomInvestorClient(
         individualNet = parseSignedLong(ind_invsr),
         foreignNet = parseSignedLong(frgnr_invsr),
         institutionNet = parseSignedLong(orgn),
+        otherCorpNet = parseSignedLong(etc_corp),
+        financialInvestmentNet = parseSignedLong(fnnc_invt),
+        insuranceNet = parseSignedLong(insrnc),
+        otherFinanceNet = parseSignedLong(etc_fnnc),
+        trustNet = parseSignedLong(invtrt),
+        privateEquityNet = parseSignedLong(samo_fund),
+        pensionFundNet = parseSignedLong(penfnd_etc),
+        bankNet = parseSignedLong(bank),
     )
 
     /** 도메인 객체로 격리. 모든 값은 백만원 단위 순매수 (양수=순매수, 음수=순매도). */
@@ -110,5 +121,14 @@ class KiwoomInvestorClient(
         val individualNet: Long,  // 개인 순매수
         val foreignNet: Long,     // 외국인 순매수
         val institutionNet: Long, // 기관 합계 순매수
+        val otherCorpNet: Long = 0,
+        // 기관 세부 — 기관 합계의 내역
+        val financialInvestmentNet: Long = 0,
+        val insuranceNet: Long = 0,
+        val otherFinanceNet: Long = 0,
+        val trustNet: Long = 0,
+        val privateEquityNet: Long = 0,
+        val pensionFundNet: Long = 0,
+        val bankNet: Long = 0,
     )
 }

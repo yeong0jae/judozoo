@@ -186,6 +186,13 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
+            "stockInvestorDaily", // 종목 일별 수급(ka10059) — 종목별 슬롯. 일 단위 데이터라 60s
+            Caffeine.newBuilder()
+                .expireAfterWrite(60, TimeUnit.SECONDS)
+                .maximumSize(100)
+                .build(),
+        )
+        manager.registerCustomCache(
             "stockNews", // 종목 뉴스·공시(KIS) — 종목별 슬롯. 뉴스는 분 단위로 바뀌어 60s면 충분
             Caffeine.newBuilder()
                 .expireAfterWrite(60, TimeUnit.SECONDS)

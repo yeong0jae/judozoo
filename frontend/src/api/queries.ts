@@ -10,6 +10,7 @@ import type {
   FuturesQuote,
   FuturesSession,
   FuturesInvestorDay,
+  StockInvestorDay,
   StockNewsItem,
   NasdaqFuturesQuote,
   NasdaqIndexQuote,
@@ -82,6 +83,8 @@ export const QK = {
     ["market", "futures", "kospi", "investor", "daily", count] as const,
   stockNews: (stockCode: string, exchange: string | null) =>
     ["news", "stock", stockCode, exchange] as const,
+  stockInvestorDaily: (stockCode: string, count: number) =>
+    ["stocks", stockCode, "investor", "daily", count] as const,
   nightFuturesQuote: ["market", "futures", "night", "quote"] as const,
   nightFuturesCandles: (interval: string) =>
     ["market", "futures", "night", "candles", interval] as const,
@@ -345,6 +348,16 @@ export function useFuturesInvestorSessions(date: string) {
     queryFn: () =>
       apiFetch<FuturesSession[]>(`/api/market/futures/kospi/investor/sessions?date=${date}`),
     refetchInterval: 60_000,
+  });
+}
+
+/** 종목 최근 N일 일별 순매수(억원) — 키움 ka10059. 국내 종목만. */
+export function useStockInvestorDaily(stockCode: string, count = 10) {
+  return useQuery({
+    queryKey: QK.stockInvestorDaily(stockCode, count),
+    queryFn: () =>
+      apiFetch<StockInvestorDay[]>(`/api/stocks/${stockCode}/investor/daily?count=${count}`),
+    staleTime: 60_000,
   });
 }
 
