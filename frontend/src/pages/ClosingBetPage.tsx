@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useDailyCandles,
@@ -47,6 +47,21 @@ type Selection =
   | { kind: "theme"; themeId: number }
   | { kind: "index"; id: string };
 
+const DEFAULT_SELECTION: Selection = { kind: "index", id: "kospi" };
+const SELECTION_KEY = "market-analysis:selection";
+
+/** 다른 메뉴를 다녀와도 보던 대상을 그대로 연다. 저장값이 깨졌으면 코스피로. */
+function loadSelection(): Selection {
+  try {
+    const raw = localStorage.getItem(SELECTION_KEY);
+    if (!raw) return DEFAULT_SELECTION;
+    const parsed = JSON.parse(raw) as Selection;
+    return parsed?.kind ? parsed : DEFAULT_SELECTION;
+  } catch {
+    return DEFAULT_SELECTION;
+  }
+}
+
 /** 상단 스트립 지수 — 값은 전부 API에서 온다. 여기엔 이름·라우팅만 둔다. */
 type IndexInfo = { id: string; name: string; delayed?: boolean };
 const INDICES: IndexInfo[] = [
@@ -85,8 +100,19 @@ const subjectKey = (sel: Selection) =>
  * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 종목 뉴스(종목을 골랐을 때만).
  */
 export default function ClosingBetPage() {
-  const [sel, setSel] = useState<Selection>({ kind: "index", id: "kospi" });
+  const [sel, setSel] = useState<Selection>(loadSelection);
   const { data: themes = [] } = useWatchThemes();
+  useEffect(() => {
+    localStorage.setItem(SELECTION_KEY, JSON.stringify(sel));
+  }, [sel]);
+  // 저장해둔 테마·종목이 그 사이 지워졌을 수 있다 — 테마가 사라졌으면 코스피로 되돌린다.
+  useEffect(() => {
+    if (sel.kind === "index" || !themes.length) return;
+    const theme = themes.find((t) => t.id === sel.themeId);
+    const gone =
+      !theme || (sel.kind === "stock" && !theme.stocks.some((s) => s.stockCode === sel.code));
+    if (gone) setSel(DEFAULT_SELECTION);
+  }, [themes, sel]);
   // 지수·테마엔 뉴스가 없다(KIS 뉴스 API는 종목코드로만 조회된다). 상세는 그대로 꽉 찬 넓이를 쓴다.
   const news = sel.kind === "stock" ? sel : null;
 
@@ -1599,7 +1625,7 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
               rel="noopener noreferrer"
               className="block rounded-lg px-2.5 py-2 transition-colors hover:bg-white/[0.03]"
             >
-              <p className="text-[13.5px] leading-snug text-zinc-200">{n.title}</p>
+              <p className="text-sm leading-snug text-zinc-200">{n.title}</p>
               <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-600">
                 {n.disclosure && (
                   <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1 py-px">
