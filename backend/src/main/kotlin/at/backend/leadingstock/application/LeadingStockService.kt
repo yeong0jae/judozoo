@@ -109,7 +109,7 @@ class LeadingStockService(
 
         val allFilters: List<StockFilter> = listOf(
             // Phase 1
-            TradingValueRankFilter(criteria),       // A: 거래대금 상위 30위
+            TradingValueRankFilter(criteria),       // A: 거래대금 상위 N위(설정)
             DailyPriceChangeFilter(criteria),       // B: 당일 등락률 >= 5%
             // Phase 2
             MarketCapFilter(criteria),              // C: 시가총액 >= 3000억
