@@ -1,6 +1,7 @@
 package at.backend.stock.presentation
 
 import at.backend.library.web.GlobalExceptionHandler
+import at.backend.stock.application.StockInvestorService
 import at.backend.stock.application.StockService
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.every
@@ -11,8 +12,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 class StockControllerTest : FunSpec({
 
     val stockService = mockk<StockService>()
+    val investorService = mockk<StockInvestorService>()
     val mockMvc = MockMvcBuilders
-        .standaloneSetup(StockController(stockService))
+        .standaloneSetup(StockController(stockService, investorService))
         .setControllerAdvice(GlobalExceptionHandler())
         .build()
 
