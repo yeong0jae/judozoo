@@ -78,7 +78,6 @@ const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
   { key: "BREAKOUT_GROUP", label: "돌파 / 임박" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
-  { key: "MA20_CROSS", label: "반등" },
   { key: "MARKET", label: "지수" },
 ];
 
