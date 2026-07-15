@@ -1583,17 +1583,18 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 // 우: 뉴스 (종목을 골랐을 때만)
 // ============================================================
 
-/** "2026-07-13T14:13:38" → 오늘이면 "14:13", 아니면 "7/12". */
+/** 상대 시각 — "방금"·"N분 전"·"N시간 전"·"N일 전", 일주일 넘으면 "M/D". */
 function fmtNewsTime(iso: string) {
-  const at = new Date(iso);
-  const today = new Date();
-  const sameDay =
-    at.getFullYear() === today.getFullYear() &&
-    at.getMonth() === today.getMonth() &&
-    at.getDate() === today.getDate();
-  return sameDay
-    ? `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`
-    : `${at.getMonth() + 1}/${at.getDate()}`;
+  const at = new Date(iso).getTime();
+  const diffMin = Math.floor((Date.now() - at) / 60000);
+  if (diffMin < 1) return "방금";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay < 7) return `${diffDay}일 전`;
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 /**
@@ -1623,18 +1624,24 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
               href={`https://www.google.com/search?q=${encodeURIComponent(n.title)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="block rounded-lg px-2.5 py-2 transition-colors hover:bg-white/[0.03]"
+              className="flex gap-3 px-2.5 py-3 border-b border-white/[0.04] transition-colors hover:bg-white/[0.02]"
             >
-              <p className="text-sm leading-snug text-zinc-200">{n.title}</p>
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-600">
-                {n.disclosure && (
-                  <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1 py-px">
-                    공시
+              <span className="shrink-0 w-11 pt-0.5 num text-[11px] text-zinc-500">
+                {fmtNewsTime(n.publishedAt)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-snug text-zinc-100">{n.title}</p>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">
+                    <span className="w-1 h-1 rounded-full bg-red-400" />
+                    {n.source}
                   </span>
-                )}
-                <span>{n.source}</span>
-                <span className="text-zinc-700">·</span>
-                <span className="num">{fmtNewsTime(n.publishedAt)}</span>
+                  {n.disclosure && (
+                    <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">
+                      공시
+                    </span>
+                  )}
+                </div>
               </div>
             </a>
           ))
