@@ -1498,7 +1498,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>정규장 시간대별 수급</span>
+        <span className={titleCls}>시간대별 수급</span>
         <span className="text-xs text-zinc-600">오늘 · 억원</span>
       </div>
       {isLoading ? (

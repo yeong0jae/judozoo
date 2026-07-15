@@ -38,14 +38,16 @@ class MarketSignalEventPoller(
     private val states = ConcurrentHashMap<String, InvestorNetBuyState>()
     private val flowStates = ConcurrentHashMap<String, InvestorFlowState>()
     private val tradeDate = AtomicReference<LocalDate?>(null)
-    private val sessionStart: LocalTime = LocalTime.parse(sessionStart)
-    private val sessionEnd: LocalTime = LocalTime.parse(sessionEnd)
+    // 시그널은 정규장(09:00~15:30)에만 내되, 순매수 스냅샷은 프리마켓~애프터마켓(08:00~20:00) 내내 적재한다
+    // — 세션 표의 프리·애프터 구간을 스냅샷 경계 diff로 만들려면 정규장 밖 누적도 필요하기 때문.
+    private val signalStart: LocalTime = LocalTime.parse(sessionStart)
+    private val signalEnd: LocalTime = LocalTime.parse(sessionEnd)
 
     @Scheduled(fixedDelayString = "\${leading-stock.market-signal.poll-interval-millis:30000}")
     fun onSchedule() {
         if (marketStatusService.getStatus().isHoliday) return
         val now = timeProvider.now().toLocalTime()
-        if (now < sessionStart || now > sessionEnd) return // 지수는 정규장에만 체결
+        if (now < SNAPSHOT_START || now > SNAPSHOT_END) return
         runCatching { detect() }.onFailure { log.warn(it) { "시장 시그널 적재 실패" } }
     }
 
@@ -61,6 +63,8 @@ class MarketSignalEventPoller(
         }
 
         val now = timeProvider.now()
+        // 정규장 밖(프리·애프터마켓)엔 순매수 스냅샷만 남기고 시그널은 내지 않는다.
+        val emitSignals = now.toLocalTime() in signalStart..signalEnd
         val snapshots = mutableListOf<MarketInvestorSnapshot>()
         val recorded = Market.entries.flatMap { market ->
             val snapshot = sectorInvestorClient.fetchSectorNetBuy(market.mrktTp()) ?: return@flatMap emptyList()
@@ -75,6 +79,7 @@ class MarketSignalEventPoller(
                 otherFinanceEok = snapshot.otherFinanceEok,
                 indexValue = snapshot.indexValue, changeRate = snapshot.changeRate,
             )
+            if (!emitSignals) return@flatMap emptyList()
             val step = MarketSignalThresholds.stepEok(market)
             val buffer = MarketSignalThresholds.bufferEok(market)
 
@@ -129,5 +134,10 @@ class MarketSignalEventPoller(
     private fun Market.mrktTp() = when (this) {
         Market.KOSPI -> "0"
         Market.KOSDAQ -> "1"
+    }
+
+    companion object {
+        private val SNAPSHOT_START: LocalTime = LocalTime.of(8, 0)  // NXT 프리마켓 개장
+        private val SNAPSHOT_END: LocalTime = LocalTime.of(20, 0)    // NXT 애프터마켓 마감
     }
 }

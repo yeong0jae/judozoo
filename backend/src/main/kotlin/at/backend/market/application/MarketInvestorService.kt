@@ -43,15 +43,26 @@ class MarketInvestorService(
         return out
     }
 
-    /** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff. 데이터 없는 세션은 nets=null. */
+    /**
+     * 세션별 순매수 — 당일 누적 스냅샷 경계 diff. 데이터 없는 세션은 nets=null.
+     * 통합(KRX+NXT) 기준이라 프리마켓(08:00~09:00)·애프터마켓(15:40~20:00)도 일별 누적에 들어간다.
+     * 다섯 구간의 합 = 그날 최종 누적(= 최근 10일 표의 그날 값). 폴러가 프리 스냅샷을 남기기 전 과거는
+     * 프리 경계가 없어, 프리는 "집계 전"으로 두고 오전에 프리를 포함(예전 동작)해 합을 보존한다.
+     */
     fun sessions(market: Market, date: LocalDate): List<SessionNet> {
+        val open = signalEventService.investorSnapshotAt(market, date.atTime(OPEN))
         val morning = signalEventService.investorSnapshotAt(market, date.atTime(MORNING_END))
         val afternoon = signalEventService.investorSnapshotAt(market, date.atTime(AFTERNOON_END))
         val close = signalEventService.investorSnapshotAt(market, date.atTime(CLOSE))
+        val afterClose = signalEventService.investorSnapshotAt(market, date.atTime(AFTER_END))
+        // open이 있으면 오전은 순수 정규장(09:00~12:00), 없으면 프리 포함 누적으로 폴백.
+        val morningNet = if (open != null) diff(morning, open) else morning?.nets()
         return listOf(
-            SessionNet("오전", "09:00~12:00", morning?.nets()),
+            SessionNet("프리마켓", "08:00~09:00", open?.nets()),
+            SessionNet("오전", "09:00~12:00", morningNet),
             SessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
             SessionNet("막판 동시호가", "15:00~15:40", diff(close, afternoon)),
+            SessionNet("애프터마켓", "15:40~20:00", diff(afterClose, close)),
         )
     }
 
@@ -67,9 +78,11 @@ class MarketInvestorService(
 
     companion object {
         private val DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd")
+        private val OPEN = LocalTime.of(9, 0)
         private val MORNING_END = LocalTime.of(12, 0)
         private val AFTERNOON_END = LocalTime.of(15, 0)
         private val CLOSE = LocalTime.of(15, 40)
+        private val AFTER_END = LocalTime.of(20, 0)
     }
 }
 
