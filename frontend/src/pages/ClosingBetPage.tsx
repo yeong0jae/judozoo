@@ -1583,18 +1583,12 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 // 우: 뉴스 (종목을 골랐을 때만)
 // ============================================================
 
-/** 상대 시각 — "방금"·"N분 전"·"N시간 전"·"N일 전", 일주일 넘으면 "M/D". */
-function fmtNewsTime(iso: string) {
-  const at = new Date(iso).getTime();
-  const diffMin = Math.floor((Date.now() - at) / 60000);
-  if (diffMin < 1) return "방금";
-  if (diffMin < 60) return `${diffMin}분 전`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  const diffDay = Math.floor(diffHour / 24);
-  if (diffDay < 7) return `${diffDay}일 전`;
+/** "2026-07-16T15:35:00" → ["7월 16일", "15:35"] (날짜/시간 두 줄용). */
+function fmtNewsTime(iso: string): [string, string] {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return [`${d.getMonth() + 1}월 ${d.getDate()}일`, `${hh}:${mm}`];
 }
 
 /**
@@ -1626,8 +1620,9 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
               rel="noopener noreferrer"
               className="flex gap-3 px-2.5 py-3 border-b border-white/[0.04] transition-colors hover:bg-white/[0.02]"
             >
-              <span className="shrink-0 w-11 pt-0.5 num text-[11px] text-zinc-500">
-                {fmtNewsTime(n.publishedAt)}
+              <span className="shrink-0 w-14 pt-0.5 num text-[11px] text-zinc-500 leading-tight whitespace-nowrap">
+                <span className="block">{fmtNewsTime(n.publishedAt)[0]}</span>
+                <span className="block">{fmtNewsTime(n.publishedAt)[1]}</span>
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm leading-snug text-zinc-100">{n.title}</p>
