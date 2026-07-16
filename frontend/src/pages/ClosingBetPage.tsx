@@ -40,7 +40,6 @@ import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatPct, formatPrice } from "../lib/format";
 import type { FuturesOrgBreakdown, MarketInvestorDay, MarketType, WatchTheme } from "../types";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
-import { usePrevious } from "../hooks/usePrevious";
 
 // 선택 대상 — 종목 / 테마 / 지수
 type Selection =
@@ -1391,19 +1390,21 @@ function NetNum({ eok }: { eok: number }) {
 }
 
 /**
- * 순매수 숫자 + 직전 폴 대비 변화량.
- * 마지막 변화량은 오른쪽에 흐리게 계속 남고, 새 변화가 올 때마다 다시 세 번 깜빡인다.
+ * 순매수 숫자 + 직전 폴 대비 변화량. 각 칸이 자기 값 변화를 직접 추적한다.
+ * 마지막 변화량은 오른쪽에 흐리게 계속 남고, 값이 또 바뀔 때마다 다시 세 번 깜빡인다.
  */
-function FlowNum({ eok, prev }: { eok: number; prev: number | null }) {
-  const delta = prev != null && prev !== eok ? eok - prev : null;
+function FlowNum({ eok }: { eok: number }) {
+  const prevRef = useRef(eok);
+  const seqRef = useRef(0);
   const [last, setLast] = useState<{ delta: number; seq: number } | null>(null);
-  const seq = useRef(0);
   useEffect(() => {
-    if (delta != null) {
-      seq.current += 1;
-      setLast({ delta, seq: seq.current });
+    const d = eok - prevRef.current;
+    prevRef.current = eok;
+    if (d !== 0) {
+      seqRef.current += 1;
+      setLast({ delta: d, seq: seqRef.current });
     }
-  }, [delta, eok]);
+  }, [eok]);
   return (
     <span className="inline-flex items-baseline justify-end gap-1.5">
       <NetNum eok={eok} />
@@ -1526,12 +1527,6 @@ function InvestorDailyTable({
 function RealSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketInvestorSessions(market, date);
   const list = data ?? [];
-  // 직전 폴 응답을 시간대명으로 색인해, 값이 바뀐 칸에만 변화량을 깜빡이게 한다.
-  const prevList = usePrevious(list);
-  const prevByName = useMemo(
-    () => new Map((prevList ?? []).map((s) => [s.name, s.nets] as const)),
-    [prevList],
-  );
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
   const numCols = 3 + ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
 
@@ -1571,49 +1566,46 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
               </tr>
             </thead>
             <tbody>
-              {list.map((s) => {
-                const prev = prevByName.get(s.name) ?? null;
-                return (
-                  <tr
-                    key={s.name}
-                    className={`[&>td]:border-t [&>td]:transition-colors hover:[&>td]:bg-white/[0.02] ${
-                      s.name === "전체"
-                        ? "[&>td]:border-zinc-700 [&>td]:font-semibold"
-                        : "[&>td]:border-zinc-800/50"
-                    }`}
-                  >
-                    <td className="text-left py-2 pr-3">
-                      <div className="text-zinc-300">{s.name}</div>
-                      <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+              {list.map((s) => (
+                <tr
+                  key={s.name}
+                  className={`[&>td]:border-t [&>td]:transition-colors hover:[&>td]:bg-white/[0.02] ${
+                    s.name === "전체"
+                      ? "[&>td]:border-zinc-700 [&>td]:font-semibold"
+                      : "[&>td]:border-zinc-800/50"
+                  }`}
+                >
+                  <td className="text-left py-2 pr-3">
+                    <div className="text-zinc-300">{s.name}</div>
+                    <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+                  </td>
+                  {s.nets == null ? (
+                    <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
+                      집계 전
                     </td>
-                    {s.nets == null ? (
-                      <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
-                        집계 전
+                  ) : (
+                    <>
+                      <td className="text-right py-2 px-2.5">
+                        <FlowNum eok={s.nets.individual} />
                       </td>
-                    ) : (
-                      <>
-                        <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.individual} prev={prev?.individual ?? null} />
+                      <td className="text-right py-2 px-2.5">
+                        <FlowNum eok={s.nets.foreign} />
+                      </td>
+                      <td className="text-right py-2 pl-2.5 pr-5 font-medium">
+                        <FlowNum eok={s.nets.institution} />
+                      </td>
+                      {ORG_COLS.map((c, i) => (
+                        <td key={c.key} className={`text-right py-2 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
+                          <FlowNum eok={s.nets!.breakdown[c.key]} />
                         </td>
-                        <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.foreign} prev={prev?.foreign ?? null} />
-                        </td>
-                        <td className="text-right py-2 pl-2.5 pr-5 font-medium">
-                          <FlowNum eok={s.nets.institution} prev={prev?.institution ?? null} />
-                        </td>
-                        {ORG_COLS.map((c, i) => (
-                          <td key={c.key} className={`text-right py-2 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
-                            <FlowNum eok={s.nets!.breakdown[c.key]} prev={prev?.breakdown[c.key] ?? null} />
-                          </td>
-                        ))}
-                        <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
-                          <FlowNum eok={s.nets.otherCorp} prev={prev?.otherCorp ?? null} />
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
+                      ))}
+                      <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
+                        <FlowNum eok={s.nets.otherCorp} />
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
