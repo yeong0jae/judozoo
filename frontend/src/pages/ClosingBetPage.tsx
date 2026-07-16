@@ -1167,49 +1167,48 @@ function FuturesSessionsCard({ date }: { date: string }) {
               </tr>
             </thead>
             <tbody>
-              {list.map((s) => (
-                <tr
-                  key={s.name}
-                  className={`[&>td]:border-t [&>td]:transition-colors hover:[&>td]:bg-white/[0.02] ${
-                    s.name === "전체"
-                      ? "[&>td]:border-zinc-700 [&>td]:font-semibold"
-                      : "[&>td]:border-zinc-800/50"
-                  }`}
-                >
-                  <td className="text-left py-2 pr-3">
-                    <div className="text-zinc-300">{s.name}</div>
-                    <div className="text-[10px] text-zinc-600 num">{s.time}</div>
-                  </td>
-                  {s.nets == null ? (
-                    <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
-                      집계 전
+              {list.map((s) => {
+                const active = isActiveSession(s.time, date === todayStr());
+                return (
+                  <tr
+                    key={s.name}
+                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]`}
+                  >
+                    <td className="text-left py-2 pr-3">
+                      <div className="text-zinc-300">{s.name}</div>
+                      <div className="text-[10px] text-zinc-600 num">{s.time}</div>
                     </td>
-                  ) : (
-                    <>
-                      <td className="text-right py-2 px-2.5">
-                        <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} />
+                    {s.nets == null ? (
+                      <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
+                        집계 전
                       </td>
-                      <td className="text-right py-2 px-2.5">
-                        <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} />
-                      </td>
-                      <td className="text-right py-2 pl-2.5 pr-5 font-medium">
-                        <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} />
-                      </td>
-                      {FUTURES_ORG_COLS.map((c, i) => (
-                        <td
-                          key={c.key}
-                          className={`text-right py-2 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}
-                        >
-                          <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} />
+                    ) : (
+                      <>
+                        <td className="text-right py-2 px-2.5">
+                          <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} active={active} />
                         </td>
-                      ))}
-                      <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
-                        <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} />
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
+                        <td className="text-right py-2 px-2.5">
+                          <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} active={active} />
+                        </td>
+                        <td className="text-right py-2 pl-2.5 pr-5 font-medium">
+                          <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} active={active} />
+                        </td>
+                        {FUTURES_ORG_COLS.map((c, i) => (
+                          <td
+                            key={c.key}
+                            className={`text-right py-2 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}
+                          >
+                            <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} active={active} />
+                          </td>
+                        ))}
+                        <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
+                          <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} active={active} />
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1416,11 +1415,22 @@ function pruneFlowDelta(date: string) {
   }
 }
 
+/** 지금 진행 중인 시간대인지 — 오늘이고 현재 시각이 그 구간("HH:MM~HH:MM") 안일 때만. */
+function isActiveSession(time: string, isToday: boolean): boolean {
+  if (!isToday) return false;
+  const [start, end] = time.split("~");
+  if (!start || !end) return false;
+  const now = new Date();
+  const hm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return hm >= start && hm < end;
+}
+
 /**
  * 순매수 숫자 + 직전 폴 대비 변화량. 각 칸이 자기 값 변화를 직접 추적한다.
+ * 변화량은 [active](지금 진행 중인 시간대)일 때만 표시한다 — 완료된 과거 구간은 값이 고정이라 의미 없다.
  * 마지막 변화량은 오른쪽에 흐리게 계속 남고(새로고침해도 localStorage에서 복원), 값이 또 바뀌면 다시 깜빡인다.
  */
-function FlowNum({ eok, storageKey }: { eok: number; storageKey: string }) {
+function FlowNum({ eok, storageKey, active }: { eok: number; storageKey: string; active: boolean }) {
   const init = useRef<{ v: number; d: number }>(null as unknown as { v: number; d: number });
   if (init.current == null) init.current = loadCell(storageKey) ?? { v: eok, d: 0 };
   const prevRef = useRef(init.current.v);
@@ -1429,17 +1439,18 @@ function FlowNum({ eok, storageKey }: { eok: number; storageKey: string }) {
     init.current.d !== 0 ? { delta: init.current.d, seq: 0 } : null,
   );
   useEffect(() => {
+    if (!active) return;
     const d = eok - prevRef.current;
     if (d === 0) return;
     prevRef.current = eok;
     seqRef.current += 1;
     setLast({ delta: d, seq: seqRef.current });
     saveCell(storageKey, eok, d);
-  }, [eok, storageKey]);
+  }, [eok, storageKey, active]);
   return (
     <span className="inline-flex items-baseline justify-end gap-1.5">
       <NetNum eok={eok} />
-      {last && <DeltaFlash key={last.seq} delta={last.delta} />}
+      {active && last && <DeltaFlash key={last.seq} delta={last.delta} />}
     </span>
   );
 }
@@ -1599,46 +1610,45 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
               </tr>
             </thead>
             <tbody>
-              {list.map((s) => (
-                <tr
-                  key={s.name}
-                  className={`[&>td]:border-t [&>td]:transition-colors hover:[&>td]:bg-white/[0.02] ${
-                    s.name === "전체"
-                      ? "[&>td]:border-zinc-700 [&>td]:font-semibold"
-                      : "[&>td]:border-zinc-800/50"
-                  }`}
-                >
-                  <td className="text-left py-2 pr-3">
-                    <div className="text-zinc-300">{s.name}</div>
-                    <div className="text-[10px] text-zinc-600 num">{s.time}</div>
-                  </td>
-                  {s.nets == null ? (
-                    <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
-                      집계 전
+              {list.map((s) => {
+                const active = isActiveSession(s.time, date === todayStr());
+                return (
+                  <tr
+                    key={s.name}
+                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]`}
+                  >
+                    <td className="text-left py-2 pr-3">
+                      <div className="text-zinc-300">{s.name}</div>
+                      <div className="text-[10px] text-zinc-600 num">{s.time}</div>
                     </td>
-                  ) : (
-                    <>
-                      <td className="text-right py-2 px-2.5">
-                        <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} />
+                    {s.nets == null ? (
+                      <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
+                        집계 전
                       </td>
-                      <td className="text-right py-2 px-2.5">
-                        <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} />
-                      </td>
-                      <td className="text-right py-2 pl-2.5 pr-5 font-medium">
-                        <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} />
-                      </td>
-                      {ORG_COLS.map((c, i) => (
-                        <td key={c.key} className={`text-right py-2 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
-                          <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} />
+                    ) : (
+                      <>
+                        <td className="text-right py-2 px-2.5">
+                          <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} active={active} />
                         </td>
-                      ))}
-                      <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
-                        <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} />
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
+                        <td className="text-right py-2 px-2.5">
+                          <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} active={active} />
+                        </td>
+                        <td className="text-right py-2 pl-2.5 pr-5 font-medium">
+                          <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} active={active} />
+                        </td>
+                        {ORG_COLS.map((c, i) => (
+                          <td key={c.key} className={`text-right py-2 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
+                            <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} active={active} />
+                          </td>
+                        ))}
+                        <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
+                          <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} active={active} />
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
