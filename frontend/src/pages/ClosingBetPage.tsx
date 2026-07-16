@@ -93,7 +93,11 @@ function move<T>(list: T[], from: number, to: number): T[] {
 }
 
 const subjectKey = (sel: Selection) =>
-  sel.kind === "index" ? `index-${sel.id}` : `theme-${sel.themeId}`;
+  sel.kind === "index"
+    ? `index-${sel.id}`
+    : sel.kind === "stock"
+      ? `stock-${sel.code}`
+      : `theme-${sel.themeId}`;
 
 /**
  * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드.
