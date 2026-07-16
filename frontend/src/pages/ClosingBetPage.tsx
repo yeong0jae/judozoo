@@ -71,7 +71,7 @@ const INDICES: IndexInfo[] = [
   { id: "kospiF", name: "코스피 선물" },
   // CME 무료 시세는 10분 지연 배포라 야후도 그만큼 늦은 값을 준다(실시간은 유료 피드만).
   { id: "nasF", name: "나스닥 선물", delayed: true },
-  { id: "nightF", name: "야간 선물" },
+  { id: "nightF", name: "코스피 야간 선물" },
   { id: "nasdaq", name: "나스닥" },
 ];
 
