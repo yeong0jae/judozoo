@@ -1128,6 +1128,8 @@ function FuturesSessionsCard({ date }: { date: string }) {
   const list = data ?? [];
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
   const numCols = 3 + FUTURES_ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
+  const keyOf = (session: string, field: string) => `flowdelta:futures:${date}:${session}:${field}`;
+  useEffect(() => pruneFlowDelta(date), [date]);
 
   return (
     <div className="px-1">
@@ -1185,24 +1187,24 @@ function FuturesSessionsCard({ date }: { date: string }) {
                   ) : (
                     <>
                       <td className="text-right py-2 px-2.5">
-                        <NetNum eok={s.nets.individual} />
+                        <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} />
                       </td>
                       <td className="text-right py-2 px-2.5">
-                        <NetNum eok={s.nets.foreign} />
+                        <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} />
                       </td>
                       <td className="text-right py-2 pl-2.5 pr-5 font-medium">
-                        <NetNum eok={s.nets.institution} />
+                        <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} />
                       </td>
                       {FUTURES_ORG_COLS.map((c, i) => (
                         <td
                           key={c.key}
                           className={`text-right py-2 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}
                         >
-                          <NetNum eok={s.nets!.breakdown[c.key]} />
+                          <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} />
                         </td>
                       ))}
                       <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
-                        <NetNum eok={s.nets.otherCorp} />
+                        <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} />
                       </td>
                     </>
                   )}
@@ -1406,6 +1408,14 @@ function saveCell(key: string, v: number, d: number) {
   }
 }
 
+/** 오늘 날짜가 안 든 flowdelta 잔재를 청소한다(날이 바뀌면 어제 변화량 제거). */
+function pruneFlowDelta(date: string) {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k?.startsWith("flowdelta:") && !k.includes(`:${date}:`)) localStorage.removeItem(k);
+  }
+}
+
 /**
  * 순매수 숫자 + 직전 폴 대비 변화량. 각 칸이 자기 값 변화를 직접 추적한다.
  * 마지막 변화량은 오른쪽에 흐리게 계속 남고(새로고침해도 localStorage에서 복원), 값이 또 바뀌면 다시 깜빡인다.
@@ -1551,13 +1561,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
   const numCols = 3 + ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
   const keyOf = (session: string, field: string) => `flowdelta:${market}:${date}:${session}:${field}`;
-  // 지난 날짜의 변화량 잔재를 청소한다(오늘 날짜가 안 든 flowdelta 키 제거).
-  useEffect(() => {
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const k = localStorage.key(i);
-      if (k?.startsWith("flowdelta:") && !k.includes(`:${date}:`)) localStorage.removeItem(k);
-    }
-  }, [date]);
+  useEffect(() => pruneFlowDelta(date), [date]);
 
   return (
     <div className="px-1">
