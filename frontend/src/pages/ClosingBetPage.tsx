@@ -1389,22 +1389,43 @@ function NetNum({ eok }: { eok: number }) {
   );
 }
 
+// 셀별 마지막 값·변화량을 localStorage에 담아 새로고침 후에도 복원한다. 키에 날짜가 있어 날이 바뀌면 자연 초기화.
+function loadCell(key: string): { v: number; d: number } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function saveCell(key: string, v: number, d: number) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ v, d }));
+  } catch {
+    // 저장 실패(용량·프라이빗 모드)는 무시 — 델타는 부가 정보라 없어도 값은 정상.
+  }
+}
+
 /**
  * 순매수 숫자 + 직전 폴 대비 변화량. 각 칸이 자기 값 변화를 직접 추적한다.
- * 마지막 변화량은 오른쪽에 흐리게 계속 남고, 값이 또 바뀔 때마다 다시 세 번 깜빡인다.
+ * 마지막 변화량은 오른쪽에 흐리게 계속 남고(새로고침해도 localStorage에서 복원), 값이 또 바뀌면 다시 깜빡인다.
  */
-function FlowNum({ eok }: { eok: number }) {
-  const prevRef = useRef(eok);
+function FlowNum({ eok, storageKey }: { eok: number; storageKey: string }) {
+  const init = useRef<{ v: number; d: number }>(null as unknown as { v: number; d: number });
+  if (init.current == null) init.current = loadCell(storageKey) ?? { v: eok, d: 0 };
+  const prevRef = useRef(init.current.v);
   const seqRef = useRef(0);
-  const [last, setLast] = useState<{ delta: number; seq: number } | null>(null);
+  const [last, setLast] = useState<{ delta: number; seq: number } | null>(
+    init.current.d !== 0 ? { delta: init.current.d, seq: 0 } : null,
+  );
   useEffect(() => {
     const d = eok - prevRef.current;
+    if (d === 0) return;
     prevRef.current = eok;
-    if (d !== 0) {
-      seqRef.current += 1;
-      setLast({ delta: d, seq: seqRef.current });
-    }
-  }, [eok]);
+    seqRef.current += 1;
+    setLast({ delta: d, seq: seqRef.current });
+    saveCell(storageKey, eok, d);
+  }, [eok, storageKey]);
   return (
     <span className="inline-flex items-baseline justify-end gap-1.5">
       <NetNum eok={eok} />
@@ -1529,6 +1550,14 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   const list = data ?? [];
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
   const numCols = 3 + ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
+  const keyOf = (session: string, field: string) => `flowdelta:${market}:${date}:${session}:${field}`;
+  // 지난 날짜의 변화량 잔재를 청소한다(오늘 날짜가 안 든 flowdelta 키 제거).
+  useEffect(() => {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k?.startsWith("flowdelta:") && !k.includes(`:${date}:`)) localStorage.removeItem(k);
+    }
+  }, [date]);
 
   return (
     <div className="px-1">
@@ -1586,21 +1615,21 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                   ) : (
                     <>
                       <td className="text-right py-2 px-2.5">
-                        <FlowNum eok={s.nets.individual} />
+                        <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} />
                       </td>
                       <td className="text-right py-2 px-2.5">
-                        <FlowNum eok={s.nets.foreign} />
+                        <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} />
                       </td>
                       <td className="text-right py-2 pl-2.5 pr-5 font-medium">
-                        <FlowNum eok={s.nets.institution} />
+                        <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} />
                       </td>
                       {ORG_COLS.map((c, i) => (
                         <td key={c.key} className={`text-right py-2 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
-                          <FlowNum eok={s.nets!.breakdown[c.key]} />
+                          <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} />
                         </td>
                       ))}
                       <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
-                        <FlowNum eok={s.nets.otherCorp} />
+                        <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} />
                       </td>
                     </>
                   )}
