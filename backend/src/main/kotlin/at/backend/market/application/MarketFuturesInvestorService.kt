@@ -56,13 +56,10 @@ class MarketFuturesInvestorService(
         val morning = snapshotAt(date, MORNING_END)
         val afternoon = snapshotAt(date, AFTERNOON_END)
         val close = snapshotAt(date, CLOSE)
-        val latest = repository.findFirstByTradeDateOrderByCapturedAtDesc(date)
         return listOf(
             FuturesSessionNet("오전", "08:45~12:00", morning?.nets()),
             FuturesSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
             FuturesSessionNet("막판 동시호가", "15:00~15:45", diff(close, afternoon)),
-            // 전체는 구간 합이 아니라 당일 누적(마지막 스냅샷) — 스냅샷이 빠진 구간이 있어도 맞는다.
-            FuturesSessionNet("전체", "당일 누적", latest?.nets()),
         )
     }
 
