@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useDailyCandles,
@@ -1390,18 +1390,29 @@ function NetNum({ eok }: { eok: number }) {
   );
 }
 
-/** 순매수 숫자 + 직전 폴 대비 변화량 — 값이 바뀐 칸만 오른쪽에 깜빡이는 델타를 붙인다. */
+/**
+ * 순매수 숫자 + 직전 폴 대비 변화량.
+ * 마지막 변화량은 오른쪽에 흐리게 계속 남고, 새 변화가 올 때마다 다시 세 번 깜빡인다.
+ */
 function FlowNum({ eok, prev }: { eok: number; prev: number | null }) {
   const delta = prev != null && prev !== eok ? eok - prev : null;
+  const [last, setLast] = useState<{ delta: number; seq: number } | null>(null);
+  const seq = useRef(0);
+  useEffect(() => {
+    if (delta != null) {
+      seq.current += 1;
+      setLast({ delta, seq: seq.current });
+    }
+  }, [delta, eok]);
   return (
     <span className="inline-flex items-baseline justify-end gap-1.5">
       <NetNum eok={eok} />
-      {delta != null && <DeltaFlash key={`${eok}:${delta}`} delta={delta} />}
+      {last && <DeltaFlash key={last.seq} delta={last.delta} />}
     </span>
   );
 }
 
-/** 변화량 배지 — key로 재마운트될 때마다 flow-delta 애니메이션이 다시 재생된다. */
+/** 변화량 배지 — key(seq)로 재마운트될 때마다 flow-delta 애니메이션이 다시 재생된다. */
 function DeltaFlash({ delta }: { delta: number }) {
   const tone = delta > 0 ? "text-red-400" : "text-blue-400";
   return (
