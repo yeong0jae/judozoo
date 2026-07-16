@@ -116,6 +116,14 @@ export default function ClosingBetPage() {
   // 지수·테마엔 뉴스가 없다(KIS 뉴스 API는 종목코드로만 조회된다). 상세는 그대로 꽉 찬 넓이를 쓴다.
   const news = sel.kind === "stock" ? sel : null;
 
+  // 좌측 사이드바 드릴다운: 지수를 보면 테마 리스트, 테마·종목을 고르면 그 테마의 종목 리스트.
+  // 뒤로 가기는 마지막으로 보던 지수로 돌아간다.
+  const lastIndexId = useRef("kospi");
+  useEffect(() => {
+    if (sel.kind === "index") lastIndexId.current = sel.id;
+  }, [sel]);
+  const activeTheme = sel.kind !== "index" ? themes.find((t) => t.id === sel.themeId) : undefined;
+
   return (
     <div className="flex flex-col gap-4">
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
@@ -123,15 +131,46 @@ export default function ClosingBetPage() {
       <div
         className={`grid grid-cols-1 gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem] ${
           news
-            ? "lg:grid-cols-[13rem_minmax(0,1fr)_24rem]"
-            : "lg:grid-cols-[13rem_minmax(0,1fr)]"
+            ? "lg:grid-cols-[17rem_minmax(0,1fr)_24rem]"
+            : "lg:grid-cols-[17rem_minmax(0,1fr)]"
         }`}
       >
-        <ThemeWatchlist
-          themes={themes}
-          sel={sel}
-          onTheme={(themeId) => setSel({ kind: "theme", themeId })}
-        />
+        <div className="min-h-0 lg:overflow-hidden relative">
+          <AnimatePresence mode="wait" initial={false}>
+            {sel.kind === "index" || !activeTheme ? (
+              <motion.div
+                key="themes"
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="h-full min-h-0"
+              >
+                <ThemeWatchlist
+                  themes={themes}
+                  sel={sel}
+                  onTheme={(themeId) => setSel({ kind: "theme", themeId })}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="stocks"
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 16 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="h-full min-h-0 lg:overflow-y-auto pr-1"
+              >
+                <ThemeStockList
+                  theme={activeTheme}
+                  sel={sel}
+                  onSelect={setSel}
+                  onBack={() => setSel({ kind: "index", id: lastIndexId.current })}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <div className="min-h-0 lg:overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
@@ -142,7 +181,7 @@ export default function ClosingBetPage() {
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="h-full min-h-0"
             >
-              <SubjectDetail sel={sel} themes={themes} onSelect={setSel} />
+              <SubjectDetail sel={sel} />
             </motion.div>
           </AnimatePresence>
         </div>
@@ -405,15 +444,7 @@ function ThemeWatchlist({
 // ============================================================
 // 중앙: 선택 대상 상세
 // ============================================================
-function SubjectDetail({
-  sel,
-  themes,
-  onSelect,
-}: {
-  sel: Selection;
-  themes: WatchTheme[];
-  onSelect: (sel: Selection) => void;
-}) {
+function SubjectDetail({ sel }: { sel: Selection }) {
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
@@ -427,26 +458,18 @@ function SubjectDetail({
     return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
   }
 
-  const theme = themes.find((t) => t.id === sel.themeId);
-  if (!theme) return null;
-
-  // 테마·종목은 [테마 종목 리스트 | 상세] 2열. 종목을 바꿔가며 눌러도 리스트가 남는다.
+  // 종목 리스트는 좌측 사이드바로 옮겼다. 여기선 선택한 종목의 상세만 보여준다.
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[17rem_minmax(0,1fr)] gap-4 h-full min-h-0">
-      <div className="min-h-0 lg:overflow-y-auto pr-1">
-        <ThemeStockList theme={theme} sel={sel} onSelect={onSelect} />
-      </div>
-      <div className="min-h-0 lg:overflow-y-auto pr-1">
-        {sel.kind === "stock" ? (
-          sel.exchange ? (
-            <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} chartOnly />
-          ) : (
-            <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
-          )
+    <div className="h-full lg:overflow-y-auto pr-1">
+      {sel.kind === "stock" ? (
+        sel.exchange ? (
+          <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} chartOnly />
         ) : (
-          <EmptyState message="종목을 선택하세요" />
-        )}
-      </div>
+          <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
+        )
+      ) : (
+        <EmptyState message="종목을 선택하세요" />
+      )}
     </div>
   );
 }
@@ -456,10 +479,12 @@ function ThemeStockList({
   theme,
   sel,
   onSelect,
+  onBack,
 }: {
   theme: WatchTheme;
   sel: Selection;
   onSelect: (sel: Selection) => void;
+  onBack: () => void;
 }) {
   const { data: quotes = [] } = useWatchThemeQuotes(theme.id, theme.stocks.length > 0);
   const quoteBy = useMemo(() => new Map(quotes.map((q) => [q.stockCode, q])), [quotes]);
@@ -471,14 +496,22 @@ function ThemeStockList({
   return (
     <div className="flex flex-col min-w-0">
       <div className="flex items-center justify-between px-1 pb-2">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-bold text-zinc-100">{theme.name}</span>
-          <span className="text-[11px] text-zinc-500">{theme.stocks.length}</span>
-        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-baseline gap-2 min-w-0 text-left rounded-md -ml-1 pl-1 pr-1.5 py-0.5 hover:bg-white/[0.04]"
+          aria-label="테마 목록으로"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="self-center shrink-0 text-zinc-500">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          <span className="text-sm font-bold text-zinc-100 truncate">{theme.name}</span>
+          <span className="text-[11px] text-zinc-500 shrink-0">{theme.stocks.length}</span>
+        </button>
         <button
           type="button"
           onClick={() => setAdding((v) => !v)}
-          className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300"
+          className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 shrink-0"
           aria-label="종목 추가"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
