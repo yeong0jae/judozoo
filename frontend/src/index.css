@@ -138,6 +138,28 @@ body {
   animation: leading-stock-new 8s ease-out;
 }
 
+/* 시간대별 수급 — 값이 갱신될 때 직전 변화량을 세 번 깜빡인 뒤 흐리게 유지 */
+@keyframes flow-delta {
+  0% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+.flow-delta {
+  animation: flow-delta 0.45s ease-in-out 3 forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-delta {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
 /* ─── 다크 모드 — Toss 다크 톤 ──────────────────────────────────────────
    `<html class="dark">` 일 때 활성. Tailwind v4 유틸은 모두 var(--color-X-N)을
    가리키므로, 토큰만 갈아끼우면 페이지 마크업을 안 건드리고 전환된다. */

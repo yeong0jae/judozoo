@@ -252,7 +252,8 @@ export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: stri
     queryKey: QK.marketInvestorSessions(market, date),
     queryFn: () =>
       apiFetch<MarketInvestorSession[]>(`/api/market/${market}/investor/sessions?date=${date}`),
-    refetchInterval: 60_000,
+    // 백엔드 순매수 스냅샷 폴러와 같은 2분 주기 — 값이 실제 바뀔 때만 변화량이 깜빡이게.
+    refetchInterval: 120_000,
   });
 }
 
