@@ -186,7 +186,11 @@ export default function ClosingBetPage() {
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="h-full min-h-0"
             >
-              <SubjectDetail sel={sel} theme={activeTheme} />
+              <SubjectDetail
+                sel={sel}
+                theme={activeTheme}
+                onBackToTheme={() => activeTheme && setSel({ kind: "theme", themeId: activeTheme.id })}
+              />
             </motion.div>
           </AnimatePresence>
         </div>
@@ -449,7 +453,15 @@ function ThemeWatchlist({
 // ============================================================
 // 중앙: 선택 대상 상세
 // ============================================================
-function SubjectDetail({ sel, theme }: { sel: Selection; theme?: WatchTheme }) {
+function SubjectDetail({
+  sel,
+  theme,
+  onBackToTheme,
+}: {
+  sel: Selection;
+  theme?: WatchTheme;
+  onBackToTheme: () => void;
+}) {
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
@@ -467,11 +479,25 @@ function SubjectDetail({ sel, theme }: { sel: Selection; theme?: WatchTheme }) {
   return (
     <div className="h-full lg:overflow-y-auto pr-1">
       {sel.kind === "stock" ? (
-        sel.exchange ? (
-          <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} chartOnly />
-        ) : (
-          <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
-        )
+        <div className="flex flex-col gap-3">
+          {theme && (
+            <button
+              type="button"
+              onClick={onBackToTheme}
+              className="self-start flex items-center gap-1.5 -ml-1 pl-1 pr-2 py-1 rounded-md text-sm text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              {theme.name}
+            </button>
+          )}
+          {sel.exchange ? (
+            <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} chartOnly />
+          ) : (
+            <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
+          )}
+        </div>
       ) : theme ? (
         <ThemeNewsPanel theme={theme} />
       ) : (
