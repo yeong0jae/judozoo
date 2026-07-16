@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import { todayStr } from "../components/common/DateNavigator";
 import type {
@@ -360,6 +360,38 @@ export function useStockInvestorDaily(stockCode: string, count = 10) {
       apiFetch<StockInvestorDay[]>(`/api/stocks/${stockCode}/investor/daily?count=${count}`),
     staleTime: 60_000,
   });
+}
+
+/** 테마 뉴스 항목 — 종목 뉴스에 어느 종목에서 온 건지 종목명을 붙인 것. */
+export type ThemeNewsItem = StockNewsItem & { stockName: string };
+
+/**
+ * 테마 통합 뉴스 — 테마의 국내 종목별 뉴스를 병렬 조회해 최신순으로 병합한다(해외 종목은 아직 제외).
+ * 같은 뉴스가 여러 종목에 등록될 수 있어 seqNo로 중복을 제거한다. 캐시는 종목 뉴스와 공유된다.
+ */
+export function useThemeNews(
+  stocks: { stockCode: string; stockName: string; exchange: string | null }[],
+) {
+  const domestic = stocks.filter((s) => s.exchange === null);
+  const results = useQueries({
+    queries: domestic.map((s) => ({
+      queryKey: QK.stockNews(s.stockCode, null),
+      queryFn: () => apiFetch<StockNewsItem[]>(`/api/news/stock/${s.stockCode}`),
+      staleTime: 60_000,
+    })),
+  });
+  const isLoading = results.length > 0 && results.some((r) => r.isLoading);
+  const seen = new Set<string>();
+  const data: ThemeNewsItem[] = [];
+  results.forEach((r, i) => {
+    (r.data ?? []).forEach((n) => {
+      if (seen.has(n.seqNo)) return;
+      seen.add(n.seqNo);
+      data.push({ ...n, stockName: domestic[i].stockName });
+    });
+  });
+  data.sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : a.publishedAt > b.publishedAt ? -1 : 0));
+  return { data, isLoading };
 }
 
 /** 종목 관련 뉴스·공시 — KIS. [exchange]가 null이면 국내, 아니면 해외(NAS/NYS/AMS). */

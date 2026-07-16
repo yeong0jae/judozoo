@@ -11,6 +11,7 @@ import {
   useMinuteCandles,
   useStockInvestorDaily,
   useStockNews,
+  useThemeNews,
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
@@ -117,9 +118,6 @@ export default function ClosingBetPage() {
       !theme || (sel.kind === "stock" && !theme.stocks.some((s) => s.stockCode === sel.code));
     if (gone) setSel(DEFAULT_SELECTION);
   }, [themes, sel]);
-  // 지수·테마엔 뉴스가 없다(KIS 뉴스 API는 종목코드로만 조회된다). 상세는 그대로 꽉 찬 넓이를 쓴다.
-  const news = sel.kind === "stock" ? sel : null;
-
   // 좌측 사이드바 드릴다운: 지수를 보면 테마 리스트, 테마·종목을 고르면 그 테마의 종목 리스트.
   // 뒤로 가기는 마지막으로 보던 지수로 돌아간다.
   const lastIndexId = useRef("kospi");
@@ -128,13 +126,16 @@ export default function ClosingBetPage() {
   }, [sel]);
   const activeTheme = sel.kind !== "index" ? themes.find((t) => t.id === sel.themeId) : undefined;
 
+  // 종목을 고르면 우측에 그 종목 뉴스. 테마는 중앙을 통합 뉴스로 채운다(우측 없음).
+  const stockNews = sel.kind === "stock" ? sel : null;
+
   return (
     <div className="flex flex-col gap-4">
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
 
       <div
         className={`grid grid-cols-1 gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem] ${
-          news
+          stockNews
             ? "lg:grid-cols-[17rem_minmax(0,1fr)_24rem]"
             : "lg:grid-cols-[17rem_minmax(0,1fr)]"
         }`}
@@ -185,12 +186,12 @@ export default function ClosingBetPage() {
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="h-full min-h-0"
             >
-              <SubjectDetail sel={sel} />
+              <SubjectDetail sel={sel} theme={activeTheme} />
             </motion.div>
           </AnimatePresence>
         </div>
-        {news && (
-          <StockNewsPanel key={news.code} code={news.code} exchange={news.exchange} />
+        {stockNews && (
+          <StockNewsPanel key={stockNews.code} code={stockNews.code} exchange={stockNews.exchange} />
         )}
       </div>
     </div>
@@ -448,7 +449,7 @@ function ThemeWatchlist({
 // ============================================================
 // 중앙: 선택 대상 상세
 // ============================================================
-function SubjectDetail({ sel }: { sel: Selection }) {
+function SubjectDetail({ sel, theme }: { sel: Selection; theme?: WatchTheme }) {
   if (sel.kind === "index") {
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
@@ -462,7 +463,7 @@ function SubjectDetail({ sel }: { sel: Selection }) {
     return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
   }
 
-  // 종목 리스트는 좌측 사이드바로 옮겼다. 여기선 선택한 종목의 상세만 보여준다.
+  // 종목을 고르면 종목 상세, 아직 안 골랐으면(테마만 선택) 그 테마의 통합 뉴스를 중앙에 채운다.
   return (
     <div className="h-full lg:overflow-y-auto pr-1">
       {sel.kind === "stock" ? (
@@ -471,6 +472,8 @@ function SubjectDetail({ sel }: { sel: Selection }) {
         ) : (
           <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
         )
+      ) : theme ? (
+        <ThemeNewsPanel theme={theme} />
       ) : (
         <EmptyState message="종목을 선택하세요" />
       )}
@@ -1710,6 +1713,50 @@ function fmtNewsTime(iso: string): [string, string] {
  * 종목 관련 뉴스 — KIS(국내는 종합 시황/공시, 해외는 해외뉴스종합). 둘 다 제목만 오고 원문 링크는 없다.
  * 공시는 국내 목록에만 섞여 온다.
  */
+/** 뉴스 한 줄 — 종목·테마 패널 공용. 원문 URL이 없어 제목으로 구글 검색을 연다. [stockName]은 테마 뉴스에서만. */
+function NewsRow({
+  title,
+  source,
+  disclosure,
+  publishedAt,
+  stockName,
+}: {
+  title: string;
+  source: string;
+  disclosure: boolean;
+  publishedAt: string;
+  stockName?: string;
+}) {
+  return (
+    <a
+      href={`https://www.google.com/search?q=${encodeURIComponent(title)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex gap-3 px-2.5 py-3 border-b border-white/[0.04] transition-colors hover:bg-white/[0.02]"
+    >
+      <span className="shrink-0 w-14 pt-0.5 num text-[11px] text-zinc-500 leading-tight whitespace-nowrap">
+        <span className="block">{fmtNewsTime(publishedAt)[0]}</span>
+        <span className="block">{fmtNewsTime(publishedAt)[1]}</span>
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-snug text-zinc-100">{title}</p>
+        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+          {stockName && (
+            <span className="text-[11px] text-zinc-300 bg-white/[0.06] rounded px-1.5 py-0.5">{stockName}</span>
+          )}
+          <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">
+            <span className="w-1 h-1 rounded-full bg-red-400" />
+            {source}
+          </span>
+          {disclosure && (
+            <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">공시</span>
+          )}
+        </div>
+      </div>
+    </a>
+  );
+}
+
 function StockNewsPanel({ code, exchange }: { code: string; exchange: string | null }) {
   const { data, isLoading } = useStockNews(code, exchange);
   const items = data ?? [];
@@ -1727,33 +1774,39 @@ function StockNewsPanel({ code, exchange }: { code: string; exchange: string | n
           <EmptyState message="관련 뉴스가 없습니다" />
         ) : (
           items.map((n) => (
-            /* 원문 URL을 주지 않는 API라, 제목을 그대로 구글에 검색해 원문을 찾아가게 한다. */
-            <a
+            <NewsRow key={n.seqNo} title={n.title} source={n.source} disclosure={n.disclosure} publishedAt={n.publishedAt} />
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}
+
+/** 테마 통합 뉴스 — 국내 종목별 뉴스를 병합해 최신순으로. 각 항목에 종목명 태그를 붙인다. */
+function ThemeNewsPanel({ theme }: { theme: WatchTheme }) {
+  const { data, isLoading } = useThemeNews(theme.stocks);
+
+  return (
+    <aside className="min-h-0 flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between px-3 pt-4 pb-2">
+        <span className="text-base font-bold text-zinc-100">관련 뉴스</span>
+        <span className="text-xs text-zinc-600">테마 · 뉴스·공시</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5">
+        {isLoading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : data.length === 0 ? (
+          <EmptyState message="관련 뉴스가 없습니다" />
+        ) : (
+          data.map((n) => (
+            <NewsRow
               key={n.seqNo}
-              href={`https://www.google.com/search?q=${encodeURIComponent(n.title)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex gap-3 px-2.5 py-3 border-b border-white/[0.04] transition-colors hover:bg-white/[0.02]"
-            >
-              <span className="shrink-0 w-14 pt-0.5 num text-[11px] text-zinc-500 leading-tight whitespace-nowrap">
-                <span className="block">{fmtNewsTime(n.publishedAt)[0]}</span>
-                <span className="block">{fmtNewsTime(n.publishedAt)[1]}</span>
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug text-zinc-100">{n.title}</p>
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">
-                    <span className="w-1 h-1 rounded-full bg-red-400" />
-                    {n.source}
-                  </span>
-                  {n.disclosure && (
-                    <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">
-                      공시
-                    </span>
-                  )}
-                </div>
-              </div>
-            </a>
+              title={n.title}
+              source={n.source}
+              disclosure={n.disclosure}
+              publishedAt={n.publishedAt}
+              stockName={n.stockName}
+            />
           ))
         )}
       </div>
