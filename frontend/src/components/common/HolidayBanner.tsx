@@ -5,8 +5,10 @@ export default function HolidayBanner() {
   const { data } = useMarketStatus();
   if (!data?.isHoliday) return null;
   return (
-    <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm font-medium text-amber-700 text-center">
-      오늘은 휴장입니다
+    <div className="flex items-center gap-2 px-0.5 pb-3 border-b border-white/[0.06] text-[13.5px] text-zinc-400">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#e0b357]" />
+      <span className="font-semibold text-[#d9a441]">휴장</span>
+      <span>· 오늘은 장이 열리지 않습니다</span>
     </div>
   );
 }
