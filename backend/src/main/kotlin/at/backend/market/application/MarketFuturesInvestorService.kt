@@ -17,6 +17,7 @@ import java.time.LocalTime
 @Service
 class MarketFuturesInvestorService(
     private val repository: FuturesInvestorSnapshotRepository,
+    private val holidayService: HolidayService,
 ) {
 
     @Transactional
@@ -44,10 +45,13 @@ class MarketFuturesInvestorService(
     /**
      * 최근 [count] 거래일 일별 순매수(계약). 각 거래일의 마지막 스냅샷 = 그날의 당일 누적. 최신순.
      * 폴러가 적재한 날만 나온다(과거 소급 불가). 당일은 장중이면 진행 중인 누적값.
+     * 휴장일에 잘못 적재된 스냅샷은 제외한다(폴러가 공휴일 인식 전 쌓았을 수 있음). 여유분을 더 읽어 필터 후 count만큼.
      */
     @Transactional(readOnly = true)
     fun dailyHistory(count: Int): List<FuturesInvestorDay> =
-        repository.findDailyLatest(PageRequest.of(0, count))
+        repository.findDailyLatest(PageRequest.of(0, count + HOLIDAY_MARGIN))
+            .filter { holidayService.isOpen(it.tradeDate) != false }
+            .take(count)
             .map { FuturesInvestorDay(it.tradeDate, it.nets()) }
 
     /** 세션별(오전/오후/막판) 순매수(계약) — 스냅샷이 없는 세션은 nets=null. */
@@ -89,6 +93,7 @@ class MarketFuturesInvestorService(
     )
 
     companion object {
+        private const val HOLIDAY_MARGIN = 5 // 휴장일 스냅샷을 걸러내도 count를 채우도록 더 읽는 여유분
         private val MORNING_END = LocalTime.of(12, 0)
         private val AFTERNOON_END = LocalTime.of(15, 0)
         private val CLOSE = LocalTime.of(15, 45)
