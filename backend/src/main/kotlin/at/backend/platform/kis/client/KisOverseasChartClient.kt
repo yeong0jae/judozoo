@@ -81,9 +81,26 @@ class KisOverseasChartClient(
         return response.output2 ?: emptyList()
     }
 
-    /** 해외주식 일봉 (HHDFS76240000, GUBN=0) — 최근 100건. 가격 소수점 적용, 최신→과거 순. */
+    /**
+     * 해외주식 일봉 (HHDFS76240000, GUBN=0) — 최근 [DAILY_COUNT]거래일. 최신→과거 순.
+     * 1회 100건 한도라, 이전 페이지 마지막 일자 −1일을 BYMD로 넣어 과거로 이어 받는다.
+     */
     @Cacheable("kisOverseasDailyCandles", key = "#excd + ':' + #symb")
     fun fetchDailyCandles(excd: String, symb: String): List<OverseasDailyCandle> {
+        val collected = mutableListOf<DailyItem>()
+        var bymd = ""
+        for (page in 0 until MAX_DAILY_PAGES) {
+            val items = fetchDailyPage(excd, symb, bymd)
+            if (items.isEmpty()) break
+            collected += items
+            if (collected.size >= DAILY_COUNT || items.size < 100) break // 목표 채웠거나 더 없음
+            val oldest = runCatching { LocalDate.parse(items.last().xymd.trim(), DAILY_FMT) }.getOrNull() ?: break
+            bymd = oldest.minusDays(1).format(DAILY_FMT)
+        }
+        return collected.take(DAILY_COUNT).mapNotNull { it.toCandle() }
+    }
+
+    private fun fetchDailyPage(excd: String, symb: String, bymd: String): List<DailyItem> {
         val token = authClient.getAccessToken()
         val response = kisRestClient.get()
             .uri { b ->
@@ -92,20 +109,21 @@ class KisOverseasChartClient(
                     .queryParam("EXCD", excd)
                     .queryParam("SYMB", symb)
                     .queryParam("GUBN", "0") // 0:일
-                    .queryParam("BYMD", "")  // 공란 = 오늘 기준
-                    .queryParam("MODP", "1") // 수정주가 반영
+                    .queryParam("BYMD", bymd) // 공란=오늘, 값 있으면 그 일자 이하
+                    .queryParam("MODP", "1")  // 수정주가 반영
                     .queryParam("KEYB", "")
                     .build()
             }
             .headers { it.applyKisHeaders(token, "HHDFS76240000") }
             .retrieve()
             .body(DailyResponse::class.java)
-            ?: throw IllegalStateException("KIS 해외 일봉 응답이 null ($excd:$symb)")
+            ?: return emptyList()
 
         if (response.rt_cd != "0") {
-            throw IllegalStateException("KIS 해외 일봉 오류: ${response.msg1} ($excd:$symb)")
+            log.error("KIS 해외 일봉 오류: {} ($excd:$symb, bymd=$bymd)", response.msg1)
+            return emptyList()
         }
-        return (response.output2 ?: emptyList()).take(DAILY_COUNT).mapNotNull { it.toCandle() }
+        return response.output2 ?: emptyList()
     }
 
     private fun org.springframework.http.HttpHeaders.applyKisHeaders(token: String, trId: String) {
@@ -201,7 +219,8 @@ class KisOverseasChartClient(
     companion object {
         private const val SESSION_DAYS = 2      // 분봉 표시 거래일 수 (최신일 프리~애프터 + 직전일 정규장)
         private const val MAX_MINUTE_PAGES = 20  // 2거래일(~1,350분/120) ≈ 12페이지에 여유
-        private const val DAILY_COUNT = 60       // 일봉 표시 거래일 수 (국내와 동일)
+        private const val DAILY_COUNT = 200      // 일봉 표시 거래일 수 (국내와 동일)
+        private const val MAX_DAILY_PAGES = 3    // 1회 100건 한도라 200건 = 2페이지에 여유
         private val MINUTE_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
         private val DAILY_FMT = DateTimeFormatter.ofPattern("yyyyMMdd")
     }

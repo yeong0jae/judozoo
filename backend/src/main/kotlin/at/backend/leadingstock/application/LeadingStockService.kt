@@ -206,9 +206,9 @@ class LeadingStockService(
             .sortedBy { it.dateTime }
     }
 
-    /** 일봉 차트용 — [date] 기준 과거 60거래일. ka10081. */
+    /** 일봉 차트용 — [date] 기준 과거 200거래일. ka10081. */
     fun dailyCandles(stockCode: String, date: LocalDate): List<DailyCandle> =
-        marketClient.fetchDailyCandles(stockCode, 60, date)
+        marketClient.fetchDailyCandles(stockCode, 200, date)
 
     /** 지수(코스피/코스닥) 1분봉 — DB에서 일자별로 읽는다(폴러가 라이트스루로 적재). 차트용. */
     /** 지수 1분봉 — 차트용. [date] 포함 직전 거래일까지 2거래일치. */
