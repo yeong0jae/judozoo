@@ -33,6 +33,7 @@ import {
   useWatchThemes,
 } from "../api/queries";
 import CandleChart, { dailySeries, minuteSeries } from "../components/common/CandleChart";
+import HolidayBanner from "../components/common/HolidayBanner";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
@@ -131,6 +132,7 @@ export default function ClosingBetPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HolidayBanner />
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
 
       <div

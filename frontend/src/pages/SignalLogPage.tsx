@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import { formatEok, formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
+import HolidayBanner from "../components/common/HolidayBanner";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
@@ -492,6 +493,7 @@ function DomesticSignalLog({
 
   return (
     <div className="space-y-4">
+      <HolidayBanner />
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">

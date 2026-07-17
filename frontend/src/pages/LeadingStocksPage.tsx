@@ -3,6 +3,7 @@ import { useLeadingStockCandidates } from "../api/queries";
 import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
+import HolidayBanner from "../components/common/HolidayBanner";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
@@ -118,6 +119,7 @@ function DomesticLeadingStocks({
 
   return (
     <div className="space-y-4">
+      <HolidayBanner />
       <Header
         totalCount={data?.totalCount}
         queriedAt={data?.queriedAt}
