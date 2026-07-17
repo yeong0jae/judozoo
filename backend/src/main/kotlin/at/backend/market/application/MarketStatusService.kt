@@ -8,12 +8,15 @@ import java.time.LocalTime
 @Service
 class MarketStatusService(
     private val timeProvider: TimeProvider,
+    private val holidayService: HolidayService,
 ) {
 
     fun getStatus(): MarketStatusResult {
         val today = timeProvider.today()
         val now = timeProvider.now().toLocalTime()
-        val isHoliday = today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY
+        val weekend = today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY
+        // 공휴일도 휴장. 휴장일 API를 못 받았으면(null) 주말만으로 폴백.
+        val isHoliday = weekend || holidayService.isOpen(today) == false
         val tradingHoursOpen = now in TRADING_START..TRADING_END
         return MarketStatusResult(
             isHoliday = isHoliday,

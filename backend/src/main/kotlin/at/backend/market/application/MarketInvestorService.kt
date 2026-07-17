@@ -19,12 +19,13 @@ import java.time.format.DateTimeFormatter
 class MarketInvestorService(
     private val kiwoom: KiwoomSectorInvestorClient,
     private val signalEventService: MarketSignalEventService,
+    private val holidayService: HolidayService,
     private val timeProvider: TimeProvider,
 ) {
 
     /**
      * 최근 [count] 거래일 일별 순매수(외/기/개/기타법인 + 기관 세부). 키움 ka10051을 base_dt로 날짜별 조회.
-     * 주말은 건너뛴다(공휴일은 근사 — 그 날 base_dt가 직전 영업일 값을 줄 수 있음). 최신순.
+     * 주말·공휴일은 건너뛴다 — 휴장일에 base_dt로 부르면 직전 영업일 값이 그대로 와 중복되기 때문. 최신순.
      */
     fun dailyHistory(market: Market, count: Int): List<MarketInvestorDay> {
         val mrktTp = market.mrktTp()
@@ -33,7 +34,8 @@ class MarketInvestorService(
         var guard = 0
         while (out.size < count && guard < count * 3 + 10) {
             guard++
-            if (day.dayOfWeek == DayOfWeek.SATURDAY || day.dayOfWeek == DayOfWeek.SUNDAY) {
+            val weekend = day.dayOfWeek == DayOfWeek.SATURDAY || day.dayOfWeek == DayOfWeek.SUNDAY
+            if (weekend || holidayService.isOpen(day) == false) {
                 day = day.minusDays(1)
                 continue
             }
