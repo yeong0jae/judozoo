@@ -1,6 +1,7 @@
 package at.backend.theme.application
 
 import at.backend.library.time.TimeProvider
+import at.backend.market.application.HolidayService
 import at.backend.platform.kiwoom.client.KiwoomMarketClient
 import at.backend.platform.kiwoom.client.KiwoomThemeClient
 import at.backend.theme.domain.ThemeDailyRecord
@@ -21,6 +22,7 @@ class ThemeCalendarService(
     private val themeClient: KiwoomThemeClient,
     private val repository: ThemeDailyRepository,
     private val stockRepository: ThemeDailyStockRepository,
+    private val holidayService: HolidayService,
     private val timeProvider: TimeProvider,
 ) {
     private val log = KotlinLogging.logger {}
@@ -95,7 +97,9 @@ class ThemeCalendarService(
 
     @Transactional(readOnly = true)
     fun getCalendar(from: LocalDate, to: LocalDate): List<ThemeWithStocks> {
+        // 휴장일에 잘못 캡처된 레코드는 숨긴다(폴러가 공휴일 인식 전 쌓았을 수 있음). 판정 불가한 과거는 그대로.
         val records = repository.findByDateBetweenOrderByDateAscRankAsc(from, to)
+            .filter { holidayService.isOpen(it.date) != false }
         if (records.isEmpty()) return emptyList()
         val stocksByParent = stockRepository
             .findByThemeDailyIdInOrderByTradingValueDesc(records.map { it.id })
