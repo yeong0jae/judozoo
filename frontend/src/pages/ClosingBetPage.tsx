@@ -15,6 +15,8 @@ import {
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
+  useMarketProgramSessions,
+  useMarketProgramDaily,
   useNasdaqFuturesCandles,
   useNasdaqFuturesQuote,
   useNasdaqIndexCandles,
@@ -824,6 +826,8 @@ function LiveIndexDetail({ market, name }: { market: MarketType; name: string })
       </div>
       <RealSessionsCard market={market} date={date} />
       <RealInvestorTable market={market} />
+      <ProgramSessionsCard market={market} date={date} />
+      <ProgramDailyTable market={market} />
     </div>
   );
 }
@@ -1634,6 +1638,118 @@ function InvestorDailyTable({
 }
 
 /** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff(구간별 증분). 스냅샷이 아직 없는 세션은 "집계 전". */
+/** 프로그램 매매 시간대별 — 차익·비차익·전체. 값 변화 시 변화량 깜빡(수급 표와 동일). */
+function ProgramSessionsCard({ market, date }: { market: MarketType; date: string }) {
+  const { data, isLoading } = useMarketProgramSessions(market, date);
+  const list = data ?? [];
+  const edge = "border-l border-white/[0.06]";
+  const keyOf = (session: string, field: string) => `flowdelta:program:${market}:${date}:${session}:${field}`;
+  useEffect(() => pruneFlowDelta(date), [date]);
+
+  return (
+    <div className="px-1">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className={titleCls}>프로그램 매매</span>
+        <span className="text-xs text-zinc-600">오늘 · 억원</span>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : (
+        <div className="overflow-x-auto -mx-1 px-1">
+          <table className="w-full text-xs whitespace-nowrap">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
+                <th className="text-right font-medium pb-1 px-2.5">차익</th>
+                <th className="text-right font-medium pb-1 px-2.5">비차익</th>
+                <th className={`text-right font-medium pb-1 pl-2.5 pr-2.5 ${edge}`}>전체</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((s) => {
+                const active = isActiveSession(s.time, date === todayStr());
+                return (
+                  <tr
+                    key={s.name}
+                    className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                  >
+                    <td className="text-left py-2 pr-3">
+                      <div className="text-zinc-300">{s.name}</div>
+                      <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+                    </td>
+                    {s.nets == null ? (
+                      <td colSpan={3} className="text-right py-2 px-2.5 text-zinc-600">집계 전</td>
+                    ) : (
+                      <>
+                        <td className="text-right py-2 px-2.5">
+                          <FlowNum eok={s.nets.arbitrageEok} storageKey={keyOf(s.name, "arb")} active={active} />
+                        </td>
+                        <td className="text-right py-2 px-2.5">
+                          <FlowNum eok={s.nets.nonArbitrageEok} storageKey={keyOf(s.name, "narb")} active={active} />
+                        </td>
+                        <td className={`text-right py-2 px-2.5 font-medium ${edge}`}>
+                          <FlowNum eok={s.nets.totalEok} storageKey={keyOf(s.name, "total")} active={active} />
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 최근 10일 프로그램 매매 — 일별 차익·비차익·전체. */
+function ProgramDailyTable({ market }: { market: MarketType }) {
+  const { data, isLoading } = useMarketProgramDaily(market, 10);
+  const records = data ?? [];
+  const edge = "border-l border-white/[0.06]";
+
+  return (
+    <div className="px-1">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className={titleCls}>최근 10일 프로그램</span>
+        <span className="text-xs text-zinc-600">순매수 · 억원</span>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-40 w-full" />
+      ) : records.length === 0 ? (
+        <EmptyState message="일별 프로그램 데이터가 없습니다" />
+      ) : (
+        <div className="overflow-x-auto -mx-1 px-1">
+          <table className="w-full text-xs whitespace-nowrap">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="text-left font-medium pb-1.5 pr-3">일자</th>
+                <th className="text-right font-medium pb-1 px-2.5">차익</th>
+                <th className="text-right font-medium pb-1 px-2.5">비차익</th>
+                <th className={`text-right font-medium pb-1 pl-2.5 pr-2.5 ${edge}`}>전체</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((r) => (
+                <tr
+                  key={r.date}
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                >
+                  <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
+                  <td className="text-right py-2 px-2.5"><NetNum eok={r.arbitrageEok} /></td>
+                  <td className="text-right py-2 px-2.5"><NetNum eok={r.nonArbitrageEok} /></td>
+                  <td className={`text-right py-2 px-2.5 font-medium ${edge}`}><NetNum eok={r.totalEok} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RealSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketInvestorSessions(market, date);
   const list = data ?? [];
