@@ -40,7 +40,6 @@ import type {
 } from "../types";
 
 export const QK = {
-  instanceInfo: ["system", "instance"] as const,
   marketStatus: ["market", "status"] as const,
   stockSearch: (q: string) => ["stocks", "search", q] as const,
   leadingStockCandidates: (minChangeRate: number) =>
@@ -118,21 +117,6 @@ export const QK = {
   watchThemes: ["watch-themes"] as const,
   watchThemeQuotes: (themeId: number) => ["watch-themes", themeId, "quotes"] as const,
 };
-
-export interface InstanceInfo {
-  broker: string;
-  env: string;
-  label: string;
-}
-
-export function useInstanceInfo() {
-  return useQuery({
-    queryKey: QK.instanceInfo,
-    queryFn: () => apiFetch<InstanceInfo>("/api/system/instance"),
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-}
 
 export function useMarketStatus() {
   return useQuery({
