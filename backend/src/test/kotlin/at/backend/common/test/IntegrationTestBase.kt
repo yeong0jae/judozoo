@@ -17,7 +17,9 @@ abstract class IntegrationTestBase : FunSpec() {
     override fun extensions() = listOf(SpringExtension)
 
     companion object {
-        private val mysql = MySQLContainer("mysql:8.4").also { it.start() }
+        // withReuse: 실행 간 컨테이너를 살려둬 매번 MySQL 기동·스키마 생성을 반복하지 않는다.
+        // 로컬에서만 동작하며 ~/.testcontainers.properties 에 testcontainers.reuse.enable=true 가 필요하다.
+        private val mysql = MySQLContainer("mysql:8.4").withReuse(true).also { it.start() }
 
         @JvmStatic
         @DynamicPropertySource
