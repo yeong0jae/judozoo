@@ -146,14 +146,15 @@ export interface MacroQuote {
   changeRate: number; // 전일 대비 등락률(%)
 }
 
-/** 원달러·WTI 묶음 — 한쪽만 실패하면 그쪽만 null. */
+/** 원달러·WTI·VIX 묶음 — 일부만 실패하면 그쪽만 null. */
 export interface MacroQuotes {
   usdKrw: MacroQuote | null;
   wti: MacroQuote | null;
+  vix: MacroQuote | null;
 }
 
 /** 매크로 상세가 다루는 대상 — 백엔드 enum과 이름이 같아야 한다. */
-export type MacroTarget = "USD_KRW" | "WTI";
+export type MacroTarget = "USD_KRW" | "WTI" | "VIX";
 
 /** 선물 기관 세부 순매수(계약) — KIS 선물 분류. */
 export interface FuturesOrgBreakdown {

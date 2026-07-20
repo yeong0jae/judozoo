@@ -186,17 +186,17 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
-            "macroQuotes", // 원달러·WTI 시세(야후) — 둘을 한 묶음으로 담는 단일 슬롯, 10s
+            "macroQuotes", // 원달러·WTI·VIX 시세(야후) — 한 묶음으로 담는 단일 슬롯, 10s
             Caffeine.newBuilder()
                 .expireAfterWrite(10, TimeUnit.SECONDS)
                 .maximumSize(1)
                 .build(),
         )
         manager.registerCustomCache(
-            "macroCandles", // 매크로 캔들(야후) — 대상×interval별 슬롯
+            "macroCandles", // 매크로 캔들(야후) — 대상×interval별 슬롯(3종×2)
             Caffeine.newBuilder()
                 .expireAfterWrite(60, TimeUnit.SECONDS)
-                .maximumSize(4)
+                .maximumSize(6)
                 .build(),
         )
         manager.registerCustomCache(

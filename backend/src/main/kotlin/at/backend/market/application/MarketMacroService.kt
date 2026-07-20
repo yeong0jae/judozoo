@@ -14,11 +14,12 @@ class MarketMacroService(
     private val client: YahooChartClient,
 ) {
 
-    /** 원달러·WTI 시세 — 둘 중 하나만 실패해도 나머지는 살려서 준다. */
+    /** 원달러·WTI·VIX 시세 — 일부가 실패해도 나머지는 살려서 준다. */
     @Cacheable("macroQuotes")
     fun quotes(): MacroQuotes = MacroQuotes(
         usdKrw = quoteOf(MacroTarget.USD_KRW),
         wti = quoteOf(MacroTarget.WTI),
+        vix = quoteOf(MacroTarget.VIX),
     )
 
     /** [target] 캔들 — interval "1m"(최근 2일)/"1d"(최근 6개월). */
@@ -45,12 +46,14 @@ class MarketMacroService(
 enum class MacroTarget(val symbol: String) {
     USD_KRW("KRW=X"), // 원달러 환율
     WTI("CL=F"), // WTI 원유 근월물
+    VIX("^VIX"), // CBOE 변동성 지수
 }
 
-/** 매크로 시세 묶음 — 상단 스트립이 한 칸에 둘 다 그린다. */
+/** 매크로 시세 묶음 — 상단 스트립이 한 칸에 모두 그린다. */
 data class MacroQuotes(
     val usdKrw: MacroQuote?,
     val wti: MacroQuote?,
+    val vix: MacroQuote?,
 )
 
 /** 매크로 지표 시세. */

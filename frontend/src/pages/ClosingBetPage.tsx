@@ -310,16 +310,26 @@ function MacroCell({
       <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
       <div className="mt-0.5 flex flex-col gap-px">
         <MacroCellRow label="원달러" quote={quotes?.usdKrw} />
-        <MacroCellRow label="WTI" quote={quotes?.wti} />
+        {/* WTI만 CME 시세라 지연. 원달러(FX 현물)는 지연 대상이 아니다. */}
+        <MacroCellRow label="WTI" quote={quotes?.wti} delayed />
+        <MacroCellRow label="VIX" quote={quotes?.vix} />
       </div>
     </button>
   );
 }
 
 /** 매크로 칸 한 줄 — 이름 · 값 · 등락률. 값이 없으면 대시. */
-function MacroCellRow({ label, quote }: { label: string; quote?: MacroQuote | null }) {
+function MacroCellRow({
+  label,
+  quote,
+  delayed,
+}: {
+  label: string;
+  quote?: MacroQuote | null;
+  delayed?: boolean;
+}) {
   return (
-    <div className="flex items-baseline gap-1.5">
+    <div className="flex items-baseline gap-1.5 flex-wrap">
       <span className="text-[11px] text-zinc-500 w-[34px] shrink-0">{label}</span>
       {!quote ? (
         <span className="num text-[13px] font-bold text-zinc-700">—</span>
@@ -329,6 +339,7 @@ function MacroCellRow({ label, quote }: { label: string; quote?: MacroQuote | nu
           <span className={`num text-[11px] font-medium ${colorByPnL(quote.changeRate)}`}>
             {formatPct(quote.changeRate / 100)}
           </span>
+          {delayed && <DelayBadge />}
         </>
       )}
     </div>
@@ -1240,8 +1251,8 @@ function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
 }
 
 /**
- * 매크로 상세 — 원달러 환율·WTI 유가를 한 화면에 세로로 쌓는다.
- * 환율은 24시간 돌지만 WTI는 CME 정산 휴식(06:00~07:00 KST)엔 값이 멈춘다.
+ * 매크로 상세 — 원달러 환율·WTI 유가·VIX를 한 화면에 세로로 쌓는다.
+ * 환율은 24시간 돌지만 WTI는 CME 정산 휴식(06:00~07:00 KST)에, VIX는 미 정규장 밖에서 값이 멈춘다.
  */
 function MacroDetail({ index }: { index: IndexInfo }) {
   const { data, isLoading } = useMacroQuotes();
@@ -1258,7 +1269,15 @@ function MacroDetail({ index }: { index: IndexInfo }) {
         quote={data.usdKrw}
         category={index.name}
       />
-      <MacroSection title="WTI 유가" unit="달러" target="WTI" quote={data.wti} category={index.name} />
+      <MacroSection
+        title="WTI 유가"
+        unit="달러"
+        target="WTI"
+        quote={data.wti}
+        category={index.name}
+        delayed
+      />
+      <MacroSection title="VIX" unit="지수" target="VIX" quote={data.vix} category={index.name} />
     </div>
   );
 }
@@ -1270,12 +1289,14 @@ function MacroSection({
   target,
   quote,
   category,
+  delayed,
 }: {
   title: string;
   unit: string;
   target: MacroTarget;
   quote: MacroQuote | null;
   category: string;
+  delayed?: boolean;
 }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
 
@@ -1290,6 +1311,7 @@ function MacroSection({
           price={quote.price}
           pct={quote.changeRate}
           chg={quote.priceChange}
+          extra={delayed ? <DelayBadge /> : undefined}
           priceInline
           decimal
         />
