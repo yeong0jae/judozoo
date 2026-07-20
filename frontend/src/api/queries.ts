@@ -13,6 +13,8 @@ import type {
   StockInvestorDay,
   StockNewsItem,
   NasdaqFuturesQuote,
+  MacroQuotes,
+  MacroTarget,
   NasdaqIndexQuote,
   NightFuturesQuote,
   MarketIndex,
@@ -96,6 +98,9 @@ export const QK = {
   nasdaqFuturesQuote: ["market", "futures", "nasdaq", "quote"] as const,
   nasdaqFuturesCandles: (interval: string) =>
     ["market", "futures", "nasdaq", "candles", interval] as const,
+  macroQuotes: ["market", "macro", "quotes"] as const,
+  macroCandles: (target: string, interval: string) =>
+    ["market", "macro", "candles", target, interval] as const,
   nasdaqIndexQuote: ["market", "nasdaq", "quote"] as const,
   nasdaqIndexCandles: (interval: string) =>
     ["market", "nasdaq", "candles", interval] as const,
@@ -348,6 +353,27 @@ export function useNasdaqIndexCandles(interval: "1d" | "1m") {
     queryKey: QK.nasdaqIndexCandles(interval),
     queryFn: () =>
       apiFetch<MarketCandleItem[]>(`/api/market/nasdaq/candles?interval=${interval}`),
+    refetchInterval: interval === "1m" ? 30_000 : false,
+  });
+}
+
+/** 원달러·WTI 시세 — 야후. 상단 스트립이 한 칸에 둘 다 그린다. */
+export function useMacroQuotes() {
+  return useQuery({
+    queryKey: QK.macroQuotes,
+    queryFn: () => apiFetch<MacroQuotes>("/api/market/macro/quotes"),
+    refetchInterval: 30_000,
+  });
+}
+
+/** 매크로 캔들 — interval "1d"/"1m". */
+export function useMacroCandles(target: MacroTarget, interval: "1d" | "1m") {
+  return useQuery({
+    queryKey: QK.macroCandles(target, interval),
+    queryFn: () =>
+      apiFetch<MarketCandleItem[]>(
+        `/api/market/macro/candles?target=${target}&interval=${interval}`,
+      ),
     refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }

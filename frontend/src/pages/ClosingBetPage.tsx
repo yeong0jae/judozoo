@@ -20,6 +20,8 @@ import {
   useNasdaqFuturesCandles,
   useNasdaqFuturesQuote,
   useNasdaqIndexCandles,
+  useMacroCandles,
+  useMacroQuotes,
   useNasdaqIndexQuote,
   useNightFuturesCandles,
   useNightFuturesQuote,
@@ -42,7 +44,15 @@ import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatPct, formatPrice } from "../lib/format";
-import type { FuturesOrgBreakdown, MarketInvestorDay, MarketType, WatchTheme } from "../types";
+import type {
+  FuturesOrgBreakdown,
+  MacroQuote,
+  MacroQuotes,
+  MacroTarget,
+  MarketInvestorDay,
+  MarketType,
+  WatchTheme,
+} from "../types";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
 // 선택 대상 — 종목 / 테마 / 지수
@@ -76,6 +86,8 @@ const INDICES: IndexInfo[] = [
   { id: "nasF", name: "나스닥 선물", delayed: true },
   { id: "nightF", name: "코스피 야간 선물" },
   { id: "nasdaq", name: "나스닥" },
+  // 지표 하나가 아니라 원달러·WTI 묶음이라 스트립에서 전용 칸을 쓴다.
+  { id: "macro", name: "매크로" },
 ];
 
 /** 실시간이 아닌 시세임을 알리는 배지. */
@@ -228,7 +240,7 @@ const chgText = (value: number, pct: number) => {
 const toCell = (value?: number, pct?: number) =>
   value === undefined || pct === undefined ? null : { value, pct };
 
-/** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 6칸을 얇은 구분선으로만 분리. */
+/** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 7칸을 얇은 구분선으로만 분리. */
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
   const kospi = useKospiIndex();
   const kosdaq = useKosdaqIndex();
@@ -236,9 +248,23 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   const night = useNightFuturesQuote();
   const nasdaq = useNasdaqFuturesQuote();
   const nasdaqIndex = useNasdaqIndexQuote();
+  const macro = useMacroQuotes();
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
+        const active = sel.kind === "index" && sel.id === ix.id;
+        // 매크로만 지표 둘을 한 칸에 담아 다른 칸과 모양이 다르다.
+        if (ix.id === "macro") {
+          return (
+            <MacroCell
+              key={ix.id}
+              ix={ix}
+              quotes={macro.data}
+              active={active}
+              onSelect={() => onSelect(ix.id)}
+            />
+          );
+        }
         const q =
           ix.id === "kospi" ? toCell(kospi.data?.currentValue, kospi.data?.changeRate)
           : ix.id === "kosdaq" ? toCell(kosdaq.data?.currentValue, kosdaq.data?.changeRate)
@@ -252,11 +278,59 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
             ix={ix}
             value={q?.value ?? null}
             pct={q?.pct ?? null}
-            active={sel.kind === "index" && sel.id === ix.id}
+            active={active}
             onSelect={() => onSelect(ix.id)}
           />
         );
       })}
+    </div>
+  );
+}
+
+/** 매크로 칸 — 원달러·WTI를 두 줄로 압축. 다른 칸보다 글자가 작다. */
+function MacroCell({
+  ix,
+  quotes,
+  active,
+  onSelect,
+}: {
+  ix: IndexInfo;
+  quotes?: MacroQuotes;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
+        active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
+      }`}
+    >
+      <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
+      <div className="mt-0.5 flex flex-col gap-px">
+        <MacroCellRow label="원달러" quote={quotes?.usdKrw} />
+        <MacroCellRow label="WTI" quote={quotes?.wti} />
+      </div>
+    </button>
+  );
+}
+
+/** 매크로 칸 한 줄 — 이름 · 값 · 등락률. 값이 없으면 대시. */
+function MacroCellRow({ label, quote }: { label: string; quote?: MacroQuote | null }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-[11px] text-zinc-500 w-[34px] shrink-0">{label}</span>
+      {!quote ? (
+        <span className="num text-[13px] font-bold text-zinc-700">—</span>
+      ) : (
+        <>
+          <span className="num text-[13px] font-bold text-zinc-100">{fmt2(quote.price)}</span>
+          <span className={`num text-[11px] font-medium ${colorByPnL(quote.changeRate)}`}>
+            {formatPct(quote.changeRate / 100)}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -474,6 +548,7 @@ function SubjectDetail({
       : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
       : ix.id === "nasF" ? <NasdaqFuturesDetail index={ix} />
       : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
+      : ix.id === "macro" ? <MacroDetail index={ix} />
       : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} />
       : <LiveIndexDetail market="KOSPI" name={ix.name} />;
     return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
@@ -1156,6 +1231,94 @@ function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
   return (
     <CandleChart
       key={`nasdaq-${interval}`}
+      series={series}
+      timeVisible={interval === "1m"}
+      priceDecimals={2}
+      className="w-full h-[21.25rem]"
+    />
+  );
+}
+
+/**
+ * 매크로 상세 — 원달러 환율·WTI 유가를 한 화면에 세로로 쌓는다.
+ * 환율은 24시간 돌지만 WTI는 CME 정산 휴식(06:00~07:00 KST)엔 값이 멈춘다.
+ */
+function MacroDetail({ index }: { index: IndexInfo }) {
+  const { data, isLoading } = useMacroQuotes();
+
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!data) return <EmptyState message="매크로 지표를 불러오지 못했습니다" />;
+
+  return (
+    <div className="flex flex-col gap-8">
+      <MacroSection
+        title="원달러 환율"
+        unit="원"
+        target="USD_KRW"
+        quote={data.usdKrw}
+        category={index.name}
+      />
+      <MacroSection title="WTI 유가" unit="달러" target="WTI" quote={data.wti} category={index.name} />
+    </div>
+  );
+}
+
+/** 매크로 지표 한 덩어리 — 헤더 + 1분봉/일봉 토글 차트. */
+function MacroSection({
+  title,
+  unit,
+  target,
+  quote,
+  category,
+}: {
+  title: string;
+  unit: string;
+  target: MacroTarget;
+  quote: MacroQuote | null;
+  category: string;
+}) {
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
+
+  return (
+    <div className="flex flex-col gap-4">
+      {quote === null ? (
+        <EmptyState message={`${title} 시세를 불러오지 못했습니다`} />
+      ) : (
+        <DetailHeader
+          name={title}
+          category={category}
+          price={quote.price}
+          pct={quote.changeRate}
+          chg={quote.priceChange}
+          priceInline
+          decimal
+        />
+      )}
+
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>{title} 차트 · {unit}</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <MacroChart target={target} interval={chartInterval} />
+      </div>
+    </div>
+  );
+}
+
+/** 매크로 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
+function MacroChart({ target, interval }: { target: MacroTarget; interval: ChartInterval }) {
+  const { data, isLoading } = useMacroCandles(target, interval);
+  const items = data ?? [];
+  const series = useMemo(
+    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
+    [items, interval],
+  );
+  if (isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
+  if (!items.length) return <EmptyState message="캔들 데이터가 없습니다" />;
+  return (
+    <CandleChart
+      key={`macro-${target}-${interval}`}
       series={series}
       timeVisible={interval === "1m"}
       priceDecimals={2}
