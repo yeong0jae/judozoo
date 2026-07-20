@@ -1638,7 +1638,7 @@ function InvestorDailyTable({
 }
 
 /** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff(구간별 증분). 스냅샷이 아직 없는 세션은 "집계 전". */
-/** 프로그램 매매 시간대별 — 차익·비차익·전체. 값 변화 시 변화량 깜빡(수급 표와 동일). */
+/** 프로그램 매매 시간대별 — 전체·비차익·차익. 값 변화 시 변화량 깜빡(수급 표와 동일). */
 function ProgramSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketProgramSessions(market, date);
   const list = data ?? [];
@@ -1660,9 +1660,9 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
             <thead className="text-zinc-500">
               <tr>
                 <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
+                <th className="text-right font-medium pb-1 px-2.5">전체</th>
+                <th className={`text-right font-medium pb-1 px-2.5 ${edge}`}>비차익</th>
                 <th className="text-right font-medium pb-1 px-2.5">차익</th>
-                <th className="text-right font-medium pb-1 px-2.5">비차익</th>
-                <th className={`text-right font-medium pb-1 pl-2.5 pr-2.5 ${edge}`}>전체</th>
               </tr>
             </thead>
             <tbody>
@@ -1681,14 +1681,14 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
                       <td colSpan={3} className="text-right py-2 px-2.5 text-zinc-600">집계 전</td>
                     ) : (
                       <>
-                        <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.arbitrageEok} storageKey={keyOf(s.name, "arb")} active={active} />
+                        <td className="text-right py-2 px-2.5 font-medium">
+                          <FlowNum eok={s.nets.totalEok} storageKey={keyOf(s.name, "total")} active={active} />
                         </td>
-                        <td className="text-right py-2 px-2.5">
+                        <td className={`text-right py-2 px-2.5 ${edge}`}>
                           <FlowNum eok={s.nets.nonArbitrageEok} storageKey={keyOf(s.name, "narb")} active={active} />
                         </td>
-                        <td className={`text-right py-2 px-2.5 font-medium ${edge}`}>
-                          <FlowNum eok={s.nets.totalEok} storageKey={keyOf(s.name, "total")} active={active} />
+                        <td className="text-right py-2 px-2.5">
+                          <FlowNum eok={s.nets.arbitrageEok} storageKey={keyOf(s.name, "arb")} active={active} />
                         </td>
                       </>
                     )}
@@ -1703,7 +1703,7 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
   );
 }
 
-/** 최근 10일 프로그램 매매 — 일별 차익·비차익·전체. */
+/** 최근 10일 프로그램 매매 — 일별 전체·비차익·차익. */
 function ProgramDailyTable({ market }: { market: MarketType }) {
   const { data, isLoading } = useMarketProgramDaily(market, 10);
   const records = data ?? [];
@@ -1725,9 +1725,9 @@ function ProgramDailyTable({ market }: { market: MarketType }) {
             <thead className="text-zinc-500">
               <tr>
                 <th className="text-left font-medium pb-1.5 pr-3">일자</th>
+                <th className="text-right font-medium pb-1 px-2.5">전체</th>
+                <th className={`text-right font-medium pb-1 px-2.5 ${edge}`}>비차익</th>
                 <th className="text-right font-medium pb-1 px-2.5">차익</th>
-                <th className="text-right font-medium pb-1 px-2.5">비차익</th>
-                <th className={`text-right font-medium pb-1 pl-2.5 pr-2.5 ${edge}`}>전체</th>
               </tr>
             </thead>
             <tbody>
@@ -1737,9 +1737,9 @@ function ProgramDailyTable({ market }: { market: MarketType }) {
                   className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
                 >
                   <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
+                  <td className="text-right py-2 px-2.5 font-medium"><NetNum eok={r.totalEok} /></td>
+                  <td className={`text-right py-2 px-2.5 ${edge}`}><NetNum eok={r.nonArbitrageEok} /></td>
                   <td className="text-right py-2 px-2.5"><NetNum eok={r.arbitrageEok} /></td>
-                  <td className="text-right py-2 px-2.5"><NetNum eok={r.nonArbitrageEok} /></td>
-                  <td className={`text-right py-2 px-2.5 font-medium ${edge}`}><NetNum eok={r.totalEok} /></td>
                 </tr>
               ))}
             </tbody>
