@@ -1,13 +1,13 @@
 import { useState } from "react";
 import {
   useDailyCandles,
-  useInvestorTrend,
   useLeadingStockDetail,
   useMinuteCandles,
+  useStockInvestorDaily,
 } from "../../api/queries";
 import type {
   FilterResultItem,
-  InvestorTrendDay,
+  OrgBreakdown,
   SwingHighSignal,
 } from "../../types";
 import { formatKoreanMoney, formatPct, formatPrice } from "../../lib/format";
@@ -212,8 +212,20 @@ function FilterResultsList({ results }: { results: FilterResultItem[] }) {
 // 외국인·기관 자금 흐름
 // ============================================================
 
+// 기관 세부 순서 — 시황분석 종목 상세와 동일. 기관계 아래 들여쓰기로 표시.
+const ORG_DETAIL: { key: keyof OrgBreakdown; label: string }[] = [
+  { key: "financialInvestmentEok", label: "금융투자" },
+  { key: "insuranceEok", label: "보험" },
+  { key: "otherFinanceEok", label: "기타금융" },
+  { key: "trustEok", label: "투신" },
+  { key: "privateEquityEok", label: "사모펀드" },
+  { key: "pensionFundEok", label: "연기금등" },
+  { key: "bankEok", label: "은행" },
+];
+
+/** 당일 투자자 수급 — 개인·외국인·기관계(세부)·기타법인. 키움 ka10059(전체·SOR통합). */
 function InvestorTrendSection({ stockCode }: { stockCode: string }) {
-  const { data, isLoading, isError } = useInvestorTrend(stockCode);
+  const { data, isLoading, isError } = useStockInvestorDaily(stockCode, 1);
 
   if (isLoading) {
     return (
@@ -226,36 +238,61 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   if (isError || !data || data.length === 0) return null;
 
   const today = data[0];
-  const last5 = data.slice(0, 5);
-  const sum = (sel: (d: InvestorTrendDay) => number) =>
-    last5.reduce((acc, d) => acc + sel(d), 0);
 
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
         <span className="text-sm font-semibold text-zinc-400">외인·기관 자금 흐름</span>
-        <span className="text-xs text-zinc-600">5분 갱신</span>
+        <span className="text-xs text-zinc-600">오늘 {today.date.slice(5)}</span>
       </div>
-      <div className="bg-zinc-900 rounded-2xl p-4 space-y-4">
-        <FlowGroup
-          label={`오늘 ${today.date.slice(5)}`}
-          rows={[
-            { name: "개인", total: today.individualNet, nxt: today.individualNetNxt },
-            { name: "외인", total: today.foreignNet, nxt: today.foreignNetNxt },
-            { name: "기관", total: today.institutionNet, nxt: today.institutionNetNxt },
-          ]}
-        />
-        <div className="h-px bg-zinc-800" />
-        <FlowGroup
-          label={`최근 ${last5.length}일 누적`}
-          rows={[
-            { name: "개인", total: sum((d) => d.individualNet), nxt: sum((d) => d.individualNetNxt) },
-            { name: "외인", total: sum((d) => d.foreignNet), nxt: sum((d) => d.foreignNetNxt) },
-            { name: "기관", total: sum((d) => d.institutionNet), nxt: sum((d) => d.institutionNetNxt) },
-          ]}
-        />
+      <div className="bg-zinc-900 rounded-2xl px-4 py-2">
+        <table className="w-full text-xs">
+          <thead className="text-zinc-600">
+            <tr>
+              <th className="text-left font-normal py-1.5">구분</th>
+              <th className="text-right font-normal py-1.5">순매수</th>
+            </tr>
+          </thead>
+          <tbody>
+            <FlowRow name="개인" eok={today.individualEok} />
+            <FlowRow name="외국인" eok={today.foreignEok} />
+            <FlowRow name="기관계" eok={today.institutionEok} emphasis />
+            {ORG_DETAIL.map((o) => (
+              <FlowRow key={o.key} name={o.label} eok={today.breakdown[o.key]} indent />
+            ))}
+            <FlowRow name="기타법인" eok={today.otherCorpEok} />
+          </tbody>
+        </table>
       </div>
     </section>
+  );
+}
+
+/** 수급 표 한 행 — 구분 / 순매수. 기관계는 강조, 기관 세부는 들여쓰기. */
+function FlowRow({
+  name,
+  eok,
+  indent,
+  emphasis,
+}: {
+  name: string;
+  eok: number;
+  indent?: boolean;
+  emphasis?: boolean;
+}) {
+  const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
+  const sign = eok > 0 ? "+" : "";
+  const weight = emphasis ? "font-semibold" : "font-medium";
+  return (
+    <tr className="border-t border-zinc-800/60">
+      <td className={`text-left py-1.5 ${indent ? "pl-3 text-zinc-500" : "text-zinc-400"} ${emphasis ? "font-semibold text-zinc-300" : ""}`}>
+        {name}
+      </td>
+      <td className={`text-right py-1.5 num ${tone} ${weight}`}>
+        {sign}
+        {formatKoreanMoney(eok * 100_000_000)}
+      </td>
+    </tr>
   );
 }
 
@@ -342,48 +379,3 @@ function BreakoutSignalSection({
   );
 }
 
-function FlowGroup({
-  label,
-  rows,
-}: {
-  label: string;
-  rows: Array<{ name: string; total: number; nxt: number }>;
-}) {
-  return (
-    <div>
-      <div className="text-xs text-zinc-500 mb-2">{label}</div>
-      {/* 3열 표: 라벨 / 전체(SOR통합) / NXT 단독 */}
-      <div className="grid grid-cols-[auto_1fr_1fr] gap-x-6 gap-y-1.5 text-xs">
-        <span></span>
-        <span className="text-xs text-zinc-500 text-right">전체</span>
-        <span className="text-xs text-zinc-500 text-right">NXT</span>
-        {rows.map((r) => (
-          <FlowRow key={r.name} {...r} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FlowRow({ name, total, nxt }: { name: string; total: number; nxt: number }) {
-  return (
-    <>
-      <span className="text-zinc-400">{name}</span>
-      <SignedAmount millionWon={total} />
-      <SignedAmount millionWon={nxt} />
-    </>
-  );
-}
-
-function SignedAmount({ millionWon }: { millionWon: number }) {
-  // 한국 거래소 관행 — 양수(매수) 빨강 / 음수(매도) 파랑
-  const tone =
-    millionWon > 0 ? "text-red-400" : millionWon < 0 ? "text-blue-400" : "text-zinc-500";
-  const sign = millionWon > 0 ? "+" : "";
-  return (
-    <span className={`${tone} num font-medium text-right`}>
-      {sign}
-      {formatKoreanMoney(millionWon * 1_000_000)}
-    </span>
-  );
-}

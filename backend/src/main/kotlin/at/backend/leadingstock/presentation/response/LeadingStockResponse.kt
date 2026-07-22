@@ -181,16 +181,3 @@ data class FilterResultItem(
     val actualValue: String,
     val passed: Boolean,
 )
-
-// --- 투자자 추이 API ---
-
-/** 단위: 백만원. 양수=순매수, 음수=순매도. NXT 컬럼은 NXT 거래소 단독 값. */
-data class InvestorTrendDayItem(
-    val date: String,         // yyyy-MM-dd
-    val individualNet: Long,
-    val foreignNet: Long,
-    val institutionNet: Long,
-    val individualNetNxt: Long,
-    val foreignNetNxt: Long,
-    val institutionNetNxt: Long,
-)

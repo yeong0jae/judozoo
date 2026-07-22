@@ -5,7 +5,6 @@ import type {
   BreakoutRadarResponse,
   DailyCandleItem,
   CandidateStocksResponse,
-  InvestorTrendDay,
   KospiIndex,
   FuturesQuote,
   FuturesSession,
@@ -61,8 +60,6 @@ export const QK = {
     ["leading-stocks", "market-investor-net-buy", "at", at] as const,
   leadingStockDetail: (code: string) =>
     ["leading-stocks", "detail", code] as const,
-  investorTrend: (code: string) =>
-    ["leading-stocks", "investors", code] as const,
   minuteCandles: (code: string, date: string) =>
     ["leading-stocks", "minute-candles", code, date] as const,
   indexMinuteCandles: (market: string, date: string) =>
@@ -463,18 +460,6 @@ export function useFuturesCandles(interval: "1d" | "1m", count = 90) {
         `/api/market/futures/kospi/candles?interval=${interval}&count=${count}`,
       ),
     refetchInterval: interval === "1m" ? 30_000 : false,
-  });
-}
-
-export function useInvestorTrend(code: string | null) {
-  return useQuery({
-    queryKey: code ? QK.investorTrend(code) : ["leading-stocks", "investors", "null"],
-    queryFn: () =>
-      apiFetch<InvestorTrendDay[]>(
-        `/api/leading-stocks/candidates/${code}/investors`,
-      ),
-    enabled: code !== null,
-    staleTime: 5 * 60_000,
   });
 }
 

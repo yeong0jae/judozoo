@@ -495,15 +495,6 @@ export interface OverseasBreakoutRadarItem {
   gapRate: number;
 }
 
-export interface InvestorTrendDay {
-  date: string;
-  individualNet: number;
-  foreignNet: number;
-  institutionNet: number;
-  individualNetNxt: number;
-  foreignNetNxt: number;
-  institutionNetNxt: number;
-}
 
 /** 거래일에 사용자가 직접 남긴 이슈 메모 한 건. */
 export interface DailyIssueItem {

@@ -1,6 +1,5 @@
 package at.backend.leadingstock.presentation
 
-import at.backend.leadingstock.application.InvestorTrendService
 import at.backend.leadingstock.application.LeadingStockCriteriaProperties
 import at.backend.leadingstock.application.LeadingStockService
 import at.backend.leadingstock.application.MarketCloseSnapshotService
@@ -13,7 +12,6 @@ import at.backend.leadingstock.presentation.response.CandidateStockItem
 import at.backend.leadingstock.presentation.response.CandidateStocksResponse
 import at.backend.leadingstock.presentation.response.DailyCandleChartItem
 import at.backend.leadingstock.presentation.response.FilterResultItem
-import at.backend.leadingstock.presentation.response.InvestorTrendDayItem
 import at.backend.leadingstock.presentation.response.IndexMinuteCandleItem
 import at.backend.leadingstock.presentation.response.MarketCloseSnapshotItem
 import at.backend.leadingstock.presentation.response.MarketInvestorNetBuyItem
@@ -37,7 +35,6 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/leading-stocks")
 class LeadingStockController(
     private val leadingStockService: LeadingStockService,
-    private val investorTrendService: InvestorTrendService,
     private val signalEventService: SignalEventService,
     private val marketSignalEventService: MarketSignalEventService,
     private val marketCloseSnapshotService: MarketCloseSnapshotService,
@@ -289,25 +286,6 @@ class LeadingStockController(
             )
         }
         return ApiResponse.ok(candles)
-    }
-
-    /** 종목별 일자별 외국인·기관·개인 순매수 추이 (단위: 백만원). */
-    @GetMapping("/candidates/{stockCode}/investors")
-    fun getInvestorTrend(@PathVariable stockCode: String): ApiResponse<List<InvestorTrendDayItem>> {
-        val trend = investorTrendService.getTrend(stockCode)
-        return ApiResponse.ok(
-            trend.map {
-                InvestorTrendDayItem(
-                    date = it.date,
-                    individualNet = it.individualNet,
-                    foreignNet = it.foreignNet,
-                    institutionNet = it.institutionNet,
-                    individualNetNxt = it.individualNetNxt,
-                    foreignNetNxt = it.foreignNetNxt,
-                    institutionNetNxt = it.institutionNetNxt,
-                )
-            },
-        )
     }
 
     /** 종목 상세 — 전체 필터(A~H) 평가 결과 + 상대거래량 */
