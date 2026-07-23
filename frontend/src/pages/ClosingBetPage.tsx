@@ -1735,19 +1735,40 @@ function RealInvestorTable({ market }: { market: MarketType }) {
   return <InvestorDailyTable records={data ?? []} isLoading={isLoading} />;
 }
 
-/** 종목 최근 10일 수급 — 키움 ka10059. 시장 표와 같은 구성이라 표를 공유한다. */
+/**
+ * 종목 최근 10일 수급 — 키움 ka10059. 시장 표와 같은 레이아웃을 쓰되 단위는 백만원.
+ * 종목은 억 반올림 시 작은 값이 뭉개져, 백만원 값을 공용 표 형태(*Eok 필드)에 실어 넘긴다.
+ */
 function StockInvestorTable({ stockCode }: { stockCode: string }) {
   const { data, isLoading } = useStockInvestorDaily(stockCode, 10);
-  return <InvestorDailyTable records={data ?? []} isLoading={isLoading} />;
+  const records: MarketInvestorDay[] = (data ?? []).map((d) => ({
+    date: d.date,
+    individualEok: d.individualMillion,
+    foreignEok: d.foreignMillion,
+    institutionEok: d.institutionMillion,
+    otherCorpEok: d.otherCorpMillion,
+    breakdown: {
+      financialInvestmentEok: d.breakdown.financialInvestmentMillion,
+      trustEok: d.breakdown.trustMillion,
+      pensionFundEok: d.breakdown.pensionFundMillion,
+      privateEquityEok: d.breakdown.privateEquityMillion,
+      insuranceEok: d.breakdown.insuranceMillion,
+      bankEok: d.breakdown.bankMillion,
+      otherFinanceEok: d.breakdown.otherFinanceMillion,
+    },
+  }));
+  return <InvestorDailyTable records={records} isLoading={isLoading} unit="백만원" />;
 }
 
 /** 최근 10일 수급 표 — 한 행에 개인·외국인·기관계 + 기관상세 7 + 기타법인. 시장·종목 공용. */
 function InvestorDailyTable({
   records,
   isLoading,
+  unit = "억원",
 }: {
   records: MarketInvestorDay[];
   isLoading: boolean;
+  unit?: string;
 }) {
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
 
@@ -1755,7 +1776,7 @@ function InvestorDailyTable({
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>최근 10일 수급</span>
-        <span className="text-xs text-zinc-600">순매수 · 억원</span>
+        <span className="text-xs text-zinc-600">순매수 · {unit}</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-48 w-full" />

@@ -6,8 +6,9 @@ import org.springframework.stereotype.Service
 import java.time.LocalDate
 
 /**
- * 종목별 일별 투자자 순매수 — 키움 ka10059. 시장(코스피/코스닥) 표와 같은 구성으로 준다.
- * ka10059는 백만원 단위라 억원으로 환산한다(시장 수급 표와 단위를 맞춘다).
+ * 종목별 일별 투자자 순매수 — 키움 ka10059. ka10059 원본 단위인 백만원을 그대로 준다.
+ * 종목 단위는 억으로 반올림하면 작은 수급(기관 세부 등)이 0으로 뭉개져 백만원으로 노출한다.
+ * 표시단(억/조 vs 백만원)은 각 화면이 결정한다.
  */
 @Service
 class StockInvestorService(
@@ -22,42 +23,39 @@ class StockInvestorService(
 
     private fun KiwoomInvestorClient.InvestorTrendDay.toDay() = StockInvestorDay(
         date = LocalDate.parse(date),
-        individualEok = individualNet.toEok(),
-        foreignEok = foreignNet.toEok(),
-        institutionEok = institutionNet.toEok(),
-        otherCorpEok = otherCorpNet.toEok(),
+        individualMillion = individualNet,
+        foreignMillion = foreignNet,
+        institutionMillion = institutionNet,
+        otherCorpMillion = otherCorpNet,
         breakdown = StockOrgBreakdown(
-            financialInvestmentEok = financialInvestmentNet.toEok(),
-            trustEok = trustNet.toEok(),
-            pensionFundEok = pensionFundNet.toEok(),
-            privateEquityEok = privateEquityNet.toEok(),
-            insuranceEok = insuranceNet.toEok(),
-            bankEok = bankNet.toEok(),
-            otherFinanceEok = otherFinanceNet.toEok(),
+            financialInvestmentMillion = financialInvestmentNet,
+            trustMillion = trustNet,
+            pensionFundMillion = pensionFundNet,
+            privateEquityMillion = privateEquityNet,
+            insuranceMillion = insuranceNet,
+            bankMillion = bankNet,
+            otherFinanceMillion = otherFinanceNet,
         ),
     )
-
-    /** 백만원 → 억원. */
-    private fun Long.toEok() = this / 100
 }
 
-/** 기관 세부 순매수(억원) — 시장 수급 표와 같은 7종. */
+/** 기관 세부 순매수(백만원) — 시장 수급 표와 같은 7종. */
 data class StockOrgBreakdown(
-    val financialInvestmentEok: Long,
-    val trustEok: Long,
-    val pensionFundEok: Long,
-    val privateEquityEok: Long,
-    val insuranceEok: Long,
-    val bankEok: Long,
-    val otherFinanceEok: Long,
+    val financialInvestmentMillion: Long,
+    val trustMillion: Long,
+    val pensionFundMillion: Long,
+    val privateEquityMillion: Long,
+    val insuranceMillion: Long,
+    val bankMillion: Long,
+    val otherFinanceMillion: Long,
 )
 
-/** 하루치 종목 투자자 순매수(억원). */
+/** 하루치 종목 투자자 순매수(백만원). */
 data class StockInvestorDay(
     val date: LocalDate,
-    val individualEok: Long,
-    val foreignEok: Long,
-    val institutionEok: Long,
-    val otherCorpEok: Long,
+    val individualMillion: Long,
+    val foreignMillion: Long,
+    val institutionMillion: Long,
+    val otherCorpMillion: Long,
     val breakdown: StockOrgBreakdown,
 )

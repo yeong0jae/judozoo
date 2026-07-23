@@ -7,7 +7,7 @@ import {
 } from "../../api/queries";
 import type {
   FilterResultItem,
-  OrgBreakdown,
+  StockOrgBreakdown,
   SwingHighSignal,
 } from "../../types";
 import { formatKoreanMoney, formatPct, formatPrice } from "../../lib/format";
@@ -213,14 +213,14 @@ function FilterResultsList({ results }: { results: FilterResultItem[] }) {
 // ============================================================
 
 // 기관 세부 순서 — 시황분석 종목 상세와 동일. 기관계 아래 들여쓰기로 표시.
-const ORG_DETAIL: { key: keyof OrgBreakdown; label: string }[] = [
-  { key: "financialInvestmentEok", label: "금융투자" },
-  { key: "insuranceEok", label: "보험" },
-  { key: "otherFinanceEok", label: "기타금융" },
-  { key: "trustEok", label: "투신" },
-  { key: "privateEquityEok", label: "사모펀드" },
-  { key: "pensionFundEok", label: "연기금등" },
-  { key: "bankEok", label: "은행" },
+const ORG_DETAIL: { key: keyof StockOrgBreakdown; label: string }[] = [
+  { key: "financialInvestmentMillion", label: "금융투자" },
+  { key: "insuranceMillion", label: "보험" },
+  { key: "otherFinanceMillion", label: "기타금융" },
+  { key: "trustMillion", label: "투신" },
+  { key: "privateEquityMillion", label: "사모펀드" },
+  { key: "pensionFundMillion", label: "연기금등" },
+  { key: "bankMillion", label: "은행" },
 ];
 
 /** 당일 투자자 수급 — 개인·외국인·기관계(세부)·기타법인. 키움 ka10059(전체·SOR통합). */
@@ -254,13 +254,13 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
             </tr>
           </thead>
           <tbody>
-            <FlowRow name="개인" eok={today.individualEok} />
-            <FlowRow name="외국인" eok={today.foreignEok} />
-            <FlowRow name="기관계" eok={today.institutionEok} emphasis />
+            <FlowRow name="개인" million={today.individualMillion} />
+            <FlowRow name="외국인" million={today.foreignMillion} />
+            <FlowRow name="기관계" million={today.institutionMillion} emphasis />
             {ORG_DETAIL.map((o) => (
-              <FlowRow key={o.key} name={o.label} eok={today.breakdown[o.key]} indent />
+              <FlowRow key={o.key} name={o.label} million={today.breakdown[o.key]} indent />
             ))}
-            <FlowRow name="기타법인" eok={today.otherCorpEok} />
+            <FlowRow name="기타법인" million={today.otherCorpMillion} />
           </tbody>
         </table>
       </div>
@@ -268,20 +268,23 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   );
 }
 
-/** 수급 표 한 행 — 구분 / 순매수. 기관계는 강조, 기관 세부는 들여쓰기. */
+/**
+ * 수급 표 한 행 — 구분 / 순매수. 기관계는 강조, 기관 세부는 들여쓰기.
+ * 입력은 백만원이지만 이 패널은 억/조로 반올림해 보여준다(시황분석 종목 표만 백만원 정밀).
+ */
 function FlowRow({
   name,
-  eok,
+  million,
   indent,
   emphasis,
 }: {
   name: string;
-  eok: number;
+  million: number;
   indent?: boolean;
   emphasis?: boolean;
 }) {
-  const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
-  const sign = eok > 0 ? "+" : "";
+  const tone = million > 0 ? "text-red-400" : million < 0 ? "text-blue-400" : "text-zinc-500";
+  const sign = million > 0 ? "+" : "";
   const weight = emphasis ? "font-semibold" : "font-medium";
   return (
     <tr className="border-t border-zinc-800/60">
@@ -290,7 +293,7 @@ function FlowRow({
       </td>
       <td className={`text-right py-1.5 num ${tone} ${weight}`}>
         {sign}
-        {formatKoreanMoney(eok * 100_000_000)}
+        {formatKoreanMoney(Math.round(million / 100) * 100_000_000)}
       </td>
     </tr>
   );
