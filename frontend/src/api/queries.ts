@@ -28,7 +28,8 @@ import type {
   ProgramSession,
   ProgramDay,
   MarketType,
-  MarketStatus,
+  MarketRegion,
+  CalendarStatus,
   OverseasBreakoutRadarItem,
   OverseasSignalEventsResponse,
   OverseasStockDetailResponse,
@@ -41,7 +42,7 @@ import type {
 } from "../types";
 
 export const QK = {
-  marketStatus: ["market", "status"] as const,
+  calendarStatus: (region: MarketRegion) => ["market", "calendar", region] as const,
   stockSearch: (q: string) => ["stocks", "search", q] as const,
   leadingStockCandidates: (minChangeRate: number) =>
     ["leading-stocks", "candidates", minChangeRate] as const,
@@ -120,10 +121,11 @@ export const QK = {
   watchThemeQuotes: (themeId: number) => ["watch-themes", themeId, "quotes"] as const,
 };
 
-export function useMarketStatus() {
+/** 시장 휴장 상태 — region KR(국내)/US(해외). 토스 장 운영 정보 기반. */
+export function useMarketCalendarStatus(region: MarketRegion) {
   return useQuery({
-    queryKey: QK.marketStatus,
-    queryFn: () => apiFetch<MarketStatus>("/api/market/status"),
+    queryKey: QK.calendarStatus(region),
+    queryFn: () => apiFetch<CalendarStatus>(`/api/market/calendar/status?region=${region}`),
     refetchInterval: 10 * 60_000,
   });
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import HolidayBanner from "../components/common/HolidayBanner";
 import { useOverseasSignalEvents, useOverseasStockDetail } from "../api/queries";
 import type { OverseasSignalEventItem, SignalEventType } from "../types";
 import { formatPct, formatUsd } from "../lib/format";
@@ -209,6 +210,7 @@ export default function OverseasSignalLog({
 
   return (
     <div className="space-y-4">
+      <HolidayBanner region="US" />
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">

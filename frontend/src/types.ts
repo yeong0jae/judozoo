@@ -6,9 +6,11 @@ export interface ApiResponse<T> {
 }
 
 // === REST responses ===
-export interface MarketStatus {
+/** 배너용 시장 휴장 상태. region은 KR(국내)/US(해외). */
+export type MarketRegion = "KR" | "US";
+
+export interface CalendarStatus {
   isHoliday: boolean;
-  tradingHoursOpen: boolean;
 }
 
 export interface StockSearchResult {

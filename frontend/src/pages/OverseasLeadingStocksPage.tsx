@@ -12,6 +12,7 @@ import ChangeRateSelector, {
 } from "../components/common/ChangeRateSelector";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
+import HolidayBanner from "../components/common/HolidayBanner";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "overseasStock.minChangeRate";
@@ -57,6 +58,7 @@ export default function OverseasLeadingStocks({
 
   return (
     <div className="space-y-4">
+      <HolidayBanner region="US" />
       <Header totalCount={data?.length} loading={isFetching} />
 
       {/* 토글+필터는 목록 컬럼 폭에 맞춰(필터가 리스트 오른쪽 끝에 정렬) */}

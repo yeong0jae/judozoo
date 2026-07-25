@@ -2,21 +2,18 @@ package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
 import org.springframework.stereotype.Service
-import java.time.DayOfWeek
 import java.time.LocalTime
 
 @Service
 class MarketStatusService(
     private val timeProvider: TimeProvider,
-    private val holidayService: HolidayService,
+    private val marketCalendarService: MarketCalendarService,
 ) {
 
     fun getStatus(): MarketStatusResult {
-        val today = timeProvider.today()
         val now = timeProvider.now().toLocalTime()
-        val weekend = today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY
-        // 공휴일도 휴장. 휴장일 API를 못 받았으면(null) 주말만으로 폴백.
-        val isHoliday = weekend || holidayService.isOpen(today) == false
+        // 국내 휴장(주말·공휴일)은 토스 장 운영 정보로 판정(주말 폴백 포함).
+        val isHoliday = marketCalendarService.isHoliday(MarketCalendarService.Region.KR)
         val tradingHoursOpen = now in TRADING_START..TRADING_END
         return MarketStatusResult(
             isHoliday = isHoliday,
