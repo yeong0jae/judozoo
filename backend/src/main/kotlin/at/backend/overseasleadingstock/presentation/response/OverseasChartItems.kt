@@ -44,30 +44,6 @@ data class FilterResultItem(
     val passed: Boolean,
 )
 
-/** 해외 시그널 전이 로그 응답. */
-data class OverseasSignalEventsResponse(
-    val date: java.time.LocalDate,
-    val totalCount: Int,
-    val events: List<OverseasSignalEventItem>,
-)
-
-/** 해외 시그널 한 건 — eventType: BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE. */
-data class OverseasSignalEventItem(
-    val occurredAt: java.time.LocalDateTime,
-    val exchange: String,
-    val symbol: String,
-    val name: String,
-    val eventType: String,
-    val price: Double,
-    val rate: Double,
-    val tradingValue: Double,
-    val gapRate: Double?,
-    val spikeRatio: Double?,
-    val minuteTradingValue: Double?,
-    val spikeDirection: String?,
-    val ma20: Double?,
-)
-
 /** 해외지수(나스닥종합 등) 장 마감 스냅샷 — 타임라인용. 지수값 + 등락률(부호 포함, %). */
 data class OverseasIndexCloseSnapshotItem(
     val capturedAt: LocalDateTime,

@@ -468,28 +468,6 @@ export interface OverseasStockDetailResponse {
   swingHighSignal: OverseasSwingHighSignal | null;
 }
 
-export interface OverseasSignalEventItem {
-  occurredAt: string;
-  exchange: string;
-  symbol: string;
-  name: string;
-  eventType: SignalEventType; // BREAKOUT | BREAKOUT_IMMINENT | VOLUME_SPIKE | MA20_CROSS
-  price: number;
-  rate: number;
-  tradingValue: number;
-  gapRate: number | null;
-  spikeRatio: number | null;
-  minuteTradingValue: number | null;
-  spikeDirection: SpikeDirection | null;
-  ma20: number | null;
-}
-
-export interface OverseasSignalEventsResponse {
-  date: string;
-  totalCount: number;
-  events: OverseasSignalEventItem[];
-}
-
 export interface OverseasStockRankItem {
   rank: number;
   exchange: string;
@@ -501,20 +479,6 @@ export interface OverseasStockRankItem {
   rate: number;
   tradingValue: number;
 }
-
-/** 해외 돌파 현황 한 종목 — 가격 단위 USD. */
-export interface OverseasBreakoutRadarItem {
-  exchange: string;
-  symbol: string;
-  name: string;
-  price: number;
-  rate: number;
-  tradingValue: number;
-  dayHigh: number;
-  peakAt: string;
-  gapRate: number;
-}
-
 
 /** 거래일에 사용자가 직접 남긴 이슈 메모 한 건. */
 export interface DailyIssueItem {

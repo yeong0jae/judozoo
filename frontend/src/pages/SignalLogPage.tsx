@@ -18,28 +18,7 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import IndexDetailPanel from "../components/common/IndexDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
-import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
-import OverseasSignalLog from "./OverseasSignalLogPage";
 import { buildSignalPrompt } from "../lib/signalPrompt";
-
-const SIGNAL_MARKET_KEY = "signalLog.market";
-
-/** 실시간 로그 — 국내/해외 토글. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다. */
-export default function SignalLogPage() {
-  const [market, setMarket] = useState<StockMarket>(() => {
-    const saved = localStorage.getItem(SIGNAL_MARKET_KEY);
-    return saved === "overseas" ? "overseas" : "domestic";
-  });
-  useEffect(() => {
-    localStorage.setItem(SIGNAL_MARKET_KEY, market);
-  }, [market]);
-
-  return market === "domestic" ? (
-    <DomesticSignalLog market={market} onMarket={setMarket} />
-  ) : (
-    <OverseasSignalLog market={market} onMarket={setMarket} />
-  );
-}
 
 const MIN_RATE_KEY = "signalLog.minRate";
 
@@ -378,13 +357,7 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   );
 }
 
-function DomesticSignalLog({
-  market,
-  onMarket,
-}: {
-  market: StockMarket;
-  onMarket: (m: StockMarket) => void;
-}) {
+export default function SignalLogPage() {
   const [date, setDate] = useState(todayStr());
   // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
   const [minRate, setMinRate] = useState(() => {
@@ -531,13 +504,11 @@ function DomesticSignalLog({
         </div>
       </div>
 
-      {/* 토글+필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
+      {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MarketToggle
-          value={market}
-          onChange={onMarket}
-          trailing={<ChangeRateSelector value={minRate} onChange={setMinRate} />}
-        />
+        <div className="flex justify-end pb-2 border-b border-white/[0.08]">
+          <ChangeRateSelector value={minRate} onChange={setMinRate} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">

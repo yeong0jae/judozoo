@@ -13,29 +13,9 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
-import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
-import OverseasBreakoutRadar from "./OverseasBreakoutRadarPage";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 const MIN_CHANGE_RATE_KEY = "breakoutRadar.minChangeRate";
-const MARKET_KEY = "breakoutRadar.market";
-
-/** 돌파 현황 — 국내/해외 토글. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다. */
-export default function BreakoutRadarPage() {
-  const [market, setMarket] = useState<StockMarket>(() => {
-    const saved = localStorage.getItem(MARKET_KEY);
-    return saved === "overseas" ? "overseas" : "domestic";
-  });
-  useEffect(() => {
-    localStorage.setItem(MARKET_KEY, market);
-  }, [market]);
-
-  return market === "domestic" ? (
-    <DomesticBreakoutRadar market={market} onMarket={setMarket} />
-  ) : (
-    <OverseasBreakoutRadar market={market} onMarket={setMarket} />
-  );
-}
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -54,13 +34,7 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
   return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
 }
 
-function DomesticBreakoutRadar({
-  market,
-  onMarket,
-}: {
-  market: StockMarket;
-  onMarket: (m: StockMarket) => void;
-}) {
+export default function BreakoutRadarPage() {
   // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -110,13 +84,11 @@ function DomesticBreakoutRadar({
         </div>
       </div>
 
-      {/* 토글+필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
+      {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MarketToggle
-          value={market}
-          onChange={onMarket}
-          trailing={<ChangeRateSelector value={minChangeRate} onChange={setRate} />}
-        />
+        <div className="flex justify-end pb-2 border-b border-white/[0.08]">
+          <ChangeRateSelector value={minChangeRate} onChange={setRate} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
