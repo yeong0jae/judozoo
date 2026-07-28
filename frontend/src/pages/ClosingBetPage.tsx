@@ -1475,18 +1475,18 @@ function FuturesSessionsCard({ date }: { date: string }) {
 }
 
 /**
- * 선물 최근 10일 수급 — 거래일별 마지막 스냅샷(= 그날의 당일 누적).
+ * 선물 최근 5일 수급 — 거래일별 마지막 스냅샷(= 그날의 당일 누적).
  * 선물엔 일별 조회 API가 없어 폴러가 쌓은 스냅샷으로만 만든다. 적재 시작 전 과거는 소급되지 않는다.
  */
 function FuturesDailyCard() {
-  const { data, isLoading } = useFuturesInvestorDaily(10);
+  const { data, isLoading } = useFuturesInvestorDaily(5);
   const records = data ?? [];
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
 
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>최근 10일 수급</span>
+        <span className={titleCls}>최근 5일 수급</span>
         <span className="text-xs text-zinc-600">순매수 · 계약</span>
       </div>
       {isLoading ? (
@@ -1729,10 +1729,10 @@ function fmtDay(iso: string) {
   return `${y.slice(2)}년 ${Number(m)}월 ${Number(d)}일`;
 }
 
-/** 시장 최근 10일 수급 — 키움 ka10051. */
+/** 시장 최근 5일 수급 — 키움 ka10051. 일자별 1회씩 호출하므로 유량 제한(초당 5건) 안에서 5일로 제한. */
 function RealInvestorTable({ market }: { market: MarketType }) {
-  const { data, isLoading } = useMarketInvestorDaily(market, 10);
-  return <InvestorDailyTable records={data ?? []} isLoading={isLoading} />;
+  const { data, isLoading } = useMarketInvestorDaily(market, 5);
+  return <InvestorDailyTable records={data ?? []} isLoading={isLoading} days={5} />;
 }
 
 /**
@@ -1760,22 +1760,24 @@ function StockInvestorTable({ stockCode }: { stockCode: string }) {
   return <InvestorDailyTable records={records} isLoading={isLoading} unit="백만원" />;
 }
 
-/** 최근 10일 수급 표 — 한 행에 개인·외국인·기관계 + 기관상세 7 + 기타법인. 시장·종목 공용. */
+/** 최근 N일 수급 표 — 한 행에 개인·외국인·기관계 + 기관상세 7 + 기타법인. 시장·종목 공용. */
 function InvestorDailyTable({
   records,
   isLoading,
   unit = "억원",
+  days = 10,
 }: {
   records: MarketInvestorDay[];
   isLoading: boolean;
   unit?: string;
+  days?: number;
 }) {
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
 
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>최근 10일 수급</span>
+        <span className={titleCls}>최근 {days}일 수급</span>
         <span className="text-xs text-zinc-600">순매수 · {unit}</span>
       </div>
       {isLoading ? (
