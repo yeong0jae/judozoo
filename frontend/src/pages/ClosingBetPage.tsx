@@ -17,8 +17,6 @@ import {
   useMarketInvestorSessions,
   useMarketProgramSessions,
   useMarketProgramDaily,
-  useNasdaqFuturesCandles,
-  useNasdaqFuturesQuote,
   useNasdaqIndexCandles,
   useMacroCandles,
   useMacroQuotes,
@@ -82,8 +80,6 @@ const INDICES: IndexInfo[] = [
   { id: "kospi", name: "코스피" },
   { id: "kosdaq", name: "코스닥" },
   { id: "kospiF", name: "코스피 선물" },
-  // CME 무료 시세는 10분 지연 배포라 야후도 그만큼 늦은 값을 준다(실시간은 유료 피드만).
-  { id: "nasF", name: "나스닥 선물", delayed: true },
   { id: "nightF", name: "코스피 야간 선물" },
   { id: "nasdaq", name: "나스닥" },
   // 지표 하나가 아니라 원달러·WTI 묶음이라 스트립에서 전용 칸을 쓴다.
@@ -246,11 +242,10 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   const kosdaq = useKosdaqIndex();
   const futures = useFuturesQuote();
   const night = useNightFuturesQuote();
-  const nasdaq = useNasdaqFuturesQuote();
   const nasdaqIndex = useNasdaqIndexQuote();
   const macro = useMacroQuotes();
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
         const active = sel.kind === "index" && sel.id === ix.id;
         // 매크로만 지표 둘을 한 칸에 담아 다른 칸과 모양이 다르다.
@@ -270,7 +265,6 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
           : ix.id === "kosdaq" ? toCell(kosdaq.data?.currentValue, kosdaq.data?.changeRate)
           : ix.id === "kospiF" ? toCell(futures.data?.futuresPrice, futures.data?.changeRate)
           : ix.id === "nightF" ? toCell(night.data?.price, night.data?.changeRate)
-          : ix.id === "nasF" ? toCell(nasdaq.data?.price, nasdaq.data?.changeRate)
           : toCell(nasdaqIndex.data?.price, nasdaqIndex.data?.changeRate);
         return (
           <IndexCell
@@ -557,7 +551,6 @@ function SubjectDetail({
     const detail =
       ix.id === "kospiF" ? <FuturesIndexDetail index={ix} />
       : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
-      : ix.id === "nasF" ? <NasdaqFuturesDetail index={ix} />
       : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
       : ix.id === "macro" ? <MacroDetail index={ix} />
       : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} />
@@ -1135,63 +1128,6 @@ function NightFuturesDetail({ index }: { index: IndexInfo }) {
         <NightFuturesChart interval={chartInterval} />
       </div>
     </div>
-  );
-}
-
-/**
- * 나스닥100 선물(CME NQ) 상세 — 야후 파이낸스.
- * 대응 현물(나스닥100)이 우리 장중엔 닫혀 있어 베이시스·수급은 없다.
- * 우리 장중에 미국 심리가 어디로 기우는지 보는 용도라 등락률과 분봉이 전부다.
- */
-function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
-  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
-  const { data, isLoading } = useNasdaqFuturesQuote();
-
-  if (isLoading) return <Skeleton className="h-96 w-full" />;
-  if (!data) return <EmptyState message="나스닥 선물 시세를 불러오지 못했습니다" />;
-
-  return (
-    <div className="flex flex-col gap-4">
-      <DetailHeader
-        name={index.name}
-        category="지수선물"
-        price={data.price}
-        pct={data.changeRate}
-        chg={data.priceChange}
-        extra={<DelayBadge />}
-        priceInline
-        decimal
-      />
-
-      <div className="px-1">
-        <div className="flex items-center justify-between mb-3">
-          <span className={titleCls}>나스닥 선물 차트</span>
-          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
-        </div>
-        <NasdaqFuturesChart interval={chartInterval} />
-      </div>
-    </div>
-  );
-}
-
-/** 나스닥 선물 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
-function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
-  const { data, isLoading } = useNasdaqFuturesCandles(interval);
-  const items = data ?? [];
-  const series = useMemo(
-    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
-    [items, interval],
-  );
-  if (isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
-  if (!items.length) return <EmptyState message="캔들 데이터가 없습니다" />;
-  return (
-    <CandleChart
-      key={`nasf-${interval}`}
-      series={series}
-      timeVisible={interval === "1m"}
-      priceDecimals={2}
-      className="w-full h-[21.25rem]"
-    />
   );
 }
 

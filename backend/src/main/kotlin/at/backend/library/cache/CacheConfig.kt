@@ -158,20 +158,6 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
-            "nasdaqFuturesQuote", // 나스닥 선물 시세(야후) — 단일 슬롯, 10s
-            Caffeine.newBuilder()
-                .expireAfterWrite(10, TimeUnit.SECONDS)
-                .maximumSize(1)
-                .build(),
-        )
-        manager.registerCustomCache(
-            "nasdaqFuturesCandles", // 나스닥 선물 캔들(야후) — interval별 슬롯. 비공식 API라 호출을 아낀다
-            Caffeine.newBuilder()
-                .expireAfterWrite(60, TimeUnit.SECONDS)
-                .maximumSize(2)
-                .build(),
-        )
-        manager.registerCustomCache(
             "nasdaqIndexQuote", // 나스닥 종합지수(야후) — 단일 슬롯, 10s
             Caffeine.newBuilder()
                 .expireAfterWrite(10, TimeUnit.SECONDS)

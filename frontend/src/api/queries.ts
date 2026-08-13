@@ -11,7 +11,6 @@ import type {
   FuturesInvestorDay,
   StockInvestorDay,
   StockNewsItem,
-  NasdaqFuturesQuote,
   MacroQuotes,
   MacroTarget,
   NasdaqIndexQuote,
@@ -91,9 +90,6 @@ export const QK = {
   nightFuturesQuote: ["market", "futures", "night", "quote"] as const,
   nightFuturesCandles: (interval: string) =>
     ["market", "futures", "night", "candles", interval] as const,
-  nasdaqFuturesQuote: ["market", "futures", "nasdaq", "quote"] as const,
-  nasdaqFuturesCandles: (interval: string) =>
-    ["market", "futures", "nasdaq", "candles", interval] as const,
   macroQuotes: ["market", "macro", "quotes"] as const,
   macroCandles: (target: string, interval: string) =>
     ["market", "macro", "candles", target, interval] as const,
@@ -308,25 +304,6 @@ export function useNightFuturesCandles(interval: "1d" | "1m", count = 90) {
       apiFetch<MarketCandleItem[]>(
         `/api/market/futures/night/candles?interval=${interval}&count=${count}`,
       ),
-    refetchInterval: interval === "1m" ? 30_000 : false,
-  });
-}
-
-/** 나스닥100 선물(CME NQ) 시세 — 야후. 전일 종가 대비 등락. */
-export function useNasdaqFuturesQuote() {
-  return useQuery({
-    queryKey: QK.nasdaqFuturesQuote,
-    queryFn: () => apiFetch<NasdaqFuturesQuote | null>("/api/market/futures/nasdaq/quote"),
-    refetchInterval: 30_000,
-  });
-}
-
-/** 나스닥100 선물 캔들 — interval "1d"/"1m". */
-export function useNasdaqFuturesCandles(interval: "1d" | "1m") {
-  return useQuery({
-    queryKey: QK.nasdaqFuturesCandles(interval),
-    queryFn: () =>
-      apiFetch<MarketCandleItem[]>(`/api/market/futures/nasdaq/candles?interval=${interval}`),
     refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }
