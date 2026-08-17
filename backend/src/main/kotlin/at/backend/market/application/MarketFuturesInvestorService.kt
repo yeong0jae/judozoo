@@ -3,6 +3,7 @@ package at.backend.market.application
 import at.backend.market.domain.FuturesInvestorSnapshot
 import at.backend.market.infrastructure.repository.FuturesInvestorSnapshotRepository
 import at.backend.platform.kis.client.KisFuturesClient
+import at.backend.stock.domain.Market
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,9 +22,10 @@ class MarketFuturesInvestorService(
 ) {
 
     @Transactional
-    fun record(tradeDate: LocalDate, capturedAt: LocalDateTime, investors: KisFuturesClient.FuturesInvestors) {
+    fun record(market: Market, tradeDate: LocalDate, capturedAt: LocalDateTime, investors: KisFuturesClient.FuturesInvestors) {
         repository.save(
             FuturesInvestorSnapshot(
+                market = market,
                 tradeDate = tradeDate,
                 capturedAt = capturedAt,
                 foreignQty = investors.foreign,
@@ -48,18 +50,18 @@ class MarketFuturesInvestorService(
      * 휴장일에 잘못 적재된 스냅샷은 제외한다(폴러가 공휴일 인식 전 쌓았을 수 있음). 여유분을 더 읽어 필터 후 count만큼.
      */
     @Transactional(readOnly = true)
-    fun dailyHistory(count: Int): List<FuturesInvestorDay> =
-        repository.findDailyLatest(PageRequest.of(0, count + HOLIDAY_MARGIN))
+    fun dailyHistory(market: Market, count: Int): List<FuturesInvestorDay> =
+        repository.findDailyLatest(market, PageRequest.of(0, count + HOLIDAY_MARGIN))
             .filter { holidayService.isOpen(it.tradeDate) != false }
             .take(count)
             .map { FuturesInvestorDay(it.tradeDate, it.nets()) }
 
     /** 세션별(오전/오후/막판) 순매수(계약) — 스냅샷이 없는 세션은 nets=null. */
     @Transactional(readOnly = true)
-    fun sessions(date: LocalDate): List<FuturesSessionNet> {
-        val morning = snapshotAt(date, MORNING_END)
-        val afternoon = snapshotAt(date, AFTERNOON_END)
-        val close = snapshotAt(date, CLOSE)
+    fun sessions(market: Market, date: LocalDate): List<FuturesSessionNet> {
+        val morning = snapshotAt(market, date, MORNING_END)
+        val afternoon = snapshotAt(market, date, AFTERNOON_END)
+        val close = snapshotAt(market, date, CLOSE)
         return listOf(
             FuturesSessionNet("오전", "08:45~12:00", morning?.nets()),
             FuturesSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
@@ -67,8 +69,8 @@ class MarketFuturesInvestorService(
         )
     }
 
-    private fun snapshotAt(date: LocalDate, time: LocalTime) =
-        repository.findFirstByTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(date, date.atTime(time))
+    private fun snapshotAt(market: Market, date: LocalDate, time: LocalTime) =
+        repository.findFirstByMarketAndTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(market, date, date.atTime(time))
 
     private fun diff(later: FuturesInvestorSnapshot?, earlier: FuturesInvestorSnapshot?): FuturesNets? {
         if (later == null || earlier == null) return null

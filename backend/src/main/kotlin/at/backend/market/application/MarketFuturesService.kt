@@ -2,6 +2,7 @@ package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisFuturesClient
+import at.backend.stock.domain.Market
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.time.DayOfWeek
@@ -9,7 +10,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 /**
- * 코스피 선물(근월물) 시세 — KIS 국내선물옵션. 종가베팅 지수 상세용.
+ * 지수선물(코스피200·코스닥150) 근월물 시세 — KIS 국내선물옵션. 종가베팅 지수 상세용.
  * 근월물 코드를 매 조회 시 전광판에서 뽑아, 기간별시세(요약+일봉)/분봉을 읽는다.
  */
 @Service
@@ -18,10 +19,10 @@ class MarketFuturesService(
     private val timeProvider: TimeProvider,
 ) {
 
-    /** 근월물 시세 요약 — 선물·현물·베이시스·괴리율·미결제. 데이터 없으면 null. */
-    @Cacheable("futuresQuote", unless = "#result == null") // 실패는 캐싱하지 않는다
-    fun quote(): FuturesQuote? {
-        val near = client.fetchNearMonth() ?: return null
+    /** [market] 근월물 시세 요약 — 선물·현물·베이시스·괴리율·미결제. 데이터 없으면 null. */
+    @Cacheable("futuresQuote", key = "#market", unless = "#result == null") // 실패는 캐싱하지 않는다
+    fun quote(market: Market): FuturesQuote? {
+        val near = client.fetchNearMonth(market) ?: return null
         val today = timeProvider.today()
         val daily = client.fetchDaily(near.iscd, today.minusDays(10), today) ?: return null
         val s = daily.summary
@@ -29,13 +30,13 @@ class MarketFuturesService(
             futuresPrice = s.futuresPrice,
             changeRate = s.changeRate,
             spot = s.spot,
-            basis = s.basis, // 시장 베이시스 = 선물 − 현물(KOSPI200)
+            basis = s.basis, // 시장 베이시스 = 선물 − 현물(코스피200/코스닥150)
             dprt = s.dprt,
             openInterest = s.openInterest,
             openInterestChange = s.openInterestChange,
             rmnnDays = near.rmnnDays,
             expiryDate = expiryOf(near.name) ?: "",
-            investors = client.fetchInvestors()?.let {
+            investors = client.fetchInvestors(market)?.let {
                 FuturesInvestors(it.foreign, it.individual, it.institution)
             },
         )
@@ -51,10 +52,10 @@ class MarketFuturesService(
         return firstThu.plusWeeks(1).toString()
     }
 
-    /** 근월물 캔들 — interval "1d"(최근 [count]봉)/"1m"(최근 [MINUTE_DAYS]거래일). */
-    @Cacheable("futuresCandles", key = "#interval + ':' + #count", unless = "#result.isEmpty()")
-    fun candles(interval: String, count: Int): List<KisFuturesClient.FuturesBar> {
-        val near = client.fetchNearMonth() ?: return emptyList()
+    /** [market] 근월물 캔들 — interval "1d"(최근 [count]봉)/"1m"(최근 [MINUTE_DAYS]거래일). */
+    @Cacheable("futuresCandles", key = "#market.name() + ':' + #interval + ':' + #count", unless = "#result.isEmpty()")
+    fun candles(market: Market, interval: String, count: Int): List<KisFuturesClient.FuturesBar> {
+        val near = client.fetchNearMonth(market) ?: return emptyList()
         val today = timeProvider.today()
         return when (interval) {
             "1d" -> client.fetchDaily(near.iscd, today.minusDays(count.toLong() * 2 + 10), today)?.candles ?: emptyList()

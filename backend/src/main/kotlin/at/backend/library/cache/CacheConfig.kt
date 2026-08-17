@@ -130,17 +130,17 @@ class CacheConfig {
                 .build(),
         )
         manager.registerCustomCache(
-            "futuresQuote", // 코스피 선물 근월물 요약 — 단일 슬롯, 5s
+            "futuresQuote", // 선물 근월물 요약 — 시장별(코스피/코스닥) 슬롯, 5s
             Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.SECONDS)
-                .maximumSize(1)
+                .maximumSize(2)
                 .build(),
         )
         manager.registerCustomCache(
-            "futuresCandles", // 코스피 선물 캔들 — interval별 슬롯. 분봉 2거래일이 KIS 호출 14회라 60s
+            "futuresCandles", // 선물 캔들 — 시장×interval별 슬롯. 분봉 2거래일이 KIS 호출 14회라 60s
             Caffeine.newBuilder()
                 .expireAfterWrite(60, TimeUnit.SECONDS)
-                .maximumSize(4)
+                .maximumSize(8)
                 .build(),
         )
         manager.registerCustomCache(

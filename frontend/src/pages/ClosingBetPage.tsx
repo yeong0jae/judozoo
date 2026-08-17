@@ -78,8 +78,9 @@ function loadSelection(): Selection {
 type IndexInfo = { id: string; name: string; delayed?: boolean };
 const INDICES: IndexInfo[] = [
   { id: "kospi", name: "코스피" },
-  { id: "kosdaq", name: "코스닥" },
   { id: "kospiF", name: "코스피 선물" },
+  { id: "kosdaq", name: "코스닥" },
+  { id: "kosdaqF", name: "코스닥 선물" },
   { id: "nightF", name: "코스피 야간 선물" },
   { id: "nasdaq", name: "나스닥" },
   // 지표 하나가 아니라 원달러·WTI 묶음이라 스트립에서 전용 칸을 쓴다.
@@ -240,12 +241,13 @@ const toCell = (value?: number, pct?: number) =>
 function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
   const kospi = useKospiIndex();
   const kosdaq = useKosdaqIndex();
-  const futures = useFuturesQuote();
+  const futures = useFuturesQuote("KOSPI");
+  const kosdaqFutures = useFuturesQuote("KOSDAQ");
   const night = useNightFuturesQuote();
   const nasdaqIndex = useNasdaqIndexQuote();
   const macro = useMacroQuotes();
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
       {INDICES.map((ix) => {
         const active = sel.kind === "index" && sel.id === ix.id;
         // 매크로만 지표 둘을 한 칸에 담아 다른 칸과 모양이 다르다.
@@ -264,6 +266,7 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
           ix.id === "kospi" ? toCell(kospi.data?.currentValue, kospi.data?.changeRate)
           : ix.id === "kosdaq" ? toCell(kosdaq.data?.currentValue, kosdaq.data?.changeRate)
           : ix.id === "kospiF" ? toCell(futures.data?.futuresPrice, futures.data?.changeRate)
+          : ix.id === "kosdaqF" ? toCell(kosdaqFutures.data?.futuresPrice, kosdaqFutures.data?.changeRate)
           : ix.id === "nightF" ? toCell(night.data?.price, night.data?.changeRate)
           : toCell(nasdaqIndex.data?.price, nasdaqIndex.data?.changeRate);
         return (
@@ -549,7 +552,8 @@ function SubjectDetail({
     const ix = INDICES.find((i) => i.id === sel.id);
     if (!ix) return null;
     const detail =
-      ix.id === "kospiF" ? <FuturesIndexDetail index={ix} />
+      ix.id === "kospiF" ? <FuturesIndexDetail index={ix} market="KOSPI" />
+      : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" />
       : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
       : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
       : ix.id === "macro" ? <MacroDetail index={ix} />
@@ -989,17 +993,18 @@ function WatchStockChart({
   );
 }
 
-/** 코스피 선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트. KIS 근월물 실시세. */
-function FuturesIndexDetail({ index }: { index: IndexInfo }) {
+/** 지수선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트. KIS 근월물 실시세. */
+function FuturesIndexDetail({ index, market }: { index: IndexInfo; market: MarketType }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
-  const { data, isLoading } = useFuturesQuote();
+  const { data, isLoading } = useFuturesQuote(market);
+  const spotName = market === "KOSPI" ? "KOSPI200" : "KOSDAQ150";
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (!data) return <EmptyState message="선물 시세를 불러오지 못했습니다" />;
 
   const futValue = data.futuresPrice;
   const futPct = data.changeRate;
-  const basis = data.basis; // 시장 베이시스 = 선물 − 현물(KOSPI200)
+  const basis = data.basis; // 시장 베이시스 = 선물 − 현물
   const oi = data.openInterest;
   const oiChg = data.openInterestChange;
   const expiryDate = data.expiryDate;
@@ -1019,7 +1024,7 @@ function FuturesIndexDetail({ index }: { index: IndexInfo }) {
       <div className="px-1">
         <div className="flex items-baseline justify-between mb-3">
           <span className={titleCls}>베이시스</span>
-          <span className="text-xs text-zinc-600">선물 − 현물(KOSPI200)</span>
+          <span className="text-xs text-zinc-600">선물 − 현물({spotName})</span>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
           <span className={`num text-2xl font-bold ${tone}`}>{signed2(basis)}</span>
@@ -1051,11 +1056,11 @@ function FuturesIndexDetail({ index }: { index: IndexInfo }) {
           <span className={titleCls}>선물 차트</span>
           <IntervalToggle value={chartInterval} onChange={setChartInterval} />
         </div>
-        <FuturesChart interval={chartInterval} />
+        <FuturesChart market={market} interval={chartInterval} />
       </div>
 
-      <FuturesSessionsCard date={todayStr()} />
-      <FuturesDailyCard />
+      <FuturesSessionsCard market={market} date={todayStr()} />
+      <FuturesDailyCard market={market} />
     </div>
   );
 }
@@ -1316,8 +1321,8 @@ function NightFuturesChart({ interval }: { interval: ChartInterval }) {
  * 선물 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷의 경계 diff(구간별 증분).
  * 폴러가 적재한 스냅샷이 있어야 하므로, 아직 없는 세션은 "집계 전".
  */
-function FuturesSessionsCard({ date }: { date: string }) {
-  const { data, isLoading } = useFuturesInvestorSessions(date);
+function FuturesSessionsCard({ market, date }: { market: MarketType; date: string }) {
+  const { data, isLoading } = useFuturesInvestorSessions(market, date);
   const list = data ?? [];
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
   const numCols = 3 + FUTURES_ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
@@ -1414,8 +1419,8 @@ function FuturesSessionsCard({ date }: { date: string }) {
  * 선물 최근 5일 수급 — 거래일별 마지막 스냅샷(= 그날의 당일 누적).
  * 선물엔 일별 조회 API가 없어 폴러가 쌓은 스냅샷으로만 만든다. 적재 시작 전 과거는 소급되지 않는다.
  */
-function FuturesDailyCard() {
-  const { data, isLoading } = useFuturesInvestorDaily(5);
+function FuturesDailyCard({ market }: { market: MarketType }) {
+  const { data, isLoading } = useFuturesInvestorDaily(market, 5);
   const records = data ?? [];
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
 
@@ -1490,9 +1495,9 @@ function FuturesDailyCard() {
   );
 }
 
-/** 코스피 선물 1분봉/일봉 — KIS 근월물 캔들(OHLCV). */
-function FuturesChart({ interval }: { interval: ChartInterval }) {
-  const { data, isLoading } = useFuturesCandles(interval);
+/** 지수선물 1분봉/일봉 — KIS 근월물 캔들(OHLCV). */
+function FuturesChart({ market, interval }: { market: MarketType; interval: ChartInterval }) {
+  const { data, isLoading } = useFuturesCandles(market, interval);
   const items = data ?? [];
   const series = useMemo(
     () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
@@ -1506,7 +1511,7 @@ function FuturesChart({ interval }: { interval: ChartInterval }) {
     </div>
   ) : (
     <CandleChart
-      key={`futures-${interval}`}
+      key={`futures-${market}-${interval}`}
       series={series}
       timeVisible={interval === "1m"}
       priceDecimals={2}

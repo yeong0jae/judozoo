@@ -76,13 +76,13 @@ export const QK = {
     ["market", market, "program", "daily", count] as const,
   marketCandles: (market: string, interval: string) =>
     ["market", market, "candles", interval] as const,
-  futuresQuote: ["market", "futures", "kospi", "quote"] as const,
-  futuresCandles: (interval: string) =>
-    ["market", "futures", "kospi", "candles", interval] as const,
-  futuresInvestorSessions: (date: string) =>
-    ["market", "futures", "kospi", "investor", "sessions", date] as const,
-  futuresInvestorDaily: (count: number) =>
-    ["market", "futures", "kospi", "investor", "daily", count] as const,
+  futuresQuote: (market: MarketType) => ["market", "futures", market, "quote"] as const,
+  futuresCandles: (market: MarketType, interval: string) =>
+    ["market", "futures", market, "candles", interval] as const,
+  futuresInvestorSessions: (market: MarketType, date: string) =>
+    ["market", "futures", market, "investor", "sessions", date] as const,
+  futuresInvestorDaily: (market: MarketType, count: number) =>
+    ["market", "futures", market, "investor", "daily", count] as const,
   stockNews: (stockCode: string, exchange: string | null) =>
     ["news", "stock", stockCode, exchange] as const,
   stockInvestorDaily: (stockCode: string, count: number) =>
@@ -279,10 +279,10 @@ export function useMarketCandles(
 }
 
 /** 코스피 선물(근월물) 시세 요약 — KIS. 선물·현물·베이시스·괴리율·미결제. */
-export function useFuturesQuote() {
+export function useFuturesQuote(market: MarketType) {
   return useQuery({
-    queryKey: QK.futuresQuote,
-    queryFn: () => apiFetch<FuturesQuote | null>("/api/market/futures/kospi/quote"),
+    queryKey: QK.futuresQuote(market),
+    queryFn: () => apiFetch<FuturesQuote | null>(`/api/market/futures/${market}/quote`),
     refetchInterval: 30_000,
   });
 }
@@ -349,11 +349,11 @@ export function useMacroCandles(target: MacroTarget, interval: "1d" | "1m") {
 }
 
 /** 코스피 선물 세션별(오전/오후/막판) 투자자 순매수 — 계약. */
-export function useFuturesInvestorSessions(date: string) {
+export function useFuturesInvestorSessions(market: MarketType, date: string) {
   return useQuery({
-    queryKey: QK.futuresInvestorSessions(date),
+    queryKey: QK.futuresInvestorSessions(market, date),
     queryFn: () =>
-      apiFetch<FuturesSession[]>(`/api/market/futures/kospi/investor/sessions?date=${date}`),
+      apiFetch<FuturesSession[]>(`/api/market/futures/${market}/investor/sessions?date=${date}`),
     refetchInterval: 60_000,
   });
 }
@@ -415,22 +415,22 @@ export function useStockNews(stockCode: string, exchange: string | null) {
 }
 
 /** 코스피 선물 일별 투자자 순매수(계약) — 스냅샷을 쌓은 날만 온다. */
-export function useFuturesInvestorDaily(count = 10) {
+export function useFuturesInvestorDaily(market: MarketType, count = 10) {
   return useQuery({
-    queryKey: QK.futuresInvestorDaily(count),
+    queryKey: QK.futuresInvestorDaily(market, count),
     queryFn: () =>
-      apiFetch<FuturesInvestorDay[]>(`/api/market/futures/kospi/investor/daily?count=${count}`),
+      apiFetch<FuturesInvestorDay[]>(`/api/market/futures/${market}/investor/daily?count=${count}`),
     staleTime: 60_000,
   });
 }
 
-/** 코스피 선물(근월물) 캔들 — KIS. interval "1d"/"1m". */
-export function useFuturesCandles(interval: "1d" | "1m", count = 90) {
+/** 지수선물(코스피200/코스닥150) 근월물 캔들 — KIS. interval "1d"/"1m". */
+export function useFuturesCandles(market: MarketType, interval: "1d" | "1m", count = 90) {
   return useQuery({
-    queryKey: QK.futuresCandles(interval),
+    queryKey: QK.futuresCandles(market, interval),
     queryFn: () =>
       apiFetch<MarketCandleItem[]>(
-        `/api/market/futures/kospi/candles?interval=${interval}&count=${count}`,
+        `/api/market/futures/${market}/candles?interval=${interval}&count=${count}`,
       ),
     refetchInterval: interval === "1m" ? 30_000 : false,
   });

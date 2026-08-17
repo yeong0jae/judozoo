@@ -1,6 +1,7 @@
 package at.backend.platform.kis.client
 
 import at.backend.platform.kis.config.KisApiProperties
+import at.backend.stock.domain.Market
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -8,6 +9,28 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
+
+// KIS 선물 시장 구분 코드 — KIS 전용이라 도메인이 아닌 여기(platform/kis)에 둔다.
+/** 전광판_선물(FHPIF05030200) FID_COND_MRKT_CLS_CODE — 공백=KOSPI200, KQI=KOSDAQ150. */
+private val Market.futuresClsCode: String
+    get() = when (this) {
+        Market.KOSPI -> ""
+        Market.KOSDAQ -> "KQI"
+    }
+
+/** 투자자매매동향(FHPTJ04030000) fid_input_iscd — K2I=코스피200 선물·콜·풋, KQI=코스닥150. */
+private val Market.futuresInvestorIscd: String
+    get() = when (this) {
+        Market.KOSPI -> "K2I"
+        Market.KOSDAQ -> "KQI"
+    }
+
+/** 투자자매매동향 fid_input_iscd_2 — F001=코스피200선물, F002=코스닥150선물. */
+private val Market.futuresInvestorIscd2: String
+    get() = when (this) {
+        Market.KOSPI -> "F001"
+        Market.KOSDAQ -> "F002"
+    }
 
 /**
  * 국내 지수선물(코스피200) 시세 — KIS 국내선물옵션. 종가베팅 지수 상세용.
@@ -31,8 +54,8 @@ class KisFuturesClient(
         const val NIGHT = "CM" // 야간선물
     }
 
-    /** 코스피200 선물 근월물(잔존일수 최소, 만기 지난 것 제외). 없으면 null. */
-    fun fetchNearMonth(): NearMonth? {
+    /** [market] 선물 근월물(잔존일수 최소, 만기 지난 것 제외). 없으면 null. */
+    fun fetchNearMonth(market: Market): NearMonth? {
         try {
             val token = authClient.getAccessToken()
             val response = kisRestClient.get()
@@ -40,7 +63,7 @@ class KisFuturesClient(
                     b.path("/uapi/domestic-futureoption/v1/quotations/display-board-futures")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "F")
                         .queryParam("FID_COND_SCR_DIV_CODE", "20503")
-                        .queryParam("FID_COND_MRKT_CLS_CODE", "") // 공백: KOSPI200
+                        .queryParam("FID_COND_MRKT_CLS_CODE", market.futuresClsCode) // 공백=KOSPI200, KQI=KOSDAQ150
                         .build()
                 }
                 .header("content-type", "application/json; charset=utf-8")
@@ -215,14 +238,14 @@ class KisFuturesClient(
      * 선물 시장 투자자별 순매수(장중 시세성) — 외국인·개인·기관계. 단위: 계약.
      * 시장별 투자자매매동향(FHPTJ04030000), 시장구분 K2I + 업종구분 F001(선물).
      */
-    fun fetchInvestors(): FuturesInvestors? {
+    fun fetchInvestors(market: Market): FuturesInvestors? {
         try {
             val token = authClient.getAccessToken()
             val response = kisRestClient.get()
                 .uri { b ->
                     b.path("/uapi/domestic-stock/v1/quotations/inquire-investor-time-by-market")
-                        .queryParam("fid_input_iscd", "K2I") // 선물·콜·풋
-                        .queryParam("fid_input_iscd_2", "F001") // 선물
+                        .queryParam("fid_input_iscd", market.futuresInvestorIscd) // K2I=코스피200 선물·콜·풋, KQI=코스닥150
+                        .queryParam("fid_input_iscd_2", market.futuresInvestorIscd2) // F001=코스피200선물, F002=코스닥150선물
                         .build()
                 }
                 .header("content-type", "application/json; charset=utf-8")

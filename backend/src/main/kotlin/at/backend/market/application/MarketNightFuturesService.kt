@@ -2,6 +2,7 @@ package at.backend.market.application
 
 import at.backend.library.time.TimeProvider
 import at.backend.platform.kis.client.KisFuturesClient
+import at.backend.stock.domain.Market
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import java.time.LocalDate
@@ -20,7 +21,7 @@ class MarketNightFuturesService(
     /** 야간선물 시세 — 현재가·갭(직전 정규장 종가 대비)·미결제. 데이터 없으면 null. */
     @Cacheable("nightFuturesQuote", unless = "#result == null")
     fun quote(): NightFuturesQuote? {
-        val near = client.fetchNearMonth() ?: return null
+        val near = client.fetchNearMonth(Market.KOSPI) ?: return null
         val p = client.fetchPrice(near.iscd, KisFuturesClient.NIGHT) ?: return null
         return NightFuturesQuote(
             price = p.price,
@@ -39,7 +40,7 @@ class MarketNightFuturesService(
     /** 야간선물 캔들 — interval "1d"(최근 [count]봉)/"1m"(최근 세션 하나). */
     @Cacheable("nightFuturesCandles", key = "#interval + ':' + #count", unless = "#result.isEmpty()")
     fun candles(interval: String, count: Int): List<KisFuturesClient.FuturesBar> {
-        val near = client.fetchNearMonth() ?: return emptyList()
+        val near = client.fetchNearMonth(Market.KOSPI) ?: return emptyList()
         val today = timeProvider.today()
         return when (interval) {
             "1d" -> client.fetchDaily(
