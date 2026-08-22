@@ -25,7 +25,6 @@ dependencies {
     // web
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-websocket")
 
     // cache — 키움 후보 리스트 단기 TTL 캐싱 (LeadingStockService)
     implementation("org.springframework.boot:spring-boot-starter-cache")
