@@ -234,7 +234,7 @@ body {
   --color-orange-200: rgba(251, 146, 60, 0.30);
   --color-orange-700: #fdba74;
 
-  /* emerald 배지 (성공/체결) */
+  /* emerald 배지 (성공) */
   --color-emerald-50: rgba(52, 199, 89, 0.12);
   --color-emerald-100: rgba(52, 199, 89, 0.20);
   --color-emerald-200: rgba(52, 199, 89, 0.30);

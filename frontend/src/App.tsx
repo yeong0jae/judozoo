@@ -9,7 +9,6 @@ import ThemeCalendarPage from "./pages/ThemeCalendarPage";
 import ClosingBetPage from "./pages/ClosingBetPage";
 import Header from "./components/layout/Header";
 import { ToastProvider } from "./components/toast/Toast";
-import { SettingsProvider } from "./settings/settings";
 import { ThemeProvider } from "./theme/theme";
 import { useTabTitle } from "./hooks/useTabTitle";
 import { queryClient } from "./api/queryClient";
@@ -18,11 +17,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <SettingsProvider>
-          <ToastProvider>
-            <AppShell />
-          </ToastProvider>
-        </SettingsProvider>
+        <ToastProvider>
+          <AppShell />
+        </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

@@ -23,22 +23,3 @@ kiwoom:
     base-url: https://api.kiwoom.com
     app-key: test-kiwoom-key
     app-secret: test-kiwoom-secret
-  trading:
-    account-no: "00000000"
-    ws-url: ws://localhost:0/test
-    dmst-stex-tp: SOR
-
-trading:
-  default-split-sell-ratio: 0.2            # 소수 비율 (0.2 = 20%)
-  default-breakeven-threshold-pct: 2       # 퍼센트 숫자 (2 = 2%)
-  default-stop-loss-pct: 2                 # 퍼센트 숫자, 양수 입력 (2 → 내부 -2%)
-  sell-cost-rate: 0.0025                   # 소수 비율 (0.0025 = 0.25%)
-  market:
-    bar-poll-interval-millis: 5000
-  order:
-    sell-retry-delay-millis: 5000
-    egw-retry-base-delay-millis: 20
-    reconcile-delay-millis: 600000
-  cycle:
-    buy-fill-wait-millis: 1000
-    holding-poll-interval-millis: 10
