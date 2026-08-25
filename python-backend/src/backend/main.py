@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from backend.library.db import get_engine
 from backend.library.logging_config import configure_logging
+from backend.news.presentation import router as news_router
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="주도주 매매 판단 보조 시스템", lifespan=lifespan)
+app.include_router(news_router)
 
 
 @app.get("/health")

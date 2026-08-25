@@ -36,6 +36,8 @@ class KisSettings(BaseSettings):
     base_url: str = "https://openapi.koreainvestment.com:9443"
     app_key: str = Field("", validation_alias="REAL_KIS_APP_KEY")
     app_secret: str = Field("", validation_alias="REAL_KIS_APP_SECRET")
+    # 공유 리미터 허용량. 1초에 N개를 한꺼번에 충전하지 않고 (1000/N)ms마다 1개씩 균등 발급한다.
+    query_permits_per_second: int = Field(5, validation_alias="KIS_QUERY_PERMITS_PER_SECOND")
 
 
 class KiwoomSettings(BaseSettings):

@@ -78,11 +78,17 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 - [ ] `platform/kis` 중 해외 부분 이관 — `KisAuthClient`, `KisOverseasChartClient`, `KisOverseasIndexClient`, `KisOverseasProductClient`, `KisOverseasRankingClient`
   - [ ] **`KEYB` 페이징 주의** — 다음조회 키가 현지시각(xymd+xhms) 기준, -1분씩 내려 페이징
 - [ ] `overseasleadingstock` 이관 (968줄) — 랭킹 / 상세 / 분봉 / 일봉 / 지수 종가 스냅샷
-- [ ] `news` 이관 (89줄) — `KisNewsClient` 포함
+- [x] `news` 이관 (89줄) — `KisNewsClient` 포함. 실 API 8건 동등성 확인
 - [ ] `OverseasIndexSnapshotCapture` 스케줄러 (06:10 화~토)
 - [ ] nginx에 `/api/overseas-leading-stocks/*`, `/api/news/*` 라우팅 추가
 
 **검증**: 해외 주도주 탭이 Python 백엔드만으로 동작. 아래 §응답 동등성 검증 통과
+
+> **KIS 토큰 발급 충돌** — 같은 앱키로 토큰을 짧은 간격에 재발급하면 KIS가 403으로 거부한다.
+> 이관 기간에는 Kotlin·Python 두 백엔드가 같은 앱키를 쓰므로, 한쪽이 방금 받아가면
+> 다른 쪽이 실패한다. 각자 23시간 캐시하므로 정상 운영에서는 드물지만,
+> **동시에 재기동하면 한쪽이 뉴스·시세를 빈 값으로 응답**한다.
+> A/B 비교 시에는 1분 간격을 두고 띄운다.
 
 ### M2 — 종목 마스터 + 공유 유틸
 
