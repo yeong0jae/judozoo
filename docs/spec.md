@@ -40,7 +40,7 @@ Backend (Kotlin + Spring Boot 4, package by feature)
 
 ## 2. 기술 스택
 
-**Backend**: Kotlin 2.2 / JVM 21 / Spring Boot 4 (Web MVC) / kotlinx.coroutines / Spring Data JPA + Hibernate / MySQL 8 / Spring `RestClient` / Caffeine (로컬 캐시) / Resilience4j RateLimiter / Logback + logstash-logback-encoder(JSON) / Kotest FunSpec + MockK + Testcontainers + WireMock
+**Backend**: Kotlin 2.2 / JVM 21 / Spring Boot 4 (Web MVC) / Spring Data JPA + Hibernate / MySQL 8 / Spring `RestClient` / Caffeine (인프로세스 TTL 캐시) / Resilience4j RateLimiter / Logback / Kotest FunSpec + MockK + Testcontainers
 
 **Frontend**: TypeScript + React + Vite / TanStack Query / React Router / Tailwind CSS / React Hook Form + Zod / lightweight-charts (캔들) / d3-hierarchy (테마 트리맵) / motion (전환) / Pretendard·JetBrains Mono
 
@@ -273,9 +273,9 @@ GET /api/news/stock/{code}
 
 ## 9. 로깅 / 관측
 
-- Logback + `logstash-logback-encoder` JSON 출력
-- MDC에 `stockCode` 등 컨텍스트 주입, 코루틴 경계는 `MdcContextElement`로 전파
-- `observability/` 디렉터리에 수집 설정
+- Logback 콘솔 평문 출력 (`CONSOLE_LOG_PATTERN`). `at.backend` 패키지만 DEBUG
+- 로그 수집은 Grafana Alloy → Loki → Grafana. 설정은 `observability/`
+- 구조화 로깅(JSON)·MDC 컨텍스트 주입은 **하지 않는다**. 단일 인스턴스라 로그 상관관계를 추적할 대상이 없어, 도입했다가 걷어냈다
 
 ---
 
@@ -287,9 +287,10 @@ GET /api/news/stock/{code}
 |------|------|
 | Domain | Spring·MockK 없이 실제 객체로. 필터 14종 경계 조건, `FilterChain` 결합 시나리오 |
 | Infrastructure (JPA) | `@DataJpaTest` — 쿼리 메서드·매핑 검증 |
-| Infrastructure (외부 API) | WireMock — 성공/실패/타임아웃 시나리오 |
 | Application | `IntegrationTestBase` (Testcontainers MySQL). 외부 API만 `@TestConfiguration + @Primary`로 격리 |
 | Presentation | MockK로 서비스 모킹 — 컨트롤러 매핑·DTO 검증 |
+
+> **현재 커버리지 편중** — 테스트 대부분이 도메인(필터)에 몰려 있고, 외부 API 어댑터 계층은 비어 있다. 브로커 응답 파싱은 `platform`에서 실제 함정이 가장 많이 나온 곳이라 여기가 가장 큰 공백이다.
 
 ---
 
