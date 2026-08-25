@@ -22,18 +22,19 @@ class TossMarketCalendarClient(
     /** [region] "KR"/"US". [date] 조회 기준일(현지). 개장일이면 true, 휴장이면 false, 조회 실패면 null. */
     fun isTradingDay(region: String, date: LocalDate): Boolean? {
         return try {
-            val token = authClient.getAccessToken()
-            val response = tossRestClient.get()
-                .uri { b ->
-                    b.path("/api/v1/market-calendar/{region}")
-                        .queryParam("date", date.toString())
-                        .build(region)
-                }
-                .header("Authorization", "Bearer $token")
-                .retrieve()
-                .body(CalendarResponse::class.java)
-                ?: return null
-            response.result?.today?.isOpen()
+            authClient.withTokenRetry(log) {
+                val token = authClient.getAccessToken()
+                val response = tossRestClient.get()
+                    .uri { b ->
+                        b.path("/api/v1/market-calendar/{region}")
+                            .queryParam("date", date.toString())
+                            .build(region)
+                    }
+                    .header("Authorization", "Bearer $token")
+                    .retrieve()
+                    .body(CalendarResponse::class.java)
+                response?.result?.today?.isOpen()
+            }
         } catch (e: Exception) {
             log.error("토스 장 운영 정보 조회 실패 (region={}, date={})", region, date, e)
             null

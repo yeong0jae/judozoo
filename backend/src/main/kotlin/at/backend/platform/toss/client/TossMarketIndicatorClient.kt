@@ -32,21 +32,22 @@ class TossMarketIndicatorClient(
         until: LocalDate? = null,
     ): List<MarketInvestorRecord> {
         return try {
-            val token = authClient.getAccessToken()
-            val response = tossRestClient.get()
-                .uri { b ->
-                    b.path("/api/v1/market-indicators/{symbol}/investor-trading")
-                        .queryParam("interval", interval)
-                        .queryParam("count", count)
-                        .also { if (until != null) it.queryParam("until", until.toString()) }
-                        .build(symbol)
-                }
-                .header("Authorization", "Bearer $token")
-                .retrieve()
-                .body(InvestorTradingResponse::class.java)
-                ?: return emptyList()
+            authClient.withTokenRetry(log) {
+                val token = authClient.getAccessToken()
+                val response = tossRestClient.get()
+                    .uri { b ->
+                        b.path("/api/v1/market-indicators/{symbol}/investor-trading")
+                            .queryParam("interval", interval)
+                            .queryParam("count", count)
+                            .also { if (until != null) it.queryParam("until", until.toString()) }
+                            .build(symbol)
+                    }
+                    .header("Authorization", "Bearer $token")
+                    .retrieve()
+                    .body(InvestorTradingResponse::class.java)
 
-            response.result?.records.orEmpty().mapNotNull { it.toDomain() }
+                response?.result?.records.orEmpty().mapNotNull { it.toDomain() }
+            }
         } catch (e: Exception) {
             log.error("Toss 투자자별 매매대금 조회 실패 (symbol={}, interval={})", symbol, interval, e)
             emptyList()
@@ -64,23 +65,25 @@ class TossMarketIndicatorClient(
         before: String? = null,
     ): CandlesPage {
         return try {
-            val token = authClient.getAccessToken()
-            val response = tossRestClient.get()
-                .uri { b ->
-                    b.path("/api/v1/market-indicators/{symbol}/candles")
-                        .queryParam("interval", interval)
-                        .queryParam("count", count)
-                        .also { if (before != null) it.queryParam("before", before) }
-                        .build(symbol)
-                }
-                .header("Authorization", "Bearer $token")
-                .retrieve()
-                .body(CandlesResponse::class.java)
+            authClient.withTokenRetry(log) {
+                val token = authClient.getAccessToken()
+                val response = tossRestClient.get()
+                    .uri { b ->
+                        b.path("/api/v1/market-indicators/{symbol}/candles")
+                            .queryParam("interval", interval)
+                            .queryParam("count", count)
+                            .also { if (before != null) it.queryParam("before", before) }
+                            .build(symbol)
+                    }
+                    .header("Authorization", "Bearer $token")
+                    .retrieve()
+                    .body(CandlesResponse::class.java)
 
-            CandlesPage(
-                candles = response?.result?.candles.orEmpty().mapNotNull { it.toDomain() },
-                nextBefore = response?.result?.nextBefore,
-            )
+                CandlesPage(
+                    candles = response?.result?.candles.orEmpty().mapNotNull { it.toDomain() },
+                    nextBefore = response?.result?.nextBefore,
+                )
+            }
         } catch (e: Exception) {
             log.error("Toss 캔들 조회 실패 (symbol={}, interval={})", symbol, interval, e)
             CandlesPage(emptyList(), null)
