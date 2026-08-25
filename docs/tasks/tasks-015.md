@@ -74,14 +74,23 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 
 여기까지가 독립적으로 의미 있는 최소 단위다.
 
-- [ ] `platform/kis` 중 해외 부분 이관 — `KisAuthClient`, `KisOverseasChartClient`, `KisOverseasIndexClient`, `KisOverseasProductClient`, `KisOverseasRankingClient`
-  - [ ] **`KEYB` 페이징 주의** — 다음조회 키가 현지시각(xymd+xhms) 기준, -1분씩 내려 페이징
-- [ ] `overseasleadingstock` 이관 (968줄) — 랭킹 / 상세 / 분봉 / 일봉 / 지수 종가 스냅샷
+- [x] `platform/kis` 중 해외 부분 이관 — `KisAuthClient`, `KisOverseasChartClient`, `KisOverseasIndexClient`, `KisOverseasProductClient`, `KisOverseasRankingClient`
+  - [x] **`KEYB` 페이징 주의** — 다음조회 키가 현지시각(xymd+xhms) 기준, -1분씩 내려 페이징. 실 API로 분봉 1,377건 수집 확인
+- [x] `overseasleadingstock` 이관 — 랭킹 / 상세 / 분봉 / 일봉 / 지수 종가 스냅샷
+  - 시그널 폴러는 제외 — 아래 참고
 - [x] `news` 이관 (89줄) — `KisNewsClient` 포함. 실 API 8건 동등성 확인
-- [ ] `OverseasIndexSnapshotCapture` 스케줄러 (06:10 화~토)
+- [x] `OverseasIndexSnapshotCapture` 스케줄러 (06:10 화~토) — APScheduler, KST 고정
 - [ ] nginx에 `/api/overseas-leading-stocks/*`, `/api/news/*` 라우팅 추가
 
 **검증**: 해외 주도주 탭이 Python 백엔드만으로 동작. 아래 §응답 동등성 검증 통과
+
+> **`OverseasSignalEventPoller`는 옮기지 않았다.** 이 폴러가 저장하는 `OverseasSignalEvent`를
+> **읽는 곳이 어디에도 없다** — 조회 API도, 프론트 사용처도 없다(2026-08-26 확인).
+> 옮기기 전에 살릴지 버릴지 정하는 게 맞다. 전시 경로가 아니라 M1 완료를 막지 않는다.
+
+> **후보에 없는 종목 상세 조회가 500이다.** Kotlin이 던지는 `NoSuchElementException`에
+> 전용 핸들러가 없어 `INTERNAL_ERROR`로 떨어진다(404가 맞아 보인다). 순수 이관이라
+> Python도 같게 뒀다. 고치려면 양쪽을 함께 바꿔야 한다.
 
 > **KIS 토큰 발급 충돌 (이관 기간 한정)** — 같은 앱키로 토큰을 짧은 간격에 재발급하면
 > KIS가 403으로 거부한다. 이관 기간에는 Kotlin·Python 두 백엔드가 같은 앱키를 쓰는데,

@@ -8,6 +8,9 @@ from fastapi.testclient import TestClient
 # 컨테이너는 컨텍스트 매니저가 정리하므로 Ryuk 없이도 남지 않는다.
 os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
 
+# 테스트에서는 폴러·캡처를 띄우지 않는다 (Kotlin @Profile("!test")에 대응).
+os.environ.setdefault("SCHEDULERS_ENABLED", "false")
+
 from backend.library import cache, db
 from backend.main import app
 from backend.settings import get_settings

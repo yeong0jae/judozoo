@@ -3,12 +3,17 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from backend.library.db import get_engine
 from backend.library.logging_config import configure_logging
+from backend.library.scheduler import shutdown as shutdown_scheduler
+from backend.library.scheduler import start as start_scheduler
 from backend.news.presentation import router as news_router
+from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
@@ -19,11 +24,31 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.debug_package)
     log.info("기동 — DB %s:%s/%s", settings.database.host, settings.database.port, settings.database.name)
+    start_scheduler()
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(title="주도주 매매 판단 보조 시스템", lifespan=lifespan)
 app.include_router(news_router)
+app.include_router(overseas_router)
+
+
+def _error(code: str, status: int) -> JSONResponse:
+    """Kotlin `ApiResponse.error`와 같은 봉투 — 프론트가 이 모양을 기대한다."""
+    return JSONResponse(status_code=status, content={"code": code, "status": status, "data": None})
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """FastAPI 기본은 422지만 기존 API는 400을 준다."""
+    return _error("INVALID_PARAMETER", 400)
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected(request: Request, exc: Exception) -> JSONResponse:
+    log.exception("Unhandled exception")
+    return _error("INTERNAL_ERROR", 500)
 
 
 @app.get("/health")

@@ -1,0 +1,203 @@
+"""해외 주도주 — 랭킹 / 상세 / 분봉 / 일봉 / 지수 마감 스냅샷.
+
+미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위를 뽑는다.
+국내와 같은 흐름 — 거래대금 1~3위는 등락률과 무관하게 항상 포함하고,
+나머지는 당일 등락률이 기준 이상인 것만 남긴다.
+"""
+
+from datetime import date, datetime, timedelta
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from backend.overseasleadingstock.domain import (
+    FilterResult,
+    IndexCloseSnapshot,
+    OverseasStockRank,
+    SwingHighSignal,
+)
+from backend.overseasleadingstock.infrastructure import OverseasIndexCloseSnapshot
+from backend.platform.kis import overseas_chart, overseas_index, overseas_product, overseas_ranking
+
+EXCHANGES = ("NAS", "NYS", "AMS")
+TOP_N = 40
+TOP_RANK_ALWAYS_INCLUDED = 3
+MIN_CHANGE_RATE_PCT = 5.0          # 상세 B: 당일 등락률 하한
+MIN_MARKET_CAP_USD = 2_000_000_000  # 상세 C: 시가총액 $2B 하한
+
+NASDAQ_COMPOSITE = "COMP"
+INDEX_LOOKBACK_DAYS = 7  # output1(최신 종가)만 쓰지만 조회 구간 확보용
+
+
+def _ranking_pool() -> list[OverseasStockRank]:
+    """통합 거래대금 상위 컷 → ETF 제외 → 거래대금 내림차순으로 순위 재부여.
+
+    랭킹(전시)과 상세 평가가 공유하는 후보 풀이다.
+    """
+    rows = [
+        _to_rank(item)
+        for excd in EXCHANGES
+        for item in overseas_ranking.fetch_trading_value_ranking(excd)
+    ]
+    rows.sort(key=lambda r: r.trading_value, reverse=True)
+    survivors = [r for r in rows[:TOP_N] if not r.is_etf]
+    return [r.ranked(i + 1) for i, r in enumerate(survivors)]
+
+
+def get_ranking(min_change_rate: float) -> list[OverseasStockRank]:
+    pool = _ranking_pool()
+    top_three = pool[:TOP_RANK_ALWAYS_INCLUDED]
+    rest = [r for r in pool[TOP_RANK_ALWAYS_INCLUDED:] if r.rate >= min_change_rate]
+    return [r.ranked(i + 1) for i, r in enumerate(top_three + rest)]
+
+
+def evaluate_stock(exchange: str, symbol: str) -> dict:
+    """종목 상세 — 필터 A(거래대금순위)·B(당일등락률)·C(시가총액) 평가.
+
+    A·B는 후보 풀에서, C는 상품기본정보(상장주식수×현재가)로 산출한다.
+    """
+    stock = next(
+        (r for r in _ranking_pool() if r.exchange == exchange and r.symbol == symbol),
+        None,
+    )
+    if stock is None:
+        raise LookupError(f"후보에 없는 종목: {exchange}:{symbol}")
+
+    market_cap = overseas_product.fetch_market_cap(exchange, symbol)
+
+    # 분봉(차트와 캐시 공유) 최고가를 전고점(돌파선)으로
+    candles = overseas_chart.fetch_minute_candles(exchange, symbol)
+    peak = max(candles, key=lambda c: c.high) if candles else None
+    swing_high = (
+        SwingHighSignal(
+            peak_price=peak.high,
+            peak_at=peak.date_time,
+            gap_rate=(peak.high - stock.price) / stock.price * 100,
+        )
+        if peak is not None and stock.price > 0
+        else None
+    )
+
+    filters = [
+        FilterResult(
+            filter_name="거래대금순위",
+            criteria_description=f"통합 상위 {TOP_N}위 이내",
+            actual_value=f"{stock.rank}위",
+            passed=stock.rank <= TOP_N,
+        ),
+        FilterResult(
+            filter_name="당일 등락률",
+            criteria_description=f"{int(MIN_CHANGE_RATE_PCT)}% 이상",
+            actual_value=f"{stock.rate:+.2f}%",
+            passed=stock.rate >= MIN_CHANGE_RATE_PCT,
+        ),
+        FilterResult(
+            filter_name="시가총액",
+            criteria_description=f"${MIN_MARKET_CAP_USD // 1_000_000_000}B 이상",
+            actual_value=_format_usd_cap(market_cap) if market_cap is not None else "조회 불가",
+            passed=market_cap is not None and market_cap >= MIN_MARKET_CAP_USD,
+        ),
+    ]
+
+    return {
+        "stock": stock,
+        "market_cap": market_cap,
+        "filters": filters,
+        "swing_high": swing_high,
+    }
+
+
+def minute_candles(exchange: str, symbol: str) -> list[overseas_chart.OverseasMinuteCandle]:
+    """종목 1분봉 (한국 시각순 오름차순)."""
+    return sorted(overseas_chart.fetch_minute_candles(exchange, symbol), key=lambda c: c.date_time)
+
+
+def daily_candles(exchange: str, symbol: str) -> list[overseas_chart.OverseasDailyCandle]:
+    """종목 일봉 (일자 오름차순)."""
+    return sorted(overseas_chart.fetch_daily_candles(exchange, symbol), key=lambda c: c.date)
+
+
+def snapshots_on(session: Session, day: date) -> list[IndexCloseSnapshot]:
+    rows = session.scalars(
+        select(OverseasIndexCloseSnapshot).where(OverseasIndexCloseSnapshot.trade_date == day)
+    ).all()
+    return [
+        IndexCloseSnapshot(
+            captured_at=r.captured_at,
+            code=r.code,
+            name=r.name,
+            index_value=r.index_value,
+            change_rate=r.change_rate,
+            trade_date=r.trade_date,
+        )
+        for r in rows
+    ]
+
+
+def capture_index_close(session: Session, now: datetime) -> int:
+    """나스닥종합 마감 시세를 한 행 적재. 적재했으면 1, 스킵이면 0.
+
+    영업일은 응답의 실제 영업일(output2 최신)을 따른다. 이미 적재됐거나 조회 실패면 스킵 —
+    미국 휴장일엔 영업일이 안 늘어 자연스럽게 멱등이 된다.
+    """
+    to = now.date()
+    quote = overseas_index.fetch_index_daily_close(
+        NASDAQ_COMPOSITE, to - timedelta(days=INDEX_LOOKBACK_DAYS), to
+    )
+    if quote is None:
+        return 0
+
+    exists = session.scalar(
+        select(OverseasIndexCloseSnapshot.id).where(
+            OverseasIndexCloseSnapshot.code == quote.code,
+            OverseasIndexCloseSnapshot.trade_date == quote.trade_date,
+        )
+    )
+    if exists is not None:
+        return 0
+
+    session.add(
+        OverseasIndexCloseSnapshot(
+            code=quote.code,
+            name=quote.name,
+            trade_date=quote.trade_date,
+            captured_at=now,
+            index_value=quote.price,
+            change_rate=quote.change_rate,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    session.commit()
+    return 1
+
+
+def _format_usd_cap(usd: int) -> str:
+    """1조 이상은 $X.XXT, 그 외는 $X,XXXB."""
+    if usd >= 1_000_000_000_000:
+        return f"${usd / 1_000_000_000_000:.2f}T"
+    return f"${usd // 1_000_000_000:,}B"
+
+
+def _to_rank(item: overseas_ranking.OverseasRankItem) -> OverseasStockRank:
+    """rate(등락율)는 이미 부호 포함. diff(대비)는 절댓값이라 sign으로 방향을 부여한다."""
+    negative = item.sign.strip() in ("4", "5")  # 4:하한가 5:하락
+    diff_sign = -1.0 if negative else 1.0
+    return OverseasStockRank(
+        rank=0,  # 통합 정렬 후 재부여
+        exchange=item.excd.strip(),
+        symbol=item.symb.strip(),
+        name=item.name.strip(),
+        ename=item.ename.strip(),
+        price=_to_float(item.last),
+        diff=diff_sign * _to_float(item.diff),
+        rate=_to_float(item.rate),
+        trading_value=_to_float(item.tamt),
+    )
+
+
+def _to_float(value: str) -> float:
+    try:
+        return float(value.strip())
+    except (TypeError, ValueError):
+        return 0.0
