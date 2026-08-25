@@ -33,7 +33,7 @@ Backend (Kotlin + Spring Boot 4, package by feature)
 - **Package by feature** — 피처 간 호출은 `application` 계층끼리만. 값 객체 타입 참조는 허용하되 도메인 객체에 메시지를 보내지 않는다
 - **도메인에 외부 의존 없음** — `domain/`에서 Spring·HTTP·시간·난수를 직접 쓰지 않고 파라미터로 받는다
 - **JPA 엔티티 = 도메인 엔티티** — 별도 도메인 모델 클래스를 두지 않는다
-- **환경 분기는 Profile로** — 코드에 `if (broker == ...)` 형태의 분기를 두지 않는다
+- **브로커 분기 없음** — 4개 소스를 한 인스턴스가 모두 호출한다. 코드에 `if (broker == ...)` 형태의 분기를 두지 않는다. Spring Profile은 `!test`로 테스트에서 폴러를 끄는 용도로만 쓴다
 - **조회 전용** — 쓰기는 사용자가 직접 만드는 데이터(이슈 메모, 관심 테마)와 스냅샷 적재뿐
 
 ---
@@ -300,7 +300,7 @@ GET /api/news/stock/{code}
 - `docker-compose.yml` / `docker-compose.prod.yml`
 - Terraform — GCP `asia-northeast3` VM + 고정 IP + Artifact Registry + Secret Manager + Workload Identity Federation
 - GitHub Actions — WIF 인증 → 빌드·푸시 → scp/ssh 배포 → 헬스체크
-- 브로커별 인스턴스는 Profile로 분기 (`kis-real`, `kiwoom-real`)
+- 인스턴스는 `kiwoom-real` **1대**. 과거 브로커별 다중 인스턴스 운영에서 단일 인스턴스로 축소했다
 
 자세한 내용은 [`infra/docs/plan.md`](../infra/docs/plan.md).
 

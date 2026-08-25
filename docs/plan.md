@@ -61,5 +61,5 @@ Phase 단위로 관리하지 않는다. 화면·데이터 소스 단위로 필�
 | 8 | 배포 인프라 — Docker + GCE + Terraform + GitHub Actions | **생존** |
 | 9 | Broker 추상화 — `BrokerTradingClient` 인터페이스 | 폐기 |
 | 10 | Kiwoom 어댑터 + Profile 와이어링 | **일부 생존** (조회 클라이언트, Profile 구조) |
-| 11 | 3-인스턴스 배포 (kis-vts / kis-real / kiwoom-real) | **일부 생존** (vts 제거, 2개 운영) |
+| 11 | 3-인스턴스 배포 (kis-vts / kis-real / kiwoom-real) | **폐기** — 현재 `kiwoom-real` 1대만 운영 |
 | 12 | leadingstock 회귀 안전망 — 필터 단위 테스트 | **생존** |
