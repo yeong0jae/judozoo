@@ -74,7 +74,6 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 
 여기까지가 독립적으로 의미 있는 최소 단위다.
 
-- [ ] `platform/yahoo` 이관 (196줄) — `YahooChartClient`
 - [ ] `platform/kis` 중 해외 부분 이관 — `KisAuthClient`, `KisOverseasChartClient`, `KisOverseasIndexClient`, `KisOverseasProductClient`, `KisOverseasRankingClient`
   - [ ] **`KEYB` 페이징 주의** — 다음조회 키가 현지시각(xymd+xhms) 기준, -1분씩 내려 페이징
 - [ ] `overseasleadingstock` 이관 (968줄) — 랭킹 / 상세 / 분봉 / 일봉 / 지수 종가 스냅샷
@@ -126,6 +125,8 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 
 ### M4 — 시황 · 테마 · 관심 · 이슈
 
+- [x] `platform/yahoo` 이관 (196줄) — `YahooChartClient`. 실 데이터로 시세·캔들 대조 완료
+  - 처음엔 M1에 뒀으나 실제 사용처는 `market`·`watchlist`뿐이라 여기로 옮겼다
 - [ ] `market` 이관 (1,667줄) — 지수 / 선물 / 투자자 수급 / 프로그램매매 / 매크로 / 캘린더
   - [ ] 세션별 수급의 **누적 스냅샷 경계 diff** 계산 로직 보존
 - [ ] `theme` 이관 (371줄) + `ThemeCapturePoller` (15:40 / 20:00)
