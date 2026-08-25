@@ -21,6 +21,12 @@ _client: httpx.Client | None = None
 _limiter: RateLimiter | None = None
 _token: str | None = None
 _token_expires_at = datetime.min.replace(tzinfo=UTC)
+_token_retry_after = datetime.min.replace(tzinfo=UTC)
+
+# 발급이 거부된 뒤 다시 시도하기까지 기다리는 시간.
+# KIS는 같은 앱키로 토큰을 짧은 간격에 재발급하면 거부한다. 요청마다 다시 두드리면
+# 거부만 반복하면서 KIS에 불필요한 부하를 준다.
+_TOKEN_RETRY_BACKOFF = timedelta(seconds=60)
 
 
 class RateLimitedTransport(httpx.BaseTransport):
@@ -69,9 +75,13 @@ def get_client() -> httpx.Client:
     return _client
 
 
+class KisTokenUnavailable(RuntimeError):
+    """직전 발급이 거부돼 백오프 중이다."""
+
+
 def get_access_token() -> str:
     """23시간 캐시. 만료 전 재사용하고, 동시 요청은 한 번만 발급한다."""
-    global _token, _token_expires_at
+    global _token, _token_expires_at, _token_retry_after
 
     if _token is not None and datetime.now(UTC) < _token_expires_at:
         return _token
@@ -79,6 +89,12 @@ def get_access_token() -> str:
     with _lock:
         if _token is not None and datetime.now(UTC) < _token_expires_at:
             return _token
+
+        now = datetime.now(UTC)
+        if now < _token_retry_after:
+            raise KisTokenUnavailable(
+                f"토큰 발급 백오프 중 — {(_token_retry_after - now).seconds}초 후 재시도"
+            )
 
         settings = get_settings()
         log.info("KIS access token 발급 요청")
@@ -94,7 +110,13 @@ def get_access_token() -> str:
         if response.status_code != 200:
             # KIS는 같은 앱키로 토큰을 자주 재발급하면 거부한다(1분 간격 제한).
             # 본문에 사유 코드가 들어 있으므로 버리지 말고 남긴다.
-            log.error("KIS token 발급 실패 status=%s body=%s", response.status_code, response.text)
+            _token_retry_after = datetime.now(UTC) + _TOKEN_RETRY_BACKOFF
+            log.error(
+                "KIS token 발급 실패 status=%s body=%s — %s초 백오프",
+                response.status_code,
+                response.text,
+                int(_TOKEN_RETRY_BACKOFF.total_seconds()),
+            )
             response.raise_for_status()
 
         token = response.json().get("access_token")
@@ -121,10 +143,11 @@ def auth_headers(tr_id: str) -> dict[str, str]:
 
 def reset() -> None:
     """테스트 격리용. 토큰과 커넥션을 버린다."""
-    global _client, _limiter, _token, _token_expires_at
+    global _client, _limiter, _token, _token_expires_at, _token_retry_after
     if _client is not None:
         _client.close()
     _client = None
     _limiter = None
     _token = None
     _token_expires_at = datetime.min.replace(tzinfo=UTC)
+    _token_retry_after = datetime.min.replace(tzinfo=UTC)

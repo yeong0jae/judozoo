@@ -1,9 +1,15 @@
 # prod override: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# 필요한 env: BACKEND_IMAGE, FRONTEND_IMAGE (Artifact Registry 경로), IMAGE_TAG
+# 필요한 env: BACKEND_IMAGE, FRONTEND_IMAGE, PYTHON_BACKEND_IMAGE (Artifact Registry 경로), IMAGE_TAG
 services:
   backend:
     build: !reset null
     image: ${BACKEND_IMAGE}:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+
+  python-backend:
+    build: !reset null
+    image: ${PYTHON_BACKEND_IMAGE}:${IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
 

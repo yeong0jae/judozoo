@@ -45,6 +45,7 @@ gcloud auth print-access-token \
 COMPOSE_ENV=(
   "BACKEND_IMAGE=${AR_REPO}/backend"
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
+  "PYTHON_BACKEND_IMAGE=${AR_REPO}/python-backend"
   "IMAGE_TAG=${IMAGE_TAG}"
   "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}"
 )
@@ -62,6 +63,18 @@ sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-comp
 sudo docker image prune -af
 
 # 헬스체크 — IAP SSH 터널을 별도로 한 번 더 열지 않도록 배포와 같은 세션에서 검사.
+
+# 1) Python 백엔드. 죽어 있으면 nginx가 이관된 경로(/api/news/)에 502를 준다.
+#    프론트만 검사하면 이 실패가 배포 성공으로 묻힌다.
+for i in $(seq 1 18); do
+  status="$(sudo docker inspect --format '{{.State.Health.Status}}' \
+    "$(sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q python-backend)" 2>/dev/null || true)"
+  if [ "$status" = "healthy" ]; then echo "python-backend health OK ($i)"; break; fi
+  if [ "$i" = "18" ]; then echo "python-backend health check failed (status=${status:-unknown})"; exit 1; fi
+  echo "python-backend not ready ($status), retry $i"; sleep 5
+done
+
+# 2) 프론트 — nginx 기동 확인.
 for i in $(seq 1 24); do
   if curl -fsS http://localhost:3000/ >/dev/null; then echo "health OK ($i)"; exit 0; fi
   echo "not ready, retry $i"; sleep 10

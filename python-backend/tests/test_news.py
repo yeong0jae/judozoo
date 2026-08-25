@@ -300,3 +300,27 @@ def test_해외_결과는_국내_캐시를_덮어쓰지_않는다():
     스토어[("NAS", "AAPL")] = []
 
     assert 스토어[("005930",)][0].title == "국내"
+
+
+class Test토큰_발급이_거부되면:
+    """KIS는 같은 앱키로 토큰을 짧은 간격에 재발급하면 403으로 막는다.
+
+    이관 기간에는 Kotlin·Python이 같은 앱키를 쓰므로 배포 직후 실제로 발생한다.
+    """
+
+    @respx.mock
+    def test_요청마다_다시_두드리지_않는다(self, respx_mock):
+        토큰 = respx_mock.post(TOKEN_URL).mock(return_value=httpx.Response(403))
+        respx_mock.get(DOMESTIC_URL).mock(return_value=국내_응답([]))
+
+        fetch_stock_news("005930")
+        fetch_stock_news("005930")
+        fetch_stock_news("000660")
+
+        assert 토큰.call_count == 1, "백오프 중에는 KIS를 다시 부르지 않아야 한다"
+
+    @respx.mock
+    def test_그동안은_빈_목록으로_응답한다(self, respx_mock):
+        respx_mock.post(TOKEN_URL).mock(return_value=httpx.Response(403))
+
+        assert fetch_stock_news("005930") == []
