@@ -27,3 +27,4 @@ Phase별 태스크 체크리스트. **개발 이력 기록이며 현재 시스�
 | tasks-012 | 10 — Kiwoom 어댑터 + Profile | 조회·Profile 구조만 생존 |
 | tasks-013 | 11 — 3-인스턴스 배포 | 유효 (vts 제거로 2개 운영) |
 | tasks-014 | 12 — leadingstock 회귀 안전망 | 유효 |
+| tasks-015 | — 백엔드 Python 마이그레이션 | 진행 예정 |

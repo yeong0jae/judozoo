@@ -1,0 +1,181 @@
+# tasks-015 — 백엔드 Python 마이그레이션
+
+Goal: Kotlin/Spring Boot 백엔드(10,932줄 / 176파일)를 Python/FastAPI로 이관. **프론트엔드는 손대지 않는다** — API 계약을 그대로 유지하는 것이 성공 기준이다.
+
+> 기능 추가·삭제 없음. 순수 이관이다. "같은 요청에 같은 JSON이 나오는가"만 본다.
+
+---
+
+## 결정 사항
+
+### DB — MySQL + SQLAlchemy
+
+DB는 바꾸지 않는다. 기존 스키마와 데이터를 그대로 쓰고 ORM만 JPA에서 SQLAlchemy로 옮긴다. 이관과 스키마 재설계를 동시에 하면 실패 지점이 두 배가 되고, 중간에 멈추면 아무것도 남지 않는다.
+
+### 이관 방식 — Strangler
+
+Kotlin 백엔드를 끝까지 살려둔 채, 피처 단위로 Python으로 옮기고 nginx에서 경로별로 라우팅한다.
+
+```
+nginx
+ ├─ /api/overseas-leading-stocks/*  →  python:8000   (이관 완료)
+ └─ /api/*                          →  backend:8080  (아직 Kotlin)
+```
+
+**모든 마일스톤 종료 시점에 앱이 정상 동작해야 한다.** 절반쯤 옮긴 상태로 멈춰도 서비스는 돌아간다.
+
+### 중단 가능 지점
+
+M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된다 — 미국 주식 랭킹·시세·뉴스 API가 Python 백엔드만으로 서비스된다. 이후 마일스톤은 여기서 이어가는 것이지, M1을 무의미하게 만들지 않는다.
+
+---
+
+## 기술 매핑
+
+| Kotlin / Spring | Python | 비고 |
+|---|---|---|
+| Spring Boot Web MVC | FastAPI | |
+| JPA / Hibernate | SQLAlchemy 2.0 | `ddl-auto=update` → `Base.metadata.create_all()`. 컬럼 변경은 지금처럼 수동 SQL |
+| `@ConfigurationProperties` | pydantic-settings | |
+| `RestClient` | httpx | 동기 클라이언트로 시작 |
+| `@Cacheable` + Caffeine | `cachetools.TTLCache` | 인프로세스 유지. 캐시별 TTL·maxsize 그대로 재현 |
+| Resilience4j `RateLimiter` | 직접 구현 (토큰 버킷) | 공유 리미터 한 버킷 구조 유지 |
+| `@Scheduled` | APScheduler | cron / fixedDelay 양쪽 지원 |
+| Logback (콘솔 평문) | 표준 `logging` | 현행과 동일하게 평문 유지. Alloy가 stdout을 수집하므로 포맷 변경 이유 없음 |
+| Spring Profile | 환경변수 기반 settings | `kis-real` / `kiwoom-real` |
+| Kotest FunSpec | pytest | 테스트 설명은 **한글 docstring** 유지 |
+| MockK | pytest-mock | |
+| Testcontainers | testcontainers-python | MySQL 컨테이너 |
+| — | respx | **신규 도입**. Kotlin 쪽엔 대응 테스트가 없다 (아래 참고) |
+
+> **respx는 이관이 아니라 신설이다.** `build.gradle.kts`에 WireMock 의존성이 있었지만 이를 쓰는 테스트는 한 건도 없었다(정리하면서 의존성도 제거). 브로커 응답 파싱은 함정이 가장 많이 나온 영역인데 테스트가 비어 있으므로, 이관하면서 채운다.
+
+> `@Cacheable`의 `unless = "#result == null"` 같은 조건은 Python에 대응 문법이 없다. 캐시 데코레이터에서 명시적으로 분기한다. 특히 `KiwoomMarketClient`는 **빈 응답을 캐싱하면 안 되는** 케이스라 주의.
+
+---
+
+## 마일스톤
+
+### M0 — 골조
+
+- [ ] `python-backend/` 디렉터리, **uv** 프로젝트 초기화
+- [ ] FastAPI 앱 + `/health`
+- [ ] pydantic-settings로 `application.yaml`의 설정 키 이식 (kis / kiwoom / toss / leading-stock.criteria)
+- [ ] SQLAlchemy 엔진 + 세션 의존성, 기존 MySQL 스키마에 그대로 연결
+- [ ] 표준 `logging` 설정 — 콘솔 평문, 애플리케이션 패키지만 DEBUG
+- [ ] pytest + testcontainers-python 기반 통합 테스트 베이스 (`IntegrationTestBase` 대응)
+- [ ] 공유 토큰 버킷 RateLimiter + 테스트
+- [ ] TTL 캐시 데코레이터 — 캐시별 TTL·maxsize 설정 (전역 60초/100개, `candidateStocks` 5초/15개 등)
+- [ ] Dockerfile + docker-compose에 `python-backend` 서비스 추가
+
+**검증**: `/health` 200, MySQL 연결, 테스트 1건 통과
+
+### M1 — 미국 주식 세로 슬라이스 ⭐
+
+여기까지가 독립적으로 의미 있는 최소 단위다.
+
+- [ ] `platform/yahoo` 이관 (196줄) — `YahooChartClient`
+- [ ] `platform/kis` 중 해외 부분 이관 — `KisAuthClient`, `KisOverseasChartClient`, `KisOverseasIndexClient`, `KisOverseasProductClient`, `KisOverseasRankingClient`
+  - [ ] **`KEYB` 페이징 주의** — 다음조회 키가 현지시각(xymd+xhms) 기준, -1분씩 내려 페이징
+- [ ] `overseasleadingstock` 이관 (968줄) — 랭킹 / 상세 / 분봉 / 일봉 / 지수 종가 스냅샷
+- [ ] `news` 이관 (89줄) — `KisNewsClient` 포함
+- [ ] `OverseasIndexSnapshotCapture` 스케줄러 (06:10 화~토)
+- [ ] nginx에 `/api/overseas-leading-stocks/*`, `/api/news/*` 라우팅 추가
+
+**검증**: 해외 주도주 탭이 Python 백엔드만으로 동작. 아래 §응답 동등성 검증 통과
+
+### M2 — 종목 마스터 + 공유 유틸
+
+- [ ] `library` 이관 (410줄) — 예외 / 시간 / 포맷
+  - [ ] **`ka10080` +1분 보정은 표시단에서만** — 파싱 전역 보정 금지
+- [ ] `stock` 이관 (591줄) — 종목 마스터 카탈로그, 검색
+- [ ] `StockCatalogRefresher` 스케줄러 (08:30) — KIS 마스터 파일 zip 다운로드·파싱
+- [ ] nginx `/api/stocks/*` 라우팅
+
+**검증**: 종목 검색 응답 동등, 마스터 갱신 후 row 수 일치
+
+### M3 — 브로커 어댑터 (최대 덩어리)
+
+`platform`은 3,208줄로 단일 피처 중 가장 크다. 여기서 외부 API 함정을 전부 흡수한다.
+
+- [ ] `platform/kiwoom` 이관 — Auth / Index / Investor / Market / Program / SectorInvestor / Theme
+  - [ ] **`cur_prc` 부호** — 지수·가격 레벨은 `abs()`
+  - [ ] **`_NX` 코드** — 과거 프리(08:15)·애프터(20:00) 분봉
+  - [ ] **`_AL` SOR 통합 코드** — 프리·애프터 현재가
+  - [ ] 조회 초당 5건 공유 리미터 적용 (M0 산출물 재사용)
+- [ ] `platform/toss` 이관 — Auth / MarketCalendar / MarketIndicator
+- [ ] `platform/kis` 국내 부분 이관 — `KisHolidayClient`, `KisFuturesClient`
+
+**검증**: 각 클라이언트 respx 목 테스트 (성공 / 빈 응답 / 오류 / 타임아웃)
+
+### M4 — 시황 · 테마 · 관심 · 이슈
+
+- [ ] `market` 이관 (1,667줄) — 지수 / 선물 / 투자자 수급 / 프로그램매매 / 매크로 / 캘린더
+  - [ ] 세션별 수급의 **누적 스냅샷 경계 diff** 계산 로직 보존
+- [ ] `theme` 이관 (371줄) + `ThemeCapturePoller` (15:40 / 20:00)
+- [ ] `watchlist` 이관 (352줄) — 관심 테마·종목, 표시 순서
+- [ ] `issue` 이관 (151줄) — CRUD
+- [ ] `FuturesInvestorPoller`(60s), `ProgramTradePoller`(120s) 이관
+- [ ] nginx `/api/market/*`, `/api/themes/*`, `/api/watch-themes/*`, `/api/issues/*` 라우팅
+
+**검증**: 시황 분석 / 테마 캘린더 / 이슈 화면 전체 동작
+
+### M5 — leadingstock (도메인 핵심)
+
+가장 크고(3,108줄) 가장 중요하다. 필터는 순수 함수라 이관 난이도 자체는 낮지만, **테스트가 전부 여기 몰려 있다**.
+
+- [ ] 필터 14종 이관 — 순수 함수로 유지, Spring·시간·HTTP 의존 없이
+- [ ] `FilterChain` + `FilterEvaluationResult` (탈락 사유 보존)
+- [ ] 기존 Kotest 필터 테스트를 pytest로 이관 (`tasks-014` 산출물, 한글 설명 유지)
+- [ ] 시그널 이벤트 — 종목 4종 / 시장 4종, **쿨다운 3분** 로직
+- [ ] `SignalEventPoller`(10s), `MarketSignalEventPoller`(30s), `IndexReboundPoller`(30s, 09:00~15:30 게이트)
+- [ ] `MarketCloseSnapshotCapture` (15:40 평일)
+- [ ] nginx `/api/leading-stocks/*` 라우팅
+
+**검증**: 필터 테스트 전건 통과 + 주도주 후보 / 실시간 로그 / 돌파 현황 화면 동작
+
+### M6 — 전환 완료
+
+- [ ] nginx에서 Kotlin 백엔드 라우팅 제거, `/api/*` 전체를 Python으로
+- [ ] docker-compose / prod compose에서 Kotlin 서비스 제거
+- [ ] GitHub Actions 배포 워크플로우 전환
+- [ ] Terraform 변경 (필요 시)
+- [ ] `backend/` 디렉터리 처리 — 삭제하지 말고 `backend-kotlin/`으로 두거나 README에 "이전 구현" 명시
+
+**검증**: 6개 화면 전부 Python 백엔드만으로 동작
+
+---
+
+## 응답 동등성 검증
+
+각 마일스톤의 완료 조건이다. "돌아간다"가 아니라 **"같은 JSON이 나온다"**를 본다.
+
+```
+동일 요청을 Kotlin(8080) / Python(8000) 양쪽에 보내고 JSON 비교
+  - 키 집합 동일
+  - 값 동일 (타임스탬프·실시간 시세 등 시변 필드는 제외 목록 관리)
+  - 차이가 있으면 "왜 다른지" 설명 가능해야 통과
+```
+
+- [ ] 비교 스크립트를 M0에서 만들어 두고 모든 마일스톤에서 재사용
+- [ ] 시변 필드 제외 목록은 엔드포인트별로 관리
+
+---
+
+## 원칙
+
+1. **Spring 냄새 나는 Python 금지** — DI 컨테이너 흉내, 레이어를 위한 레이어, 단일 구현체 인터페이스를 옮겨오지 않는다. FastAPI의 `Depends`와 모듈 함수로 충분한 곳에 클래스를 만들지 않는다
+2. **아키텍처 규칙은 유지** — package by feature, 피처 간 호출은 application 계층끼리, 도메인은 외부 의존 없음
+3. **함정은 어댑터에서 흡수** — 부호·시각 오프셋·거래소 코드 문제를 라우터까지 올리지 않는다
+4. **각 마일스톤 종료 시 앱이 돈다** — 가짜 구현으로 미완을 채우지 않는다
+5. **테스트 설명은 한글** — 시나리오와 의미를 쓰고 함수명·필드명을 노출하지 않는다
+
+---
+
+## 하지 않는 것
+
+- 프론트엔드 변경 (API 계약 동일하므로 불필요)
+- DB 교체 — MySQL 유지, 스키마·데이터 그대로
+- 기능 추가·개선
+- 성능 최적화 (동등성 확보가 먼저)
+- 비동기 전면 전환 — httpx 동기로 시작. 폴러 병목이 실측될 때만 async 검토
