@@ -1,0 +1,33 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "주도주 매매 판단 보조 시스템 백엔드 (Python 이관)"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "pydantic-settings>=2.7",
+    "sqlalchemy>=2.0",
+    "pymysql>=1.1",
+    "cachetools>=5.5",
+    "httpx>=0.28",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-mock>=3.14",
+    "testcontainers[mysql]>=4.9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 통합 테스트는 Docker가 필요하다. `-m "not integration"` 으로 제외할 수 있다.
+markers = ["integration: Docker(Testcontainers)가 필요한 테스트"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/backend"]

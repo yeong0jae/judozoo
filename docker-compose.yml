@@ -39,6 +39,28 @@ services:
     networks:
       - trading
 
+  # Python 이관 작업용. `--profile python`을 줄 때만 뜬다.
+  # 프로덕션 VM에는 compose 파일만 복사되고 python-backend/ 소스가 없어서,
+  # 프로필 없이 올리면 build가 실패한다. 이관이 끝나면 프로필을 뗀다.
+  python-backend:
+    profiles: ["python"]
+    build: ./python-backend
+    environment:
+      TZ: Asia/Seoul
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: trading
+      DB_USERNAME: root
+    env_file:
+      - ./backend/.env
+    ports:
+      - "${PYTHON_BACKEND_HOST_PORT:-8000}:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - trading
+
   frontend:
     build: ./frontend
     ports:

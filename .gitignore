@@ -13,3 +13,9 @@ infra/terraform/terraform.tfvars
 
 # 일회성 프로토타입 스캐치 (화면 확정 전 로컬 확인용)
 prototype/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/

@@ -42,7 +42,7 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 | Resilience4j `RateLimiter` | 직접 구현 (토큰 버킷) | 공유 리미터 한 버킷 구조 유지 |
 | `@Scheduled` | APScheduler | cron / fixedDelay 양쪽 지원 |
 | Logback (콘솔 평문) | 표준 `logging` | 현행과 동일하게 평문 유지. Alloy가 stdout을 수집하므로 포맷 변경 이유 없음 |
-| Spring Profile | 환경변수 기반 settings | `kis-real` / `kiwoom-real` |
+| `@Profile("!test")` | pytest 마커 / 설정 플래그 | 브로커 분기용 profile은 없다. 테스트에서 폴러를 끄는 용도만 이관하면 된다 |
 | Kotest FunSpec | pytest | 테스트 설명은 **한글 docstring** 유지 |
 | MockK | pytest-mock | |
 | Testcontainers | testcontainers-python | MySQL 컨테이너 |
@@ -58,15 +58,15 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 
 ### M0 — 골조
 
-- [ ] `python-backend/` 디렉터리, **uv** 프로젝트 초기화
-- [ ] FastAPI 앱 + `/health`
-- [ ] pydantic-settings로 `application.yaml`의 설정 키 이식 (kis / kiwoom / toss / leading-stock.criteria)
-- [ ] SQLAlchemy 엔진 + 세션 의존성, 기존 MySQL 스키마에 그대로 연결
-- [ ] 표준 `logging` 설정 — 콘솔 평문, 애플리케이션 패키지만 DEBUG
-- [ ] pytest + testcontainers-python 기반 통합 테스트 베이스 (`IntegrationTestBase` 대응)
-- [ ] 공유 토큰 버킷 RateLimiter + 테스트
-- [ ] TTL 캐시 데코레이터 — 캐시별 TTL·maxsize 설정 (전역 60초/100개, `candidateStocks` 5초/15개 등)
-- [ ] Dockerfile + docker-compose에 `python-backend` 서비스 추가
+- [x] `python-backend/` 디렉터리, **uv** 프로젝트 초기화
+- [x] FastAPI 앱 + `/health`
+- [x] pydantic-settings로 `application.yaml`의 설정 키 이식 (kis / kiwoom / toss / leading-stock.criteria)
+- [x] SQLAlchemy 엔진 + 세션 의존성, 기존 MySQL 스키마에 그대로 연결
+- [x] 표준 `logging` 설정 — 콘솔 평문, 애플리케이션 패키지만 DEBUG
+- [x] pytest + testcontainers-python 기반 통합 테스트 베이스 (`IntegrationTestBase` 대응)
+- [x] 공유 토큰 버킷 RateLimiter + 테스트
+- [x] TTL 캐시 데코레이터 — 캐시별 TTL·maxsize 설정 (전역 60초/100개, `candidateStocks` 5초/15개 등)
+- [x] Dockerfile + docker-compose에 `python-backend` 서비스 추가
 
 **검증**: `/health` 200, MySQL 연결, 테스트 1건 통과
 
@@ -157,7 +157,7 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
   - 차이가 있으면 "왜 다른지" 설명 가능해야 통과
 ```
 
-- [ ] 비교 스크립트를 M0에서 만들어 두고 모든 마일스톤에서 재사용
+- [x] 비교 스크립트를 M0에서 만들어 두고 모든 마일스톤에서 재사용 (`scripts/compare_responses.py`)
 - [ ] 시변 필드 제외 목록은 엔드포인트별로 관리
 
 ---
