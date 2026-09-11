@@ -9,14 +9,26 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from backend.library.db import get_engine
+from backend.library.exception import EntityNotFoundError
 from backend.library.logging_config import configure_logging
 from backend.library.scheduler import shutdown as shutdown_scheduler
 from backend.library.scheduler import start as start_scheduler
 from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
+from backend.stock.presentation import router as stock_router
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
+
+
+def load_stock_catalog() -> None:
+    """기동 시 종목 카탈로그 적재 — Kotlin `ApplicationReadyEvent`에 대응.
+
+    내부가 fail-soft라 다운로드가 실패해도 DB의 직전 데이터로 떨어지고 기동은 계속된다.
+    """
+    from backend.stock.scheduler import refresh_catalog
+
+    refresh_catalog()
 
 
 @asynccontextmanager
@@ -24,6 +36,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.debug_package)
     log.info("기동 — DB %s:%s/%s", settings.database.host, settings.database.port, settings.database.name)
+    load_stock_catalog()
     start_scheduler()
     yield
     shutdown_scheduler()
@@ -32,11 +45,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="주도주 매매 판단 보조 시스템", lifespan=lifespan)
 app.include_router(news_router)
 app.include_router(overseas_router)
+app.include_router(stock_router)
 
 
 def _error(code: str, status: int) -> JSONResponse:
     """Kotlin `ApiResponse.error`와 같은 봉투 — 프론트가 이 모양을 기대한다."""
     return JSONResponse(status_code=status, content={"code": code, "status": status, "data": None})
+
+
+@app.exception_handler(EntityNotFoundError)
+async def handle_entity_not_found(request: Request, exc: EntityNotFoundError) -> JSONResponse:
+    return _error("NOT_FOUND", 404)
 
 
 @app.exception_handler(RequestValidationError)
