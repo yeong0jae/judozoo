@@ -215,15 +215,38 @@ Kotlin 쪽엔 이 영역 테스트가 한 건도 없어 **이관이 아니라 �
 
 - [x] `platform/yahoo` 이관 (196줄) — `YahooChartClient`. 실 데이터로 시세·캔들 대조 완료
   - 처음엔 M1에 뒀으나 실제 사용처는 `market`·`watchlist`뿐이라 여기로 옮겼다
-- [ ] `market` 이관 (1,667줄) — 지수 / 선물 / 투자자 수급 / 프로그램매매 / 매크로 / 캘린더
-  - [ ] 세션별 수급의 **누적 스냅샷 경계 diff** 계산 로직 보존
-- [ ] `theme` 이관 (371줄) + `ThemeCapturePoller` (15:40 / 20:00)
-- [ ] `watchlist` 이관 (352줄) — 관심 테마·종목, 표시 순서
-- [ ] `issue` 이관 (151줄) — CRUD
-- [ ] `FuturesInvestorPoller`(60s), `ProgramTradePoller`(120s) 이관
-- [ ] nginx `/api/market/*`, `/api/themes/*`, `/api/watch-themes/*`, `/api/issues/*` 라우팅
+- [x] `market` 이관 (1,667줄) — 지수 / 선물 / 투자자 수급 / 프로그램매매 / 매크로 / 캘린더
+  - [x] 세션별 수급의 **누적 스냅샷 경계 diff** 계산 로직 보존
+- [x] `theme` 이관 (371줄) + 캡처 스케줄 (15:40 / 20:00)
+- [x] `watchlist` 이관 (352줄) — 관심 테마·종목, 표시 순서
+- [x] `issue` 이관 (151줄) — CRUD
+- [x] `FuturesInvestorPoller`(60s), `ProgramTradePoller`(120s) 이관
+- [x] nginx `/api/market/*`, `/api/themes/*`, `/api/watch-themes`, `/api/issues` 라우팅
 
-**검증**: 시황 분석 / 테마 캘린더 / 이슈 화면 전체 동작
+**검증 완료 (2026-09-12)** — 테스트 50건 추가, 전체 338건 통과.
+
+- **세션 경계 diff 9건** — 경계 차이, 구간 합 = 최종 누적, 프리 스냅샷 없을 때의 폴백,
+  "경계 시각 **이하** 가장 가까운 스냅샷" 선택(폴러가 60~120초 간격이라 정각 스냅샷은 거의 없다),
+  날짜 격리. 이 표가 틀리면 숫자가 그럴듯한 채로 잘못 나오므로 가장 두껍게 덮었다.
+- **라우트 매칭 9건** — `nasdaq` · `futures/night` · `macro` · `calendar`가 `{market}`으로 새지 않는지.
+- 이슈 CRUD 9건 / 관심 테마 12건 / 테마 캡처 11건(적재 날짜 판정 포함).
+
+> **라우트 선언 순서가 Spring과 다르다.** Spring은 리터럴 패턴을 우선하지만 FastAPI는
+> **선언 순서**로 매칭한다. `/market/nasdaq/candles`를 `/{market}/candles` 뒤에 두면
+> `market=nasdaq`으로 들어가 400이 난다. `watch-themes/order`도 같은 이유로 `/{themeId}`보다 앞이다.
+> 회귀로 고정해 뒀다.
+
+> **`market.domain.Bar`·`PriceTick`은 옮기지 않았다.** 자기 테스트 말고 참조하는 코드가 없다 —
+> 자동매매(`trading`) 제거 때 남은 죽은 코드다. Kotlin 쪽은 건드리지 않고 남겨 뒀다.
+
+> **M5 `MarketInvestorSnapshot`을 선행했다.** 시황분석의 세션별 수급이 이 테이블을 **읽는다**.
+> 적재하는 폴러는 M5라 아직 Kotlin이 담당하므로, Python엔 엔티티와 조회만 뒀다.
+> M3에서 값 객체를 앞당긴 것과 같은 이유다 — Kotlin의 패키지 경계가 마일스톤 경계와 어긋난다.
+
+> **관심 테마에 잠재 결함이 하나 있다(이관 전부터).** 중복 판정은 (종목코드, 거래소)로 하는데
+> 유니크 제약은 `(theme_id, stock_code)`뿐이라, 같은 코드를 다른 거래소로 담으면
+> 메모리 검사는 통과하고 INSERT에서 터진다. 순수 이관이라 같게 두고 테스트로 문서화했다.
+> 고치려면 제약과 판정을 함께 바꿔야 해서 양쪽 백엔드를 동시에 손대야 한다.
 
 ### M5 — leadingstock (도메인 핵심)
 

@@ -33,11 +33,15 @@ def start() -> BackgroundScheduler | None:
         return _scheduler
 
     from backend.overseasleadingstock.scheduler import register as register_overseas
+    from backend.market.scheduler import register as register_market
     from backend.stock.scheduler import register as register_stock
+    from backend.theme.scheduler import register as register_theme
 
     _scheduler = BackgroundScheduler(timezone=KST)
     register_overseas(_scheduler)
     register_stock(_scheduler)
+    register_market(_scheduler)
+    register_theme(_scheduler)
     _scheduler.start()
     log.info("스케줄러 시작 — 등록된 작업 %d개", len(_scheduler.get_jobs()))
     return _scheduler
