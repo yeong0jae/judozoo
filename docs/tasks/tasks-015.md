@@ -80,7 +80,7 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
   - 시그널 폴러는 제외 — 아래 참고
 - [x] `news` 이관 (89줄) — `KisNewsClient` 포함. 실 API 8건 동등성 확인
 - [x] `OverseasIndexSnapshotCapture` 스케줄러 (06:10 화~토) — APScheduler, KST 고정
-- [ ] nginx에 `/api/overseas-leading-stocks/*`, `/api/news/*` 라우팅 추가
+- [x] nginx에 `/api/overseas-leading-stocks/*`, `/api/news/*` 라우팅 추가
 
 **검증**: 해외 주도주 탭이 Python 백엔드만으로 동작. 아래 §응답 동등성 검증 통과
 
@@ -185,6 +185,17 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 
 - [x] 비교 스크립트를 M0에서 만들어 두고 모든 마일스톤에서 재사용 (`scripts/compare_responses.py`)
 - [ ] 시변 필드 제외 목록은 엔드포인트별로 관리
+
+> **날짜·시각 필드는 문자열이 다르게 나온다 — 값이 다른 게 아니다.** Jackson은 `LocalDateTime`을
+> `ISO_LOCAL_DATE_TIME`으로 쓰기 때문에 **초가 0이면 초를 생략**한다(`2026-08-25T22:30`).
+> Pydantic은 항상 초를 붙인다(`2026-08-25T22:30:00`). 소수 이하 자릿수도 다르다
+> (Jackson은 뒤 0을 버리고, Pydantic은 마이크로초 6자리 고정).
+>
+> 분봉 `time`·`peakAt`은 초가 항상 00이라 **모든 캔들에서 이 차이가 난다**. 비교 스크립트는
+> 전부 "값 다름"으로 잡지만 프론트는 양쪽을 같은 값으로 읽는다 —
+> `minuteSeries`가 `s || 0`으로 초 없는 문자열을 이미 방어하고 있고(`CandleChart.tsx`),
+> `peakAt`·`capturedAt`은 `new Date()`가 두 형태를 동일하게 파싱한다.
+> 시변 필드가 아니므로 `VOLATILE_KEYS`에 넣지 않는다. 설명 가능한 차이로 두고 넘어간다.
 
 ---
 
