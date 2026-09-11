@@ -47,13 +47,6 @@ class KisOverseasChartClient(
         return collected.filter { it.tymd.trim() in keepDays }.mapNotNull { it.toCandle() }
     }
 
-    /**
-     * 최신 1페이지(120건)만 — 페이징 없이 종목당 1호출. 실시간 폴러가 스토어에 누적 병합하는 용도.
-     * 캐시 없음(폴러가 매 폴 fresh 데이터로 시그널을 감지해야 하므로).
-     */
-    fun fetchLatestMinutes(excd: String, symb: String): List<OverseasMinuteCandle> =
-        fetchMinutePage(excd, symb, next = "", keyb = "").mapNotNull { it.toCandle() }
-
     private fun fetchMinutePage(excd: String, symb: String, next: String, keyb: String): List<MinuteItem> {
         val token = authClient.getAccessToken()
         val response = kisRestClient.get()

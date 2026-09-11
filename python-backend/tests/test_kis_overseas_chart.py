@@ -5,7 +5,6 @@ import respx
 from backend.platform.kis import client as kis_client
 from backend.platform.kis.overseas_chart import (
     fetch_daily_candles,
-    fetch_latest_minutes,
     fetch_minute_candles,
 )
 
@@ -164,31 +163,6 @@ class Test분봉_변환:
         candle = fetch_minute_candles("NAS", "AAPL")[0]
 
         assert (candle.volume, candle.trading_value) == (0, 0.0)
-
-
-class Test최신_분봉만:
-    @respx.mock
-    def test_페이징하지_않고_한_번만_부른다(self, respx_mock, 토큰_발급):
-        route = respx_mock.get(MINUTE_URL).mock(
-            return_value=분봉응답([분봉("20260825", "20260825", "093000", "20260825", "223000")])
-        )
-
-        candles = fetch_latest_minutes("NAS", "AAPL")
-
-        assert route.call_count == 1
-        assert len(candles) == 1
-
-    @respx.mock
-    def test_캐시하지_않아_매번_새로_받는다(self, respx_mock, 토큰_발급):
-        """폴러가 매 폴마다 fresh 데이터로 시그널을 감지해야 한다."""
-        route = respx_mock.get(MINUTE_URL).mock(
-            return_value=분봉응답([분봉("20260825", "20260825", "093000", "20260825", "223000")])
-        )
-
-        fetch_latest_minutes("NAS", "AAPL")
-        fetch_latest_minutes("NAS", "AAPL")
-
-        assert route.call_count == 2
 
 
 class Test분봉_실패:

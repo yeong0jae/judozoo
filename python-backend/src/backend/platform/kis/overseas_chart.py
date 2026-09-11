@@ -89,17 +89,6 @@ def fetch_minute_candles(excd: str, symb: str) -> list[OverseasMinuteCandle]:
     return [c for c in candles if c is not None]
 
 
-def fetch_latest_minutes(excd: str, symb: str) -> list[OverseasMinuteCandle]:
-    """최신 1페이지(120건)만 — 페이징 없이 종목당 1호출.
-
-    실시간 폴러가 스토어에 누적 병합하는 용도라 **캐시하지 않는다**.
-    매 폴마다 fresh 데이터로 시그널을 감지해야 한다.
-    """
-    items = _fetch_minute_page(excd, symb, next_="", keyb="")
-    candles = (_to_minute_candle(item) for item in items)
-    return [c for c in candles if c is not None]
-
-
 @ttl_cache("kisOverseasDailyCandles", ttl_seconds=30, maxsize=60)
 def fetch_daily_candles(excd: str, symb: str) -> list[OverseasDailyCandle]:
     """최근 [DAILY_COUNT]거래일 일봉. 최신→과거 순."""

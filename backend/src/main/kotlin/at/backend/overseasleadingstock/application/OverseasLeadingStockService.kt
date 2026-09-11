@@ -6,9 +6,7 @@ import at.backend.overseasleadingstock.presentation.response.OverseasMinuteCandl
 import at.backend.overseasleadingstock.presentation.response.OverseasStockDetailResponse
 import at.backend.overseasleadingstock.presentation.response.OverseasStockRankItem
 import at.backend.overseasleadingstock.presentation.response.OverseasSwingHighSignal
-import at.backend.leadingstock.domain.SpikeDirection
 import at.backend.platform.kis.client.KisOverseasChartClient
-import at.backend.platform.kis.client.KisOverseasChartClient.OverseasMinuteCandle
 import at.backend.platform.kis.client.KisOverseasProductClient
 import at.backend.platform.kis.client.KisOverseasRankingClient
 import org.springframework.stereotype.Service
@@ -18,98 +16,7 @@ class OverseasLeadingStockService(
     private val rankingClient: KisOverseasRankingClient,
     private val chartClient: KisOverseasChartClient,
     private val productClient: KisOverseasProductClient,
-    private val minuteStore: OverseasMinuteCandleStore,
 ) {
-
-    /**
-     * 실시간 폴러용 — 후보별 최신 분봉을 스토어에 누적 병합한 뒤 돌파선·스파이크 측정값을 만든다.
-     * 종목당 분봉 1호출(120건)만, 누적분으로 전고점(돌파선)을 잡는다.
-     */
-    fun signalReadings(minChangeRate: Double): List<OverseasCandidateReading> =
-        getRanking(minChangeRate).mapNotNull { stock ->
-            // 분봉 갱신은 종목 단위 best-effort — 한 종목이 rate-limit(EGW00201) 등으로 실패해도
-            // 폴 전체를 버리지 않고, 나머지 종목은 스토어의 누적분으로 계속 평가한다.
-            runCatching {
-                // 첫 등장 종목은 2거래일 페이징으로 seed(전고점 정확), 이후엔 최신 1페이지만 누적
-                val fresh = if (minuteStore.has(stock.exchange, stock.symbol)) {
-                    chartClient.fetchLatestMinutes(stock.exchange, stock.symbol)
-                } else {
-                    chartClient.fetchMinuteCandles(stock.exchange, stock.symbol)
-                }
-                minuteStore.merge(stock.exchange, stock.symbol, fresh)
-            }
-            val stored = minuteStore.candles(stock.exchange, stock.symbol)
-            if (stored.isEmpty()) return@mapNotNull null // 갱신 실패 + 누적분 없음 → 이번 폴만 스킵
-
-            val peak = stored.maxByOrNull { it.high }
-            val gapRate = peak?.takeIf { stock.price > 0 }?.let { (it.high - stock.price) / stock.price * 100 }
-            val spike = computeSpike(stored)
-            val ma = computeMovingAverage(stored)
-
-            OverseasCandidateReading(
-                exchange = stock.exchange,
-                symbol = stock.symbol,
-                name = stock.name,
-                price = stock.price,
-                rate = stock.rate,
-                tradingValue = stock.tradingValue,
-                gapRate = gapRate,
-                peakPrice = peak?.high,
-                spikeRatio = spike?.ratio,
-                minuteTradingValue = spike?.latestTradingValue,
-                spikeDirection = spike?.direction,
-                ma20CrossedUp = ma?.crossedUp,
-                ma20BelowBand = ma?.belowBand,
-                ma20 = ma?.ma20,
-            )
-        }
-
-    /** 최신 1분봉 거래대금이 직전 [SPIKE_BASELINE_BARS]봉 평균 대비 몇 배인지. 최소 거래대금 미달이면 null. */
-    private fun computeSpike(candles: List<OverseasMinuteCandle>): SpikeMeasure? {
-        if (candles.size < 2) return null
-        val latest = candles.last()
-        if (latest.tradingValue < SPIKE_MIN_TRADING_VALUE) return null
-        val baseline = candles.dropLast(1).takeLast(SPIKE_BASELINE_BARS)
-        val avg = baseline.map { it.tradingValue }.average()
-        if (avg <= 0) return null
-        val direction = when {
-            latest.close > latest.open -> SpikeDirection.BUY
-            latest.close < latest.open -> SpikeDirection.SELL
-            else -> SpikeDirection.FLAT
-        }
-        return SpikeMeasure(latest.tradingValue, latest.tradingValue / avg, direction)
-    }
-
-    private data class SpikeMeasure(
-        val latestTradingValue: Double,
-        val ratio: Double,
-        val direction: SpikeDirection,
-    )
-
-    /**
-     * 1분봉을 5분봉으로 합성한 뒤, 진행 중인 마지막 봉을 뺀 **확정 봉 이력**에서 최신 확정봉이
-     * 20이평을 아래→위로 돌파한 봉("돌림봉")인지 직접 판정한다. 확정 봉이 [MA_PERIOD]+1개 미만이면 null.
-     * 폴러 관측 이력이 아니라 봉 데이터로 크로스를 잡으므로, 방금 후보에 든 종목의 크로스도 놓치지 않는다.
-     */
-    private fun computeMovingAverage(candles: List<OverseasMinuteCandle>): MaMeasure? {
-        val bars = aggregate(candles, MA_INTERVAL_MINUTES).dropLast(1) // 마지막 봉은 진행 중 — 직전 확정까지만
-        if (bars.size < MA_PERIOD + 1) return null
-        val latest = bars.last()
-        val prev = bars[bars.size - 2]
-        val maLatest = bars.takeLast(MA_PERIOD).map { it.close }.average()
-        val maPrev = bars.subList(bars.size - MA_PERIOD - 1, bars.size - 1).map { it.close }.average()
-        val crossedUp = prev.close <= maPrev && latest.close > maLatest
-        val belowBand = latest.close < maLatest * (1 - MA_REARM_MARGIN)
-        return MaMeasure(crossedUp = crossedUp, belowBand = belowBand, ma20 = maLatest)
-    }
-
-    /** 1분봉을 [intervalMinutes]분 경계로 묶어 종가=끝봉 종가로 합성(돌림 판정은 종가만 사용). */
-    private fun aggregate(candles: List<OverseasMinuteCandle>, intervalMinutes: Int): List<OverseasMinuteCandle> =
-        candles.groupBy { it.dateTime.withMinute(it.dateTime.minute / intervalMinutes * intervalMinutes).withSecond(0).withNano(0) }
-            .toSortedMap()
-            .map { (_, group) -> group.last() }
-
-    private data class MaMeasure(val crossedUp: Boolean, val belowBand: Boolean, val ma20: Double)
 
     /**
      * 통합 거래대금 40위 컷 → ETF 제외한 풀. 거래대금 내림차순으로 순위 재부여.
@@ -258,11 +165,6 @@ class OverseasLeadingStockService(
         private const val TOP_RANK_ALWAYS_INCLUDED = 3
         private const val MIN_CHANGE_RATE_PCT = 5.0          // 상세 B: 당일 등락률 하한
         private const val MIN_MARKET_CAP_USD = 2_000_000_000L // 상세 C: 시가총액 $2B 하한
-        private const val SPIKE_BASELINE_BARS = 20            // 스파이크 직전 평균 산정 봉 수
-        private const val SPIKE_MIN_TRADING_VALUE = 1_000_000.0 // 최신 1분봉 최소 거래대금($1M)
-        private const val MA_INTERVAL_MINUTES = 5             // 돌림 판정 분봉 주기
-        private const val MA_PERIOD = 20                      // 돌림 판정 이평 기간(봉)
-        private const val MA_REARM_MARGIN = 0.005             // 돌림 재무장 마진(0.5%)
 
         // ETF/ETN 발행사 브랜드 + 명시 키워드. 미국 거래대금 상위 ETF 대부분을 커버.
         private val ETF_KEYWORDS = listOf(

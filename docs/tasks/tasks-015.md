@@ -77,16 +77,28 @@ M1이 끝나면 **그 자체로 독립적으로 동작하는 산출물**이 된�
 - [x] `platform/kis` 중 해외 부분 이관 — `KisAuthClient`, `KisOverseasChartClient`, `KisOverseasIndexClient`, `KisOverseasProductClient`, `KisOverseasRankingClient`
   - [x] **`KEYB` 페이징 주의** — 다음조회 키가 현지시각(xymd+xhms) 기준, -1분씩 내려 페이징. 실 API로 분봉 1,377건 수집 확인
 - [x] `overseasleadingstock` 이관 — 랭킹 / 상세 / 분봉 / 일봉 / 지수 종가 스냅샷
-  - 시그널 폴러는 제외 — 아래 참고
+  - 시그널 폴러는 이관하지 않고 **Kotlin에서 제거** — 아래 참고
 - [x] `news` 이관 (89줄) — `KisNewsClient` 포함. 실 API 8건 동등성 확인
 - [x] `OverseasIndexSnapshotCapture` 스케줄러 (06:10 화~토) — APScheduler, KST 고정
 - [x] nginx에 `/api/overseas-leading-stocks/*`, `/api/news/*` 라우팅 추가
 
 **검증**: 해외 주도주 탭이 Python 백엔드만으로 동작. 아래 §응답 동등성 검증 통과
 
-> **`OverseasSignalEventPoller`는 옮기지 않았다.** 이 폴러가 저장하는 `OverseasSignalEvent`를
-> **읽는 곳이 어디에도 없다** — 조회 API도, 프론트 사용처도 없다(2026-08-26 확인).
-> 옮기기 전에 살릴지 버릴지 정하는 게 맞다. 전시 경로가 아니라 M1 완료를 막지 않는다.
+> **`OverseasSignalEventPoller`는 이관하지 않고 지웠다(2026-09-12).** 해외 실시간 로그는
+> `36f5258`(2026-07-25, "실시간 로그·돌파 현황을 국내 전용으로")에서 화면·조회 API·리포지토리
+> 조회 메서드를 878줄 걷어내며 **이미 내린 기능**이다. 그때 폴러만 딸려 내려오지 못해,
+> 이후 7주간 아무도 읽지 않는 `overseas_signal_event` 테이블에 계속 적재하고 있었다.
+>
+> 비용이 작지 않았다 — 15초 주기에 후보 종목당 분봉 1호출이고 이 호출은 캐시를 타지 않아
+> (`fetchLatestMinutes`), 미국장 16시간 동안 **분당 약 160건**의 KIS 호출이 나갔다.
+> Python과 앱키를 공유하는 이관 기간엔 특히 아까운 트래픽이다.
+>
+> 함께 제거: `OverseasSignalEventService` / `OverseasSignalEventRepository` /
+> `OverseasSignalEvent` / `OverseasSignalState` / `OverseasCandidateReading` /
+> `OverseasMinuteCandleStore`, 그리고 이들만 쓰던 `OverseasLeadingStockService.signalReadings`와
+> 스파이크·20이평 계산부. 양쪽 `fetchLatestMinutes`(Kotlin·Python)도 호출자가 사라져 같이 지웠다.
+>
+> **`overseas_signal_event` 테이블은 남아 있다.** 드롭은 별도로 판단한다.
 
 > **후보에 없는 종목 상세 조회가 500이다.** Kotlin이 던지는 `NoSuchElementException`에
 > 전용 핸들러가 없어 `INTERNAL_ERROR`로 떨어진다(404가 맞아 보인다). 순수 이관이라
