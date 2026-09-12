@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # VM에서 실행되는 배포 스크립트. GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출.
-# 사용: bash ~/remote_deploy.sh <IMAGE_TAG> <AR_REPO> <REGION> [<SPRING_PROFILES_ACTIVE>]
+# 사용: bash ~/remote_deploy.sh <IMAGE_TAG> <AR_REPO> <REGION>
 #
 # 전제:
 #  - VM 인스턴스 SA가 secretmanager.secretAccessor + artifactregistry.reader 보유
@@ -10,9 +10,10 @@ set -euo pipefail
 IMAGE_TAG="${1:?IMAGE_TAG required}"
 AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
-SPRING_PROFILES_ACTIVE="${4:-kis-real}"   # GHA matrix가 인스턴스별로 주입 (kis-real | kiwoom-real)
 
 cd "$HOME"
+# backend/ 는 Kotlin 구현이 사라진 뒤에도 **시크릿 파일 위치**로 남아 있다
+# (mysql·python-backend가 둘 다 ./backend/.env 를 읽는다).
 mkdir -p backend
 
 # Secret Manager에서 KIS/KIWOOM/DB 시크릿 → backend/.env (VM 인스턴스 SA 권한 사용).
@@ -43,11 +44,9 @@ gcloud auth print-access-token \
   | sudo docker login -u oauth2accesstoken --password-stdin "https://${REGION}-docker.pkg.dev"
 
 COMPOSE_ENV=(
-  "BACKEND_IMAGE=${AR_REPO}/backend"
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
   "PYTHON_BACKEND_IMAGE=${AR_REPO}/python-backend"
   "IMAGE_TAG=${IMAGE_TAG}"
-  "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}"
 )
 
 # 옛 배포 이미지가 누적돼 새 이미지 pull이 디스크 부족으로 실패하는 것 방지.

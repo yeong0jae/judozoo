@@ -18,8 +18,7 @@ Kotlin 백엔드를 끝까지 살려둔 채, 피처 단위로 Python으로 옮�
 
 ```
 nginx
- ├─ /api/overseas-leading-stocks/*  →  python:8000   (이관 완료)
- └─ /api/*                          →  backend:8080  (아직 Kotlin)
+ └─ /api/*  →  python:8000   (2026-09-12 이관 완료 — Kotlin 제거)
 ```
 
 **모든 마일스톤 종료 시점에 앱이 정상 동작해야 한다.** 절반쯤 옮긴 상태로 멈춰도 서비스는 돌아간다.
@@ -287,13 +286,54 @@ Kotlin 쪽엔 이 영역 테스트가 한 건도 없어 **이관이 아니라 �
 
 ### M6 — 전환 완료
 
-- [ ] nginx에서 Kotlin 백엔드 라우팅 제거, `/api/*` 전체를 Python으로
-- [ ] docker-compose / prod compose에서 Kotlin 서비스 제거
-- [ ] GitHub Actions 배포 워크플로우 전환
-- [ ] Terraform 변경 (필요 시)
-- [ ] `backend/` 디렉터리 처리 — 삭제하지 말고 `backend-kotlin/`으로 두거나 README에 "이전 구현" 명시
+- [x] nginx에서 Kotlin 백엔드 라우팅 제거, `/api/*` 전체를 Python으로
+  - 죽은 `/ws`(STOMP) 블록도 같이 제거 — 프론트·Kotlin 양쪽에 사용처가 없었다
+- [x] docker-compose / prod compose에서 Kotlin 서비스 제거
+- [x] GitHub Actions 배포 워크플로우 전환 — 빌드 매트릭스에서 `backend` 제거,
+      `SPRING_PROFILES_ACTIVE` 주입 제거(배포 스크립트 인자도 함께)
+- [x] Terraform 변경 — **불필요**. `backend.tf`는 GCS state 백엔드일 뿐 Kotlin과 무관하고,
+      Alloy는 컨테이너를 동적 발견해 하드코딩된 이름이 없다
+- [x] `backend/` 디렉터리 — **이름을 유지**하고 `backend/README.md`에 "이전 구현"을 명시했다.
+      `backend/.env`를 mysql·python-backend가 둘 다 읽고 배포 스크립트도 그 경로에 쓰므로,
+      `backend-kotlin/`으로 바꾸면 시크릿 경로가 깨진다
 
-**검증**: 6개 화면 전부 Python 백엔드만으로 동작
+**검증 완료 (2026-09-12)**
+
+- **엔드포인트 1:1 대조** — Kotlin 컨트롤러에서 경로를 추출해 Python OpenAPI와 비교:
+  **51개 / 51개 완전 일치**, 누락·잉여 없음
+- nginx 라우팅 — 프론트 이미지를 띄우고 스텁 백엔드로 8개 대표 경로가 전부
+  Python으로 가는지 확인(SPA fallback 포함)
+- 이미지 빌드 — `python-backend`·`frontend` 둘 다 성공
+- 테스트 470건 통과
+
+> **로컬로 전체 스택을 띄워 검증하지 않았다.** 토스는 client당 유효 토큰이 1개라
+> 로컬 백엔드가 토큰을 받으면 **운영 토큰이 즉시 죽는다**. KIS도 앱키당 1분 1회 제한이 있다.
+> 그래서 실제 브로커를 건드리지 않는 정적 대조 + 스텁 라우팅으로 검증했다.
+
+> **폴러 중복이 이 마일스톤으로 해소된다.** M5까지는 Kotlin `@Scheduled` 9종과
+> Python APScheduler 9종이 동시에 돌 수 있는 상태였다. M1~M4에서 겹친 것들은 멱등이라
+> 무해했지만, M5가 더한 `signal_event`·`market_signal_event`는 멱등이 아니고 쿨다운도
+> 프로세스별 메모리라 **같은 시그널이 두 줄씩 적재된다**. 그래서 M5와 M6을 한 배포로 묶었다.
+
+---
+
+## 이관 완료 (2026-09-12)
+
+Kotlin 10,927줄 → Python. 엔드포인트 51개, 스케줄 작업 9종, 테스트 470건.
+
+| | Kotlin | Python |
+|---|---|---|
+| 프로덕션 코드 | 10,927줄 / 176파일 | 약 8,400줄 |
+| 테스트 | Kotest (필터·도메인 중심) | pytest 470건 |
+| 외부 API 테스트 | **없음** | respx 목 119건 |
+
+이관 중 기존 구현에서 찾은 것들(전부 고치지 않고 문서화만 했다 — 순수 이관 원칙):
+
+- 죽은 해외 시그널 폴러가 7주간 분당 160건씩 KIS를 호출 → **제거**(`dca9ec7`)
+- `market.domain.Bar`·`PriceTick` 죽은 코드 — 이관 제외
+- 관심 테마 중복 판정과 유니크 제약 불일치 → INSERT에서 터진다
+- Kotest가 운영에서 쓰이지 않는 기준값(30위·5%)으로 돌고 있었다 → 운영값으로 바로잡음
+- 후보에 없는 종목 상세·정의에 없는 시장이 500으로 떨어진다(404·400이 맞아 보인다)
 
 ---
 

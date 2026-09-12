@@ -31,7 +31,7 @@ jobs:
     strategy:
       matrix:
         # 이미지별로 러너를 나눠 병렬 빌드. 디렉터리명 = 이미지명 = 빌드 컨텍스트.
-        image: [backend, frontend, python-backend]
+        image: [python-backend, frontend]
     name: build ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
           tags: |
             ${{ env.AR_REPO }}/${{ matrix.image }}:${{ github.sha }}
             ${{ env.AR_REPO }}/${{ matrix.image }}:latest
-          # GHA 캐시로 의존성 레이어(gradle deps / npm ci) 재사용 — 매 실행 재다운로드 방지
+          # GHA 캐시로 의존성 레이어(uv sync / npm ci) 재사용 — 매 실행 재다운로드 방지
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
@@ -73,7 +73,6 @@ jobs:
       matrix:
         target:
           - key: kiwoom-real
-            profile: kiwoom-real
             vm_var: VM_NAME_KIWOOM_REAL
     name: deploy ${{ matrix.target.key }}
     steps:
@@ -105,4 +104,4 @@ jobs:
       - name: Deploy on VM
         run: |
           gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION} '${{ matrix.target.profile }}'"
+            --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION}"
