@@ -174,6 +174,7 @@ locals {
     "AT_REAL_TOSS_CLIENT_ID", # 토스 Market Indicators (지수·투자자 매매대금)
     "AT_REAL_TOSS_CLIENT_SECRET",
     "AT_CLOUDFLARE_API_TOKEN", # Caddy ACME DNS-01 챌린지 (Zone:DNS:Edit, judozoo.com 한정)
+    "AT_GRAFANA_ADMIN_PASSWORD",
   ])
 }
 

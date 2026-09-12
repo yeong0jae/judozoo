@@ -87,7 +87,10 @@ services:
     image: grafana/grafana:11.5.2
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+    # GF_SECURITY_ADMIN_PASSWORD가 여기 들어온다 (Secret Manager → remote_deploy.sh).
+    # compose 보간(${...})은 env_file을 못 읽으므로 컨테이너에 직접 주입해야 한다.
+    env_file:
+      - ./secrets/.env
     ports:
       - "${GRAFANA_HOST_PORT:-3001}:3000"
     volumes:
