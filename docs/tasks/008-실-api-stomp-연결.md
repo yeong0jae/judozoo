@@ -1,9 +1,9 @@
-# tasks-008 — Phase 5-B-2: 실 API + STOMP 연결
+# 008 — Phase 5-B-2: 실 API + STOMP 연결
 
-Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을 연결한다. 화면 변경 없음 — 데이터 소스만 mock → real로 전환.
+Goal: 007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을 연결한다. 화면 변경 없음 — 데이터 소스만 mock → real로 전환.
 
-> UI/UX는 [tasks-007.md (Phase 5-B-1)](tasks-007.md) 에서 완료.
-> 백엔드 토픽 표면은 [tasks-006.md (Phase 5-A)](tasks-006.md) 에서 완료.
+> UI/UX는 [007-ui-ux-재설계.md (Phase 5-B-1)](007-ui-ux-재설계.md) 에서 완료.
+> 백엔드 토픽 표면은 [006-도메인-이벤트-stomp.md (Phase 5-A)](006-도메인-이벤트-stomp.md) 에서 완료.
 
 ---
 
@@ -82,7 +82,7 @@ Goal: tasks-007에서 완성된 UI/UX 위에 실 백엔드 API + STOMP 토픽을
 - `frontend/src/mocks/` 디렉토리 import 0건 + 삭제
 - `npm run build` 0 에러
 
-## 후속 / Phase 6 (tasks-009)
+## 후속 / Phase 6 (009)
 
 - 실적 화면 `/api/reports/daily` wire (날짜 선택기 활성, 수수료/세금 분리, 매수→매도가)
 - 매도 재시도 3회 이상 강조 표시

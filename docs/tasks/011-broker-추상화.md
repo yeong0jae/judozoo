@@ -1,4 +1,4 @@
-# tasks-011 — Phase 9: Broker 추상화
+# 011 — Phase 9: Broker 추상화
 
 Goal: KIS 직접 호출을 `BrokerTradingClient` 인터페이스 뒤로 숨긴다. 이번 phase에서는 **행동을 1bit도 바꾸지 않는다** — Phase 10에서 Kiwoom 어댑터가 같은 인터페이스로 들어올 수 있는 자리만 만든다.
 
@@ -56,7 +56,7 @@ Goal: KIS 직접 호출을 `BrokerTradingClient` 인터페이스 뒤로 숨긴�
 - `BrokerTradingClient`가 외부에 노출하는 표면이 domain 값 객체로만 구성됨 (KIS DTO 누수 0)
 - Phase 10에서 `KiwoomBrokerAdapter`만 추가해 `@Profile`로 바꾸면 동작 가능한 구조
 
-## 후속 / Phase 10 (tasks-012)
+## 후속 / Phase 10 (012)
 
 - `platform.kiwoom.trading.*` 신설 (REST 클라이언트 + 주문/잔고/체결 모듈)
 - WireMock 인프라 테스트

@@ -1,4 +1,4 @@
-# tasks-015 — 백엔드 Python 마이그레이션
+# 015 — 백엔드 Python 마이그레이션
 
 Goal: Kotlin/Spring Boot 백엔드(10,932줄 / 176파일)를 Python/FastAPI로 이관. **프론트엔드는 손대지 않는다** — API 계약을 그대로 유지하는 것이 성공 기준이다.
 

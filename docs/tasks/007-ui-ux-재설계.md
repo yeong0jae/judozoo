@@ -1,6 +1,6 @@
-# tasks-007 — Phase 5-B-1: UI/UX 재설계
+# 007 — Phase 5-B-1: UI/UX 재설계
 
-Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 위에서 화면 UI/UX를 다시 설계한다. 데이터는 여전히 mock — 실 API/STOMP 연결은 다음 phase(tasks-008).
+Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 위에서 화면 UI/UX를 다시 설계한다. 데이터는 여전히 mock — 실 API/STOMP 연결은 다음 phase(008).
 
 > 기존 mock은 백엔드 DTO 확정 전 추측으로 만들어진 상태. 두 번 일하지 않기 위해 UI/UX를 먼저 완성하고 mock의 shape를 실 DTO와 1:1 일치시킨 뒤, 다음 phase에서 wire-up.
 
@@ -95,9 +95,9 @@ Goal: 백엔드가 제공하는 실 DTO 형태로 mock을 재작성하고, 그 �
 
 - 위 Verification 통과
 - mock의 shape가 백엔드 DTO와 1:1 일치 (필드명/타입)
-- 다음 phase(tasks-008)의 wire-up 작업이 "mock import → real query 교체"만으로 완결되는 구조
+- 다음 phase(008)의 wire-up 작업이 "mock import → real query 교체"만으로 완결되는 구조
 
-## 후속 / Phase 5-B-2 (tasks-008)
+## 후속 / Phase 5-B-2 (008)
 
 - 의존성 도입 (@stomp/stompjs / @tanstack/react-query / RHF / Zod)
 - API 클라이언트 + 쿼리/뮤테이션 훅

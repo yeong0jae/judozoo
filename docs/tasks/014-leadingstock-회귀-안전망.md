@@ -1,4 +1,4 @@
-# tasks-014 — Phase 12: leadingstock 회귀 안전망
+# 014 — Phase 12: leadingstock 회귀 안전망
 
 Goal: leadingstock 필터 12개 + FilterChain 결합 로직의 도메인 단위 테스트 보강. 현재 테스트 0건 → Kiwoom·trading 측 변경 시 회귀 가드 확보.
 

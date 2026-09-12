@@ -1,4 +1,4 @@
-# tasks-012 — Phase 10: Kiwoom 어댑터 + Profile 와이어링
+# 012 — Phase 10: Kiwoom 어댑터 + Profile 와이어링
 
 Goal: Phase 9가 만든 `BrokerTradingClient` 자리에 Kiwoom 어댑터를 끼우고, broker × env profile로 인스턴스별 선택 가능하게 한다.
 
@@ -75,7 +75,7 @@ Goal: Phase 9가 만든 `BrokerTradingClient` 자리에 Kiwoom 어댑터를 끼�
 
 ---
 
-## 후속 / Phase 11 (tasks-013)
+## 후속 / Phase 11 (013)
 
 - Terraform `for_each = toset(["kis-vts","kis-real","kiwoom-real"])` 변환 + state mv
 - GHA matrix 3-entry

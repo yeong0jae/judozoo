@@ -1,4 +1,4 @@
-# tasks-002: Phase 2 — KIS REST Adapter
+# 002: Phase 2 — KIS REST Adapter
 
 This document breaks down [plan.md Phase 2](../plan.md#phase-2-kis-rest-어댑터) into checkable work units.
 
@@ -135,4 +135,4 @@ backend/src/test/resources/wiremock/
 
 ## Next phase
 
-- Phase 3 → tasks-003.md (Persistence + Command API)
+- Phase 3 → 003-트레이딩-접수-api.md (Persistence + Command API)

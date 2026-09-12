@@ -1,9 +1,9 @@
-# tasks-006 — Phase 5-A: 백엔드 도메인 이벤트 + STOMP 브로드캐스트
+# 006 — Phase 5-A: 백엔드 도메인 이벤트 + STOMP 브로드캐스트
 
 Goal: 사이클 엔진의 핵심 분기점에서 도메인 이벤트를 발행하고, STOMP 토픽으로 브로드캐스트하는 인프라를 구축한다. 프론트(Phase 5-B)가 구독할 안정적 토픽 표면을 제공.
 
 > Phase 4 DoD는 "broadcast hook 부착 위치 정렬"까지 명시했지만 실제 publisher는 미도입. 본 phase에서 publisher + STOMP 서버를 함께 만든다.
-> 프론트 통합은 [tasks-007.md (Phase 5-B)](tasks-007.md) 로 분리.
+> 프론트 통합은 [007-ui-ux-재설계.md (Phase 5-B)](007-ui-ux-재설계.md) 로 분리.
 
 ---
 
@@ -83,7 +83,7 @@ Goal: 사이클 엔진의 핵심 분기점에서 도메인 이벤트를 발행�
 - 프론트(Phase 5-B)가 토픽을 구독해 PRICE/STATE/SIGNAL/EXECUTION/RETRY/lifecycle/market/account 페이로드를 그대로 사용 가능
 - `Holiday` 발행은 변경 hook이 시스템에 존재하면 발행, 없으면 후속 이슈로 분리
 
-## 후속 / Phase 5-B (tasks-007)
+## 후속 / Phase 5-B (007)
 
 - 프론트 STOMP 클라이언트 + 자동 재연결
 - TanStack Query 도입 → mock 제거

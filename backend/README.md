@@ -1,7 +1,7 @@
 # backend — 이전 구현 (Kotlin / Spring Boot)
 
 **이 디렉터리는 더 이상 빌드·배포되지 않는다.** 2026-09-12에 `python-backend/`로 이관이
-끝나면서(`docs/tasks/tasks-015.md`) 이미지 빌드 대상과 compose 서비스에서 제거됐다.
+끝나면서(`docs/tasks/015-백엔드-python-마이그레이션.md`) 이미지 빌드 대상과 compose 서비스에서 제거됐다.
 
 지우지 않고 남겨 둔 이유는 두 가지다.
 
@@ -22,4 +22,4 @@
 
 `python-backend/` — FastAPI + SQLAlchemy. DB 스키마는 여기서 만들지 않는다(이관 기간에
 `ddl-auto=update`가 만들어 둔 테이블을 그대로 쓴다). 자세한 이관 경위는
-`docs/tasks/tasks-015.md`.
+`docs/tasks/015-백엔드-python-마이그레이션.md`.

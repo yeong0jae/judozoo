@@ -1,6 +1,6 @@
 # python-backend
 
-Kotlin/Spring 백엔드의 Python 이관 작업 공간. 계획은 [`docs/tasks/tasks-015.md`](../docs/tasks/tasks-015.md).
+Kotlin/Spring 백엔드의 Python 이관 작업 공간. 계획은 [`docs/tasks/015-백엔드-python-마이그레이션.md`](../docs/tasks/015-백엔드-python-마이그레이션.md).
 
 ## 로컬 실행
 
