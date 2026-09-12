@@ -9,10 +9,13 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from backend.library import token_store
 from backend.library.rate_limiter import RateLimiter
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
+
+PROVIDER = "KIWOOM"
 
 API_ID_HEADER = "api-id"
 _QUERY_PREFIX = "ka"  # 조회 TR. 주문/계좌(kt*)는 별도 한도라 리미터를 태우지 않는다.
@@ -94,6 +97,8 @@ def invalidate() -> None:
     with _lock:
         _token = None
         _token_expires_at = datetime.min.replace(tzinfo=UTC)
+        # DB에 남겨두면 재기동 시 죽은 토큰을 되살린다.
+        token_store.clear(PROVIDER)
         log.warning("Kiwoom 토큰 캐시 무효화")
 
 
@@ -106,6 +111,12 @@ def get_access_token() -> str:
 
     with _lock:
         if _token is not None and datetime.now(UTC) < _token_expires_at:
+            return _token
+
+        # 재기동 직후엔 메모리가 비어 있다. 발급은 희소하므로 **DB를 먼저 본다**.
+        restored = token_store.load(PROVIDER)
+        if restored is not None:
+            _token, _token_expires_at = restored
             return _token
 
         remaining = _token_retry_after - datetime.now(UTC)
@@ -152,6 +163,7 @@ def get_access_token() -> str:
 
         _token = token
         _token_expires_at = datetime.now(UTC) + timedelta(hours=23)
+        token_store.save(PROVIDER, token, _token_expires_at)
         log.info("Kiwoom access token 발급 완료 — expires_dt=%s", body.get("expires_dt", "N/A"))
         return token
 

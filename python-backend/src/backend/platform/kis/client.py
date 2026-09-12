@@ -11,10 +11,13 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from backend.library import token_store
 from backend.library.rate_limiter import RateLimiter
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
+
+PROVIDER = "KIS"
 
 _lock = threading.Lock()
 _client: httpx.Client | None = None
@@ -90,6 +93,12 @@ def get_access_token() -> str:
         if _token is not None and datetime.now(UTC) < _token_expires_at:
             return _token
 
+        # 재기동 직후엔 메모리가 비어 있다. KIS는 앱키당 1분 1회라 **DB를 먼저 본다**.
+        restored = token_store.load(PROVIDER)
+        if restored is not None:
+            _token, _token_expires_at = restored
+            return _token
+
         now = datetime.now(UTC)
         if now < _token_retry_after:
             raise KisTokenUnavailable(
@@ -125,6 +134,7 @@ def get_access_token() -> str:
 
         _token = token
         _token_expires_at = datetime.now(UTC) + timedelta(hours=23)
+        token_store.save(PROVIDER, token, _token_expires_at)
         log.info("KIS access token 발급 완료")
         return token
 

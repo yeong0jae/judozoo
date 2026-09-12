@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from backend.library.db import get_engine
 from backend.library.exception import EntityNotFoundError
+from backend.library import token_store
 from backend.library.logging_config import configure_logging
 from backend.library.scheduler import shutdown as shutdown_scheduler
 from backend.library.scheduler import start as start_scheduler
@@ -41,6 +42,9 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.debug_package)
     log.info("기동 — DB %s:%s/%s", settings.database.host, settings.database.port, settings.database.name)
+    # 브로커 토큰 저장소 — 재기동이 발급을 소비하지 않게 한다. 카탈로그 적재보다 먼저 와야
+    # 한다(적재가 KIS를 쓴다). 실패해도 fail-soft라 기동을 막지 않는다.
+    token_store.create_table()
     load_stock_catalog()
     start_scheduler()
     yield

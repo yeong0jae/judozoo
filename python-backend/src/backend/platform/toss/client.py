@@ -11,9 +11,12 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from backend.library import token_store
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
+
+PROVIDER = "TOSS"
 
 _lock = threading.Lock()
 _client: httpx.Client | None = None
@@ -36,6 +39,8 @@ def invalidate() -> None:
     with _lock:
         _token = None
         _token_expires_at = datetime.min.replace(tzinfo=UTC)
+        # 401은 "이 토큰이 죽었다"는 뜻이라 DB에서도 지운다.
+        token_store.clear(PROVIDER)
         log.warning("Toss 토큰 캐시 무효화")
 
 
@@ -47,6 +52,12 @@ def get_access_token() -> str:
 
     with _lock:
         if _token is not None and datetime.now(UTC) < _token_expires_at:
+            return _token
+
+        # client당 유효 토큰이 1개뿐이라, 재기동이 발급을 소비하면 안 된다.
+        restored = token_store.load(PROVIDER)
+        if restored is not None:
+            _token, _token_expires_at = restored
             return _token
 
         settings = get_settings()
@@ -71,6 +82,7 @@ def get_access_token() -> str:
         lifetime = max(int(body.get("expires_in", 86400)) - _EXPIRY_MARGIN_SECONDS, _MIN_LIFETIME_SECONDS)
         _token = token
         _token_expires_at = datetime.now(UTC) + timedelta(seconds=lifetime)
+        token_store.save(PROVIDER, token, _token_expires_at)
         return token
 
 
