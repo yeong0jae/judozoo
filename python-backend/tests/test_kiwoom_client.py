@@ -135,3 +135,73 @@ class Test부호_파서:
     )
     def test_정수_부호_변종을_흡수한다(self, 입력, 기대):
         assert client.parse_signed_int(입력) == 기대
+
+
+class Test토큰_발급_백오프:
+    """발급이 거부되면 일정 시간 다시 두드리지 않는다.
+
+    백오프가 없으면 실패할 때마다 매 호출이 토큰을 재요청한다 —
+    운영에서 11분에 185회를 두드린 적이 있다. 차단이라면 풀릴 기회도 없어진다.
+    """
+
+    @respx.mock
+    def test_거부되면_다음_호출은_키움을_두드리지_않는다(self, respx_mock):
+        route = respx_mock.post(TOKEN_URL).mock(return_value=httpx.Response(302))
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.get_access_token()
+        with pytest.raises(client.KiwoomTokenUnavailable, match="백오프"):
+            client.get_access_token()
+
+        assert route.call_count == 1  # 두 번째는 네트워크로 안 나간다
+
+    @respx.mock
+    def test_응답에_토큰이_없어도_백오프한다(self, respx_mock):
+        route = respx_mock.post(TOKEN_URL).mock(
+            return_value=httpx.Response(200, json={"return_code": 0})
+        )
+
+        with pytest.raises(RuntimeError):
+            client.get_access_token()
+        with pytest.raises(client.KiwoomTokenUnavailable):
+            client.get_access_token()
+
+        assert route.call_count == 1
+
+    @respx.mock
+    def test_오류_코드로_거부되면_백오프한다(self, respx_mock):
+        respx_mock.post(TOKEN_URL).mock(
+            return_value=httpx.Response(200, json={"return_code": 3, "return_msg": "거부"})
+        )
+
+        with pytest.raises(RuntimeError, match="거부"):
+            client.get_access_token()
+        with pytest.raises(client.KiwoomTokenUnavailable):
+            client.get_access_token()
+
+    @respx.mock
+    def test_백오프가_지나면_다시_시도한다(self, respx_mock, monkeypatch):
+        route = respx_mock.post(TOKEN_URL).mock(
+            side_effect=[httpx.Response(302), 토큰응답("tok-recovered")]
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            client.get_access_token()
+
+        # 백오프 만료를 과거로 밀어 시간 경과를 흉내 낸다
+        from datetime import UTC, datetime
+        monkeypatch.setattr(client, "_token_retry_after", datetime.min.replace(tzinfo=UTC))
+
+        assert client.get_access_token() == "tok-recovered"
+        assert route.call_count == 2
+
+    @respx.mock
+    def test_8005_무효화는_백오프를_걸지_않는다(self, respx_mock):
+        """외부에서 토큰이 끊긴 상황은 즉시 재발급이 맞다 — 발급 거부와 다르다."""
+        route = respx_mock.post(TOKEN_URL).mock(return_value=토큰응답())
+
+        client.get_access_token()
+        client.invalidate()
+        client.get_access_token()
+
+        assert route.call_count == 2

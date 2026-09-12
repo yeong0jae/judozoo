@@ -20,11 +20,18 @@ _QUERY_PREFIX = "ka"  # 조회 TR. 주문/계좌(kt*)는 별도 한도라 리미
 # 토큰 무효 — 응답 return_code 8005. 외부에서 토큰이 끊기면 이 코드로 돌아온다.
 TOKEN_INVALID_CODE = 8005
 
+# 발급이 거부된 뒤 다시 시도하기까지 기다리는 시간.
+# 없으면 실패할 때마다 매 호출이 토큰을 다시 요청한다 — 실측 11분에 185회를 두드렸다.
+# 거부만 반복하면서 키움에 불필요한 부하를 주고, 차단이라면 풀릴 기회도 없어진다.
+# (KIS 쪽에 이미 같은 장치가 있다 — `platform/kis/client.py`)
+_TOKEN_RETRY_BACKOFF = timedelta(seconds=60)
+
 _lock = threading.Lock()
 _client: httpx.Client | None = None
 _limiter: RateLimiter | None = None
 _token: str | None = None
 _token_expires_at = datetime.min.replace(tzinfo=UTC)
+_token_retry_after = datetime.min.replace(tzinfo=UTC)
 
 
 class QueryRateLimitedTransport(httpx.BaseTransport):
@@ -73,8 +80,16 @@ def get_client() -> httpx.Client:
     return _client
 
 
+class KiwoomTokenUnavailable(RuntimeError):
+    """직전 발급이 거부돼 백오프 중이다."""
+
+
 def invalidate() -> None:
-    """응답에서 토큰 무효(8005)가 확인됐을 때. 다음 `get_access_token()`이 새로 발급한다."""
+    """응답에서 토큰 무효(8005)가 확인됐을 때. 다음 `get_access_token()`이 새로 발급한다.
+
+    8005는 "토큰이 외부에서 무효화됐다"는 뜻이라 즉시 재발급이 맞다 —
+    발급 거부(백오프)와는 다른 상황이므로 백오프를 걸지 않는다.
+    """
     global _token, _token_expires_at
     with _lock:
         _token = None
@@ -84,7 +99,7 @@ def invalidate() -> None:
 
 def get_access_token() -> str:
     """23시간 캐시(유효기간 24시간에서 1시간 여유). 동시 요청은 한 번만 발급한다."""
-    global _token, _token_expires_at
+    global _token, _token_expires_at, _token_retry_after
 
     if _token is not None and datetime.now(UTC) < _token_expires_at:
         return _token
@@ -92,6 +107,12 @@ def get_access_token() -> str:
     with _lock:
         if _token is not None and datetime.now(UTC) < _token_expires_at:
             return _token
+
+        remaining = _token_retry_after - datetime.now(UTC)
+        if remaining.total_seconds() > 0:
+            raise KiwoomTokenUnavailable(
+                f"토큰 발급 백오프 중 — {int(remaining.total_seconds())}초 후 재시도"
+            )
 
         settings = get_settings()
         log.info("Kiwoom access token 발급 요청")
@@ -104,16 +125,29 @@ def get_access_token() -> str:
                 "secretkey": settings.kiwoom.app_secret,
             },
         )
-        response.raise_for_status()
-        body = response.json()
+        if response.status_code != 200:
+            # 거부 사유가 본문·리다이렉트에 들어오므로 버리지 않고 남긴다.
+            # (키움은 거부 시 start.html로 302를 주기도 한다 — 상태코드만 보면 원인을 놓친다)
+            _token_retry_after = datetime.now(UTC) + _TOKEN_RETRY_BACKOFF
+            log.error(
+                "Kiwoom token 발급 실패 status=%s location=%s body=%s — %d초 백오프",
+                response.status_code,
+                response.headers.get("location", "-"),
+                response.text[:200],
+                int(_TOKEN_RETRY_BACKOFF.total_seconds()),
+            )
+            response.raise_for_status()
 
+        body = response.json()
         code = body.get("return_code")
         if code is not None and code != 0:
+            _token_retry_after = datetime.now(UTC) + _TOKEN_RETRY_BACKOFF
             log.error("Kiwoom 인증 실패 code=%s msg=%s", code, body.get("return_msg"))
             raise RuntimeError(f"Kiwoom API error: {body.get('return_msg')}")
 
         token = body.get("token") or body.get("access_token")
         if not token:
+            _token_retry_after = datetime.now(UTC) + _TOKEN_RETRY_BACKOFF
             raise RuntimeError("Kiwoom token 응답에 토큰 없음")
 
         _token = token
@@ -168,10 +202,11 @@ def query_headers(api_id: str, cont_yn: str = "N", next_key: str = "") -> dict[s
 
 def reset() -> None:
     """테스트 격리용."""
-    global _client, _limiter, _token, _token_expires_at
+    global _client, _limiter, _token, _token_expires_at, _token_retry_after
     if _client is not None:
         _client.close()
     _client = None
     _limiter = None
     _token = None
     _token_expires_at = datetime.min.replace(tzinfo=UTC)
+    _token_retry_after = datetime.min.replace(tzinfo=UTC)
