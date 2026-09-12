@@ -26,24 +26,24 @@ Goal: 고정 IP `:3000` 직결을 도메인 + HTTPS로 바꾼다. 프론트와 G
 
 ## 1. 도메인 확보
 
-- [ ] 도메인 구입 (Cloudflare Registrar). 네임서버가 Cloudflare로 잡히는지 확인
-- [ ] A 레코드 2건 등록 — `<도메인>`, `grafana.<도메인>` → 고정 외부 IP. **둘 다 프록시 끄고 DNS only**
-- [ ] `dig +short <도메인>` / `dig +short grafana.<도메인>`이 고정 IP를 돌려주는지 확인
+- [x] 도메인 구입 (Cloudflare Registrar). 네임서버가 Cloudflare로 잡히는지 확인
+- [x] A 레코드 2건 등록 — `<도메인>`, `grafana.<도메인>` → 고정 외부 IP. **둘 다 프록시 끄고 DNS only**
+- [x] `dig +short <도메인>` / `dig +short grafana.<도메인>`이 고정 IP를 돌려주는지 확인
 
 ## 2. Cloudflare API 토큰 → Secret Manager
 
-- [ ] Zone:DNS:Edit 권한 토큰 발급 — 해당 zone 하나로 범위 제한
-- [ ] `infra/terraform/main.tf`의 `app_secrets`에 `AT_CLOUDFLARE_API_TOKEN` 추가 → `terraform apply`
-- [ ] 토큰 값 주입 (`echo -n "<값>" | gcloud secrets versions add AT_CLOUDFLARE_API_TOKEN --data-file=-`)
+- [x] Zone:DNS:Edit 권한 토큰 발급 — 해당 zone 하나로 범위 제한
+- [x] `infra/terraform/main.tf`의 `app_secrets`에 `AT_CLOUDFLARE_API_TOKEN` 추가 → `terraform apply`
+- [x] 토큰 값 주입 (`echo -n "<값>" | gcloud secrets versions add AT_CLOUDFLARE_API_TOKEN --data-file=-`)
 - [ ] `remote_deploy.sh`의 `fetch`로 `CLOUDFLARE_API_TOKEN`을 `secrets/.env`에 기록
 
 ## 3. Grafana 비밀번호 분리
 
 > 도메인이 붙으면 admin/admin을 그대로 둘 수 없다. Caddy보다 먼저 처리해야 첫 HTTPS 노출 시점에 이미 잠겨 있다.
 
-- [ ] `AT_GRAFANA_ADMIN_PASSWORD` 시크릿 추가 → `terraform apply` → 값 주입
-- [ ] `remote_deploy.sh`가 `GRAFANA_ADMIN_PASSWORD`를 `.env`에 기록
-- [ ] `docker-compose.yml`의 `GF_SECURITY_ADMIN_PASSWORD`를 하드코딩 `admin`에서 환경변수 참조로 교체
+- [x] `AT_GRAFANA_ADMIN_PASSWORD` 시크릿 추가 → `terraform apply` → 값 주입
+- [x] `remote_deploy.sh`가 `GF_SECURITY_ADMIN_PASSWORD`를 `.env`에 기록
+- [x] `docker-compose.yml`의 `GF_SECURITY_ADMIN_PASSWORD`를 하드코딩 `admin`에서 환경변수 참조로 교체
 
 ## 4. Caddy 이미지
 
