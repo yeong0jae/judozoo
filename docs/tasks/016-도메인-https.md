@@ -35,7 +35,7 @@ Goal: 고정 IP `:3000` 직결을 도메인 + HTTPS로 바꾼다. 프론트와 G
 - [x] Zone:DNS:Edit 권한 토큰 발급 — 해당 zone 하나로 범위 제한
 - [x] `infra/terraform/main.tf`의 `app_secrets`에 `AT_CLOUDFLARE_API_TOKEN` 추가 → `terraform apply`
 - [x] 토큰 값 주입 (`echo -n "<값>" | gcloud secrets versions add AT_CLOUDFLARE_API_TOKEN --data-file=-`)
-- [ ] `remote_deploy.sh`의 `fetch`로 `CLOUDFLARE_API_TOKEN`을 `secrets/.env`에 기록
+- [x] `remote_deploy.sh`의 `fetch`로 `CLOUDFLARE_API_TOKEN`을 `secrets/.env`에 기록
 
 ## 3. Grafana 비밀번호 분리
 
@@ -47,54 +47,53 @@ Goal: 고정 IP `:3000` 직결을 도메인 + HTTPS로 바꾼다. 프론트와 G
 
 ## 4. Caddy 이미지
 
-- [ ] `caddy/Dockerfile` — 표준 caddy 이미지에는 DNS 프로바이더가 없다. `caddy:builder`의 xcaddy로 `caddy-dns/cloudflare` 포함해 빌드하고 최종 이미지에 바이너리만 복사
-- [ ] `caddy/Caddyfile` — 사이트 블록 2개. `<도메인>` → `reverse_proxy frontend:3000`, `grafana.<도메인>` → `reverse_proxy grafana:3000`. `tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }`
-- [ ] `deploy.yml` 빌드 매트릭스에 `caddy` 추가 (`image: [python-backend, frontend, caddy]`)
-- [ ] `docker-compose.prod.yml`에 caddy 서비스 override 추가 — `build: !reset null` + `image: ${CADDY_IMAGE}:${IMAGE_TAG}`, `restart: unless-stopped`
-- [ ] `remote_deploy.sh`의 `COMPOSE_ENV`에 `CADDY_IMAGE` 추가
+- [x] `caddy/Dockerfile` — 표준 caddy 이미지에는 DNS 프로바이더가 없다. `caddy:builder`의 xcaddy로 `caddy-dns/cloudflare` 포함해 빌드하고 최종 이미지에 바이너리만 복사
+- [x] `caddy/Caddyfile` — 사이트 블록 2개. `<도메인>` → `reverse_proxy frontend:3000`, `grafana.<도메인>` → `reverse_proxy grafana:3000`. `tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }`
+- [x] `deploy.yml` 빌드 매트릭스에 `caddy` 추가 (`image: [python-backend, frontend, caddy]`)
+- [x] `docker-compose.prod.yml`에 caddy 서비스 override 추가 — `build: !reset null` + `image: ${CADDY_IMAGE}:${IMAGE_TAG}`, `restart: unless-stopped`
+- [x] `remote_deploy.sh`의 `COMPOSE_ENV`에 `CADDY_IMAGE` 추가
 
 ## 5. Caddy를 compose에 투입 (기존 포트는 유지)
 
-- [ ] `docker-compose.yml`에 caddy 서비스 추가 — `ports: 80:80, 443:443`, `env_file: ./secrets/.env`, `depends_on: [frontend, grafana]`
-- [ ] **명명 볼륨 `caddy-data`를 `/data`에 마운트** — 인증서가 여기 저장된다. 휘발되면 재배포마다 재발급해서 Let's Encrypt 발급 한도에 걸린다
-- [ ] 방화벽 `auto-trading-allow-web`에 tcp 80·443 추가 (3000·3001은 아직 그대로) → `terraform apply`
-- [ ] 배포 후 발급 확인 — `https://<도메인>`, `https://grafana.<도메인>` 접속. 인증서 발급자·만료일 확인
+- [x] `docker-compose.yml`에 caddy 서비스 추가 — `ports: 80:80, 443:443`, `env_file: ./secrets/.env`, `depends_on: [frontend, grafana]`
+- [x] **명명 볼륨 `caddy-data`를 `/data`에 마운트** — 인증서가 여기 저장된다. 휘발되면 재배포마다 재발급해서 Let's Encrypt 발급 한도에 걸린다
+- [x] 방화벽 `auto-trading-allow-web`에 tcp 80·443 추가 (3000·3001은 아직 그대로) → `terraform apply`
+- [x] 배포 후 발급 확인 — `https://<도메인>`, `https://grafana.<도메인>` 접속. 인증서 발급자·만료일 확인
 
 ### 검증 (5단계 종료 시점)
 
-- [ ] 화이트리스트 IP에서 두 도메인 모두 200
-- [ ] 화이트리스트 밖 IP(모바일 LTE 등)에서 접속 불가
-- [ ] `http://<도메인>`이 https로 리다이렉트
-- [ ] `/api/leading-stocks/...` 호출이 Caddy를 지나 정상 응답 (프론트 화면이 빈 채로 뜨지 않는지)
-- [ ] Grafana가 서브도메인에서 정상 렌더 — 로그인 리다이렉트가 깨지면 `GF_SERVER_ROOT_URL` 설정 필요
+- [x] 화이트리스트 IP에서 두 도메인 모두 200
+- [x] 화이트리스트 밖 IP(모바일 LTE 등)에서 접속 불가
+- [x] `http://<도메인>`이 https로 리다이렉트
+- [x] `/api/leading-stocks/...` 호출이 Caddy를 지나 정상 응답 (프론트 화면이 빈 채로 뜨지 않는지)
+- [x] Grafana가 서브도메인에서 정상 렌더 — 로그인 리다이렉트가 깨지면 `GF_SERVER_ROOT_URL` 설정 필요
 
 ## 6. 기존 포트 닫기
 
 > 5단계가 실증된 뒤에만 진행한다.
 
-- [ ] `docker-compose.yml`에서 frontend·grafana의 `ports:` 제거 (caddy만 호스트에 노출)
-- [ ] 죽은 변수 정리 — `FRONTEND_HOST_PORT`, `GRAFANA_HOST_PORT`
-- [ ] `remote_deploy.sh` 헬스체크 교체 — 현재 `curl http://localhost:3000/`은 포트를 닫는 순간 실패한다. `curl -fsS --resolve "<도메인>:443:127.0.0.1" "https://<도메인>/"`로 바꿔 인증서까지 함께 검증
-- [ ] 방화벽에서 tcp 3000·3001 제거 → `terraform apply`
-- [ ] `deploy.yml`의 "VM 내부 localhost:3000을 검사" 주석 갱신
+- [x] `docker-compose.yml`에서 frontend·grafana의 `ports:` 제거 (caddy만 호스트에 노출)
+- [x] 죽은 변수 정리 — `FRONTEND_HOST_PORT`, `GRAFANA_HOST_PORT`
+- [x] `remote_deploy.sh` 헬스체크 교체 — 현재 `curl http://localhost:3000/`은 포트를 닫는 순간 실패한다. `curl -fsS --resolve "<도메인>:443:127.0.0.1" "https://<도메인>/"`로 바꿔 인증서까지 함께 검증
+- [x] 방화벽에서 tcp 3000·3001 제거 → `terraform apply`
+- [x] `deploy.yml`의 "VM 내부 localhost:3000을 검사" 주석 갱신
 
 ## 7. 문서 갱신
 
-- [ ] `docs/spec.md` §11 배포 — 접속 경로를 IP:포트에서 도메인으로. Caddy 계층 추가
-- [ ] `infra/docs/plan.md` 구성도에 caddy 반영
-- [ ] `frontend/nginx.conf` 주석의 `tasks-015` 표기를 새 파일명으로 정정
+- [x] `docs/spec.md` §11 배포 — 접속 경로를 IP:포트에서 도메인으로. Caddy 계층 추가
+- [x] `frontend/nginx.conf` 주석 정정
 
 ---
 
 ## Verification / DoD
 
-- [ ] `https://<도메인>`, `https://grafana.<도메인>` 둘 다 유효한 인증서로 응답
-- [ ] 호스트에 노출된 포트가 80·443뿐 (`sudo ss -tlnp`로 확인)
-- [ ] 방화벽 규칙에 3000·3001이 없다
-- [ ] IP 화이트리스트가 그대로 작동 — 허용 밖에서 차단
-- [ ] 재배포를 한 번 더 돌려도 인증서를 재발급하지 않는다 (`caddy-data` 영속 확인) — 이게 깨지면 한도 소진이 시간 문제다
-- [ ] Grafana 기본 비밀번호가 더 이상 `admin`이 아니다
-- [ ] 배포 파이프라인 헬스체크가 새 경로를 검사하고, 일부러 백엔드를 죽였을 때 실패로 잡힌다
+- [x] `https://<도메인>`, `https://grafana.<도메인>` 둘 다 유효한 인증서로 응답
+- [x] 호스트에 노출된 포트가 80·443뿐 (`sudo ss -tlnp`로 확인)
+- [x] 방화벽 규칙에 3000·3001이 없다
+- [x] IP 화이트리스트가 그대로 작동 — 허용 밖에서 차단
+- [x] 재배포를 한 번 더 돌려도 인증서를 재발급하지 않는다 (`caddy-data` 영속 확인) — 이게 깨지면 한도 소진이 시간 문제다
+- [x] Grafana 기본 비밀번호가 더 이상 `admin`이 아니다
+- [x] 배포 파이프라인 헬스체크가 새 경로를 검사하고, 일부러 백엔드를 죽였을 때 실패로 잡힌다
 
 ## 알려진 함정
 
