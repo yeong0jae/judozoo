@@ -11,6 +11,9 @@ IMAGE_TAG="${1:?IMAGE_TAG required}"
 AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
 
+DOMAIN="judozoo.com"
+GRAFANA_DOMAIN="grafana.${DOMAIN}"
+
 cd "$HOME"
 # mysql·backend가 둘 다 ./secrets/.env 를 읽는다.
 mkdir -p secrets
@@ -36,8 +39,8 @@ REAL_TOSS_CLIENT_ID=$(fetch AT_REAL_TOSS_CLIENT_ID)
 REAL_TOSS_CLIENT_SECRET=$(fetch AT_REAL_TOSS_CLIENT_SECRET)
 GF_SECURITY_ADMIN_PASSWORD=$(fetch AT_GRAFANA_ADMIN_PASSWORD)
 CLOUDFLARE_API_TOKEN=$(fetch AT_CLOUDFLARE_API_TOKEN)
-DOMAIN=judozoo.com
-GRAFANA_DOMAIN=grafana.judozoo.com
+DOMAIN=${DOMAIN}
+GRAFANA_DOMAIN=${GRAFANA_DOMAIN}
 EOF
 
 # Artifact Registry pull 인증: VM 인스턴스 SA(metadata)로 토큰 발급 → docker login.
@@ -79,9 +82,13 @@ for i in $(seq 1 18); do
   echo "backend not ready ($status), retry $i"; sleep 5
 done
 
-# 2) 프론트 — nginx 기동 확인.
+# 2) 프론트 — Caddy를 거쳐 검사한다. 호스트에 3000을 더 이상 퍼블리시하지 않으므로
+#    localhost:3000은 쓸 수 없다. --resolve로 DNS를 우회해 루프백의 Caddy를 때리면
+#    TLS 인증서(SNI·유효기간)까지 한 번에 검증된다.
 for i in $(seq 1 24); do
-  if curl -fsS http://localhost:3000/ >/dev/null; then echo "health OK ($i)"; exit 0; fi
+  if curl -fsS --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/" >/dev/null; then
+    echo "health OK ($i)"; exit 0
+  fi
   echo "not ready, retry $i"; sleep 10
 done
 echo "health check failed"; exit 1
