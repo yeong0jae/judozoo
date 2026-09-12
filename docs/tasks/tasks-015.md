@@ -289,6 +289,10 @@ Kotlin 쪽엔 이 영역 테스트가 한 건도 없어 **이관이 아니라 �
 - [x] nginx에서 Kotlin 백엔드 라우팅 제거, `/api/*` 전체를 Python으로
   - 죽은 `/ws`(STOMP) 블록도 같이 제거 — 프론트·Kotlin 양쪽에 사용처가 없었다
 - [x] docker-compose / prod compose에서 Kotlin 서비스 제거
+  - [x] 배포 스크립트에 `--remove-orphans` — compose 파일에서 서비스를 지워도
+        **이미 떠 있는 컨테이너는 남는다**. 첫 배포에서 Kotlin이 고아 컨테이너로 계속 돌아
+        폴러가 살아 있었다(로그의 `Found orphan containers` 경고로 발견). 주말이라
+        휴장 게이트가 있는 7종은 스킵돼 실제 중복 적재는 없었다
 - [x] GitHub Actions 배포 워크플로우 전환 — 빌드 매트릭스에서 `backend` 제거,
       `SPRING_PROFILES_ACTIVE` 주입 제거(배포 스크립트 인자도 함께)
 - [x] Terraform 변경 — **불필요**. `backend.tf`는 GCS state 백엔드일 뿐 Kotlin과 무관하고,
