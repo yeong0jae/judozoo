@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 
 from backend.library import token_store
+from backend.library.exception import BrokerTokenUnavailable
 from backend.library.rate_limiter import RateLimiter
 from backend.settings import get_settings
 
@@ -78,7 +79,7 @@ def get_client() -> httpx.Client:
     return _client
 
 
-class KisTokenUnavailable(RuntimeError):
+class KisTokenUnavailable(BrokerTokenUnavailable):
     """직전 발급이 거부돼 백오프 중이다."""
 
 

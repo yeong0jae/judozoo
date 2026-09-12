@@ -196,3 +196,53 @@ class Test지수_캔들:
 
         assert 응답.status_code == 500
         assert 응답.json()["code"] == "INTERNAL_ERROR"
+
+
+class Test브로커_토큰_백오프:
+    """발급 백오프는 **예상된 상태**다 — 스택트레이스 없이 한 줄만 남기고 오류 봉투를 준다.
+
+    화면이 5초마다 폴링하므로 트레이스를 찍으면 로그가 트레이스로 뒤덮인다
+    (2026-09-12에 실제로 그랬다).
+    """
+
+    def test_봉투는_Kotlin과_같은_500_INTERNAL_ERROR다(self, monkeypatch, caplog):
+        from fastapi.testclient import TestClient
+
+        from backend.leadingstock import application as app_mod
+        from backend.main import app
+        from backend.platform.kiwoom.client import KiwoomTokenUnavailable
+
+        def 백오프(_rate):
+            raise KiwoomTokenUnavailable("토큰 발급 백오프 중 — 52초 후 재시도")
+
+        monkeypatch.setattr(app_mod, "find_candidate_stocks", 백오프)
+
+        with TestClient(app, raise_server_exceptions=False) as c:
+            응답 = c.get("/api/leading-stocks/candidates")
+
+        assert 응답.status_code == 500
+        assert 응답.json()["code"] == "INTERNAL_ERROR"
+
+    def test_스택트레이스를_남기지_않는다(self, monkeypatch, caplog):
+        import logging
+
+        from fastapi.testclient import TestClient
+
+        from backend.leadingstock import application as app_mod
+        from backend.main import app
+        from backend.platform.kiwoom.client import KiwoomTokenUnavailable
+
+        monkeypatch.setattr(
+            app_mod, "find_candidate_stocks",
+            lambda _r: (_ for _ in ()).throw(KiwoomTokenUnavailable("백오프 중 — 52초")),
+        )
+
+        # lifespan의 configure_logging이 caplog 핸들러를 밀어내므로 컨텍스트 매니저를 쓰지 않는다
+        client = TestClient(app, raise_server_exceptions=False)
+        with caplog.at_level(logging.WARNING):
+            client.get("/api/leading-stocks/candidates")
+
+        백오프_기록 = [r for r in caplog.records if "백오프" in r.getMessage()]
+        assert 백오프_기록, "백오프를 한 줄로 남겨야 한다"
+        assert all(r.exc_info is None for r in 백오프_기록), "트레이스를 붙이면 안 된다"
+        assert all(r.levelno == logging.WARNING for r in 백오프_기록)

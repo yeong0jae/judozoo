@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from backend.library.db import get_engine
-from backend.library.exception import EntityNotFoundError
+from backend.library.exception import BrokerTokenUnavailable, EntityNotFoundError
 from backend.library import token_store
 from backend.library.logging_config import configure_logging
 from backend.library.scheduler import shutdown as shutdown_scheduler
@@ -65,6 +65,17 @@ app.include_router(leading_router)
 def _error(code: str, status: int) -> JSONResponse:
     """Kotlin `ApiResponse.error`와 같은 봉투 — 프론트가 이 모양을 기대한다."""
     return JSONResponse(status_code=status, content={"code": code, "status": status, "data": None})
+
+
+@app.exception_handler(BrokerTokenUnavailable)
+async def handle_broker_token_unavailable(request: Request, exc: BrokerTokenUnavailable) -> JSONResponse:
+    """토큰 발급 백오프는 예상된 상태다 — 스택트레이스 없이 한 줄만 남긴다.
+
+    화면이 5초마다 폴링하므로 트레이스를 찍으면 로그가 트레이스로 뒤덮인다.
+    상태코드는 Kotlin과 같게 500으로 둔다.
+    """
+    log.warning("%s %s — %s", request.method, request.url.path, exc)
+    return _error("INTERNAL_ERROR", 500)
 
 
 @app.exception_handler(EntityNotFoundError)
