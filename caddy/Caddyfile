@@ -1,0 +1,19 @@
+# 도메인은 이미지에 박지 않고 환경변수로 받는다 (secrets/.env).
+# 도메인이 바뀌거나 서브도메인이 늘어도 이미지를 다시 빌드하지 않아도 된다.
+#
+# 인증서는 DNS-01로 받는다. CLOUDFLARE_API_TOKEN은 Zone:DNS:Edit 권한이어야 한다.
+(tls_dns) {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+}
+
+{$DOMAIN} {
+	import tls_dns
+	reverse_proxy frontend:3000
+}
+
+{$GRAFANA_DOMAIN} {
+	import tls_dns
+	reverse_proxy grafana:3000
+}

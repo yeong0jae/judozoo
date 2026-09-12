@@ -31,7 +31,7 @@ jobs:
     strategy:
       matrix:
         # 이미지별로 러너를 나눠 병렬 빌드. 디렉터리명 = 이미지명 = 빌드 컨텍스트.
-        image: [backend, frontend]
+        image: [backend, frontend, caddy]
     name: build ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4

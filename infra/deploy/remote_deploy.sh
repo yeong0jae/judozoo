@@ -35,6 +35,9 @@ REAL_KIWOOM_ACCOUNT_NO=$(fetch AT_KIWOOM_ACCOUNT_NO)
 REAL_TOSS_CLIENT_ID=$(fetch AT_REAL_TOSS_CLIENT_ID)
 REAL_TOSS_CLIENT_SECRET=$(fetch AT_REAL_TOSS_CLIENT_SECRET)
 GF_SECURITY_ADMIN_PASSWORD=$(fetch AT_GRAFANA_ADMIN_PASSWORD)
+CLOUDFLARE_API_TOKEN=$(fetch AT_CLOUDFLARE_API_TOKEN)
+DOMAIN=judozoo.com
+GRAFANA_DOMAIN=grafana.judozoo.com
 EOF
 
 # Artifact Registry pull 인증: VM 인스턴스 SA(metadata)로 토큰 발급 → docker login.
@@ -46,6 +49,7 @@ gcloud auth print-access-token \
 COMPOSE_ENV=(
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
   "BACKEND_IMAGE=${AR_REPO}/backend"
+  "CADDY_IMAGE=${AR_REPO}/caddy"
   "IMAGE_TAG=${IMAGE_TAG}"
 )
 
