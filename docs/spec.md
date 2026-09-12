@@ -13,7 +13,7 @@ Frontend (TypeScript + React + Vite + Tailwind)
   - 6개 조회 화면, TanStack Query 폴링
   - 실시간 푸시 없음 — 화면별 refetchInterval
 
-Backend (Kotlin + Spring Boot 4, package by feature)
+Backend (Python + FastAPI, package by feature)
   - leadingstock         : 주도주 후보 필터 체인 + 시그널 이벤트 + 지수 시그널
   - overseasleadingstock : 해외(미국) 주도주 랭킹 + 시그널
   - market               : 지수 / 선물 / 투자자 수급 / 프로그램매매 / 매크로 / 캘린더
@@ -23,24 +23,25 @@ Backend (Kotlin + Spring Boot 4, package by feature)
   - news                 : 종목 뉴스·공시
   - stock                : 종목 마스터 카탈로그 + 검색
   - platform/{kis,kiwoom,toss,yahoo} : 외부 API 어댑터
-  - library              : 공유 유틸 (예외 / 시간 / 로깅 / 캐시 / 포맷 / 코루틴)
+  - library              : 공유 유틸 (예외 / 시간 / 로깅 / 캐시 / DB / 레이트리미터 / 토큰 저장)
 
   계층: presentation → application → domain ← infrastructure
+  계층은 디렉터리가 아니라 모듈 파일(application.py 등)이다
 ```
 
 ### 1.2 설계 원칙
 
 - **Package by feature** — 피처 간 호출은 `application` 계층끼리만. 값 객체 타입 참조는 허용하되 도메인 객체에 메시지를 보내지 않는다
-- **도메인에 외부 의존 없음** — `domain/`에서 Spring·HTTP·시간·난수를 직접 쓰지 않고 파라미터로 받는다
-- **JPA 엔티티 = 도메인 엔티티** — 별도 도메인 모델 클래스를 두지 않는다
-- **브로커 분기 없음** — 4개 소스를 한 인스턴스가 모두 호출한다. 코드에 `if (broker == ...)` 형태의 분기를 두지 않는다. Spring Profile은 `!test`로 테스트에서 폴러를 끄는 용도로만 쓴다
+- **도메인에 외부 의존 없음** — `domain`에서 FastAPI·HTTP·시간·난수를 직접 쓰지 않고 파라미터로 받는다
+- **SQLAlchemy 모델 = 도메인 엔티티** — 별도 도메인 모델 클래스를 두지 않는다
+- **브로커 분기 없음** — 4개 소스를 한 인스턴스가 모두 호출한다. 코드에 `if broker == ...` 형태의 분기를 두지 않는다. 테스트에서 폴러를 끄는 것은 `SCHEDULERS_ENABLED=false` 환경변수로 처리한다
 - **조회 전용** — 쓰기는 사용자가 직접 만드는 데이터(이슈 메모, 관심 테마)와 스냅샷 적재뿐
 
 ---
 
 ## 2. 기술 스택
 
-**Backend**: Kotlin 2.2 / JVM 21 / Spring Boot 4 (Web MVC) / Spring Data JPA + Hibernate / MySQL 8 / Spring `RestClient` / Caffeine (인프로세스 TTL 캐시) / Resilience4j RateLimiter / Logback / Kotest FunSpec + MockK + Testcontainers
+**Backend**: Python 3.13 / FastAPI / SQLAlchemy 2.0 + PyMySQL / MySQL 8 / `httpx` / `cachetools` (인프로세스 TTL 캐시) / 자체 RateLimiter / APScheduler / pytest + respx + Testcontainers / uv (패키지·실행)
 
 **Frontend**: TypeScript + React + Vite / TanStack Query / React Router / Tailwind CSS / React Hook Form + Zod / lightweight-charts (캔들) / d3-hierarchy (테마 트리맵) / motion (전환) / Pretendard·JetBrains Mono
 
@@ -152,7 +153,7 @@ MarketCap → TradingValueRank → DailyPriceChange → DailyHighPosition
 
 - 각 필터는 `FilterEvaluationResult`로 **통과 여부와 탈락 사유**를 반환한다. 화면에서 "왜 떨어졌는지" 보기 위한 것
 - 기준값은 `leading-stock.criteria.*` 설정으로 주입. 도메인 코드에 상수를 박지 않는다
-- 필터는 순수 함수 — Spring·시간·HTTP 의존 없음. 그래서 단위 테스트가 전부 도메인 테스트로 닫힌다
+- 필터는 순수 함수 — 프레임워크·시간·HTTP 의존 없음. 그래서 단위 테스트가 전부 도메인 테스트로 닫힌다
 
 ### 5.2 시그널 쿨다운
 
@@ -273,7 +274,7 @@ GET /api/news/stock/{code}
 
 ## 9. 로깅 / 관측
 
-- Logback 콘솔 평문 출력 (`CONSOLE_LOG_PATTERN`). `at.backend` 패키지만 DEBUG
+- 표준 `logging` 콘솔 평문 출력 (`library/logging_config.py`). `backend` 패키지만 DEBUG
 - 로그 수집은 Grafana Alloy → Loki → Grafana. 설정은 `observability/`
 - 구조화 로깅(JSON)·MDC 컨텍스트 주입은 **하지 않는다**. 단일 인스턴스라 로그 상관관계를 추적할 대상이 없어, 도입했다가 걷어냈다
 
@@ -281,22 +282,22 @@ GET /api/news/stock/{code}
 
 ## 10. 테스트 전략
 
-`.claude/rules/testing.md`의 규칙을 따른다. Kotest **FunSpec 전용**, `context()` / `test()` 설명은 **한글**로 시나리오와 의미를 쓴다.
+`.claude/rules/testing.md`의 규칙을 따른다. pytest, `class Test<이름>` + `def test_<설명>` 구조이며 이름은 **한글**로 시나리오와 의미를 쓴다. `tests/`는 `src/backend/`와 1:1로 대응한다.
 
 | 계층 | 방식 |
 |------|------|
-| Domain | Spring·MockK 없이 실제 객체로. 필터 14종 경계 조건, `FilterChain` 결합 시나리오 |
-| Infrastructure (JPA) | `@DataJpaTest` — 쿼리 메서드·매핑 검증 |
-| Application | `IntegrationTestBase` (Testcontainers MySQL). 외부 API만 `@TestConfiguration + @Primary`로 격리 |
-| Presentation | MockK로 서비스 모킹 — 컨트롤러 매핑·DTO 검증 |
+| Domain | 모킹·DB 없이 실제 객체로. 필터 14종 경계 조건, 필터 체인 결합 시나리오 |
+| Platform / Infrastructure | respx로 외부 응답 시뮬레이션 — 성공·실패·타임아웃·이상 페이로드. 브로커 응답 함정이 여기 |
+| Application | `통합_db` fixture (Testcontainers MySQL) + `@pytest.mark.integration`. 외부 API만 `pytest-mock`으로 격리 |
+| Presentation | `client` fixture(TestClient) + 애플리케이션 계층 모킹 — 라우트 매핑·응답 형태 검증 |
 
-> **현재 커버리지 편중** — 테스트 대부분이 도메인(필터)에 몰려 있고, 외부 API 어댑터 계층은 비어 있다. 브로커 응답 파싱은 `platform`에서 실제 함정이 가장 많이 나온 곳이라 여기가 가장 큰 공백이다.
+Docker가 없으면 `uv run pytest -m "not integration"`으로 통합 테스트를 건너뛴다.
 
 ---
 
 ## 11. 배포
 
-- 백엔드·프론트 도커라이즈 (multi-stage). nginx가 `/api`를 `backend:8080`으로 프록시
+- 백엔드·프론트 도커라이즈 (multi-stage). nginx가 `/api`를 `python-backend:8000`으로 프록시
 - `docker-compose.yml` / `docker-compose.prod.yml`
 - Terraform — GCP `asia-northeast3` VM + 고정 IP + Artifact Registry + Secret Manager + Workload Identity Federation
 - GitHub Actions — WIF 인증 → 빌드·푸시 → scp/ssh 배포 → 헬스체크
@@ -306,25 +307,26 @@ GET /api/news/stock/{code}
 
 ---
 
-## 12. 설정 (`application.yaml`)
+## 12. 설정 (`settings.py`)
 
-```yaml
-kis.api:      base-url / app-key / app-secret
-kiwoom.api:   base-url / app-key / app-secret
-toss.api:     base-url / client-id / client-secret
+pydantic-settings 클래스로 정의하고 값은 환경변수(`secrets/.env`)로 주입한다. 코드에 기본값을 두고 환경변수가 덮어쓰는 구조.
 
-stock.master:
-  kospi-url / kosdaq-url / overseas-urls   # KIS 마스터 파일 CDN
+```
+DatabaseSettings        DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD
+KisSettings             REAL_KIS_APP_KEY / REAL_KIS_APP_SECRET / KIS_QUERY_PERMITS_PER_SECOND
+KiwoomSettings          REAL_KIWOOM_APP_KEY / REAL_KIWOOM_APP_SECRET / KIWOOM_QUERY_PERMITS_PER_SECOND
+TossSettings            REAL_TOSS_CLIENT_ID / REAL_TOSS_CLIENT_SECRET
+StockMasterSettings     KIS 마스터 파일 CDN URL (국내·해외)
 
-leading-stock:
-  criteria:                 # 필터 14종 기준값
-    min-market-cap: 3000
-    max-trading-value-rank: 35
-    min-daily-price-change-rate: 7.0
-    ...
-  signal-event:
-    min-change-rate / poll-interval-millis / cooldown-minutes
-  market-signal:
-    poll-interval-millis / candle-poll-interval-millis
-    session-start: "09:00" / session-end: "15:30"
+LeadingStockCriteria    env_prefix=LEADING_STOCK_CRITERIA_        # 필터 14종 기준값
+  min_market_cap: 3000                    # 억원
+  max_trading_value_rank: 35
+  min_daily_price_change_rate: 7.0        # %
+  ...
+SignalEventSettings     env_prefix=LEADING_STOCK_SIGNAL_EVENT_
+  min_change_rate / poll_interval_millis / cooldown_minutes
+MarketSignalSettings    env_prefix=LEADING_STOCK_MARKET_SIGNAL_
+  poll_interval_millis / candle_poll_interval_millis / session_start / session_end
+
+SCHEDULERS_ENABLED      false 면 폴러·캡처를 띄우지 않는다 (테스트)
 ```

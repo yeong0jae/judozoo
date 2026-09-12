@@ -1,5 +1,13 @@
 # 인프라 / 배포 구성 계획
 
+> **최초 구축 시점(2026-05)의 계획 기록이며 현재 구성의 명세가 아니다.**
+> 현재 배포 구성은 [`docs/spec.md`](../../docs/spec.md) §11과 실제 파일
+> (`docker-compose.yml`, `infra/terraform/`, `infra/deploy/remote_deploy.sh`)이 정의한다.
+>
+> 이 문서에서 더 이상 참이 아닌 것: Kotlin/Spring 백엔드와 `backend/Dockerfile`(삭제됨,
+> 지금은 `python-backend/` FastAPI가 `:8000`), `SPRING_PROFILES_ACTIVE`·`vts` 프로파일(제거됨),
+> `/ws` WebSocket 프록시(STOMP 제거로 없어짐), 시크릿 12종(현재 8종).
+
 `/Users/yeong0jae/project/trading`(레퍼런스 프로젝트)의 인프라 골격을 그대로 따른다.
 GCE VM(Ubuntu) + Docker Compose + Artifact Registry + Secret Manager + GitHub Actions (WIF OIDC).
 `main` 브랜치에 푸시되면 자동으로 이미지 빌드/푸시 → IAP SSH로 VM 갱신.
