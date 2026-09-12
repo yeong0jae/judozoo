@@ -70,8 +70,3 @@ def calendar_(
     ]
     return ApiResponse.ok(ThemeCalendarResponse(days=days))
 
-
-@router.post("/capture")
-def capture(db: Session = Depends(get_db)) -> ApiResponse[int]:
-    """오늘치 테마를 즉시 캡처 (스케줄 대기 없이 시드/테스트용). 반환=저장 건수."""
-    return ApiResponse.ok(application.capture(db))

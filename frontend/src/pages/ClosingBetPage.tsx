@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  useDailyCandles,
   useFuturesCandles,
   useFuturesInvestorDaily,
   useFuturesInvestorSessions,
   useFuturesQuote,
   useKosdaqIndex,
   useKospiIndex,
-  useMinuteCandles,
-  useStockInvestorDaily,
-  useStockNews,
-  useThemeNews,
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
@@ -23,24 +18,12 @@ import {
   useNasdaqIndexQuote,
   useNightFuturesCandles,
   useNightFuturesQuote,
-  useAddWatchStock,
-  useCreateWatchTheme,
-  useDeleteWatchTheme,
-  useRemoveWatchStock,
-  useRenameWatchTheme,
-  useReorderWatchStocks,
-  useReorderWatchThemes,
-  useStockSearch,
-  useWatchThemeQuotes,
-  useWatchThemes,
 } from "../api/queries";
-import CandleChart, { dailySeries, minuteSeries } from "../components/common/CandleChart";
+import CandleChart from "../components/common/CandleChart";
 import HolidayBanner from "../components/common/HolidayBanner";
-import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
-import StockAvatar from "../components/common/StockAvatar";
 import { colorByPnL, formatPct, formatPrice } from "../lib/format";
 import type {
   FuturesOrgBreakdown,
@@ -49,15 +32,11 @@ import type {
   MacroTarget,
   MarketInvestorDay,
   MarketType,
-  WatchTheme,
 } from "../types";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
 // 선택 대상 — 종목 / 테마 / 지수
-type Selection =
-  | { kind: "stock"; themeId: number; code: string; name: string; exchange: string | null }
-  | { kind: "theme"; themeId: number }
-  | { kind: "index"; id: string };
+type Selection = { kind: "index"; id: string };
 
 const DEFAULT_SELECTION: Selection = { kind: "index", id: "kospi" };
 const SELECTION_KEY = "market-analysis:selection";
@@ -94,23 +73,7 @@ function DelayBadge() {
   );
 }
 
-/**
- * 전환 애니메이션 단위 — 테마 안에서 종목만 바꿀 땐 리마운트하지 않는다(왼쪽 종목 리스트가 깜빡이지 않게).
- */
-/** 드래그앤드롭 결과 — [from]을 [to] 자리로 옮긴 새 배열. */
-function move<T>(list: T[], from: number, to: number): T[] {
-  const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
-}
-
-const subjectKey = (sel: Selection) =>
-  sel.kind === "index"
-    ? `index-${sel.id}`
-    : sel.kind === "stock"
-      ? `stock-${sel.code}`
-      : `theme-${sel.themeId}`;
+const subjectKey = (sel: Selection) => `index-${sel.id}`;
 
 /**
  * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드.
@@ -118,98 +81,28 @@ const subjectKey = (sel: Selection) =>
  */
 export default function ClosingBetPage() {
   const [sel, setSel] = useState<Selection>(loadSelection);
-  const { data: themes = [] } = useWatchThemes();
   useEffect(() => {
     localStorage.setItem(SELECTION_KEY, JSON.stringify(sel));
   }, [sel]);
-  // 저장해둔 테마·종목이 그 사이 지워졌을 수 있다 — 테마가 사라졌으면 코스피로 되돌린다.
-  useEffect(() => {
-    if (sel.kind === "index" || !themes.length) return;
-    const theme = themes.find((t) => t.id === sel.themeId);
-    const gone =
-      !theme || (sel.kind === "stock" && !theme.stocks.some((s) => s.stockCode === sel.code));
-    if (gone) setSel(DEFAULT_SELECTION);
-  }, [themes, sel]);
-  // 좌측 사이드바 드릴다운: 지수를 보면 테마 리스트, 테마·종목을 고르면 그 테마의 종목 리스트.
-  // 뒤로 가기는 마지막으로 보던 지수로 돌아간다.
-  const lastIndexId = useRef("kospi");
-  useEffect(() => {
-    if (sel.kind === "index") lastIndexId.current = sel.id;
-  }, [sel]);
-  const activeTheme = sel.kind !== "index" ? themes.find((t) => t.id === sel.themeId) : undefined;
-
-  // 종목을 고르면 우측에 그 종목 뉴스. 테마는 중앙을 통합 뉴스로 채운다(우측 없음).
-  const stockNews = sel.kind === "stock" ? sel : null;
 
   return (
     <div className="flex flex-col gap-4">
       <HolidayBanner />
       <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
 
-      <div
-        className={`grid grid-cols-1 gap-4 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem] ${
-          stockNews
-            ? "lg:grid-cols-[17rem_minmax(0,1fr)_24rem]"
-            : "lg:grid-cols-[17rem_minmax(0,1fr)]"
-        }`}
-      >
-        <div className="min-h-0 lg:overflow-hidden relative">
-          <AnimatePresence mode="wait" initial={false}>
-            {sel.kind === "index" || !activeTheme ? (
-              <motion.div
-                key="themes"
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -16 }}
-                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                className="h-full min-h-0"
-              >
-                <ThemeWatchlist
-                  themes={themes}
-                  sel={sel}
-                  onTheme={(themeId) => setSel({ kind: "theme", themeId })}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="stocks"
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 16 }}
-                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                className="h-full min-h-0 lg:overflow-y-auto pr-1"
-              >
-                <ThemeStockList
-                  theme={activeTheme}
-                  sel={sel}
-                  onSelect={setSel}
-                  onBack={() => setSel({ kind: "index", id: lastIndexId.current })}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className="min-h-0 lg:overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={subjectKey(sel)}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="h-full min-h-0"
-            >
-              <SubjectDetail
-                sel={sel}
-                theme={activeTheme}
-                onBackToTheme={() => activeTheme && setSel({ kind: "theme", themeId: activeTheme.id })}
-              />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-        {stockNews && (
-          <StockNewsPanel key={stockNews.code} code={stockNews.code} exchange={stockNews.exchange} />
-        )}
+      <div className="min-h-0 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem] lg:overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={subjectKey(sel)}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="h-full min-h-0"
+          >
+            <SubjectDetail sel={sel} />
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -383,382 +276,20 @@ function IndexCell({
 }
 
 // ============================================================
-// 좌: 테마 목록 — 종목은 상세 영역의 리스트에서 고른다(아코디언 없음).
-// ============================================================
-function ThemeWatchlist({
-  themes,
-  sel,
-  onTheme,
-}: {
-  themes: WatchTheme[];
-  sel: Selection;
-  onTheme: (themeId: number) => void;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const create = useCreateWatchTheme();
-  const rename = useRenameWatchTheme();
-  const remove = useDeleteWatchTheme();
-  const reorder = useReorderWatchThemes();
-
-  const submit = () => {
-    const trimmed = name.trim();
-    if (!trimmed) return setAdding(false);
-    create.mutate(trimmed, { onSuccess: () => setName("") });
-    setAdding(false);
-  };
-
-  const startRename = (themeId: number, current: string) => {
-    setEditingId(themeId);
-    setEditName(current);
-  };
-
-  /** 빈 이름·같은 이름이면 서버를 부르지 않고 편집만 닫는다. */
-  const submitRename = () => {
-    const trimmed = editName.trim();
-    const target = themes.find((t) => t.id === editingId);
-    if (trimmed && target && trimmed !== target.name) {
-      rename.mutate({ themeId: target.id, name: trimmed });
-    }
-    setEditingId(null);
-  };
-
-  return (
-    <div className="min-h-0 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 pt-4 pb-2">
-        <span className="text-base font-bold text-zinc-100">테마</span>
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300"
-          aria-label="테마 추가"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-1.5">
-        {themes.map((t, i) => {
-          const active = sel.kind !== "index" && sel.themeId === t.id;
-          if (editingId === t.id) {
-            return (
-              <input
-                key={t.id}
-                autoFocus
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onBlur={submitRename}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitRename();
-                  if (e.key === "Escape") setEditingId(null);
-                }}
-                className="w-full mt-1 rounded-xl bg-zinc-950/70 border border-white/[0.06] px-2.5 py-2 text-sm text-zinc-200 outline-none focus:border-white/20"
-              />
-            );
-          }
-          return (
-            <div
-              key={t.id}
-              draggable
-              onDragStart={() => setDragIdx(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragIdx === null || dragIdx === i) return;
-                reorder.mutate(move(themes, dragIdx, i).map((x) => x.id));
-                setDragIdx(null);
-              }}
-              onDragEnd={() => setDragIdx(null)}
-              className={`group flex items-center justify-between pl-2.5 pr-1.5 py-2.5 rounded-xl transition-colors cursor-grab active:cursor-grabbing ${
-                dragIdx === i ? "opacity-40" : ""
-              } ${active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"}`}
-            >
-              <button
-                type="button"
-                onClick={() => onTheme(t.id)}
-                onDoubleClick={() => startRename(t.id, t.name)}
-                className="flex-1 flex items-baseline justify-between gap-2 text-left"
-              >
-                <span className="text-[15px] font-medium text-zinc-300">{t.name}</span>
-                <span className="text-xs text-zinc-500">{t.stocks.length}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => startRename(t.id, t.name)}
-                className="ml-1 p-0.5 rounded text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-zinc-300"
-                aria-label={`${t.name} 이름 변경`}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => remove.mutate(t.id)}
-                className="ml-1 p-0.5 rounded text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400"
-                aria-label={`${t.name} 삭제`}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          );
-        })}
-        {adding && (
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={submit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
-              if (e.key === "Escape") {
-                setName("");
-                setAdding(false);
-              }
-            }}
-            placeholder="테마 이름"
-            className="w-full mt-1 rounded-xl bg-zinc-950/70 border border-white/[0.06] px-2.5 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-white/20"
-          />
-        )}
-        {!themes.length && !adding && (
-          <p className="px-2.5 py-6 text-xs text-zinc-600 leading-relaxed">
-            테마가 없습니다.
-            <br />+ 를 눌러 만들어보세요.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
 // 중앙: 선택 대상 상세
 // ============================================================
-function SubjectDetail({
-  sel,
-  theme,
-  onBackToTheme,
-}: {
-  sel: Selection;
-  theme?: WatchTheme;
-  onBackToTheme: () => void;
-}) {
-  if (sel.kind === "index") {
-    const ix = INDICES.find((i) => i.id === sel.id);
-    if (!ix) return null;
-    const detail =
-      ix.id === "kospiF" ? <FuturesIndexDetail index={ix} market="KOSPI" />
-      : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" />
-      : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
-      : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
-      : ix.id === "macro" ? <MacroDetail index={ix} />
-      : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} />
-      : <LiveIndexDetail market="KOSPI" name={ix.name} />;
-    return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
-  }
-
-  // 종목을 고르면 종목 상세, 아직 안 골랐으면(테마만 선택) 그 테마의 통합 뉴스를 중앙에 채운다.
-  return (
-    <div className="h-full lg:overflow-y-auto pr-1">
-      {sel.kind === "stock" ? (
-        <div className="flex flex-col gap-3">
-          {theme && (
-            <button
-              type="button"
-              onClick={onBackToTheme}
-              className="self-start flex items-center gap-1.5 -ml-1 pl-1 pr-2 py-1 rounded-md text-sm text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-              {theme.name}
-            </button>
-          )}
-          {sel.exchange ? (
-            <OverseasStockDetailPanel exchange={sel.exchange} symbol={sel.code} chartOnly />
-          ) : (
-            <WatchStockDetail themeId={sel.themeId} code={sel.code} name={sel.name} />
-          )}
-        </div>
-      ) : theme ? (
-        <ThemeNewsPanel theme={theme} />
-      ) : (
-        <EmptyState message="종목을 선택하세요" />
-      )}
-    </div>
-  );
-}
-
-/** 테마 종목 리스트 — 시세는 이 테마의 종목만 조회한다(키움 rate limit). */
-function ThemeStockList({
-  theme,
-  sel,
-  onSelect,
-  onBack,
-}: {
-  theme: WatchTheme;
-  sel: Selection;
-  onSelect: (sel: Selection) => void;
-  onBack: () => void;
-}) {
-  const { data: quotes = [] } = useWatchThemeQuotes(theme.id, theme.stocks.length > 0);
-  const quoteBy = useMemo(() => new Map(quotes.map((q) => [q.stockCode, q])), [quotes]);
-  const remove = useRemoveWatchStock();
-  const reorder = useReorderWatchStocks();
-  const [adding, setAdding] = useState(false);
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
-
-  return (
-    <div className="flex flex-col min-w-0">
-      <div className="flex items-center justify-between px-1 pb-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-baseline gap-2 min-w-0 text-left rounded-md -ml-1 pl-1 pr-1.5 py-0.5 hover:bg-white/[0.04]"
-          aria-label="테마 목록으로"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="self-center shrink-0 text-zinc-500">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-          <span className="text-sm font-bold text-zinc-100 truncate">{theme.name}</span>
-          <span className="text-[11px] text-zinc-500 shrink-0">{theme.stocks.length}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setAdding((v) => !v)}
-          className="p-1 rounded-md text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-300 shrink-0"
-          aria-label="종목 추가"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </button>
-      </div>
-
-      {adding && <StockSearchBox themeId={theme.id} onDone={() => setAdding(false)} />}
-
-      <div className="flex flex-col gap-0.5">
-        {theme.stocks.map((s, i) => {
-          const q = quoteBy.get(s.stockCode);
-          const active = sel.kind === "stock" && sel.code === s.stockCode;
-          return (
-            <div
-              key={s.stockCode}
-              draggable
-              onDragStart={() => setDragIdx(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragIdx === null || dragIdx === i) return;
-                reorder.mutate({
-                  themeId: theme.id,
-                  stockCodes: move(theme.stocks, dragIdx, i).map((x) => x.stockCode),
-                });
-                setDragIdx(null);
-              }}
-              onDragEnd={() => setDragIdx(null)}
-              className={`group w-full flex items-center gap-2.5 px-2 py-2.5 rounded-xl transition-colors cursor-grab active:cursor-grabbing ${
-                dragIdx === i ? "opacity-40" : ""
-              } ${active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"}`}
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  onSelect({
-                    kind: "stock",
-                    themeId: theme.id,
-                    code: s.stockCode,
-                    name: s.stockName,
-                    exchange: s.exchange,
-                  })
-                }
-                className="flex-1 min-w-0 flex items-center gap-2.5 text-left"
-              >
-                <StockAvatar name={s.stockName} code={s.stockCode} size={32} />
-                <span className="flex-1 min-w-0 text-[13.5px] text-zinc-200 leading-tight line-clamp-2">{s.stockName}</span>
-                <span className="text-right shrink-0">
-                  <span className="block num text-[13.5px] font-semibold text-zinc-100">
-                    {q ? (q.overseas ? `$${q.currentPrice.toFixed(2)}` : formatPrice(q.currentPrice)) : "—"}
-                  </span>
-                  <span className={`block num text-[11.5px] ${colorByPnL(q?.priceChangeRate ?? 0)}`}>
-                    {q ? formatPct(q.priceChangeRate / 100) : ""}
-                  </span>
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => remove.mutate({ themeId: theme.id, stockCode: s.stockCode })}
-                className="p-0.5 rounded text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400"
-                aria-label={`${s.stockName} 삭제`}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          );
-        })}
-        {!theme.stocks.length && !adding && (
-          <p className="px-2 py-6 text-xs text-zinc-600">+ 를 눌러 종목을 담아보세요.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** 종목 검색 → 테마에 추가. 종목 카탈로그(stocks 테이블) 기준. */
-function StockSearchBox({ themeId, onDone }: { themeId: number; onDone: () => void }) {
-  const [query, setQuery] = useState("");
-  const { data: results = [] } = useStockSearch(query);
-  const add = useAddWatchStock();
-
-  return (
-    <div className="mb-2">
-      <input
-        autoFocus
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => e.key === "Escape" && onDone()}
-        placeholder="종목명 검색"
-        className="w-full rounded-xl bg-zinc-950/70 border border-white/[0.06] px-2.5 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-white/20"
-      />
-      {results.length > 0 && (
-        <div className="mt-1 max-h-56 overflow-y-auto rounded-xl bg-zinc-950/70 border border-white/[0.06]">
-          {results.map((r) => (
-            <button
-              key={r.stockCode}
-              type="button"
-              onClick={() => {
-                add.mutate({
-                  themeId,
-                  stockCode: r.stockCode,
-                  stockName: r.stockName,
-                  exchange: r.exchange,
-                });
-                setQuery("");
-                onDone();
-              }}
-              className="w-full flex items-baseline justify-between gap-2 px-2.5 py-2 text-left hover:bg-white/[0.04]"
-            >
-              <span className="flex items-baseline gap-1.5 min-w-0">
-                <span className="text-[13px] text-zinc-200 truncate">{r.stockName}</span>
-                {r.exchange && (
-                  <span className="shrink-0 text-[10px] text-blue-400 bg-blue-500/10 rounded px-1 py-px">
-                    {r.exchange}
-                  </span>
-                )}
-              </span>
-              <span className="num text-[11px] text-zinc-600">{r.stockCode}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function SubjectDetail({ sel }: { sel: Selection }) {
+  const ix = INDICES.find((i) => i.id === sel.id);
+  if (!ix) return null;
+  const detail =
+    ix.id === "kospiF" ? <FuturesIndexDetail index={ix} market="KOSPI" />
+    : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" />
+    : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
+    : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
+    : ix.id === "macro" ? <MacroDetail index={ix} />
+    : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} />
+    : <LiveIndexDetail market="KOSPI" name={ix.name} />;
+  return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
 }
 
 const titleCls = "text-sm font-semibold text-zinc-400";
@@ -912,84 +443,6 @@ function LiveIndexDetail({ market, name }: { market: MarketType; name: string })
       <ProgramSessionsCard market={market} date={date} />
       <ProgramDailyTable market={market} />
     </div>
-  );
-}
-
-/**
- * 시황분석 종목 상세 — 지수 상세와 같은 짜임(차트 + 최근 10일 수급).
- * 주도주·시그널 로그가 쓰는 공용 StockDetailPanel과 달리 '상세' 탭이 없다.
- */
-function WatchStockDetail({
-  themeId,
-  code,
-  name,
-}: {
-  themeId: number;
-  code: string;
-  name: string;
-}) {
-  const date = todayStr();
-  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
-  // 테마 시세 폴링과 같은 쿼리 키라 추가 호출 없이 캐시를 함께 쓴다.
-  const { data: quotes = [] } = useWatchThemeQuotes(themeId, true);
-  const quote = quotes.find((q) => q.stockCode === code);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <DetailHeader
-        name={name}
-        code={code}
-        category="종목"
-        price={quote?.currentPrice ?? 0}
-        pct={quote?.priceChangeRate ?? 0}
-        priceInline
-      />
-      <div className="px-1">
-        <div className="flex items-center justify-between mb-3">
-          <span className={titleCls}>종목 차트</span>
-          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
-        </div>
-        <WatchStockChart code={code} date={date} interval={chartInterval} />
-      </div>
-      <StockInvestorTable stockCode={code} />
-    </div>
-  );
-}
-
-/** 종목 1분봉/일봉 — 주도주 상세와 같은 캔들 소스(키움). */
-function WatchStockChart({
-  code,
-  date,
-  interval,
-}: {
-  code: string;
-  date: string;
-  interval: ChartInterval;
-}) {
-  const minuteQ = useMinuteCandles(interval === "1m" ? code : null, date);
-  const dailyQ = useDailyCandles(interval === "1d" ? code : null, date);
-  const q = interval === "1m" ? minuteQ : dailyQ;
-  const items = q.data ?? [];
-
-  if (q.isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
-  if (items.length === 0) {
-    return (
-      <div className="h-[21.25rem] flex items-center justify-center">
-        <EmptyState message={interval === "1m" ? "분봉 데이터가 없습니다" : "일봉 데이터가 없습니다"} />
-      </div>
-    );
-  }
-  return (
-    <CandleChart
-      key={`${code}-${interval}`}
-      series={
-        interval === "1m"
-          ? minuteSeries(minuteQ.data ?? [])
-          : dailySeries(dailyQ.data ?? [])
-      }
-      timeVisible={interval === "1m"}
-      className="w-full h-[21.25rem]"
-    />
   );
 }
 
@@ -1676,31 +1129,6 @@ function RealInvestorTable({ market }: { market: MarketType }) {
   return <InvestorDailyTable records={data ?? []} isLoading={isLoading} days={5} />;
 }
 
-/**
- * 종목 최근 10일 수급 — 키움 ka10059. 시장 표와 같은 레이아웃을 쓰되 단위는 백만원.
- * 종목은 억 반올림 시 작은 값이 뭉개져, 백만원 값을 공용 표 형태(*Eok 필드)에 실어 넘긴다.
- */
-function StockInvestorTable({ stockCode }: { stockCode: string }) {
-  const { data, isLoading } = useStockInvestorDaily(stockCode, 10);
-  const records: MarketInvestorDay[] = (data ?? []).map((d) => ({
-    date: d.date,
-    individualEok: d.individualMillion,
-    foreignEok: d.foreignMillion,
-    institutionEok: d.institutionMillion,
-    otherCorpEok: d.otherCorpMillion,
-    breakdown: {
-      financialInvestmentEok: d.breakdown.financialInvestmentMillion,
-      trustEok: d.breakdown.trustMillion,
-      pensionFundEok: d.breakdown.pensionFundMillion,
-      privateEquityEok: d.breakdown.privateEquityMillion,
-      insuranceEok: d.breakdown.insuranceMillion,
-      bankEok: d.breakdown.bankMillion,
-      otherFinanceEok: d.breakdown.otherFinanceMillion,
-    },
-  }));
-  return <InvestorDailyTable records={records} isLoading={isLoading} unit="백만원" />;
-}
-
 /** 최근 N일 수급 표 — 한 행에 개인·외국인·기관계 + 기관상세 7 + 기타법인. 시장·종목 공용. */
 function InvestorDailyTable({
   records,
@@ -1993,116 +1421,3 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 // ============================================================
 // 우: 뉴스 (종목을 골랐을 때만)
 // ============================================================
-
-/** "2026-07-16T15:35:00" → ["7월 16일", "15:35"] (날짜/시간 두 줄용). */
-function fmtNewsTime(iso: string): [string, string] {
-  const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return [`${d.getMonth() + 1}월 ${d.getDate()}일`, `${hh}:${mm}`];
-}
-
-/**
- * 종목 관련 뉴스 — KIS(국내는 종합 시황/공시, 해외는 해외뉴스종합). 둘 다 제목만 오고 원문 링크는 없다.
- * 공시는 국내 목록에만 섞여 온다.
- */
-/** 뉴스 한 줄 — 종목·테마 패널 공용. 원문 URL이 없어 제목으로 구글 검색을 연다. [stockName]은 테마 뉴스에서만. */
-function NewsRow({
-  title,
-  source,
-  disclosure,
-  publishedAt,
-  stockName,
-}: {
-  title: string;
-  source: string;
-  disclosure: boolean;
-  publishedAt: string;
-  stockName?: string;
-}) {
-  return (
-    <a
-      href={`https://www.google.com/search?q=${encodeURIComponent(title)}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex gap-3 px-2.5 py-3 border-b border-white/[0.04] transition-colors hover:bg-white/[0.02]"
-    >
-      <span className="shrink-0 w-14 pt-0.5 num text-[11px] text-zinc-500 leading-tight whitespace-nowrap">
-        <span className="block">{fmtNewsTime(publishedAt)[0]}</span>
-        <span className="block">{fmtNewsTime(publishedAt)[1]}</span>
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm leading-snug text-zinc-100">{title}</p>
-        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-          {stockName && (
-            <span className="text-[11px] text-zinc-300 bg-white/[0.06] rounded px-1.5 py-0.5">{stockName}</span>
-          )}
-          <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">
-            <span className="w-1 h-1 rounded-full bg-red-400" />
-            {source}
-          </span>
-          {disclosure && (
-            <span className="text-[11px] text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">공시</span>
-          )}
-        </div>
-      </div>
-    </a>
-  );
-}
-
-function StockNewsPanel({ code, exchange }: { code: string; exchange: string | null }) {
-  const { data, isLoading } = useStockNews(code, exchange);
-  const items = data ?? [];
-
-  return (
-    <aside className="min-h-0 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 pt-4 pb-2">
-        <span className="text-base font-bold text-zinc-100">관련 뉴스</span>
-        <span className="text-xs text-zinc-600">뉴스 · 공시</span>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-1.5">
-        {isLoading ? (
-          <Skeleton className="h-40 w-full" />
-        ) : items.length === 0 ? (
-          <EmptyState message="관련 뉴스가 없습니다" />
-        ) : (
-          items.map((n) => (
-            <NewsRow key={n.seqNo} title={n.title} source={n.source} disclosure={n.disclosure} publishedAt={n.publishedAt} />
-          ))
-        )}
-      </div>
-    </aside>
-  );
-}
-
-/** 테마 통합 뉴스 — 국내 종목별 뉴스를 병합해 최신순으로. 각 항목에 종목명 태그를 붙인다. */
-function ThemeNewsPanel({ theme }: { theme: WatchTheme }) {
-  const { data, isLoading } = useThemeNews(theme.stocks);
-
-  return (
-    <aside className="min-h-0 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 pt-4 pb-2">
-        <span className="text-base font-bold text-zinc-100">관련 뉴스</span>
-        <span className="text-xs text-zinc-600">테마 · 뉴스·공시</span>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-1.5">
-        {isLoading ? (
-          <Skeleton className="h-40 w-full" />
-        ) : data.length === 0 ? (
-          <EmptyState message="관련 뉴스가 없습니다" />
-        ) : (
-          data.map((n) => (
-            <NewsRow
-              key={n.seqNo}
-              title={n.title}
-              source={n.source}
-              disclosure={n.disclosure}
-              publishedAt={n.publishedAt}
-              stockName={n.stockName}
-            />
-          ))
-        )}
-      </div>
-    </aside>
-  );
-}

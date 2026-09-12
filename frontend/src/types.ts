@@ -472,25 +472,12 @@ export interface OverseasStockRankItem {
   tradingValue: number;
 }
 
-/** 거래일에 사용자가 직접 남긴 이슈 메모 한 건. */
-export interface DailyIssueItem {
-  id: number;
-  date: string; // YYYY-MM-DD
-  content: string;
-}
-
 // === 관심 테마 (사용자 큐레이션) ===
 
 export interface WatchStock {
   stockCode: string;
   stockName: string;
   exchange: string | null; // NAS/NYS/AMS. null이면 국내
-}
-
-export interface WatchTheme {
-  id: number;
-  name: string;
-  stocks: WatchStock[];
 }
 
 /** 관심 종목 시세 — 국내는 키움, 해외는 야후. */

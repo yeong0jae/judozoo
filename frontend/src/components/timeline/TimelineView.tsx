@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
-import { useAddIssue, useDeleteIssue, useEditIssue } from "../../api/mutations";
+import { useMemo } from "react";
 import type {
-  DailyIssueItem,
   MarketCloseSnapshotItem,
   MarketType,
   OverseasIndexCloseSnapshotItem,
@@ -14,7 +12,6 @@ export interface TimelineDay {
   date: string; // YYYY-MM-DD
   markets: MarketCloseSnapshotItem[];
   indices: OverseasIndexCloseSnapshotItem[]; // 해외지수(나스닥종합 등) 마감
-  issues: DailyIssueItem[]; // 사용자가 직접 남긴 이슈 메모
 }
 
 /** 지수값 콤마 + 소수 둘째자리. */
@@ -77,7 +74,7 @@ export default function TimelineView({
       {days.map((day) => {
         if (day.date > today) {
           // 미래는 빈 날을 줄줄이 늘어놓지 않는다 — 이슈가 있거나 달력에서 고른 날만 노출.
-          if (day.issues.length === 0 && day.date !== selectedDate) return null;
+          if (day.date !== selectedDate) return null;
           return <FutureDay key={day.date} day={day} selected={day.date === selectedDate} />;
         }
         return (
@@ -124,8 +121,6 @@ function DaySection({ day, selected, today }: { day: TimelineDay; selected: bool
           <IndexRow key={ix.code} item={ix} />
         ))}
       </div>
-
-      <Issues date={day.date} issues={day.issues} />
     </section>
   );
 }
@@ -144,27 +139,7 @@ function FutureDay({ day, selected }: { day: TimelineDay; selected: boolean }) {
         </h2>
         <span className="text-[11px] font-medium text-amber-300/80">예정</span>
       </div>
-      <Issues date={day.date} issues={day.issues} autoFocus={day.issues.length === 0} />
     </section>
-  );
-}
-
-/** 이슈 영역 — 앱의 서브패널 관용구(rounded-xl bg-white/[0.02]). 그날의 이슈 목록 + 추가. */
-function Issues({ date, issues, autoFocus }: { date: string; issues: DailyIssueItem[]; autoFocus?: boolean }) {
-  return (
-    <div className="mt-2 rounded-xl bg-white/[0.02] px-3 py-2.5">
-      <div className="mb-1.5 flex items-center gap-1.5">
-        <span className="w-1 h-3.5 rounded-full bg-amber-400/80" />
-        <span className="text-xs font-semibold text-amber-300/90">이슈</span>
-        {issues.length > 0 && <span className="num text-xs text-zinc-600">{issues.length}</span>}
-      </div>
-      <div>
-        {issues.map((issue) => (
-          <IssueRow key={issue.id} date={date} issue={issue} />
-        ))}
-      </div>
-      <AddIssue date={date} empty={issues.length === 0} autoFocus={autoFocus} />
-    </div>
   );
 }
 
@@ -220,124 +195,5 @@ function Net({ label, v }: { label: string; v: number }) {
       <span className="text-zinc-500">{label} </span>
       <span className={`num ${netClass(v)}`}>{signed(v)}</span>
     </span>
-  );
-}
-
-function IssueRow({ date, issue }: { date: string; issue: DailyIssueItem }) {
-  const edit = useEditIssue(date);
-  const del = useDeleteIssue(date);
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(issue.content);
-
-  const cancel = () => {
-    setText(issue.content);
-    setEditing(false);
-  };
-  // 저장은 Enter로만 — blur/Esc는 취소로 둬 중복 PUT을 막는다.
-  const save = () => {
-    const content = text.trim();
-    if (content && content !== issue.content) {
-      edit.mutate({ id: issue.id, content }, { onSuccess: () => setEditing(false) });
-    } else {
-      cancel();
-    }
-  };
-
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") save();
-          if (e.key === "Escape") cancel();
-        }}
-        onBlur={cancel}
-        className="w-full bg-white/[0.04] rounded-md px-2 py-1 my-0.5 text-sm text-zinc-100 outline-none ring-1 ring-amber-400/40"
-      />
-    );
-  }
-
-  return (
-    <div className="group flex items-start gap-2 py-1 px-1 -mx-1 rounded-md hover:bg-white/[0.03]">
-      <span className="mt-2 w-1 h-1 rounded-full shrink-0 bg-amber-400/60" />
-      <button
-        onClick={() => setEditing(true)}
-        className="min-w-0 flex-1 text-left text-sm leading-6 text-zinc-200"
-      >
-        {issue.content}
-      </button>
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={() => setEditing(true)}
-          className="p-1 rounded text-zinc-500 hover:text-zinc-200"
-          aria-label="수정"
-        >
-          <PencilIcon className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={() => del.mutate(issue.id)}
-          disabled={del.isPending}
-          className="p-1 rounded text-zinc-500 hover:text-red-400"
-          aria-label="삭제"
-        >
-          <TrashIcon className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AddIssue({ date, empty, autoFocus }: { date: string; empty: boolean; autoFocus?: boolean }) {
-  const add = useAddIssue(date);
-  const [draft, setDraft] = useState("");
-  const submit = () => {
-    const content = draft.trim();
-    if (!content || add.isPending) return;
-    add.mutate(content, { onSuccess: () => setDraft("") });
-  };
-  return (
-    <div className={`flex items-center gap-1 ${empty ? "" : "mt-1"}`}>
-      <PlusIcon className="w-3.5 h-3.5 shrink-0 text-zinc-600" />
-      <input
-        autoFocus={autoFocus}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        placeholder={empty ? "이 날의 이슈를 기록해 보세요" : "이슈 추가"}
-        className="min-w-0 flex-1 bg-transparent text-sm text-zinc-200 outline-none py-1"
-      />
-      <button
-        onClick={submit}
-        disabled={!draft.trim() || add.isPending}
-        className="shrink-0 text-xs font-medium text-blue-400 hover:text-blue-300 disabled:text-zinc-700 disabled:cursor-not-allowed px-1"
-      >
-        추가
-      </button>
-    </div>
-  );
-}
-
-function PlusIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" {...props}>
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-function PencilIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-    </svg>
-  );
-}
-function TrashIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 6h18M8 6V4h8v2m-9 0v14h10V6" />
-    </svg>
   );
 }

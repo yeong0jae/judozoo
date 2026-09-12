@@ -6,7 +6,6 @@ import { todayStr } from "../components/common/DateNavigator";
 import MonthCalendar from "../components/timeline/MonthCalendar";
 import TimelineView, { type TimelineDay } from "../components/timeline/TimelineView";
 import type {
-  DailyIssueItem,
   MarketCloseSnapshotItem,
   OverseasIndexCloseSnapshotItem,
 } from "../types";
@@ -74,20 +73,10 @@ export default function TimelinePage() {
     })),
   });
 
-  // 이슈는 사용자가 직접 쓰는 데이터라 과거도 정적으로 두지 않고, 작성/수정/삭제 시 무효화로 갱신된다.
-  const issueQs = useQueries({
-    queries: dates.map((d) => ({
-      queryKey: QK.issues(d),
-      queryFn: () => apiFetch<DailyIssueItem[]>(`/api/issues?date=${d}`),
-      staleTime: 30_000,
-    })),
-  });
-
   const days: TimelineDay[] = dates.map((d, i) => ({
     date: d,
     markets: marketQs[i]?.data ?? [],
     indices: indexQs[i]?.data ?? [],
-    issues: issueQs[i]?.data ?? [],
   }));
   const isLoading = marketQs.some((q) => q.isLoading) || indexQs.some((q) => q.isLoading);
   const byDate = new Map(days.map((d) => [d.date, d]));
@@ -113,9 +102,9 @@ export default function TimelinePage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-zinc-100">이슈</h1>
+        <h1 className="text-xl font-bold text-zinc-100">일별 마감</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          거래일별 코스피·코스닥·나스닥과 주요 이슈를 한곳에 모아 봅니다 · 달력에서 날짜를 누르면 그날로 이동
+          거래일별 코스피·코스닥·나스닥 마감을 한곳에 모아 봅니다 · 달력에서 날짜를 누르면 그날로 이동
         </p>
       </div>
 

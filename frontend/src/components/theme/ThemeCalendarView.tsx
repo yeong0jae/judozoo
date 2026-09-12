@@ -64,16 +64,12 @@ export default function ThemeCalendarView({
   today,
   isLoading,
   onShiftMonth,
-  onCapture,
-  capturePending,
 }: {
   month: Date;
   days: ThemeDayItem[];
   today: string;
   isLoading: boolean;
   onShiftMonth: (delta: number) => void;
-  onCapture: () => void;
-  capturePending: boolean;
 }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -107,15 +103,6 @@ export default function ThemeCalendarView({
             매 거래일 마감 시점 당일 거래대금 상위 테마 · 순환 흐름 파악용
           </p>
         </div>
-        <motion.button
-          onClick={onCapture}
-          disabled={capturePending}
-          whileTap={{ scale: 0.95 }}
-          className="px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 border border-white/[0.06] disabled:opacity-50"
-          title="오늘치 테마를 즉시 적재"
-        >
-          {capturePending ? "갱신 중..." : "갱신"}
-        </motion.button>
       </div>
 
       <div className="space-y-3">

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useThemeCalendar } from "../api/queries";
-import { useCaptureThemes } from "../api/mutations";
 import ThemeCalendarView from "../components/theme/ThemeCalendarView";
 
 /** 로컬 기준 YYYY-MM-DD (toISOString의 UTC 변환 회피). */
@@ -19,7 +18,6 @@ export default function ThemeCalendarPage() {
 
   const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
   const { data, isLoading } = useThemeCalendar(ymd(month), ymd(monthEnd));
-  const capture = useCaptureThemes();
 
   return (
     <ThemeCalendarView
@@ -30,8 +28,6 @@ export default function ThemeCalendarPage() {
       onShiftMonth={(delta) =>
         setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1))
       }
-      onCapture={() => capture.mutate()}
-      capturePending={capture.isPending}
     />
   );
 }

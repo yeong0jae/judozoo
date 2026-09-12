@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import type { DailyIssueItem, MarketCloseSnapshotItem } from "../../types";
+import type { MarketCloseSnapshotItem } from "../../types";
 import type { TimelineDay } from "./TimelineView";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -97,7 +97,6 @@ export default function MonthCalendar({
             <DayCell
               key={ds}
               day={d}
-              issues={byDate.get(ds)?.issues ?? []}
               markets={byDate.get(ds)?.markets ?? []}
               isToday={ds === today}
               isSelected={ds === selected}
@@ -113,7 +112,6 @@ export default function MonthCalendar({
 
 function DayCell({
   day,
-  issues,
   markets,
   isToday,
   isSelected,
@@ -121,15 +119,12 @@ function DayCell({
   onSelect,
 }: {
   day: number;
-  issues: DailyIssueItem[];
   markets: MarketCloseSnapshotItem[];
   isToday: boolean;
   isSelected: boolean;
   disabled: boolean;
   onSelect: () => void;
 }) {
-  const shown = issues.slice(0, 3);
-  const extra = issues.length - shown.length;
   const tint = marketTint(markets);
   return (
     <motion.div
@@ -155,18 +150,6 @@ function DayCell({
         {day}
         {isToday && <span className="ml-1 text-[10px]">오늘</span>}
       </span>
-
-      <div className="flex flex-col gap-1">
-        {shown.map((it) => (
-          <div key={it.id} className="flex items-start gap-1">
-            <span className="mt-[3px] w-1 h-1 rounded-full bg-amber-400/70 shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-[10px] leading-tight text-zinc-300">
-              {it.content}
-            </span>
-          </div>
-        ))}
-        {extra > 0 && <span className="text-[10px] text-zinc-600">+{extra}개</span>}
-      </div>
     </motion.div>
   );
 }
