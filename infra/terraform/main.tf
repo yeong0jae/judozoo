@@ -134,6 +134,28 @@ resource "google_artifact_registry_repository" "docker" {
   repository_id = "auto-trading"
   format        = "DOCKER"
 
+  # main 푸시마다 이미지가 하나씩 쌓이는데 VM의 `docker image prune`은 VM만 치운다.
+  # 레지스트리에는 정책이 없으면 영원히 남는다.
+  #
+  # KEEP이 DELETE보다 우선한다 — 그래서 "전부 삭제" + "최근 3개는 유지" 두 개를 같이 건다.
+  # 롤백은 옛 이미지를 당겨오는 게 아니라 그 커밋의 워크플로를 재실행해 다시 빌드하므로,
+  # 3개만 남겨도 되돌릴 방법이 사라지지 않는다.
+  cleanup_policies {
+    id     = "delete-all"
+    action = "DELETE"
+    condition {
+      older_than = "0s"
+    }
+  }
+
+  cleanup_policies {
+    id     = "keep-recent-3"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 3 # 패키지(backend / frontend)별로 각각 3개
+    }
+  }
+
   depends_on = [google_project_service.apis]
 }
 
