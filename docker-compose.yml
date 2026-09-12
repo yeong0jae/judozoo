@@ -49,6 +49,26 @@ services:
     networks:
       - trading
 
+  # TLS 종단 + 호스트 기반 라우팅. 인증서는 DNS-01로 자동 발급·갱신한다.
+  caddy:
+    build: ./caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    # DOMAIN / GRAFANA_DOMAIN / CLOUDFLARE_API_TOKEN
+    env_file:
+      - ./secrets/.env
+    volumes:
+      # 발급받은 인증서가 여기 저장된다. 휘발되면 배포마다 재발급해서
+      # Let's Encrypt 주간 발급 한도를 태운다 — 반드시 명명 볼륨이어야 한다.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - grafana
+    networks:
+      - trading
+
   frontend:
     build: ./frontend
     ports:
@@ -103,6 +123,8 @@ services:
       - trading
 
 volumes:
+  caddy-data:
+  caddy-config:
   mysql-data:
   loki-data:
   alloy-data:

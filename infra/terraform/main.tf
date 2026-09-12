@@ -55,8 +55,10 @@ resource "google_project_iam_member" "vm_secret_accessor" {
 }
 
 # ---------------------------------------------------------------------------
-# 방화벽: 프론트 tcp:3000 / SSH는 IAP 대역만
+# 방화벽: Caddy tcp:80,443 / 프론트·Grafana 직결 tcp:3000,3001 / SSH는 IAP 대역만
 # 기존 trading 인스턴스와 분리하기 위해 별도 target_tag 사용
+#
+# 3000·3001은 HTTPS가 실증될 때까지 남겨 둔 퇴로다. 검증이 끝나면 제거한다.
 # ---------------------------------------------------------------------------
 resource "google_compute_firewall" "web" {
   name    = "auto-trading-allow-web"
@@ -64,7 +66,7 @@ resource "google_compute_firewall" "web" {
 
   allow {
     protocol = "tcp"
-    ports    = ["3000", "3001"]
+    ports    = ["80", "443", "3000", "3001"]
   }
 
   source_ranges = var.allowed_web_source_ranges

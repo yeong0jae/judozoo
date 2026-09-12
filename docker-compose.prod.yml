@@ -13,5 +13,11 @@ services:
     pull_policy: always
     restart: unless-stopped
 
+  caddy:
+    build: !reset null
+    image: ${CADDY_IMAGE}:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+
   mysql:
     restart: unless-stopped
