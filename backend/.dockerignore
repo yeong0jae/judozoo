@@ -1,9 +1,0 @@
-.gradle
-build
-bin
-out
-.idea
-*.iml
-.env
-docker-compose.yml
-HELP.md

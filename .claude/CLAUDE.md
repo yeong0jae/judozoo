@@ -1,6 +1,6 @@
 # Autonomous Trading System
 
-A leading-stock automated trading system (Spring Boot/Kotlin + React + MySQL).
+A leading-stock trading decision-support system (FastAPI/Python + React + MySQL).
 
 ## Documentation
 
