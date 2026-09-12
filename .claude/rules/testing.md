@@ -1,6 +1,6 @@
 # Testing Rules
 
-Backend tests are pytest. Run with `uv run pytest` from `python-backend/`.
+Backend tests are pytest. Run with `uv run pytest` from `backend/`.
 
 ### Convention
 

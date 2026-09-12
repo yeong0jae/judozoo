@@ -297,7 +297,7 @@ Docker가 없으면 `uv run pytest -m "not integration"`으로 통합 테스트�
 
 ## 11. 배포
 
-- 백엔드·프론트 도커라이즈 (multi-stage). nginx가 `/api`를 `python-backend:8000`으로 프록시
+- 백엔드·프론트 도커라이즈 (multi-stage). nginx가 `/api`를 `backend:8000`으로 프록시
 - `docker-compose.yml` / `docker-compose.prod.yml`
 - Terraform — GCP `asia-northeast3` VM + 고정 IP + Artifact Registry + Secret Manager + Workload Identity Federation
 - GitHub Actions — WIF 인증 → 빌드·푸시 → scp/ssh 배포 → 헬스체크

@@ -22,7 +22,7 @@ presentation ──▶ application ──▶ domain ◀── infrastructure
 ## Top-level package layout
 
 ```
-python-backend/src/backend
+backend/src/backend
 ├── <feature>/        # feature packages: leadingstock, market, stock, theme, news, ...
 │   ├── presentation.py
 │   ├── application.py

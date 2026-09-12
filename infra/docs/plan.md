@@ -5,7 +5,7 @@
 > (`docker-compose.yml`, `infra/terraform/`, `infra/deploy/remote_deploy.sh`)이 정의한다.
 >
 > 이 문서에서 더 이상 참이 아닌 것: Kotlin/Spring 백엔드와 `backend/Dockerfile`(삭제됨,
-> 지금은 `python-backend/` FastAPI가 `:8000`), `SPRING_PROFILES_ACTIVE`·`vts` 프로파일(제거됨),
+> 지금은 `backend/` FastAPI가 `:8000`), `SPRING_PROFILES_ACTIVE`·`vts` 프로파일(제거됨),
 > `/ws` WebSocket 프록시(STOMP 제거로 없어짐), 시크릿 12종(현재 8종).
 
 `/Users/yeong0jae/project/trading`(레퍼런스 프로젝트)의 인프라 골격을 그대로 따른다.

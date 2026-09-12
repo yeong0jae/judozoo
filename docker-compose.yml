@@ -24,8 +24,8 @@ services:
 
   # 유일한 백엔드. nginx가 /api/ 전체를 여기로 보낸다.
   # 컨테이너 기본 UTC면 KST 기준 cron·벽시계가 9시간 어긋나므로 TZ를 고정한다.
-  python-backend:
-    build: ./python-backend
+  backend:
+    build: ./backend
     environment:
       TZ: Asia/Seoul
       DB_HOST: mysql
@@ -54,7 +54,7 @@ services:
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
-      - python-backend
+      - backend
     networks:
       - trading
 

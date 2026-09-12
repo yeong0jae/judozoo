@@ -12,12 +12,8 @@ AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
 
 cd "$HOME"
-# mysql·python-backend가 둘 다 ./secrets/.env 를 읽는다.
+# mysql·backend가 둘 다 ./secrets/.env 를 읽는다.
 mkdir -p secrets
-
-# 시크릿 위치를 backend/ 에서 옮기기 전에 쓰던 파일. 실 API 키가 들어 있어 남겨두지 않는다.
-# 한 번 배포되고 나면 이 줄은 지워도 된다.
-sudo rm -rf backend
 
 # Secret Manager에서 KIS/KIWOOM/DB 시크릿 → secrets/.env (VM 인스턴스 SA 권한 사용).
 # AT_ 접두사는 같은 GCP project를 trading 인프라와 공유하기 때문에 충돌 회피용.
@@ -48,7 +44,7 @@ gcloud auth print-access-token \
 
 COMPOSE_ENV=(
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
-  "PYTHON_BACKEND_IMAGE=${AR_REPO}/python-backend"
+  "BACKEND_IMAGE=${AR_REPO}/backend"
   "IMAGE_TAG=${IMAGE_TAG}"
 )
 
@@ -72,10 +68,10 @@ sudo docker image prune -af
 #    프론트만 검사하면 이 실패가 배포 성공으로 묻힌다.
 for i in $(seq 1 18); do
   status="$(sudo docker inspect --format '{{.State.Health.Status}}' \
-    "$(sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q python-backend)" 2>/dev/null || true)"
-  if [ "$status" = "healthy" ]; then echo "python-backend health OK ($i)"; break; fi
-  if [ "$i" = "18" ]; then echo "python-backend health check failed (status=${status:-unknown})"; exit 1; fi
-  echo "python-backend not ready ($status), retry $i"; sleep 5
+    "$(sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q backend)" 2>/dev/null || true)"
+  if [ "$status" = "healthy" ]; then echo "backend health OK ($i)"; break; fi
+  if [ "$i" = "18" ]; then echo "backend health check failed (status=${status:-unknown})"; exit 1; fi
+  echo "backend not ready ($status), retry $i"; sleep 5
 done
 
 # 2) 프론트 — nginx 기동 확인.
