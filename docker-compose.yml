@@ -1,8 +1,8 @@
 # base: 로컬 개발/CI/프로덕션 공통.
 # - 로컬: docker compose up --build  (이 파일만 사용)
 # - 프로덕션: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# backend/.env 가 있어야 부팅됨 (KIS/KIWOOM/토스 시크릿 + DB_PASSWORD).
-# 디렉터리명 backend/ 는 시크릿 파일 위치로만 남아 있다 — 이전 Kotlin 구현은 backend/README.md 참고.
+# secrets/.env 가 있어야 부팅됨 (KIS/KIWOOM/토스 시크릿 + DB_PASSWORD).
+# 파일은 git에 올리지 않는다 — 배포 시 remote_deploy.sh가 Secret Manager에서 받아 쓴다.
 services:
   mysql:
     image: mysql:8.4
@@ -10,7 +10,7 @@ services:
       MYSQL_DATABASE: trading
       TZ: Asia/Seoul
     env_file:
-      - ./backend/.env       # MYSQL_ROOT_PASSWORD 주입 (DB_PASSWORD와 동일 값)
+      - ./secrets/.env       # MYSQL_ROOT_PASSWORD 주입 (DB_PASSWORD와 동일 값)
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -33,7 +33,7 @@ services:
       DB_NAME: trading
       DB_USERNAME: root
     env_file:
-      - ./backend/.env
+      - ./secrets/.env
     expose:
       - "8000"
     # 이미지에 curl이 없어 python으로 검사한다. 배포 스크립트가 이 상태를 보고 실패를 감지한다.

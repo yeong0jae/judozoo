@@ -12,11 +12,14 @@ AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
 
 cd "$HOME"
-# backend/ 는 Kotlin 구현이 사라진 뒤에도 **시크릿 파일 위치**로 남아 있다
-# (mysql·python-backend가 둘 다 ./backend/.env 를 읽는다).
-mkdir -p backend
+# mysql·python-backend가 둘 다 ./secrets/.env 를 읽는다.
+mkdir -p secrets
 
-# Secret Manager에서 KIS/KIWOOM/DB 시크릿 → backend/.env (VM 인스턴스 SA 권한 사용).
+# 시크릿 위치를 backend/ 에서 옮기기 전에 쓰던 파일. 실 API 키가 들어 있어 남겨두지 않는다.
+# 한 번 배포되고 나면 이 줄은 지워도 된다.
+sudo rm -rf backend
+
+# Secret Manager에서 KIS/KIWOOM/DB 시크릿 → secrets/.env (VM 인스턴스 SA 권한 사용).
 # AT_ 접두사는 같은 GCP project를 trading 인프라와 공유하기 때문에 충돌 회피용.
 fetch() {
   gcloud secrets versions access latest --secret="$1"
@@ -25,7 +28,7 @@ fetch() {
 DB_PASSWORD_VALUE="$(fetch AT_DB_PASSWORD)"
 
 umask 077
-cat > backend/.env <<EOF
+cat > secrets/.env <<EOF
 DB_PASSWORD=${DB_PASSWORD_VALUE}
 MYSQL_ROOT_PASSWORD=${DB_PASSWORD_VALUE}    # docker-compose.yml mysql 서비스가 이 변수명을 읽음
 REAL_KIS_APP_KEY=$(fetch AT_REAL_KIS_APP_KEY)

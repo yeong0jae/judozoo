@@ -39,7 +39,7 @@ infra/
 │   ├── startup.sh                 # VM 최초 부팅 시 Docker/Compose 설치
 │   └── terraform.tfvars.example
 └── deploy/
-    └── remote_deploy.sh           # VM에서 실행. Secret Manager → backend/.env, compose pull/up
+    └── remote_deploy.sh           # VM에서 실행. Secret Manager → secrets/.env, compose pull/up
 ```
 
 루트에는 다음 파일을 추가한다.
@@ -107,7 +107,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/trading?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
       DB_USERNAME: root
     env_file:
-      - ./backend/.env       # KIS/KIWOOM 시크릿 + DB_PASSWORD (prod에서 remote_deploy.sh가 생성)
+      - ./secrets/.env       # KIS/KIWOOM 시크릿 + DB_PASSWORD (prod에서 remote_deploy.sh가 생성)
     expose:
       - "8080"
     depends_on: [mysql]
@@ -178,7 +178,7 @@ networks:
 
 12개 시크릿:
 
-| Secret ID | 매핑되는 env (backend/.env) | 비고 |
+| Secret ID | 매핑되는 env (secrets/.env) | 비고 |
 | --- | --- | --- |
 | `AT_DB_PASSWORD` | `DB_PASSWORD` | MySQL root + Spring datasource 공용 |
 | `AT_KIS_HTS_ID` | `KIS_HTS_ID` | real/vts 공용 |
@@ -217,7 +217,7 @@ terraform {
 수행 순서:
 
 1. `cd $HOME && mkdir -p backend`
-2. 12개 시크릿을 `gcloud secrets versions access latest`로 읽어 `backend/.env`로 출력 (`umask 077`)
+2. 12개 시크릿을 `gcloud secrets versions access latest`로 읽어 `secrets/.env`로 출력 (`umask 077`)
 3. `gcloud auth print-access-token | sudo docker login -u oauth2accesstoken --password-stdin "https://${REGION}-docker.pkg.dev"`
 4. `sudo env BACKEND_IMAGE=... FRONTEND_IMAGE=... IMAGE_TAG=... SPRING_PROFILES_ACTIVE=vts docker compose -f docker-compose.yml -f docker-compose.prod.yml pull`
 5. 위와 동일 옵션으로 `up -d`
