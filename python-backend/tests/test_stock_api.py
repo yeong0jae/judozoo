@@ -71,3 +71,43 @@ class Test종목_검색_API:
 
         assert 응답.status_code == 400
         assert 응답.json()["code"] == "INVALID_PARAMETER"
+
+
+class Test종목_투자자_수급_API:
+    def test_백만원_단위로_그대로_돌려준다(self, client, monkeypatch):
+        """억으로 반올림하면 기관 세부 같은 작은 수급이 0으로 뭉개진다."""
+        from backend.platform.kiwoom.investor import InvestorTrendDay
+
+        monkeypatch.setattr(
+            "backend.platform.kiwoom.investor.fetch_investor_trend",
+            lambda _c: [
+                InvestorTrendDay(
+                    date="2026-09-11", individual_net=1200, foreign_net=-800,
+                    institution_net=-400, other_corp_net=0,
+                    financial_investment_net=100, insurance_net=-50, other_finance_net=0,
+                    trust_net=200, private_equity_net=-20, pension_fund_net=150, bank_net=-10,
+                )
+            ],
+        )
+
+        데이터 = client.get(
+            "/api/stocks/005930/investor/daily", params={"count": 5}
+        ).json()["data"]
+
+        assert len(데이터) == 1
+        assert 데이터[0]["date"] == "2026-09-11"
+        assert 데이터[0]["individualMillion"] == 1200
+        assert 데이터[0]["foreignMillion"] == -800
+        assert 데이터[0]["breakdown"]["pensionFundMillion"] == 150
+
+    def test_날짜_형식이_어긋난_행은_버린다(self, client, monkeypatch):
+        from backend.platform.kiwoom.investor import InvestorTrendDay
+
+        monkeypatch.setattr(
+            "backend.platform.kiwoom.investor.fetch_investor_trend",
+            lambda _c: [
+                InvestorTrendDay(date="", individual_net=0, foreign_net=0, institution_net=0),
+            ],
+        )
+
+        assert client.get("/api/stocks/005930/investor/daily").json()["data"] == []

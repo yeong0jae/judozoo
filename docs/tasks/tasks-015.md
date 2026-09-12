@@ -253,15 +253,37 @@ Kotlin 쪽엔 이 영역 테스트가 한 건도 없어 **이관이 아니라 �
 
 가장 크고(3,108줄) 가장 중요하다. 필터는 순수 함수라 이관 난이도 자체는 낮지만, **테스트가 전부 여기 몰려 있다**.
 
-- [ ] 필터 14종 이관 — 순수 함수로 유지, Spring·시간·HTTP 의존 없이
-- [ ] `FilterChain` + `FilterEvaluationResult` (탈락 사유 보존)
-- [ ] 기존 Kotest 필터 테스트를 pytest로 이관 (`tasks-014` 산출물, 한글 설명 유지)
-- [ ] 시그널 이벤트 — 종목 4종 / 시장 4종, **쿨다운 3분** 로직
-- [ ] `SignalEventPoller`(10s), `MarketSignalEventPoller`(30s), `IndexReboundPoller`(30s, 09:00~15:30 게이트)
-- [ ] `MarketCloseSnapshotCapture` (15:40 평일)
-- [ ] nginx `/api/leading-stocks/*` 라우팅
+- [x] 필터 13종 + 체인 이관 — 순수 함수로 유지, Spring·시간·HTTP 의존 없이
+- [x] `FilterChain` + `FilterEvaluationResult` (탈락 사유 보존)
+- [x] 기존 Kotest 테스트를 pytest로 이관 — 필터 15파일 + 도메인 6파일
+- [x] 시그널 이벤트 — 종목 4종 / 시장 4종, **쿨다운 3분** 로직
+- [x] `SignalEventPoller`(10s), `MarketSignalEventPoller`(30s), `IndexReboundPoller`(30s, 09:00~15:30 게이트)
+- [x] `MarketCloseSnapshotCapture` (15:40 평일)
+- [x] nginx `/api/leading-stocks/*` 라우팅
+- [x] `/api/stocks/{code}/investor/daily` — M2에서 키움 의존으로 미뤘던 것. M3가 올라와 지금 합쳤다
 
-**검증**: 필터 테스트 전건 통과 + 주도주 후보 / 실시간 로그 / 돌파 현황 화면 동작
+**검증 완료 (2026-09-12)** — 테스트 132건 추가, 전체 470건 통과.
+
+- **필터 64건** — 13종 전부 경계값 + 평가 문구(화면에 그대로 나가므로 글자까지 대조) + 체인 6건
+- **시그널 상태기 27건** — 돌파 재인정(더 높은 전고점만), 임박 히스테리시스, 스파이크 해제,
+  흐름 전환 정점 추적, 순매수 단계 승급·강등·완충
+- **캔들 컬렉션 20건** — 전고점 동점 시 첫 봉, 스파이크 배율, 5분봉 20이평 돌림, RVOL
+- **폴러 상태 9건** — 쿨다운, 타입별 독립 쿨다운, 일자 전환 리셋, 휴장·장외 게이트
+- **API 계약 12건** — 후보·상세·시그널 로그·시장 시그널·종목 수급
+
+> **Kotest는 운영에서 쓰이지 않는 기준값으로 돌고 있었다.** `LeadingStockCriteriaProperties()`의
+> **코드 기본값**(거래대금 30위·등락률 5%)을 쓰는데, 운영은 `application.yaml`이 덮어쓴
+> 35위·7%로 돈다. 즉 기존 필터 테스트는 실제로 쓰이지 않는 숫자를 검증하고 있었다.
+> 이관하면서 기준값을 **테스트마다 명시**해 그 괴리를 없앴다.
+
+> **M5 도메인 중 두 개는 앞서 선행했다.** `MarketInvestorSnapshot`(M4의 세션 수급이 읽는다)과
+> 값 객체 4종(M3의 키움 어댑터가 반환한다). Kotlin 패키지 경계가 마일스톤 경계와 어긋나 생긴 일이다.
+
+> **`event_type`·`kind`는 varchar로 고정했다.** MySQL 네이티브 ENUM으로 두면 enum 값을 추가할 때
+> `ddl-auto`가 컬럼을 안 고쳐 INSERT가 truncate로 터진다(Kotlin 주석에 남은 실제 사고).
+
+> **`Market.valueOf` 실패는 500이다.** 지수 캔들에 정의에 없는 시장을 주면 Kotlin도
+> `INTERNAL_ERROR`로 떨어진다(400이 맞아 보인다). 순수 이관이라 같게 뒀다.
 
 ### M6 — 전환 완료
 

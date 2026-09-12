@@ -12,7 +12,9 @@ from datetime import date
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from backend.library.cache import is_empty, ttl_cache
 from backend.library.db import get_session_factory
+from backend.platform.kiwoom import investor as kiwoom_investor
 from backend.stock import infrastructure
 from backend.stock.domain import OverseasStock, Stock, Stocks
 
@@ -128,3 +130,75 @@ def _refresh_overseas(today: date) -> None:
                 _overseas = list(session.scalars(select(OverseasStock)))
         except Exception:
             log.warning("직전 데이터 적재도 실패", exc_info=True)
+
+
+# --- 종목 투자자 수급 -----------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StockOrgBreakdown:
+    """기관 세부 순매수(백만원) — 시장 수급 표와 같은 7종."""
+
+    financial_investment_million: int
+    trust_million: int
+    pension_fund_million: int
+    private_equity_million: int
+    insurance_million: int
+    bank_million: int
+    other_finance_million: int
+
+
+@dataclass(frozen=True)
+class StockInvestorDay:
+    """하루치 종목 투자자 순매수(백만원)."""
+
+    date: date
+    individual_million: int
+    foreign_million: int
+    institution_million: int
+    other_corp_million: int
+    breakdown: StockOrgBreakdown
+
+
+@ttl_cache(
+    "stockInvestorDaily",
+    ttl_seconds=60,
+    maxsize=100,
+    key=lambda stock_code, count: f"{stock_code}:{count}",
+    skip_if=is_empty,
+)
+def investor_daily_history(stock_code: str, count: int) -> list[StockInvestorDay]:
+    """키움 ka10059. **백만원 단위를 그대로 준다** — 종목 단위는 억으로 반올림하면
+    작은 수급(기관 세부 등)이 0으로 뭉개진다. 표시 단위는 각 화면이 결정한다.
+    """
+    out = []
+    for day in kiwoom_investor.fetch_investor_trend(stock_code)[:count]:
+        parsed = _parse_iso_date(day.date)
+        if parsed is None:
+            continue
+        out.append(
+            StockInvestorDay(
+                date=parsed,
+                individual_million=day.individual_net,
+                foreign_million=day.foreign_net,
+                institution_million=day.institution_net,
+                other_corp_million=day.other_corp_net,
+                breakdown=StockOrgBreakdown(
+                    financial_investment_million=day.financial_investment_net,
+                    trust_million=day.trust_net,
+                    pension_fund_million=day.pension_fund_net,
+                    private_equity_million=day.private_equity_net,
+                    insurance_million=day.insurance_net,
+                    bank_million=day.bank_net,
+                    other_finance_million=day.other_finance_net,
+                ),
+            )
+        )
+    return out
+
+
+def _parse_iso_date(value: str) -> date | None:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None

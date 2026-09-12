@@ -16,6 +16,7 @@ from backend.library.scheduler import start as start_scheduler
 from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.issue.presentation import router as issue_router
+from backend.leadingstock.presentation import router as leading_router
 from backend.market.presentation import router as market_router
 from backend.stock.presentation import router as stock_router
 from backend.theme.presentation import router as theme_router
@@ -54,6 +55,7 @@ app.include_router(market_router)
 app.include_router(theme_router)
 app.include_router(watchlist_router)
 app.include_router(issue_router)
+app.include_router(leading_router)
 
 
 def _error(code: str, status: int) -> JSONResponse:
