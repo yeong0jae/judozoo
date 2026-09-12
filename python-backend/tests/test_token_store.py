@@ -48,6 +48,14 @@ class Test저장소:
         # 초 단위 반올림만 감안하면 같은 시각
         assert abs((복원[1] - 만료).total_seconds()) < 1
 
+    def test_JWT처럼_긴_토큰도_잘리지_않는다(self, 빈_토큰_테이블):
+        """토스 토큰은 JWT라 750자를 넘는다 — varchar(512)로 뒀다가 저장이 통째로 실패했다."""
+        긴토큰 = "eyJ" + "A" * 900 + ".sig"
+
+        token_store.save("TOSS", 긴토큰, datetime.now(UTC) + timedelta(hours=20))
+
+        assert token_store.load("TOSS")[0] == 긴토큰
+
     def test_만료된_토큰은_없는_것으로_본다(self, 빈_토큰_테이블):
         token_store.save("KIWOOM", "tok-old", datetime.now(UTC) - timedelta(minutes=1))
 

@@ -371,6 +371,10 @@ POST https://api.kiwoom.com/oauth2/token
 `broker_token`은 **Kotlin이 사라진 뒤 Python이 만든 첫 테이블**이다. 기동 시
 `checkfirst`로 생성하고 기존 테이블은 건드리지 않는다.
 
+> **`access_token`은 `TEXT`여야 한다.** 처음 `varchar(512)`로 뒀다가 **토스 토큰이 JWT라
+> 750자를 넘어** 저장이 통째로 실패했다(`Data too long`). fail-soft라 인증 자체는 멈추지
+> 않았지만 영속화가 동작하지 않았다. 순수 캐시라 운영 테이블을 드롭하고 재생성했다.
+
 ---
 
 ## 이관 완료 (2026-09-12)
