@@ -152,7 +152,18 @@ export default function StockDetailPanel({
             <CandleChart
               key={`${stockCode}-m`}
               series={minuteSeries(minuteQ.data)}
-              priceLine={Math.max(...minuteQ.data.map((c) => c.high))}
+              priceLines={[
+                {
+                  price: Math.max(...minuteQ.data.map((c) => c.high)),
+                  title: "저항선",
+                  color: "#fb923c",
+                },
+                {
+                  price: Math.min(...minuteQ.data.map((c) => c.low)),
+                  title: "지지선",
+                  color: "#38bdf8",
+                },
+              ]}
               className={`w-full ${CH}`}
             />
           )

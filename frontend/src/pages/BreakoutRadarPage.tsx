@@ -36,6 +36,15 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
   return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
 }
 
+/** 근접 강조 — 3% 이내면 색으로 띄운다.
+ *  저항은 따뜻한 색(위), 지지는 차가운 색(아래). 등락률의 red-600/blue-600과는
+ *  명도가 달라 한 행에 같이 있어도 구분된다. */
+const NEAR = 3;
+const resistanceCls = (gap: number) =>
+  gap <= NEAR ? "text-orange-400" : "text-zinc-300";
+const supportCls = (gap: number | null) =>
+  gap !== null && gap <= NEAR ? "text-sky-400" : "text-zinc-400";
+
 function BreakoutRadarPageInner() {
   // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
@@ -114,9 +123,7 @@ function BreakoutRadarPageInner() {
                   <th className="px-4 py-2.5 text-right">저항까지</th>
                   <th className="px-4 py-2.5 text-right">지지선</th>
                   <th className="px-4 py-2.5 text-right">지지까지</th>
-                  <th className="px-4 py-2.5 text-right">상태</th>
                   <th className="px-4 py-2.5 text-right">거래대금</th>
-                  <th className="px-4 py-2.5 text-right">현재가</th>
                   <th className="px-4 py-2.5 text-right">등락률</th>
                 </tr>
               </thead>
@@ -165,7 +172,6 @@ function RadarRow({
   onSelect: (code: string) => void;
 }) {
   const code = shortCode(s.stockCode);
-  const st = radarStatus(s.gapRate);
   const gapWon = s.dayHigh - s.currentPrice;
   const supportWon = s.dayLow === null ? 0 : s.currentPrice - s.dayLow;
   const trough = s.troughAt ? new Date(s.troughAt) : null;
@@ -205,7 +211,7 @@ function RadarRow({
         <div className="num text-zinc-300">{formatPrice(s.dayHigh)}</div>
         <div className="num text-xs text-zinc-500">{peak.getDate()}일 {peakTime} 형성</div>
       </td>
-      <td className={`px-4 py-3.5 text-right num font-semibold ${st.gap}`}>
+      <td className={`px-4 py-3.5 text-right num font-semibold ${resistanceCls(s.gapRate)}`}>
         {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
       </td>
       <td className="px-4 py-3.5 text-right">
@@ -220,29 +226,15 @@ function RadarRow({
           </>
         )}
       </td>
-      <td className="px-4 py-3.5 text-right num font-semibold text-zinc-400">
+      <td className={`px-4 py-3.5 text-right num font-semibold ${supportCls(s.supportGapRate)}`}>
         {s.supportGapRate === null
           ? "—"
           : s.supportGapRate <= 0
             ? "이탈"
             : `${formatPrice(supportWon)}원 (${s.supportGapRate.toFixed(2)}%)`}
       </td>
-      <td className="px-4 py-3.5 text-right">
-        <motion.span
-          key={st.label}
-          initial={{ scale: 1.25 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 500, damping: 18 }}
-          className={`inline-block text-xs font-medium px-1.5 py-0.5 rounded ${st.cls}`}
-        >
-          {st.label}
-        </motion.span>
-      </td>
       <td className="px-4 py-3.5 text-right num text-zinc-400">
         {formatKoreanMoney(s.tradingValue)}
-      </td>
-      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
-        <NumWon value={s.currentPrice} />
       </td>
       <td className="px-4 py-3.5 text-right">
         <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
@@ -291,7 +283,7 @@ function RadarCard({
         <span className="text-xs text-zinc-500 num">
           저항 {formatPrice(s.dayHigh)} · {peak.getDate()}일 {peakTime}
         </span>
-        <span className={`num text-sm font-semibold ${st.gap}`}>
+        <span className={`num text-sm font-semibold ${resistanceCls(s.gapRate)}`}>
           {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
         </span>
       </div>
@@ -302,7 +294,7 @@ function RadarCard({
             지지 {formatPrice(s.dayLow)}
             {trough && ` · ${trough.getDate()}일 ${troughTime}`}
           </span>
-          <span className="num text-sm font-semibold text-zinc-400">
+          <span className={`num text-sm font-semibold ${supportCls(s.supportGapRate)}`}>
             {s.supportGapRate === null
               ? "—"
               : s.supportGapRate <= 0

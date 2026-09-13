@@ -54,15 +54,14 @@ export function dailySeries(items: DailyCandleItem[]): CandleSeries {
 export default function CandleChart({
   series,
   timeVisible = true,
-  priceLine,
-  priceLineTitle = "돌파선",
+  priceLines,
   priceDecimals = 0,
   className = "w-full h-48",
 }: {
   series: CandleSeries;
   timeVisible?: boolean;
-  priceLine?: number; // 가로 기준선(예: 돌파선)
-  priceLineTitle?: string;
+  /** 가로 기준선들 — 저항선(고가)·지지선(저가). 값이 바뀌면 통째로 교체한다. */
+  priceLines?: { price: number; title: string; color: string }[];
   priceDecimals?: number; // 가격축 소수 자릿수 (국내 원=0, 해외 달러=2)
   className?: string;
 }) {
@@ -70,7 +69,7 @@ export default function CandleChart({
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
-  const priceLineRef = useRef<IPriceLine | null>(null);
+  const priceLineRefs = useRef<IPriceLine[]>([]);
   const fittedRef = useRef(false);
 
   useEffect(() => {
@@ -135,26 +134,23 @@ export default function CandleChart({
     if (!s) return;
     s.setData(series.candles);
     volumeRef.current?.setData(series.volumes);
-    // 가로 기준선(돌파선) — 값 바뀌면 교체
-    if (priceLineRef.current) {
-      s.removePriceLine(priceLineRef.current);
-      priceLineRef.current = null;
-    }
-    if (priceLine != null) {
-      priceLineRef.current = s.createPriceLine({
-        price: priceLine,
-        color: "#f59e0b",
+    // 가로 기준선 — 값 바뀌면 통째로 교체
+    for (const line of priceLineRefs.current) s.removePriceLine(line);
+    priceLineRefs.current = (priceLines ?? []).map((l) =>
+      s.createPriceLine({
+        price: l.price,
+        color: l.color,
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
-        title: priceLineTitle,
-      });
-    }
+        title: l.title,
+      }),
+    );
     if (!fittedRef.current && series.candles.length > 0) {
       chartRef.current?.timeScale().fitContent();
       fittedRef.current = true;
     }
-  }, [series, priceLine, priceLineTitle]);
+  }, [series, priceLines]);
 
   return <div ref={containerRef} className={className} />;
 }
