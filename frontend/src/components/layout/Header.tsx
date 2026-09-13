@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import KospiIndexBadge from "../header/KospiIndexBadge";
 import KosdaqIndexBadge from "../header/KosdaqIndexBadge";
 import SettingsButton from "../header/SettingsButton";
+import AuthButton from "../header/AuthButton";
 
 const NAV = [
   { to: "/leading-stocks", label: "주도주 후보 조회" },
@@ -51,6 +52,7 @@ export default function Header() {
             <KospiIndexBadge />
             <KosdaqIndexBadge />
             <SettingsButton />
+            <AuthButton />
           </div>
         </div>
 
@@ -112,6 +114,7 @@ export default function Header() {
             <KospiIndexBadge />
             <KosdaqIndexBadge />
             <SettingsButton />
+            <AuthButton />
           </div>
         </div>
       )}

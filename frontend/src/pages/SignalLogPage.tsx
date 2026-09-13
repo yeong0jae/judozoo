@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useMe } from "../api/auth";
+import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
 import { useSignalEvents, useMarketSignalEvents, useLeadingStockDetail } from "../api/queries";
 import type {
@@ -357,7 +359,7 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   );
 }
 
-export default function SignalLogPage() {
+function SignalLogPageInner() {
   const [date, setDate] = useState(todayStr());
   // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
   const [minRate, setMinRate] = useState(() => {
@@ -633,4 +635,21 @@ export default function SignalLogPage() {
       </div>
     </div>
   );
+}
+
+
+/** 실시간 로그는 로그인한 사용자만 본다. 미로그인이면 데이터를 부르지 않고 안내만 띄운다 —
+ *  호출해봐야 401이고, 불필요한 요청이 화면 폴링 주기마다 반복된다. */
+export default function SignalLogPage() {
+  const { data: me, isLoading } = useMe();
+  if (isLoading) return null;
+  if (!me?.authenticated) {
+    return (
+      <LoginGate
+        title="주도주 실시간 로그"
+        description="종목·시장 시그널 전이가 발생하는 대로 쌓입니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
+      />
+    );
+  }
+  return <SignalLogPageInner />;
 }
