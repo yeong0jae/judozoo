@@ -277,7 +277,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT DATE(created_at) AS time, COUNT(*) AS '신규 가입' FROM app_user WHERE $__timeFilter(created_at) GROUP BY DATE(created_at) ORDER BY 1;"
+          "rawSql": "SELECT CONVERT_TZ(DATE(created_at), '+09:00', '+00:00') AS time, COUNT(*) AS '신규 가입' FROM app_user WHERE $__timeFilter(CONVERT_TZ(created_at, '+09:00', '+00:00')) GROUP BY DATE(created_at) ORDER BY 1;"
         }
       ],
       "fieldConfig": {
@@ -369,7 +369,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT email AS 이메일, created_at AS 가입, last_login_at AS '마지막 로그인' FROM app_user ORDER BY last_login_at DESC LIMIT 50;"
+          "rawSql": "SELECT email AS 이메일, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS 가입, DATE_FORMAT(last_login_at, '%Y-%m-%d %H:%i') AS '마지막 로그인' FROM app_user ORDER BY last_login_at DESC LIMIT 50;"
         }
       ],
       "fieldConfig": {
