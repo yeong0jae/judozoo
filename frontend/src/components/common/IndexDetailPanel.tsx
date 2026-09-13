@@ -146,8 +146,11 @@ function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; tit
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-sm font-semibold text-zinc-100">{MARKET_LABEL[m.market]}</span>
             <span className="text-xs text-zinc-400 num">
-              {fmtIndex(m.indexValue)}
-              <ProfitText value={m.changeRate / 100} format={formatPct} className="num ml-1.5" />
+              {/* 스냅샷 적재 이전 시점은 지수값이 비어 온다 — 순매수는 그대로 보여준다. */}
+              {m.indexValue === null ? "—" : fmtIndex(m.indexValue)}
+              {m.changeRate !== null && (
+                <ProfitText value={m.changeRate / 100} format={formatPct} className="num ml-1.5" />
+              )}
             </span>
           </div>
           <div className="grid grid-cols-4 gap-2">

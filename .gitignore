@@ -19,3 +19,6 @@ prototype/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# backlog
+docs/backlog.md

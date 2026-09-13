@@ -363,8 +363,9 @@ export interface MarketInvestorNetBuyItem {
   privateEquityEok: number;
   insuranceEok: number;
   bankEok: number;
-  indexValue: number;
-  changeRate: number;
+  // 스냅샷 적재 이전이거나 지수 수집이 실패한 시점이면 null이다 (백엔드 float | None).
+  indexValue: number | null;
+  changeRate: number | null;
 }
 
 /** 지수 1분봉 — 가격은 지수값(소수), volume은 1000주 단위. */
