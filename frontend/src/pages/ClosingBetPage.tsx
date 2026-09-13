@@ -791,8 +791,10 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>정규장 시간대별 수급</span>
-        <span className="text-xs text-zinc-600">{dayLabel(shownDate)} · 계약</span>
+        <span className={titleCls}>
+          <span className="text-zinc-500 font-normal">{dayLabel(shownDate)}</span> 정규장 시간대별 수급
+        </span>
+        <span className="text-xs text-zinc-600">계약</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
@@ -1234,8 +1236,10 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>프로그램 매매</span>
-        <span className="text-xs text-zinc-600">{dayLabel(shownDate)} · 억원</span>
+        <span className={titleCls}>
+          <span className="text-zinc-500 font-normal">{dayLabel(shownDate)}</span> 프로그램 매매
+        </span>
+        <span className="text-xs text-zinc-600">억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
@@ -1356,8 +1360,10 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>시간대별 수급</span>
-        <span className="text-xs text-zinc-600">{dayLabel(shownDate)} · 억원</span>
+        <span className={titleCls}>
+          <span className="text-zinc-500 font-normal">{dayLabel(shownDate)}</span> 시간대별 수급
+        </span>
+        <span className="text-xs text-zinc-600">억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
