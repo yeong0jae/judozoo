@@ -1280,16 +1280,16 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
   );
 }
 
-/** 최근 10일 프로그램 매매 — 일별 전체·비차익·차익. */
+/** 최근 5일 프로그램 매매 — 일별 전체·비차익·차익. */
 function ProgramDailyTable({ market }: { market: MarketType }) {
-  const { data, isLoading } = useMarketProgramDaily(market, 10);
+  const { data, isLoading } = useMarketProgramDaily(market, 5);
   const records = data ?? [];
   const edge = "border-l border-white/[0.06]";
 
   return (
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>최근 10일 프로그램</span>
+        <span className={titleCls}>최근 5일 프로그램</span>
         <span className="text-xs text-zinc-600">순매수 · 억원</span>
       </div>
       {isLoading ? (
