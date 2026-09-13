@@ -14,8 +14,8 @@ const s = {
 export const NAV: NavItem[] = [
   {
     to: "/leading-stocks",
-    label: "후보",
-    full: "주도주 후보 조회",
+    label: "순위",
+    full: "주도주 순위",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
         <path d="M4 6h10M4 12h16M4 18h7" />

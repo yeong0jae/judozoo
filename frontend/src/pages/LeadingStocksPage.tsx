@@ -208,7 +208,7 @@ function Header({
     <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
       <div>
         <h2 className="text-xl font-bold flex items-center gap-2">
-          주도주 후보
+          주도주 순위
           {/* 라이브 인디케이터: 폴링 중엔 ping, 대기 시 pulse — 갱신 중임을 일정하게 시그널 */}
           <span
             className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
