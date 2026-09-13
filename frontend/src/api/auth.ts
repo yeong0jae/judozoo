@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 
 export type Me = { authenticated: boolean; email: string | null };
@@ -21,10 +21,12 @@ export function goLogin(): void {
 }
 
 export function useLogout() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: () => apiFetch<null>("/api/auth/logout", { method: "POST" }),
-    // 관문 뒤 데이터가 캐시에 남아 있으면 로그아웃 후에도 잠깐 보인다.
-    onSuccess: () => qc.clear(),
+    // 첫 화면으로 전체 이동한다. 로그인이 주소창 이동이라 대칭이고,
+    // 관문 뒤 화면에 머무는 것(쓸 수 없는 화면)과 캐시 잔존을 한 번에 없앤다.
+    onSettled: () => {
+      window.location.href = "/";
+    },
   });
 }
