@@ -1,6 +1,6 @@
 import LegalPage from "../components/common/LegalPage";
 
-const CONTACT = "TODO-연락처-이메일";
+const CONTACT = "judozooweb@gmail.com";
 
 export default function TermsPage() {
   return (
