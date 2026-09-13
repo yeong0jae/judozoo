@@ -6,7 +6,7 @@
   ],
   "timezone": "Asia/Seoul",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5m",
   "time": {
     "from": "now-24h",
@@ -33,7 +33,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [$__range])))",
+          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\..*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [$__range])))",
           "queryType": "instant",
           "datasource": {
             "type": "loki",
@@ -45,16 +45,8 @@
         "defaults": {
           "unit": "short",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "blue"
           }
         },
         "overrides": []
@@ -89,7 +81,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | method = \"GET\" [$__range]))",
+          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\..*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | method = \"GET\" [$__range]))",
           "queryType": "instant",
           "datasource": {
             "type": "loki",
@@ -101,16 +93,8 @@
         "defaults": {
           "unit": "short",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "text"
           }
         },
         "overrides": []
@@ -145,7 +129,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | path =~ \"/api/.*\" [$__range]))",
+          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\..*\" | path =~ \"/api/.*\" [$__range]))",
           "queryType": "instant",
           "datasource": {
             "type": "loki",
@@ -157,16 +141,8 @@
         "defaults": {
           "unit": "short",
           "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
+            "mode": "fixed",
+            "fixedColor": "text"
           }
         },
         "overrides": []
@@ -206,8 +182,8 @@
             "uid": "judozoo-mysql"
           },
           "format": "table",
-          "rawSql": "SELECT COUNT(*) AS 가입자 FROM app_user;",
-          "rawQuery": true
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS 가입자 FROM app_user;"
         }
       ],
       "fieldConfig": {
@@ -236,7 +212,7 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "시간대별 방문자 (고유 IP)",
+      "title": "시간대별 고유 방문자",
       "gridPos": {
         "x": 0,
         "y": 4,
@@ -254,8 +230,8 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [1h])))",
-          "legendFormat": "고유 IP"
+          "legendFormat": "고유 IP",
+          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\..*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [1h])))"
         }
       ],
       "fieldConfig": {
@@ -271,8 +247,6 @@
       },
       "options": {
         "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
           "showLegend": false
         },
         "tooltip": {
@@ -348,8 +322,8 @@
             "uid": "loki"
           },
           "instant": true,
-          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | method = \"GET\" [$__range])))",
-          "legendFormat": "{{path}}"
+          "legendFormat": "{{path}}",
+          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\..*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | method = \"GET\" [$__range])))"
         }
       ],
       "fieldConfig": {
@@ -364,7 +338,6 @@
       },
       "options": {
         "orientation": "horizontal",
-        "xTickLabelRotation": 0,
         "legend": {
           "showLegend": false
         },
