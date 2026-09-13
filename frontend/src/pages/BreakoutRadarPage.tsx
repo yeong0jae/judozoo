@@ -168,7 +168,7 @@ function BreakoutRadarPageInner() {
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
                   <th className="px-4 py-2.5 text-right">{mode === "resistance" ? "저항선" : "지지선"}</th>
-                  <th className="px-4 py-2.5 text-right">{mode === "resistance" ? "저항까지" : "지지까지"}</th>
+                  <th className="px-4 py-2.5 text-right">{mode === "resistance" ? "저항까지" : "지지부터"}</th>
                   <th className="px-4 py-2.5 text-right">거래대금</th>
                   <th className="px-4 py-2.5 text-right">등락률</th>
                 </tr>
