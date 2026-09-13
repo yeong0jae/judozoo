@@ -3,6 +3,10 @@ name: deploy
 on:
   push:
     branches: [main]
+  # 시크릿은 배포할 때 remote_deploy.sh가 Secret Manager에서 읽어 온다.
+  # 즉 값만 바꾸면 아무 일도 안 일어나고 배포를 한 번 태워야 반영된다 —
+  # 코드 변경 없이 그걸 하려면 수동 실행이 필요하다.
+  workflow_dispatch:
 
 # 같은 VM에 동시 배포 시 완료 순서 역전·파일 동기화 레이스를 막기 위해 직렬화.
 # 진행 중 배포는 끝까지 두고, 그 사이 쌓인 푸시는 가장 최신 것만 이어서 배포된다.
