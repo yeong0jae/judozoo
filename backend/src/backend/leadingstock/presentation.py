@@ -54,6 +54,9 @@ class BreakoutRadarItem(BaseModel):
     day_high: int = Field(serialization_alias="dayHigh")
     peak_at: datetime = Field(serialization_alias="peakAt")
     gap_rate: float = Field(serialization_alias="gapRate")
+    day_low: int | None = Field(default=None, serialization_alias="dayLow")
+    trough_at: datetime | None = Field(default=None, serialization_alias="troughAt")
+    support_gap_rate: float | None = Field(default=None, serialization_alias="supportGapRate")
     trading_value: int = Field(serialization_alias="tradingValue")
     themes: list[str]
     theme_count: int = Field(serialization_alias="themeCount")
@@ -206,7 +209,7 @@ def get_candidates(minChangeRate: int | None = Query(None)) -> ApiResponse[Candi
 
 @router.get("/breakout-radar")
 def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[BreakoutRadarResponse]:  # noqa: N803
-    """후보를 당일 고가 돌파에 가까운 순으로."""
+    """후보를 저항선(당일 고가) 근접 순으로. 지지선(당일 저가)도 함께 싣는다."""
     items = []
     for s in application.breakout_radar(_rate(minChangeRate)):
         themes = application.themes_of(s.stock_code)
@@ -215,6 +218,7 @@ def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[B
                 stock_code=s.stock_code, stock_name=s.stock_name,
                 current_price=s.current_price, price_change_rate=s.price_change_rate,
                 day_high=s.day_high, peak_at=s.peak_at, gap_rate=s.gap_rate,
+                day_low=s.day_low, trough_at=s.trough_at, support_gap_rate=s.support_gap_rate,
                 trading_value=s.trading_value,
                 themes=themes[:MAX_THEME_CHIPS], theme_count=len(themes),
             )

@@ -60,7 +60,10 @@ class CandidateSignalReading:
 
 @dataclass(frozen=True)
 class BreakoutRadarStock:
-    """돌파 레이더 한 종목 — 당일 고가(돌파선) 대비 현재가 갭."""
+    """저항·지지 한 종목 — 당일 고가(저항선)·저가(지지선) 대비 현재가 갭.
+
+    저항은 위로 남은 거리, 지지는 아래로 남은 거리다. 정렬은 저항 근접 순.
+    """
 
     stock_code: str
     stock_name: str
@@ -70,6 +73,9 @@ class BreakoutRadarStock:
     peak_at: datetime
     gap_rate: float
     trading_value: int
+    day_low: int | None = None
+    trough_at: datetime | None = None
+    support_gap_rate: float | None = None
 
 
 @dataclass(frozen=True)
@@ -171,12 +177,15 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
 
 
 def breakout_radar(min_daily_price_change_rate: float) -> list[BreakoutRadarStock]:
-    """후보를 돌파선 돌파에 가까운 순으로 정렬한다."""
+    """후보를 **저항선 근접 순**으로 정렬한다. 지지선은 같은 행에 함께 싣는다."""
     out = []
     for c in find_candidate_stocks(min_daily_price_change_rate):
-        signal = _breakout_high_candles(c.stock_code).day_high_signal(c.current_price)
+        candles = _breakout_high_candles(c.stock_code)
+        signal = candles.day_high_signal(c.current_price)
         if signal is None:
             continue
+        # 지지선은 같은 분봉에서 대칭으로 뽑는다. 없더라도 저항은 보여준다.
+        support = candles.day_low_signal(c.current_price)
         out.append(
             BreakoutRadarStock(
                 stock_code=c.stock_code,
@@ -187,6 +196,9 @@ def breakout_radar(min_daily_price_change_rate: float) -> list[BreakoutRadarStoc
                 peak_at=signal.peak_at,
                 gap_rate=signal.gap_rate,
                 trading_value=c.accumulated_trading_value,
+                day_low=support.trough_price if support else None,
+                trough_at=support.trough_at if support else None,
+                support_gap_rate=support.gap_rate if support else None,
             )
         )
     return sorted(out, key=lambda s: s.gap_rate)

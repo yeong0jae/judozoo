@@ -34,8 +34,8 @@ export const NAV: NavItem[] = [
   },
   {
     to: "/breakout-radar",
-    label: "돌파",
-    full: "주도주 돌파 현황",
+    label: "저항",
+    full: "저항 · 지지",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
         <path d="M3 17l6-6 4 4 8-8" />

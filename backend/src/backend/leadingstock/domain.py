@@ -99,6 +99,19 @@ class VolumeSpike:
 
 
 @dataclass(frozen=True)
+class SwingLowSignal:
+    """당일 저가(지지선) 근접 시그널. `SwingHighSignal`의 대칭.
+
+    `gap_rate` = (현재가 − 저가) / 현재가 × 100 — 저가까지 남은 하락률(%).
+    이미 닿았거나 깨고 내려갔으면 0 이하.
+    """
+
+    trough_price: int
+    trough_at: datetime
+    gap_rate: float
+
+
+@dataclass(frozen=True)
 class MovingAverageReading:
     """5분봉 20이평 돌림(상향 돌파) 판정. `ma20`은 최신 확정봉 시점 이평값(원, 반올림)."""
 
@@ -125,6 +138,20 @@ class MinuteCandles:
             peak_price=peak.high_price,
             peak_at=peak.date_time,
             gap_rate=(peak.high_price - current_price) / current_price * 100,
+        )
+
+    def day_low_signal(self, current_price: int) -> SwingLowSignal | None:
+        """당일 분봉 중 최저가를 지지선으로 본다. `day_high_signal`과 같은 방식이다.
+
+        동일 최저가가 여러 번 나오면 **처음 형성된 봉**을 형성 시각으로 잡는다.
+        """
+        if current_price <= 0 or not self._ordered:
+            return None
+        trough = min(self._ordered, key=lambda c: c.low_price)  # 동점이면 앞의 것
+        return SwingLowSignal(
+            trough_price=trough.low_price,
+            trough_at=trough.date_time,
+            gap_rate=(current_price - trough.low_price) / current_price * 100,
         )
 
     def volume_spike(self, baseline_bars: int) -> VolumeSpike | None:

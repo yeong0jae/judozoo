@@ -14,6 +14,11 @@ def 고가봉(분: int, 고가: int) -> MinuteCandle:
     return MinuteCandle(기준 + timedelta(minutes=분), 고가, 고가, 고가, 고가, 0, 0)
 
 
+def 저가봉(분: int, 저가: int) -> MinuteCandle:
+    """지지선 판정은 저가만 쓴다 — 나머지 필드는 영향 없음."""
+    return MinuteCandle(기준 + timedelta(minutes=분), 저가, 저가, 저가, 저가, 0, 0)
+
+
 def 대금봉(분: int, 거래대금: int) -> MinuteCandle:
     return MinuteCandle(기준 + timedelta(minutes=분), 0, 0, 0, 0, 0, 거래대금)
 
@@ -167,3 +172,35 @@ class Test상대거래량:
 
     def test_직전_거래일_데이터가_없으면_None(self):
         assert DailyCandles([일봉(오늘, 300)]).relative_volume(오늘, 20) is None
+
+
+class Test지지선:
+    """당일 저가 근접도 — 저항선(고가)의 대칭."""
+
+    def test_최저가를_지지선으로_잡는다(self):
+        시그널 = MinuteCandles([저가봉(0, 1000), 저가봉(1, 950), 저가봉(2, 980)]).day_low_signal(1000)
+
+        assert 시그널.trough_price == 950
+        assert 시그널.trough_at == 기준 + timedelta(minutes=1)
+
+    def test_저가까지_남은_하락률을_준다(self):
+        시그널 = MinuteCandles([저가봉(0, 900)]).day_low_signal(1000)
+
+        assert 시그널.gap_rate == pytest.approx(10.0)
+
+    def test_이미_저가에_닿았으면_0(self):
+        assert MinuteCandles([저가봉(0, 1000)]).day_low_signal(1000).gap_rate == pytest.approx(0.0)
+
+    def test_저가를_깨고_내려갔으면_음수(self):
+        assert MinuteCandles([저가봉(0, 1000)]).day_low_signal(900).gap_rate < 0
+
+    def test_같은_저가가_여럿이면_처음_봉을_잡는다(self):
+        시그널 = MinuteCandles([저가봉(0, 950), 저가봉(5, 950)]).day_low_signal(1000)
+
+        assert 시그널.trough_at == 기준
+
+    def test_봉이_없으면_시그널도_없다(self):
+        assert MinuteCandles([]).day_low_signal(1000) is None
+
+    def test_현재가가_0_이하면_시그널이_없다(self):
+        assert MinuteCandles([저가봉(0, 900)]).day_low_signal(0) is None
