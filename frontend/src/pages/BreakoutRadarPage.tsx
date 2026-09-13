@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
@@ -40,6 +40,35 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
  *  저항은 따뜻한 색(위), 지지는 차가운 색(아래). 등락률의 red-600/blue-600과는
  *  명도가 달라 한 행에 같이 있어도 구분된다. */
 const NEAR = 3;
+const MODE_KEY = "radar.mode";
+
+type RadarMode = "resistance" | "support";
+const MODES: { key: RadarMode; label: string }[] = [
+  { key: "resistance", label: "저항" },
+  { key: "support", label: "지지" },
+];
+
+/** 보는 모드를 고른다. 정렬 기준도 같이 바뀐다 — 돌파매매와 눌림매매는 동시에 보는 게 아니다. */
+function ModeToggle({ value, onChange }: { value: RadarMode; onChange: (v: RadarMode) => void }) {
+  return (
+    <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+      {MODES.map((m) => (
+        <button
+          key={m.key}
+          type="button"
+          onClick={() => onChange(m.key)}
+          className={`px-4 py-1.5 rounded-lg transition-colors ${
+            value === m.key
+              ? "bg-white/[0.1] text-zinc-100 font-medium"
+              : "text-zinc-500 hover:text-zinc-300"
+          }`}
+        >
+          {m.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 const resistanceCls = (gap: number) =>
   gap <= NEAR ? "text-orange-400" : "text-zinc-300";
 const supportCls = (gap: number | null) =>
@@ -57,9 +86,25 @@ function BreakoutRadarPageInner() {
     localStorage.setItem(MIN_CHANGE_RATE_KEY, String(r));
   };
 
+  const [mode, setMode] = useState<RadarMode>(() =>
+    localStorage.getItem(MODE_KEY) === "support" ? "support" : "resistance",
+  );
+  const setRadarMode = (m: RadarMode) => {
+    localStorage.setItem(MODE_KEY, m);
+    setMode(m);
+  };
+
   const radarQ = useBreakoutRadar(minChangeRate);
   const data = radarQ.data;
-  const stocks = data?.stocks ?? [];
+  // 백엔드는 저항 근접 순으로 준다. 지지 모드면 여기서 다시 세운다 —
+  // 데이터가 이미 다 와 있어서 추가 요청이 필요 없다.
+  const stocks = useMemo(() => {
+    const list = data?.stocks ?? [];
+    if (mode === "resistance") return list;
+    return [...list].sort(
+      (a, b) => (a.supportGapRate ?? Infinity) - (b.supportGapRate ?? Infinity),
+    );
+  }, [data, mode]);
 
   // 우측 차트에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -84,7 +129,9 @@ function BreakoutRadarPageInner() {
             />
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            주도주 후보의 당일 고가(저항선)·저가(지지선) 근접도 · 저항 근접 순 · 5초 자동 갱신
+            {mode === "resistance"
+              ? "주도주 후보가 당일 고가(저항선)에 얼마나 가까운지 · 근접 순 · 5초 자동 갱신"
+              : "주도주 후보가 당일 저가(지지선)에 얼마나 가까운지 · 근접 순 · 5초 자동 갱신"}
           </p>
         </div>
         <div className="text-xs text-zinc-500 flex items-center gap-2">
@@ -97,7 +144,8 @@ function BreakoutRadarPageInner() {
 
       {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex justify-end pb-2 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.08]">
+          <ModeToggle value={mode} onChange={setRadarMode} />
           <ChangeRateSelector value={minChangeRate} onChange={setRate} />
         </div>
       </div>
@@ -119,10 +167,8 @@ function BreakoutRadarPageInner() {
               <thead className="text-zinc-500 text-xs">
                 <tr>
                   <th className="px-4 py-2.5 text-left">종목</th>
-                  <th className="px-4 py-2.5 text-right">저항선</th>
-                  <th className="px-4 py-2.5 text-right">저항까지</th>
-                  <th className="px-4 py-2.5 text-right">지지선</th>
-                  <th className="px-4 py-2.5 text-right">지지까지</th>
+                  <th className="px-4 py-2.5 text-right">{mode === "resistance" ? "저항선" : "지지선"}</th>
+                  <th className="px-4 py-2.5 text-right">{mode === "resistance" ? "저항까지" : "지지까지"}</th>
                   <th className="px-4 py-2.5 text-right">거래대금</th>
                   <th className="px-4 py-2.5 text-right">등락률</th>
                 </tr>
@@ -131,6 +177,7 @@ function BreakoutRadarPageInner() {
                 <AnimatePresence mode="popLayout">
                   {stocks.map((s) => (
                     <RadarRow
+              mode={mode}
                       key={s.stockCode}
                       s={s}
                       selected={s.stockCode === selectedCode}
@@ -144,6 +191,7 @@ function BreakoutRadarPageInner() {
           <div className="md:hidden space-y-1">
             {stocks.map((s) => (
               <RadarCard
+            mode={mode}
                 key={s.stockCode}
                 s={s}
                 selected={s.stockCode === selectedCode}
@@ -163,10 +211,12 @@ function BreakoutRadarPageInner() {
 }
 
 function RadarRow({
+  mode,
   s,
   selected,
   onSelect,
 }: {
+  mode: RadarMode;
   s: BreakoutRadarItem;
   selected: boolean;
   onSelect: (code: string) => void;
@@ -207,32 +257,39 @@ function RadarRow({
           </div>
         </div>
       </td>
-      <td className="px-4 py-3.5 text-right">
-        <div className="num text-zinc-300">{formatPrice(s.dayHigh)}</div>
-        <div className="num text-xs text-zinc-500">{peak.getDate()}일 {peakTime} 형성</div>
-      </td>
-      <td className={`px-4 py-3.5 text-right num font-semibold ${resistanceCls(s.gapRate)}`}>
-        {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
-      </td>
-      <td className="px-4 py-3.5 text-right">
-        {s.dayLow === null ? (
-          <span className="text-zinc-600">—</span>
-        ) : (
-          <>
-            <div className="num text-zinc-300">{formatPrice(s.dayLow)}</div>
-            <div className="num text-xs text-zinc-500">
-              {trough && `${trough.getDate()}일 ${troughTime} 형성`}
-            </div>
-          </>
-        )}
-      </td>
-      <td className={`px-4 py-3.5 text-right num font-semibold ${supportCls(s.supportGapRate)}`}>
-        {s.supportGapRate === null
-          ? "—"
-          : s.supportGapRate <= 0
-            ? "이탈"
-            : `${formatPrice(supportWon)}원 (${s.supportGapRate.toFixed(2)}%)`}
-      </td>
+      {mode === "resistance" ? (
+        <>
+          <td className="px-4 py-3.5 text-right">
+            <div className="num text-zinc-300">{formatPrice(s.dayHigh)}</div>
+            <div className="num text-xs text-zinc-500">{peak.getDate()}일 {peakTime} 형성</div>
+          </td>
+          <td className={`px-4 py-3.5 text-right num font-semibold ${resistanceCls(s.gapRate)}`}>
+            {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
+          </td>
+        </>
+      ) : (
+        <>
+          <td className="px-4 py-3.5 text-right">
+            {s.dayLow === null ? (
+              <span className="text-zinc-600">—</span>
+            ) : (
+              <>
+                <div className="num text-zinc-300">{formatPrice(s.dayLow)}</div>
+                <div className="num text-xs text-zinc-500">
+                  {trough && `${trough.getDate()}일 ${troughTime} 형성`}
+                </div>
+              </>
+            )}
+          </td>
+          <td className={`px-4 py-3.5 text-right num font-semibold ${supportCls(s.supportGapRate)}`}>
+            {s.supportGapRate === null
+              ? "—"
+              : s.supportGapRate <= 0
+                ? "이탈"
+                : `${formatPrice(supportWon)}원 (${s.supportGapRate.toFixed(2)}%)`}
+          </td>
+        </>
+      )}
       <td className="px-4 py-3.5 text-right num text-zinc-400">
         {formatKoreanMoney(s.tradingValue)}
       </td>
@@ -245,10 +302,12 @@ function RadarRow({
 
 /** 모바일 카드 — 표 컬럼을 압축 (저항선·지지선·상태 우선). */
 function RadarCard({
+  mode,
   s,
   selected,
   onSelect,
 }: {
+  mode: RadarMode;
   s: BreakoutRadarItem;
   selected: boolean;
   onSelect: (code: string) => void;
@@ -278,32 +337,34 @@ function RadarCard({
         <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.stockName}</span>
         <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${st.cls}`}>{st.label}</span>
       </div>
-      {/* 2행: 저항선 · 저항까지 */}
-      <div className="flex items-baseline justify-between gap-2 pl-9">
-        <span className="text-xs text-zinc-500 num">
-          저항 {formatPrice(s.dayHigh)} · {peak.getDate()}일 {peakTime}
-        </span>
-        <span className={`num text-sm font-semibold ${resistanceCls(s.gapRate)}`}>
-          {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
-        </span>
-      </div>
-      {/* 3행: 지지선 · 지지까지 */}
-      {s.dayLow !== null && (
+      {/* 2행: 모드에 해당하는 선 한 쌍 */}
+      {mode === "resistance" ? (
         <div className="flex items-baseline justify-between gap-2 pl-9">
           <span className="text-xs text-zinc-500 num">
-            지지 {formatPrice(s.dayLow)}
-            {trough && ` · ${trough.getDate()}일 ${troughTime}`}
+            저항 {formatPrice(s.dayHigh)} · {peak.getDate()}일 {peakTime}
           </span>
-          <span className={`num text-sm font-semibold ${supportCls(s.supportGapRate)}`}>
-            {s.supportGapRate === null
-              ? "—"
-              : s.supportGapRate <= 0
-                ? "이탈"
-                : `${formatPrice(supportWon)}원 (${s.supportGapRate.toFixed(2)}%)`}
+          <span className={`num text-sm font-semibold ${resistanceCls(s.gapRate)}`}>
+            {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
           </span>
         </div>
+      ) : (
+        s.dayLow !== null && (
+          <div className="flex items-baseline justify-between gap-2 pl-9">
+            <span className="text-xs text-zinc-500 num">
+              지지 {formatPrice(s.dayLow)}
+              {trough && ` · ${trough.getDate()}일 ${troughTime}`}
+            </span>
+            <span className={`num text-sm font-semibold ${supportCls(s.supportGapRate)}`}>
+              {s.supportGapRate === null
+                ? "—"
+                : s.supportGapRate <= 0
+                  ? "이탈"
+                  : `${formatPrice(supportWon)}원 (${s.supportGapRate.toFixed(2)}%)`}
+            </span>
+          </div>
+        )
       )}
-      {/* 4행: 코드·거래대금 · 현재가·등락률 */}
+      {/* 3행: 코드·거래대금 · 현재가·등락률 */}
       <div className="flex items-baseline justify-between gap-2 pl-9">
         <span className="text-xs text-zinc-500 num truncate">
           {code} · {formatKoreanMoney(s.tradingValue)}
