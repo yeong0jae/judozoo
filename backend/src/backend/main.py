@@ -124,7 +124,9 @@ async def handle_unexpected(request: Request, exc: Exception) -> JSONResponse:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+async def health() -> dict[str, str]:
+    """**async여야 한다.** sync면 스레드풀을 쓰는데, 브로커 대기로 풀이 고갈되면
+    헬스체크까지 같이 멈춘다. I/O가 없으니 이벤트 루프에서 바로 답하는 게 맞다."""
     return {"status": "UP"}
 
 
