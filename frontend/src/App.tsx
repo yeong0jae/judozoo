@@ -7,7 +7,10 @@ import SignalLogPage from "./pages/SignalLogPage";
 import TimelinePage from "./pages/TimelinePage";
 import ThemeCalendarPage from "./pages/ThemeCalendarPage";
 import ClosingBetPage from "./pages/ClosingBetPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
 import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
 import { ToastProvider } from "./components/toast/Toast";
 import { ThemeProvider } from "./theme/theme";
 import { useTabTitle } from "./hooks/useTabTitle";
@@ -48,10 +51,13 @@ function AppShell() {
               <Route path="/signal-log" element={<SignalLogPage />} />
               <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
               <Route path="/timeline" element={<TimelinePage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
       </main>
+      <Footer />
     </div>
   );
 }
