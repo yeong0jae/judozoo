@@ -104,6 +104,8 @@ services:
   grafana:
     image: grafana/grafana:11.5.2
     environment:
+      # 다른 컨테이너는 KST인데 여기만 UTC면 로그·기본 표시가 9시간 어긋난다.
+      TZ: Asia/Seoul
       GF_SECURITY_ADMIN_USER: admin
     # GF_SECURITY_ADMIN_PASSWORD가 여기 들어온다 (Secret Manager → remote_deploy.sh).
     # compose 보간(${...})은 env_file을 못 읽으므로 컨테이너에 직접 주입해야 한다.
