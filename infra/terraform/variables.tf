@@ -39,3 +39,9 @@ variable "boot_disk_size_gb" {
   type        = number
   default     = 20
 }
+
+variable "db_backup_retention_days" {
+  description = "DB 덤프 보관 일수. 지나면 lifecycle이 자동 삭제한다"
+  type        = number
+  default     = 7
+}

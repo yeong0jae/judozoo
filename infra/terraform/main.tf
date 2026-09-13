@@ -9,6 +9,7 @@ resource "google_project_service" "apis" {
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
+    "storage.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
@@ -161,6 +162,38 @@ resource "google_artifact_registry_repository" "docker" {
   }
 
   depends_on = [google_project_service.apis]
+}
+
+# ---------------------------------------------------------------------------
+# DB 백업 버킷
+#
+# 누적 데이터(분봉·투자자 수급·시그널·테마 스냅샷)는 과거 시점이라 브로커에서 다시 받을 수
+# 없다. VM 디스크에 두면 VM과 함께 죽으므로 별도 저장소여야 의미가 있다.
+# ---------------------------------------------------------------------------
+resource "google_storage_bucket" "db_backup" {
+  name     = "${var.project_id}-auto-trading-db-backup"
+  location = var.region
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  lifecycle_rule {
+    condition {
+      age = var.db_backup_retention_days
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# VM이 덤프를 올릴 수 있어야 한다. 버킷 하나로 범위를 제한한다.
+resource "google_storage_bucket_iam_member" "vm_backup_writer" {
+  bucket = google_storage_bucket.db_backup.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.vm.email}"
 }
 
 # ---------------------------------------------------------------------------

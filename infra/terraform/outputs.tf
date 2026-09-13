@@ -27,3 +27,8 @@ output "deployer_sa_email" {
   description = "GitHub Actions가 가장할 배포 SA (Variables DEPLOY_SA 값)"
   value       = google_service_account.deployer.email
 }
+
+output "db_backup_bucket" {
+  description = "DB 덤프 버킷 (remote_deploy.sh가 여기로 올린다)"
+  value       = google_storage_bucket.db_backup.name
+}

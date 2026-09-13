@@ -50,6 +50,19 @@ SESSION_SECRET=$(fetch AT_SESSION_SECRET)
 GRAFANA_ALLOWED_IPS=${GRAFANA_ALLOWED_IPS}
 EOF
 
+# DB 백업 cron. 배포마다 덮어쓰므로 멱등하다.
+# root로 돌린다 — cron에는 TTY가 없어 sudo가 걸릴 수 있다.
+# 03:00 KST — 20:00 애프터마켓 캡처가 끝나고 다음 장 시작 전, 폴러가 조용한 시간.
+# 스크립트는 deploy.yml이 홈으로 scp한다.
+BACKUP_BUCKET="${PROJECT_ID:-trading-496508}-auto-trading-db-backup"
+sudo tee /etc/cron.d/judozoo-db-backup >/dev/null <<CRON
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CRON_TZ=Asia/Seoul
+0 3 * * * root bash $HOME/backup_db.sh ${BACKUP_BUCKET} >> /var/log/judozoo-backup.log 2>&1
+CRON
+sudo chmod 0644 /etc/cron.d/judozoo-db-backup
+
 # Artifact Registry pull 인증: VM 인스턴스 SA(metadata)로 토큰 발급 → docker login.
 # 모든 docker 명령을 동일하게 root(HOME=/root)로 실행해야 login 자격증명을
 # compose가 같은 config.json에서 읽음. -E(HOME 보존) 쓰지 말 것.
