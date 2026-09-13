@@ -45,8 +45,8 @@ export const NAV: NavItem[] = [
   },
   {
     to: "/market-analysis",
-    label: "시황",
-    full: "시황 분석",
+    label: "지수",
+    full: "지수·수급",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
         <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
