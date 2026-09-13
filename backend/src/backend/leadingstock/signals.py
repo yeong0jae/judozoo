@@ -9,10 +9,12 @@ from enum import Enum
 
 
 class SignalEventType(Enum):
-    """적재 대상 시그널 전이 종류."""
+    """적재 대상 시그널 전이 종류.
 
-    BREAKOUT = "BREAKOUT"                      # 당일 전고점을 처음 돌파한 순간
-    BREAKOUT_IMMINENT = "BREAKOUT_IMMINENT"    # 전고점까지 근접한 순간(돌파 직전 경고)
+    돌파·임박은 2026-09-13에 제거했다 — 지지·저항 화면이 근접도를 실시간으로 보여주므로
+    "가까워졌다"를 사건으로 또 적재할 이유가 없어졌다. DB의 옛 행은 이력으로 남아 있다.
+    """
+
     VOLUME_SPIKE = "VOLUME_SPIKE"              # 1분 거래대금 배율이 임계를 처음 넘긴 순간
     MA20_REBOUND = "MA20_REBOUND"              # 5분봉 종가가 20이평을 아래→위로 뚫은 반등
     MA20_BREAKDOWN = "MA20_BREAKDOWN"          # 5분봉 종가가 20이평을 위→아래로 뚫은 꺾임
@@ -49,8 +51,6 @@ class InvestorType(Enum):
 class SignalReading:
     """한 종목의 현재 시그널 측정값(한 폴링 시점). 값이 없으면 None."""
 
-    gap_rate: float | None       # 전고점까지 남은 상승률(%), 돌파 시 0 이하
-    peak_price: int | None       # 그 시점 당일 전고점
     spike_ratio: float | None    # 최신 1분봉 거래대금 배율 — 임계 미달이면 None
     ma20_crossed_up: bool | None    # 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지
     ma20_crossed_down: bool | None  # 위→아래로 돌파한 봉인지
@@ -58,10 +58,6 @@ class SignalReading:
     ma20_above_band: bool | None    # 20이평보다 마진 이상 위인지(꺾임 재무장)
 
 
-_BROKEN_GAP = 0.0
-_BROKEN_RESET_GAP = 0.5    # 돌파 해제(재무장) 기준
-_IMMINENT_GAP = 2.0        # 임박 진입 기준(화면 임박 띠 0~2%와 일치)
-_IMMINENT_RESET_GAP = 2.5  # 임박 해제 기준
 _SPIKE_FIRE_RATIO = 2.5
 _SPIKE_RESET_RATIO = 2.0
 
@@ -71,13 +67,8 @@ class SignalState:
     """한 종목의 직전 시그널 상태.
 
     `advance`로 새 측정값을 받아 "이번에 발생한 전이"와 다음 상태를 함께 돌려준다.
-    돌파 재인정은 **직전 돌파 때보다 더 높은 전고점**을 깰 때만 새 이벤트로 본다
-    (눌림 후 신고가 재돌파).
     """
 
-    broken: bool = False
-    imminent: bool = False
-    last_broken_peak: int = 0
     spiking: bool = False
     # 20이평 히스테리시스 — 한 번 발화하면 반대편 밴드를 벗어나야 다시 무장한다.
     ma20_rebound_armed: bool = True
@@ -85,28 +76,7 @@ class SignalState:
 
     def advance(self, reading: SignalReading) -> tuple[list[SignalEventType], "SignalState"]:
         events: list[SignalEventType] = []
-        broken, imminent = self.broken, self.imminent
-        last_broken_peak, spiking = self.last_broken_peak, self.spiking
-
-        gap, peak = reading.gap_rate, reading.peak_price
-        if gap is not None and peak is not None:
-            # 돌파: 갭 0 이하 진입. 직전 돌파보다 높은 전고점일 때만 새 이벤트.
-            if not broken and gap <= _BROKEN_GAP:
-                if peak > last_broken_peak:
-                    events.append(SignalEventType.BREAKOUT)
-                    last_broken_peak = peak
-                broken = True
-                imminent = False  # 돌파했으면 임박 상태는 소거
-            elif broken and gap >= _BROKEN_RESET_GAP:
-                broken = False  # 눌림 — 재무장
-
-            # 임박: 돌파 전(0 < 갭 < 임계) 접근. 돌파 상태에서는 보지 않는다.
-            if not broken:
-                if not imminent and _BROKEN_GAP < gap < _IMMINENT_GAP:
-                    events.append(SignalEventType.BREAKOUT_IMMINENT)
-                    imminent = True
-                elif imminent and gap >= _IMMINENT_RESET_GAP:
-                    imminent = False
+        spiking = self.spiking
 
         # 스파이크: 임계 진입 시 발화, 해제 임계 아래로 식으면 해제.
         ratio = reading.spike_ratio
@@ -130,9 +100,7 @@ class SignalState:
         elif reading.ma20_above_band:
             breakdown_armed = True
 
-        return events, SignalState(
-            broken, imminent, last_broken_peak, spiking, rebound_armed, breakdown_armed
-        )
+        return events, SignalState(spiking, rebound_armed, breakdown_armed)
 
 
 @dataclass(frozen=True)

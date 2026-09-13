@@ -115,7 +115,7 @@ class Test시그널_로그:
                 s.add(SignalEvent(
                     occurred_at=datetime(2026, 9, 11, 10, 분), trade_date=오늘,
                     stock_code=f"00000{i}", stock_name=f"종목{i}",
-                    event_type=SignalEventType.BREAKOUT.value,
+                    event_type=SignalEventType.VOLUME_SPIKE.value,
                     current_price=1000, price_change_rate=5.0, trading_value=100,
                     created_at=AT, updated_at=AT,
                 ))
@@ -131,7 +131,7 @@ class Test시그널_로그:
             s.add(SignalEvent(
                 occurred_at=AT, trade_date=date(2026, 9, 10),
                 stock_code="005930", stock_name="어제것",
-                event_type=SignalEventType.BREAKOUT.value,
+                event_type=SignalEventType.VOLUME_SPIKE.value,
                 current_price=1000, price_change_rate=5.0, trading_value=100,
                 created_at=AT, updated_at=AT,
             ))

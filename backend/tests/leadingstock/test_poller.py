@@ -18,13 +18,15 @@ AT = datetime(2026, 9, 11, 10, 0)
 오늘 = date(2026, 9, 11)
 
 
-def 측정(종목="005930", 갭=None, 전고점=None, 스파이크=None) -> CandidateSignalReading:
+def 측정(
+    종목="005930", 스파이크=None, 이평상향=None, 이평하향=None, 이평=None,
+) -> CandidateSignalReading:
     return CandidateSignalReading(
         stock_code=종목, stock_name="삼성전자", current_price=70_000, price_change_rate=5.0,
-        trading_value=1_000_000_000, gap_rate=갭, peak_price=전고점, spike_ratio=스파이크,
+        trading_value=1_000_000_000, gap_rate=None, peak_price=None, spike_ratio=스파이크,
         minute_trading_value=None, spike_direction=None,
-        ma20_crossed_up=None, ma20_crossed_down=None,
-        ma20_below_band=None, ma20_above_band=None, ma20=None,
+        ma20_crossed_up=이평상향, ma20_crossed_down=이평하향,
+        ma20_below_band=None, ma20_above_band=None, ma20=이평,
     )
 
 
@@ -54,7 +56,7 @@ def 적재된_이벤트() -> list[SignalEvent]:
 
 class Test종목_시그널_폴러:
     def test_전이가_일어나면_이벤트를_적재한다(self, 폴러_초기화, monkeypatch):
-        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(갭=-0.1, 전고점=1000)])
+        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(이평상향=True)])
         monkeypatch.setattr(scheduler, "now", lambda: AT)
         monkeypatch.setattr(scheduler, "today", lambda: 오늘)
 
@@ -62,11 +64,11 @@ class Test종목_시그널_폴러:
 
         적재 = 적재된_이벤트()
         assert len(적재) == 1
-        assert 적재[0].event_type == SignalEventType.BREAKOUT.value
+        assert 적재[0].event_type == SignalEventType.MA20_REBOUND.value
         assert 적재[0].theme == "반도체"
 
     def test_전이가_없으면_아무것도_적재하지_않는다(self, 폴러_초기화, monkeypatch):
-        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(갭=5.0, 전고점=1000)])
+        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정()])
         monkeypatch.setattr(scheduler, "now", lambda: AT)
         monkeypatch.setattr(scheduler, "today", lambda: 오늘)
 
@@ -77,7 +79,7 @@ class Test종목_시그널_폴러:
     def test_쿨다운_안에_같은_전이가_또_뜨면_건너뛴다(self, 폴러_초기화, monkeypatch):
         """프리마켓 출렁임으로 같은 전이가 반복 적재되는 걸 막는다."""
         monkeypatch.setattr(scheduler, "today", lambda: 오늘)
-        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(갭=-0.1, 전고점=1000)])
+        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(이평상향=True)])
         monkeypatch.setattr(scheduler, "now", lambda: AT)
         scheduler._detect_signal_events()
 
@@ -90,7 +92,7 @@ class Test종목_시그널_폴러:
 
     def test_쿨다운이_지나면_다시_적재한다(self, 폴러_초기화, monkeypatch):
         monkeypatch.setattr(scheduler, "today", lambda: 오늘)
-        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(갭=-0.1, 전고점=1000)])
+        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(이평상향=True)])
         monkeypatch.setattr(scheduler, "now", lambda: AT)
         scheduler._detect_signal_events()
 
@@ -102,7 +104,7 @@ class Test종목_시그널_폴러:
 
     def test_일자가_바뀌면_직전_상태를_버린다(self, 폴러_초기화, monkeypatch):
         """어제 돌파 상태를 들고 있으면 오늘 첫 돌파를 놓친다."""
-        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(갭=-0.1, 전고점=1000)])
+        monkeypatch.setattr(application, "signal_readings", lambda _r: [측정(이평상향=True)])
         monkeypatch.setattr(scheduler, "now", lambda: AT)
         monkeypatch.setattr(scheduler, "today", lambda: 오늘)
         scheduler._detect_signal_events()
@@ -115,32 +117,33 @@ class Test종목_시그널_폴러:
         assert len(적재된_이벤트()) == 2  # 새 날 첫 돌파가 다시 잡힌다
 
     def test_타입별로_쿨다운이_따로_걸린다(self, 폴러_초기화, monkeypatch):
-        """돌파와 스파이크는 서로의 쿨다운에 막히지 않아야 한다."""
+        """반등과 스파이크는 서로의 쿨다운에 막히지 않아야 한다."""
         monkeypatch.setattr(scheduler, "today", lambda: 오늘)
         monkeypatch.setattr(scheduler, "now", lambda: AT)
         monkeypatch.setattr(
-            application, "signal_readings", lambda _r: [측정(갭=-0.1, 전고점=1000, 스파이크=5.0)]
+            application, "signal_readings", lambda _r: [측정(스파이크=5.0, 이평상향=True)]
         )
 
         scheduler._detect_signal_events()
 
         타입들 = {e.event_type for e in 적재된_이벤트()}
-        assert 타입들 == {SignalEventType.BREAKOUT.value, SignalEventType.VOLUME_SPIKE.value}
+        assert 타입들 == {SignalEventType.MA20_REBOUND.value, SignalEventType.VOLUME_SPIKE.value}
 
-    def test_돌파_이벤트에만_갭이_채워진다(self, 폴러_초기화, monkeypatch):
+    def test_이벤트마다_해당_필드만_채워진다(self, 폴러_초기화, monkeypatch):
+        """스파이크 배율은 스파이크 행에만, 이평값은 반등 행에만 들어간다."""
         monkeypatch.setattr(scheduler, "today", lambda: 오늘)
         monkeypatch.setattr(scheduler, "now", lambda: AT)
         monkeypatch.setattr(
-            application, "signal_readings", lambda _r: [측정(갭=-0.1, 전고점=1000, 스파이크=5.0)]
+            application, "signal_readings", lambda _r: [측정(스파이크=5.0, 이평상향=True, 이평=1000)]
         )
 
         scheduler._detect_signal_events()
 
         이벤트별 = {e.event_type: e for e in 적재된_이벤트()}
-        assert 이벤트별[SignalEventType.BREAKOUT.value].gap_rate == -0.1
-        assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].gap_rate is None
         assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].spike_ratio == 5.0
-        assert 이벤트별[SignalEventType.BREAKOUT.value].spike_ratio is None
+        assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].ma20 is None
+        assert 이벤트별[SignalEventType.MA20_REBOUND.value].ma20 == 1000
+        assert 이벤트별[SignalEventType.MA20_REBOUND.value].spike_ratio is None
 
     def test_휴장이면_폴러가_돌지_않는다(self, 폴러_초기화, monkeypatch):
         monkeypatch.setattr("backend.market.calendar.market_status", lambda: (True, True))

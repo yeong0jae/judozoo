@@ -15,11 +15,10 @@ from backend.leadingstock.signals import (
 
 
 def 측정(
-    갭=None, 전고점=None, 스파이크=None,
-    이평상향=None, 이평하향=None, 이평아래=None, 이평위=None,
+    스파이크=None, 이평상향=None, 이평하향=None, 이평아래=None, 이평위=None,
 ) -> SignalReading:
     return SignalReading(
-        gap_rate=갭, peak_price=전고점, spike_ratio=스파이크,
+        spike_ratio=스파이크,
         ma20_crossed_up=이평상향, ma20_crossed_down=이평하향,
         ma20_below_band=이평아래, ma20_above_band=이평위,
     )
@@ -34,65 +33,8 @@ def 흘려보내기(*측정들) -> tuple[list[SignalEventType], SignalState]:
     return last, state
 
 
-class Test돌파:
-    def test_갭이_0_이하로_처음_내려가면_돌파를_낸다(self):
-        events, _ = SignalState().advance(측정(갭=-0.1, 전고점=1000))
-
-        assert events == [SignalEventType.BREAKOUT]
-
-    def test_돌파_상태가_유지되는_동안에는_다시_내지_않는다(self):
-        _, broken = SignalState().advance(측정(갭=-0.1, 전고점=1000))
-
-        events, _ = broken.advance(측정(갭=-0.5, 전고점=1000))
-
-        assert events == []
-
-    def test_눌렸다가_같은_전고점을_다시_깨면_새_이벤트가_아니다(self):
-        """같은 저항선을 오르내리는 것만으로 계속 울리면 로그가 쓸모없어진다."""
-        events, _ = 흘려보내기(
-            측정(갭=-0.1, 전고점=1000),
-            측정(갭=0.6, 전고점=1000),   # 눌림 — 재무장
-            측정(갭=-0.1, 전고점=1000),
-        )
-
-        assert events == []
-
-    def test_눌렸다가_더_높은_전고점을_재돌파하면_다시_낸다(self):
-        events, _ = 흘려보내기(
-            측정(갭=-0.1, 전고점=1000),
-            측정(갭=0.6, 전고점=1000),
-            측정(갭=-0.1, 전고점=1100),
-        )
-
-        assert events == [SignalEventType.BREAKOUT]
 
 
-class Test돌파_임박:
-    def test_갭이_임계_미만으로_처음_접근하면_임박을_낸다(self):
-        events, _ = SignalState().advance(측정(갭=1.5, 전고점=1000))
-
-        assert events == [SignalEventType.BREAKOUT_IMMINENT]
-
-    def test_임박_구간에_머무는_동안에는_다시_내지_않는다(self):
-        events, _ = 흘려보내기(측정(갭=0.7, 전고점=1000), 측정(갭=0.4, 전고점=1000))
-
-        assert events == []
-
-    def test_충분히_물러났다가_다시_접근하면_재발화한다(self):
-        events, _ = 흘려보내기(
-            측정(갭=0.7, 전고점=1000),
-            측정(갭=3.0, 전고점=1000),   # 해제 임계 넘어 후퇴
-            측정(갭=0.5, 전고점=1000),
-        )
-
-        assert events == [SignalEventType.BREAKOUT_IMMINENT]
-
-    def test_돌파하면_임박_상태는_소거된다(self):
-        """돌파 상태에서는 임박을 보지 않는다."""
-        _, imminent = SignalState().advance(측정(갭=1.5, 전고점=1000))
-        _, broken = imminent.advance(측정(갭=-0.1, 전고점=1000))
-
-        assert broken.imminent is False
 
 
 class Test거래대금_스파이크:
@@ -113,19 +55,23 @@ class Test거래대금_스파이크:
 
 
 class Test동시_전이:
-    def test_돌파와_스파이크가_한_시점에_켜지면_둘_다_낸다(self):
-        events, _ = SignalState().advance(측정(갭=-0.1, 전고점=1000, 스파이크=5.0))
+    def test_반등과_스파이크가_한_시점에_켜지면_둘_다_낸다(self):
+        events, _ = SignalState().advance(측정(스파이크=5.0, 이평상향=True))
 
-        assert events == [SignalEventType.BREAKOUT, SignalEventType.VOLUME_SPIKE]
+        assert set(events) == {SignalEventType.VOLUME_SPIKE, SignalEventType.MA20_REBOUND}
 
-    def test_측정값이_없으면_전이도_없고_상태가_보존된다(self):
-        """분봉이 없는 순간 — 상태를 리셋하면 다음 폴에서 헛발화한다."""
-        _, imminent = SignalState().advance(측정(갭=0.7, 전고점=1000))
+    def test_측정값이_없으면_전이도_없고_무장_상태가_보존된다(self):
+        """분봉이 없는 순간 — 상태를 리셋하면 다음 폴에서 헛발화한다.
 
-        events, next_state = imminent.advance(측정())
+        스파이크는 배율이 사라지면 **의도적으로** 해제된다(식은 것으로 본다).
+        보존돼야 하는 건 20이평 무장 상태다.
+        """
+        _, 발화후 = SignalState().advance(측정(이평상향=True))
+
+        events, next_state = 발화후.advance(측정())
 
         assert events == []
-        assert next_state.imminent is True
+        assert next_state.ma20_rebound_armed is False
 
 
 class Test순매수_흐름_전환:
@@ -272,8 +218,3 @@ class Test20이평_반등과_꺾임:
 
         assert 상태.ma20_rebound_armed is False
 
-    def test_돌파와_반등이_한_시점에_나면_둘_다_낸다(self):
-        전이, _ = 흘려보내기(측정(갭=0.0, 전고점=1000, 이평상향=True))
-
-        assert SignalEventType.BREAKOUT in 전이
-        assert SignalEventType.MA20_REBOUND in 전이

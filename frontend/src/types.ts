@@ -278,11 +278,13 @@ export interface BreakoutRadarResponse {
 
 // === 시그널 전이 로그 ===
 export type SignalEventType =
-  | "BREAKOUT"
-  | "BREAKOUT_IMMINENT"
   | "VOLUME_SPIKE"
   | "MA20_REBOUND"
-  | "MA20_BREAKDOWN";
+  | "MA20_BREAKDOWN"
+  // 2026-09-13에 생성을 중단했다. 과거 날짜를 보면 DB에 남은 행이 조회되므로
+  // 표시 경로는 계속 살려 둔다.
+  | "BREAKOUT"
+  | "BREAKOUT_IMMINENT";
 
 export type SpikeDirection = "BUY" | "SELL" | "FLAT";
 

@@ -90,7 +90,7 @@ def _detect_signal_events() -> None:
         prev = _signal_states.get(r.stock_code, SignalState())
         fired, next_state = prev.advance(
             SignalReading(
-                r.gap_rate, r.peak_price, r.spike_ratio,
+                r.spike_ratio,
                 r.ma20_crossed_up, r.ma20_crossed_down, r.ma20_below_band, r.ma20_above_band,
             )
         )
@@ -115,7 +115,6 @@ def _detect_signal_events() -> None:
 
 
 def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date, theme: str | None) -> SignalEvent:
-    breakout = event_type in (SignalEventType.BREAKOUT, SignalEventType.BREAKOUT_IMMINENT)
     spike = event_type is SignalEventType.VOLUME_SPIKE
     return SignalEvent(
         occurred_at=at, trade_date=on,
@@ -123,7 +122,7 @@ def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date, the
         event_type=event_type.value,
         current_price=r.current_price, price_change_rate=r.price_change_rate,
         trading_value=r.trading_value,
-        gap_rate=r.gap_rate if breakout else None,
+        gap_rate=None,  # 돌파 이벤트가 사라져 항상 비어 있다(컬럼은 이력 때문에 남김)
         spike_ratio=r.spike_ratio if spike else None,
         minute_trading_value=r.minute_trading_value if spike else None,
         spike_direction=r.spike_direction if spike else None,

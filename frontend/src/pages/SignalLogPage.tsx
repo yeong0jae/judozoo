@@ -46,22 +46,22 @@ function clockClass(iso: string): string {
 }
 
 const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: string }> = {
-  BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
-  BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
   // 지지·저항 화면과 같은 색을 쓴다 — 주황=위(저항 방향), 하늘=아래(지지 방향).
   // 색이 화면마다 다른 방향을 뜻하면 읽는 사람이 매번 다시 배워야 한다.
   MA20_REBOUND: { label: "반등", chip: "bg-orange-500/15 text-orange-400", dot: "bg-orange-400" },
   MA20_BREAKDOWN: { label: "꺾임", chip: "bg-sky-500/15 text-sky-400", dot: "bg-sky-400" },
+  // 생성 중단(2026-09-13). 과거 날짜 조회용으로만 남는다 — 흐린 톤으로 구분한다.
+  BREAKOUT: { label: "돌파", chip: "bg-zinc-700/40 text-zinc-400", dot: "bg-zinc-500" },
+  BREAKOUT_IMMINENT: { label: "임박", chip: "bg-zinc-700/40 text-zinc-500", dot: "bg-zinc-600" },
 };
 
-// 방향이 짝인 것끼리 한 탭으로 묶는다 — 돌파·임박, 반등·꺾임.
-type TypeFilter = "ALL" | "MARKET" | "BREAKOUT_GROUP" | "MA20_GROUP" | SignalEventType;
+// 방향이 짝인 것끼리 한 탭으로 묶는다.
+type TypeFilter = "ALL" | "MARKET" | "MA20_GROUP" | SignalEventType;
 
 /** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
-  { key: "BREAKOUT_GROUP", label: "돌파 / 임박" },
   { key: "MA20_GROUP", label: "반등 / 꺾임" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
   { key: "MARKET", label: "지수" },
@@ -69,7 +69,6 @@ const TYPE_TABS: { key: TypeFilter; label: string }[] = [
 
 /** 유형 필터 매칭 — 묶음 탭은 짝을 이루는 두 유형을 함께 통과시킨다. */
 function matchesType(eventType: SignalEventType, filter: TypeFilter): boolean {
-  if (filter === "BREAKOUT_GROUP") return eventType === "BREAKOUT" || eventType === "BREAKOUT_IMMINENT";
   if (filter === "MA20_GROUP") return eventType === "MA20_REBOUND" || eventType === "MA20_BREAKDOWN";
   return eventType === filter;
 }
