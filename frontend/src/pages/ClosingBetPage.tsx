@@ -23,7 +23,7 @@ import {
 } from "../api/queries";
 import CandleChart from "../components/common/CandleChart";
 import HolidayBanner from "../components/common/HolidayBanner";
-import { latestTradingDayStr, todayStr } from "../components/common/DateNavigator";
+import { todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import { colorByPnL, formatPct, formatPrice } from "../lib/format";
@@ -419,8 +419,9 @@ function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (
 }
 
 function LiveIndexDetail({ market, name }: { market: MarketType; name: string }) {
-  // 주말·공휴일엔 오늘 데이터가 없다. 직전 평일로 물러나 빈 화면을 피한다.
-  const date = latestTradingDayStr();
+  // 백엔드가 데이터 있는 가장 최근 거래일로 물러나고 실제 날짜를 함께 준다.
+  // 여기서는 오늘을 그대로 보내면 된다 — 주말·공휴일 판정을 두 곳에 두지 않는다.
+  const date = todayStr();
   const kospiQ = useKospiIndex();
   const kosdaqQ = useKosdaqIndex();
   const priceQ = market === "KOSPI" ? kospiQ : kosdaqQ;
@@ -515,7 +516,7 @@ function FuturesIndexDetail({ index, market }: { index: IndexInfo; market: Marke
         <FuturesChart market={market} interval={chartInterval} />
       </div>
 
-      <FuturesSessionsCard market={market} date={latestTradingDayStr()} />
+      <FuturesSessionsCard market={market} date={todayStr()} />
       <FuturesDailyCard market={market} />
     </div>
   );
@@ -779,7 +780,9 @@ function NightFuturesChart({ interval }: { interval: ChartInterval }) {
  */
 function FuturesSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useFuturesInvestorSessions(market, date);
-  const list = data ?? [];
+  const list = data?.sessions ?? [];
+  // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다.
+  const shownDate = data?.date ?? date;
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
   const numCols = 3 + FUTURES_ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
   const keyOf = (session: string, field: string) => `flowdelta:futures:${date}:${session}:${field}`;
@@ -789,7 +792,7 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>정규장 시간대별 수급</span>
-        <span className="text-xs text-zinc-600">{dayLabel(date)} · 계약</span>
+        <span className="text-xs text-zinc-600">{dayLabel(shownDate)} · 계약</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
@@ -1221,7 +1224,9 @@ function InvestorDailyTable({
 /** 프로그램 매매 시간대별 — 전체·비차익·차익. 값 변화 시 변화량 깜빡(수급 표와 동일). */
 function ProgramSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketProgramSessions(market, date);
-  const list = data ?? [];
+  const list = data?.sessions ?? [];
+  // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다.
+  const shownDate = data?.date ?? date;
   const edge = "border-l border-white/[0.06]";
   const keyOf = (session: string, field: string) => `flowdelta:program:${market}:${date}:${session}:${field}`;
   useEffect(() => pruneFlowDelta(date), [date]);
@@ -1230,7 +1235,7 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>프로그램 매매</span>
-        <span className="text-xs text-zinc-600">{dayLabel(date)} · 억원</span>
+        <span className="text-xs text-zinc-600">{dayLabel(shownDate)} · 억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
@@ -1340,7 +1345,9 @@ function dayLabel(date: string): string {
 
 function RealSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketInvestorSessions(market, date);
-  const list = data ?? [];
+  const list = data?.sessions ?? [];
+  // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다.
+  const shownDate = data?.date ?? date;
   const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
   const numCols = 3 + ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
   const keyOf = (session: string, field: string) => `flowdelta:${market}:${date}:${session}:${field}`;
@@ -1350,7 +1357,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>시간대별 수급</span>
-        <span className="text-xs text-zinc-600">{dayLabel(date)} · 억원</span>
+        <span className="text-xs text-zinc-600">{dayLabel(shownDate)} · 억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />

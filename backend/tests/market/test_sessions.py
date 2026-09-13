@@ -63,7 +63,7 @@ class Test투자자_세션_수급:
             ])
             s.commit()
 
-            세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
 
         이름별 = {x.name: x.nets for x in 세션들}
         assert 이름별["프리마켓"].individual == 100          # 누적 그대로
@@ -82,7 +82,7 @@ class Test투자자_세션_수급:
                 수급스냅샷(20, 0, 개인=700, 외국인=-300, 기관=-400),
             ])
             s.commit()
-            세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
 
         합 = sum(x.nets.individual for x in 세션들 if x.nets)
         assert 합 == 700  # 최종 누적
@@ -95,7 +95,7 @@ class Test투자자_세션_수급:
                 수급스냅샷(15, 0, 개인=500, 외국인=-200, 기관=-300),
             ])
             s.commit()
-            세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
 
         이름별 = {x.name: x.nets for x in 세션들}
         assert 이름별["프리마켓"] is None
@@ -104,7 +104,7 @@ class Test투자자_세션_수급:
 
     def test_스냅샷이_없는_세션은_None이다(self, 빈_스냅샷_테이블):
         with get_session_factory()() as s:
-            세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
 
         assert [x.nets for x in 세션들] == [None] * 5
         assert [x.name for x in 세션들] == ["프리마켓", "오전", "오후", "막판 동시호가", "애프터마켓"]
@@ -118,7 +118,7 @@ class Test투자자_세션_수급:
                 수급스냅샷(12, 2, 개인=310, 외국인=0, 기관=0),    # 경계 직후 — 쓰이면 안 된다
             ])
             s.commit()
-            세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
 
         assert {x.name: x.nets for x in 세션들}["오전"].individual == 190  # 290 − 100
 
@@ -134,7 +134,7 @@ class Test투자자_세션_수급:
             )
             s.add_all([어제, 수급스냅샷(12, 0, 개인=300, 외국인=0, 기관=0)])
             s.commit()
-            세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
 
         assert {x.name: x.nets for x in 세션들}["오전"].individual == 300
 
@@ -147,7 +147,7 @@ class Test프로그램_세션_수급:
                 프로그램스냅샷(12, 0, 차익=30_000, 비차익=50_000, 전체=80_000),
             ])
             s.commit()
-            세션들 = application.program_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.program_sessions(s, Market.KOSPI, 당일)
 
         이름별 = {x.name: x.nets for x in 세션들}
         assert 이름별["프리마켓"].total_eok == 300     # 30,000백만 = 300억
@@ -155,7 +155,7 @@ class Test프로그램_세션_수급:
 
     def test_스냅샷이_없으면_None(self, 빈_스냅샷_테이블):
         with get_session_factory()() as s:
-            assert [x.nets for x in application.program_sessions(s, Market.KOSPI, 당일)] == [None] * 5
+            assert [x.nets for x in application.program_sessions(s, Market.KOSPI, 당일)[1]] == [None] * 5
 
 
 class Test선물_세션_수급:
@@ -177,9 +177,63 @@ class Test선물_세션_수급:
             s.query(FuturesInvestorSnapshot).delete()
             s.add_all([선물스냅샷(12, 0, 1000), 선물스냅샷(15, 0, 1500)])
             s.commit()
-            세션들 = application.futures_investor_sessions(s, Market.KOSPI, 당일)
+            _, 세션들 = application.futures_investor_sessions(s, Market.KOSPI, 당일)
 
         이름별 = {x.name: x.nets for x in 세션들}
         assert 이름별["오전"].foreign == 1000   # 누적 그대로
         assert 이름별["오후"].foreign == 500    # 1500 − 1000
         assert [x.name for x in 세션들] == ["오전", "오후", "막판 동시호가"]
+
+
+class Test데이터_있는_날로_물러나기:
+    """공휴일·주말엔 그날 스냅샷이 없다. 빈 화면 대신 직전 거래일을 보여주되,
+    **실제로 쓴 날짜를 함께 돌려줘야** 화면이 거짓 라벨을 붙이지 않는다.
+    """
+
+    def test_요청일에_데이터가_없으면_직전_거래일로_물러난다(self, 빈_스냅샷_테이블):
+        with get_session_factory()() as s:
+            s.add_all([수급스냅샷(9, 0, 10, 20, 30), 수급스냅샷(12, 0, 40, 50, 60)])
+            s.commit()
+
+            휴장일 = date(2026, 9, 14)  # 스냅샷이 없는 날
+            쓴날짜, 세션들 = application.investor_sessions(s, Market.KOSPI, 휴장일)
+
+        assert 쓴날짜 == 당일
+        assert any(x.nets is not None for x in 세션들)
+
+    def test_요청일에_데이터가_있으면_그날을_그대로_쓴다(self, 빈_스냅샷_테이블):
+        with get_session_factory()() as s:
+            s.add(수급스냅샷(9, 0, 10, 20, 30))
+            s.commit()
+
+            쓴날짜, _ = application.investor_sessions(s, Market.KOSPI, 당일)
+
+        assert 쓴날짜 == 당일
+
+    def test_이전_데이터가_아예_없으면_요청일을_그대로_돌려준다(self, 빈_스냅샷_테이블):
+        with get_session_factory()() as s:
+            아주_과거 = date(2020, 1, 2)
+            쓴날짜, 세션들 = application.investor_sessions(s, Market.KOSPI, 아주_과거)
+
+        assert 쓴날짜 == 아주_과거
+        assert all(x.nets is None for x in 세션들)
+
+    def test_미래_데이터로는_물러나지_않는다(self, 빈_스냅샷_테이블):
+        """`on` 이하만 본다 — 요청일보다 뒤의 데이터를 끌어오면 안 된다."""
+        with get_session_factory()() as s:
+            s.add(수급스냅샷(9, 0, 10, 20, 30))  # 09-11
+            s.commit()
+
+            이전날 = date(2026, 9, 10)
+            쓴날짜, _ = application.investor_sessions(s, Market.KOSPI, 이전날)
+
+        assert 쓴날짜 == 이전날
+
+    def test_프로그램도_같은_규칙으로_물러난다(self, 빈_스냅샷_테이블):
+        with get_session_factory()() as s:
+            s.add_all([프로그램스냅샷(9, 0, 1, 2, 3), 프로그램스냅샷(12, 0, 4, 5, 6)])
+            s.commit()
+
+            쓴날짜, _ = application.program_sessions(s, Market.KOSPI, date(2026, 9, 14))
+
+        assert 쓴날짜 == 당일

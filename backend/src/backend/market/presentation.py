@@ -85,6 +85,14 @@ class SessionNetItem(BaseModel):
     nets: NetsItem | None
 
 
+class SessionNetsResponse(BaseModel):
+    """조회에 **실제로 쓴 날짜**를 함께 싣는다 — 공휴일이면 직전 거래일로 물러나므로,
+    화면이 요청한 날짜로 라벨을 붙이면 거짓말이 된다."""
+
+    date: date
+    sessions: list[SessionNetItem]
+
+
 class ProgramNetsItem(BaseModel):
     arbitrage_eok: int = Field(serialization_alias="arbitrageEok")
     non_arbitrage_eok: int = Field(serialization_alias="nonArbitrageEok")
@@ -95,6 +103,14 @@ class ProgramSessionItem(BaseModel):
     name: str
     time: str
     nets: ProgramNetsItem | None
+
+
+class ProgramSessionsResponse(BaseModel):
+    """조회에 **실제로 쓴 날짜**를 함께 싣는다 — 공휴일이면 직전 거래일로 물러나므로,
+    화면이 요청한 날짜로 라벨을 붙이면 거짓말이 된다."""
+
+    date: date
+    sessions: list[ProgramSessionItem]
 
 
 class ProgramDayItem(BaseModel):
@@ -127,6 +143,14 @@ class FuturesSessionItem(BaseModel):
     name: str
     time: str
     nets: FuturesNetsItem | None
+
+
+class FuturesSessionsResponse(BaseModel):
+    """조회에 **실제로 쓴 날짜**를 함께 싣는다 — 공휴일이면 직전 거래일로 물러나므로,
+    화면이 요청한 날짜로 라벨을 붙이면 거짓말이 된다."""
+
+    date: date
+    sessions: list[FuturesSessionItem]
 
 
 class FuturesInvestorDayItem(BaseModel):
@@ -309,13 +333,16 @@ def futures_investor_daily(
 @router.get("/futures/{market}/investor/sessions")
 def futures_investor_sessions(
     market: Market, date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
-) -> ApiResponse[list[FuturesSessionItem]]:
-    on = date_ or today()
+) -> ApiResponse[FuturesSessionsResponse]:
+    used, sessions = application.futures_investor_sessions(db, market, date_ or today())
     return ApiResponse.ok(
-        [
-            FuturesSessionItem(name=s.name, time=s.time, nets=_futures_nets_item(s.nets))
-            for s in application.futures_investor_sessions(db, market, on)
-        ]
+        FuturesSessionsResponse(
+            date=used,
+            sessions=[
+                FuturesSessionItem(name=s.name, time=s.time, nets=_futures_nets_item(s.nets))
+                for s in sessions
+            ],
+        )
     )
 
 
@@ -362,29 +389,34 @@ def investor_daily(market: Market, count: int = Query(10)) -> ApiResponse[list[M
 @router.get("/{market}/investor/sessions")
 def investor_sessions(
     market: Market, date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
-) -> ApiResponse[list[SessionNetItem]]:
-    on = date_ or today()
+) -> ApiResponse[SessionNetsResponse]:
+    used, sessions = application.investor_sessions(db, market, date_ or today())
     return ApiResponse.ok(
-        [
-            SessionNetItem(name=s.name, time=s.time, nets=_nets_item(s.nets))
-            for s in application.investor_sessions(db, market, on)
-        ]
+        SessionNetsResponse(
+            date=used,
+            sessions=[
+                SessionNetItem(name=s.name, time=s.time, nets=_nets_item(s.nets)) for s in sessions
+            ],
+        )
     )
 
 
 @router.get("/{market}/program/sessions")
 def program_sessions(
     market: Market, date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
-) -> ApiResponse[list[ProgramSessionItem]]:
-    on = date_ or today()
+) -> ApiResponse[ProgramSessionsResponse]:
+    used, sessions = application.program_sessions(db, market, date_ or today())
     return ApiResponse.ok(
-        [
-            ProgramSessionItem(
-                name=s.name, time=s.time,
-                nets=None if s.nets is None else ProgramNetsItem(**vars(s.nets)),
-            )
-            for s in application.program_sessions(db, market, on)
-        ]
+        ProgramSessionsResponse(
+            date=used,
+            sessions=[
+                ProgramSessionItem(
+                    name=s.name, time=s.time,
+                    nets=None if s.nets is None else ProgramNetsItem(**vars(s.nets)),
+                )
+                for s in sessions
+            ],
+        )
     )
 
 

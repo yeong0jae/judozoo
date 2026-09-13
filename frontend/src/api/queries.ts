@@ -2,6 +2,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import { todayStr } from "../components/common/DateNavigator";
 import type {
+  SessionsResponse,
   BreakoutRadarResponse,
   DailyCandleItem,
   CandidateStocksResponse,
@@ -230,7 +231,9 @@ export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: stri
   return useQuery({
     queryKey: QK.marketInvestorSessions(market, date),
     queryFn: () =>
-      apiFetch<MarketInvestorSession[]>(`/api/market/${market}/investor/sessions?date=${date}`),
+      apiFetch<SessionsResponse<MarketInvestorSession>>(
+        `/api/market/${market}/investor/sessions?date=${date}`,
+      ),
     // 백엔드 순매수 스냅샷 폴러(30초)와 같은 주기 — 진행 중 세션 값이 30초마다 최신화된다.
     refetchInterval: 30_000,
   });
@@ -241,7 +244,7 @@ export function useMarketProgramSessions(market: "KOSPI" | "KOSDAQ", date: strin
   return useQuery({
     queryKey: QK.marketProgramSessions(market, date),
     queryFn: () =>
-      apiFetch<ProgramSession[]>(`/api/market/${market}/program/sessions?date=${date}`),
+      apiFetch<SessionsResponse<ProgramSession>>(`/api/market/${market}/program/sessions?date=${date}`),
     refetchInterval: 120_000,
   });
 }
@@ -348,7 +351,9 @@ export function useFuturesInvestorSessions(market: MarketType, date: string) {
   return useQuery({
     queryKey: QK.futuresInvestorSessions(market, date),
     queryFn: () =>
-      apiFetch<FuturesSession[]>(`/api/market/futures/${market}/investor/sessions?date=${date}`),
+      apiFetch<SessionsResponse<FuturesSession>>(
+        `/api/market/futures/${market}/investor/sessions?date=${date}`,
+      ),
     refetchInterval: 60_000,
   });
 }

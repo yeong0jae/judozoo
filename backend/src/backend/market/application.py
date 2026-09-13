@@ -12,7 +12,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.leadingstock.infrastructure import investor_snapshot_at
+from backend.leadingstock.infrastructure import MarketInvestorSnapshot, investor_snapshot_at
 from backend.library.cache import is_empty, ttl_cache
 from backend.library.time import now, today
 from backend.market import calendar
@@ -177,12 +177,33 @@ def investor_daily_history(market: Market, count: int) -> list[MarketInvestorDay
     return out
 
 
-def investor_sessions(session: Session, market: Market, on: date) -> list[SessionNet]:
+def _latest_date_with_data(session: Session, model, market: Market, on: date) -> date:
+    """`on` 이하에서 **데이터가 실제로 있는** 가장 최근 거래일.
+
+    주말은 프론트가 직전 평일로 물러나 보내지만 공휴일은 못 잡는다. 여기서 받아
+    빈 화면 대신 직전 거래일을 보여준다. 아예 없으면 요청일을 그대로 돌려준다 —
+    호출자가 "그날은 비었다"로 처리하게 둔다.
+    """
+    found = session.scalar(
+        select(model.trade_date)
+        .where(model.market == market, model.trade_date <= on)
+        .order_by(model.trade_date.desc())
+        .limit(1)
+    )
+    return found or on
+
+
+def investor_sessions(session: Session, market: Market, on: date) -> tuple[date, list[SessionNet]]:
     """세션별 순매수 — 당일 누적 스냅샷 경계 diff. 데이터 없는 세션은 nets=None.
 
     다섯 구간의 합 = 그날 최종 누적(= 일별 표의 그날 값). 폴러가 프리 스냅샷을 남기기 전 과거는
     프리 경계가 없어, 프리를 "집계 전"으로 두고 오전에 프리를 포함해 **합을 보존**한다.
+
+    **실제로 조회한 날짜를 함께 돌려준다** — 공휴일이면 직전 거래일로 물러나므로,
+    화면이 요청한 날짜로 라벨을 붙이면 거짓말이 된다.
     """
+    on = _latest_date_with_data(session, MarketInvestorSnapshot, market, on)
+
     def at(t: time):
         return investor_snapshot_at(session, market, datetime.combine(on, t))
 
@@ -195,7 +216,7 @@ def investor_sessions(session: Session, market: Market, on: date) -> list[Sessio
         return later.nets() - earlier.nets()
 
     morning_net = diff(morning, open_) if open_ is not None else (morning.nets() if morning else None)
-    return [
+    return on, [
         SessionNet("프리마켓", "08:00~09:00", open_.nets() if open_ else None),
         SessionNet("오전", "09:00~12:00", morning_net),
         SessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
@@ -241,8 +262,12 @@ def record_program(
     session.commit()
 
 
-def program_sessions(session: Session, market: Market, on: date) -> list[ProgramSessionNet]:
+def program_sessions(
+    session: Session, market: Market, on: date
+) -> tuple[date, list[ProgramSessionNet]]:
     """세션별 프로그램 순매수(억원) — 당일 누적 스냅샷 경계 diff."""
+    on = _latest_date_with_data(session, ProgramTradeSnapshot, market, on)
+
     def at(t: time):
         return _program_snapshot_at(session, market, datetime.combine(on, t))
 
@@ -255,7 +280,7 @@ def program_sessions(session: Session, market: Market, on: date) -> list[Program
         return later.nets() - earlier.nets()
 
     morning_net = diff(morning, open_) if open_ is not None else (morning.nets() if morning else None)
-    return [
+    return on, [
         ProgramSessionNet("프리마켓", "08:00~09:00", open_.nets() if open_ else None),
         ProgramSessionNet("오전", "09:00~12:00", morning_net),
         ProgramSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
@@ -378,8 +403,10 @@ def futures_investor_daily_history(
 
 def futures_investor_sessions(
     session: Session, market: Market, on: date
-) -> list[FuturesSessionNet]:
+) -> tuple[date, list[FuturesSessionNet]]:
     """세션별 순매수(계약) — 스냅샷이 없는 세션은 nets=None."""
+    on = _latest_date_with_data(session, FuturesInvestorSnapshot, market, on)
+
     def at(t: time):
         return _futures_snapshot_at(session, market, datetime.combine(on, t))
 
@@ -390,7 +417,7 @@ def futures_investor_sessions(
             return None
         return later.nets() - earlier.nets()
 
-    return [
+    return on, [
         FuturesSessionNet("오전", "08:45~12:00", morning.nets() if morning else None),
         FuturesSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
         FuturesSessionNet("막판 동시호가", "15:00~15:45", diff(close, afternoon)),

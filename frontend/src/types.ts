@@ -500,3 +500,10 @@ export interface StockQuote {
   priceChangeRate: number;
   overseas: boolean;
 }
+
+/** 시간대별 수급 응답 — `date`는 **실제로 조회된 날짜**다.
+ *  공휴일이면 백엔드가 직전 거래일로 물러나므로, 요청한 날짜로 라벨을 붙이면 안 된다. */
+export interface SessionsResponse<T> {
+  date: string;
+  sessions: T[];
+}
