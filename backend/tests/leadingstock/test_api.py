@@ -69,7 +69,7 @@ class Test후보_목록:
 
 
 class Test종목_상세:
-    def test_필터_평가와_돌파_시그널을_함께_준다(self, client, monkeypatch):
+    def test_필터_평가와_돌파_시그널을_함께_준다(self, 로그인_client, monkeypatch):
         평가 = application.StockEvaluation(
             stock=종목(),
             filter_results=[FilterEvaluationResult("거래대금순위", "상위 35위 이내", "3위", True)],
@@ -79,19 +79,19 @@ class Test종목_상세:
         monkeypatch.setattr(application, "evaluate_stock", lambda _c: 평가)
         monkeypatch.setattr(application, "themes_of", lambda _c: ["반도체"])
 
-        데이터 = client.get("/api/leading-stocks/candidates/005930").json()["data"]
+        데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
 
         assert 데이터["relativeVolume"] == 2.5
         assert 데이터["swingHighSignal"]["peakPrice"] == 72_000
         assert 데이터["filterResults"][0]["filterName"] == "거래대금순위"
         assert 데이터["filterResults"][0]["passed"] is True
 
-    def test_돌파_시그널이_없으면_null(self, client, monkeypatch):
+    def test_돌파_시그널이_없으면_null(self, 로그인_client, monkeypatch):
         평가 = application.StockEvaluation(종목(), [], None, None)
         monkeypatch.setattr(application, "evaluate_stock", lambda _c: 평가)
         monkeypatch.setattr(application, "themes_of", lambda _c: [])
 
-        데이터 = client.get("/api/leading-stocks/candidates/005930").json()["data"]
+        데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
 
         assert 데이터["swingHighSignal"] is None
         assert 데이터["relativeVolume"] is None

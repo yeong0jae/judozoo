@@ -11,6 +11,8 @@ import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
 import ThemeChips from "../components/common/ThemeChips";
 import StockDetailPanel from "../components/common/StockDetailPanel";
+import LoginGate from "../components/common/LoginGate";
+import { useMe } from "../api/auth";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
@@ -55,6 +57,8 @@ function DomesticLeadingStocks({
   market: StockMarket;
   onMarket: (m: StockMarket) => void;
 }) {
+  // 목록은 공개, 종목 상세는 로그인 뒤다.
+  const { data: me } = useMe();
   // 당일 등락률 임계값(%) — 사용자 선택. 새로고침해도 유지되도록 localStorage에 보관, 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -172,7 +176,14 @@ function DomesticLeadingStocks({
 
         {openCode && (
           <aside className="lg:sticky lg:top-6">
-            <StockDetailPanel stockCode={openCode} defaultTab="detail" />
+            {me?.authenticated ? (
+              <StockDetailPanel stockCode={openCode} defaultTab="detail" />
+            ) : (
+              <LoginGate
+                title="종목 상세"
+                description="필터 평가·분봉·일봉·투자자 수급을 종목별로 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
+              />
+            )}
           </aside>
         )}
       </div>
