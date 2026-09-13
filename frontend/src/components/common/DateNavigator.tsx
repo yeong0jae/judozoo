@@ -8,6 +8,17 @@ const localStr = (d: Date) =>
 /** 로컬 오늘 날짜 (YYYY-MM-DD). */
 export const todayStr = () => localStr(new Date());
 
+/** 주말이면 직전 평일로 물러난 날짜. "가장 최근 거래일"의 근사치다.
+ *
+ * 공휴일은 보정하지 못한다 — 그날은 데이터가 없어 화면이 빈다. 다만 토·일에
+ * 빈 화면을 보여주는 것보다는 낫다(대부분의 조회가 주말에 일어난다). */
+export function latestTradingDayStr(from: string = todayStr()): string {
+  const [y, m, d] = from.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  while (dt.getDay() === 0 || dt.getDay() === 6) dt.setDate(dt.getDate() - 1);
+  return localStr(dt);
+}
+
 /** YYYY-MM-DD → "M월 D일 (요일)". */
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 const label = (s: string) => {

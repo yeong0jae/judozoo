@@ -23,7 +23,7 @@ import {
 } from "../api/queries";
 import CandleChart from "../components/common/CandleChart";
 import HolidayBanner from "../components/common/HolidayBanner";
-import { todayStr } from "../components/common/DateNavigator";
+import { latestTradingDayStr, todayStr } from "../components/common/DateNavigator";
 import EmptyState from "../components/common/EmptyState";
 import Skeleton from "../components/common/Skeleton";
 import { colorByPnL, formatPct, formatPrice } from "../lib/format";
@@ -419,7 +419,8 @@ function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (
 }
 
 function LiveIndexDetail({ market, name }: { market: MarketType; name: string }) {
-  const date = todayStr();
+  // 주말·공휴일엔 오늘 데이터가 없다. 직전 평일로 물러나 빈 화면을 피한다.
+  const date = latestTradingDayStr();
   const kospiQ = useKospiIndex();
   const kosdaqQ = useKosdaqIndex();
   const priceQ = market === "KOSPI" ? kospiQ : kosdaqQ;
@@ -514,7 +515,7 @@ function FuturesIndexDetail({ index, market }: { index: IndexInfo; market: Marke
         <FuturesChart market={market} interval={chartInterval} />
       </div>
 
-      <FuturesSessionsCard market={market} date={todayStr()} />
+      <FuturesSessionsCard market={market} date={latestTradingDayStr()} />
       <FuturesDailyCard market={market} />
     </div>
   );
@@ -788,7 +789,7 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>정규장 시간대별 수급</span>
-        <span className="text-xs text-zinc-600">오늘 · 계약</span>
+        <span className="text-xs text-zinc-600">{dayLabel(date)} · 계약</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
@@ -1229,7 +1230,7 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>프로그램 매매</span>
-        <span className="text-xs text-zinc-600">오늘 · 억원</span>
+        <span className="text-xs text-zinc-600">{dayLabel(date)} · 억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
@@ -1329,6 +1330,14 @@ function ProgramDailyTable({ market }: { market: MarketType }) {
   );
 }
 
+/** 조회 기준일 라벨. 주말엔 직전 평일을 보게 되므로 언제 것인지 밝힌다. */
+function dayLabel(date: string): string {
+  if (date === todayStr()) return "오늘";
+  const [y, m, d] = date.split("-").map(Number);
+  const dow = "일월화수목금토"[new Date(y, m - 1, d).getDay()];
+  return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}(${dow})`;
+}
+
 function RealSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketInvestorSessions(market, date);
   const list = data ?? [];
@@ -1341,7 +1350,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
     <div className="px-1">
       <div className="flex items-baseline justify-between mb-3">
         <span className={titleCls}>시간대별 수급</span>
-        <span className="text-xs text-zinc-600">오늘 · 억원</span>
+        <span className="text-xs text-zinc-600">{dayLabel(date)} · 억원</span>
       </div>
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
