@@ -49,8 +49,10 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
-  MA20_REBOUND: { label: "반등", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
-  MA20_BREAKDOWN: { label: "꺾임", chip: "bg-amber-500/15 text-amber-300", dot: "bg-amber-400" },
+  // 지지·저항 화면과 같은 색을 쓴다 — 주황=위(저항 방향), 하늘=아래(지지 방향).
+  // 색이 화면마다 다른 방향을 뜻하면 읽는 사람이 매번 다시 배워야 한다.
+  MA20_REBOUND: { label: "반등", chip: "bg-orange-500/15 text-orange-400", dot: "bg-orange-400" },
+  MA20_BREAKDOWN: { label: "꺾임", chip: "bg-sky-500/15 text-sky-400", dot: "bg-sky-400" },
 };
 
 // 방향이 짝인 것끼리 한 탭으로 묶는다 — 돌파·임박, 반등·꺾임.
