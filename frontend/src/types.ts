@@ -277,7 +277,12 @@ export interface BreakoutRadarResponse {
 }
 
 // === 시그널 전이 로그 ===
-export type SignalEventType = "BREAKOUT" | "BREAKOUT_IMMINENT" | "VOLUME_SPIKE" | "MA20_CROSS";
+export type SignalEventType =
+  | "BREAKOUT"
+  | "BREAKOUT_IMMINENT"
+  | "VOLUME_SPIKE"
+  | "MA20_REBOUND"
+  | "MA20_BREAKDOWN";
 
 export type SpikeDirection = "BUY" | "SELL" | "FLAT";
 

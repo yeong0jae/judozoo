@@ -113,10 +113,16 @@ class SwingLowSignal:
 
 @dataclass(frozen=True)
 class MovingAverageReading:
-    """5분봉 20이평 돌림(상향 돌파) 판정. `ma20`은 최신 확정봉 시점 이평값(원, 반올림)."""
+    """5분봉 20이평 교차 판정. `ma20`은 최신 확정봉 시점 이평값(원, 반올림).
+
+    `*_band`는 히스테리시스 재무장용이다 — 한 번 발화한 뒤 반대편으로 마진만큼
+    벗어나야 다시 무장한다. 이평 근처에서 흔들릴 때 같은 사건이 반복 적재되는 걸 막는다.
+    """
 
     crossed_up: bool
+    crossed_down: bool
     below_band: bool
+    above_band: bool
     ma20: int
 
 
@@ -187,7 +193,9 @@ class MinuteCandles:
         ma_prev = sum(b.close_price for b in bars[-period - 1 : -1]) / period
         return MovingAverageReading(
             crossed_up=prev.close_price <= ma_prev and latest.close_price > ma_latest,
+            crossed_down=prev.close_price >= ma_prev and latest.close_price < ma_latest,
             below_band=latest.close_price < ma_latest * (1 - rearm_margin),
+            above_band=latest.close_price > ma_latest * (1 + rearm_margin),
             # Java `Math.round`는 floor(x+0.5) — Python 기본 round()의 은행가 반올림과 갈린다.
             ma20=math.floor(ma_latest + 0.5),
         )

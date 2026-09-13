@@ -49,7 +49,8 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   BREAKOUT: { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", dot: "bg-emerald-400" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-300" },
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
-  MA20_CROSS: { label: "반등", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
+  MA20_REBOUND: { label: "반등", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400" },
+  MA20_BREAKDOWN: { label: "꺾임", chip: "bg-amber-500/15 text-amber-300", dot: "bg-amber-400" },
 };
 
 // 돌파·임박은 한 탭("돌파 / 임박")으로 묶어 함께 본다.
@@ -258,7 +259,7 @@ function detailOf(e: SignalEventItem) {
       </>
     );
   }
-  if (e.eventType === "MA20_CROSS") {
+  if (e.eventType === "MA20_REBOUND" || e.eventType === "MA20_BREAKDOWN") {
     return (
       <span className="text-sky-300">
         5분 20이평{e.ma20 != null && ` ${formatPrice(e.ma20)}원`} 상향돌파

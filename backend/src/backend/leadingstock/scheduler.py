@@ -89,7 +89,10 @@ def _detect_signal_events() -> None:
     for r in application.signal_readings(settings.min_change_rate):
         prev = _signal_states.get(r.stock_code, SignalState())
         fired, next_state = prev.advance(
-            SignalReading(r.gap_rate, r.peak_price, r.spike_ratio, r.ma20_crossed_up, r.ma20_below_band)
+            SignalReading(
+                r.gap_rate, r.peak_price, r.spike_ratio,
+                r.ma20_crossed_up, r.ma20_crossed_down, r.ma20_below_band, r.ma20_above_band,
+            )
         )
         _signal_states[r.stock_code] = next_state
         if not fired:
@@ -124,10 +127,13 @@ def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date, the
         spike_ratio=r.spike_ratio if spike else None,
         minute_trading_value=r.minute_trading_value if spike else None,
         spike_direction=r.spike_direction if spike else None,
-        ma20=r.ma20 if event_type is SignalEventType.MA20_CROSS else None,
+        ma20=r.ma20 if event_type in _MA20_EVENTS else None,
         theme=theme,
         created_at=at, updated_at=at,
     )
+
+
+_MA20_EVENTS = (SignalEventType.MA20_REBOUND, SignalEventType.MA20_BREAKDOWN)
 
 
 # ── 시장 시그널 폴러 ────────────────────────────────────────────────────

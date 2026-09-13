@@ -11,7 +11,8 @@ const TYPE_LABEL: Record<SignalEventType, string> = {
   BREAKOUT: "돌파",
   BREAKOUT_IMMINENT: "임박",
   VOLUME_SPIKE: "스파이크",
-  MA20_CROSS: "반등",
+  MA20_REBOUND: "반등",
+  MA20_BREAKDOWN: "꺾임",
 };
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
@@ -81,7 +82,10 @@ function noteOf(e: SignalEventItem): string {
     const m = e.minuteTradingValue != null ? ` / 분봉 ${formatKoreanMoney(e.minuteTradingValue)}` : "";
     return r + d + m;
   }
-  if (e.eventType === "MA20_CROSS") return e.ma20 != null ? `5분 20이평 ${formatPrice(e.ma20)} 상향돌파` : "20이평 상향돌파";
+  if (e.eventType === "MA20_REBOUND")
+    return e.ma20 != null ? `5분 20이평 ${formatPrice(e.ma20)} 상향돌파` : "20이평 상향돌파";
+  if (e.eventType === "MA20_BREAKDOWN")
+    return e.ma20 != null ? `5분 20이평 ${formatPrice(e.ma20)} 하향이탈` : "20이평 하향이탈";
   if (e.gapRate == null) return e.eventType === "BREAKOUT" ? "전고 돌파" : "";
   const line = Math.round(e.currentPrice * (1 + e.gapRate / 100));
   if (e.eventType === "BREAKOUT") return `돌파선 ${formatPrice(line)}`;
@@ -120,7 +124,8 @@ export function buildSignalPrompt(
     BREAKOUT: 0,
     BREAKOUT_IMMINENT: 0,
     VOLUME_SPIKE: 0,
-    MA20_CROSS: 0,
+    MA20_REBOUND: 0,
+    MA20_BREAKDOWN: 0,
   };
   asc.forEach((e) => (byType[e.eventType] += 1));
   const stockCount = new Set(asc.map((e) => e.stockCode)).size;
@@ -129,7 +134,7 @@ export function buildSignalPrompt(
   const themeMap = new Map<string, { count: number; stocks: Set<string>; t: Record<SignalEventType, number> }>();
   for (const e of asc) {
     const key = e.theme ?? NO_THEME;
-    const cur = themeMap.get(key) ?? { count: 0, stocks: new Set(), t: { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0, MA20_CROSS: 0 } };
+    const cur = themeMap.get(key) ?? { count: 0, stocks: new Set(), t: { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0, MA20_REBOUND: 0, MA20_BREAKDOWN: 0 } };
     cur.count += 1;
     cur.stocks.add(e.stockCode);
     cur.t[e.eventType] += 1;
@@ -139,20 +144,20 @@ export function buildSignalPrompt(
   const themeRows = [...themeMap.entries()]
     .filter(([theme]) => theme !== NO_THEME)
     .sort((a, b) => b[1].count - a[1].count)
-    .map(([theme, v]) => `${theme} | ${v.count} | ${v.stocks.size} | ${v.t.BREAKOUT}/${v.t.BREAKOUT_IMMINENT}/${v.t.VOLUME_SPIKE}/${v.t.MA20_CROSS}`);
+    .map(([theme, v]) => `${theme} | ${v.count} | ${v.stocks.size} | ${v.t.BREAKOUT}/${v.t.BREAKOUT_IMMINENT}/${v.t.VOLUME_SPIKE}/${v.t.MA20_REBOUND}/${v.t.MA20_BREAKDOWN}`);
   const noThemeCount = themeMap.get(NO_THEME)?.count ?? 0;
 
   // 시간대별 집계 (시 단위)
   const hourMap = new Map<string, Record<SignalEventType, number>>();
   for (const e of asc) {
     const hh = e.occurredAt.slice(11, 13);
-    const cur = hourMap.get(hh) ?? { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0, MA20_CROSS: 0 };
+    const cur = hourMap.get(hh) ?? { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0, MA20_REBOUND: 0, MA20_BREAKDOWN: 0 };
     cur[e.eventType] += 1;
     hourMap.set(hh, cur);
   }
   const hourRows = [...hourMap.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([hh, v]) => `${hh}시 | ${v.BREAKOUT}/${v.BREAKOUT_IMMINENT}/${v.VOLUME_SPIKE}/${v.MA20_CROSS}`);
+    .map(([hh, v]) => `${hh}시 | ${v.BREAKOUT}/${v.BREAKOUT_IMMINENT}/${v.VOLUME_SPIKE}/${v.MA20_REBOUND}/${v.MA20_BREAKDOWN}`);
 
   // 종목별 요약
   const stockMap = new Map<string, SignalEventItem[]>();
@@ -182,7 +187,7 @@ export function buildSignalPrompt(
     `참고: '테마 미상'은 키움에 테마 정보가 없는 것일 뿐 시장적 의미가 아니다.`,
     ``,
     `## 개요`,
-    `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE} · 반등 ${byType.MA20_CROSS})`,
+    `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE} · 반등 ${byType.MA20_REBOUND} · 꺾임 ${byType.MA20_BREAKDOWN})`,
     `- 등장 종목: ${stockCount}개`,
     `- 지수 시그널: ${marketAsc.length}건`,
     ``,

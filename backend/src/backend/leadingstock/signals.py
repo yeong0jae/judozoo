@@ -14,7 +14,8 @@ class SignalEventType(Enum):
     BREAKOUT = "BREAKOUT"                      # 당일 전고점을 처음 돌파한 순간
     BREAKOUT_IMMINENT = "BREAKOUT_IMMINENT"    # 전고점까지 근접한 순간(돌파 직전 경고)
     VOLUME_SPIKE = "VOLUME_SPIKE"              # 1분 거래대금 배율이 임계를 처음 넘긴 순간
-    MA20_CROSS = "MA20_CROSS"                  # 5분봉 종가가 20이평을 아래→위로 처음 뚫은 순간
+    MA20_REBOUND = "MA20_REBOUND"              # 5분봉 종가가 20이평을 아래→위로 뚫은 반등
+    MA20_BREAKDOWN = "MA20_BREAKDOWN"          # 5분봉 종가가 20이평을 위→아래로 뚫은 꺾임
 
 
 class MarketSignalType(Enum):
@@ -51,8 +52,10 @@ class SignalReading:
     gap_rate: float | None       # 전고점까지 남은 상승률(%), 돌파 시 0 이하
     peak_price: int | None       # 그 시점 당일 전고점
     spike_ratio: float | None    # 최신 1분봉 거래대금 배율 — 임계 미달이면 None
-    ma20_crossed_up: bool | None  # 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지
-    ma20_below_band: bool | None  # 20이평보다 마진 이상 아래인지(돌림 재무장 신호)
+    ma20_crossed_up: bool | None    # 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지
+    ma20_crossed_down: bool | None  # 위→아래로 돌파한 봉인지
+    ma20_below_band: bool | None    # 20이평보다 마진 이상 아래인지(반등 재무장)
+    ma20_above_band: bool | None    # 20이평보다 마진 이상 위인지(꺾임 재무장)
 
 
 _BROKEN_GAP = 0.0
@@ -76,6 +79,9 @@ class SignalState:
     imminent: bool = False
     last_broken_peak: int = 0
     spiking: bool = False
+    # 20이평 히스테리시스 — 한 번 발화하면 반대편 밴드를 벗어나야 다시 무장한다.
+    ma20_rebound_armed: bool = True
+    ma20_breakdown_armed: bool = True
 
     def advance(self, reading: SignalReading) -> tuple[list[SignalEventType], "SignalState"]:
         events: list[SignalEventType] = []
@@ -110,7 +116,23 @@ class SignalState:
         elif spiking and (ratio is None or ratio < _SPIKE_RESET_RATIO):
             spiking = False
 
-        return events, SignalState(broken, imminent, last_broken_peak, spiking)
+        # 20이평 반등·꺾임. 시장 시그널(MA20_REBOUND/BREAKDOWN)과 같은 개념이다.
+        rebound_armed, breakdown_armed = self.ma20_rebound_armed, self.ma20_breakdown_armed
+        if reading.ma20_crossed_up and rebound_armed:
+            events.append(SignalEventType.MA20_REBOUND)
+            rebound_armed = False
+        elif reading.ma20_below_band:
+            rebound_armed = True  # 이평 아래로 충분히 내려옴 — 다음 반등을 받을 준비
+
+        if reading.ma20_crossed_down and breakdown_armed:
+            events.append(SignalEventType.MA20_BREAKDOWN)
+            breakdown_armed = False
+        elif reading.ma20_above_band:
+            breakdown_armed = True
+
+        return events, SignalState(
+            broken, imminent, last_broken_peak, spiking, rebound_armed, breakdown_armed
+        )
 
 
 @dataclass(frozen=True)

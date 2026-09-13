@@ -23,7 +23,8 @@ def 측정(종목="005930", 갭=None, 전고점=None, 스파이크=None) -> Cand
         stock_code=종목, stock_name="삼성전자", current_price=70_000, price_change_rate=5.0,
         trading_value=1_000_000_000, gap_rate=갭, peak_price=전고점, spike_ratio=스파이크,
         minute_trading_value=None, spike_direction=None,
-        ma20_crossed_up=None, ma20_below_band=None, ma20=None,
+        ma20_crossed_up=None, ma20_crossed_down=None,
+        ma20_below_band=None, ma20_above_band=None, ma20=None,
     )
 
 

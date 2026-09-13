@@ -54,7 +54,9 @@ class CandidateSignalReading:
     minute_trading_value: int | None
     spike_direction: SpikeDirection | None
     ma20_crossed_up: bool | None
+    ma20_crossed_down: bool | None
     ma20_below_band: bool | None
+    ma20_above_band: bool | None
     ma20: int | None
 
 
@@ -234,7 +236,9 @@ def signal_readings(min_daily_price_change_rate: float) -> list[CandidateSignalR
                 minute_trading_value=spike.latest_trading_value if spike else None,
                 spike_direction=spike.direction if spike else None,
                 ma20_crossed_up=ma.crossed_up if ma else None,
+                ma20_crossed_down=ma.crossed_down if ma else None,
                 ma20_below_band=ma.below_band if ma else None,
+                ma20_above_band=ma.above_band if ma else None,
                 ma20=ma.ma20 if ma else None,
             )
         )
