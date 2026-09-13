@@ -84,8 +84,10 @@ resource "google_compute_firewall" "ssh" {
     ports    = ["22"]
   }
 
-  # IAP TCP forwarding 전용 대역 + 허용된 IP 대역
-  source_ranges = concat(["REDACTED_IP/20"], var.allowed_web_source_ranges)
+  # **IAP 대역만.** allowed_web_source_ranges를 같이 쓰면 안 된다 —
+  # 앱을 0.0.0.0/0으로 공개하는 순간 SSH까지 인터넷 전체에 열린다.
+  # 배포·운영 접속은 전부 IAP 터널(--tunnel-through-iap)을 거치므로 이것만 있으면 된다.
+  source_ranges = ["REDACTED_IP/20"]
   target_tags   = ["auto-trading"]
 
   depends_on = [google_project_service.apis]

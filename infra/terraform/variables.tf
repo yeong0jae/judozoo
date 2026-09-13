@@ -23,7 +23,7 @@ variable "github_repository" {
 }
 
 variable "allowed_web_source_ranges" {
-  description = "프론트(tcp:3000) 인바운드를 허용할 소스 CIDR. 개인용 기본 전체개방, 필요시 본인 IP/32로 축소"
+  description = "웹(tcp:80,443) 인바운드를 허용할 소스 CIDR. SSH는 이 값을 쓰지 않는다(IAP 대역 고정)"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
