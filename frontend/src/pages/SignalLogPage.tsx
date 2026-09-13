@@ -53,20 +53,22 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   MA20_BREAKDOWN: { label: "꺾임", chip: "bg-amber-500/15 text-amber-300", dot: "bg-amber-400" },
 };
 
-// 돌파·임박은 한 탭("돌파 / 임박")으로 묶어 함께 본다.
-type TypeFilter = "ALL" | "MARKET" | "BREAKOUT_GROUP" | SignalEventType;
+// 방향이 짝인 것끼리 한 탭으로 묶는다 — 돌파·임박, 반등·꺾임.
+type TypeFilter = "ALL" | "MARKET" | "BREAKOUT_GROUP" | "MA20_GROUP" | SignalEventType;
 
 /** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
   { key: "BREAKOUT_GROUP", label: "돌파 / 임박" },
+  { key: "MA20_GROUP", label: "반등 / 꺾임" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
   { key: "MARKET", label: "지수" },
 ];
 
-/** 유형 필터 매칭 — "돌파 / 임박" 그룹은 돌파·임박 둘 다 통과. */
+/** 유형 필터 매칭 — 묶음 탭은 짝을 이루는 두 유형을 함께 통과시킨다. */
 function matchesType(eventType: SignalEventType, filter: TypeFilter): boolean {
   if (filter === "BREAKOUT_GROUP") return eventType === "BREAKOUT" || eventType === "BREAKOUT_IMMINENT";
+  if (filter === "MA20_GROUP") return eventType === "MA20_REBOUND" || eventType === "MA20_BREAKDOWN";
   return eventType === filter;
 }
 
