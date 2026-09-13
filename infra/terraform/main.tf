@@ -177,6 +177,9 @@ locals {
     "AT_REAL_TOSS_CLIENT_SECRET",
     "AT_CLOUDFLARE_API_TOKEN", # Caddy ACME DNS-01 챌린지 (Zone:DNS:Edit, judozoo.com 한정)
     "AT_GRAFANA_ADMIN_PASSWORD",
+    "AT_GOOGLE_CLIENT_ID",     # 구글 OAuth (웹 애플리케이션)
+    "AT_GOOGLE_CLIENT_SECRET",
+    "AT_SESSION_SECRET",       # 서명 쿠키 키. 바뀌면 전원 재로그인
   ])
 }
 
