@@ -109,7 +109,7 @@ def 이벤트_테이블(통합_db):
 
 
 class Test시그널_로그:
-    def test_최신순으로_돌려준다(self, client, 이벤트_테이블):
+    def test_최신순으로_돌려준다(self, 로그인_client, 이벤트_테이블):
         with get_session_factory()() as s:
             for i, 분 in enumerate([0, 5, 10]):
                 s.add(SignalEvent(
@@ -121,12 +121,12 @@ class Test시그널_로그:
                 ))
             s.commit()
 
-        데이터 = client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
+        데이터 = 로그인_client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
 
         assert 데이터["totalCount"] == 3
         assert [e["stockName"] for e in 데이터["events"]] == ["종목2", "종목1", "종목0"]
 
-    def test_다른_날짜는_섞이지_않는다(self, client, 이벤트_테이블):
+    def test_다른_날짜는_섞이지_않는다(self, 로그인_client, 이벤트_테이블):
         with get_session_factory()() as s:
             s.add(SignalEvent(
                 occurred_at=AT, trade_date=date(2026, 9, 10),
@@ -137,13 +137,13 @@ class Test시그널_로그:
             ))
             s.commit()
 
-        데이터 = client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
+        데이터 = 로그인_client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
 
         assert 데이터["totalCount"] == 0
 
 
 class Test시장_시그널_로그:
-    def test_단계에_해당하는_임계액을_함께_준다(self, client, 이벤트_테이블):
+    def test_단계에_해당하는_임계액을_함께_준다(self, 로그인_client, 이벤트_테이블):
         """코스피는 1조 단위 — 3단계면 3조."""
         with get_session_factory()() as s:
             s.add(MarketSignalEvent(
@@ -154,7 +154,7 @@ class Test시장_시그널_로그:
             ))
             s.commit()
 
-        항목 = client.get(
+        항목 = 로그인_client.get(
             "/api/leading-stocks/market-signal-events", params={"date": "2026-09-11"}
         ).json()["data"]["events"][0]
 
@@ -162,7 +162,7 @@ class Test시장_시그널_로그:
         assert 항목["thresholdEok"] == 30_000
         assert (항목["market"], 항목["side"], 항목["investor"]) == ("KOSPI", "BUY", "FOREIGN")
 
-    def test_단계가_없는_종류는_임계액도_null(self, client, 이벤트_테이블):
+    def test_단계가_없는_종류는_임계액도_null(self, 로그인_client, 이벤트_테이블):
         with get_session_factory()() as s:
             s.add(MarketSignalEvent(
                 occurred_at=AT, trade_date=오늘, kind=MarketSignalType.MA20_REBOUND.value,
@@ -171,7 +171,7 @@ class Test시장_시그널_로그:
             ))
             s.commit()
 
-        항목 = client.get(
+        항목 = 로그인_client.get(
             "/api/leading-stocks/market-signal-events", params={"date": "2026-09-11"}
         ).json()["data"]["events"][0]
 

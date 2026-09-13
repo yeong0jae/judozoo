@@ -21,6 +21,27 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture
+def 로그인_client(client) -> TestClient:
+    """세션 쿠키를 직접 서명해 심은 클라이언트.
+
+    구글을 실제로 다녀오지 않는다 — 관문 뒤 동작을 검증할 때 쓴다.
+    """
+    import base64
+    import json
+
+    from itsdangerous import TimestampSigner
+
+    from backend.auth.domain import SESSION_KEY
+
+    payload = base64.b64encode(
+        json.dumps({SESSION_KEY: {"sub": "test-sub", "email": "tester@example.com"}}).encode()
+    )
+    signed = TimestampSigner(get_settings().session_secret).sign(payload).decode()
+    client.cookies.set("judozoo_session", signed)
+    return client
+
+
 @pytest.fixture(autouse=True)
 def 캐시_격리():
     """테스트끼리 캐시를 공유하지 않는다."""

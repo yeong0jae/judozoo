@@ -110,6 +110,17 @@ class MarketSignalSettings(BaseSettings):
     session_end: str = "15:30"
 
 
+class GoogleOAuthSettings(BaseSettings):
+    """구글 OAuth. 값이 비면 로그인 라우트가 503을 준다 — 로컬에서 굳이 안 채워도 나머지는 돈다."""
+
+    model_config = _BASE
+
+    client_id: str = Field("", validation_alias="GOOGLE_CLIENT_ID")
+    client_secret: str = Field("", validation_alias="GOOGLE_CLIENT_SECRET")
+    # 구글 콘솔의 "승인된 리디렉션 URI"와 **문자 단위로** 같아야 한다.
+    redirect_uri: str = Field("https://judozoo.com/api/auth/callback", validation_alias="GOOGLE_REDIRECT_URI")
+
+
 class Settings(BaseSettings):
     model_config = _BASE
 
@@ -124,6 +135,10 @@ class Settings(BaseSettings):
     criteria: LeadingStockCriteria = Field(default_factory=LeadingStockCriteria)
     signal_event: SignalEventSettings = Field(default_factory=SignalEventSettings)
     market_signal: MarketSignalSettings = Field(default_factory=MarketSignalSettings)
+    google: GoogleOAuthSettings = Field(default_factory=GoogleOAuthSettings)
+
+    # 세션 쿠키 서명 키. 바뀌면 기존 세션이 전부 무효화된다(데이터는 무사).
+    session_secret: str = Field("dev-only-insecure", validation_alias="SESSION_SECRET")
 
 
 @lru_cache

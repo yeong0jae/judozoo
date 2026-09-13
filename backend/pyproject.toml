@@ -12,6 +12,8 @@ dependencies = [
     "cachetools>=5.5",
     "httpx>=0.28",
     "apscheduler>=3.11.3",
+    "authlib>=1.3",          # 구글 OAuth + ID 토큰 검증
+    "itsdangerous>=2.2",     # Starlette SessionMiddleware가 쿠키 서명에 쓴다
 ]
 
 [dependency-groups]

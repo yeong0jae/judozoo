@@ -3,10 +3,11 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from starlette.middleware.sessions import SessionMiddleware
 
 from backend.library.db import get_engine
 from backend.library.exception import BrokerTokenUnavailable, EntityNotFoundError
@@ -14,6 +15,7 @@ from backend.library import token_store
 from backend.library.logging_config import configure_logging
 from backend.library.scheduler import shutdown as shutdown_scheduler
 from backend.library.scheduler import start as start_scheduler
+from backend.auth.presentation import router as auth_router
 from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.leadingstock.presentation import router as leading_router
@@ -43,6 +45,14 @@ async def lifespan(app: FastAPI):
     # 브로커 토큰 저장소 — 재기동이 발급을 소비하지 않게 한다. 카탈로그 적재보다 먼저 와야
     # 한다(적재가 KIS를 쓴다). 실패해도 fail-soft라 기동을 막지 않는다.
     token_store.create_table()
+    # 가입자 테이블. DB가 잠깐 죽어도 기동은 막지 않는다 — token_store와 같은 fail-soft.
+    # 실패하면 로그인 콜백에서 기록만 실패하고 공개 화면은 계속 뜬다.
+    from backend.auth.domain import AppUser
+
+    try:
+        AppUser.__table__.create(get_engine(), checkfirst=True)
+    except Exception:
+        log.warning("app_user 테이블 생성 실패 — 가입자 기록 없이 동작한다", exc_info=True)
     load_stock_catalog()
     start_scheduler()
     yield
@@ -50,6 +60,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="주도주 매매 판단 보조 시스템", lifespan=lifespan)
+
+# 세션 쿠키 — authlib이 OAuth state·nonce를 여기 보관하므로 라우터보다 먼저 붙어야 한다.
+# https_only는 운영 전제(Caddy가 TLS 종단). 로컬 http에서 로그인을 시험하려면 꺼야 한다.
+_settings = get_settings()
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_settings.session_secret,
+    session_cookie="judozoo_session",
+    https_only=True,
+    same_site="lax",
+)
+app.state.google_redirect_uri = _settings.google.redirect_uri
+
+app.include_router(auth_router)
 app.include_router(news_router)
 app.include_router(overseas_router)
 app.include_router(stock_router)
@@ -72,6 +96,14 @@ async def handle_broker_token_unavailable(request: Request, exc: BrokerTokenUnav
     """
     log.warning("%s %s — %s", request.method, request.url.path, exc)
     return _error("INTERNAL_ERROR", 500)
+
+
+@app.exception_handler(HTTPException)
+async def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+    """인증 실패 등을 프론트가 읽는 봉투 모양으로 되돌린다. FastAPI 기본은 {"detail": ...}이라
+    `apiFetch`가 code를 못 꺼낸다."""
+    code = exc.detail if isinstance(exc.detail, str) else "ERROR"
+    return _error(code, exc.status_code)
 
 
 @app.exception_handler(EntityNotFoundError)
