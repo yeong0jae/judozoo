@@ -215,6 +215,7 @@ locals {
     "AT_GOOGLE_CLIENT_ID",     # 구글 OAuth (웹 애플리케이션)
     "AT_GOOGLE_CLIENT_SECRET",
     "AT_SESSION_SECRET",       # 서명 쿠키 키. 바뀌면 전원 재로그인
+    "AT_GRAFANA_MYSQL_PASSWORD", # Grafana가 app_user를 읽는 전용 계정 (SELECT만)
   ])
 }
 

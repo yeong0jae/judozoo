@@ -1,0 +1,18 @@
+# 가입자 패널이 app_user를 읽는다. 계정은 remote_deploy.sh가 만들고 SELECT 권한을
+# app_user 한 테이블로 제한한다 — 관측 도구에 DB 전체를 열어줄 이유가 없다.
+# 비밀번호는 secrets/.env의 GF_MYSQL_PASSWORD (Grafana가 $VAR를 전개한다).
+apiVersion: 1
+
+datasources:
+  - name: MySQL
+    type: mysql
+    uid: judozoo-mysql
+    url: mysql:3306
+    database: trading
+    user: grafana
+    secureJsonData:
+      password: $GF_MYSQL_PASSWORD
+    jsonData:
+      maxOpenConns: 2
+      maxIdleConns: 1
+      connMaxLifetime: 14400

@@ -47,8 +47,23 @@ GRAFANA_DOMAIN=${GRAFANA_DOMAIN}
 GOOGLE_CLIENT_ID=$(fetch AT_GOOGLE_CLIENT_ID)
 GOOGLE_CLIENT_SECRET=$(fetch AT_GOOGLE_CLIENT_SECRET)
 SESSION_SECRET=$(fetch AT_SESSION_SECRET)
+GF_MYSQL_PASSWORD=$(fetch AT_GRAFANA_MYSQL_PASSWORD)
 GRAFANA_ALLOWED_IPS=${GRAFANA_ALLOWED_IPS}
 EOF
+
+# Grafana용 읽기 전용 MySQL 계정. 가입자 패널이 app_user를 읽는다.
+# 매 배포마다 다시 적용하므로 멱등하고, 비밀번호가 바뀌어도 따라간다.
+# SELECT 권한을 app_user 한 테이블로 제한한다 — 관측 도구에 DB 전체를 열어줄 이유가 없다.
+MYSQL_CID="$(sudo docker ps -qf name=mysql)"
+if [ -n "$MYSQL_CID" ]; then
+  GF_PW="$(grep '^GF_MYSQL_PASSWORD=' secrets/.env | cut -d= -f2-)"
+  sudo docker exec -e GF_PW="$GF_PW" "$MYSQL_CID" sh -c '
+    mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
+      CREATE USER IF NOT EXISTS \"grafana\"@\"%\" IDENTIFIED BY \"$GF_PW\";
+      ALTER USER \"grafana\"@\"%\" IDENTIFIED BY \"$GF_PW\";
+      GRANT SELECT ON trading.app_user TO \"grafana\"@\"%\";
+      FLUSH PRIVILEGES;"' 2>/dev/null && echo "grafana MySQL 계정 준비됨"
+fi
 
 # DB 백업 cron. 배포마다 덮어쓰므로 멱등하다.
 # root로 돌린다 — cron에는 TTY가 없어 sudo가 걸릴 수 있다.
