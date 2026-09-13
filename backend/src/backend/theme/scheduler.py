@@ -1,6 +1,7 @@
-"""테마 캡처 스케줄 — 정규장 마감(15:40)과 NXT 애프터마켓 마감(20:00) 두 번.
+"""테마 캡처 스케줄 — 장중 4회(09·12·15·18시)와 NXT 애프터마켓 마감(20시).
 
-20:00 캡처가 확장세션까지 반영해 그날 스냅샷을 교체한다.
+`capture`는 그날 것을 지우고 다시 넣는다. 여러 번 돌아도 최신 한 벌만 남으므로,
+자주 찍을수록 화면이 보는 시점이 최근이 된다. 20:00 캡처가 확장세션까지 반영한 최종본이다.
 """
 
 import logging
@@ -15,6 +16,9 @@ from backend.theme import application
 
 log = logging.getLogger(__name__)
 
+# KST 정시. 20시는 NXT 애프터마켓 마감 직후다.
+_CAPTURE_HOURS = (9, 12, 15, 18, 20)
+
 
 def run_capture() -> None:
     if calendar.is_holiday(calendar.Region.KR):
@@ -28,10 +32,10 @@ def run_capture() -> None:
 
 
 def register(scheduler: BaseScheduler) -> None:
-    for hour, minute, job_id in ((15, 40, "theme-capture-close"), (20, 0, "theme-capture-after")):
+    for hour in _CAPTURE_HOURS:
         scheduler.add_job(
             run_capture,
-            CronTrigger(hour=hour, minute=minute, timezone=KST),
-            id=job_id,
+            CronTrigger(hour=hour, minute=0, timezone=KST),
+            id=f"theme-capture-{hour:02d}",
             replace_existing=True,
         )
