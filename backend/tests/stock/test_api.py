@@ -33,8 +33,8 @@ def 카탈로그_적재(monkeypatch):
 
 
 class Test종목_검색_API:
-    def test_검색_결과_목록을_200으로_반환한다(self, client, 카탈로그_적재):
-        응답 = client.get("/api/stocks/search", params={"q": "삼성"})
+    def test_검색_결과_목록을_200으로_반환한다(self, 로그인_client, 카탈로그_적재):
+        응답 = 로그인_client.get("/api/stocks/search", params={"q": "삼성"})
 
         assert 응답.status_code == 200
         본문 = 응답.json()
@@ -44,37 +44,37 @@ class Test종목_검색_API:
         assert [r["stockName"] for r in 본문["data"]] == ["삼성바이오로직스", "삼성전자"]
         assert 본문["data"][1]["stockCode"] == "005930"
 
-    def test_결과가_없으면_빈_배열을_반환한다(self, client, 카탈로그_적재):
-        응답 = client.get("/api/stocks/search", params={"q": "없는종목"})
+    def test_결과가_없으면_빈_배열을_반환한다(self, 로그인_client, 카탈로그_적재):
+        응답 = 로그인_client.get("/api/stocks/search", params={"q": "없는종목"})
 
         assert 응답.status_code == 200
         assert 응답.json()["data"] == []
 
-    def test_국내_종목은_거래소가_비어있다(self, client, 카탈로그_적재):
-        결과 = client.get("/api/stocks/search", params={"q": "삼성전자"}).json()["data"]
+    def test_국내_종목은_거래소가_비어있다(self, 로그인_client, 카탈로그_적재):
+        결과 = 로그인_client.get("/api/stocks/search", params={"q": "삼성전자"}).json()["data"]
 
         assert 결과[0]["exchange"] is None
 
-    def test_해외_종목은_거래소가_붙는다(self, client, 카탈로그_적재):
-        결과 = client.get("/api/stocks/search", params={"q": "AAPL"}).json()["data"]
+    def test_해외_종목은_거래소가_붙는다(self, 로그인_client, 카탈로그_적재):
+        결과 = 로그인_client.get("/api/stocks/search", params={"q": "AAPL"}).json()["data"]
 
         assert (결과[0]["stockCode"], 결과[0]["exchange"]) == ("AAPL", "NAS")
 
-    def test_국내와_해외를_함께_돌려준다(self, client, 카탈로그_적재):
-        결과 = client.get("/api/stocks/search", params={"q": "애플"}).json()["data"]
+    def test_국내와_해외를_함께_돌려준다(self, 로그인_client, 카탈로그_적재):
+        결과 = 로그인_client.get("/api/stocks/search", params={"q": "애플"}).json()["data"]
 
         assert [r["stockName"] for r in 결과] == ["애플"]
 
-    def test_질의가_없으면_400을_준다(self, client, 카탈로그_적재):
+    def test_질의가_없으면_400을_준다(self, 로그인_client, 카탈로그_적재):
         """Kotlin은 필수 @RequestParam 누락을 400으로 준다."""
-        응답 = client.get("/api/stocks/search")
+        응답 = 로그인_client.get("/api/stocks/search")
 
         assert 응답.status_code == 400
         assert 응답.json()["code"] == "INVALID_PARAMETER"
 
 
 class Test종목_투자자_수급_API:
-    def test_백만원_단위로_그대로_돌려준다(self, client, monkeypatch):
+    def test_백만원_단위로_그대로_돌려준다(self, 로그인_client, monkeypatch):
         """억으로 반올림하면 기관 세부 같은 작은 수급이 0으로 뭉개진다."""
         from backend.platform.kiwoom.investor import InvestorTrendDay
 
@@ -90,7 +90,7 @@ class Test종목_투자자_수급_API:
             ],
         )
 
-        데이터 = client.get(
+        데이터 = 로그인_client.get(
             "/api/stocks/005930/investor/daily", params={"count": 5}
         ).json()["data"]
 
@@ -100,7 +100,7 @@ class Test종목_투자자_수급_API:
         assert 데이터[0]["foreignMillion"] == -800
         assert 데이터[0]["breakdown"]["pensionFundMillion"] == 150
 
-    def test_날짜_형식이_어긋난_행은_버린다(self, client, monkeypatch):
+    def test_날짜_형식이_어긋난_행은_버린다(self, 로그인_client, monkeypatch):
         from backend.platform.kiwoom.investor import InvestorTrendDay
 
         monkeypatch.setattr(
@@ -110,4 +110,4 @@ class Test종목_투자자_수급_API:
             ],
         )
 
-        assert client.get("/api/stocks/005930/investor/daily").json()["data"] == []
+        assert 로그인_client.get("/api/stocks/005930/investor/daily").json()["data"] == []

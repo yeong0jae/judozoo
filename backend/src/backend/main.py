@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.library.db import get_engine
@@ -15,6 +16,8 @@ from backend.library import token_store
 from backend.library.logging_config import configure_logging
 from backend.library.scheduler import shutdown as shutdown_scheduler
 from backend.library.scheduler import start as start_scheduler
+from backend.auth.domain import SESSION_KEY, CurrentUser
+from backend.auth.gate import is_public
 from backend.auth.presentation import router as auth_router
 from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
@@ -60,6 +63,24 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="주도주 매매 판단 보조 시스템", lifespan=lifespan)
+
+async def _require_login(request: Request, call_next):
+    """`/api` 기본 차단. 허용목록(auth/gate.py)에 있는 경로만 연다.
+
+    미들웨어로 두는 이유 — 엔드포인트마다 의존성을 붙이면 새로 추가할 때 빠뜨리기 쉽고,
+    빠뜨린 쪽이 **열린 채로** 남는다. 여기서는 빠뜨리면 막히므로 사고가 노출이 아니라
+    불편으로 끝난다. `/health`와 정적 경로는 `/api`가 아니라 애초에 대상이 아니다.
+    """
+    path = request.url.path
+    if path.startswith("/api") and not is_public(path):
+        if CurrentUser.from_session(request.session.get(SESSION_KEY)) is None:
+            return _error("UNAUTHORIZED", 401)
+    return await call_next(request)
+
+
+# 미들웨어는 나중에 등록한 것이 바깥에 선다. 관문이 세션을 읽어야 하므로
+# SessionMiddleware보다 **먼저** 등록해 안쪽에 오게 한다.
+app.add_middleware(BaseHTTPMiddleware, dispatch=_require_login)
 
 # 세션 쿠키 — authlib이 OAuth state·nonce를 여기 보관하므로 라우터보다 먼저 붙어야 한다.
 # https_only는 운영 전제(Caddy가 TLS 종단). 로컬 http에서 로그인을 시험하려면 꺼야 한다.

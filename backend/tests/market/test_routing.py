@@ -23,50 +23,50 @@ def 외부호출_차단(monkeypatch):
 
 
 class Test리터럴_경로_우선:
-    def test_나스닥_캔들은_시장_캔들로_새지_않는다(self, client):
-        응답 = client.get("/api/market/nasdaq/candles", params={"interval": "1d"})
+    def test_나스닥_캔들은_시장_캔들로_새지_않는다(self, 로그인_client):
+        응답 = 로그인_client.get("/api/market/nasdaq/candles", params={"interval": "1d"})
 
         assert 응답.status_code == 200
         assert 응답.json()["data"] == []
 
-    def test_나스닥_시세도_마찬가지(self, client):
-        assert client.get("/api/market/nasdaq/quote").status_code == 200
+    def test_나스닥_시세도_마찬가지(self, 로그인_client):
+        assert 로그인_client.get("/api/market/nasdaq/quote").status_code == 200
 
-    def test_야간선물은_선물_시장_경로로_새지_않는다(self, client):
-        응답 = client.get("/api/market/futures/night/quote")
+    def test_야간선물은_선물_시장_경로로_새지_않는다(self, 로그인_client):
+        응답 = 로그인_client.get("/api/market/futures/night/quote")
 
         assert 응답.status_code == 200
         assert 응답.json()["data"] is None
 
-    def test_야간선물_캔들도_마찬가지(self, client):
-        응답 = client.get("/api/market/futures/night/candles", params={"interval": "1m"})
+    def test_야간선물_캔들도_마찬가지(self, 로그인_client):
+        응답 = 로그인_client.get("/api/market/futures/night/candles", params={"interval": "1m"})
 
         assert 응답.status_code == 200
 
-    def test_매크로_캔들은_시장_캔들로_새지_않는다(self, client):
-        응답 = client.get("/api/market/macro/candles", params={"target": "WTI", "interval": "1d"})
+    def test_매크로_캔들은_시장_캔들로_새지_않는다(self, 로그인_client):
+        응답 = 로그인_client.get("/api/market/macro/candles", params={"target": "WTI", "interval": "1d"})
 
         assert 응답.status_code == 200
 
-    def test_휴장_상태는_시장_경로로_새지_않는다(self, client):
-        응답 = client.get("/api/market/calendar/status", params={"region": "KR"})
+    def test_휴장_상태는_시장_경로로_새지_않는다(self, 로그인_client):
+        응답 = 로그인_client.get("/api/market/calendar/status", params={"region": "KR"})
 
         assert 응답.status_code == 200
         assert 응답.json()["data"] == {"isHoliday": False}
 
 
 class Test시장_경로:
-    def test_코스피_캔들은_정상_매칭된다(self, client):
-        assert client.get("/api/market/KOSPI/candles", params={"interval": "1d"}).status_code == 200
+    def test_코스피_캔들은_정상_매칭된다(self, 로그인_client):
+        assert 로그인_client.get("/api/market/KOSPI/candles", params={"interval": "1d"}).status_code == 200
 
-    def test_정의에_없는_시장은_400(self, client):
+    def test_정의에_없는_시장은_400(self, 로그인_client):
         """Kotlin은 enum 변환 실패를 400 INVALID_PARAMETER로 준다."""
-        응답 = client.get("/api/market/NIKKEI/candles", params={"interval": "1d"})
+        응답 = 로그인_client.get("/api/market/NIKKEI/candles", params={"interval": "1d"})
 
         assert 응답.status_code == 400
         assert 응답.json()["code"] == "INVALID_PARAMETER"
 
-    def test_알_수_없는_지역도_400(self, client):
-        응답 = client.get("/api/market/calendar/status", params={"region": "JP"})
+    def test_알_수_없는_지역도_400(self, 로그인_client):
+        응답 = 로그인_client.get("/api/market/calendar/status", params={"region": "JP"})
 
         assert 응답.status_code == 400

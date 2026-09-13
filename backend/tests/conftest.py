@@ -21,12 +21,8 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.fixture
-def 로그인_client(client) -> TestClient:
-    """세션 쿠키를 직접 서명해 심은 클라이언트.
-
-    구글을 실제로 다녀오지 않는다 — 관문 뒤 동작을 검증할 때 쓴다.
-    """
+def 세션_쿠키() -> str:
+    """서명된 세션 쿠키 값. 구글을 실제로 다녀오지 않고 관문만 통과시킨다."""
     import base64
     import json
 
@@ -37,8 +33,13 @@ def 로그인_client(client) -> TestClient:
     payload = base64.b64encode(
         json.dumps({SESSION_KEY: {"sub": "test-sub", "email": "tester@example.com"}}).encode()
     )
-    signed = TimestampSigner(get_settings().session_secret).sign(payload).decode()
-    client.cookies.set("judozoo_session", signed)
+    return TimestampSigner(get_settings().session_secret).sign(payload).decode()
+
+
+@pytest.fixture
+def 로그인_client(client) -> TestClient:
+    """관문 뒤 동작을 검증할 때 쓴다."""
+    client.cookies.set("judozoo_session", 세션_쿠키())
     return client
 
 

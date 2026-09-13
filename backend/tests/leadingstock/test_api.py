@@ -191,7 +191,11 @@ class Test지수_캔들:
 
         from backend.main import app
 
+        from tests.conftest import 세션_쿠키
+
         with TestClient(app, raise_server_exceptions=False) as c:
+            # 관문 뒤 경로다 — 쿠키가 없으면 401이라 500 핸들러까지 가지 않는다.
+            c.cookies.set("judozoo_session", 세션_쿠키())
             응답 = c.get("/api/leading-stocks/index/NIKKEI/minute-candles")
 
         assert 응답.status_code == 500

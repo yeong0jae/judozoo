@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useMe } from "../api/auth";
+import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
 import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
@@ -34,7 +36,7 @@ function radarStatus(gap: number): { label: string; cls: string; gap: string } {
   return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
 }
 
-export default function BreakoutRadarPage() {
+function BreakoutRadarPageInner() {
   // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -274,4 +276,16 @@ function RadarCard({
       </div>
     </div>
   );
+}
+
+
+/** 로그인한 사용자만 본다. 미로그인이면 데이터를 부르지 않는다 —
+ *  호출해봐야 401이고, 화면 폴링 주기마다 반복된다. */
+export default function BreakoutRadarPage() {
+  const { data: me, isLoading } = useMe();
+  if (isLoading) return null;
+  if (!me?.authenticated) {
+    return <LoginGate title="주도주 돌파 현황" description="감시 중인 주도주가 당일 고가 돌파에 얼마나 가까운지 보여줍니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+  }
+  return <BreakoutRadarPageInner />;
 }

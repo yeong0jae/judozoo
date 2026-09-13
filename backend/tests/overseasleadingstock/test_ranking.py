@@ -200,10 +200,10 @@ class Test종목_상세:
 
 class Test해외_주도주_API:
     @respx.mock
-    def test_랭킹_응답_형식이_기존_계약과_같다(self, respx_mock, 토큰_발급, client):
+    def test_랭킹_응답_형식이_기존_계약과_같다(self, respx_mock, 토큰_발급, 로그인_client):
         거래소별_응답(respx_mock, nas=[순위행("AAA", "1000", rate="10.0")])
 
-        body = client.get("/api/overseas-leading-stocks/ranking?minChangeRate=5").json()
+        body = 로그인_client.get("/api/overseas-leading-stocks/ranking?minChangeRate=5").json()
 
         assert body["code"] == "SUCCESS"
         assert body["data"][0] == {
@@ -213,34 +213,34 @@ class Test해외_주도주_API:
         }
 
     @respx.mock
-    def test_등락률_인자는_허용_범위로_잘라_쓴다(self, respx_mock, 토큰_발급, client):
+    def test_등락률_인자는_허용_범위로_잘라_쓴다(self, respx_mock, 토큰_발급, 로그인_client):
         """사용자가 -12~7 밖의 값을 보내도 범위 안으로 맞춘다."""
         거래소별_응답(
             respx_mock,
             nas=[순위행(s, str(600 - i * 100), rate="6.0") for i, s in enumerate("ABCDE")],
         )
 
-        body = client.get("/api/overseas-leading-stocks/ranking?minChangeRate=99").json()
+        body = 로그인_client.get("/api/overseas-leading-stocks/ranking?minChangeRate=99").json()
 
         # 99 → 7로 잘리므로 6.0짜리는 상위 3개만 남는다
         assert [r["symbol"] for r in body["data"]] == ["A", "B", "C"]
 
     @respx.mock
-    def test_거래소와_심볼은_대문자로_맞춰_조회한다(self, respx_mock, 토큰_발급, client):
+    def test_거래소와_심볼은_대문자로_맞춰_조회한다(self, respx_mock, 토큰_발급, 로그인_client):
         거래소별_응답(respx_mock, nas=[순위행("AAA", "100")])
         respx_mock.get(PRODUCT_URL).mock(
             return_value=httpx.Response(200, json={"rt_cd": "0", "output": None})
         )
         respx_mock.get(MINUTE_URL).mock(return_value=httpx.Response(200, json={"rt_cd": "0", "output2": []}))
 
-        body = client.get("/api/overseas-leading-stocks/nas/aaa").json()
+        body = 로그인_client.get("/api/overseas-leading-stocks/nas/aaa").json()
 
         assert body["data"]["symbol"] == "AAA"
 
     @respx.mock
-    def test_잘못된_인자는_400으로_돌려준다(self, respx_mock, 토큰_발급, client):
+    def test_잘못된_인자는_400으로_돌려준다(self, respx_mock, 토큰_발급, 로그인_client):
         """FastAPI 기본은 422지만 기존 API 계약은 400이다."""
-        response = client.get("/api/overseas-leading-stocks/ranking?minChangeRate=abc")
+        response = 로그인_client.get("/api/overseas-leading-stocks/ranking?minChangeRate=abc")
 
         assert response.status_code == 400
         assert response.json() == {"code": "INVALID_PARAMETER", "status": 400, "data": None}

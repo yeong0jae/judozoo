@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMe } from "../api/auth";
+import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useFuturesCandles,
@@ -79,7 +81,7 @@ const subjectKey = (sel: Selection) => `index-${sel.id}`;
  * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드.
  * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 종목 뉴스(종목을 골랐을 때만).
  */
-export default function ClosingBetPage() {
+function ClosingBetPageInner() {
   const [sel, setSel] = useState<Selection>(loadSelection);
   useEffect(() => {
     localStorage.setItem(SELECTION_KEY, JSON.stringify(sel));
@@ -1421,3 +1423,15 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 // ============================================================
 // 우: 뉴스 (종목을 골랐을 때만)
 // ============================================================
+
+
+/** 로그인한 사용자만 본다. 미로그인이면 데이터를 부르지 않는다 —
+ *  호출해봐야 401이고, 화면 폴링 주기마다 반복된다. */
+export default function ClosingBetPage() {
+  const { data: me, isLoading } = useMe();
+  if (isLoading) return null;
+  if (!me?.authenticated) {
+    return <LoginGate title="지수·수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+  }
+  return <ClosingBetPageInner />;
+}

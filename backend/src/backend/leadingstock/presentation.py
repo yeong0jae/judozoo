@@ -12,7 +12,6 @@ from backend.leadingstock.infrastructure import investor_snapshot_at
 from backend.leadingstock.signals import MarketSignalType
 from backend.library.db import get_db
 from backend.library.time import now, today
-from backend.auth.presentation import require_login
 from backend.library.web import ApiResponse
 from backend.settings import get_settings
 from backend.stock.domain import Market
@@ -229,7 +228,6 @@ def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[B
 def get_signal_events(
     date_: date | None = Query(None, alias="date"),
     db: Session = Depends(get_db),
-    _user=Depends(require_login),
 ) -> ApiResponse[SignalEventsResponse]:
     """그날 발생한 돌파/임박/스파이크 전이를 최신순으로."""
     day = date_ or today()
@@ -252,7 +250,6 @@ def get_signal_events(
 def get_market_signal_events(
     date_: date | None = Query(None, alias="date"),
     db: Session = Depends(get_db),
-    _user=Depends(require_login),
 ) -> ApiResponse[MarketSignalEventsResponse]:
     """투자자 순매수 단계·흐름 전환 + 지수 반등·꺾임. 실시간 로그가 종목 시그널과 합쳐 보여준다."""
     day = date_ or today()

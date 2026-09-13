@@ -224,7 +224,7 @@ class Test요청_형식:
 
 class Test뉴스_API:
     @respx.mock
-    def test_기존_응답_봉투_형식을_지킨다(self, respx_mock, 토큰_발급, client):
+    def test_기존_응답_봉투_형식을_지킨다(self, respx_mock, 토큰_발급, 로그인_client):
         respx_mock.get(DOMESTIC_URL).mock(
             return_value=국내_응답(
                 [{"cntt_usiq_srno": "1", "news_ofer_entp_code": "F", "data_dt": "20260825",
@@ -232,7 +232,7 @@ class Test뉴스_API:
             )
         )
 
-        body = client.get("/api/news/stock/005930").json()
+        body = 로그인_client.get("/api/news/stock/005930").json()
 
         assert body["code"] == "SUCCESS"
         assert body["status"] == 200
@@ -247,13 +247,13 @@ class Test뉴스_API:
         ]
 
     @respx.mock
-    def test_거래소를_주면_해외_뉴스를_조회한다(self, respx_mock, 토큰_발급, client):
+    def test_거래소를_주면_해외_뉴스를_조회한다(self, respx_mock, 토큰_발급, 로그인_client):
         해외 = respx_mock.get(OVERSEAS_URL).mock(
             return_value=httpx.Response(200, json={"rt_cd": "0", "outblock1": []})
         )
         국내 = respx_mock.get(DOMESTIC_URL).mock(return_value=국내_응답([]))
 
-        client.get("/api/news/stock/AAPL", params={"exchange": "NAS"})
+        로그인_client.get("/api/news/stock/AAPL", params={"exchange": "NAS"})
 
         assert 해외.called
         assert not 국내.called

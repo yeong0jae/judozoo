@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useMe } from "../api/auth";
+import LoginGate from "../components/common/LoginGate";
 import { useQueries } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { QK } from "../api/queries";
@@ -39,7 +41,7 @@ function tradingDays(month: Date): string[] {
   return out;
 }
 
-export default function TimelinePage() {
+function TimelinePageInner() {
   const today = todayStr();
   const latest = latestTradingDay(today);
   const [month, setMonth] = useState(() => {
@@ -127,4 +129,16 @@ export default function TimelinePage() {
       </div>
     </div>
   );
+}
+
+
+/** 로그인한 사용자만 본다. 미로그인이면 데이터를 부르지 않는다 —
+ *  호출해봐야 401이고, 화면 폴링 주기마다 반복된다. */
+export default function TimelinePage() {
+  const { data: me, isLoading } = useMe();
+  if (isLoading) return null;
+  if (!me?.authenticated) {
+    return <LoginGate title="일별 마감" description="거래일별 코스피·코스닥·나스닥 마감을 한곳에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+  }
+  return <TimelinePageInner />;
 }
