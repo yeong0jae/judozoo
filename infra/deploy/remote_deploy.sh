@@ -13,6 +13,9 @@ REGION="${3:?REGION required}"
 
 DOMAIN="judozoo.com"
 GRAFANA_DOMAIN="grafana.${DOMAIN}"
+# Grafana를 볼 수 있는 IP. 앱(judozoo.com)은 전체 공개지만 관측 도구는 아니다.
+# 집·외부 IP가 바뀌면 여기를 고치고 재배포한다.
+GRAFANA_ALLOWED_IPS="REDACTED_IP REDACTED_IP REDACTED_IP REDACTED_IP REDACTED_IP REDACTED_IP"
 
 cd "$HOME"
 # mysql·backend가 둘 다 ./secrets/.env 를 읽는다.
@@ -44,6 +47,7 @@ GRAFANA_DOMAIN=${GRAFANA_DOMAIN}
 GOOGLE_CLIENT_ID=$(fetch AT_GOOGLE_CLIENT_ID)
 GOOGLE_CLIENT_SECRET=$(fetch AT_GOOGLE_CLIENT_SECRET)
 SESSION_SECRET=$(fetch AT_SESSION_SECRET)
+GRAFANA_ALLOWED_IPS=${GRAFANA_ALLOWED_IPS}
 EOF
 
 # Artifact Registry pull 인증: VM 인스턴스 SA(metadata)로 토큰 발급 → docker login.
