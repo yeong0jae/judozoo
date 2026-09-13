@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** 레일이 64px이라 라벨은 2자로 맞춘다. 전체 이름은 title 속성으로 붙인다. */
+/** 레일이 80px이라 라벨은 4자(+가운뎃점)까지. 전체 이름은 title 속성으로 붙인다. */
 export type NavItem = { to: string; label: string; full: string; icon: ReactNode };
 
 const s = {
@@ -24,8 +24,8 @@ export const NAV: NavItem[] = [
   },
   {
     to: "/signal-log",
-    label: "로그",
-    full: "주도주 실시간 로그",
+    label: "시그널",
+    full: "주도주 시그널",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
         <path d="M3 12h4l3-7 4 14 3-7h4" />
@@ -34,8 +34,8 @@ export const NAV: NavItem[] = [
   },
   {
     to: "/breakout-radar",
-    label: "저항",
-    full: "저항 · 지지",
+    label: "지지·저항",
+    full: "지지 · 저항",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
         <path d="M3 17l6-6 4 4 8-8" />
@@ -45,8 +45,8 @@ export const NAV: NavItem[] = [
   },
   {
     to: "/market-analysis",
-    label: "지수",
-    full: "지수·수급",
+    label: "지수·수급",
+    full: "지수 · 수급",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
         <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />

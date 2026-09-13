@@ -44,8 +44,8 @@ const MODE_KEY = "radar.mode";
 
 type RadarMode = "resistance" | "support";
 const MODES: { key: RadarMode; label: string }[] = [
-  { key: "resistance", label: "저항" },
   { key: "support", label: "지지" },
+  { key: "resistance", label: "저항" },
 ];
 
 /** 보는 모드를 고른다. 정렬 기준도 같이 바뀐다 — 돌파매매와 눌림매매는 동시에 보는 게 아니다. */
@@ -121,7 +121,7 @@ function BreakoutRadarPageInner() {
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            저항 · 지지
+            지지 · 저항
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
                 radarQ.isFetching ? "animate-ping" : "animate-pulse"
@@ -385,7 +385,7 @@ export default function BreakoutRadarPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
   if (!me?.authenticated) {
-    return <LoginGate title="저항 · 지지" description="주도주 후보가 당일 고가(저항선)와 저가(지지선)에 얼마나 가까운지 보여줍니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+    return <LoginGate title="지지 · 저항" description="주도주 후보가 당일 고가(저항선)와 저가(지지선)에 얼마나 가까운지 보여줍니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
   }
   return <BreakoutRadarPageInner />;
 }

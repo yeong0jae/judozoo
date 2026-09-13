@@ -1431,7 +1431,7 @@ export default function ClosingBetPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
   if (!me?.authenticated) {
-    return <LoginGate title="지수·수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+    return <LoginGate title="지수 · 수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
   }
   return <ClosingBetPageInner />;
 }

@@ -472,7 +472,7 @@ function SignalLogPageInner() {
       <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            실시간 로그
+            주도주 시그널
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
                 eventsQ.isFetching ? "animate-ping" : "animate-pulse"
@@ -646,7 +646,7 @@ export default function SignalLogPage() {
   if (!me?.authenticated) {
     return (
       <LoginGate
-        title="주도주 실시간 로그"
+        title="주도주 시그널"
         description="종목·시장 시그널 전이가 발생하는 대로 쌓입니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
       />
     );
