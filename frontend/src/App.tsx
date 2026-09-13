@@ -10,6 +10,7 @@ import ClosingBetPage from "./pages/ClosingBetPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import Header from "./components/layout/Header";
+import Sidebar from "./components/layout/Sidebar";
 import Footer from "./components/layout/Footer";
 import { ToastProvider } from "./components/toast/Toast";
 import { ThemeProvider } from "./theme/theme";
@@ -32,7 +33,9 @@ function AppShell() {
   useTabTitle();
   const location = useLocation();
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="min-h-full flex">
+      <Sidebar />
+      <div className="flex flex-1 min-w-0 flex-col">
       <Header />
       <main className="flex-1 max-w-[110rem] mx-auto w-full px-4 sm:px-6 py-4 sm:py-6">
         <AnimatePresence mode="wait">
@@ -58,6 +61,7 @@ function AppShell() {
         </AnimatePresence>
       </main>
       <Footer />
+      </div>
     </div>
   );
 }
