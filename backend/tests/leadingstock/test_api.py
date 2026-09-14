@@ -157,7 +157,7 @@ class Test시장_시그널_로그:
     def test_단계가_없는_종류는_임계액도_null(self, 로그인_client, 이벤트_테이블):
         with get_session_factory()() as s:
             s.add(MarketSignalEvent(
-                occurred_at=AT, trade_date=오늘, kind=MarketSignalType.MA20_REBOUND.value,
+                occurred_at=AT, trade_date=오늘, kind=MarketSignalType.MA_REBOUND.value,
                 market=Market.KOSDAQ, side=NetTradeSide.BUY,
                 created_at=AT, updated_at=AT,
             ))
@@ -169,7 +169,7 @@ class Test시장_시그널_로그:
 
         assert 항목["thresholdEok"] is None
         assert 항목["level"] is None
-        assert 항목["kind"] == "MA20_REBOUND"
+        assert 항목["kind"] == "MA_REBOUND"
 
 
 class Test지수_캔들:

@@ -102,8 +102,8 @@ Backend (Python + FastAPI, package by feature)
 
 | 엔티티 | 내용 |
 |--------|------|
-| `SignalEvent` | 종목 전이 — BREAKOUT / BREAKOUT_IMMINENT / VOLUME_SPIKE / MA20_CROSS |
-| `MarketSignalEvent` | 시장 전이 — NET_BUY_LEVEL / NET_FLOW_TURN / MA20_REBOUND / MA20_BREAKDOWN |
+| `SignalEvent` | 종목 전이 — BREAKOUT / BREAKOUT_IMMINENT / VOLUME_SPIKE / MA_REBOUND / MA_BREAKDOWN |
+| `MarketSignalEvent` | 시장 전이 — NET_BUY_LEVEL / NET_FLOW_TURN / MA_REBOUND / MA_BREAKDOWN |
 | `OverseasSignalEvent` | 해외 종목 전이 |
 | `MarketFlowStateSnapshot` | 순매수 흐름 상태 (전이 판정의 직전 상태 보관) |
 
@@ -114,7 +114,7 @@ Backend (Python + FastAPI, package by feature)
 | `MarketInvestorSnapshot` | 시장 투자자 순매수 당일 누적 |
 | `FuturesInvestorSnapshot` | 선물 투자자 순매수 |
 | `ProgramTradeSnapshot` | 프로그램매매 (차익/비차익/전체) |
-| `IndexMinuteCandleEntity` | 지수 분봉 (20이평 판정용) |
+| `IndexMinuteCandleEntity` | 지수 분봉 (이평 판정용) |
 
 > **세션별 수급**은 저장하지 않는다. 당일 누적 스냅샷의 **경계 diff**로 계산한다 — 증권사가 세션별 값을 주지 않기 때문.
 
@@ -163,7 +163,7 @@ MarketCap → TradingValueRank → DailyPriceChange → DailyHighPosition
 |------|------|------|
 | `SignalEventPoller` | 10초 | 종목 시그널 전이 |
 | `MarketSignalEventPoller` | 30초 | 시장 순매수 단계 전이 |
-| `IndexReboundPoller` | 30초 | 지수 5분봉 20이평 — **09:00~15:30에만** 동작 |
+| `IndexReboundPoller` | 30초 | 지수 1분봉 60이평 — **09:00~15:30에만** 동작 |
 | `OverseasSignalEventPoller` | 15초 | 해외 시그널 |
 | `FuturesInvestorPoller` | 60초 | 선물 투자자 |
 | `ProgramTradePoller` | 120초 | 프로그램매매 (누적은 느리게 변함) |

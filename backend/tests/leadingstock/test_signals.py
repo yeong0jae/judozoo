@@ -58,7 +58,7 @@ class Test동시_전이:
     def test_반등과_스파이크가_한_시점에_켜지면_둘_다_낸다(self):
         events, _ = SignalState().advance(측정(스파이크=5.0, 이평상향=True))
 
-        assert set(events) == {SignalEventType.VOLUME_SPIKE, SignalEventType.MA20_REBOUND}
+        assert set(events) == {SignalEventType.VOLUME_SPIKE, SignalEventType.MA_REBOUND}
 
     def test_측정값이_없으면_전이도_없고_무장_상태가_보존된다(self):
         """분봉이 없는 순간 — 상태를 리셋하면 다음 폴에서 헛발화한다.
@@ -178,12 +178,12 @@ class Test20이평_반등과_꺾임:
     def test_아래에서_위로_뚫으면_반등이다(self):
         전이, _ = 흘려보내기(측정(이평상향=True))
 
-        assert 전이 == [SignalEventType.MA20_REBOUND]
+        assert 전이 == [SignalEventType.MA_REBOUND]
 
     def test_위에서_아래로_뚫으면_꺾임이다(self):
         전이, _ = 흘려보내기(측정(이평하향=True))
 
-        assert 전이 == [SignalEventType.MA20_BREAKDOWN]
+        assert 전이 == [SignalEventType.MA_BREAKDOWN]
 
     def test_같은_반등은_다시_울리지_않는다(self):
         전이, _ = 흘려보내기(측정(이평상향=True), 측정(이평상향=True))
@@ -197,7 +197,7 @@ class Test20이평_반등과_꺾임:
             측정(이평상향=True),   # 2차 반등
         )
 
-        assert 전이 == [SignalEventType.MA20_REBOUND]
+        assert 전이 == [SignalEventType.MA_REBOUND]
 
     def test_이평_위로_올라갔다_다시_깨면_꺾임이_재발화한다(self):
         전이, _ = 흘려보내기(
@@ -206,7 +206,7 @@ class Test20이평_반등과_꺾임:
             측정(이평하향=True),
         )
 
-        assert 전이 == [SignalEventType.MA20_BREAKDOWN]
+        assert 전이 == [SignalEventType.MA_BREAKDOWN]
 
     def test_재무장_없이는_꺾임도_한_번만(self):
         전이, _ = 흘려보내기(측정(이평하향=True), 측정(이평하향=True))

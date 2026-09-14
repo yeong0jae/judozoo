@@ -275,8 +275,8 @@ export interface BreakoutRadarResponse {
 // === 시그널 전이 로그 ===
 export type SignalEventType =
   | "VOLUME_SPIKE"
-  | "MA20_REBOUND"
-  | "MA20_BREAKDOWN"
+  | "MA_REBOUND"
+  | "MA_BREAKDOWN"
   // 2026-09-13에 생성을 중단했다. 과거 날짜를 보면 DB에 남은 행이 조회되므로
   // 표시 경로는 계속 살려 둔다.
   | "BREAKOUT"
@@ -309,7 +309,7 @@ export interface SignalEventsResponse {
 export type MarketType = "KOSPI" | "KOSDAQ";
 export type InvestorType = "FOREIGN" | "INSTITUTION" | "INDIVIDUAL";
 export type NetTradeSide = "BUY" | "SELL";
-export type MarketSignalType = "NET_BUY_LEVEL" | "NET_FLOW_TURN" | "MA20_REBOUND" | "MA20_BREAKDOWN";
+export type MarketSignalType = "NET_BUY_LEVEL" | "NET_FLOW_TURN" | "MA_REBOUND" | "MA_BREAKDOWN";
 
 export interface MarketSignalEventItem {
   occurredAt: string;

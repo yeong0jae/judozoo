@@ -113,7 +113,7 @@ class SwingLowSignal:
 
 @dataclass(frozen=True)
 class MovingAverageReading:
-    """5분봉 20이평 교차 판정. `ma20`은 최신 확정봉 시점 이평값(원, 반올림).
+    """분봉 이평 교차 판정. `ma20`은 최신 확정봉 시점 이평값(원, 반올림).
 
     `*_band`는 히스테리시스 재무장용이다 — 한 번 발화한 뒤 반대편으로 마진만큼
     벗어나야 다시 무장한다. 이평 근처에서 흔들릴 때 같은 사건이 반복 적재되는 걸 막는다.
@@ -271,7 +271,7 @@ class IndexMinuteCandle:
 
 @dataclass(frozen=True)
 class IndexMa20Signal:
-    """지수 5분봉 20이평 돌파 판정. 반등(상향)과 꺾임(하향)을 **대칭으로** 함께 담는다."""
+    """지수 분봉 이평 돌파 판정. 반등(상향)과 꺾임(하향)을 **대칭으로** 함께 담는다."""
 
     crossed_up: bool
     below_band: bool

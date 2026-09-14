@@ -16,8 +16,8 @@ class SignalEventType(Enum):
     """
 
     VOLUME_SPIKE = "VOLUME_SPIKE"              # 1분 거래대금 배율이 임계를 처음 넘긴 순간
-    MA20_REBOUND = "MA20_REBOUND"              # 5분봉 종가가 20이평을 아래→위로 뚫은 반등
-    MA20_BREAKDOWN = "MA20_BREAKDOWN"          # 5분봉 종가가 20이평을 위→아래로 뚫은 꺾임
+    MA_REBOUND = "MA_REBOUND"                  # 1분봉 종가가 60이평을 아래→위로 뚫은 반등
+    MA_BREAKDOWN = "MA_BREAKDOWN"              # 1분봉 종가가 60이평을 위→아래로 뚫은 꺾임
 
 
 class MarketSignalType(Enum):
@@ -25,8 +25,8 @@ class MarketSignalType(Enum):
 
     NET_BUY_LEVEL = "NET_BUY_LEVEL"      # 투자자 누적 순매수가 단계(조/천억)를 넘은 전이
     NET_FLOW_TURN = "NET_FLOW_TURN"      # 누적 순매수 흐름이 정점에서 되돌려 방향이 꺾인 전환
-    MA20_REBOUND = "MA20_REBOUND"        # 지수 5분봉 종가가 20이평을 아래→위로 뚫은 반등
-    MA20_BREAKDOWN = "MA20_BREAKDOWN"    # 지수 5분봉 종가가 20이평을 위→아래로 뚫은 꺾임
+    MA_REBOUND = "MA_REBOUND"            # 지수 1분봉 종가가 60이평을 아래→위로 뚫은 반등
+    MA_BREAKDOWN = "MA_BREAKDOWN"        # 지수 1분봉 종가가 60이평을 위→아래로 뚫은 꺾임
 
 
 class NetTradeSide(Enum):
@@ -52,10 +52,10 @@ class SignalReading:
     """한 종목의 현재 시그널 측정값(한 폴링 시점). 값이 없으면 None."""
 
     spike_ratio: float | None    # 최신 1분봉 거래대금 배율 — 임계 미달이면 None
-    ma20_crossed_up: bool | None    # 최신 확정 5분봉이 20이평을 아래→위로 돌파한 봉인지
+    ma20_crossed_up: bool | None    # 최신 확정봉이 이평을 아래→위로 돌파한 봉인지
     ma20_crossed_down: bool | None  # 위→아래로 돌파한 봉인지
-    ma20_below_band: bool | None    # 20이평보다 마진 이상 아래인지(반등 재무장)
-    ma20_above_band: bool | None    # 20이평보다 마진 이상 위인지(꺾임 재무장)
+    ma20_below_band: bool | None    # 이평보다 마진 이상 아래인지(반등 재무장)
+    ma20_above_band: bool | None    # 이평보다 마진 이상 위인지(꺾임 재무장)
 
 
 _SPIKE_FIRE_RATIO = 2.5
@@ -70,7 +70,7 @@ class SignalState:
     """
 
     spiking: bool = False
-    # 20이평 히스테리시스 — 한 번 발화하면 반대편 밴드를 벗어나야 다시 무장한다.
+    # 이평 히스테리시스 — 한 번 발화하면 반대편 밴드를 벗어나야 다시 무장한다.
     ma20_rebound_armed: bool = True
     ma20_breakdown_armed: bool = True
 
@@ -86,16 +86,16 @@ class SignalState:
         elif spiking and (ratio is None or ratio < _SPIKE_RESET_RATIO):
             spiking = False
 
-        # 20이평 반등·꺾임. 시장 시그널(MA20_REBOUND/BREAKDOWN)과 같은 개념이다.
+        # 이평 반등·꺾임. 시장 시그널(MA_REBOUND/BREAKDOWN)과 같은 개념이다.
         rebound_armed, breakdown_armed = self.ma20_rebound_armed, self.ma20_breakdown_armed
         if reading.ma20_crossed_up and rebound_armed:
-            events.append(SignalEventType.MA20_REBOUND)
+            events.append(SignalEventType.MA_REBOUND)
             rebound_armed = False
         elif reading.ma20_below_band:
             rebound_armed = True  # 이평 아래로 충분히 내려옴 — 다음 반등을 받을 준비
 
         if reading.ma20_crossed_down and breakdown_armed:
-            events.append(SignalEventType.MA20_BREAKDOWN)
+            events.append(SignalEventType.MA_BREAKDOWN)
             breakdown_armed = False
         elif reading.ma20_above_band:
             breakdown_armed = True

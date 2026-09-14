@@ -43,8 +43,8 @@ log = logging.getLogger(__name__)
 
 _SNAPSHOT_START = time(8, 0)   # NXT 프리마켓 개장
 _SNAPSHOT_END = time(20, 0)    # NXT 애프터마켓 마감
-_MA_INTERVAL_MINUTES = 5
-_MA_PERIOD = 20
+_MA_INTERVAL_MINUTES = 1
+_MA_PERIOD = 60
 _MA_REARM_MARGIN = 0.005
 
 _lock = threading.Lock()
@@ -124,12 +124,12 @@ def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date) -> 
         spike_ratio=r.spike_ratio if spike else None,
         minute_trading_value=r.minute_trading_value if spike else None,
         spike_direction=r.spike_direction if spike else None,
-        ma20=r.ma20 if event_type in _MA20_EVENTS else None,
+        ma20=r.ma20 if event_type in _MA_EVENTS else None,
         created_at=at, updated_at=at,
     )
 
 
-_MA20_EVENTS = (SignalEventType.MA20_REBOUND, SignalEventType.MA20_BREAKDOWN)
+_MA_EVENTS = (SignalEventType.MA_REBOUND, SignalEventType.MA_BREAKDOWN)
 
 
 # ── 시장 시그널 폴러 ────────────────────────────────────────────────────
@@ -310,7 +310,7 @@ def _detect_index_rebound() -> None:
             if _rebound_armed.get(market, True) and ma.crossed_up:
                 _rebound_armed[market] = False
                 recorded.append(
-                    _market_event(MarketSignalType.MA20_REBOUND, at, current, market, NetTradeSide.BUY,
+                    _market_event(MarketSignalType.MA_REBOUND, at, current, market, NetTradeSide.BUY,
                                   index_value=intraday.value, change_rate=intraday.change_rate)
                 )
             elif ma.below_band:
@@ -319,7 +319,7 @@ def _detect_index_rebound() -> None:
             if _breakdown_armed.get(market, True) and ma.crossed_down:
                 _breakdown_armed[market] = False
                 recorded.append(
-                    _market_event(MarketSignalType.MA20_BREAKDOWN, at, current, market, NetTradeSide.SELL,
+                    _market_event(MarketSignalType.MA_BREAKDOWN, at, current, market, NetTradeSide.SELL,
                                   index_value=intraday.value, change_rate=intraday.change_rate)
                 )
             elif ma.above_band:

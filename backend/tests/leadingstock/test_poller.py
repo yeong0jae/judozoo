@@ -70,7 +70,7 @@ class Test종목_시그널_폴러:
 
         적재 = 적재된_이벤트()
         assert len(적재) == 1
-        assert 적재[0].event_type == SignalEventType.MA20_REBOUND.value
+        assert 적재[0].event_type == SignalEventType.MA_REBOUND.value
 
     def test_전이가_없으면_아무것도_적재하지_않는다(self, 폴러_초기화, monkeypatch):
         monkeypatch.setattr(application, "signal_readings", lambda _r: [측정()])
@@ -132,7 +132,7 @@ class Test종목_시그널_폴러:
         scheduler._detect_signal_events()
 
         타입들 = {e.event_type for e in 적재된_이벤트()}
-        assert 타입들 == {SignalEventType.MA20_REBOUND.value, SignalEventType.VOLUME_SPIKE.value}
+        assert 타입들 == {SignalEventType.MA_REBOUND.value, SignalEventType.VOLUME_SPIKE.value}
 
     def test_이벤트마다_해당_필드만_채워진다(self, 폴러_초기화, monkeypatch):
         """스파이크 배율은 스파이크 행에만, 이평값은 반등 행에만 들어간다."""
@@ -147,8 +147,8 @@ class Test종목_시그널_폴러:
         이벤트별 = {e.event_type: e for e in 적재된_이벤트()}
         assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].spike_ratio == 5.0
         assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].ma20 is None
-        assert 이벤트별[SignalEventType.MA20_REBOUND.value].ma20 == 1000
-        assert 이벤트별[SignalEventType.MA20_REBOUND.value].spike_ratio is None
+        assert 이벤트별[SignalEventType.MA_REBOUND.value].ma20 == 1000
+        assert 이벤트별[SignalEventType.MA_REBOUND.value].spike_ratio is None
 
     def test_휴장이면_폴러가_돌지_않는다(self, 폴러_초기화, monkeypatch):
         monkeypatch.setattr("backend.market.calendar.market_status", lambda: (True, True))

@@ -48,27 +48,27 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: st
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
   // 지지·저항 화면과 같은 색을 쓴다 — 주황=위(저항 방향), 하늘=아래(지지 방향).
   // 색이 화면마다 다른 방향을 뜻하면 읽는 사람이 매번 다시 배워야 한다.
-  MA20_REBOUND: { label: "반등", chip: "bg-orange-500/15 text-orange-400", dot: "bg-orange-400" },
-  MA20_BREAKDOWN: { label: "꺾임", chip: "bg-sky-500/15 text-sky-400", dot: "bg-sky-400" },
+  MA_REBOUND: { label: "반등", chip: "bg-orange-500/15 text-orange-400", dot: "bg-orange-400" },
+  MA_BREAKDOWN: { label: "꺾임", chip: "bg-sky-500/15 text-sky-400", dot: "bg-sky-400" },
   // 생성 중단(2026-09-13). 과거 날짜 조회용으로만 남는다 — 흐린 톤으로 구분한다.
   BREAKOUT: { label: "돌파", chip: "bg-zinc-700/40 text-zinc-400", dot: "bg-zinc-500" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-zinc-700/40 text-zinc-500", dot: "bg-zinc-600" },
 };
 
 // 방향이 짝인 것끼리 한 탭으로 묶는다.
-type TypeFilter = "ALL" | "MARKET" | "MA20_GROUP" | SignalEventType;
+type TypeFilter = "ALL" | "MARKET" | "MA_GROUP" | SignalEventType;
 
 /** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
-  { key: "MA20_GROUP", label: "반등 / 꺾임" },
+  { key: "MA_GROUP", label: "반등 / 꺾임" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
   { key: "MARKET", label: "지수" },
 ];
 
 /** 유형 필터 매칭 — 묶음 탭은 짝을 이루는 두 유형을 함께 통과시킨다. */
 function matchesType(eventType: SignalEventType, filter: TypeFilter): boolean {
-  if (filter === "MA20_GROUP") return eventType === "MA20_REBOUND" || eventType === "MA20_BREAKDOWN";
+  if (filter === "MA_GROUP") return eventType === "MA_REBOUND" || eventType === "MA_BREAKDOWN";
   return eventType === filter;
 }
 
@@ -110,9 +110,9 @@ function marketParts(m: MarketSignalEventItem) {
   // accent=라벨을 방향색으로 강조(반등·꺾임처럼 투자자 순매수가 아닌 신호). netText=누적 칸에 표시할 금액.
   const netText: string | null = m.netAmountEok != null ? formatEok(Math.abs(m.netAmountEok)) : null;
   switch (m.kind) {
-    case "MA20_REBOUND":
+    case "MA_REBOUND":
       return { sideCls, accent: true, leftLabel: "반등", rightLabel: "", netText: null };
-    case "MA20_BREAKDOWN":
+    case "MA_BREAKDOWN":
       return { sideCls, accent: true, leftLabel: "꺾임", rightLabel: "", netText: null };
     case "NET_FLOW_TURN":
       // 정점 → 전환 시점 누적 (예: 9,000억 → 8,000억). 정점 없는 과거 행은 전환 시점만.
@@ -136,7 +136,7 @@ function marketParts(m: MarketSignalEventItem) {
 }
 
 /**
- * 지수(코스피/코스닥) 시그널 한 행. kind=NET_BUY_LEVEL은 투자자 순매수 단계, MA20_REBOUND는 지수 반등.
+ * 지수(코스피/코스닥) 시그널 한 행. kind=NET_BUY_LEVEL은 투자자 순매수 단계, MA_REBOUND는 지수 반등.
  * 누르면 그 시장의 그날 지수 시그널 여정을 펼치고, 우측에 지수 1분봉 차트를 띄운다.
  */
 function renderMarketRow(
@@ -261,10 +261,11 @@ function detailOf(e: SignalEventItem) {
       </>
     );
   }
-  if (e.eventType === "MA20_REBOUND" || e.eventType === "MA20_BREAKDOWN") {
+  if (e.eventType === "MA_REBOUND" || e.eventType === "MA_BREAKDOWN") {
     return (
       <span className="text-sky-300">
-        5분 20이평{e.ma20 != null && ` ${formatPrice(e.ma20)}원`} 상향돌파
+        1분 60이평{e.ma20 != null && ` ${formatPrice(e.ma20)}원`}{" "}
+        {e.eventType === "MA_REBOUND" ? "상향돌파" : "하향이탈"}
       </span>
     );
   }
