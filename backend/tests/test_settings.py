@@ -28,7 +28,6 @@ class Test필터_기준값:
         assert criteria.min_market_cap == 3000
         assert criteria.max_trading_value_rank == 35
         assert criteria.min_daily_price_change_rate == 7.0
-        assert criteria.max_theme_rank == 5
 
     def test_환경변수로_덮어쓸_수_있다(self, monkeypatch):
         monkeypatch.setenv("LEADING_STOCK_CRITERIA_MAX_TRADING_VALUE_RANK", "50")

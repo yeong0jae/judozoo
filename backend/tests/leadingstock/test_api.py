@@ -26,11 +26,10 @@ def 종목(code="005930", name="삼성전자") -> LeadingStockSnapshot:
 @pytest.fixture
 def 후보_대역(monkeypatch):
     monkeypatch.setattr(application, "find_candidate_stocks", lambda _r: [종목()])
-    monkeypatch.setattr(application, "themes_of", lambda _c: ["반도체", "AI", "HBM"])
 
 
 class Test후보_목록:
-    def test_순위와_테마_칩을_붙여_돌려준다(self, client, 후보_대역):
+    def test_순위를_붙여_돌려준다(self, client, 후보_대역):
         본문 = client.get("/api/leading-stocks/candidates").json()
 
         assert 본문["code"] == "SUCCESS"
@@ -39,9 +38,6 @@ class Test후보_목록:
         종목항목 = 데이터["stocks"][0]
         assert 종목항목["rank"] == 1
         assert 종목항목["stockCode"] == "005930"
-        # 칩은 2개까지만, 전체 개수는 따로 알려준다
-        assert 종목항목["themes"] == ["반도체", "AI"]
-        assert 종목항목["themeCount"] == 3
 
     def test_등락률_임계값을_범위로_자른다(self, client, monkeypatch):
         """사용자가 -12~7 중에서 고른다 — 밖의 값은 경계로 붙인다."""
@@ -49,7 +45,6 @@ class Test후보_목록:
         monkeypatch.setattr(
             application, "find_candidate_stocks", lambda r: 받은값.append(r) or []
         )
-        monkeypatch.setattr(application, "themes_of", lambda _c: [])
 
         client.get("/api/leading-stocks/candidates", params={"minChangeRate": 99})
         client.get("/api/leading-stocks/candidates", params={"minChangeRate": -99})
@@ -61,7 +56,6 @@ class Test후보_목록:
         monkeypatch.setattr(
             application, "find_candidate_stocks", lambda r: 받은값.append(r) or []
         )
-        monkeypatch.setattr(application, "themes_of", lambda _c: [])
 
         client.get("/api/leading-stocks/candidates")
 
@@ -77,7 +71,6 @@ class Test종목_상세:
             swing_high_signal=SwingHighSignal(peak_price=72_000, peak_at=AT, gap_rate=2.86),
         )
         monkeypatch.setattr(application, "evaluate_stock", lambda _c: 평가)
-        monkeypatch.setattr(application, "themes_of", lambda _c: ["반도체"])
 
         데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
 
@@ -89,7 +82,6 @@ class Test종목_상세:
     def test_돌파_시그널이_없으면_null(self, 로그인_client, monkeypatch):
         평가 = application.StockEvaluation(종목(), [], None, None)
         monkeypatch.setattr(application, "evaluate_stock", lambda _c: 평가)
-        monkeypatch.setattr(application, "themes_of", lambda _c: [])
 
         데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
 

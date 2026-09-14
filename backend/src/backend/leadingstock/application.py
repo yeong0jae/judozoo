@@ -24,7 +24,6 @@ from backend.library.cache import ttl_cache
 from backend.library.time import today
 from backend.platform.kiwoom import market as kiwoom_market
 from backend.platform.kiwoom import program as kiwoom_program
-from backend.platform.kiwoom import theme as kiwoom_theme
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
@@ -127,11 +126,6 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
             merged.append(stock)
     log.info("Phase 1 통과 %d건 (상위3 강제 포함 + 필터 통과 %d건)", len(merged), len(survivors))
     return merged
-
-
-def themes_of(stock_code: str) -> list[str]:
-    """캐싱은 키움 클라이언트가 하므로 여기선 위임만 한다."""
-    return kiwoom_theme.fetch_themes_for_stock(stock_code)
 
 
 def evaluate_stock(stock_code: str) -> StockEvaluation:

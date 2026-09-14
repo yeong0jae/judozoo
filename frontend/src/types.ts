@@ -231,8 +231,6 @@ export interface CandidateStockItem {
   currentPrice: number;
   priceChangeRate: number;
   accumulatedTradingValue: number;
-  themes: string[];
-  themeCount: number;
 }
 
 export interface CandidateStocksResponse {
@@ -266,8 +264,6 @@ export interface BreakoutRadarItem {
   troughAt: string | null;
   supportGapRate: number | null;
   tradingValue: number;
-  themes: string[];
-  themeCount: number;
 }
 
 export interface BreakoutRadarResponse {
@@ -301,7 +297,6 @@ export interface SignalEventItem {
   minuteTradingValue: number | null;
   spikeDirection: SpikeDirection | null;
   ma20: number | null;
-  theme: string | null;
 }
 
 export interface SignalEventsResponse {
@@ -336,26 +331,6 @@ export interface MarketSignalEventsResponse {
   events: MarketSignalEventItem[];
 }
 
-/** 시장(코스피/코스닥) 장 마감(15:40) 투자자 순매수 스냅샷 — 단위 억원(부호 포함). */
-export interface MarketCloseSnapshotItem {
-  capturedAt: string;
-  market: MarketType;
-  foreignEok: number;
-  institutionEok: number;
-  individualEok: number;
-  indexValue: number | null;
-  changeRate: number | null;
-}
-
-/** 해외지수(나스닥종합 등) 장 마감 스냅샷 — 타임라인용. 지수값 + 등락률(부호 포함, %). */
-export interface OverseasIndexCloseSnapshotItem {
-  capturedAt: string;
-  code: string;
-  name: string;
-  indexValue: number;
-  changeRate: number;
-}
-
 /** 시장(코스피/코스닥) 당일 누적 투자자 순매수 — 단위 억원(부호 포함). */
 export interface MarketInvestorNetBuyItem {
   market: MarketType;
@@ -385,30 +360,6 @@ export interface IndexMinuteCandleItem {
   volume: number;
 }
 
-// === 테마 캘린더 ===
-export interface ThemeStockItem {
-  stockCode: string;
-  stockName: string;
-  tradingValue: number;
-  priceChangeRate: number | null;
-}
-
-export interface ThemeItem {
-  rank: number;
-  name: string;
-  tradingValue: number;
-  stocks: ThemeStockItem[];
-}
-
-export interface ThemeDayItem {
-  date: string;
-  themes: ThemeItem[];
-}
-
-export interface ThemeCalendarResponse {
-  days: ThemeDayItem[];
-}
-
 export interface FilterResultItem {
   filterName: string;
   criteriaDescription: string;
@@ -423,7 +374,6 @@ export interface LeadingStockDetailResponse {
   priceChangeRate: number;
   relativeVolume: number | null;
   swingHighSignal: SwingHighSignal | null;
-  themes: string[];
   filterResults: FilterResultItem[];
 }
 

@@ -1,4 +1,4 @@
-"""키움 업종 — 지수(ka20001), 업종 투자자 순매수(ka10051), 테마(ka90001)."""
+"""키움 업종 — 지수(ka20001), 업종 투자자 순매수(ka10051)."""
 
 from datetime import date
 
@@ -6,13 +6,12 @@ import httpx
 import pytest
 import respx
 
-from backend.platform.kiwoom import client, index, sector_investor, theme
+from backend.platform.kiwoom import client, index, sector_investor
 from backend.stock.domain import Market
 
 BASE = "https://api.kiwoom.com"
 TOKEN_URL = f"{BASE}/oauth2/token"
 SECT_URL = f"{BASE}/api/dostk/sect"
-THEME_URL = f"{BASE}/api/dostk/thme"
 
 
 @pytest.fixture(autouse=True)
@@ -157,42 +156,3 @@ class Test업종_투자자_순매수:
 
         import json
         assert json.loads(route.calls[0].request.content)["base_dt"] == "20260911"
-
-
-class Test종목_테마:
-    @respx.mock
-    def test_테마명_목록을_돌려준다(self, respx_mock, 토큰_발급):
-        respx_mock.post(THEME_URL).mock(
-            return_value=httpx.Response(200, json={
-                "return_code": 0,
-                "thema_grp": [{"thema_nm": "반도체"}, {"thema_nm": "AI"}, {"thema_nm": "  "}],
-            })
-        )
-
-        assert theme.fetch_themes_for_stock("005930") == ["반도체", "AI"]
-
-    @respx.mock
-    def test_접미사를_떼고_6자리로_조회한다(self, respx_mock, 토큰_발급):
-        """_AL 등이 달라도 같은 종목이면 캐시를 맞히도록 정규화한다."""
-        route = respx_mock.post(THEME_URL).mock(
-            return_value=httpx.Response(200, json={"return_code": 0, "thema_grp": []})
-        )
-
-        theme.fetch_themes_for_stock("005930_AL")
-
-        import json
-        assert json.loads(route.calls[0].request.content)["stk_cd"] == "005930"
-
-    @respx.mock
-    def test_오류_코드면_빈_목록(self, respx_mock, 토큰_발급):
-        respx_mock.post(THEME_URL).mock(
-            return_value=httpx.Response(200, json={"return_code": 3, "return_msg": "오류"})
-        )
-
-        assert theme.fetch_themes_for_stock("005930") == []
-
-    @respx.mock
-    def test_타임아웃이면_빈_목록(self, respx_mock, 토큰_발급):
-        respx_mock.post(THEME_URL).mock(side_effect=httpx.ReadTimeout("timeout"))
-
-        assert theme.fetch_themes_for_stock("005930") == []

@@ -40,7 +40,6 @@ class SignalEvent(Base):
     minute_trading_value: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     spike_direction: Mapped[SpikeDirection | None] = mapped_column(Enum(SpikeDirection), nullable=True)
     ma20: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    theme: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
@@ -73,30 +72,6 @@ class MarketSignalEvent(Base):
     @property
     def signal_kind(self) -> MarketSignalType:
         return MarketSignalType(self.kind)
-
-
-class MarketCloseSnapshot(Base):
-    """장 마감(15:40) 투자자 순매수 스냅샷 — 타임라인에 하루 한 줄.
-
-    (시장, 거래일)별 한 행만 존재한다(같은 날 재캡처는 스킵). 단위는 억원(부호 포함).
-    """
-
-    __tablename__ = "market_close_snapshot"
-    __table_args__ = (
-        UniqueConstraint("market", "trade_date", name="uk_market_close_snapshot"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    market: Mapped[Market] = mapped_column(Enum(Market), nullable=False)
-    trade_date: Mapped[date_type] = mapped_column(Date, nullable=False)
-    captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    foreign_eok: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    institution_eok: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    individual_eok: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    index_value: Mapped[float | None] = mapped_column(Float, nullable=True)
-    change_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
 class MarketFlowStateSnapshot(Base):

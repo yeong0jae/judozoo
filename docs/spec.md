@@ -10,15 +10,13 @@
 
 ```
 Frontend (TypeScript + React + Vite + Tailwind)
-  - 6개 조회 화면, TanStack Query 폴링
+  - 4개 조회 화면, TanStack Query 폴링
   - 실시간 푸시 없음 — 화면별 refetchInterval
 
 Backend (Python + FastAPI, package by feature)
   - leadingstock         : 주도주 후보 필터 체인 + 시그널 이벤트 + 지수 시그널
   - overseasleadingstock : 해외(미국) 주도주 랭킹 + 시그널
   - market               : 지수 / 선물 / 투자자 수급 / 프로그램매매 / 매크로 / 캘린더
-  - theme                : 테마 일별 스냅샷 + 캘린더
-  - watchlist            : 관심 테마·종목
   - issue                : 일자별 이슈 메모 (CRUD)
   - news                 : 종목 뉴스·공시
   - stock                : 종목 마스터 카탈로그 + 검색
@@ -35,7 +33,7 @@ Backend (Python + FastAPI, package by feature)
 - **도메인에 외부 의존 없음** — `domain`에서 FastAPI·HTTP·시간·난수를 직접 쓰지 않고 파라미터로 받는다
 - **SQLAlchemy 모델 = 도메인 엔티티** — 별도 도메인 모델 클래스를 두지 않는다
 - **브로커 분기 없음** — 4개 소스를 한 인스턴스가 모두 호출한다. 코드에 `if broker == ...` 형태의 분기를 두지 않는다. 테스트에서 폴러를 끄는 것은 `SCHEDULERS_ENABLED=false` 환경변수로 처리한다
-- **조회 전용** — 쓰기는 사용자가 직접 만드는 데이터(이슈 메모, 관심 테마)와 스냅샷 적재뿐
+- **조회 전용** — 쓰기는 사용자가 직접 만드는 데이터(이슈 메모)와 스냅샷 적재뿐
 
 ---
 
@@ -43,7 +41,7 @@ Backend (Python + FastAPI, package by feature)
 
 **Backend**: Python 3.13 / FastAPI / SQLAlchemy 2.0 + PyMySQL / MySQL 8 / `httpx` / `cachetools` (인프로세스 TTL 캐시) / 자체 RateLimiter / APScheduler / pytest + respx + Testcontainers / uv (패키지·실행)
 
-**Frontend**: TypeScript + React + Vite / TanStack Query / React Router / Tailwind CSS / React Hook Form + Zod / lightweight-charts (캔들) / d3-hierarchy (테마 트리맵) / motion (전환) / Pretendard·JetBrains Mono
+**Frontend**: TypeScript + React + Vite / TanStack Query / React Router / Tailwind CSS / React Hook Form + Zod / lightweight-charts (캔들) / motion (전환) / Pretendard·JetBrains Mono
 
 ---
 
@@ -54,7 +52,7 @@ Backend (Python + FastAPI, package by feature)
 | 소스 | 용도 |
 |------|------|
 | **KIS** | 휴장일, 종목 뉴스·공시, 국내 선물, 해외 지수·차트·랭킹·종목정보 |
-| **키움** | 국내 지수, 종목/업종 투자자 수급, 프로그램매매, 테마, 시세 |
+| **키움** | 국내 지수, 종목/업종 투자자 수급, 프로그램매매, 시세 |
 | **토스** | 장 운영 캘린더(국내/미국), 투자자별 매매대금 + 캔들 |
 | **야후** | 해외 시세 요약 + 캔들 (프리·애프터마켓 포함) |
 
@@ -114,11 +112,9 @@ Backend (Python + FastAPI, package by feature)
 | 엔티티 | 내용 |
 |--------|------|
 | `MarketInvestorSnapshot` | 시장 투자자 순매수 당일 누적 |
-| `MarketCloseSnapshot` | 장 마감(15:40) 확정 스냅샷 |
 | `FuturesInvestorSnapshot` | 선물 투자자 순매수 |
 | `ProgramTradeSnapshot` | 프로그램매매 (차익/비차익/전체) |
 | `IndexMinuteCandleEntity` | 지수 분봉 (20이평 판정용) |
-| `OverseasIndexCloseSnapshot` | 해외 지수 종가 |
 
 > **세션별 수급**은 저장하지 않는다. 당일 누적 스냅샷의 **경계 diff**로 계산한다 — 증권사가 세션별 값을 주지 않기 때문.
 
@@ -127,12 +123,10 @@ Backend (Python + FastAPI, package by feature)
 | 엔티티 | 내용 |
 |--------|------|
 | `DailyIssue` | 일자별 이슈 메모 |
-| `WatchTheme` / `WatchThemeStock` | 관심 테마와 구성 종목 (표시 순서 포함) |
-| `ThemeDailyRecord` / `ThemeDailyStock` | 테마 일별 등락·거래대금과 구성 종목 |
 
 ### 4.5 스키마 관리
 
-Hibernate `ddl-auto=update`. 컬럼 DROP·이름 변경은 `resources/migration/VNNN__*.sql`에 SQL을 두고 각 환경에 수동 적용한다 (`ddl-auto`가 destructive 변경을 하지 않으므로).
+테이블은 이미 만들어져 있고 앱은 DDL을 만들지 않는다. 테이블·컬럼 DROP은 `backend/migration/VNNN__*.sql`에 SQL을 두고 각 환경에 수동 적용한다.
 
 > **예약어 주의** — `rank` 같은 MySQL 예약어를 컬럼명으로 쓰면 `ddl-auto`가 조용히 실패한다. `@Column(name = ...)`으로 다른 이름에 매핑한다.
 
@@ -187,7 +181,7 @@ MarketCap → TradingValueRank → DailyPriceChange → DailyHighPosition
 
 ## 7. REST API
 
-전부 조회다. 쓰기는 이슈 메모와 관심 테마뿐.
+전부 조회다. 쓰기는 이슈 메모뿐.
 
 ### 7.1 주도주
 
@@ -199,7 +193,6 @@ GET /api/leading-stocks/candidates/{code}/daily-candles
 GET /api/leading-stocks/breakout-radar                       # 돌파 근접도
 GET /api/leading-stocks/signal-events                        # 종목 시그널 로그
 GET /api/leading-stocks/market-signal-events                 # 시장 시그널 로그
-GET /api/leading-stocks/market-close-snapshots
 GET /api/leading-stocks/market/investor-net-buy
 GET /api/leading-stocks/index/{market}/minute-candles
 ```
@@ -208,7 +201,6 @@ GET /api/leading-stocks/index/{market}/minute-candles
 
 ```
 GET /api/overseas-leading-stocks/ranking
-GET /api/overseas-leading-stocks/index-close-snapshots
 GET /api/overseas-leading-stocks/{exchange}/{symbol}
 GET /api/overseas-leading-stocks/{exchange}/{symbol}/minute-candles
 GET /api/overseas-leading-stocks/{exchange}/{symbol}/daily-candles
@@ -228,21 +220,9 @@ GET /api/market/macro/quotes | /candles
 GET /api/market/calendar/status
 ```
 
-### 7.4 테마 / 관심 / 이슈 / 종목 / 뉴스
+### 7.4 이슈 / 종목 / 뉴스
 
 ```
-GET  /api/themes/calendar
-POST /api/themes/capture                       # 수동 캡처 트리거
-
-GET    /api/watch-themes
-POST   /api/watch-themes
-PATCH  /api/watch-themes/{id} | /order
-DELETE /api/watch-themes/{id}
-POST   /api/watch-themes/{id}/stocks
-DELETE /api/watch-themes/{id}/stocks/{code}
-PATCH  /api/watch-themes/{id}/stocks/order
-GET    /api/watch-themes/{id}/quotes
-
 GET /api/issues        POST /api/issues
 PUT /api/issues/{id}   DELETE /api/issues/{id}
 
@@ -262,7 +242,6 @@ GET /api/news/stock/{code}
 | 시그널 로그 / 돌파 현황 | 5초 |
 | 지수 / 선물 / 수급 / 분봉 | 30초 |
 | 프로그램매매 | 120초 |
-| 테마 캘린더 | 10분 |
 | 과거 일자 조회 | 폴링 안 함 (`false`) |
 
 - `staleTime: 5초`, `refetchIntervalInBackground: true` — 포커스 없는 창도 계속 갱신 (듀얼 모니터 대응)

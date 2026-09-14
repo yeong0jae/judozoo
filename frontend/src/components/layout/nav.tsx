@@ -53,26 +53,4 @@ export const NAV: NavItem[] = [
       </svg>
     ),
   },
-  {
-    to: "/theme-calendar",
-    label: "테마",
-    full: "테마 캘린더",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M3 10h18M8 3v4M16 3v4" />
-      </svg>
-    ),
-  },
-  {
-    to: "/timeline",
-    label: "마감",
-    full: "일별 마감",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-    ),
-  },
 ];

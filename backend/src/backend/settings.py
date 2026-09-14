@@ -88,7 +88,6 @@ class LeadingStockCriteria(BaseSettings):
     min_program_net_buy: int = -10_000            # 백만원
     max_prev_close_change_rate: float = 25.0
     max_opening_price_change_rate: float = 7.0
-    max_theme_rank: int = 5
 
 
 class SignalEventSettings(BaseSettings):

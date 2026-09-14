@@ -261,20 +261,6 @@ class Test프로그램_순매수:
         assert 결과.actual_value == "12억 3,400만원"
 
 
-class Test테마순위:
-    def 필터(self, 순위):
-        return f.ThemeRankFilter(기준(max_theme_rank=5), lambda _c: 순위)
-
-    @pytest.mark.parametrize("순위,통과", [(1, True), (5, True), (6, False)])
-    def test_상위_N위_이내만_통과한다(self, 순위, 통과):
-        assert self.필터(순위).filter(종목()) is 통과
-
-    def test_테마가_없으면_통과시킨다(self):
-        """노이즈 배제가 목적이 아니라 "테마 강하면 좋다" 정도라 없어도 막지 않는다."""
-        assert self.필터(None).filter(종목()) is True
-        assert self.필터(None).evaluate(종목()).actual_value == "테마 없음"
-
-
 class Test필터_체인:
     class 전부통과(f.StockFilter):
         name = "all-pass"

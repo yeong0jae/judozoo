@@ -58,8 +58,6 @@ function marketLine(m: MarketSignalEventItem): string {
   return `${clockOf(m.occurredAt)} · ${MARKET_LABEL[m.market]} · ${desc}${idx}${chg}`;
 }
 
-const NO_THEME = "테마 미상"; // 키움 테마 데이터 없음 — 시장 의미 아님
-
 function clockOf(iso: string): string {
   return iso.slice(11, 19);
 }
@@ -109,7 +107,7 @@ function sequenceOf(events: SignalEventItem[]): string {
 
 /**
  * 시그널 로그를 LLM에 붙여넣을 텍스트로 정제한다. 분석 지시는 담지 않는다(사용자가 직접 적음).
- * 데이터 설명 + 사전 집계(개요·테마별·시간대별·종목별) + 지수 시그널 + 원본 이벤트(시간 오름차순).
+ * 데이터 설명 + 사전 집계(개요·시간대별·종목별) + 지수 시그널 + 원본 이벤트(시간 오름차순).
  * 숫자는 모두 코드가 계산해 넣어, 붙여넣은 쪽에서 바로 해석에 쓸 수 있다.
  */
 export function buildSignalPrompt(
@@ -129,23 +127,6 @@ export function buildSignalPrompt(
   };
   asc.forEach((e) => (byType[e.eventType] += 1));
   const stockCount = new Set(asc.map((e) => e.stockCode)).size;
-
-  // 테마별 집계
-  const themeMap = new Map<string, { count: number; stocks: Set<string>; t: Record<SignalEventType, number> }>();
-  for (const e of asc) {
-    const key = e.theme ?? NO_THEME;
-    const cur = themeMap.get(key) ?? { count: 0, stocks: new Set(), t: { BREAKOUT: 0, BREAKOUT_IMMINENT: 0, VOLUME_SPIKE: 0, MA20_REBOUND: 0, MA20_BREAKDOWN: 0 } };
-    cur.count += 1;
-    cur.stocks.add(e.stockCode);
-    cur.t[e.eventType] += 1;
-    themeMap.set(key, cur);
-  }
-  // 테마 미상(키움 테마 없음)은 섹터가 아니므로 순위 집계에서 빼고, 건수만 따로 각주로 둔다.
-  const themeRows = [...themeMap.entries()]
-    .filter(([theme]) => theme !== NO_THEME)
-    .sort((a, b) => b[1].count - a[1].count)
-    .map(([theme, v]) => `${theme} | ${v.count} | ${v.stocks.size} | ${v.t.BREAKOUT}/${v.t.BREAKOUT_IMMINENT}/${v.t.VOLUME_SPIKE}/${v.t.MA20_REBOUND}/${v.t.MA20_BREAKDOWN}`);
-  const noThemeCount = themeMap.get(NO_THEME)?.count ?? 0;
 
   // 시간대별 집계 (시 단위)
   const hourMap = new Map<string, Record<SignalEventType, number>>();
@@ -172,38 +153,30 @@ export function buildSignalPrompt(
       const last = arr[arr.length - 1];
       const maxRatio = arr.reduce((m, e) => Math.max(m, e.spikeRatio ?? 0), 0);
       const ratioStr = maxRatio > 0 ? `${maxRatio.toFixed(1)}배` : "-";
-      return `${last.stockName}(${shortCode(last.stockCode)}) | ${last.theme ?? NO_THEME} | ${ratioStr} | ${pct(last.priceChangeRate)} | ${sequenceOf(arr)}`;
+      return `${last.stockName}(${shortCode(last.stockCode)}) | ${ratioStr} | ${pct(last.priceChangeRate)} | ${sequenceOf(arr)}`;
     });
 
   // 원본 이벤트
   const eventRows = asc.map(
     (e) =>
-      `${clockOf(e.occurredAt)} · ${TYPE_LABEL[e.eventType]} · ${e.stockName}(${shortCode(e.stockCode)}) · ${e.theme ?? NO_THEME} · ${formatPrice(e.currentPrice)} · ${pct(e.priceChangeRate)} · ${formatKoreanMoney(e.tradingValue)} · ${noteOf(e)}`,
+      `${clockOf(e.occurredAt)} · ${TYPE_LABEL[e.eventType]} · ${e.stockName}(${shortCode(e.stockCode)}) · ${formatPrice(e.currentPrice)} · ${pct(e.priceChangeRate)} · ${formatKoreanMoney(e.tradingValue)} · ${noteOf(e)}`,
   );
 
   return [
     `${date} 주도주 실시간 로그. 장중 발생한 돌파/임박/스파이크/반등 종목 전이와 코스피·코스닥 지수 시그널(투자자 순매수 단계·흐름 전환, 지수 반등·꺾임)을 시간순으로 정제한 데이터다.`,
     `참고: 각 종목 가격은 시그널 발생 시점 값만 있고 그 사이 고저는 없다.`,
-    `참고: '테마 미상'은 키움에 테마 정보가 없는 것일 뿐 시장적 의미가 아니다.`,
     ``,
     `## 개요`,
     `- 총 이벤트: ${asc.length}건 (돌파 ${byType.BREAKOUT} · 임박 ${byType.BREAKOUT_IMMINENT} · 스파이크 ${byType.VOLUME_SPIKE} · 반등 ${byType.MA20_REBOUND} · 꺾임 ${byType.MA20_BREAKDOWN})`,
     `- 등장 종목: ${stockCount}개`,
     `- 지수 시그널: ${marketAsc.length}건`,
     ``,
-    `## 테마별 (이벤트 많은 순)`,
-    `테마 | 이벤트 | 종목 | 돌파/임박/스파이크/반등`,
-    ...themeRows,
-    ...(noThemeCount > 0
-      ? [`※ 테마 미상 ${noThemeCount}건은 키움 테마 데이터 없음 — 시장 의미 아님(집계·순환 분석 제외)`]
-      : []),
-    ``,
     `## 시간대별`,
     `시 | 돌파/임박/스파이크/반등`,
     ...hourRows,
     ``,
     `## 종목별 요약 (이벤트 많은 순)`,
-    `종목(코드) | 테마 | 최고배율 | 최종등락률 | 전이 시퀀스`,
+    `종목(코드) | 최고배율 | 최종등락률 | 전이 시퀀스`,
     ...stockRows,
     ``,
     ...(marketAsc.length > 0

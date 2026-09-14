@@ -97,8 +97,6 @@ def _detect_signal_events() -> None:
         _signal_states[r.stock_code] = next_state
         if not fired:
             continue
-        themes = application.themes_of(r.stock_code)
-        theme = themes[0] if themes else None
         for event_type in fired:
             # 같은 종목·타입이 쿨다운 안에 또 뜨면 중복으로 보고 스킵 (프리마켓 출렁임 대응)
             key = f"{r.stock_code}|{event_type.value}"
@@ -106,7 +104,7 @@ def _detect_signal_events() -> None:
             if last is not None and last > cooldown_from:
                 continue
             _last_fired[key] = at
-            recorded.append(_to_signal_event(event_type, r, at, current, theme))
+            recorded.append(_to_signal_event(event_type, r, at, current))
 
     if recorded:
         with get_session_factory()() as session:
@@ -114,7 +112,7 @@ def _detect_signal_events() -> None:
         log.info("시그널 전이 %d건 적재", len(recorded))
 
 
-def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date, theme: str | None) -> SignalEvent:
+def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date) -> SignalEvent:
     spike = event_type is SignalEventType.VOLUME_SPIKE
     return SignalEvent(
         occurred_at=at, trade_date=on,
@@ -127,7 +125,6 @@ def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date, the
         minute_trading_value=r.minute_trading_value if spike else None,
         spike_direction=r.spike_direction if spike else None,
         ma20=r.ma20 if event_type in _MA20_EVENTS else None,
-        theme=theme,
         created_at=at, updated_at=at,
     )
 
@@ -346,22 +343,6 @@ def _merge_index_candles(session, market: Market, on: date, fresh: list[IndexMin
     return [store[m] for m in sorted(store)]
 
 
-# ── 마감 스냅샷 ─────────────────────────────────────────────────────────
-
-
-def capture_market_close() -> None:
-    """정규장 마감(15:30) + 종가 동시호가 정산 여유 10분. 멱등이라 중복 캡처는 무시된다."""
-    if calendar.is_holiday(calendar.Region.KR):
-        return
-    try:
-        with get_session_factory()() as session:
-            saved = events.capture_close_snapshots(session, today(), now())
-        if saved > 0:
-            log.info("마감 스냅샷 %d건 적재", saved)
-    except Exception:
-        log.warning("마감 스냅샷 적재 실패", exc_info=True)
-
-
 def register(scheduler: BaseScheduler) -> None:
     s = get_settings()
     scheduler.add_job(
@@ -378,9 +359,4 @@ def register(scheduler: BaseScheduler) -> None:
         poll_index_rebound,
         IntervalTrigger(seconds=s.market_signal.candle_poll_interval_millis / 1000),
         id="index-rebound-poller", replace_existing=True,
-    )
-    scheduler.add_job(
-        capture_market_close,
-        CronTrigger(day_of_week="mon-fri", hour=15, minute=40, timezone=KST),
-        id="market-close-snapshot-capture", replace_existing=True,
     )

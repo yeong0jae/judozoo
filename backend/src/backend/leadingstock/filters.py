@@ -329,24 +329,3 @@ class ProgramNetBuyFilter(StockFilter):
             f"{format_korean_money(self._criteria.min_program_net_buy * 1_000_000)} 이상",
             format_korean_money_with_man(net_buy * 1_000_000),
         )
-
-
-class ThemeRankFilter(StockFilter):
-    name = "테마순위"
-
-    def __init__(self, criteria: LeadingStockCriteria, theme_rank: Callable[[str], int | None]) -> None:
-        self._criteria = criteria
-        self._theme_rank = theme_rank
-
-    def filter(self, stock):
-        rank = self._theme_rank(stock.stock_code)
-        # 테마가 없으면 통과 — 노이즈 배제 목적이 아니라 "테마 강하면 좋다" 정도
-        return rank is None or rank <= self._criteria.max_theme_rank
-
-    def evaluate(self, stock):
-        rank = self._theme_rank(stock.stock_code)
-        return self._result(
-            stock,
-            f"상위 {self._criteria.max_theme_rank}위 이내",
-            f"{rank}위" if rank is not None else "테마 없음",
-        )

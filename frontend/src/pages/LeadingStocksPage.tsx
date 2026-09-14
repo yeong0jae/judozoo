@@ -9,7 +9,6 @@ import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
-import ThemeChips from "../components/common/ThemeChips";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import LoginGate from "../components/common/LoginGate";
 import { useMe } from "../api/auth";
@@ -283,10 +282,7 @@ function CandidatesTable({
                 <div className="flex items-center gap-3">
                   <StockAvatar name={s.stockName} code={code} />
                   <div className="min-w-0">
-                    <div className="flex items-center flex-wrap gap-1.5">
-                      <span className="font-semibold text-zinc-100">{s.stockName}</span>
-                      <ThemeChips themes={s.themes} themeCount={s.themeCount} />
-                    </div>
+                    <span className="font-semibold text-zinc-100">{s.stockName}</span>
                     <div className="text-xs text-zinc-500 num mt-0.5">{code}</div>
                   </div>
                 </div>
@@ -387,10 +383,6 @@ function CandidatesCards({
                     className="num text-xs shrink-0"
                   />
                 </FlashOnChange>
-              </div>
-              {/* 3행: 테마 칩 */}
-              <div className="pl-7">
-                <ThemeChips themes={s.themes} themeCount={s.themeCount} />
               </div>
             </div>
           </Fragment>

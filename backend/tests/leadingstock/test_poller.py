@@ -31,7 +31,7 @@ def 측정(
 
 
 @pytest.fixture
-def 폴러_초기화(통합_db, monkeypatch):
+def 폴러_초기화(통합_db):
     SignalEvent.__table__.create(get_engine(), checkfirst=True)
     MarketSignalEvent.__table__.create(get_engine(), checkfirst=True)
     with get_session_factory()() as s:
@@ -43,7 +43,6 @@ def 폴러_초기화(통합_db, monkeypatch):
     scheduler._signal_trade_date = None
     scheduler._rebound_armed.clear()
     scheduler._breakdown_armed.clear()
-    monkeypatch.setattr(application, "themes_of", lambda _c: ["반도체"])
     yield
     scheduler._signal_states.clear()
     scheduler._last_fired.clear()
@@ -65,7 +64,6 @@ class Test종목_시그널_폴러:
         적재 = 적재된_이벤트()
         assert len(적재) == 1
         assert 적재[0].event_type == SignalEventType.MA20_REBOUND.value
-        assert 적재[0].theme == "반도체"
 
     def test_전이가_없으면_아무것도_적재하지_않는다(self, 폴러_초기화, monkeypatch):
         monkeypatch.setattr(application, "signal_readings", lambda _r: [측정()])

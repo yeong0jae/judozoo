@@ -1,32 +1,22 @@
-"""해외 주도주 — 랭킹 / 상세 / 분봉 / 일봉 / 지수 마감 스냅샷.
+"""해외 주도주 — 랭킹 / 상세 / 분봉 / 일봉.
 
 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위를 뽑는다.
 국내와 같은 흐름 — 거래대금 1~3위는 등락률과 무관하게 항상 포함하고,
 나머지는 당일 등락률이 기준 이상인 것만 남긴다.
 """
 
-from datetime import date, datetime, timedelta
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from backend.overseasleadingstock.domain import (
     FilterResult,
-    IndexCloseSnapshot,
     OverseasStockRank,
     SwingHighSignal,
 )
-from backend.overseasleadingstock.infrastructure import OverseasIndexCloseSnapshot
-from backend.platform.kis import overseas_chart, overseas_index, overseas_product, overseas_ranking
+from backend.platform.kis import overseas_chart, overseas_product, overseas_ranking
 
 EXCHANGES = ("NAS", "NYS", "AMS")
 TOP_N = 40
 TOP_RANK_ALWAYS_INCLUDED = 3
 MIN_CHANGE_RATE_PCT = 5.0          # 상세 B: 당일 등락률 하한
 MIN_MARKET_CAP_USD = 2_000_000_000  # 상세 C: 시가총액 $2B 하한
-
-NASDAQ_COMPOSITE = "COMP"
-INDEX_LOOKBACK_DAYS = 7  # output1(최신 종가)만 쓰지만 조회 구간 확보용
 
 
 def _ranking_pool() -> list[OverseasStockRank]:
@@ -115,61 +105,6 @@ def minute_candles(exchange: str, symbol: str) -> list[overseas_chart.OverseasMi
 def daily_candles(exchange: str, symbol: str) -> list[overseas_chart.OverseasDailyCandle]:
     """종목 일봉 (일자 오름차순)."""
     return sorted(overseas_chart.fetch_daily_candles(exchange, symbol), key=lambda c: c.date)
-
-
-def snapshots_on(session: Session, day: date) -> list[IndexCloseSnapshot]:
-    rows = session.scalars(
-        select(OverseasIndexCloseSnapshot).where(OverseasIndexCloseSnapshot.trade_date == day)
-    ).all()
-    return [
-        IndexCloseSnapshot(
-            captured_at=r.captured_at,
-            code=r.code,
-            name=r.name,
-            index_value=r.index_value,
-            change_rate=r.change_rate,
-            trade_date=r.trade_date,
-        )
-        for r in rows
-    ]
-
-
-def capture_index_close(session: Session, now: datetime) -> int:
-    """나스닥종합 마감 시세를 한 행 적재. 적재했으면 1, 스킵이면 0.
-
-    영업일은 응답의 실제 영업일(output2 최신)을 따른다. 이미 적재됐거나 조회 실패면 스킵 —
-    미국 휴장일엔 영업일이 안 늘어 자연스럽게 멱등이 된다.
-    """
-    to = now.date()
-    quote = overseas_index.fetch_index_daily_close(
-        NASDAQ_COMPOSITE, to - timedelta(days=INDEX_LOOKBACK_DAYS), to
-    )
-    if quote is None:
-        return 0
-
-    exists = session.scalar(
-        select(OverseasIndexCloseSnapshot.id).where(
-            OverseasIndexCloseSnapshot.code == quote.code,
-            OverseasIndexCloseSnapshot.trade_date == quote.trade_date,
-        )
-    )
-    if exists is not None:
-        return 0
-
-    session.add(
-        OverseasIndexCloseSnapshot(
-            code=quote.code,
-            name=quote.name,
-            trade_date=quote.trade_date,
-            captured_at=now,
-            index_value=quote.price,
-            change_rate=quote.change_rate,
-            created_at=now,
-            updated_at=now,
-        )
-    )
-    session.commit()
-    return 1
 
 
 def _format_usd_cap(usd: int) -> str:

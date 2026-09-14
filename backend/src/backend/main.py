@@ -24,7 +24,6 @@ from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.leadingstock.presentation import router as leading_router
 from backend.market.presentation import router as market_router
 from backend.stock.presentation import router as stock_router
-from backend.theme.presentation import router as theme_router
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
@@ -99,7 +98,6 @@ app.include_router(news_router)
 app.include_router(overseas_router)
 app.include_router(stock_router)
 app.include_router(market_router)
-app.include_router(theme_router)
 app.include_router(leading_router)
 
 

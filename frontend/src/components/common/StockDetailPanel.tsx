@@ -17,7 +17,6 @@ import NumWon from "./NumWon";
 import ProfitText from "./ProfitText";
 import Skeleton from "./Skeleton";
 import StockAvatar from "./StockAvatar";
-import ThemeChips from "./ThemeChips";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -71,9 +70,6 @@ export default function StockDetailPanel({
               <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                 <span className="text-lg font-bold tracking-tight text-zinc-100">{detail?.stockName ?? "…"}</span>
                 <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
-                {detail && (
-                  <ThemeChips themes={detail.themes} themeCount={detail.themes.length} />
-                )}
               </div>
             </div>
             {detail && (

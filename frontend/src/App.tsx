@@ -4,8 +4,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import LeadingStocksPage from "./pages/LeadingStocksPage";
 import BreakoutRadarPage from "./pages/BreakoutRadarPage";
 import SignalLogPage from "./pages/SignalLogPage";
-import TimelinePage from "./pages/TimelinePage";
-import ThemeCalendarPage from "./pages/ThemeCalendarPage";
 import ClosingBetPage from "./pages/ClosingBetPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
@@ -52,8 +50,6 @@ function AppShell() {
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
               <Route path="/market-analysis" element={<ClosingBetPage />} />
               <Route path="/signal-log" element={<SignalLogPage />} />
-              <Route path="/theme-calendar" element={<ThemeCalendarPage />} />
-              <Route path="/timeline" element={<TimelinePage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
             </Routes>

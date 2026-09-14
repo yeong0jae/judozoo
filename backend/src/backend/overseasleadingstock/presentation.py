@@ -1,15 +1,13 @@
-"""해외 주도주 API — 랭킹 / 지수 마감 스냅샷 / 종목 상세 / 분봉 / 일봉."""
+"""해외 주도주 API — 랭킹 / 종목 상세 / 분봉 / 일봉."""
 
-from datetime import date, datetime
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
-from backend.library.db import get_db
 from backend.library.web import ApiResponse
 from backend.overseasleadingstock import application
-from backend.overseasleadingstock.domain import IndexCloseSnapshot, OverseasStockRank
+from backend.overseasleadingstock.domain import OverseasStockRank
 
 router = APIRouter(prefix="/api/overseas-leading-stocks")
 
@@ -17,9 +15,6 @@ router = APIRouter(prefix="/api/overseas-leading-stocks")
 MIN_CHANGE_RATE = -12
 MAX_CHANGE_RATE = 7
 DEFAULT_MIN_CHANGE_RATE = 7.0
-
-# 한국 시각 기준 오늘 — Kotlin TimeProvider.today()에 대응.
-KST_OFFSET_HOURS = 9
 
 
 class OverseasStockRankItem(BaseModel):
@@ -83,14 +78,6 @@ class OverseasDailyCandleItem(BaseModel):
     volume: int
 
 
-class OverseasIndexCloseSnapshotItem(BaseModel):
-    captured_at: datetime = Field(serialization_alias="capturedAt")
-    code: str
-    name: str
-    index_value: float = Field(serialization_alias="indexValue")
-    change_rate: float = Field(serialization_alias="changeRate")
-
-
 @router.get("/ranking")
 def get_ranking(
     minChangeRate: int | None = Query(default=None),  # noqa: N803 — 기존 API 계약
@@ -102,18 +89,6 @@ def get_ranking(
         else DEFAULT_MIN_CHANGE_RATE
     )
     return ApiResponse.ok([_to_rank_item(r) for r in application.get_ranking(rate)])
-
-
-@router.get("/index-close-snapshots")
-def get_index_close_snapshots(
-    date_: date | None = Query(default=None, alias="date"),
-    db: Session = Depends(get_db),
-) -> ApiResponse[list[OverseasIndexCloseSnapshotItem]]:
-    """해외지수(나스닥종합) 장 마감 스냅샷 — 타임라인용. date 미지정 시 오늘(KST)."""
-    day = date_ or _today_kst()
-    return ApiResponse.ok(
-        [_to_snapshot_item(s) for s in application.snapshots_on(db, day)]
-    )
 
 
 @router.get("/{exchange}/{symbol}")
@@ -193,12 +168,6 @@ def get_daily_candles(exchange: str, symbol: str) -> ApiResponse[list[OverseasDa
     )
 
 
-def _today_kst() -> date:
-    from datetime import timedelta, timezone
-
-    return datetime.now(timezone(timedelta(hours=KST_OFFSET_HOURS))).date()
-
-
 def _to_rank_item(r: OverseasStockRank) -> OverseasStockRankItem:
     return OverseasStockRankItem(
         rank=r.rank,
@@ -210,14 +179,4 @@ def _to_rank_item(r: OverseasStockRank) -> OverseasStockRankItem:
         diff=r.diff,
         rate=r.rate,
         trading_value=r.trading_value,
-    )
-
-
-def _to_snapshot_item(s: IndexCloseSnapshot) -> OverseasIndexCloseSnapshotItem:
-    return OverseasIndexCloseSnapshotItem(
-        captured_at=s.captured_at,
-        code=s.code,
-        name=s.name,
-        index_value=s.index_value,
-        change_rate=s.change_rate,
     )

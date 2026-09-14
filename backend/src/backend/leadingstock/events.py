@@ -1,6 +1,6 @@
 """시그널 전이·스냅샷 적재/조회.
 
-적재는 폴러가, 조회는 실시간 로그·타임라인 화면이 쓴다.
+적재는 폴러가, 조회는 실시간 로그 화면이 쓴다.
 """
 
 import logging
@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from backend.leadingstock.entities import (
     IndexMinuteCandleEntity,
-    MarketCloseSnapshot,
     MarketFlowStateSnapshot,
     MarketSignalEvent,
     SignalEvent,
@@ -149,47 +148,6 @@ def save_flow_state(
             )
         )
     session.commit()
-
-
-# ── 마감 스냅샷 ─────────────────────────────────────────────────────────
-
-
-def capture_close_snapshots(session: Session, on: date, captured_at: datetime) -> int:
-    """코스피·코스닥 마감 투자자 순매수를 한 행씩 적재.
-
-    이미 적재된 시장은 스킵(멱등), 데이터 없는 시장도 스킵. 적재한 시장 수를 돌려준다.
-    """
-    saved = 0
-    at = now()
-    for market in Market:
-        exists = session.scalar(
-            select(MarketCloseSnapshot.id).where(
-                MarketCloseSnapshot.market == market, MarketCloseSnapshot.trade_date == on
-            ).limit(1)
-        )
-        if exists is not None:
-            continue
-        nb = kiwoom_sector.fetch_sector_net_buy(MRKT_TP[market])
-        if nb is None:
-            continue
-        session.add(
-            MarketCloseSnapshot(
-                market=market, trade_date=on, captured_at=captured_at,
-                foreign_eok=nb.foreign_eok, institution_eok=nb.institution_eok,
-                individual_eok=nb.individual_eok, index_value=nb.index_value,
-                change_rate=nb.change_rate, created_at=at, updated_at=at,
-            )
-        )
-        saved += 1
-    if saved:
-        session.commit()
-    return saved
-
-
-def close_snapshots_on(session: Session, on: date) -> list[MarketCloseSnapshot]:
-    return list(
-        session.scalars(select(MarketCloseSnapshot).where(MarketCloseSnapshot.trade_date == on))
-    )
 
 
 # ── 지수 1분봉 영속 ─────────────────────────────────────────────────────

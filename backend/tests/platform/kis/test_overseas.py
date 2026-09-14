@@ -1,18 +1,14 @@
-from datetime import date
-
 import httpx
 import pytest
 import respx
 
 from backend.platform.kis import client as kis_client
-from backend.platform.kis.overseas_index import fetch_index_daily_close
 from backend.platform.kis.overseas_product import fetch_market_cap
 from backend.platform.kis.overseas_ranking import fetch_trading_value_ranking
 
 BASE = "https://openapi.koreainvestment.com:9443"
 RANKING_URL = f"{BASE}/uapi/overseas-stock/v1/ranking/trade-pbmn"
 PRODUCT_URL = f"{BASE}/uapi/overseas-price/v1/quotations/search-info"
-INDEX_URL = f"{BASE}/uapi/overseas-price/v1/quotations/inquire-daily-chartprice"
 TOKEN_URL = f"{BASE}/oauth2/tokenP"
 
 
@@ -140,88 +136,3 @@ class Test시가총액:
         fetch_market_cap("NAS", "AAPL")
 
         assert route.call_count == 2
-
-
-class Test해외지수:
-    def 지수응답(self, price="20000.5", prev="20100.0", ctrt="0.5", dates=("20260824", "20260825")):
-        return httpx.Response(
-            200,
-            json={
-                "rt_cd": "0", "msg_cd": "", "msg1": "",
-                "output1": {
-                    "ovrs_nmix_prpr": price,
-                    "ovrs_nmix_prdy_clpr": prev,
-                    "prdy_ctrt": ctrt,
-                    "hts_kor_isnm": "나스닥종합",
-                },
-                "output2": [{"stck_bsop_date": d} for d in dates],
-            },
-        )
-
-    @respx.mock
-    def test_등락_방향은_전일종가와_비교해_정한다(self, respx_mock, 토큰_발급):
-        """prdy_ctrt는 부호가 붙어 오기도 해 크기만 쓴다."""
-        respx_mock.get(INDEX_URL).mock(return_value=self.지수응답(price="20000.5", prev="20100.0"))
-
-        quote = fetch_index_daily_close("COMP", date(2026, 8, 20), date(2026, 8, 25))
-
-        assert quote.change_rate == -0.5, "현재가 < 전일종가 → 음수"
-
-    @respx.mock
-    def test_상승이면_양수로_준다(self, respx_mock, 토큰_발급):
-        respx_mock.get(INDEX_URL).mock(return_value=self.지수응답(price="20200.0", prev="20100.0"))
-
-        assert fetch_index_daily_close("COMP", date(2026, 8, 20), date(2026, 8, 25)).change_rate == 0.5
-
-    @respx.mock
-    def test_부호가_붙어_와도_크기만_쓴다(self, respx_mock, 토큰_발급):
-        respx_mock.get(INDEX_URL).mock(
-            return_value=self.지수응답(price="20000.5", prev="20100.0", ctrt="-0.5")
-        )
-
-        assert fetch_index_daily_close("COMP", date(2026, 8, 20), date(2026, 8, 25)).change_rate == -0.5
-
-    @respx.mock
-    def test_영업일은_일자별_응답의_최신_날짜를_쓴다(self, respx_mock, 토큰_발급):
-        """미국 휴장일에도 종가가 찍히므로 조회 종료일이 아니라 실제 찍힌 날짜를 쓴다."""
-        respx_mock.get(INDEX_URL).mock(
-            return_value=self.지수응답(dates=("20260821", "20260824", "20260822"))
-        )
-
-        quote = fetch_index_daily_close("COMP", date(2026, 8, 20), date(2026, 8, 25))
-
-        assert quote.trade_date == date(2026, 8, 24)
-
-    @respx.mock
-    def test_일자별_응답이_비면_조회_종료일로_대체한다(self, respx_mock, 토큰_발급):
-        respx_mock.get(INDEX_URL).mock(return_value=self.지수응답(dates=()))
-
-        quote = fetch_index_daily_close("COMP", date(2026, 8, 20), date(2026, 8, 25))
-
-        assert quote.trade_date == date(2026, 8, 25)
-
-    @respx.mock
-    def test_종목명이_없으면_코드를_이름으로_쓴다(self, respx_mock, 토큰_발급):
-        respx_mock.get(INDEX_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={"rt_cd": "0", "output1": {"ovrs_nmix_prpr": "100"}, "output2": []},
-            )
-        )
-
-        assert fetch_index_daily_close("COMP", date(2026, 8, 20), date(2026, 8, 25)).name == "COMP"
-
-    @pytest.mark.parametrize(
-        "response",
-        [
-            httpx.Response(200, json={"rt_cd": "1", "msg1": "오류"}),
-            httpx.Response(200, json={"rt_cd": "0", "output1": None}),
-            httpx.Response(200, json={"rt_cd": "0", "output1": {"ovrs_nmix_prpr": "-"}}),
-            httpx.Response(500),
-        ],
-        ids=["오류코드", "기본정보없음", "가격파싱불가", "HTTP오류"],
-    )
-    def test_온전하지_않으면_캡처가_스킵하도록_None을_준다(self, respx_mock, 토큰_발급, response):
-        respx_mock.get(INDEX_URL).mock(return_value=response)
-
-        assert fetch_index_daily_close("COMP", date(2026, 8, 20), date(2026, 8, 25)) is None

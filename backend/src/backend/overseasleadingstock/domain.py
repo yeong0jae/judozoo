@@ -4,7 +4,7 @@
 """
 
 from dataclasses import dataclass, replace
-from datetime import date, datetime
+from datetime import datetime
 
 # 거래대금순위 API엔 ETF 구분 필드가 없어 영문명 키워드로 판별한다(휴리스틱).
 # 발행사 브랜드 위주로 잡아 일반기업 오탐을 줄인다 — TRUST·FUND 등 흔한 단어는 일부러 제외.
@@ -54,13 +54,3 @@ class FilterResult:
     criteria_description: str
     actual_value: str
     passed: bool
-
-
-@dataclass(frozen=True)
-class IndexCloseSnapshot:
-    captured_at: datetime
-    code: str
-    name: str
-    index_value: float
-    change_rate: float
-    trade_date: date

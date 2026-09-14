@@ -1,4 +1,4 @@
-"""주도주 API — 후보 / 돌파 레이더 / 시그널 로그 / 마감 스냅샷 / 지수·종목 캔들."""
+"""주도주 API — 후보 / 돌파 레이더 / 시그널 로그 / 지수·종목 캔들."""
 
 from datetime import date, datetime
 
@@ -20,7 +20,6 @@ router = APIRouter(prefix="/api/leading-stocks")
 
 MIN_CHANGE_RATE = -12
 MAX_CHANGE_RATE = 7
-MAX_THEME_CHIPS = 2
 
 
 def _rate(min_change_rate: int | None) -> float:
@@ -36,8 +35,6 @@ class CandidateStockItem(BaseModel):
     current_price: int = Field(serialization_alias="currentPrice")
     price_change_rate: float = Field(serialization_alias="priceChangeRate")
     accumulated_trading_value: int = Field(serialization_alias="accumulatedTradingValue")
-    themes: list[str]
-    theme_count: int = Field(serialization_alias="themeCount")
 
 
 class CandidateStocksResponse(BaseModel):
@@ -58,8 +55,6 @@ class BreakoutRadarItem(BaseModel):
     trough_at: datetime | None = Field(default=None, serialization_alias="troughAt")
     support_gap_rate: float | None = Field(default=None, serialization_alias="supportGapRate")
     trading_value: int = Field(serialization_alias="tradingValue")
-    themes: list[str]
-    theme_count: int = Field(serialization_alias="themeCount")
 
 
 class BreakoutRadarResponse(BaseModel):
@@ -81,7 +76,6 @@ class SignalEventItem(BaseModel):
     minute_trading_value: int | None = Field(serialization_alias="minuteTradingValue")
     spike_direction: str | None = Field(serialization_alias="spikeDirection")
     ma20: int | None
-    theme: str | None
 
 
 class SignalEventsResponse(BaseModel):
@@ -108,16 +102,6 @@ class MarketSignalEventsResponse(BaseModel):
     date: date
     total_count: int = Field(serialization_alias="totalCount")
     events: list[MarketSignalEventItem]
-
-
-class MarketCloseSnapshotItem(BaseModel):
-    captured_at: datetime = Field(serialization_alias="capturedAt")
-    market: str
-    foreign_eok: int = Field(serialization_alias="foreignEok")
-    institution_eok: int = Field(serialization_alias="institutionEok")
-    individual_eok: int = Field(serialization_alias="individualEok")
-    index_value: float | None = Field(serialization_alias="indexValue")
-    change_rate: float | None = Field(serialization_alias="changeRate")
 
 
 class MarketInvestorNetBuyItem(BaseModel):
@@ -183,7 +167,6 @@ class LeadingStockDetailResponse(BaseModel):
     current_price: int = Field(serialization_alias="currentPrice")
     price_change_rate: float = Field(serialization_alias="priceChangeRate")
     relative_volume: float | None = Field(serialization_alias="relativeVolume")
-    themes: list[str]
     swing_high_signal: SwingHighSignalItem | None = Field(serialization_alias="swingHighSignal")
     filter_results: list[FilterResultItem] = Field(serialization_alias="filterResults")
 
@@ -191,17 +174,14 @@ class LeadingStockDetailResponse(BaseModel):
 @router.get("/candidates")
 def get_candidates(minChangeRate: int | None = Query(None)) -> ApiResponse[CandidateStocksResponse]:  # noqa: N803
     """Phase 1 후보 — 거래대금 순위 + 등락률 필터만 통과."""
-    items = []
-    for i, s in enumerate(application.find_candidate_stocks(_rate(minChangeRate))):
-        themes = application.themes_of(s.stock_code)
-        items.append(
-            CandidateStockItem(
-                rank=i + 1, stock_code=s.stock_code, stock_name=s.stock_name,
-                current_price=s.current_price, price_change_rate=s.price_change_rate,
-                accumulated_trading_value=s.accumulated_trading_value,
-                themes=themes[:MAX_THEME_CHIPS], theme_count=len(themes),
-            )
+    items = [
+        CandidateStockItem(
+            rank=i + 1, stock_code=s.stock_code, stock_name=s.stock_name,
+            current_price=s.current_price, price_change_rate=s.price_change_rate,
+            accumulated_trading_value=s.accumulated_trading_value,
         )
+        for i, s in enumerate(application.find_candidate_stocks(_rate(minChangeRate)))
+    ]
     return ApiResponse.ok(
         CandidateStocksResponse(queried_at=now(), total_count=len(items), stocks=items)
     )
@@ -210,19 +190,16 @@ def get_candidates(minChangeRate: int | None = Query(None)) -> ApiResponse[Candi
 @router.get("/breakout-radar")
 def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[BreakoutRadarResponse]:  # noqa: N803
     """후보를 저항선(당일 고가) 근접 순으로. 지지선(당일 저가)도 함께 싣는다."""
-    items = []
-    for s in application.breakout_radar(_rate(minChangeRate)):
-        themes = application.themes_of(s.stock_code)
-        items.append(
-            BreakoutRadarItem(
-                stock_code=s.stock_code, stock_name=s.stock_name,
-                current_price=s.current_price, price_change_rate=s.price_change_rate,
-                day_high=s.day_high, peak_at=s.peak_at, gap_rate=s.gap_rate,
-                day_low=s.day_low, trough_at=s.trough_at, support_gap_rate=s.support_gap_rate,
-                trading_value=s.trading_value,
-                themes=themes[:MAX_THEME_CHIPS], theme_count=len(themes),
-            )
+    items = [
+        BreakoutRadarItem(
+            stock_code=s.stock_code, stock_name=s.stock_name,
+            current_price=s.current_price, price_change_rate=s.price_change_rate,
+            day_high=s.day_high, peak_at=s.peak_at, gap_rate=s.gap_rate,
+            day_low=s.day_low, trough_at=s.trough_at, support_gap_rate=s.support_gap_rate,
+            trading_value=s.trading_value,
         )
+        for s in application.breakout_radar(_rate(minChangeRate))
+    ]
     return ApiResponse.ok(
         BreakoutRadarResponse(queried_at=now(), total_count=len(items), stocks=items)
     )
@@ -243,7 +220,7 @@ def get_signal_events(
             gap_rate=e.gap_rate, spike_ratio=e.spike_ratio,
             minute_trading_value=e.minute_trading_value,
             spike_direction=e.spike_direction.value if e.spike_direction else None,
-            ma20=e.ma20, theme=e.theme,
+            ma20=e.ma20,
         )
         for e in events.signal_events_on(db, day)
     ]
@@ -268,22 +245,6 @@ def get_market_signal_events(
         for e in events.market_events_on(db, day)
     ]
     return ApiResponse.ok(MarketSignalEventsResponse(date=day, total_count=len(items), events=items))
-
-
-@router.get("/market-close-snapshots")
-def get_market_close_snapshots(
-    date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
-) -> ApiResponse[list[MarketCloseSnapshotItem]]:
-    """타임라인용 — 하루 시장당 한 건."""
-    day = date_ or today()
-    return ApiResponse.ok([
-        MarketCloseSnapshotItem(
-            captured_at=s.captured_at, market=s.market.name,
-            foreign_eok=s.foreign_eok, institution_eok=s.institution_eok,
-            individual_eok=s.individual_eok, index_value=s.index_value, change_rate=s.change_rate,
-        )
-        for s in events.close_snapshots_on(db, day)
-    ])
 
 
 @router.get("/market/investor-net-buy")
@@ -379,7 +340,6 @@ def get_stock_detail(stock_code: str) -> ApiResponse[LeadingStockDetailResponse]
             stock_code=s.stock_code, stock_name=s.stock_name,
             current_price=s.current_price, price_change_rate=s.price_change_rate,
             relative_volume=ev.relative_volume,
-            themes=application.themes_of(s.stock_code),
             swing_high_signal=(
                 SwingHighSignalItem(
                     peak_price=ev.swing_high_signal.peak_price,
