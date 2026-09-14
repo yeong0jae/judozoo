@@ -43,8 +43,8 @@ log = logging.getLogger(__name__)
 
 _SNAPSHOT_START = time(8, 0)   # NXT 프리마켓 개장
 _SNAPSHOT_END = time(20, 0)    # NXT 애프터마켓 마감
-_MA_INTERVAL_MINUTES = 1
-_MA_PERIOD = 60
+_MA_INTERVAL_MINUTES = 5
+_MA_PERIOD = 20
 _MA_REARM_MARGIN = 0.005
 
 _lock = threading.Lock()

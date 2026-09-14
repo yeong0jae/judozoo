@@ -267,7 +267,7 @@ function detailOf(e: SignalEventItem) {
     const up = e.eventType === "MA_REBOUND";
     return (
       <span className={up ? "text-orange-400" : "text-sky-300"}>
-        1분 60이평{e.ma != null && ` ${formatPrice(e.ma)}원`}{" "}
+        5분 20이평{e.ma != null && ` ${formatPrice(e.ma)}원`}{" "}
         {up ? "상향돌파" : "하향이탈"}
       </span>
     );

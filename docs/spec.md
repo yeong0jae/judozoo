@@ -163,7 +163,7 @@ MarketCap → TradingValueRank → DailyPriceChange → DailyHighPosition
 |------|------|------|
 | `SignalEventPoller` | 10초 | 종목 시그널 전이 |
 | `MarketSignalEventPoller` | 30초 | 시장 순매수 단계 전이 |
-| `IndexReboundPoller` | 30초 | 지수 1분봉 60이평 — **09:00~15:30에만** 동작 |
+| `IndexReboundPoller` | 30초 | 지수 5분봉 20이평 — **09:00~15:30에만** 동작 |
 | `OverseasSignalEventPoller` | 15초 | 해외 시그널 |
 | `FuturesInvestorPoller` | 60초 | 선물 투자자 |
 | `ProgramTradePoller` | 120초 | 프로그램매매 (누적은 느리게 변함) |

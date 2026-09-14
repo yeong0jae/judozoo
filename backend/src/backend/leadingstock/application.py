@@ -31,8 +31,8 @@ _TOP_RANK_ALWAYS_INCLUDED = 3
 _RVOL_LOOKBACK_DAYS = 20
 _SPIKE_BASELINE_BARS = 20             # 직전 평균 산정 봉 수
 _SPIKE_MIN_TRADING_VALUE = 1_000_000_000  # 최신 1분봉 최소 거래대금(원)
-_MA_INTERVAL_MINUTES = 1              # 돌림 판정 분봉 주기
-_MA_PERIOD = 60                       # 돌림 판정 이평 기간(봉)
+_MA_INTERVAL_MINUTES = 5              # 돌림 판정 분봉 주기
+_MA_PERIOD = 20                       # 돌림 판정 이평 기간(봉)
 _MA_REARM_MARGIN = 0.005              # 돌림 재무장 마진(0.5%)
 _CHART_SESSION_DAYS = 3               # 상세 차트 표시 거래일 수(당일 포함)
 
@@ -211,7 +211,7 @@ def signal_readings(min_daily_price_change_rate: float) -> list[CandidateSignalR
     """
     readings = []
     for c in find_candidate_stocks(min_daily_price_change_rate):
-        # 돌파선·돌림은 최근 3거래일 연속 분봉으로(1분봉 60이평이 개장부터 연속되게), 스파이크는 당일만
+        # 돌파선·돌림은 최근 3거래일 연속 분봉으로(5분봉 20이평이 개장부터 연속되게), 스파이크는 당일만
         recent = _breakout_high_candles(c.stock_code)
         high = recent.day_high_signal(c.current_price)
         ma_reading = recent.moving_average(_MA_INTERVAL_MINUTES, _MA_PERIOD, _MA_REARM_MARGIN)
