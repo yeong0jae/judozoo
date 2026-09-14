@@ -116,22 +116,23 @@ export default function CandleChart({
       },
       crosshair: { mode: 0 },
     });
+    // 가격축: priceDecimals 자리(원=0, 달러=2) + 천 단위 쉼표. 이평선도 같은 포맷을 쓴다.
+    const priceFormat = {
+      type: "custom" as const,
+      minMove: priceDecimals > 0 ? 1 / 10 ** priceDecimals : 1,
+      formatter: (p: number) =>
+        p.toLocaleString("en-US", {
+          minimumFractionDigits: priceDecimals,
+          maximumFractionDigits: priceDecimals,
+        }),
+    };
     seriesRef.current = chart.addCandlestickSeries({
       upColor: "#f04452",
       downColor: "#3b82f6",
       wickUpColor: "#f04452",
       wickDownColor: "#3b82f6",
       borderVisible: false,
-      // 가격축: priceDecimals 자리(원=0, 달러=2) + 천 단위 쉼표
-      priceFormat: {
-        type: "custom",
-        minMove: priceDecimals > 0 ? 1 / 10 ** priceDecimals : 1,
-        formatter: (p: number) =>
-          p.toLocaleString("en-US", {
-            minimumFractionDigits: priceDecimals,
-            maximumFractionDigits: priceDecimals,
-          }),
-      },
+      priceFormat,
     });
     // 캔들은 위 75%, 거래량은 아래 20%에 별도 오버레이 스케일로
     chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.05, bottom: 0.25 } });
@@ -141,13 +142,16 @@ export default function CandleChart({
     });
     volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
     volumeRef.current = volume;
-    // 이평선은 캔들과 같은 가격축을 쓴다. 축 라벨·기준선은 끈다 — 저항·지지선이 이미 축을 쓴다.
+    // 이평선은 캔들과 같은 가격축을 쓴다. 무슨 선인지 축 라벨로 알린다 —
+    // lightweight-charts에 범례가 없어서, title + 마지막값 라벨이 유일한 내장 수단이다.
     maRef.current = maPeriod
       ? chart.addLineSeries({
           color: MA,
           lineWidth: 1,
-          priceLineVisible: false,
-          lastValueVisible: false,
+          title: `${maPeriod}이평`,
+          priceFormat,
+          lastValueVisible: true,
+          priceLineVisible: false,  // 가로 점선까지 그으면 이평선 자체와 겹쳐 읽힌다
           crosshairMarkerVisible: false,
         })
       : null;
