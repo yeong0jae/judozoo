@@ -211,8 +211,8 @@ function RadarRow({
   onSelect: (code: string) => void;
 }) {
   const code = shortCode(s.stockCode);
-  const gapWon = s.dayHigh - s.currentPrice;
-  const supportWon = s.dayLow === null ? 0 : s.currentPrice - s.dayLow;
+  const gapWon = s.peakPrice - s.currentPrice;
+  const supportWon = s.troughPrice === null ? 0 : s.currentPrice - s.troughPrice;
   const trough = s.troughAt ? new Date(s.troughAt) : null;
   // 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링됨 — HTS 기준 +1분 보정
   const peak = new Date(s.peakAt);
@@ -249,7 +249,7 @@ function RadarRow({
       {mode === "resistance" ? (
         <>
           <td className="px-4 py-3.5 text-right">
-            <div className="num text-zinc-300">{formatPrice(s.dayHigh)}</div>
+            <div className="num text-zinc-300">{formatPrice(s.peakPrice)}</div>
             <div className="num text-xs text-zinc-500">{peak.getDate()}일 {peakTime} 형성</div>
           </td>
           <td className={`px-4 py-3.5 text-right num font-semibold ${resistanceCls(s.gapRate)}`}>
@@ -259,11 +259,11 @@ function RadarRow({
       ) : (
         <>
           <td className="px-4 py-3.5 text-right">
-            {s.dayLow === null ? (
+            {s.troughPrice === null ? (
               <span className="text-zinc-600">—</span>
             ) : (
               <>
-                <div className="num text-zinc-300">{formatPrice(s.dayLow)}</div>
+                <div className="num text-zinc-300">{formatPrice(s.troughPrice)}</div>
                 <div className="num text-xs text-zinc-500">
                   {trough && `${trough.getDate()}일 ${troughTime} 형성`}
                 </div>
@@ -303,8 +303,8 @@ function RadarCard({
 }) {
   const code = shortCode(s.stockCode);
   const st = radarStatus(s.gapRate);
-  const gapWon = s.dayHigh - s.currentPrice;
-  const supportWon = s.dayLow === null ? 0 : s.currentPrice - s.dayLow;
+  const gapWon = s.peakPrice - s.currentPrice;
+  const supportWon = s.troughPrice === null ? 0 : s.currentPrice - s.troughPrice;
   const trough = s.troughAt ? new Date(s.troughAt) : null;
   const peak = new Date(s.peakAt);
   peak.setMinutes(peak.getMinutes() + 1);
@@ -330,17 +330,17 @@ function RadarCard({
       {mode === "resistance" ? (
         <div className="flex items-baseline justify-between gap-2 pl-9">
           <span className="text-xs text-zinc-500 num">
-            저항 {formatPrice(s.dayHigh)} · {peak.getDate()}일 {peakTime}
+            저항 {formatPrice(s.peakPrice)} · {peak.getDate()}일 {peakTime}
           </span>
           <span className={`num text-sm font-semibold ${resistanceCls(s.gapRate)}`}>
             {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
           </span>
         </div>
       ) : (
-        s.dayLow !== null && (
+        s.troughPrice !== null && (
           <div className="flex items-baseline justify-between gap-2 pl-9">
             <span className="text-xs text-zinc-500 num">
-              지지 {formatPrice(s.dayLow)}
+              지지 {formatPrice(s.troughPrice)}
               {trough && ` · ${trough.getDate()}일 ${troughTime}`}
             </span>
             <span className={`num text-sm font-semibold ${supportCls(s.supportGapRate)}`}>

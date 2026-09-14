@@ -69,11 +69,11 @@ class BreakoutRadarStock:
     stock_name: str
     current_price: int
     price_change_rate: float
-    day_high: int
+    peak_price: int
     peak_at: datetime
     gap_rate: float
     trading_value: int
-    day_low: int | None = None
+    trough_price: int | None = None
     trough_at: datetime | None = None
     support_gap_rate: float | None = None
 
@@ -180,22 +180,22 @@ def breakout_radar(min_daily_price_change_rate: float) -> list[BreakoutRadarStoc
     out = []
     for c in find_candidate_stocks(min_daily_price_change_rate):
         candles = _breakout_high_candles(c.stock_code)
-        signal = candles.day_high_signal(c.current_price)
+        signal = candles.peak_signal(c.current_price)
         if signal is None:
             continue
         # 지지선은 같은 분봉에서 대칭으로 뽑는다. 없더라도 저항은 보여준다.
-        support = candles.day_low_signal(c.current_price)
+        support = candles.trough_signal(c.current_price)
         out.append(
             BreakoutRadarStock(
                 stock_code=c.stock_code,
                 stock_name=c.stock_name,
                 current_price=c.current_price,
                 price_change_rate=c.price_change_rate,
-                day_high=signal.peak_price,
+                peak_price=signal.peak_price,
                 peak_at=signal.peak_at,
                 gap_rate=signal.gap_rate,
                 trading_value=c.accumulated_trading_value,
-                day_low=support.trough_price if support else None,
+                trough_price=support.trough_price if support else None,
                 trough_at=support.trough_at if support else None,
                 support_gap_rate=support.gap_rate if support else None,
             )
@@ -213,7 +213,7 @@ def signal_readings(min_daily_price_change_rate: float) -> list[CandidateSignalR
     for c in find_candidate_stocks(min_daily_price_change_rate):
         # 돌파선·돌림은 최근 3거래일 연속 분봉으로(5분봉 20이평이 개장부터 연속되게), 스파이크는 당일만
         recent = _breakout_high_candles(c.stock_code)
-        high = recent.day_high_signal(c.current_price)
+        high = recent.peak_signal(c.current_price)
         ma_reading = recent.moving_average(_MA_INTERVAL_MINUTES, _MA_PERIOD, _MA_REARM_MARGIN)
         spike = MinuteCandles(_latest_session_minute_candles(c.stock_code)).volume_spike(
             _SPIKE_BASELINE_BARS

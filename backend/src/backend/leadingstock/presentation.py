@@ -48,10 +48,10 @@ class BreakoutRadarItem(BaseModel):
     stock_name: str = Field(serialization_alias="stockName")
     current_price: int = Field(serialization_alias="currentPrice")
     price_change_rate: float = Field(serialization_alias="priceChangeRate")
-    day_high: int = Field(serialization_alias="dayHigh")
+    peak_price: int = Field(serialization_alias="peakPrice")
     peak_at: datetime = Field(serialization_alias="peakAt")
     gap_rate: float = Field(serialization_alias="gapRate")
-    day_low: int | None = Field(default=None, serialization_alias="dayLow")
+    trough_price: int | None = Field(default=None, serialization_alias="troughPrice")
     trough_at: datetime | None = Field(default=None, serialization_alias="troughAt")
     support_gap_rate: float | None = Field(default=None, serialization_alias="supportGapRate")
     trading_value: int = Field(serialization_alias="tradingValue")
@@ -187,8 +187,8 @@ def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[B
         BreakoutRadarItem(
             stock_code=s.stock_code, stock_name=s.stock_name,
             current_price=s.current_price, price_change_rate=s.price_change_rate,
-            day_high=s.day_high, peak_at=s.peak_at, gap_rate=s.gap_rate,
-            day_low=s.day_low, trough_at=s.trough_at, support_gap_rate=s.support_gap_rate,
+            peak_price=s.peak_price, peak_at=s.peak_at, gap_rate=s.gap_rate,
+            trough_price=s.trough_price, trough_at=s.trough_at, support_gap_rate=s.support_gap_rate,
             trading_value=s.trading_value,
         )
         for s in application.breakout_radar(_rate(minChangeRate))

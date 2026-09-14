@@ -256,11 +256,11 @@ export interface BreakoutRadarItem {
   stockName: string;
   currentPrice: number;
   priceChangeRate: number;
-  dayHigh: number;
+  peakPrice: number;
   peakAt: string;
   gapRate: number;
   /** 지지선 — 분봉이 없으면 null. 저항선은 있는데 지지선만 없는 경우는 없다. */
-  dayLow: number | null;
+  troughPrice: number | null;
   troughAt: string | null;
   supportGapRate: number | null;
   tradingValue: number;

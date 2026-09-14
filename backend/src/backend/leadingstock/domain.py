@@ -135,7 +135,7 @@ class MinuteCandles:
     def __init__(self, candles: list[MinuteCandle]) -> None:
         self._ordered = sorted(candles, key=lambda c: c.date_time)
 
-    def day_high_signal(self, current_price: int) -> SwingHighSignal | None:
+    def peak_signal(self, current_price: int) -> SwingHighSignal | None:
         """받은 분봉 중 최고가를 전고점(돌파 대상 저항)으로 본다.
 
         동일 최고가가 여러 번 나오면 **처음 형성된 봉**을 형성 시각으로 잡는다.
@@ -149,8 +149,8 @@ class MinuteCandles:
             gap_rate=(peak.high_price - current_price) / current_price * 100,
         )
 
-    def day_low_signal(self, current_price: int) -> SwingLowSignal | None:
-        """받은 분봉 중 최저가를 지지선으로 본다. `day_high_signal`과 같은 방식이다.
+    def trough_signal(self, current_price: int) -> SwingLowSignal | None:
+        """받은 분봉 중 최저가를 지지선으로 본다. `peak_signal`과 같은 방식이다.
 
         동일 최저가가 여러 번 나오면 **처음 형성된 봉**을 형성 시각으로 잡는다.
         """
