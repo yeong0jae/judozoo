@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import type { StockMarket } from "../../lib/stockMarket";
 
-export type StockMarket = "domestic" | "overseas";
+export type { StockMarket };
 
 const TABS: { key: StockMarket; label: string }[] = [
   { key: "domestic", label: "국내" },

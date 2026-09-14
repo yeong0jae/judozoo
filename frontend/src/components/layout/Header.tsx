@@ -29,7 +29,7 @@ export default function Header() {
         </button>
 
         {/* 모바일엔 좌측 레일이 없어 브랜드가 화면에서 사라진다 — 여기서만 보여준다 */}
-        <NavLink to="/leading-stocks" className="md:hidden" title="judozoo">
+        <NavLink to="/" className="md:hidden" title="judozoo">
           <Wordmark size={22} />
         </NavLink>
 

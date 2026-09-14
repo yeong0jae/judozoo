@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import HomePage from "./pages/HomePage";
 import LeadingStocksPage from "./pages/LeadingStocksPage";
 import BreakoutRadarPage from "./pages/BreakoutRadarPage";
 import SignalLogPage from "./pages/SignalLogPage";
@@ -45,7 +46,7 @@ function AppShell() {
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
             <Routes location={location}>
-              <Route path="/" element={<Navigate to="/leading-stocks" replace />} />
+              <Route path="/" element={<HomePage />} />
               <Route path="/leading-stocks" element={<LeadingStocksPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
               {/* 지수는 URL이 정한다 — 슬러그 없이 들어오면 마지막에 보던 것으로 */}

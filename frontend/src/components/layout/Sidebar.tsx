@@ -9,7 +9,7 @@ export default function Sidebar() {
   return (
     <aside className="hidden md:flex sticky top-0 h-dvh w-20 shrink-0 flex-col items-center border-r border-zinc-800 bg-zinc-950">
       <NavLink
-        to="/leading-stocks"
+        to="/"
         className="flex h-14 w-full items-center justify-center text-zinc-100"
         title="judozoo"
       >

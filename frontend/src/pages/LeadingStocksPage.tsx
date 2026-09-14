@@ -16,7 +16,8 @@ import { useMe } from "../api/auth";
 import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 import OverseasLeadingStocks from "./OverseasLeadingStocksPage";
-import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
+import MarketToggle from "../components/common/MarketToggle";
+import { loadMarket, rememberMarket, type StockMarket } from "../lib/stockMarket";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -31,12 +32,9 @@ function shortCode(stockCode: string): string {
  * 주도주 후보 — 국내/해외 토글로 전환. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다.
  */
 export default function LeadingStocksPage() {
-  const [market, setMarket] = useState<StockMarket>(() => {
-    const saved = localStorage.getItem(MARKET_KEY);
-    return saved === "overseas" ? "overseas" : "domestic";
-  });
+  const [market, setMarket] = useState<StockMarket>(loadMarket);
   useEffect(() => {
-    localStorage.setItem(MARKET_KEY, market);
+    rememberMarket(market);
   }, [market]);
 
   return market === "domestic" ? (
@@ -45,8 +43,6 @@ export default function LeadingStocksPage() {
     <OverseasLeadingStocks market={market} onMarket={setMarket} />
   );
 }
-
-const MARKET_KEY = "leadingStock.market";
 
 function DomesticLeadingStocks({
   market,
