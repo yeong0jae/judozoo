@@ -20,7 +20,6 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import IndexDetailPanel from "../components/common/IndexDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
-import { buildSignalPrompt } from "../lib/signalPrompt";
 
 const MIN_RATE_KEY = "signalLog.minRate";
 
@@ -434,42 +433,6 @@ function SignalLogPageInner() {
     return () => window.removeEventListener("keydown", onKey);
   }, [events, openKey]);
 
-  // 정제된 시그널 로그를 클립보드로 — 분석 지시 없이 데이터만(사용자가 직접 프롬프트 작성).
-  // Clipboard API는 HTTPS/localhost에서만 동작하므로 HTTP 배포본을 위해 execCommand로 폴백한다.
-  const [copied, setCopied] = useState(false);
-  const copyPrompt = async () => {
-    const text = buildSignalPrompt(date, events, allMarketEvents);
-    let ok = false;
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(text);
-        ok = true;
-      } catch {
-        ok = false;
-      }
-    }
-    if (!ok) {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        ok = document.execCommand("copy");
-      } catch {
-        ok = false;
-      }
-      document.body.removeChild(ta);
-    }
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } else {
-      alert("복사에 실패했어요. 브라우저 권한을 확인해 주세요.");
-    }
-  };
-
   return (
     <div className="space-y-4">
       <HolidayBanner />
@@ -488,14 +451,6 @@ function SignalLogPageInner() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={copyPrompt}
-            disabled={events.length === 0 && allMarketEvents.length === 0}
-            className="text-xs px-2.5 py-1 rounded-md bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {copied ? "복사됨" : "📋 로그 복사"}
-          </button>
           {(data || marketQ.data) && (
             <span className="text-xs text-zinc-300 font-medium">{feed.length}건</span>
           )}
