@@ -20,16 +20,18 @@ class Test로그인_없이_열어둔_경로:
     def test_주도주_목록과_공개_지표는_누구나_본다(self, path):
         assert is_public(path)
 
-    def test_끝에_빗금이_붙으면_막힌다(self):
-        """지금 동작을 그대로 적어 둔다 — 의도한 것은 아닐 수 있다.
-
-        허용목록을 `|`로 이어 붙인 뒤 `/?$`를 덧붙이는데, 교대(`|`)가 우선순위가
-        가장 낮아 그 꼬리가 **마지막 항목에만** 걸린다. 그래서 `/api/auth/x/`는
-        통과하고 `/api/market/kospi/`는 막힌다. 전체를 묶으면 고쳐지지만,
-        공개 범위가 넓어지는 변경이라 여기서는 건드리지 않는다.
-        """
-        assert not is_public("/api/market/kospi/")
-        assert is_public("/api/auth/google/callback/")
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/api/market/kospi/",
+            "/api/leading-stocks/candidates/",
+            "/api/overseas-leading-stocks/ranking/",
+            "/api/auth/google/callback/",
+        ],
+    )
+    def test_끝의_빗금은_같은_경로로_본다(self, path):
+        """허용목록 전체를 묶지 않으면 이 꼬리가 마지막 항목에만 걸린다."""
+        assert is_public(path)
 
 
 class Test로그인을_요구하는_경로:

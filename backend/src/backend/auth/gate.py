@@ -28,7 +28,9 @@ _PUBLIC_PATTERNS = [
     r"/api/auth/.*",
 ]
 
-_PUBLIC = re.compile("|".join(f"(?:{p})" for p in _PUBLIC_PATTERNS) + r"/?$")
+# 전체를 한 번 더 묶어야 끝의 `/?`가 모든 항목에 걸린다 —
+# `|`가 우선순위가 가장 낮아, 묶지 않으면 마지막 항목에만 붙는다.
+_PUBLIC = re.compile("(?:" + "|".join(f"(?:{p})" for p in _PUBLIC_PATTERNS) + r")/?$")
 
 
 def is_public(path: str) -> bool:
