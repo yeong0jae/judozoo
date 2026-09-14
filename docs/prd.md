@@ -72,8 +72,6 @@
 
 | 시그널 | 의미 |
 |--------|------|
-| `BREAKOUT` | 돌파 |
-| `BREAKOUT_IMMINENT` | 돌파 임박 |
 | `VOLUME_SPIKE` | 거래량 스파이크 |
 | `MA_REBOUND` / `MA_BREAKDOWN` | 1분봉 60이평 반등·이탈 |
 

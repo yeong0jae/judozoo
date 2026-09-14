@@ -102,7 +102,7 @@ Backend (Python + FastAPI, package by feature)
 
 | 엔티티 | 내용 |
 |--------|------|
-| `SignalEvent` | 종목 전이 — BREAKOUT / BREAKOUT_IMMINENT / VOLUME_SPIKE / MA_REBOUND / MA_BREAKDOWN |
+| `SignalEvent` | 종목 전이 — VOLUME_SPIKE / MA_REBOUND / MA_BREAKDOWN (돌파·임박은 2026-09-13 제거, 옛 행은 이력) |
 | `MarketSignalEvent` | 시장 전이 — NET_BUY_LEVEL / NET_FLOW_TURN / MA_REBOUND / MA_BREAKDOWN |
 | `OverseasSignalEvent` | 해외 종목 전이 |
 | `MarketFlowStateSnapshot` | 순매수 흐름 상태 (전이 판정의 직전 상태 보관) |
