@@ -21,7 +21,7 @@ export default function Sidebar() {
             to={n.to}
             title={n.full}
             className={({ isActive }) =>
-              `flex w-[4.5rem] flex-col items-center gap-1 rounded-lg py-2 text-[11px] transition-colors ${
+              `flex w-[4.5rem] flex-col items-center gap-1 rounded-lg py-2 text-[13px] transition-colors ${
                 isActive
                   ? "bg-zinc-800 text-zinc-100"
                   : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
