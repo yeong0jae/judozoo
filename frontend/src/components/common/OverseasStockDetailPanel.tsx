@@ -6,7 +6,6 @@ import {
 } from "../../api/queries";
 import type {
   OverseasFilterResult,
-  OverseasSwingHighSignal,
 } from "../../types";
 import { formatPct, formatUsd } from "../../lib/format";
 import ProfitText from "./ProfitText";
@@ -125,9 +124,6 @@ export default function OverseasStockDetailPanel({
                   <Field label="거래대금" value={`$${Math.round(d.tradingValue).toLocaleString("en-US")}`} />
                   <Field label="종목명" value={d.name} span2 />
                 </dl>
-                {d.swingHighSignal && (
-                  <BreakoutSignalSection signal={d.swingHighSignal} currentPrice={d.price} />
-                )}
               </div>
             </div>
           )
@@ -217,73 +213,5 @@ function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
         </div>
       ))}
     </div>
-  );
-}
-
-function formatElapsed(ms: number): string {
-  const min = Math.floor(ms / 60000);
-  if (min <= 0) return "방금";
-  if (min < 60) return `${min}분 전`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m === 0 ? `${h}시간 전` : `${h}시간 ${m}분 전`;
-}
-
-function breakoutStatus(gapRate: number): { label: string; chip: string; gap: string } {
-  if (gapRate <= 0)
-    return { label: "돌파", chip: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
-  if (gapRate < 2.0)
-    return { label: "임박", chip: "bg-amber-500/20 text-amber-300", gap: "text-amber-300" };
-  if (gapRate < 4.0)
-    return { label: "주시", chip: "bg-amber-500/15 text-amber-400", gap: "text-amber-400" };
-  return { label: "관망", chip: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-200" };
-}
-
-function BreakoutSignalSection({
-  signal,
-  currentPrice,
-}: {
-  signal: OverseasSwingHighSignal;
-  currentPrice: number;
-}) {
-  const broke = signal.gapRate <= 0;
-  const peakDate = new Date(signal.peakAt);
-  const peakTime = peakDate.toTimeString().slice(0, 5);
-  const elapsed = formatElapsed(Date.now() - peakDate.getTime());
-  const gap = signal.peakPrice - currentPrice;
-  const status = breakoutStatus(signal.gapRate);
-
-  return (
-    <section>
-      <div className="flex items-baseline justify-between mb-3">
-        <span className="text-sm font-semibold text-zinc-400">주도주 돌파 매매 시그널</span>
-        <span className="text-xs text-zinc-600">최근 2거래일 고가</span>
-      </div>
-      <div className="bg-zinc-900 rounded-2xl p-4">
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs text-zinc-400">돌파선</span>
-          <span className="flex items-baseline gap-2">
-            <span className="num text-sm font-semibold text-zinc-100">${formatUsd(signal.peakPrice)}</span>
-            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${status.chip}`}>{status.label}</span>
-          </span>
-        </div>
-        <div className="mt-1 text-xs text-zinc-500 num">
-          {peakDate.getDate()}일 {peakTime} 형성 · {elapsed}
-        </div>
-        <div className="my-3 h-px bg-zinc-800" />
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs text-zinc-400">현재가</span>
-          <span className="num text-sm text-zinc-300">${formatUsd(currentPrice)}</span>
-        </div>
-        <div className="mt-2 flex items-baseline justify-between">
-          <span className="text-xs text-zinc-400">{broke ? "돌파" : "돌파까지"}</span>
-          <span className={`num text-sm font-semibold ${status.gap}`}>
-            {broke
-              ? `$${formatUsd(-gap)} (+${(-signal.gapRate).toFixed(1)}%)`
-              : `$${formatUsd(gap)} (${signal.gapRate.toFixed(1)}%)`}
-          </span>
-        </div>
-      </div>
-    </section>
   );
 }
