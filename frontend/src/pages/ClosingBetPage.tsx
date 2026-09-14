@@ -1429,7 +1429,7 @@ export default function ClosingBetPage() {
     if (!PUBLIC_SLUGS.has(ix.slug)) {
       return (
         <div className="flex flex-col gap-3">
-          <LoginGate title="지수 · 수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />
+          <LoginGate title="지수·수급" description="지수와 선물, 투자자 수급, 프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />
           <div className="text-center">
             <Link
               to={`/market-analysis/${PUBLIC_DEFAULT_SLUG}`}
@@ -1447,7 +1447,7 @@ export default function ClosingBetPage() {
         <SubjectDetail ix={ix} />
         <LoginGate
           title="나머지 지수도 보려면"
-          description="코스피·코스닥과 선물, 투자자 수급·프로그램매매는 로그인 뒤에 열립니다."
+          description="코스피·코스닥과 선물, 투자자 수급, 프로그램매매는 로그인 뒤에 열립니다."
         />
       </div>
     );

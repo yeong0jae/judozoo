@@ -120,7 +120,7 @@ function BreakoutRadarPageInner() {
     <div className="space-y-4">
       <HolidayBanner />
       <PageHeader
-        title="지지 · 저항"
+        title="지지·저항"
         subtitle={
           mode === "resistance"
             ? "주도주가 최근 3거래일 고가(저항선)에 얼마나 가까운지 · 근접 순"
@@ -374,7 +374,7 @@ export default function BreakoutRadarPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
   if (!me?.authenticated) {
-    return <LoginGate title="지지 · 저항" description="주도주가 최근 3거래일 고가(저항선)와 저가(지지선)에 얼마나 가까운지 보여줍니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+    return <LoginGate title="지지·저항" description="주도주가 최근 3거래일 고가(저항선)와 저가(지지선)에 얼마나 가까운지 보여줍니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
   }
   return <BreakoutRadarPageInner />;
 }

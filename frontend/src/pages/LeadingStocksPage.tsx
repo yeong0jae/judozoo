@@ -173,7 +173,7 @@ function DomesticLeadingStocks({
             ) : (
               <LoginGate
                 title="종목 상세"
-                description="필터 평가·분봉·일봉·투자자 수급을 종목별로 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
+                description="필터 평가, 분봉, 일봉, 투자자 수급을 종목별로 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
               />
             )}
           </aside>
