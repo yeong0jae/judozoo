@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useTheme, type ThemeMode } from "../../theme/theme";
 
 export default function SettingsButton() {
@@ -9,7 +10,9 @@ export default function SettingsButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200 transition-colors"
+        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+          open ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
+        }`}
         aria-label="설정"
       >
         {/* nav 아이콘과 같은 24 그리드·1.8 획 */}
@@ -23,30 +26,39 @@ export default function SettingsButton() {
   );
 }
 
+/**
+ * 설정 모달.
+ *
+ * body로 포털한다 — 트리거가 좌측 레일 안에 있어서, 그대로 두면 `fixed`가
+ * 레일 폭에 갇혀 모달이 찌그러진다.
+ */
 function SettingsModal({ onClose }: { onClose: () => void }) {
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full"
+        className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">설정</h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-zinc-100">설정</h3>
           <button
+            type="button"
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200"
+            aria-label="닫기"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
           >
-            ×
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
-        <div className="space-y-3">
-          <ThemeRow />
-        </div>
+        <ThemeRow />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -58,18 +70,19 @@ function ThemeRow() {
     { value: "system", label: "시스템" },
   ];
   return (
-    <div className="p-3 -mx-3">
-      <div className="text-sm mb-2">테마</div>
-      <div className="flex gap-1 p-1 rounded-lg bg-zinc-800 border border-zinc-700">
+    <div>
+      <div className="mb-2 text-sm text-zinc-300">테마</div>
+      {/* 앱의 다른 세그먼트와 같은 규칙 — 눌린 트랙 위로 선택 칸이 떠오른다 */}
+      <div className="flex gap-1 rounded-xl bg-zinc-800 p-1">
         {options.map((o) => (
           <button
             key={o.value}
             type="button"
             onClick={() => set(o.value)}
-            className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               mode === o.value
-                ? "bg-blue-500 text-white"
-                : "text-zinc-300 hover:text-zinc-100"
+                ? "bg-elevated text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             {o.label}

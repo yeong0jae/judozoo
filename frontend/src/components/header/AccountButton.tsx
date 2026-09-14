@@ -49,9 +49,9 @@ export default function AccountButton({
         aria-expanded={open}
         title={me?.email ?? "로그인"}
         className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-          open || authed
-            ? "text-zinc-100 bg-zinc-800"
-            : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
+          open
+            ? "bg-zinc-800 text-zinc-100"
+            : `hover:bg-zinc-850 hover:text-zinc-200 ${authed ? "text-zinc-300" : "text-zinc-500"}`
         }`}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
