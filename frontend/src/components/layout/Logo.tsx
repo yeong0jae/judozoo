@@ -6,8 +6,8 @@
  * nav 아이콘과 같은 24 그리드를 쓰되, 로고는 면으로 채워 선 아이콘들과 위계를 나눈다.
  */
 
-// 차트가 양봉에 쓰는 값과 같은 빨강(CandleChart·IndexLineChart와 동일). 테마와 무관한 브랜드 상수다.
-const UP = "#f43f5e";
+// 팔레트의 상승·손익 빨강(--color-rose-500)과 같은 값. 테마와 무관한 브랜드 상수라 리터럴로 둔다.
+const UP = "#f04452";
 
 export default function Logo({ size = 28 }: { size?: number }) {
   return (

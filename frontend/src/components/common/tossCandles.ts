@@ -4,7 +4,7 @@ import type { CandlestickData, HistogramData, UTCTimestamp } from "lightweight-c
 import type { CandleSeries } from "../common/CandleChart";
 import type { MarketCandleItem } from "../../types";
 
-const UP = "rgba(244,63,94,0.5)"; // 상승 빨강
+const UP = "rgba(240,68,82,0.5)"; // 상승 빨강
 const DOWN = "rgba(59,130,246,0.5)"; // 하락 파랑
 
 /** 일봉 — time은 영업일(yyyy-MM-dd), 오름차순. */

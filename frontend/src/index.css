@@ -199,9 +199,9 @@ body {
      배경은 색조 translucent, 텍스트는 밝은 동계 색으로 readable. */
 
   /* rose */
-  --color-rose-50: rgba(244, 63, 94, 0.12);
-  --color-rose-100: rgba(244, 63, 94, 0.20);
-  --color-rose-200: rgba(244, 63, 94, 0.30);
+  --color-rose-50: rgba(240, 68, 82, 0.12);
+  --color-rose-100: rgba(240, 68, 82, 0.20);
+  --color-rose-200: rgba(240, 68, 82, 0.30);
   --color-rose-800: #fda4af;
 
   /* amber */

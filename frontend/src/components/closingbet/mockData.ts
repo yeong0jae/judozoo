@@ -3,7 +3,7 @@
 import type { UTCTimestamp } from "lightweight-charts";
 import type { CandleSeries } from "../common/CandleChart";
 
-const UP = "rgba(244,63,94,0.5)"; // 상승 빨강 (CandleChart와 동일 톤)
+const UP = "rgba(240,68,82,0.5)"; // 상승 빨강 (CandleChart와 동일 톤)
 const DOWN = "rgba(59,130,246,0.5)"; // 하락 파랑
 
 export interface CbStock {

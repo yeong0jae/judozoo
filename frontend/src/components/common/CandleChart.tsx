@@ -13,7 +13,7 @@ import {
 } from "lightweight-charts";
 import type { DailyCandleItem, MinuteCandleItem } from "../../types";
 
-const UP = "rgba(244,63,94,0.5)"; // 상승 빨강
+const UP = "rgba(240,68,82,0.5)"; // 상승 빨강
 const DOWN = "rgba(59,130,246,0.5)"; // 하락 파랑
 // 이평선 보라 — 캔들(빨강·파랑)과도, 저항선 주황·지지선 하늘색과도 겹치지 않는 색.
 const MA = "#a78bfa";
@@ -117,9 +117,9 @@ export default function CandleChart({
       crosshair: { mode: 0 },
     });
     seriesRef.current = chart.addCandlestickSeries({
-      upColor: "#f43f5e",
+      upColor: "#f04452",
       downColor: "#3b82f6",
-      wickUpColor: "#f43f5e",
+      wickUpColor: "#f04452",
       wickDownColor: "#3b82f6",
       borderVisible: false,
       // 가격축: priceDecimals 자리(원=0, 달러=2) + 천 단위 쉼표

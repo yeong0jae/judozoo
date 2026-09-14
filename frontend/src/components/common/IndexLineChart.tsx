@@ -9,7 +9,7 @@ import {
 } from "lightweight-charts";
 import type { IndexMinuteCandleItem } from "../../types";
 
-const UP = "#f43f5e"; // 상승 빨강
+const UP = "#f04452"; // 상승 빨강
 const DOWN = "#3b82f6"; // 하락 파랑
 
 /**
