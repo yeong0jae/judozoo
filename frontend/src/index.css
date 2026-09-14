@@ -98,6 +98,11 @@ body {
   font-family: var(--font-sans);
   background-color: var(--page-bg);
   color: var(--text-primary);
+  /* 한국어는 기본 줄바꿈이 글자 단위라 "봅니다"가 "봅 / 니다"로 갈린다 — 어절 단위로 끊는다.
+     긴 영문·URL은 넘칠 수 있어 overflow-wrap으로 그때만 강제로 자른다
+     (anywhere가 아니라 break-word — anywhere는 최소 너비 계산까지 바꿔 표 폭이 틀어진다). */
+  word-break: keep-all;
+  overflow-wrap: break-word;
   /* 트레이딩 화면 — 숫자 세로 정렬을 전역 기본값으로 */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
