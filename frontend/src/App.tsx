@@ -31,10 +31,12 @@ function AppShell() {
   useTabTitle();
   const location = useLocation();
   return (
-    <div className="min-h-full flex">
+    <div className="flex min-h-full flex-col">
+      {/* 헤더가 전체 폭을 쓴다 — 워드마크가 레일(80px)보다 넓다 */}
+      <Header />
+      <div className="flex flex-1 min-h-0">
       <Sidebar />
       <div className="flex flex-1 min-w-0 flex-col">
-      <Header />
       <main className="flex-1 max-w-[110rem] mx-auto w-full px-4 sm:px-6 py-4 sm:py-6">
         <AnimatePresence mode="wait">
           <motion.div
@@ -59,6 +61,7 @@ function AppShell() {
         </AnimatePresence>
       </main>
       <Footer />
+      </div>
       </div>
     </div>
   );

@@ -1,22 +1,16 @@
 import { NavLink } from "react-router-dom";
 import { NAV } from "./nav";
-import Logo from "./Logo";
 import AccountButton from "../header/AccountButton";
 import SettingsButton from "../header/SettingsButton";
 
-/** 좌측 고정 레일. 모바일에서는 숨기고 Header의 드로어가 대신한다. */
+/**
+ * 좌측 고정 레일. 모바일에서는 숨기고 Header의 드로어가 대신한다.
+ * 헤더(h-14)가 전체 폭을 쓰므로 그 아래에 붙고, 높이도 그만큼 뺀다.
+ */
 export default function Sidebar() {
   return (
-    <aside className="hidden md:flex sticky top-0 h-dvh w-20 shrink-0 flex-col items-center border-r border-zinc-800 bg-zinc-950">
-      <NavLink
-        to="/leading-stocks"
-        className="flex h-14 w-full items-center justify-center text-zinc-100"
-        title="judozoo"
-      >
-        <Logo />
-      </NavLink>
-
-      <nav className="flex w-full flex-col items-center gap-1 py-2">
+    <aside className="hidden md:flex sticky top-14 h-[calc(100dvh-3.5rem)] w-20 shrink-0 flex-col items-center border-r border-zinc-800 bg-zinc-950">
+      <nav className="flex w-full flex-col items-center gap-1 py-3">
         {NAV.map((n) => (
           <NavLink
             key={n.to}
