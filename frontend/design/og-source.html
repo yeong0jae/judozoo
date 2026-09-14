@@ -37,8 +37,8 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: 34px;
-        padding: 0 104px;
+        gap: 40px;
+        padding: 0 88px;
         box-sizing: border-box;
         position: relative;
         overflow: hidden;
@@ -52,8 +52,8 @@
           linear-gradient(to right, #f1f3f5 1px, transparent 1px),
           linear-gradient(to bottom, #f1f3f5 1px, transparent 1px);
         background-size: 60px 60px;
-        mask-image: linear-gradient(115deg, transparent 45%, #000 100%);
-        -webkit-mask-image: linear-gradient(115deg, transparent 45%, #000 100%);
+        mask-image: linear-gradient(120deg, transparent 30%, #000 105%);
+        -webkit-mask-image: linear-gradient(120deg, transparent 30%, #000 105%);
       }
 
       .row {
@@ -75,12 +75,13 @@
       .tagline {
         position: relative;
         margin: 0;
-        font-size: 34px;
+        font-size: 42px;
         font-weight: 500;
-        line-height: 1.45;
-        letter-spacing: -0.02em;
+        line-height: 1.4;
+        letter-spacing: -0.025em;
         color: #4e5968;
-        max-width: 17ch;
+        /* 한국어는 기본 줄바꿈이 글자 단위라 단어 중간이 끊긴다 */
+        word-break: keep-all;
       }
 
       .tagline b {
@@ -125,7 +126,7 @@
       </div>
 
       <p class="tagline">
-        장중 <b>주도주 후보</b>와 돌파·스파이크·반등 전이를 한 화면에
+        <b>주도주</b>와 시그널, 지지·저항, 지수·수급을<br />한 화면에
       </p>
 
       <div class="foot">
