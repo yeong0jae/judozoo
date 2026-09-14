@@ -180,7 +180,7 @@ function RankingTable({
               {idx === 3 && <GroupHeader label="주도주 후보" />}
               <tr
                 data-stock-code={s.symbol}
-                className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-900 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
+                className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
                   isSelected ? "[&>td]:bg-emerald-900" : ""
                 }`}
                 onClick={() => onOpen(s.symbol)}

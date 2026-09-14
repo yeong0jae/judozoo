@@ -30,8 +30,9 @@
   --color-zinc-600: #b0b8c1;
   --color-zinc-700: #d1d6db;
   --color-zinc-800: #e5e8eb; /* 카드 경계선 */
-  --color-zinc-900: #f7f8f9; /* 카드 표면 */
-  --color-zinc-950: #ffffff; /* 페이지 베이스 */
+  --color-zinc-850: #f1f3f5; /* 호버·옅은 채움 */
+  --color-zinc-900: #ffffff; /* 카드 표면 — 회색 바탕 위로 떠 있는 흰 면 */
+  --color-zinc-950: #ffffff; /* 헤더·레일·세그먼트 썸 등 흰 면 */
 
   /* 액센트 — 매매 시작 / 강조 = Toss Blue */
   --color-emerald-600: #1b64da; /* CTA hover */
@@ -53,8 +54,8 @@
   --color-rose-700: #be1f2c;
 
   /* 시멘틱 토큰 */
-  --color-surface: #f7f8f9;
-  --color-surface-2: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f6f8;
   --color-border-soft: #e5e8eb;
   --color-text-muted: #4e5968;
   --color-text-subtle: #6b7684;
@@ -86,7 +87,7 @@ html {
 
 /* 페이지 베이스/본문 색상 — 라이트 기본값. .dark에서 오버라이드 */
 :root {
-  --page-bg: #ffffff;
+  --page-bg: #f4f6f8;
   --text-primary: #191f28;
 }
 
@@ -180,6 +181,7 @@ body {
   --color-zinc-600: #4e5968;
   --color-zinc-700: #333d4b;
   --color-zinc-800: rgba(255, 255, 255, 0.08); /* 카드 경계선 */
+  --color-zinc-850: #26272c; /* 호버·옅은 채움 */
   --color-zinc-900: #1f2024; /* 카드 표면 */
   --color-zinc-950: #17181c; /* 페이지 베이스(이미 위에서 var로 적용) */
 

@@ -12,7 +12,7 @@ export default function AuthButton() {
       <button
         type="button"
         onClick={goLogin}
-        className="px-2.5 py-1.5 rounded-lg text-xs text-zinc-300 hover:bg-zinc-900 border border-zinc-800"
+        className="px-2.5 py-1.5 rounded-lg text-xs text-zinc-300 hover:bg-zinc-850 border border-zinc-800"
       >
         로그인
       </button>
@@ -25,7 +25,7 @@ export default function AuthButton() {
       onClick={() => logout.mutate()}
       disabled={logout.isPending}
       title={me.email ?? undefined}
-      className="px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:bg-zinc-900 border border-zinc-800 disabled:opacity-50"
+      className="px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:bg-zinc-850 border border-zinc-800 disabled:opacity-50"
     >
       {me.email?.split("@")[0]} · 로그아웃
     </button>

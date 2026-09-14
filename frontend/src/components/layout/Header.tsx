@@ -57,7 +57,7 @@ export default function Header() {
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                   isActive
                     ? "bg-zinc-800 text-zinc-100"
-                    : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                    : "text-zinc-400 hover:bg-zinc-850 hover:text-zinc-100"
                 }`
               }
             >

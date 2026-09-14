@@ -196,7 +196,7 @@ function MacroCell({
       type="button"
       onClick={onSelect}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
-        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-900"
+        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-850"
       }`}
     >
       <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
@@ -256,7 +256,7 @@ function IndexCell({
       type="button"
       onClick={onSelect}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
-        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-900"
+        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-850"
       }`}
     >
       <span className="flex items-center gap-1.5 text-[14px] font-medium text-zinc-300">
@@ -831,7 +831,7 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
                 return (
                   <tr
                     key={s.name}
-                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900`}
+                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850`}
                   >
                     <td className="text-left py-2 pr-3">
                       <div className="text-zinc-300">{s.name}</div>
@@ -926,7 +926,7 @@ function FuturesDailyCard({ market }: { market: MarketType }) {
               {records.map((r) => (
                 <tr
                   key={r.date}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850"
                 >
                   <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
                   <td className="text-right py-2 px-2.5">
@@ -1192,7 +1192,7 @@ function InvestorDailyTable({
               {records.map((r) => (
                 <tr
                   key={r.date}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850"
                 >
                   <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
                   <td className="text-right py-2 px-2.5">
@@ -1260,7 +1260,7 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
                 return (
                   <tr
                     key={s.name}
-                    className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
+                    className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850"
                   >
                     <td className="text-left py-2 pr-3">
                       <div className="text-zinc-300">{s.name}</div>
@@ -1323,7 +1323,7 @@ function ProgramDailyTable({ market }: { market: MarketType }) {
               {records.map((r) => (
                 <tr
                   key={r.date}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850"
                 >
                   <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
                   <td className="text-right py-2 px-2.5 font-medium"><NetNum eok={r.totalEok} /></td>
@@ -1400,7 +1400,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                 return (
                   <tr
                     key={s.name}
-                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900`}
+                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850`}
                   >
                     <td className="text-left py-2 pr-3">
                       <div className="text-zinc-300">{s.name}</div>

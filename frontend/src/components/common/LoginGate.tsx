@@ -16,7 +16,7 @@ export default function LoginGate({ title, description }: { title: string; descr
       <button
         type="button"
         onClick={goLogin}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-zinc-900 text-sm font-medium hover:bg-zinc-200"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-100 text-sm font-medium hover:bg-zinc-850"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
           <path fill="#4285F4" d="M22.5 12.2c0-.8-.07-1.4-.2-2.1H12v3.9h6c-.13 1-.8 2.6-2.3 3.6l3.5 2.7c2.1-1.9 3.3-4.8 3.3-8.1z" />

@@ -163,7 +163,7 @@ function renderMarketRow(
       <button
         type="button"
         onClick={onClick}
-        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-900 transition-colors ${
+        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-850 transition-colors ${
           selected ? "bg-emerald-900/30" : ""
         }`}
       >
@@ -194,7 +194,7 @@ function renderMarketRow(
       </button>
 
       {open && (
-        <div className="px-4 pb-4 pt-3 bg-zinc-900">
+        <div className="px-4 pb-4 pt-3 bg-zinc-850">
           <table className="w-full text-xs num border-separate border-spacing-y-0.5">
             <thead className="text-zinc-600">
               <tr>
@@ -310,7 +310,7 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   const ordered = journey; // 최신 → 오래된
 
   return (
-    <div className="px-4 pb-4 pt-3 bg-zinc-900">
+    <div className="px-4 pb-4 pt-3 bg-zinc-850">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <Stat label="누적 거래대금" value={formatKoreanMoney(accTradingValue)} />
         <Stat label="오늘 돌파" value={`${breakouts}회`} valueClass="text-emerald-400" />
@@ -541,7 +541,7 @@ function SignalLogPageInner() {
                         setSelectedMarket(null);
                         setOpenKey(open ? null : rowKey);
                       }}
-                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-900 transition-colors ${
+                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-850 transition-colors ${
                         e.stockCode === selectedCode ? "bg-emerald-900/30" : ""
                       }`}
                     >

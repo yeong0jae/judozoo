@@ -6,13 +6,13 @@ export const CHANGE_RATE_OPTIONS = [-12, -7, -5, -3, 0, 3, 5, 7];
 
 // 한국 거래소 관행 — 상승(양수) 빨강 / 하락(음수) 파랑 / 0 중립
 function thumbTone(rate: number): string {
-  if (rate > 0) return "bg-red-500/20";
-  if (rate < 0) return "bg-blue-500/20";
+  if (rate > 0) return "bg-red-500/15";
+  if (rate < 0) return "bg-blue-500/15";
   return "bg-zinc-950";
 }
 function textTone(rate: number, active: boolean): string {
-  if (rate > 0) return active ? "text-red-300" : "text-red-400/70";
-  if (rate < 0) return active ? "text-blue-300" : "text-blue-400/70";
+  if (rate > 0) return active ? "text-red-700" : "text-red-600/70";
+  if (rate < 0) return active ? "text-blue-700" : "text-blue-600/70";
   return active ? "text-zinc-100" : "text-zinc-400";
 }
 

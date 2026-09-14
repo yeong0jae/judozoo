@@ -244,7 +244,7 @@ function RadarRow({
       }}
       data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
-      className={`transition-colors cursor-pointer hover:[&>td]:bg-zinc-900 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
+      className={`transition-colors cursor-pointer hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
         selected ? "[&>td]:bg-emerald-900/40" : ""
       }`}
     >

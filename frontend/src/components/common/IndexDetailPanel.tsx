@@ -195,7 +195,7 @@ function OrgCell({ label, eok }: { label: string; eok: number }) {
   const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
   const sign = eok > 0 ? "+" : eok < 0 ? "-" : "";
   return (
-    <div className="rounded-md bg-zinc-900 px-1.5 py-1 text-center">
+    <div className="rounded-md bg-zinc-850 px-1.5 py-1 text-center">
       <div className="text-[11px] text-zinc-500">{label}</div>
       <div className={`num text-xs font-medium mt-0.5 ${tone}`}>
         {sign}
