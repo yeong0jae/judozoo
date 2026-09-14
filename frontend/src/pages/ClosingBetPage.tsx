@@ -196,7 +196,7 @@ function MacroCell({
       type="button"
       onClick={onSelect}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
-        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-850"
+        active ? "bg-selected" : "hover:bg-zinc-850"
       }`}
     >
       <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
@@ -256,7 +256,7 @@ function IndexCell({
       type="button"
       onClick={onSelect}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
-        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-850"
+        active ? "bg-selected" : "hover:bg-zinc-850"
       }`}
     >
       <span className="flex items-center gap-1.5 text-[14px] font-medium text-zinc-300">
