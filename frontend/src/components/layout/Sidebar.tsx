@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { NAV } from "./nav";
+import Logo from "./Logo";
 
 /** 좌측 고정 레일. 모바일에서는 숨기고 Header의 드로어가 대신한다. */
 export default function Sidebar() {
@@ -7,10 +8,10 @@ export default function Sidebar() {
     <aside className="hidden md:flex sticky top-0 h-dvh w-20 shrink-0 flex-col items-center border-r border-white/[0.04] bg-zinc-950">
       <NavLink
         to="/leading-stocks"
-        className="flex h-14 w-full items-center justify-center text-sm font-bold tracking-tight text-zinc-100"
+        className="flex h-14 w-full items-center justify-center text-zinc-100"
         title="judozoo"
       >
-        J
+        <Logo />
       </NavLink>
 
       <nav className="flex w-full flex-col items-center gap-1 py-2">
