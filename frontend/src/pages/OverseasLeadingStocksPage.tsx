@@ -11,6 +11,7 @@ import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
 } from "../components/common/ChangeRateSelector";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
+import PageHeader from "../components/layout/PageHeader";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import HolidayBanner from "../components/common/HolidayBanner";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
@@ -125,25 +126,12 @@ function Header({
   loading: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
-      <div>
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          주도주 후보
-          <span
-            className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
-              loading ? "animate-ping" : "animate-pulse"
-            }`}
-            aria-label={loading ? "갱신 중" : "대기"}
-          />
-        </h2>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          나스닥·뉴욕·아멕스 통합 거래대금 상위 + 당일 등락률 필터 통과 · 15초 자동 갱신
-        </p>
-      </div>
-      {typeof totalCount === "number" && (
-        <div className="text-xs text-zinc-300 font-medium">{totalCount}건</div>
-      )}
-    </div>
+    <PageHeader
+      title="주도주 필터"
+      subtitle="나스닥·뉴욕·아멕스에서 돈이 몰리고 오른 종목 · 누르면 필터 3개 평가"
+      count={totalCount}
+      loading={loading}
+    />
   );
 }
 

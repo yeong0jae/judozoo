@@ -4,6 +4,7 @@ import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import HolidayBanner from "../components/common/HolidayBanner";
+import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
@@ -204,29 +205,13 @@ function Header({
   loading: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
-      <div>
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          주도주 후보
-          {/* 라이브 인디케이터: 폴링 중엔 ping, 대기 시 pulse — 갱신 중임을 일정하게 시그널 */}
-          <span
-            className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
-              loading ? "animate-ping" : "animate-pulse"
-            }`}
-            aria-label={loading ? "갱신 중" : "대기"}
-          />
-        </h2>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          거래대금 상위 + 당일 등락률 필터 통과 종목 · 5초 자동 갱신
-        </p>
-      </div>
-      <div className="text-xs text-zinc-500 flex items-center gap-2">
-        {queriedAt && <span>조회 {formatRelative(queriedAt)}</span>}
-        {typeof totalCount === "number" && (
-          <span className="text-zinc-300 font-medium">{totalCount}건</span>
-        )}
-      </div>
-    </div>
+    <PageHeader
+      title="주도주 필터"
+      subtitle="오늘 돈이 몰리고 오른 종목 · 누르면 필터 8개 평가"
+      count={totalCount}
+      queriedAt={queriedAt ? formatRelative(queriedAt) : undefined}
+      loading={loading}
+    />
   );
 }
 

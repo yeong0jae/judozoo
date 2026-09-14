@@ -13,6 +13,7 @@ import type {
 import { formatEok, formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import HolidayBanner from "../components/common/HolidayBanner";
+import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
@@ -437,24 +438,12 @@ function SignalLogPageInner() {
   return (
     <div className="space-y-4">
       <HolidayBanner />
-      <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            주도주 시그널
-            <span
-              className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
-                eventsQ.isFetching ? "animate-ping" : "animate-pulse"
-              }`}
-            />
-          </h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            선택 날짜의 돌파·임박·스파이크·지수 전이 · 행을 누르면 그 종목의 여정
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {(data || marketQ.data) && (
-            <span className="text-xs text-zinc-300 font-medium">{feed.length}건</span>
-          )}
+      <PageHeader
+        title="주도주 시그널"
+        subtitle="종목 스파이크·반등·꺾임과 지수 시그널 · 누르면 그 종목의 여정"
+        count={data || marketQ.data ? feed.length : undefined}
+        loading={eventsQ.isFetching}
+        trailing={
           <DateNavigator
             date={date}
             onChange={(d) => {
@@ -463,8 +452,8 @@ function SignalLogPageInner() {
               setSelectedMarket(null);
             }}
           />
-        </div>
-      </div>
+        }
+      />
 
       {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

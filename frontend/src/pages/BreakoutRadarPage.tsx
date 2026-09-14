@@ -7,6 +7,7 @@ import type { BreakoutRadarItem } from "../types";
 import { formatKoreanMoney, formatPct, formatPrice, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import HolidayBanner from "../components/common/HolidayBanner";
+import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
@@ -118,29 +119,17 @@ function BreakoutRadarPageInner() {
   return (
     <div className="space-y-4">
       <HolidayBanner />
-      <div className="flex items-baseline justify-between flex-wrap gap-x-3 gap-y-1">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            지지 · 저항
-            <span
-              className={`inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ${
-                radarQ.isFetching ? "animate-ping" : "animate-pulse"
-              }`}
-            />
-          </h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            {mode === "resistance"
-              ? "주도주 후보가 당일 고가(저항선)에 얼마나 가까운지 · 근접 순 · 5초 자동 갱신"
-              : "주도주 후보가 당일 저가(지지선)에 얼마나 가까운지 · 근접 순 · 5초 자동 갱신"}
-          </p>
-        </div>
-        <div className="text-xs text-zinc-500 flex items-center gap-2">
-          {data?.queriedAt && <span>조회 {formatRelative(data.queriedAt)}</span>}
-          {typeof data?.totalCount === "number" && (
-            <span className="text-zinc-300 font-medium">{data.totalCount}건</span>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="지지 · 저항"
+        subtitle={
+          mode === "resistance"
+            ? "주도주가 당일 고가(저항선)에 얼마나 가까운지 · 근접 순"
+            : "주도주가 당일 저가(지지선)에 얼마나 가까운지 · 근접 순"
+        }
+        count={data?.totalCount}
+        queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
+        loading={radarQ.isFetching}
+      />
 
       {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

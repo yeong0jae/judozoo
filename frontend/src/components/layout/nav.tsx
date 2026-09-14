@@ -15,7 +15,7 @@ export const NAV: NavItem[] = [
   {
     to: "/leading-stocks",
     label: "주도주",
-    full: "주도주 후보",
+    full: "주도주 필터",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" {...s}>
         <path d="M4 6h10M4 12h16M4 18h7" />
