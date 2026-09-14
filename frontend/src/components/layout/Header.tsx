@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import KospiIndexBadge from "../header/KospiIndexBadge";
-import KosdaqIndexBadge from "../header/KosdaqIndexBadge";
 import SettingsButton from "../header/SettingsButton";
 import AuthButton from "../header/AuthButton";
 import { NAV } from "./nav";
 import Wordmark from "./Wordmark";
 
 /**
- * 슬림 상단바. 네비게이션은 좌측 레일(Sidebar)이 맡고 여기엔 지수·설정·로그인만 둔다.
- * 지수 배지는 가로로 넓어 64px 레일에 들어가지 않는다.
+ * 슬림 상단바. 네비게이션은 좌측 레일(Sidebar)이 맡고 여기엔 설정·로그인만 둔다.
  * 모바일에서는 레일이 숨으므로 여기 햄버거가 드로어로 네비를 제공한다.
  */
 export default function Header() {
@@ -38,8 +35,6 @@ export default function Header() {
         <div className="flex-1" />
 
         <div className="flex items-center gap-1">
-          <KospiIndexBadge />
-          <KosdaqIndexBadge />
           <SettingsButton />
           <AuthButton />
         </div>
