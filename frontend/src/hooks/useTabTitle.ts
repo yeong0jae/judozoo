@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { NAV } from "../components/layout/nav";
-import { INDICES } from "../pages/ClosingBetPage";
+import { INDICES } from "../lib/indices";
 
 const BRAND = "judozoo";
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
+import { INDICES, PUBLIC_SLUGS, loadLastSlug, rememberSlug, type IndexInfo } from "../lib/indices";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useFuturesCandles,
@@ -38,36 +39,6 @@ import type {
 } from "../types";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
-const DEFAULT_SLUG = "kospi";
-const LAST_SLUG_KEY = "market-analysis:slug";
-
-/** `/market-analysis`로 그냥 들어오면 마지막에 보던 지수로 보낸다. */
-function loadLastSlug(): string {
-  try {
-    const raw = localStorage.getItem(LAST_SLUG_KEY);
-    return raw && INDICES.some((i) => i.slug === raw) ? raw : DEFAULT_SLUG;
-  } catch {
-    return DEFAULT_SLUG;
-  }
-}
-
-/** 상단 스트립 지수 — 값은 전부 API에서 온다. 여기엔 이름·라우팅만 둔다.
- *  `slug`가 URL이자 탭 제목의 출처다. 지수를 더하면 라우트도 같이 생긴다. */
-type IndexInfo = { id: string; slug: string; name: string; delayed?: boolean };
-export const INDICES: IndexInfo[] = [
-  { id: "kospi", slug: "kospi", name: "코스피" },
-  { id: "kospiF", slug: "kospi-futures", name: "코스피 선물" },
-  { id: "kosdaq", slug: "kosdaq", name: "코스닥" },
-  { id: "kosdaqF", slug: "kosdaq-futures", name: "코스닥 선물" },
-  { id: "nightF", slug: "night-futures", name: "코스피 야간 선물" },
-  { id: "nasdaq", slug: "nasdaq", name: "나스닥" },
-  // 지표 하나가 아니라 원달러·WTI 묶음이라 스트립에서 전용 칸을 쓴다.
-  { id: "macro", slug: "macro", name: "매크로" },
-];
-
-/** 로그인 없이 볼 수 있는 지수. 백엔드 허용목록(auth/gate.py)과 짝을 맞춘다. */
-const PUBLIC_SLUGS = new Set(["night-futures"]);
-
 /** 실시간이 아닌 시세임을 알리는 배지. */
 function DelayBadge() {
   return (
@@ -81,7 +52,7 @@ function DelayBadge() {
  */
 function ClosingBetPageInner({ ix }: { ix: IndexInfo }) {
   useEffect(() => {
-    localStorage.setItem(LAST_SLUG_KEY, ix.slug);
+    rememberSlug(ix.slug);
   }, [ix.slug]);
 
   return (
