@@ -8,12 +8,15 @@ import {
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
+  type LineData,
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { DailyCandleItem, MinuteCandleItem } from "../../types";
 
 const UP = "rgba(244,63,94,0.5)"; // 상승 빨강
 const DOWN = "rgba(59,130,246,0.5)"; // 하락 파랑
+// 이평선 보라 — 캔들(빨강·파랑)과도, 저항선 주황·지지선 하늘색과도 겹치지 않는 색.
+const MA = "#a78bfa";
 
 export interface CandleSeries {
   candles: CandlestickData[];
@@ -50,12 +53,28 @@ export function dailySeries(items: DailyCandleItem[]): CandleSeries {
   return { candles, volumes };
 }
 
+/**
+ * 종가 단순이평. 창이 다 차기 전 구간은 그리지 않는다.
+ * 정의(종가 합 ÷ 기간)는 백엔드 반등·꺾임 판정과 같아, 선을 넘는 순간이 시그널이 뜨는 순간이다.
+ */
+function movingAverage(candles: CandlestickData[], period: number): LineData[] {
+  const out: LineData[] = [];
+  let sum = 0;
+  for (let i = 0; i < candles.length; i++) {
+    sum += candles[i].close;
+    if (i >= period) sum -= candles[i - period].close;
+    if (i >= period - 1) out.push({ time: candles[i].time, value: sum / period });
+  }
+  return out;
+}
+
 /** 한국 관행: 상승 빨강, 하락 파랑. 가격축 정수+쉼표, 하단 거래량 막대. */
 export default function CandleChart({
   series,
   timeVisible = true,
   priceLines,
   priceDecimals = 0,
+  maPeriod,
   className = "w-full h-48",
 }: {
   series: CandleSeries;
@@ -63,12 +82,15 @@ export default function CandleChart({
   /** 가로 기준선들 — 저항선(고가)·지지선(저가). 값이 바뀌면 통째로 교체한다. */
   priceLines?: { price: number; title: string; color: string }[];
   priceDecimals?: number; // 가격축 소수 자릿수 (국내 원=0, 해외 달러=2)
+  /** 주면 그 기간의 종가 이평선을 겹쳐 그린다. 분봉에만 준다 — 일봉엔 의미가 다르다. */
+  maPeriod?: number;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const maRef = useRef<ISeriesApi<"Line"> | null>(null);
   const priceLineRefs = useRef<IPriceLine[]>([]);
   const fittedRef = useRef(false);
 
@@ -119,6 +141,16 @@ export default function CandleChart({
     });
     volume.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
     volumeRef.current = volume;
+    // 이평선은 캔들과 같은 가격축을 쓴다. 축 라벨·기준선은 끈다 — 저항·지지선이 이미 축을 쓴다.
+    maRef.current = maPeriod
+      ? chart.addLineSeries({
+          color: MA,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        })
+      : null;
     chartRef.current = chart;
 
     return () => {
@@ -126,14 +158,16 @@ export default function CandleChart({
       chartRef.current = null;
       seriesRef.current = null;
       volumeRef.current = null;
+      maRef.current = null;
     };
-  }, [timeVisible, priceDecimals]);
+  }, [timeVisible, priceDecimals, maPeriod]);
 
   useEffect(() => {
     const s = seriesRef.current;
     if (!s) return;
     s.setData(series.candles);
     volumeRef.current?.setData(series.volumes);
+    if (maRef.current && maPeriod) maRef.current.setData(movingAverage(series.candles, maPeriod));
     // 가로 기준선 — 값 바뀌면 통째로 교체
     for (const line of priceLineRefs.current) s.removePriceLine(line);
     priceLineRefs.current = (priceLines ?? []).map((l) =>
@@ -150,7 +184,7 @@ export default function CandleChart({
       chartRef.current?.timeScale().fitContent();
       fittedRef.current = true;
     }
-  }, [series, priceLines]);
+  }, [series, priceLines, maPeriod]);
 
   return <div ref={containerRef} className={className} />;
 }

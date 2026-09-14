@@ -110,6 +110,7 @@ export default function IndexDetailPanel({
               key={`${market}-${chartInterval}`}
               series={chartSeries}
               timeVisible={chartInterval === "1m"}
+              maPeriod={chartInterval === "1m" ? 60 : undefined}
               priceDecimals={2}
               className="w-full h-[28rem]"
             />
