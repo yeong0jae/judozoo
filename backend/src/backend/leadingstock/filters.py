@@ -312,7 +312,7 @@ class MinuteCandleFluctuationFilter(StockFilter):
 
 
 class ProgramNetBuyFilter(StockFilter):
-    name = "프로그램순매수"
+    name = "프로그램 양매수"
 
     def __init__(self, criteria: LeadingStockCriteria, program_net_buy: Callable[[str], int]) -> None:
         self._criteria = criteria

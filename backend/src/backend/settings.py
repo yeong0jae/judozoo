@@ -85,7 +85,7 @@ class LeadingStockCriteria(BaseSettings):
     min_minute_volume_increase_rate: float = 500.0
     min_minute_trading_value: int = 5_000_000_000
     max_minute_fluctuation_rate: float = 4.0
-    min_program_net_buy: int = -10_000            # 백만원
+    min_program_net_buy: int = 0                  # 백만원 — 프로그램이 순매수인 종목만
     max_prev_close_change_rate: float = 25.0
     max_opening_price_change_rate: float = 7.0
 

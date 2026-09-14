@@ -247,12 +247,12 @@ class Test1분봉_등락률:
         assert self.필터([분봉(open_price=0)]).filter(종목()) is False
 
 
-class Test프로그램_순매수:
+class Test프로그램_양매수:
     def 필터(self, 순매수):
-        return f.ProgramNetBuyFilter(기준(min_program_net_buy=-10_000), lambda _c: 순매수)
+        return f.ProgramNetBuyFilter(기준(min_program_net_buy=0), lambda _c: 순매수)
 
-    @pytest.mark.parametrize("순매수,통과", [(5_000, True), (-10_000, True), (-10_001, False)])
-    def test_기준_이상만_통과한다(self, 순매수, 통과):
+    @pytest.mark.parametrize("순매수,통과", [(5_000, True), (0, True), (-1, False)])
+    def test_순매수인_종목만_통과한다(self, 순매수, 통과):
         assert self.필터(순매수).filter(종목()) is 통과
 
     def test_백만원을_원으로_환산해_만원까지_표시한다(self):
