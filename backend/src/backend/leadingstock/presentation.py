@@ -325,7 +325,7 @@ def get_daily_candles(
 
 @router.get("/candidates/{stock_code}")
 def get_stock_detail(stock_code: str) -> ApiResponse[LeadingStockDetailResponse]:
-    """전체 필터(A~H) 평가 결과 + 상대거래량."""
+    """전체 필터 평가 결과 + 상대거래량. 순서는 판별력이 큰 것부터."""
     ev = application.evaluate_stock(stock_code)
     s = ev.stock
     return ApiResponse.ok(

@@ -148,18 +148,24 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         else base
     )
 
-    # 일봉 1회 조회 — 필터 E·F·G가 공유한다
+    # 일봉 1회 조회 — 고가 위치·전일 등락률·시초가 필터가 공유한다
     daily = kiwoom_market.fetch_daily_candles(stock_code, 60)
     criteria = _criteria()
+    # 나열 순서가 곧 화면 표시 순서다. 판별력이 큰 것부터 둔다 —
+    # 주도주를 정의하는 둘 → 진입 자리 → 과열 배제(상한) → 기준이 느슨해 대부분 통과하는 둘.
     all_filters: list[flt.StockFilter] = [
-        flt.TradingValueRankFilter(criteria),   # A
-        flt.DailyPriceChangeFilter(criteria),   # B
-        flt.MarketCapFilter(criteria),          # C
-        flt.PriceAboveOpenFilter(),             # D
-        flt.PrevDayCloseFilter(criteria, lambda _c: daily[:3]),      # E
-        flt.OpeningPriceFilter(criteria, lambda _c: daily[:3]),      # F
-        flt.DailyHighPositionFilter(criteria, lambda _c: daily),     # G
-        flt.ProgramNetBuyFilter(criteria, kiwoom_program.fetch_program_net_buy),  # H
+        # 주도주 정의 — 이 둘만 Phase 1 후보 선별에도 쓰인다
+        flt.TradingValueRankFilter(criteria),
+        flt.DailyPriceChangeFilter(criteria),
+        # 지금 들어갈 자리인가
+        flt.DailyHighPositionFilter(criteria, lambda _c: daily),
+        flt.PriceAboveOpenFilter(),
+        # 이미 다 간 종목 배제(상한)
+        flt.PrevDayCloseFilter(criteria, lambda _c: daily[:3]),
+        flt.OpeningPriceFilter(criteria, lambda _c: daily[:3]),
+        # 하한이 느슨해 거래대금 상위면 대체로 통과한다
+        flt.MarketCapFilter(criteria),
+        flt.ProgramNetBuyFilter(criteria, kiwoom_program.fetch_program_net_buy),
     ]
 
     return StockEvaluation(
