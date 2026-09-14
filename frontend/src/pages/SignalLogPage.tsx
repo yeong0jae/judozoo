@@ -263,10 +263,12 @@ function detailOf(e: SignalEventItem) {
     );
   }
   if (e.eventType === "MA_REBOUND" || e.eventType === "MA_BREAKDOWN") {
+    // 칩·점과 같은 색을 쓴다 — 주황=반등(위), 하늘=꺾임(아래)
+    const up = e.eventType === "MA_REBOUND";
     return (
-      <span className="text-sky-300">
+      <span className={up ? "text-orange-400" : "text-sky-300"}>
         1분 60이평{e.ma != null && ` ${formatPrice(e.ma)}원`}{" "}
-        {e.eventType === "MA_REBOUND" ? "상향돌파" : "하향이탈"}
+        {up ? "상향돌파" : "하향이탈"}
       </span>
     );
   }
