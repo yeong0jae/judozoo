@@ -21,7 +21,7 @@ export default function SessionStrip() {
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mt-0.5">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mt-1">
       {krHoliday ? (
         <Chip dot="bg-[#e0b357]" label="국내 휴장" labelClass="text-[#d9a441] font-semibold" />
       ) : kr ? (
