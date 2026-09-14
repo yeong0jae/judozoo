@@ -4,6 +4,7 @@ import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import HolidayBanner from "../components/common/HolidayBanner";
+import { MIN_CHANGE_RATE_KEY, loadMinChangeRate } from "../lib/changeRate";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
@@ -13,9 +14,7 @@ import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import LoginGate from "../components/common/LoginGate";
 import { useMe } from "../api/auth";
-import ChangeRateSelector, {
-  CHANGE_RATE_OPTIONS,
-} from "../components/common/ChangeRateSelector";
+import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 import OverseasLeadingStocks from "./OverseasLeadingStocksPage";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
@@ -60,11 +59,7 @@ function DomesticLeadingStocks({
   // 목록은 공개, 종목 상세는 로그인 뒤다.
   const { data: me } = useMe();
   // 당일 등락률 임계값(%) — 사용자 선택. 새로고침해도 유지되도록 localStorage에 보관, 기본 7%.
-  const [minChangeRate, setMinChangeRate] = useState(() => {
-    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
-    const saved = Number(raw);
-    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
-  });
+  const [minChangeRate, setMinChangeRate] = useState(loadMinChangeRate);
   useEffect(() => {
     localStorage.setItem(MIN_CHANGE_RATE_KEY, String(minChangeRate));
   }, [minChangeRate]);
@@ -214,8 +209,6 @@ function Header({
     />
   );
 }
-
-const MIN_CHANGE_RATE_KEY = "leadingStock.minChangeRate";
 
 // ============================================================
 // Candidates table

@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import SettingsButton from "../header/SettingsButton";
 import AccountButton from "../header/AccountButton";
 import { NAV } from "./nav";
+import HeaderTicker from "./HeaderTicker";
 import Wordmark from "./Wordmark";
 
 /**
@@ -32,7 +33,11 @@ export default function Header() {
           <Wordmark size={22} />
         </NavLink>
 
-        <div className="flex-1" />
+        {/* 모바일은 햄버거·워드마크·계정·설정이 이미 차지해 자리가 없다 */}
+        <div className="hidden min-w-0 flex-1 md:flex">
+          <HeaderTicker />
+        </div>
+        <div className="flex-1 md:hidden" />
 
         {/* 데스크톱은 좌측 레일 하단이 맡는다 — 레일이 숨는 모바일에서만 보여준다 */}
         <div className="flex items-center gap-1 md:hidden">
