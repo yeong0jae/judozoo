@@ -1,4 +1,5 @@
 // 테마 — 라이트/다크/시스템 3-state. <html>에 .dark 클래스를 토글해 적용.
+// 저장된 선택이 없으면 다크 — 장중에 오래 보는 화면이라 기본을 어둡게 둔다.
 
 import {
   createContext,
@@ -28,7 +29,7 @@ function loadMode(): ThemeMode {
   } catch {
     // ignore
   }
-  return "system";
+  return "dark";
 }
 
 function systemPrefersDark(): boolean {

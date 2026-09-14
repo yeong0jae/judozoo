@@ -87,7 +87,7 @@ export default function IndexDetailPanel({
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  tab === t.key ? "bg-zinc-950 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+                  tab === t.key ? "bg-elevated text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}
@@ -195,7 +195,7 @@ function OrgCell({ label, eok }: { label: string; eok: number }) {
   const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
   const sign = eok > 0 ? "+" : eok < 0 ? "-" : "";
   return (
-    <div className="rounded-md bg-zinc-950 px-1.5 py-1 text-center">
+    <div className="rounded-md bg-elevated px-1.5 py-1 text-center">
       <div className="text-[11px] text-zinc-500">{label}</div>
       <div className={`num text-xs font-medium mt-0.5 ${tone}`}>
         {sign}

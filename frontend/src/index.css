@@ -32,7 +32,9 @@
   --color-zinc-800: #e5e8eb; /* 카드 경계선 */
   --color-zinc-850: #f1f3f5; /* 호버·옅은 채움 */
   --color-zinc-900: #f4f6f8; /* 카드 표면 — 흰 바탕에서 한 단계 눌린 면 */
-  --color-zinc-950: #ffffff; /* 페이지 베이스·헤더·레일·세그먼트 썸 */
+  --color-zinc-950: #ffffff; /* 페이지 베이스·헤더·레일 */
+  /* 떠 있는 면 — 세그먼트 선택 썸·타일. 라이트/다크 모두 바탕보다 밝다. */
+  --color-elevated: #ffffff;
 
   /* 액센트 — 매매 시작 / 강조 = Toss Blue */
   --color-emerald-600: #1b64da; /* CTA hover */
@@ -87,6 +89,8 @@ html {
 
 /* 페이지 베이스/본문 색상 — 라이트 기본값. .dark에서 오버라이드 */
 :root {
+  /* 브라우저 기본 UI(스크롤바·폼 컨트롤)도 테마를 따라가게 한다 */
+  color-scheme: light;
   --page-bg: #ffffff;
   --text-primary: #191f28;
 }
@@ -168,6 +172,7 @@ body {
    `<html class="dark">` 일 때 활성. Tailwind v4 유틸은 모두 var(--color-X-N)을
    가리키므로, 토큰만 갈아끼우면 페이지 마크업을 안 건드리고 전환된다. */
 :root.dark {
+  color-scheme: dark;
   --page-bg: #17181c;
   --text-primary: #f1f3f5;
 
@@ -184,6 +189,7 @@ body {
   --color-zinc-850: #26272c; /* 호버·옅은 채움 */
   --color-zinc-900: #1f2024; /* 카드 표면 */
   --color-zinc-950: #17181c; /* 페이지 베이스(이미 위에서 var로 적용) */
+  --color-elevated: #33353b; /* 떠 있는 면 — 트랙(≈#2a2b2f)보다 밝게 */
 
   /* CTA & 성공 — Toss Blue / Toss green 그대로 유지(다크에서도 잘 보임) */
   /* (emerald-300/-400/-500/-600/-700은 라이트와 동일값이라 생략) */

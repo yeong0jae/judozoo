@@ -59,7 +59,7 @@ function ModeToggle({ value, onChange }: { value: RadarMode; onChange: (v: Radar
           onClick={() => onChange(m.key)}
           className={`px-4 py-1.5 rounded-lg transition-colors ${
             value === m.key
-              ? "bg-zinc-950 text-zinc-100 font-medium"
+              ? "bg-elevated text-zinc-100 font-medium"
               : "text-zinc-500 hover:text-zinc-300"
           }`}
         >

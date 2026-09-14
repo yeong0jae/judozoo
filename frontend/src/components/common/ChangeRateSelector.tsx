@@ -8,7 +8,7 @@ export const CHANGE_RATE_OPTIONS = [-12, -7, -5, -3, 0, 3, 5, 7];
 function thumbTone(rate: number): string {
   if (rate > 0) return "bg-red-500/15";
   if (rate < 0) return "bg-blue-500/15";
-  return "bg-zinc-950";
+  return "bg-elevated";
 }
 function textTone(rate: number, active: boolean): string {
   if (rate > 0) return active ? "text-red-700" : "text-red-600/70";

@@ -285,7 +285,7 @@ function Stat({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-xl bg-zinc-950 px-3 py-2">
+    <div className="rounded-xl bg-elevated px-3 py-2">
       <div className="text-xs text-zinc-500">{label}</div>
       <div className={`num text-base font-bold ${valueClass}`}>{value}</div>
     </div>
@@ -484,7 +484,7 @@ function SignalLogPageInner() {
                 type="button"
                 onClick={() => setTypeFilter(t.key)}
                 className={`px-2.5 py-1 rounded-md transition-colors ${
-                  typeFilter === t.key ? "bg-zinc-950 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                  typeFilter === t.key ? "bg-elevated text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}

@@ -80,7 +80,7 @@ export default function OverseasStockDetailPanel({
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  tab === t.key ? "bg-zinc-950 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+                  tab === t.key ? "bg-elevated text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}

@@ -27,11 +27,11 @@
     <meta name="twitter:card" content="summary_large_image" />
     <script>
       // FOUC 방지 — React 렌더 전에 저장된 테마를 동기 적용.
-      // ThemeProvider와 동일한 키('at.theme')·로직 사용.
+      // ThemeProvider와 동일한 키('at.theme')·로직·기본값(dark) 사용.
       (function () {
         try {
           var m = localStorage.getItem("at.theme");
-          if (m !== "light" && m !== "dark" && m !== "system") m = "system";
+          if (m !== "light" && m !== "dark" && m !== "system") m = "dark";
           var dark =
             m === "dark" ||
             (m === "system" &&
