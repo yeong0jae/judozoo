@@ -10,7 +10,7 @@ import type {
   MarketType,
   InvestorType,
 } from "../types";
-import { formatEok, formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
+import { formatEok, formatFetchedAt, formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
@@ -451,6 +451,7 @@ function SignalLogPageInner() {
       <PageHeader
         title="주도주 시그널"
         count={data || marketQ.data ? feed.length : undefined}
+        queriedAt={formatFetchedAt(eventsQ.dataUpdatedAt)}
         loading={eventsQ.isFetching}
         trailing={
           <DateNavigator

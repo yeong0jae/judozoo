@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useOverseasRanking } from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
-import { formatPct } from "../lib/format";
+import { formatFetchedAt, formatPct } from "../lib/format";
 import NumUsd from "../components/common/NumUsd";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
@@ -27,7 +27,7 @@ export default function OverseasLeadingStocks({
   // 당일 등락률 임계값(%) — 헤더 티커와 공유한다.
   const [minChangeRate, setMinChangeRate] = useOverseasMinChangeRate();
 
-  const { data, isLoading, isFetching } = useOverseasRanking(minChangeRate);
+  const { data, isLoading, isFetching, dataUpdatedAt } = useOverseasRanking(minChangeRate);
   const stocks = data ?? [];
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
   const { data: me } = useMe();
@@ -52,7 +52,7 @@ export default function OverseasLeadingStocks({
 
   return (
     <div className="space-y-4">
-      <Header totalCount={data?.length} loading={isFetching} />
+      <Header totalCount={data?.length} loading={isFetching} fetchedAt={dataUpdatedAt} />
 
       {/* 토글+필터는 목록 컬럼 폭에 맞춰(필터가 리스트 오른쪽 끝에 정렬) */}
       <div className={openSymbol ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6" : ""}>
@@ -120,14 +120,18 @@ export default function OverseasLeadingStocks({
 function Header({
   totalCount,
   loading,
+  fetchedAt,
 }: {
   totalCount: number | undefined;
   loading: boolean;
+  /** 목록 응답에 조회 시각이 없어 브라우저가 받은 시각을 쓴다. */
+  fetchedAt: number;
 }) {
   return (
     <PageHeader
       title="주도주 필터"
       count={totalCount}
+      queriedAt={formatFetchedAt(fetchedAt)}
       loading={loading}
     />
   );

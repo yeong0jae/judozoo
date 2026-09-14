@@ -75,11 +75,25 @@ function IndexTiles({ domesticLive }: { domesticLive: boolean }) {
   const tag = domesticLive ? "장중" : "종가";
 
   return (
+    // 슬러그는 lib/indices.ts가 정의한 것과 같아야 한다
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-      <Tile label="코스피" tag={tag} value={kospi.data?.currentValue} rate={kospi.data?.changeRate} />
-      <Tile label="코스닥" tag={tag} value={kosdaq.data?.currentValue} rate={kosdaq.data?.changeRate} />
+      <Tile
+        label="코스피"
+        slug="kospi"
+        tag={tag}
+        value={kospi.data?.currentValue}
+        rate={kospi.data?.changeRate}
+      />
+      <Tile
+        label="코스닥"
+        slug="kosdaq"
+        tag={tag}
+        value={kosdaq.data?.currentValue}
+        rate={kosdaq.data?.changeRate}
+      />
       <Tile
         label="코스피 야간 선물"
+        slug="night-futures"
         value={night.data?.price}
         rate={night.data?.changeRate}
         sub={
@@ -92,25 +106,31 @@ function IndexTiles({ domesticLive }: { domesticLive: boolean }) {
   );
 }
 
+/** 누르면 그 지수의 지수·수급 화면으로. 로그인이 필요한 지수는 거기서 안내가 뜬다. */
 function Tile({
   label,
+  slug,
   tag,
   value,
   rate,
   sub,
 }: {
   label: string;
+  slug: string;
   tag?: string;
   value: number | undefined;
   rate: number | undefined;
   sub?: string;
 }) {
   return (
-    <div className="rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0">
-      <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+    <Link
+      to={`/market-analysis/${slug}`}
+      className="block rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0 transition-opacity hover:opacity-90"
+    >
+      <div className="flex items-center gap-1.5 text-sm text-zinc-500">
         <span>{label}</span>
         {tag && (
-          <span className="rounded border border-zinc-800 px-1 text-[10px] text-zinc-500">{tag}</span>
+          <span className="rounded border border-zinc-800 px-1 text-[11.5px] text-zinc-500">{tag}</span>
         )}
       </div>
       {value === undefined || rate === undefined ? (
@@ -120,13 +140,13 @@ function Tile({
           <div className="num text-xl font-bold leading-snug">
             <ProfitText value={rate} format={() => value.toLocaleString("ko-KR")} />
           </div>
-          <div className="num text-[13px] font-medium">
+          <div className="num text-[15px] font-medium">
             <ProfitText value={rate} format={(v) => formatPct(v / 100)} />
           </div>
         </>
       )}
       {sub && <div className="num mt-0.5 text-[11px] text-zinc-500">{sub}</div>}
-    </div>
+    </Link>
   );
 }
 
@@ -245,7 +265,7 @@ function Row({
   rate: number;
 }) {
   return (
-    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-baseline gap-2.5 px-4 py-2 text-[13.5px]">
+    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-baseline gap-2.5 px-4 py-2.5 text-[13.5px]">
       <span className="num text-[11.5px] text-zinc-500">{rank}</span>
       <span className="truncate text-zinc-200">
         {name}
