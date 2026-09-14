@@ -12,7 +12,6 @@ import type {
 } from "../types";
 import { formatEok, formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
-import HolidayBanner from "../components/common/HolidayBanner";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
@@ -439,10 +438,8 @@ function SignalLogPageInner() {
 
   return (
     <div className="space-y-4">
-      <HolidayBanner />
       <PageHeader
         title="주도주 시그널"
-        subtitle="종목 스파이크·반등·꺾임과 지수 시그널 · 누르면 그 종목의 여정"
         count={data || marketQ.data ? feed.length : undefined}
         loading={eventsQ.isFetching}
         trailing={

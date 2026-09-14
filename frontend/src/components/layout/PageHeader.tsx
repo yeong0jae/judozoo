@@ -1,23 +1,22 @@
 import type { ReactNode } from "react";
+import SessionStrip from "./SessionStrip";
 
 /**
- * 화면 상단 공용 헤더 — 제목·부제 / 건수·갱신 상태.
+ * 화면 상단 공용 헤더 — 제목·장 상태 / 건수·갱신 상태.
  *
- * 2행 그리드다. 좌측은 제목·부제, 우측은 건수(1행)와 갱신 신호(2행).
+ * 2행 그리드다. 좌측은 제목과 장 상태, 우측은 건수(1행)와 갱신 신호(2행).
  * baseline 정렬을 쓰면 좁은 폭에서 우측이 줄바꿈될 때 어긋나므로 격자로 고정한다.
  *
  * 갱신 주기는 문구로 적지 않는다 — 점과 상대시각이 이미 말하고 있다.
  */
 export default function PageHeader({
   title,
-  subtitle,
   count,
   queriedAt,
   loading,
   trailing,
 }: {
   title: string;
-  subtitle: ReactNode;
   count?: number;
   /** 마지막 조회 시각을 사람이 읽는 형태로 (예: "3초 전"). 없으면 점만 보여준다. */
   queriedAt?: string;
@@ -39,7 +38,7 @@ export default function PageHeader({
         )}
       </div>
 
-      <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>
+      <SessionStrip />
 
       <span className="flex items-center gap-1.5 justify-self-end text-xs text-zinc-500 whitespace-nowrap mt-1">
         <span

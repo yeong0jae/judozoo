@@ -12,7 +12,6 @@ import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPa
 import PageHeader from "../components/layout/PageHeader";
 import { useOverseasMinChangeRate } from "../lib/changeRate";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
-import HolidayBanner from "../components/common/HolidayBanner";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
 
@@ -50,7 +49,6 @@ export default function OverseasLeadingStocks({
 
   return (
     <div className="space-y-4">
-      <HolidayBanner region="US" />
       <Header totalCount={data?.length} loading={isFetching} />
 
       {/* 토글+필터는 목록 컬럼 폭에 맞춰(필터가 리스트 오른쪽 끝에 정렬) */}
@@ -119,7 +117,6 @@ function Header({
   return (
     <PageHeader
       title="주도주 필터"
-      subtitle="나스닥·뉴욕·아멕스에서 돈이 몰리고 오른 종목 · 누르면 필터 3개 평가"
       count={totalCount}
       loading={loading}
     />

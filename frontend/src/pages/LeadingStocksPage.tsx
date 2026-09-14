@@ -3,7 +3,6 @@ import { useLeadingStockCandidates } from "../api/queries";
 import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
-import HolidayBanner from "../components/common/HolidayBanner";
 import { useMinChangeRate } from "../lib/changeRate";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
@@ -115,7 +114,6 @@ function DomesticLeadingStocks({
 
   return (
     <div className="space-y-4">
-      <HolidayBanner />
       <Header
         totalCount={data?.totalCount}
         queriedAt={data?.queriedAt}
@@ -199,7 +197,6 @@ function Header({
   return (
     <PageHeader
       title="주도주 필터"
-      subtitle="오늘 돈이 몰리고 오른 종목 · 누르면 필터 8개 평가"
       count={totalCount}
       queriedAt={queriedAt ? formatRelative(queriedAt) : undefined}
       loading={loading}

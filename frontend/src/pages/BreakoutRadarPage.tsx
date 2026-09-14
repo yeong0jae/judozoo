@@ -6,7 +6,6 @@ import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
 import { formatKoreanMoney, formatPct, formatPrice, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
-import HolidayBanner from "../components/common/HolidayBanner";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
@@ -118,14 +117,8 @@ function BreakoutRadarPageInner() {
 
   return (
     <div className="space-y-4">
-      <HolidayBanner />
       <PageHeader
         title="지지·저항"
-        subtitle={
-          mode === "resistance"
-            ? "주도주가 최근 3거래일 고가(저항선)에 얼마나 가까운지 · 근접 순"
-            : "주도주가 최근 3거래일 저가(지지선)에 얼마나 가까운지 · 근접 순"
-        }
         count={data?.totalCount}
         queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
         loading={radarQ.isFetching}
