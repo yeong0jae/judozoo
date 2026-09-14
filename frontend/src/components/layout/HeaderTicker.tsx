@@ -1,49 +1,97 @@
-import { useLeadingStockCandidates } from "../../api/queries";
-import { loadMinChangeRate } from "../../lib/changeRate";
+import { useEffect, useState, type ReactNode } from "react";
+import { useLeadingStockCandidates, useOverseasRanking } from "../../api/queries";
+import { loadMinChangeRate, loadOverseasMinChangeRate } from "../../lib/changeRate";
 import { formatPct, formatPrice } from "../../lib/format";
 
+/** 국내를 흘리는 시간대 — 08:00~20:00. 나머지(20:01~07:59)는 미국장이 도는 때라 해외를 흘린다. */
+const DOMESTIC_START_HOUR = 8;
+const DOMESTIC_END_HOUR = 20;
+
+function isDomesticHours(now: Date): boolean {
+  const h = now.getHours();
+  // 20시대는 20:00 정각만 국내 — 20:01부터 해외로 넘긴다
+  if (h === DOMESTIC_END_HOUR) return now.getMinutes() === 0;
+  return h >= DOMESTIC_START_HOUR && h < DOMESTIC_END_HOUR;
+}
+
 /**
- * 헤더 시세 티커 — 주도주 후보가 왼쪽으로 흐른다.
+ * 헤더 시세 티커 — 장이 도는 쪽 주도주가 왼쪽으로 흐른다.
  *
- * 목록은 주도주 화면과 **같은 조회**를 쓴다(등락률 임계값이 쿼리 키라 같은 값을 읽는다).
- * 그래서 그 화면에 있을 땐 추가 호출이 없고, 다른 화면에서만 폴링 하나가 는다.
+ * 국내·해외 중 한쪽만 마운트한다. 둘 다 걸어두면 안 보이는 쪽까지 폴링해서다.
+ * 목록은 각 화면과 **같은 조회**를 쓴다(등락률 임계값이 쿼리 키라 같은 값을 읽는다).
  *
  * 끊김 없이 도는 원리 — 같은 목록을 두 벌 이어 붙이고 절반(-50%)만큼 민다.
  * 한 바퀴가 끝나면 두 번째 벌이 첫 벌 자리에 정확히 와 있어 이음매가 보이지 않는다.
  */
 export default function HeaderTicker() {
-  // 임계값은 마운트 때 한 번만 읽는다 — 헤더는 화면 전환에도 살아남아 매 폴 다시 읽을 일이 없다.
+  const [domestic, setDomestic] = useState(() => isDomesticHours(new Date()));
+
+  // 경계(08:00 / 20:01)를 넘기면 저절로 바뀌게 — 헤더는 화면을 옮겨도 죽지 않는다
+  useEffect(() => {
+    const id = setInterval(() => setDomestic(isDomesticHours(new Date())), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return domestic ? <DomesticTicker /> : <OverseasTicker />;
+}
+
+function DomesticTicker() {
   const { data } = useLeadingStockCandidates(loadMinChangeRate());
   const stocks = data?.stocks ?? [];
-  if (stocks.length === 0) return null;
+  return (
+    <Track
+      items={stocks.map((s) => ({
+        key: s.stockCode,
+        name: s.stockName,
+        price: formatPrice(s.currentPrice),
+        rate: s.priceChangeRate,
+      }))}
+    />
+  );
+}
 
-  const items = [...stocks, ...stocks];
+function OverseasTicker() {
+  const { data } = useOverseasRanking(loadOverseasMinChangeRate());
+  const stocks = data ?? [];
+  return (
+    <Track
+      items={stocks.map((s) => ({
+        key: `${s.exchange}:${s.symbol}`,
+        name: s.name,
+        price: `$${s.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        rate: s.rate,
+      }))}
+    />
+  );
+}
+
+type Item = { key: string; name: string; price: string; rate: number };
+
+function Track({ items }: { items: Item[] }) {
+  if (items.length === 0) return null;
+
+  // 두 벌을 이어 붙여야 -50%에서 이음매가 안 보인다
+  const doubled = [...items, ...items];
 
   return (
     <div className="ticker-viewport min-w-0 flex-1" aria-label="주도주 시세">
       <div className="ticker-track">
-        {items.map((s, i) => (
-          <span
-            // 두 벌을 이어 붙이므로 종목코드만으로는 키가 겹친다
-            key={`${s.stockCode}-${i}`}
-            className="flex items-baseline gap-2 whitespace-nowrap border-r border-zinc-800/70 px-5"
-          >
-            <span className="text-[14px] font-medium text-zinc-300">{s.stockName}</span>
-            <span className="num text-[13px] text-zinc-500">{formatPrice(s.currentPrice)}</span>
-            <span
-              className={`num text-[13px] font-medium ${
-                s.priceChangeRate > 0
-                  ? "text-red-400"
-                  : s.priceChangeRate < 0
-                    ? "text-blue-400"
-                    : "text-zinc-500"
-              }`}
-            >
-              {formatPct(s.priceChangeRate / 100)}
-            </span>
-          </span>
+        {doubled.map((s, i) => (
+          <Tick key={`${s.key}-${i}`} name={s.name} price={s.price} rate={s.rate} />
         ))}
       </div>
     </div>
+  );
+}
+
+function Tick({ name, price, rate }: { name: string; price: ReactNode; rate: number }) {
+  const tone =
+    rate > 0 ? "text-red-400" : rate < 0 ? "text-blue-400" : "text-zinc-500";
+  return (
+    <span className="flex items-baseline gap-2 whitespace-nowrap border-r border-zinc-800/70 px-5">
+      <span className="text-[14px] font-medium text-zinc-300">{name}</span>
+      <span className="num text-[13px] text-zinc-500">{price}</span>
+      <span className={`num text-[13px] font-medium ${tone}`}>{formatPct(rate / 100)}</span>
+    </span>
   );
 }

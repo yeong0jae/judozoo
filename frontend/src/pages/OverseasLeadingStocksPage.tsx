@@ -7,16 +7,17 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
-import ChangeRateSelector, {
-  CHANGE_RATE_OPTIONS,
-} from "../components/common/ChangeRateSelector";
+import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import PageHeader from "../components/layout/PageHeader";
+import {
+  OVERSEAS_MIN_CHANGE_RATE_KEY as MIN_CHANGE_RATE_KEY,
+  loadOverseasMinChangeRate,
+} from "../lib/changeRate";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import HolidayBanner from "../components/common/HolidayBanner";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 
-const MIN_CHANGE_RATE_KEY = "overseasStock.minChangeRate";
 
 export default function OverseasLeadingStocks({
   market,
@@ -26,11 +27,7 @@ export default function OverseasLeadingStocks({
   onMarket: (m: StockMarket) => void;
 }) {
   // 당일 등락률 임계값(%) — 국내와 동일하게 localStorage 보관, 기본 7%.
-  const [minChangeRate, setMinChangeRate] = useState(() => {
-    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
-    const saved = Number(raw);
-    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
-  });
+  const [minChangeRate, setMinChangeRate] = useState(loadOverseasMinChangeRate);
   useEffect(() => {
     localStorage.setItem(MIN_CHANGE_RATE_KEY, String(minChangeRate));
   }, [minChangeRate]);

@@ -7,15 +7,19 @@ import { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
  * (쿼리 키가 이 값이라, 다르면 같은 목록을 두 번 받는다).
  */
 export const MIN_CHANGE_RATE_KEY = "leadingStock.minChangeRate";
+export const OVERSEAS_MIN_CHANGE_RATE_KEY = "overseasStock.minChangeRate";
 
 export const DEFAULT_MIN_CHANGE_RATE = 7;
 
-export function loadMinChangeRate(): number {
+function load(key: string): number {
   try {
-    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
+    const raw = localStorage.getItem(key);
     const saved = Number(raw);
     return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : DEFAULT_MIN_CHANGE_RATE;
   } catch {
     return DEFAULT_MIN_CHANGE_RATE;
   }
 }
+
+export const loadMinChangeRate = () => load(MIN_CHANGE_RATE_KEY);
+export const loadOverseasMinChangeRate = () => load(OVERSEAS_MIN_CHANGE_RATE_KEY);
