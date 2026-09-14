@@ -11,7 +11,6 @@ import pytest
 from backend.leadingstock.infrastructure import MarketInvestorSnapshot
 from backend.library.db import get_engine, get_session_factory
 from backend.market import application
-from backend.market.domain import ProgramTradeSnapshot
 from backend.stock.domain import Market
 
 당일 = date(2026, 9, 11)
@@ -28,22 +27,13 @@ def 수급스냅샷(hh: int, mm: int, 개인: int, 외국인: int, 기관: int) 
     )
 
 
-def 프로그램스냅샷(hh: int, mm: int, 차익: int, 비차익: int, 전체: int) -> ProgramTradeSnapshot:
-    return ProgramTradeSnapshot(
-        market=Market.KOSPI, trade_date=당일, captured_at=datetime(2026, 9, 11, hh, mm),
-        arbitrage_mil=차익, non_arbitrage_mil=비차익, total_mil=전체,
-        created_at=AT, updated_at=AT,
-    )
-
-
 @pytest.fixture
 def 빈_스냅샷_테이블(통합_db):
     engine = get_engine()
-    for model in (MarketInvestorSnapshot, ProgramTradeSnapshot):
+    for model in (MarketInvestorSnapshot,):
         model.__table__.create(engine, checkfirst=True)
     with get_session_factory()() as session:
         session.query(MarketInvestorSnapshot).delete()
-        session.query(ProgramTradeSnapshot).delete()
         session.commit()
     yield
 
@@ -141,25 +131,6 @@ class Test투자자_세션_수급:
         assert {x.name: x.nets for x in 세션들}["오전"].individual == 300
 
 
-class Test프로그램_세션_수급:
-    def test_백만원을_억원으로_바꿔_차이를_낸다(self, 빈_스냅샷_테이블):
-        with get_session_factory()() as s:
-            s.add_all([
-                프로그램스냅샷(9, 0, 차익=10_000, 비차익=20_000, 전체=30_000),
-                프로그램스냅샷(12, 0, 차익=30_000, 비차익=50_000, 전체=80_000),
-            ])
-            s.commit()
-            _, 세션들 = application.program_sessions(s, Market.KOSPI, 당일)
-
-        이름별 = {x.name: x.nets for x in 세션들}
-        assert 이름별["프리마켓"].total_eok == 300     # 30,000백만 = 300억
-        assert 이름별["오전"].total_eok == 500         # 800억 − 300억
-
-    def test_스냅샷이_없으면_None(self, 빈_스냅샷_테이블):
-        with get_session_factory()() as s:
-            assert [x.nets for x in application.program_sessions(s, Market.KOSPI, 당일)[1]] == [None] * 5
-
-
 class Test선물_세션_수급:
     def test_오전은_누적_그대로_이후는_차이로_낸다(self, 빈_스냅샷_테이블, 휴장판정_없음):
         from backend.market.domain import FuturesInvestorSnapshot
@@ -230,12 +201,3 @@ class Test데이터_있는_날로_물러나기:
             쓴날짜, _ = application.investor_sessions(s, Market.KOSPI, 이전날)
 
         assert 쓴날짜 == 이전날
-
-    def test_프로그램도_같은_규칙으로_물러난다(self, 빈_스냅샷_테이블):
-        with get_session_factory()() as s:
-            s.add_all([프로그램스냅샷(9, 0, 1, 2, 3), 프로그램스냅샷(12, 0, 4, 5, 6)])
-            s.commit()
-
-            쓴날짜, _ = application.program_sessions(s, Market.KOSPI, date(2026, 9, 14))
-
-        assert 쓴날짜 == 당일

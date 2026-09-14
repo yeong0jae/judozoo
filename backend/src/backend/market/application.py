@@ -20,13 +20,10 @@ from backend.market.domain import (
     FuturesInvestorSnapshot,
     FuturesNets,
     Nets,
-    ProgramNets,
-    ProgramTradeSnapshot,
     SessionOrg,
 )
 from backend.platform.kis import futures as kis_futures
 from backend.platform.kiwoom import index as kiwoom_index
-from backend.platform.kiwoom import program as kiwoom_program
 from backend.platform.kiwoom import sector_investor as kiwoom_sector
 from backend.platform.toss import market_indicator as toss_indicator
 from backend.platform.yahoo import client as yahoo
@@ -223,102 +220,6 @@ def investor_sessions(session: Session, market: Market, on: date) -> tuple[date,
         SessionNet("마감 구간", "15:00~15:40", diff(close, afternoon)),
         SessionNet("애프터마켓", "15:40~20:00", diff(after_close, close)),
     ]
-
-
-# ── 프로그램 매매 ───────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True)
-class ProgramSessionNet:
-    name: str
-    time: str
-    nets: ProgramNets | None
-
-
-@dataclass(frozen=True)
-class ProgramDay:
-    date: date
-    arbitrage_eok: int
-    non_arbitrage_eok: int
-    total_eok: int
-
-
-def record_program(
-    session: Session, market: Market, trade_date: date, captured_at: datetime, point
-) -> None:
-    at = now()
-    session.add(
-        ProgramTradeSnapshot(
-            market=market,
-            trade_date=trade_date,
-            captured_at=captured_at,
-            arbitrage_mil=point.arbitrage_net,
-            non_arbitrage_mil=point.non_arbitrage_net,
-            total_mil=point.total_net,
-            created_at=at,
-            updated_at=at,
-        )
-    )
-    session.commit()
-
-
-def program_sessions(
-    session: Session, market: Market, on: date
-) -> tuple[date, list[ProgramSessionNet]]:
-    """세션별 프로그램 순매수(억원) — 당일 누적 스냅샷 경계 diff."""
-    on = _latest_date_with_data(session, ProgramTradeSnapshot, market, on)
-
-    def at(t: time):
-        return _program_snapshot_at(session, market, datetime.combine(on, t))
-
-    open_, morning = at(_OPEN), at(_MORNING_END)
-    afternoon, close, after_close = at(_AFTERNOON_END), at(_CLOSE), at(_AFTER_END)
-
-    def diff(later, earlier) -> ProgramNets | None:
-        if later is None or earlier is None:
-            return None
-        return later.nets() - earlier.nets()
-
-    morning_net = diff(morning, open_) if open_ is not None else (morning.nets() if morning else None)
-    return on, [
-        ProgramSessionNet("프리마켓", "08:00~09:00", open_.nets() if open_ else None),
-        ProgramSessionNet("오전", "09:00~12:00", morning_net),
-        ProgramSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
-        ProgramSessionNet("마감 구간", "15:00~15:40", diff(close, afternoon)),
-        ProgramSessionNet("애프터마켓", "15:40~20:00", diff(after_close, close)),
-    ]
-
-
-def _program_snapshot_at(session: Session, market: Market, at: datetime):
-    return session.scalar(
-        select(ProgramTradeSnapshot)
-        .where(
-            ProgramTradeSnapshot.market == market,
-            ProgramTradeSnapshot.trade_date == at.date(),
-            ProgramTradeSnapshot.captured_at <= at,
-        )
-        .order_by(ProgramTradeSnapshot.captured_at.desc())
-        .limit(1)
-    )
-
-
-def program_daily_history(market: Market, count: int) -> list[ProgramDay]:
-    """최근 `count` 거래일 일별 프로그램 순매수(억원). 휴장일 제외, 최신순."""
-    out = []
-    for point in kiwoom_program.fetch_market_program_daily(market, today()):
-        if point.date is None or calendar.is_open(point.date) is False:
-            continue
-        out.append(
-            ProgramDay(
-                date=point.date,
-                arbitrage_eok=point.arbitrage_net // 100,
-                non_arbitrage_eok=point.non_arbitrage_net // 100,
-                total_eok=point.total_net // 100,
-            )
-        )
-        if len(out) == count:
-            break
-    return out
 
 
 # ── 선물 투자자 수급 ────────────────────────────────────────────────────

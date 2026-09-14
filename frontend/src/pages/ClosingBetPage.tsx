@@ -21,8 +21,6 @@ import {
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
-  useMarketProgramSessions,
-  useMarketProgramDaily,
   useNasdaqIndexCandles,
   useMacroCandles,
   useMacroQuotes,
@@ -407,8 +405,6 @@ function LiveIndexDetail({ market, name }: { market: MarketType; name: string })
       </div>
       <RealSessionsCard market={market} date={date} />
       <RealInvestorTable market={market} />
-      <ProgramSessionsCard market={market} date={date} />
-      <ProgramDailyTable market={market} />
     </div>
   );
 }
@@ -1182,122 +1178,6 @@ function InvestorDailyTable({
 }
 
 /** 세션별(오전/오후/마감) 순매수 — 당일 누적 스냅샷 경계 diff(구간별 증분). 스냅샷이 아직 없는 세션은 "집계 전". */
-/** 프로그램 매매 시간대별 — 전체·비차익·차익. 값 변화 시 변화량 깜빡(수급 표와 동일). */
-function ProgramSessionsCard({ market, date }: { market: MarketType; date: string }) {
-  const { data, isLoading } = useMarketProgramSessions(market, date);
-  const list = data?.sessions ?? [];
-  // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다.
-  const shownDate = data?.date ?? date;
-  const edge = "border-l border-zinc-800";
-  const keyOf = (session: string, field: string) => `flowdelta:program:${market}:${date}:${session}:${field}`;
-  useEffect(() => pruneFlowDelta(date), [date]);
-
-  return (
-    <div className="px-1">
-      <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>
-          <span className="text-zinc-500 font-normal">{dayLabel(shownDate)}</span> 프로그램 매매
-        </span>
-        <span className="text-xs text-zinc-600">억원</span>
-      </div>
-      {isLoading ? (
-        <Skeleton className="h-32 w-full" />
-      ) : (
-        <div className="overflow-x-auto -mx-1 px-1">
-          <table className="w-full text-xs whitespace-nowrap">
-            <thead className="text-zinc-500">
-              <tr>
-                <th className="text-left font-medium pb-1.5 pr-3">시간대</th>
-                <th className="text-right font-medium pb-1 px-2.5">전체</th>
-                <th className={`text-right font-medium pb-1 px-2.5 ${edge}`}>비차익</th>
-                <th className="text-right font-medium pb-1 px-2.5">차익</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((s) => {
-                const active = isActiveSession(s.time, date === todayStr());
-                return (
-                  <tr
-                    key={s.name}
-                    className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850"
-                  >
-                    <td className="text-left py-2 pr-3">
-                      <div className="text-zinc-300">{s.name}</div>
-                      <div className="text-[10px] text-zinc-600 num">{s.time}</div>
-                    </td>
-                    {s.nets == null ? (
-                      <td colSpan={3} className="text-right py-2 px-2.5 text-zinc-600">집계 전</td>
-                    ) : (
-                      <>
-                        <td className="text-right py-2 px-2.5 font-medium">
-                          <FlowNum eok={s.nets.totalEok} storageKey={keyOf(s.name, "total")} active={active} />
-                        </td>
-                        <td className={`text-right py-2 px-2.5 ${edge}`}>
-                          <FlowNum eok={s.nets.nonArbitrageEok} storageKey={keyOf(s.name, "narb")} active={active} />
-                        </td>
-                        <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.arbitrageEok} storageKey={keyOf(s.name, "arb")} active={active} />
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** 최근 5일 프로그램 매매 — 일별 전체·비차익·차익. */
-function ProgramDailyTable({ market }: { market: MarketType }) {
-  const { data, isLoading } = useMarketProgramDaily(market, 5);
-  const records = data ?? [];
-  const edge = "border-l border-zinc-800";
-
-  return (
-    <div className="px-1">
-      <div className="flex items-baseline justify-between mb-3">
-        <span className={titleCls}>최근 5일 프로그램</span>
-        <span className="text-xs text-zinc-600">순매수 · 억원</span>
-      </div>
-      {isLoading ? (
-        <Skeleton className="h-40 w-full" />
-      ) : records.length === 0 ? (
-        <EmptyState message="일별 프로그램 데이터가 없습니다" />
-      ) : (
-        <div className="overflow-x-auto -mx-1 px-1">
-          <table className="w-full text-xs whitespace-nowrap">
-            <thead className="text-zinc-500">
-              <tr>
-                <th className="text-left font-medium pb-1.5 pr-3">일자</th>
-                <th className="text-right font-medium pb-1 px-2.5">전체</th>
-                <th className={`text-right font-medium pb-1 px-2.5 ${edge}`}>비차익</th>
-                <th className="text-right font-medium pb-1 px-2.5">차익</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r) => (
-                <tr
-                  key={r.date}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850"
-                >
-                  <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
-                  <td className="text-right py-2 px-2.5 font-medium"><NetNum eok={r.totalEok} /></td>
-                  <td className={`text-right py-2 px-2.5 ${edge}`}><NetNum eok={r.nonArbitrageEok} /></td>
-                  <td className="text-right py-2 px-2.5"><NetNum eok={r.arbitrageEok} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** 조회 기준일 라벨. 주말엔 직전 평일을 보게 되므로 언제 것인지 밝힌다. */
 function dayLabel(date: string): string {
   if (date === todayStr()) return "오늘";
@@ -1429,7 +1309,7 @@ export default function ClosingBetPage() {
     if (!PUBLIC_SLUGS.has(ix.slug)) {
       return (
         <div className="flex flex-col gap-3">
-          <LoginGate title="지수·수급" description="지수와 선물, 투자자 수급, 프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />
+          <LoginGate title="지수·수급" description="지수와 선물, 투자자 수급을 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />
           <div className="text-center">
             <Link
               to={`/market-analysis/${PUBLIC_DEFAULT_SLUG}`}
@@ -1447,7 +1327,7 @@ export default function ClosingBetPage() {
         <SubjectDetail ix={ix} />
         <LoginGate
           title="나머지 지수도 보려면"
-          description="코스피·코스닥과 선물, 투자자 수급, 프로그램매매는 로그인 뒤에 열립니다."
+          description="코스피·코스닥과 선물, 투자자 수급은 로그인 뒤에 열립니다."
         />
       </div>
     );

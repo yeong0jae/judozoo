@@ -93,33 +93,6 @@ class SessionNetsResponse(BaseModel):
     sessions: list[SessionNetItem]
 
 
-class ProgramNetsItem(BaseModel):
-    arbitrage_eok: int = Field(serialization_alias="arbitrageEok")
-    non_arbitrage_eok: int = Field(serialization_alias="nonArbitrageEok")
-    total_eok: int = Field(serialization_alias="totalEok")
-
-
-class ProgramSessionItem(BaseModel):
-    name: str
-    time: str
-    nets: ProgramNetsItem | None
-
-
-class ProgramSessionsResponse(BaseModel):
-    """조회에 **실제로 쓴 날짜**를 함께 싣는다 — 공휴일이면 직전 거래일로 물러나므로,
-    화면이 요청한 날짜로 라벨을 붙이면 거짓말이 된다."""
-
-    date: date
-    sessions: list[ProgramSessionItem]
-
-
-class ProgramDayItem(BaseModel):
-    date: date
-    arbitrage_eok: int = Field(serialization_alias="arbitrageEok")
-    non_arbitrage_eok: int = Field(serialization_alias="nonArbitrageEok")
-    total_eok: int = Field(serialization_alias="totalEok")
-
-
 class FuturesOrgItem(BaseModel):
     securities: int
     insurance: int
@@ -400,28 +373,3 @@ def investor_sessions(
         )
     )
 
-
-@router.get("/{market}/program/sessions")
-def program_sessions(
-    market: Market, date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
-) -> ApiResponse[ProgramSessionsResponse]:
-    used, sessions = application.program_sessions(db, market, date_ or today())
-    return ApiResponse.ok(
-        ProgramSessionsResponse(
-            date=used,
-            sessions=[
-                ProgramSessionItem(
-                    name=s.name, time=s.time,
-                    nets=None if s.nets is None else ProgramNetsItem(**vars(s.nets)),
-                )
-                for s in sessions
-            ],
-        )
-    )
-
-
-@router.get("/{market}/program/daily")
-def program_daily(market: Market, count: int = Query(10)) -> ApiResponse[list[ProgramDayItem]]:
-    return ApiResponse.ok(
-        [ProgramDayItem(**vars(d)) for d in application.program_daily_history(market, count)]
-    )

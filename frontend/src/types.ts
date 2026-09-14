@@ -85,28 +85,6 @@ export interface MarketInvestorSession {
   nets: MarketInvestorNets | null;
 }
 
-/** 프로그램 순매수(억원) — 차익·비차익·전체. */
-export interface ProgramNets {
-  arbitrageEok: number;
-  nonArbitrageEok: number;
-  totalEok: number;
-}
-
-/** 프로그램 세션별(오전/오후/마감) 순매수. 없는 세션은 nets=null. */
-export interface ProgramSession {
-  name: string;
-  time: string;
-  nets: ProgramNets | null;
-}
-
-/** 하루치 프로그램 순매수(억원). */
-export interface ProgramDay {
-  date: string; // yyyy-MM-dd
-  arbitrageEok: number;
-  nonArbitrageEok: number;
-  totalEok: number;
-}
-
 /** 코스피 선물(근월물) 시세 요약 — KIS 국내선물옵션. 값은 지수 포인트. */
 export interface FuturesQuote {
   futuresPrice: number;

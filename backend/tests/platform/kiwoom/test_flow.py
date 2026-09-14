@@ -1,4 +1,4 @@
-"""키움 수급·프로그램매매 — 종목 투자자(ka10059), 프로그램(ka90013/ka90010)."""
+"""키움 수급·프로그램매매 — 종목 투자자(ka10059), 종목 프로그램(ka90013)."""
 
 from datetime import date
 
@@ -7,7 +7,6 @@ import pytest
 import respx
 
 from backend.platform.kiwoom import client, investor, program
-from backend.stock.domain import Market
 
 BASE = "https://api.kiwoom.com"
 TOKEN_URL = f"{BASE}/oauth2/token"
@@ -106,42 +105,6 @@ class Test종목_프로그램매매:
 
         assert program.fetch_program_trading("005930") is None
         assert program.fetch_program_net_buy("005930") == 0
-
-
-class Test시장_프로그램매매:
-    @respx.mock
-    def test_시장별로_코드가_갈린다(self, respx_mock, 토큰_발급):
-        route = respx_mock.post(MRKCOND_URL).mock(
-            return_value=httpx.Response(200, json={"return_code": 0, "prm_trde_trnsn": []})
-        )
-
-        program.fetch_market_program_daily(Market.KOSDAQ, date(2026, 9, 11))
-
-        import json
-        assert json.loads(route.calls[0].request.content)["mrkt_tp"] == "P101_AL02"
-
-    @respx.mock
-    def test_일자는_앞_8자리만_쓴다(self, respx_mock, 토큰_발급):
-        """cntr_tm은 yyyyMMddHHmmss로 온다."""
-        respx_mock.post(MRKCOND_URL).mock(
-            return_value=httpx.Response(200, json={"return_code": 0, "prm_trde_trnsn": [{
-                "cntr_tm": "20260911153000", "dfrt_trde_netprps": "+100",
-                "ndiffpro_trde_netprps": "-200", "all_netprps": "100-",
-            }]})
-        )
-
-        점 = program.fetch_market_program_daily(Market.KOSPI, date(2026, 9, 11))[0]
-
-        assert 점.date == date(2026, 9, 11)
-        assert (점.arbitrage_net, 점.non_arbitrage_net, 점.total_net) == (100, -200, -100)
-
-    @respx.mock
-    def test_오류_코드면_빈_목록(self, respx_mock, 토큰_발급):
-        respx_mock.post(MRKCOND_URL).mock(
-            return_value=httpx.Response(200, json={"return_code": 3, "return_msg": "오류"})
-        )
-
-        assert program.fetch_market_program_daily(Market.KOSPI, date(2026, 9, 11)) == []
 
 
 class Test금액_파서:

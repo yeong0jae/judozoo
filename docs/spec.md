@@ -16,7 +16,7 @@ Frontend (TypeScript + React + Vite + Tailwind)
 Backend (Python + FastAPI, package by feature)
   - leadingstock         : 주도주 후보 필터 체인 + 시그널 이벤트 + 지수 시그널
   - overseasleadingstock : 해외(미국) 주도주 랭킹 + 시그널
-  - market               : 지수 / 선물 / 투자자 수급 / 프로그램매매 / 매크로 / 캘린더
+  - market               : 지수 / 선물 / 투자자 수급 / 매크로 / 캘린더
   - issue                : 일자별 이슈 메모 (CRUD)
   - news                 : 종목 뉴스·공시
   - stock                : 종목 마스터 카탈로그 + 검색
@@ -52,7 +52,7 @@ Backend (Python + FastAPI, package by feature)
 | 소스 | 용도 |
 |------|------|
 | **KIS** | 휴장일, 종목 뉴스·공시, 국내 선물, 해외 지수·차트·랭킹·종목정보 |
-| **키움** | 국내 지수, 종목/업종 투자자 수급, 프로그램매매, 시세 |
+| **키움** | 국내 지수, 종목/업종 투자자 수급, 종목 프로그램 순매수, 시세 |
 | **토스** | 장 운영 캘린더(국내/미국), 투자자별 매매대금 + 캔들 |
 | **야후** | 해외 시세 요약 + 캔들 (프리·애프터마켓 포함) |
 
@@ -113,7 +113,6 @@ Backend (Python + FastAPI, package by feature)
 |--------|------|
 | `MarketInvestorSnapshot` | 시장 투자자 순매수 당일 누적 |
 | `FuturesInvestorSnapshot` | 선물 투자자 순매수 |
-| `ProgramTradeSnapshot` | 프로그램매매 (차익/비차익/전체) |
 | `IndexMinuteCandleEntity` | 지수 분봉 (이평 판정용) |
 
 > **세션별 수급**은 저장하지 않는다. 당일 누적 스냅샷의 **경계 diff**로 계산한다 — 증권사가 세션별 값을 주지 않기 때문.
@@ -166,7 +165,6 @@ MarketCap → TradingValueRank → DailyPriceChange → DailyHighPosition
 | `IndexReboundPoller` | 30초 | 지수 5분봉 20이평 — **09:00~15:30에만** 동작 |
 | `OverseasSignalEventPoller` | 15초 | 해외 시그널 |
 | `FuturesInvestorPoller` | 60초 | 선물 투자자 |
-| `ProgramTradePoller` | 120초 | 프로그램매매 (누적은 느리게 변함) |
 
 ### 6.2 캡처 (cron, KST)
 
@@ -241,7 +239,6 @@ GET /api/news/stock/{code}
 |--------|-------------------|
 | 시그널 로그 / 돌파 현황 | 5초 |
 | 지수 / 선물 / 수급 / 분봉 | 30초 |
-| 프로그램매매 | 120초 |
 | 과거 일자 조회 | 폴링 안 함 (`false`) |
 
 - `staleTime: 5초`, `refetchIntervalInBackground: true` — 포커스 없는 창도 계속 갱신 (듀얼 모니터 대응)

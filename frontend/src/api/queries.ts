@@ -25,8 +25,6 @@ import type {
   MarketCandleItem,
   MarketInvestorDay,
   MarketInvestorSession,
-  ProgramSession,
-  ProgramDay,
   MarketType,
   MarketRegion,
   CalendarStatus,
@@ -64,10 +62,6 @@ export const QK = {
     ["market", market, "investor", "daily", count] as const,
   marketInvestorSessions: (market: string, date: string) =>
     ["market", market, "investor", "sessions", date] as const,
-  marketProgramSessions: (market: string, date: string) =>
-    ["market", market, "program", "sessions", date] as const,
-  marketProgramDaily: (market: string, count: number) =>
-    ["market", market, "program", "daily", count] as const,
   marketCandles: (market: string, interval: string) =>
     ["market", market, "candles", interval] as const,
   futuresQuote: (market: MarketType) => ["market", "futures", market, "quote"] as const,
@@ -229,26 +223,6 @@ export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: stri
       ),
     // 백엔드 순매수 스냅샷 폴러(30초)와 같은 주기 — 진행 중 세션 값이 30초마다 최신화된다.
     refetchInterval: 30_000,
-  });
-}
-
-/** 프로그램 세션별 순매수 — ka90010 당일 누적 스냅샷 경계 diff. 폴러(2분)와 같은 주기로 폴링. */
-export function useMarketProgramSessions(market: "KOSPI" | "KOSDAQ", date: string) {
-  return useQuery({
-    queryKey: QK.marketProgramSessions(market, date),
-    queryFn: () =>
-      apiFetch<SessionsResponse<ProgramSession>>(`/api/market/${market}/program/sessions?date=${date}`),
-    refetchInterval: 120_000,
-  });
-}
-
-/** 최근 N일 프로그램 순매수(억원) — ka90010 일별. */
-export function useMarketProgramDaily(market: "KOSPI" | "KOSDAQ", count = 10) {
-  return useQuery({
-    queryKey: QK.marketProgramDaily(market, count),
-    queryFn: () =>
-      apiFetch<ProgramDay[]>(`/api/market/${market}/program/daily?count=${count}`),
-    staleTime: 60_000,
   });
 }
 

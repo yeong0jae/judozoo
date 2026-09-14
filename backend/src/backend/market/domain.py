@@ -63,33 +63,6 @@ class FuturesInvestorSnapshot(Base):
         )
 
 
-class ProgramTradeSnapshot(Base):
-    """시장 프로그램 매매 당일 누적 스냅샷. 단위는 백만원(부호 포함, 양수=순매수)."""
-
-    __tablename__ = "program_trade_snapshot"
-    __table_args__ = (
-        Index("idx_program_trade_snapshot_lookup", "market", "trade_date", "captured_at"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    market: Mapped[Market] = mapped_column(Enum(Market, length=6), nullable=False)
-    trade_date: Mapped[date_type] = mapped_column(Date, nullable=False)
-    captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    arbitrage_mil: Mapped[int] = mapped_column(BigInteger, nullable=False)      # 차익
-    non_arbitrage_mil: Mapped[int] = mapped_column(BigInteger, nullable=False)  # 비차익
-    total_mil: Mapped[int] = mapped_column(BigInteger, nullable=False)          # 전체
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-    def nets(self) -> "ProgramNets":
-        """백만원 → 억원."""
-        return ProgramNets(
-            arbitrage_eok=self.arbitrage_mil // 100,
-            non_arbitrage_eok=self.non_arbitrage_mil // 100,
-            total_eok=self.total_mil // 100,
-        )
-
-
 @dataclass(frozen=True)
 class SessionOrg:
     """세션 기관 세부(억원) — 표시 순서: 금융투자·보험·기타금융·투신·사모펀드·연기금등·은행."""
@@ -177,18 +150,3 @@ class FuturesNets:
             self.breakdown - o.breakdown,
         )
 
-
-@dataclass(frozen=True)
-class ProgramNets:
-    """프로그램 순매수 묶음(억원)."""
-
-    arbitrage_eok: int
-    non_arbitrage_eok: int
-    total_eok: int
-
-    def __sub__(self, o: "ProgramNets") -> "ProgramNets":
-        return ProgramNets(
-            self.arbitrage_eok - o.arbitrage_eok,
-            self.non_arbitrage_eok - o.non_arbitrage_eok,
-            self.total_eok - o.total_eok,
-        )
