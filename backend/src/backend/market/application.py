@@ -1,6 +1,6 @@
 """시황 — 지수 / 캔들 / 투자자 수급 / 프로그램매매 / 선물 / 매크로.
 
-세션(오전·오후·막판) 순매수는 값을 직접 주는 API가 없다. 폴러가 찍어둔 **당일 누적 스냅샷의
+세션(오전·오후·마감) 순매수는 값을 직접 주는 API가 없다. 폴러가 찍어둔 **당일 누적 스냅샷의
 경계 diff**로 만든다 — 이 계산이 이 모듈의 핵심이고, 경계 시각이 어긋나면 값이 통째로 틀린다.
 """
 
@@ -220,7 +220,7 @@ def investor_sessions(session: Session, market: Market, on: date) -> tuple[date,
         SessionNet("프리마켓", "08:00~09:00", open_.nets() if open_ else None),
         SessionNet("오전", "09:00~12:00", morning_net),
         SessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
-        SessionNet("막판 동시호가", "15:00~15:40", diff(close, afternoon)),
+        SessionNet("마감 구간", "15:00~15:40", diff(close, afternoon)),
         SessionNet("애프터마켓", "15:40~20:00", diff(after_close, close)),
     ]
 
@@ -284,7 +284,7 @@ def program_sessions(
         ProgramSessionNet("프리마켓", "08:00~09:00", open_.nets() if open_ else None),
         ProgramSessionNet("오전", "09:00~12:00", morning_net),
         ProgramSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
-        ProgramSessionNet("막판 동시호가", "15:00~15:40", diff(close, afternoon)),
+        ProgramSessionNet("마감 구간", "15:00~15:40", diff(close, afternoon)),
         ProgramSessionNet("애프터마켓", "15:40~20:00", diff(after_close, close)),
     ]
 
@@ -420,7 +420,7 @@ def futures_investor_sessions(
     return on, [
         FuturesSessionNet("오전", "08:45~12:00", morning.nets() if morning else None),
         FuturesSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
-        FuturesSessionNet("막판 동시호가", "15:00~15:45", diff(close, afternoon)),
+        FuturesSessionNet("마감 구간", "15:00~15:45", diff(close, afternoon)),
     ]
 
 

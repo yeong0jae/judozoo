@@ -775,7 +775,7 @@ function NightFuturesChart({ interval }: { interval: ChartInterval }) {
 }
 
 /**
- * 선물 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷의 경계 diff(구간별 증분).
+ * 선물 세션별(오전/오후/마감) 순매수 — 당일 누적 스냅샷의 경계 diff(구간별 증분).
  * 폴러가 적재한 스냅샷이 있어야 하므로, 아직 없는 세션은 "집계 전".
  */
 function FuturesSessionsCard({ market, date }: { market: MarketType; date: string }) {
@@ -1222,7 +1222,7 @@ function InvestorDailyTable({
   );
 }
 
-/** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff(구간별 증분). 스냅샷이 아직 없는 세션은 "집계 전". */
+/** 세션별(오전/오후/마감) 순매수 — 당일 누적 스냅샷 경계 diff(구간별 증분). 스냅샷이 아직 없는 세션은 "집계 전". */
 /** 프로그램 매매 시간대별 — 전체·비차익·차익. 값 변화 시 변화량 깜빡(수급 표와 동일). */
 function ProgramSessionsCard({ market, date }: { market: MarketType; date: string }) {
   const { data, isLoading } = useMarketProgramSessions(market, date);

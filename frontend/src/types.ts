@@ -92,7 +92,7 @@ export interface ProgramNets {
   totalEok: number;
 }
 
-/** 프로그램 세션별(오전/오후/막판) 순매수. 없는 세션은 nets=null. */
+/** 프로그램 세션별(오전/오후/마감) 순매수. 없는 세션은 nets=null. */
 export interface ProgramSession {
   name: string;
   time: string;
@@ -189,7 +189,7 @@ export interface FuturesNets {
   breakdown: FuturesOrgBreakdown;
 }
 
-/** 선물 세션별(오전/오후/막판) 순매수(계약). 스냅샷이 없는 세션은 nets=null. */
+/** 선물 세션별(오전/오후/마감) 순매수(계약). 스냅샷이 없는 세션은 nets=null. */
 export interface FuturesSession {
   name: string;
   time: string;

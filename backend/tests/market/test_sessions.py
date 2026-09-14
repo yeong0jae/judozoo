@@ -108,7 +108,7 @@ class Test투자자_세션_수급:
             _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
 
         assert [x.nets for x in 세션들] == [None] * 5
-        assert [x.name for x in 세션들] == ["프리마켓", "오전", "오후", "막판 동시호가", "애프터마켓"]
+        assert [x.name for x in 세션들] == ["프리마켓", "오전", "오후", "마감 구간", "애프터마켓"]
 
     def test_경계_시각_이하의_가장_가까운_스냅샷을_쓴다(self, 빈_스냅샷_테이블):
         """폴러는 60~120초 간격이라 정확히 12:00인 스냅샷은 거의 없다."""
@@ -184,7 +184,7 @@ class Test선물_세션_수급:
         이름별 = {x.name: x.nets for x in 세션들}
         assert 이름별["오전"].foreign == 1000   # 누적 그대로
         assert 이름별["오후"].foreign == 500    # 1500 − 1000
-        assert [x.name for x in 세션들] == ["오전", "오후", "막판 동시호가"]
+        assert [x.name for x in 세션들] == ["오전", "오후", "마감 구간"]
 
 
 class Test데이터_있는_날로_물러나기:

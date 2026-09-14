@@ -176,7 +176,7 @@ export function sessions(key: string): Session[] {
   const meta: [string, string, string?][] = [
     ["오전", "09:00~12:00"],
     ["오후", "12:00~14:40"],
-    ["막판 동시호가", "14:40~15:30", "종가 결정"],
+    ["마감 구간", "14:40~15:30", "종가 결정"],
   ];
   return meta.map(([name, time, tag]) => {
     const foreign = Math.round((rng() - 0.45) * 500);

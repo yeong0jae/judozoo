@@ -219,7 +219,7 @@ export function useMarketInvestorDaily(market: "KOSPI" | "KOSDAQ", count = 10) {
   });
 }
 
-/** 세션별(오전/오후/막판) 순매수 — 당일 누적 스냅샷 경계 diff. */
+/** 세션별(오전/오후/마감) 순매수 — 당일 누적 스냅샷 경계 diff. */
 export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: string) {
   return useQuery({
     queryKey: QK.marketInvestorSessions(market, date),
@@ -339,7 +339,7 @@ export function useMacroCandles(target: MacroTarget, interval: "1d" | "1m") {
   });
 }
 
-/** 코스피 선물 세션별(오전/오후/막판) 투자자 순매수 — 계약. */
+/** 코스피 선물 세션별(오전/오후/마감) 투자자 순매수 — 계약. */
 export function useFuturesInvestorSessions(market: MarketType, date: string) {
   return useQuery({
     queryKey: QK.futuresInvestorSessions(market, date),
