@@ -60,7 +60,7 @@ class CandidateSignalReading:
 
 @dataclass(frozen=True)
 class BreakoutRadarStock:
-    """저항·지지 한 종목 — 당일 고가(저항선)·저가(지지선) 대비 현재가 갭.
+    """저항·지지 한 종목 — 최근 3거래일 고가(저항선)·저가(지지선) 대비 현재가 갭.
 
     저항은 위로 남은 거리, 지지는 아래로 남은 거리다. 정렬은 저항 근접 순.
     """

@@ -182,7 +182,7 @@ def get_candidates(minChangeRate: int | None = Query(None)) -> ApiResponse[Candi
 
 @router.get("/breakout-radar")
 def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[BreakoutRadarResponse]:  # noqa: N803
-    """후보를 저항선(당일 고가) 근접 순으로. 지지선(당일 저가)도 함께 싣는다."""
+    """후보를 저항선(최근 3거래일 고가) 근접 순으로. 지지선(최근 3거래일 저가)도 함께 싣는다."""
     items = [
         BreakoutRadarItem(
             stock_code=s.stock_code, stock_name=s.stock_name,

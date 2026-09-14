@@ -77,7 +77,7 @@ class SpikeDirection(Enum):
 
 @dataclass(frozen=True)
 class SwingHighSignal:
-    """당일 고가(전고점) 돌파 매매 시그널.
+    """전고점(받은 분봉 구간의 최고가) 돌파 매매 시그널.
 
     `gap_rate` = (고점 − 현재가) / 현재가 × 100 — 전고점까지 남은 상승률(%).
     이미 도달·돌파했으면 0 이하.
@@ -100,7 +100,7 @@ class VolumeSpike:
 
 @dataclass(frozen=True)
 class SwingLowSignal:
-    """당일 저가(지지선) 근접 시그널. `SwingHighSignal`의 대칭.
+    """지지선(받은 분봉 구간의 최저가) 근접 시그널. `SwingHighSignal`의 대칭.
 
     `gap_rate` = (현재가 − 저가) / 현재가 × 100 — 저가까지 남은 하락률(%).
     이미 닿았거나 깨고 내려갔으면 0 이하.
@@ -127,13 +127,16 @@ class MovingAverageReading:
 
 
 class MinuteCandles:
-    """당일 분봉 모음 — 시간 오름차순으로 정규화해 보관한다."""
+    """분봉 모음 — 시간 오름차순으로 정규화해 보관한다.
+
+    구간은 넣는 쪽이 정한다 — 저항·지지는 최근 3거래일, 스파이크는 당일만 넘긴다.
+    """
 
     def __init__(self, candles: list[MinuteCandle]) -> None:
         self._ordered = sorted(candles, key=lambda c: c.date_time)
 
     def day_high_signal(self, current_price: int) -> SwingHighSignal | None:
-        """당일 분봉 중 최고가를 전고점(돌파 대상 저항)으로 본다.
+        """받은 분봉 중 최고가를 전고점(돌파 대상 저항)으로 본다.
 
         동일 최고가가 여러 번 나오면 **처음 형성된 봉**을 형성 시각으로 잡는다.
         """
@@ -147,7 +150,7 @@ class MinuteCandles:
         )
 
     def day_low_signal(self, current_price: int) -> SwingLowSignal | None:
-        """당일 분봉 중 최저가를 지지선으로 본다. `day_high_signal`과 같은 방식이다.
+        """받은 분봉 중 최저가를 지지선으로 본다. `day_high_signal`과 같은 방식이다.
 
         동일 최저가가 여러 번 나오면 **처음 형성된 봉**을 형성 시각으로 잡는다.
         """
