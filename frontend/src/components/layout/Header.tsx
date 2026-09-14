@@ -6,8 +6,7 @@ import { NAV } from "./nav";
 import Wordmark from "./Wordmark";
 
 /**
- * 슬림 상단바 — 전체 폭을 쓰고 좌측 레일이 그 아래에서 시작한다.
- * 네비게이션·계정·설정은 레일이 맡고, 여기엔 워드마크만 둔다(모바일은 예외).
+ * 슬림 상단바. 네비게이션·계정·설정은 좌측 레일(Sidebar)이 맡는다.
  * 모바일에서는 레일이 숨으므로 여기 햄버거가 드로어로 네비를 제공한다.
  */
 export default function Header() {
@@ -28,8 +27,9 @@ export default function Header() {
           </svg>
         </button>
 
-        <NavLink to="/leading-stocks" title="judozoo" className="shrink-0">
-          <Wordmark size={20} />
+        {/* 모바일엔 좌측 레일이 없어 브랜드가 화면에서 사라진다 — 여기서만 보여준다 */}
+        <NavLink to="/leading-stocks" className="md:hidden" title="judozoo">
+          <Wordmark size={22} />
         </NavLink>
 
         <div className="flex-1" />

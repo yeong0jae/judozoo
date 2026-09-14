@@ -9,9 +9,9 @@
 // 팔레트의 상승·손익 빨강(--color-rose-500)과 같은 값. 테마와 무관한 브랜드 상수라 리터럴로 둔다.
 const UP = "#f04452";
 
-export default function Logo({ size = 28, className }: { size?: number; className?: string }) {
+export default function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
       <path d="M15.5 3V6.4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <rect x="12.7" y="6.4" width="5.6" height="7.6" rx="1.4" fill={UP} />
       <path
