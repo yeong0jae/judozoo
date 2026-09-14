@@ -23,6 +23,9 @@ export const INDICES: IndexInfo[] = [
 /** 로그인 없이 볼 수 있는 지수. 백엔드 허용목록(auth/gate.py)과 짝을 맞춘다. */
 export const PUBLIC_SLUGS = new Set(["night-futures"]);
 
+/** 미로그인 사용자를 보낼 곳. 로그인 게이트로 보내면 공개 지수에 닿을 길이 없다. */
+export const PUBLIC_DEFAULT_SLUG = "night-futures";
+
 const DEFAULT_SLUG = "kospi";
 const LAST_SLUG_KEY = "market-analysis:slug";
 

@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
-import { INDICES, PUBLIC_SLUGS, loadLastSlug, rememberSlug, type IndexInfo } from "../lib/indices";
+import {
+  INDICES,
+  PUBLIC_DEFAULT_SLUG,
+  PUBLIC_SLUGS,
+  loadLastSlug,
+  rememberSlug,
+  type IndexInfo,
+} from "../lib/indices";
 import { AnimatePresence, motion } from "motion/react";
 import {
   useFuturesCandles,
@@ -1408,15 +1415,31 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 export default function ClosingBetPage() {
   const { slug } = useParams();
   const { data: me, isLoading } = useMe();
-
-  const ix = INDICES.find((i) => i.slug === slug);
-  if (!ix) return <Navigate to={`/market-analysis/${loadLastSlug()}`} replace />;
-
   if (isLoading) return null;
 
-  if (!me?.authenticated) {
+  const authed = !!me?.authenticated;
+  const ix = INDICES.find((i) => i.slug === slug);
+  if (!ix) {
+    // 미로그인은 공개 지수로 — 게이트로 보내면 볼 수 있는 화면에 닿을 길이 없다
+    const fallback = authed ? loadLastSlug() : PUBLIC_DEFAULT_SLUG;
+    return <Navigate to={`/market-analysis/${fallback}`} replace />;
+  }
+
+  if (!authed) {
     if (!PUBLIC_SLUGS.has(ix.slug)) {
-      return <LoginGate title="지수 · 수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+      return (
+        <div className="flex flex-col gap-3">
+          <LoginGate title="지수 · 수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />
+          <div className="text-center">
+            <Link
+              to={`/market-analysis/${PUBLIC_DEFAULT_SLUG}`}
+              className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300"
+            >
+              코스피 야간 선물은 로그인 없이 볼 수 있습니다
+            </Link>
+          </div>
+        </div>
+      );
     }
     return (
       <div className="flex flex-col gap-4">
