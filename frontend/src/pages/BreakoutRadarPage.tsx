@@ -245,7 +245,7 @@ function RadarRow({
       data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
       className={`transition-colors cursor-pointer hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
-        selected ? "[&>td]:bg-emerald-900/40" : ""
+        selected ? "[&>td]:bg-selected" : ""
       }`}
     >
       <td className="px-4 py-3.5">
@@ -328,7 +328,7 @@ function RadarCard({
       data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
       className={`rounded-xl px-4 py-3.5 flex flex-col gap-1.5 cursor-pointer ${
-        selected ? "bg-emerald-900/40" : ""
+        selected ? "bg-selected" : ""
       }`}
     >
       {/* 1행: 종목 · 상태 */}

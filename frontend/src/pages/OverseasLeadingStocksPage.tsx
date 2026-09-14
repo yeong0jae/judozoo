@@ -181,7 +181,7 @@ function RankingTable({
               <tr
                 data-stock-code={s.symbol}
                 className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
-                  isSelected ? "[&>td]:bg-emerald-900" : ""
+                  isSelected ? "[&>td]:bg-selected" : ""
                 }`}
                 onClick={() => onOpen(s.symbol)}
               >
@@ -247,7 +247,7 @@ function RankingCards({
             <div
               data-stock-code={s.symbol}
               className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
-                isSelected ? "bg-emerald-900" : ""
+                isSelected ? "bg-selected" : ""
               }`}
               onClick={() => onOpen(s.symbol)}
             >

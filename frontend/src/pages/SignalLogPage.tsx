@@ -164,7 +164,7 @@ function renderMarketRow(
         type="button"
         onClick={onClick}
         className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-850 transition-colors ${
-          selected ? "bg-emerald-900/30" : ""
+          selected ? "bg-selected" : ""
         }`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -542,7 +542,7 @@ function SignalLogPageInner() {
                         setOpenKey(open ? null : rowKey);
                       }}
                       className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-850 transition-colors ${
-                        e.stockCode === selectedCode ? "bg-emerald-900/30" : ""
+                        e.stockCode === selectedCode ? "bg-selected" : ""
                       }`}
                     >
                       {/* 왼쪽: 시각·유형·종목 */}

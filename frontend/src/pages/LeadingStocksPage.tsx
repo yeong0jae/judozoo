@@ -274,7 +274,7 @@ function CandidatesTable({
                 data-stock-code={s.stockCode}
                 className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
                   isNew ? "leading-stock-new" : ""
-                } ${isSelected ? "[&>td]:bg-emerald-900" : ""}`}
+                } ${isSelected ? "[&>td]:bg-selected" : ""}`}
                 onClick={() => onOpen(s.stockCode)}
               >
               <td className="pl-4 py-3.5 text-zinc-500 num w-10">{s.rank}</td>
@@ -357,7 +357,7 @@ function CandidatesCards({
               data-stock-code={s.stockCode}
               className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
                 isNew ? "leading-stock-new" : ""
-              } ${isSelected ? "bg-emerald-900" : ""}`}
+              } ${isSelected ? "bg-selected" : ""}`}
               onClick={() => onOpen(s.stockCode)}
             >
               {/* 1행: 아바타 · 종목명 · 현재가 */}

@@ -45,9 +45,8 @@
   --color-emerald-400: #16a34a;
   --color-emerald-500: #16a34a;
 
-  /* 강조 배경(emerald-950/-900은 알파 합쳐 행 하이라이트 용도) */
-  --color-emerald-900: #e7f2ff;
-  --color-emerald-950: #e7f2ff;
+  /* 선택된 행 — 호버보다 한 단계 진한 회색 */
+  --color-selected: #e3e7ec;
 
   /* 손익 빨강 — Toss red. rose-900/-950는 라이트 배너에서 쓰지 않으므로
      기본값(다크) 유지. 어두운 알파 배경을 쓰던 컴포넌트는 라이트 패턴으로 직접 교체. */
@@ -194,9 +193,8 @@ body {
   /* CTA & 성공 — Toss Blue / Toss green 그대로 유지(다크에서도 잘 보임) */
   /* (emerald-300/-400/-500/-600/-700은 라이트와 동일값이라 생략) */
 
-  /* 활성 행/네비 하이라이트 — Toss Blue translucent */
-  --color-emerald-900: rgba(59, 130, 246, 0.16);
-  --color-emerald-950: rgba(59, 130, 246, 0.16);
+  /* 선택된 행 */
+  --color-selected: #2e3138;
 
   /* 손익 빨강 — 다크에서 보이도록 톤업 */
   --color-rose-400: #f87171;
