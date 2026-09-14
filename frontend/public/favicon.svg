@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <!-- judozoo 마크. Logo.tsx와 같은 path이며, 파비콘은 문맥이 없어 currentColor 대신
-       탭 배경 밝기에 따라 색을 바꾼다. -->
+  <!-- 생성 파일 — 고치지 말 것. src/components/layout/mark.json을 고치고 `npm run mark`. -->
   <style>
     :root { --ink: #191f28; }
     @media (prefers-color-scheme: dark) { :root { --ink: #e8ebee; } }
