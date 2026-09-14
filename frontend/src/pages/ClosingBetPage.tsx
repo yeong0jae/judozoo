@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
@@ -37,36 +38,35 @@ import type {
 } from "../types";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
-// 선택 대상 — 종목 / 테마 / 지수
-type Selection = { kind: "index"; id: string };
+const DEFAULT_SLUG = "kospi";
+const LAST_SLUG_KEY = "market-analysis:slug";
 
-const DEFAULT_SELECTION: Selection = { kind: "index", id: "kospi" };
-const SELECTION_KEY = "market-analysis:selection";
-
-/** 다른 메뉴를 다녀와도 보던 대상을 그대로 연다. 저장값이 깨졌으면 코스피로. */
-function loadSelection(): Selection {
+/** `/market-analysis`로 그냥 들어오면 마지막에 보던 지수로 보낸다. */
+function loadLastSlug(): string {
   try {
-    const raw = localStorage.getItem(SELECTION_KEY);
-    if (!raw) return DEFAULT_SELECTION;
-    const parsed = JSON.parse(raw) as Selection;
-    return parsed?.kind ? parsed : DEFAULT_SELECTION;
+    const raw = localStorage.getItem(LAST_SLUG_KEY);
+    return raw && INDICES.some((i) => i.slug === raw) ? raw : DEFAULT_SLUG;
   } catch {
-    return DEFAULT_SELECTION;
+    return DEFAULT_SLUG;
   }
 }
 
-/** 상단 스트립 지수 — 값은 전부 API에서 온다. 여기엔 이름·라우팅만 둔다. */
-type IndexInfo = { id: string; name: string; delayed?: boolean };
-const INDICES: IndexInfo[] = [
-  { id: "kospi", name: "코스피" },
-  { id: "kospiF", name: "코스피 선물" },
-  { id: "kosdaq", name: "코스닥" },
-  { id: "kosdaqF", name: "코스닥 선물" },
-  { id: "nightF", name: "코스피 야간 선물" },
-  { id: "nasdaq", name: "나스닥" },
+/** 상단 스트립 지수 — 값은 전부 API에서 온다. 여기엔 이름·라우팅만 둔다.
+ *  `slug`가 URL이자 탭 제목의 출처다. 지수를 더하면 라우트도 같이 생긴다. */
+type IndexInfo = { id: string; slug: string; name: string; delayed?: boolean };
+export const INDICES: IndexInfo[] = [
+  { id: "kospi", slug: "kospi", name: "코스피" },
+  { id: "kospiF", slug: "kospi-futures", name: "코스피 선물" },
+  { id: "kosdaq", slug: "kosdaq", name: "코스닥" },
+  { id: "kosdaqF", slug: "kosdaq-futures", name: "코스닥 선물" },
+  { id: "nightF", slug: "night-futures", name: "코스피 야간 선물" },
+  { id: "nasdaq", slug: "nasdaq", name: "나스닥" },
   // 지표 하나가 아니라 원달러·WTI 묶음이라 스트립에서 전용 칸을 쓴다.
-  { id: "macro", name: "매크로" },
+  { id: "macro", slug: "macro", name: "매크로" },
 ];
+
+/** 로그인 없이 볼 수 있는 지수. 백엔드 허용목록(auth/gate.py)과 짝을 맞춘다. */
+const PUBLIC_SLUGS = new Set(["night-futures"]);
 
 /** 실시간이 아닌 시세임을 알리는 배지. */
 function DelayBadge() {
@@ -75,34 +75,31 @@ function DelayBadge() {
   );
 }
 
-const subjectKey = (sel: Selection) => `index-${sel.id}`;
-
 /**
  * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드.
  * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 종목 뉴스(종목을 골랐을 때만).
  */
-function ClosingBetPageInner() {
-  const [sel, setSel] = useState<Selection>(loadSelection);
+function ClosingBetPageInner({ ix }: { ix: IndexInfo }) {
   useEffect(() => {
-    localStorage.setItem(SELECTION_KEY, JSON.stringify(sel));
-  }, [sel]);
+    localStorage.setItem(LAST_SLUG_KEY, ix.slug);
+  }, [ix.slug]);
 
   return (
     <div className="flex flex-col gap-4">
       <HolidayBanner />
-      <MarketStrip sel={sel} onSelect={(id) => setSel({ kind: "index", id })} />
+      <MarketStrip currentSlug={ix.slug} />
 
       <div className="min-h-0 lg:h-[calc(100dvh-15rem)] lg:min-h-[40rem] lg:overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
-            key={subjectKey(sel)}
+            key={ix.slug}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="h-full min-h-0"
           >
-            <SubjectDetail sel={sel} />
+            <SubjectDetail ix={ix} />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -133,7 +130,7 @@ const toCell = (value?: number, pct?: number) =>
   value === undefined || pct === undefined ? null : { value, pct };
 
 /** 상단 시장 스트립 — 배경 없이 페이지에 얹히고, 동일폭 7칸을 얇은 구분선으로만 분리. */
-function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string) => void }) {
+function MarketStrip({ currentSlug }: { currentSlug: string }) {
   const kospi = useKospiIndex();
   const kosdaq = useKosdaqIndex();
   const futures = useFuturesQuote("KOSPI");
@@ -144,7 +141,7 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 divide-x divide-y lg:divide-y-0 divide-zinc-800">
       {INDICES.map((ix) => {
-        const active = sel.kind === "index" && sel.id === ix.id;
+        const active = ix.slug === currentSlug;
         // 매크로만 지표 둘을 한 칸에 담아 다른 칸과 모양이 다르다.
         if (ix.id === "macro") {
           return (
@@ -153,7 +150,6 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
               ix={ix}
               quotes={macro.data}
               active={active}
-              onSelect={() => onSelect(ix.id)}
             />
           );
         }
@@ -171,7 +167,6 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
             value={q?.value ?? null}
             pct={q?.pct ?? null}
             active={active}
-            onSelect={() => onSelect(ix.id)}
           />
         );
       })}
@@ -184,17 +179,15 @@ function MacroCell({
   ix,
   quotes,
   active,
-  onSelect,
 }: {
   ix: IndexInfo;
   quotes?: MacroQuotes;
   active: boolean;
-  onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <Link
+      to={`/market-analysis/${ix.slug}`}
+      aria-current={active ? "page" : undefined}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
         active ? "bg-selected" : "hover:bg-zinc-850"
       }`}
@@ -206,7 +199,7 @@ function MacroCell({
         <MacroCellRow label="WTI" quote={quotes?.wti} delayed />
         <MacroCellRow label="VIX" quote={quotes?.vix} />
       </div>
-    </button>
+    </Link>
   );
 }
 
@@ -243,18 +236,16 @@ function IndexCell({
   value,
   pct,
   active,
-  onSelect,
 }: {
   ix: IndexInfo;
   value: number | null;
   pct: number | null;
   active: boolean;
-  onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <Link
+      to={`/market-analysis/${ix.slug}`}
+      aria-current={active ? "page" : undefined}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
         active ? "bg-selected" : "hover:bg-zinc-850"
       }`}
@@ -273,16 +264,14 @@ function IndexCell({
           </>
         )}
       </div>
-    </button>
+    </Link>
   );
 }
 
 // ============================================================
 // 중앙: 선택 대상 상세
 // ============================================================
-function SubjectDetail({ sel }: { sel: Selection }) {
-  const ix = INDICES.find((i) => i.id === sel.id);
-  if (!ix) return null;
+function SubjectDetail({ ix }: { ix: IndexInfo }) {
   const detail =
     ix.id === "kospiF" ? <FuturesIndexDetail index={ix} market="KOSPI" />
     : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" />
@@ -1439,13 +1428,36 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 // ============================================================
 
 
-/** 로그인한 사용자만 본다. 미로그인이면 데이터를 부르지 않는다 —
- *  호출해봐야 401이고, 화면 폴링 주기마다 반복된다. */
+/**
+ * 지수는 URL이 정한다 — `/market-analysis/<slug>`.
+ *
+ * 공개 지수(야간 선물)는 로그인 없이 상세만 보여준다. 상단 스트립은 빼는데,
+ * 스트립이 부르는 시세 대부분이 로그인 뒤라 미로그인에겐 401만 쌓이기 때문이다.
+ */
 export default function ClosingBetPage() {
+  const { slug } = useParams();
   const { data: me, isLoading } = useMe();
+
+  const ix = INDICES.find((i) => i.slug === slug);
+  if (!ix) return <Navigate to={`/market-analysis/${loadLastSlug()}`} replace />;
+
   if (isLoading) return null;
+
   if (!me?.authenticated) {
-    return <LoginGate title="지수 · 수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+    if (!PUBLIC_SLUGS.has(ix.slug)) {
+      return <LoginGate title="지수 · 수급" description="지수·선물·투자자 수급·프로그램매매를 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />;
+    }
+    return (
+      <div className="flex flex-col gap-4">
+        <HolidayBanner />
+        <SubjectDetail ix={ix} />
+        <LoginGate
+          title="나머지 지수도 보려면"
+          description="코스피·코스닥과 선물, 투자자 수급·프로그램매매는 로그인 뒤에 열립니다."
+        />
+      </div>
+    );
   }
-  return <ClosingBetPageInner />;
+
+  return <ClosingBetPageInner ix={ix} />;
 }

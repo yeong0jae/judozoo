@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { NAV } from "../components/layout/nav";
+import { INDICES } from "../pages/ClosingBetPage";
 
 const BRAND = "judozoo";
 
@@ -15,7 +16,11 @@ export function useTabTitle() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    const name = NAV.find((n) => n.to === pathname)?.label ?? DOCUMENT_TITLES[pathname];
+    const name =
+      NAV.find((n) => n.to === pathname)?.label ??
+      DOCUMENT_TITLES[pathname] ??
+      // 지수·수급은 슬러그까지 제목에 싣는다 — "코스피 선물 : judozoo"
+      INDICES.find((i) => pathname === `/market-analysis/${i.slug}`)?.name;
     document.title = name ? `${name} : ${BRAND}` : BRAND;
   }, [pathname]);
 }
