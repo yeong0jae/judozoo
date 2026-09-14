@@ -8,9 +8,16 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-from backend.leadingstock import application, scheduler
+from backend.leadingstock import application, events, scheduler
 from backend.leadingstock.application import CandidateSignalReading
-from backend.leadingstock.entities import MarketSignalEvent, SignalEvent
+from backend.leadingstock.entities import (
+    MarketFlowStateSnapshot,
+    MarketSignalEvent,
+    SignalEvent,
+)
+from backend.leadingstock.infrastructure import MarketInvestorSnapshot
+from backend.platform.kiwoom.sector_investor import SectorInvestorNetBuy
+from backend.stock.domain import Market
 from backend.leadingstock.signals import SignalEventType
 from backend.library.db import get_engine, get_session_factory
 
@@ -160,3 +167,50 @@ class Test종목_시그널_폴러:
         scheduler.poll_signal_events()
 
         assert 호출됨 == []
+
+
+def 순매수(지수=2500.0, 등락률=1.5):
+    """키움 업종 투자자 순매수 응답 한 시장치."""
+    return SectorInvestorNetBuy(
+        foreign_eok=100, institution_eok=50, individual_eok=-150, other_corp_eok=0,
+        financial_investment_eok=10, trust_eok=10, pension_fund_eok=10,
+        private_equity_eok=10, insurance_eok=5, bank_eok=5, other_finance_eok=0,
+        index_value=지수, change_rate=등락률,
+    )
+
+
+@pytest.fixture
+def 수급_폴러_초기화(통합_db):
+    MarketInvestorSnapshot.__table__.create(get_engine(), checkfirst=True)
+    MarketSignalEvent.__table__.create(get_engine(), checkfirst=True)
+    MarketFlowStateSnapshot.__table__.create(get_engine(), checkfirst=True)
+    with get_session_factory()() as s:
+        s.query(MarketInvestorSnapshot).delete()
+        s.query(MarketSignalEvent).delete()
+        s.query(MarketFlowStateSnapshot).delete()
+        s.commit()
+    scheduler._market_trade_date = None
+    scheduler._level_states.clear()
+    scheduler._flow_states.clear()
+    yield
+    scheduler._level_states.clear()
+    scheduler._flow_states.clear()
+
+
+@pytest.mark.integration
+class Test수급_스냅샷:
+    def test_지수_레벨과_등락률을_함께_남긴다(self, 수급_폴러_초기화, monkeypatch):
+        """운영 테이블의 두 컬럼은 NOT NULL이다 — 빼고 적재하면 수급이 통째로 안 쌓인다."""
+        monkeypatch.setattr(scheduler, "now", lambda: AT)
+        monkeypatch.setattr(scheduler, "today", lambda: 오늘)
+        monkeypatch.setattr(
+            events, "investor_net_buy", lambda: {Market.KOSPI: 순매수(지수=2500.0, 등락률=1.5)}
+        )
+
+        scheduler._detect_market_signals()
+
+        with get_session_factory()() as s:
+            적재 = s.query(MarketInvestorSnapshot).all()
+            assert len(적재) == 1
+            assert 적재[0].index_value == 2500.0
+            assert 적재[0].change_rate == 1.5

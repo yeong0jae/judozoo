@@ -23,7 +23,8 @@ def 수급스냅샷(hh: int, mm: int, 개인: int, 외국인: int, 기관: int) 
         market=Market.KOSPI, trade_date=당일, captured_at=datetime(2026, 9, 11, hh, mm),
         individual_eok=개인, foreign_eok=외국인, institution_eok=기관, other_corp_eok=0,
         financial_investment_eok=0, trust_eok=0, pension_fund_eok=0, private_equity_eok=0,
-        insurance_eok=0, bank_eok=0, other_finance_eok=0, created_at=AT, updated_at=AT,
+        insurance_eok=0, bank_eok=0, other_finance_eok=0,
+        index_value=2500.0, change_rate=1.0, created_at=AT, updated_at=AT,
     )
 
 
@@ -130,6 +131,7 @@ class Test투자자_세션_수급:
                 individual_eok=9999, foreign_eok=0, institution_eok=0, other_corp_eok=0,
                 financial_investment_eok=0, trust_eok=0, pension_fund_eok=0,
                 private_equity_eok=0, insurance_eok=0, bank_eok=0, other_finance_eok=0,
+                index_value=2500.0, change_rate=1.0,
                 created_at=AT, updated_at=AT,
             )
             s.add_all([어제, 수급스냅샷(12, 0, 개인=300, 외국인=0, 기관=0)])

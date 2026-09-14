@@ -185,6 +185,7 @@ def _detect_market_signals() -> None:
                     pension_fund_eok=nb.pension_fund_eok, private_equity_eok=nb.private_equity_eok,
                     insurance_eok=nb.insurance_eok, bank_eok=nb.bank_eok,
                     other_finance_eok=nb.other_finance_eok,
+                    index_value=nb.index_value, change_rate=nb.change_rate,
                     created_at=at, updated_at=at,
                 )
             )

@@ -7,7 +7,7 @@
 from datetime import date as date_type
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, Index, select
+from sqlalchemy import BigInteger, Date, DateTime, Enum, Float, Index, select
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from backend.library.db import Base
@@ -39,6 +39,9 @@ class MarketInvestorSnapshot(Base):
     insurance_eok: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     bank_eok: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     other_finance_eok: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    # 캡처 시점 지수 레벨과 등락률. 컬럼이 NOT NULL이라 빼고 적재하면 스냅샷 전체가 실패한다.
+    index_value: Mapped[float] = mapped_column(Float, nullable=False)
+    change_rate: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
