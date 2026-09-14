@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   useDailyCandles,
   useLeadingStockDetail,
@@ -226,11 +227,12 @@ const ORG_DETAIL: { key: keyof StockOrgBreakdown; label: string }[] = [
 /** 당일 투자자 수급 — 개인·외국인·기관계(세부)·기타법인. 키움 ka10059(전체·SOR통합). */
 function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   const { data, isLoading, isError } = useStockInvestorDaily(stockCode, 1);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   if (isLoading) {
     return (
       <section>
-        <span className="text-sm font-semibold text-zinc-400 block mb-2">외인·기관 자금 흐름</span>
+        <span className="text-sm font-semibold text-zinc-400 block mb-2">외인·기관 수급</span>
         <Skeleton className="h-24 w-full" />
       </section>
     );
@@ -242,7 +244,7 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
-        <span className="text-sm font-semibold text-zinc-400">외인·기관 자금 흐름</span>
+        <span className="text-sm font-semibold text-zinc-400">외인·기관 수급</span>
         <span className="text-xs text-zinc-600">오늘 {today.date.slice(5)}</span>
       </div>
       <div className="bg-zinc-900 rounded-2xl px-4 py-2">
@@ -264,7 +266,135 @@ function InvestorTrendSection({ stockCode }: { stockCode: string }) {
           </tbody>
         </table>
       </div>
+      <button
+        type="button"
+        onClick={() => setHistoryOpen(true)}
+        className="mt-2 w-full rounded-xl border border-zinc-800 py-2 text-xs text-zinc-400 transition-colors hover:bg-zinc-850 hover:text-zinc-200"
+      >
+        최근 10일 수급 확인하기
+      </button>
+      {historyOpen && (
+        <InvestorHistoryModal stockCode={stockCode} onClose={() => setHistoryOpen(false)} />
+      )}
     </section>
+  );
+}
+
+/** 기관상세 묶음을 가르는 세로선 — 시황분석 일별 표와 같은 규칙. */
+const ORG_EDGE = "border-l border-zinc-800";
+const orgPad = (i: number, len: number) =>
+  `${i === 0 ? "pl-5" : "pl-2.5"} ${i === len - 1 ? "pr-5" : "pr-2.5"}`;
+
+const fmtDay = (iso: string) => {
+  const [, m, d] = iso.split("-");
+  return `${Number(m)}/${Number(d)}`;
+};
+
+/** 순매수 숫자 — 부호색(+빨강/−파랑). API가 주는 백만원을 그대로 쓴다(억으로 반올림하면 기관 세부가 뭉개진다). */
+function NetMillion({ million }: { million: number }) {
+  const tone = million > 0 ? "text-red-400" : million < 0 ? "text-blue-400" : "text-zinc-600";
+  const sign = million > 0 ? "+" : million < 0 ? "−" : "";
+  return (
+    <span className={`num ${tone}`}>
+      {sign}
+      {Math.abs(million).toLocaleString("ko-KR")}
+    </span>
+  );
+}
+
+/**
+ * 최근 10일 수급 모달 — 시황분석의 시장 일별 표와 같은 짜임.
+ *
+ * 트리거가 상세 패널 안에 있어 body로 포털한다(패널 스크롤에 갇히지 않게).
+ */
+function InvestorHistoryModal({
+  stockCode,
+  onClose,
+}: {
+  stockCode: string;
+  onClose: () => void;
+}) {
+  const { data, isLoading } = useStockInvestorDaily(stockCode, 10);
+  const rows = data ?? [];
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="max-h-[85dvh] w-full max-w-5xl overflow-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-baseline justify-between gap-3">
+          <h3 className="text-lg font-semibold text-zinc-100">최근 10일 수급</h3>
+          <span className="text-xs text-zinc-600">순매수 · 백만원</span>
+        </div>
+
+        {isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : rows.length === 0 ? (
+          <div className="py-10 text-center text-sm text-zinc-600">일별 수급 데이터가 없습니다</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full whitespace-nowrap text-xs">
+              <thead className="text-zinc-500">
+                <tr>
+                  <th className="pb-1 pr-3" />
+                  <th className="px-2.5 pb-1 text-right font-medium">개인</th>
+                  <th className="px-2.5 pb-1 text-right font-medium">외국인</th>
+                  <th className="pb-1 pl-2.5 pr-5 text-right font-medium">기관계</th>
+                  <th
+                    colSpan={ORG_DETAIL.length}
+                    className={`border-b border-zinc-800 pb-1.5 text-center font-medium text-zinc-400 ${ORG_EDGE}`}
+                  >
+                    기관상세
+                  </th>
+                  <th className={`pb-1 pl-5 pr-2.5 text-right font-medium ${ORG_EDGE}`}>기타법인</th>
+                </tr>
+                <tr>
+                  <th className="pb-1.5 pr-3 text-left font-medium">일자</th>
+                  <th />
+                  <th />
+                  <th />
+                  {ORG_DETAIL.map((c, i) => (
+                    <th
+                      key={c.key}
+                      className={`pb-1.5 pt-1.5 text-right font-medium ${orgPad(i, ORG_DETAIL.length)} ${i === 0 ? ORG_EDGE : ""}`}
+                    >
+                      {c.label}
+                    </th>
+                  ))}
+                  <th className={ORG_EDGE} />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.date}
+                    className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850"
+                  >
+                    <td className="num py-2 pr-3 text-left text-zinc-400">{fmtDay(r.date)}</td>
+                    <td className="px-2.5 py-2 text-right"><NetMillion million={r.individualMillion} /></td>
+                    <td className="px-2.5 py-2 text-right"><NetMillion million={r.foreignMillion} /></td>
+                    <td className="py-2 pl-2.5 pr-5 text-right font-medium"><NetMillion million={r.institutionMillion} /></td>
+                    {ORG_DETAIL.map((c, i) => (
+                      <td
+                        key={c.key}
+                        className={`py-2 text-right ${orgPad(i, ORG_DETAIL.length)} ${i === 0 ? ORG_EDGE : ""}`}
+                      >
+                        <NetMillion million={r.breakdown[c.key]} />
+                      </td>
+                    ))}
+                    <td className={`py-2 pl-5 pr-2.5 text-right ${ORG_EDGE}`}>
+                      <NetMillion million={r.otherCorpMillion} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
   );
 }
 
