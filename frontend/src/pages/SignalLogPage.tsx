@@ -295,7 +295,7 @@ function Stat({
 }
 
 /**
- * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·돌파 횟수·최대 스파이크
+ * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·반등/꺾임 횟수·최대 스파이크
  * 거래대금·필터 충족) + 시간순 테이블. [journey]는 최신순으로 들어오고, 테이블도 최신→오래된으로 그대로 그린다.
  */
 function StockJourney({ stockCode, journey }: { stockCode: string; journey: SignalEventItem[] }) {
@@ -303,7 +303,8 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   const filters = detailQ.data?.filterResults;
   const passed = filters?.filter((f) => f.passed).length;
 
-  const breakouts = journey.filter((j) => j.eventType === "BREAKOUT").length;
+  const rebounds = journey.filter((j) => j.eventType === "MA_REBOUND").length;
+  const breakdowns = journey.filter((j) => j.eventType === "MA_BREAKDOWN").length;
   const spikeValues = journey
     .filter((j) => j.eventType === "VOLUME_SPIKE" && j.minuteTradingValue != null)
     .map((j) => j.minuteTradingValue as number);
@@ -315,7 +316,16 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
     <div className="px-4 pb-4 pt-3 bg-zinc-850">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <Stat label="누적 거래대금" value={formatKoreanMoney(accTradingValue)} />
-        <Stat label="오늘 돌파" value={`${breakouts}회`} valueClass="text-emerald-400" />
+        <Stat
+          label="반등 · 꺾임"
+          value={
+            <>
+              <span className="text-orange-400">{rebounds}</span>
+              <span className="text-zinc-600"> · </span>
+              <span className="text-sky-400">{breakdowns}</span>
+            </>
+          }
+        />
         <Stat
           label="최대 스파이크"
           value={maxSpike != null ? formatKoreanMoney(maxSpike) : "—"}

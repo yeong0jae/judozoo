@@ -420,23 +420,6 @@ export interface OverseasStockRankItem {
   tradingValue: number;
 }
 
-// === 관심 테마 (사용자 큐레이션) ===
-
-export interface WatchStock {
-  stockCode: string;
-  stockName: string;
-  exchange: string | null; // NAS/NYS/AMS. null이면 국내
-}
-
-/** 관심 종목 시세 — 국내는 키움, 해외는 야후. */
-export interface StockQuote {
-  stockCode: string;
-  stockName: string;
-  currentPrice: number;
-  priceChangeRate: number;
-  overseas: boolean;
-}
-
 /** 시간대별 수급 응답 — `date`는 **실제로 조회된 날짜**다.
  *  공휴일이면 백엔드가 직전 거래일로 물러나므로, 요청한 날짜로 라벨을 붙이면 안 된다. */
 export interface SessionsResponse<T> {
