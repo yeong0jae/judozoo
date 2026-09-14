@@ -20,7 +20,7 @@ class SignalEvent(Base):
     """종목 시그널 전이 한 건.
 
     전이 순간의 컨텍스트를 함께 박아 둬 재조회 없이 복기할 수 있게 한다.
-    `gap_rate`는 돌파 계열에만, 스파이크 3종은 스파이크에만, `ma20`은 돌림에만 채워진다.
+    `gap_rate`는 돌파 계열에만, 스파이크 3종은 스파이크에만, `ma`는 돌림에만 채워진다.
     """
 
     __tablename__ = "signal_event"
@@ -39,7 +39,7 @@ class SignalEvent(Base):
     spike_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
     minute_trading_value: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     spike_direction: Mapped[SpikeDirection | None] = mapped_column(Enum(SpikeDirection), nullable=True)
-    ma20: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    ma: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

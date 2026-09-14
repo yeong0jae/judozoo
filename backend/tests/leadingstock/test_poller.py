@@ -32,8 +32,8 @@ def 측정(
         stock_code=종목, stock_name="삼성전자", current_price=70_000, price_change_rate=5.0,
         trading_value=1_000_000_000, gap_rate=None, peak_price=None, spike_ratio=스파이크,
         minute_trading_value=None, spike_direction=None,
-        ma20_crossed_up=이평상향, ma20_crossed_down=이평하향,
-        ma20_below_band=None, ma20_above_band=None, ma20=이평,
+        ma_crossed_up=이평상향, ma_crossed_down=이평하향,
+        ma_below_band=None, ma_above_band=None, ma=이평,
     )
 
 
@@ -146,8 +146,8 @@ class Test종목_시그널_폴러:
 
         이벤트별 = {e.event_type: e for e in 적재된_이벤트()}
         assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].spike_ratio == 5.0
-        assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].ma20 is None
-        assert 이벤트별[SignalEventType.MA_REBOUND.value].ma20 == 1000
+        assert 이벤트별[SignalEventType.VOLUME_SPIKE.value].ma is None
+        assert 이벤트별[SignalEventType.MA_REBOUND.value].ma == 1000
         assert 이벤트별[SignalEventType.MA_REBOUND.value].spike_ratio is None
 
     def test_휴장이면_폴러가_돌지_않는다(self, 폴러_초기화, monkeypatch):

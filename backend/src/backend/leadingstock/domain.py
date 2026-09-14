@@ -113,7 +113,7 @@ class SwingLowSignal:
 
 @dataclass(frozen=True)
 class MovingAverageReading:
-    """분봉 이평 교차 판정. `ma20`은 최신 확정봉 시점 이평값(원, 반올림).
+    """분봉 이평 교차 판정. `ma`는 최신 확정봉 시점 이평값(원, 반올림).
 
     `*_band`는 히스테리시스 재무장용이다 — 한 번 발화한 뒤 반대편으로 마진만큼
     벗어나야 다시 무장한다. 이평 근처에서 흔들릴 때 같은 사건이 반복 적재되는 걸 막는다.
@@ -123,7 +123,7 @@ class MovingAverageReading:
     crossed_down: bool
     below_band: bool
     above_band: bool
-    ma20: int
+    ma: int
 
 
 class MinuteCandles:
@@ -197,7 +197,7 @@ class MinuteCandles:
             below_band=latest.close_price < ma_latest * (1 - rearm_margin),
             above_band=latest.close_price > ma_latest * (1 + rearm_margin),
             # Java `Math.round`는 floor(x+0.5) — Python 기본 round()의 은행가 반올림과 갈린다.
-            ma20=math.floor(ma_latest + 0.5),
+            ma=math.floor(ma_latest + 0.5),
         )
 
     def _aggregate(self, interval_minutes: int) -> list[MinuteCandle]:
@@ -270,7 +270,7 @@ class IndexMinuteCandle:
 
 
 @dataclass(frozen=True)
-class IndexMa20Signal:
+class IndexMaSignal:
     """지수 분봉 이평 돌파 판정. 반등(상향)과 꺾임(하향)을 **대칭으로** 함께 담는다."""
 
     crossed_up: bool
@@ -311,7 +311,7 @@ class IndexMinuteCandles:
 
     def moving_average(
         self, interval_minutes: int, period: int, rearm_margin: float
-    ) -> IndexMa20Signal | None:
+    ) -> IndexMaSignal | None:
         """종목 돌림(`MinuteCandles.moving_average`)과 동일 규칙 — 진행 중인 마지막 봉은 뺀다."""
         bars = self._aggregate(interval_minutes)[:-1]
         if len(bars) < period + 1:
@@ -319,7 +319,7 @@ class IndexMinuteCandles:
         latest, prev = bars[-1], bars[-2]
         ma_latest = sum(b.close for b in bars[-period:]) / period
         ma_prev = sum(b.close for b in bars[-period - 1 : -1]) / period
-        return IndexMa20Signal(
+        return IndexMaSignal(
             crossed_up=prev.close <= ma_prev and latest.close > ma_latest,
             below_band=latest.close < ma_latest * (1 - rearm_margin),
             crossed_down=prev.close >= ma_prev and latest.close < ma_latest,

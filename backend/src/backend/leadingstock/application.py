@@ -52,11 +52,11 @@ class CandidateSignalReading:
     spike_ratio: float | None
     minute_trading_value: int | None
     spike_direction: SpikeDirection | None
-    ma20_crossed_up: bool | None
-    ma20_crossed_down: bool | None
-    ma20_below_band: bool | None
-    ma20_above_band: bool | None
-    ma20: int | None
+    ma_crossed_up: bool | None
+    ma_crossed_down: bool | None
+    ma_below_band: bool | None
+    ma_above_band: bool | None
+    ma: int | None
 
 
 @dataclass(frozen=True)
@@ -211,7 +211,7 @@ def signal_readings(min_daily_price_change_rate: float) -> list[CandidateSignalR
         # 돌파선·돌림은 최근 3거래일 연속 분봉으로(1분봉 60이평이 개장부터 연속되게), 스파이크는 당일만
         recent = _breakout_high_candles(c.stock_code)
         high = recent.day_high_signal(c.current_price)
-        ma = recent.moving_average(_MA_INTERVAL_MINUTES, _MA_PERIOD, _MA_REARM_MARGIN)
+        ma_reading = recent.moving_average(_MA_INTERVAL_MINUTES, _MA_PERIOD, _MA_REARM_MARGIN)
         spike = MinuteCandles(_latest_session_minute_candles(c.stock_code)).volume_spike(
             _SPIKE_BASELINE_BARS
         )
@@ -229,11 +229,11 @@ def signal_readings(min_daily_price_change_rate: float) -> list[CandidateSignalR
                 spike_ratio=spike.ratio if spike else None,
                 minute_trading_value=spike.latest_trading_value if spike else None,
                 spike_direction=spike.direction if spike else None,
-                ma20_crossed_up=ma.crossed_up if ma else None,
-                ma20_crossed_down=ma.crossed_down if ma else None,
-                ma20_below_band=ma.below_band if ma else None,
-                ma20_above_band=ma.above_band if ma else None,
-                ma20=ma.ma20 if ma else None,
+                ma_crossed_up=ma_reading.crossed_up if ma_reading else None,
+                ma_crossed_down=ma_reading.crossed_down if ma_reading else None,
+                ma_below_band=ma_reading.below_band if ma_reading else None,
+                ma_above_band=ma_reading.above_band if ma_reading else None,
+                ma=ma_reading.ma if ma_reading else None,
             )
         )
     return readings

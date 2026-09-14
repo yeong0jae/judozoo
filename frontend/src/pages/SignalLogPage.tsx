@@ -264,7 +264,7 @@ function detailOf(e: SignalEventItem) {
   if (e.eventType === "MA_REBOUND" || e.eventType === "MA_BREAKDOWN") {
     return (
       <span className="text-sky-300">
-        1분 60이평{e.ma20 != null && ` ${formatPrice(e.ma20)}원`}{" "}
+        1분 60이평{e.ma != null && ` ${formatPrice(e.ma)}원`}{" "}
         {e.eventType === "MA_REBOUND" ? "상향돌파" : "하향이탈"}
       </span>
     );

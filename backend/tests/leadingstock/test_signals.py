@@ -19,8 +19,8 @@ def 측정(
 ) -> SignalReading:
     return SignalReading(
         spike_ratio=스파이크,
-        ma20_crossed_up=이평상향, ma20_crossed_down=이평하향,
-        ma20_below_band=이평아래, ma20_above_band=이평위,
+        ma_crossed_up=이평상향, ma_crossed_down=이평하향,
+        ma_below_band=이평아래, ma_above_band=이평위,
     )
 
 
@@ -71,7 +71,7 @@ class Test동시_전이:
         events, next_state = 발화후.advance(측정())
 
         assert events == []
-        assert next_state.ma20_rebound_armed is False
+        assert next_state.ma_rebound_armed is False
 
 
 class Test순매수_흐름_전환:
@@ -216,5 +216,5 @@ class Test20이평_반등과_꺾임:
     def test_측정값이_없으면_상태를_건드리지_않는다(self):
         _, 상태 = 흘려보내기(측정(이평상향=True), 측정())
 
-        assert 상태.ma20_rebound_armed is False
+        assert 상태.ma_rebound_armed is False
 

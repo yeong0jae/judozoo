@@ -52,10 +52,10 @@ class SignalReading:
     """한 종목의 현재 시그널 측정값(한 폴링 시점). 값이 없으면 None."""
 
     spike_ratio: float | None    # 최신 1분봉 거래대금 배율 — 임계 미달이면 None
-    ma20_crossed_up: bool | None    # 최신 확정봉이 이평을 아래→위로 돌파한 봉인지
-    ma20_crossed_down: bool | None  # 위→아래로 돌파한 봉인지
-    ma20_below_band: bool | None    # 이평보다 마진 이상 아래인지(반등 재무장)
-    ma20_above_band: bool | None    # 이평보다 마진 이상 위인지(꺾임 재무장)
+    ma_crossed_up: bool | None    # 최신 확정봉이 이평을 아래→위로 돌파한 봉인지
+    ma_crossed_down: bool | None  # 위→아래로 돌파한 봉인지
+    ma_below_band: bool | None    # 이평보다 마진 이상 아래인지(반등 재무장)
+    ma_above_band: bool | None    # 이평보다 마진 이상 위인지(꺾임 재무장)
 
 
 _SPIKE_FIRE_RATIO = 2.5
@@ -71,8 +71,8 @@ class SignalState:
 
     spiking: bool = False
     # 이평 히스테리시스 — 한 번 발화하면 반대편 밴드를 벗어나야 다시 무장한다.
-    ma20_rebound_armed: bool = True
-    ma20_breakdown_armed: bool = True
+    ma_rebound_armed: bool = True
+    ma_breakdown_armed: bool = True
 
     def advance(self, reading: SignalReading) -> tuple[list[SignalEventType], "SignalState"]:
         events: list[SignalEventType] = []
@@ -87,17 +87,17 @@ class SignalState:
             spiking = False
 
         # 이평 반등·꺾임. 시장 시그널(MA_REBOUND/BREAKDOWN)과 같은 개념이다.
-        rebound_armed, breakdown_armed = self.ma20_rebound_armed, self.ma20_breakdown_armed
-        if reading.ma20_crossed_up and rebound_armed:
+        rebound_armed, breakdown_armed = self.ma_rebound_armed, self.ma_breakdown_armed
+        if reading.ma_crossed_up and rebound_armed:
             events.append(SignalEventType.MA_REBOUND)
             rebound_armed = False
-        elif reading.ma20_below_band:
+        elif reading.ma_below_band:
             rebound_armed = True  # 이평 아래로 충분히 내려옴 — 다음 반등을 받을 준비
 
-        if reading.ma20_crossed_down and breakdown_armed:
+        if reading.ma_crossed_down and breakdown_armed:
             events.append(SignalEventType.MA_BREAKDOWN)
             breakdown_armed = False
-        elif reading.ma20_above_band:
+        elif reading.ma_above_band:
             breakdown_armed = True
 
         return events, SignalState(spiking, rebound_armed, breakdown_armed)

@@ -91,7 +91,7 @@ def _detect_signal_events() -> None:
         fired, next_state = prev.advance(
             SignalReading(
                 r.spike_ratio,
-                r.ma20_crossed_up, r.ma20_crossed_down, r.ma20_below_band, r.ma20_above_band,
+                r.ma_crossed_up, r.ma_crossed_down, r.ma_below_band, r.ma_above_band,
             )
         )
         _signal_states[r.stock_code] = next_state
@@ -124,7 +124,7 @@ def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date) -> 
         spike_ratio=r.spike_ratio if spike else None,
         minute_trading_value=r.minute_trading_value if spike else None,
         spike_direction=r.spike_direction if spike else None,
-        ma20=r.ma20 if event_type in _MA_EVENTS else None,
+        ma=r.ma if event_type in _MA_EVENTS else None,
         created_at=at, updated_at=at,
     )
 

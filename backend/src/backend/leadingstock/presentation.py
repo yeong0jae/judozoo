@@ -75,7 +75,7 @@ class SignalEventItem(BaseModel):
     spike_ratio: float | None = Field(serialization_alias="spikeRatio")
     minute_trading_value: int | None = Field(serialization_alias="minuteTradingValue")
     spike_direction: str | None = Field(serialization_alias="spikeDirection")
-    ma20: int | None
+    ma: int | None
 
 
 class SignalEventsResponse(BaseModel):
@@ -220,7 +220,7 @@ def get_signal_events(
             gap_rate=e.gap_rate, spike_ratio=e.spike_ratio,
             minute_trading_value=e.minute_trading_value,
             spike_direction=e.spike_direction.value if e.spike_direction else None,
-            ma20=e.ma20,
+            ma=e.ma,
         )
         for e in events.signal_events_on(db, day)
     ]

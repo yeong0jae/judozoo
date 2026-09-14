@@ -296,7 +296,7 @@ export interface SignalEventItem {
   spikeRatio: number | null;
   minuteTradingValue: number | null;
   spikeDirection: SpikeDirection | null;
-  ma20: number | null;
+  ma: number | null;
 }
 
 export interface SignalEventsResponse {

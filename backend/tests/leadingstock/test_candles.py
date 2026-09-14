@@ -111,7 +111,7 @@ class Test이평_돌림:
 
         ma = 캔들.moving_average(**self.옵션)
 
-        assert (ma.crossed_up, ma.below_band, ma.ma20) == (True, False, 20)
+        assert (ma.crossed_up, ma.below_band, ma.ma) == (True, False, 20)
 
     def test_이미_이평_위에_쭉_있던_봉은_돌림봉이_아니다(self):
         캔들 = MinuteCandles(오분봉(0, 10) + 오분봉(1, 10) + 오분봉(2, 40) + 오분봉(3, 50) + 오분봉(4, 999))
