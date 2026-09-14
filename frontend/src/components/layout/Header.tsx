@@ -16,14 +16,14 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/[0.04] bg-zinc-950">
+    <header className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950">
       <div className="flex h-14 items-center gap-2 px-4 sm:px-6">
         {/* 모바일: 햄버거 */}
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="메뉴"
-          className="md:hidden rounded-lg p-2 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
+          className="md:hidden rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
@@ -47,7 +47,7 @@ export default function Header() {
 
       {/* 모바일 드로어 */}
       {menuOpen && (
-        <nav className="md:hidden border-t border-white/[0.04] px-3 pb-3 pt-2">
+        <nav className="md:hidden border-t border-zinc-800 px-3 pb-3 pt-2">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
@@ -56,8 +56,8 @@ export default function Header() {
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                   isActive
-                    ? "bg-white/[0.06] text-zinc-100"
-                    : "text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-100"
+                    ? "bg-zinc-800 text-zinc-100"
+                    : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
                 }`
               }
             >
