@@ -21,7 +21,7 @@ export default function MarketToggle({
   trailing?: ReactNode;
 }) {
   return (
-    <div className="flex items-end justify-between gap-x-4 gap-y-2 flex-wrap border-b border-white/[0.08]">
+    <div className="flex items-end justify-between gap-x-4 gap-y-2 flex-wrap border-b border-zinc-800">
       <div className="flex gap-6">
         {TABS.map((t) => (
           <button

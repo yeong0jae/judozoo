@@ -163,7 +163,7 @@ function renderMarketRow(
       <button
         type="button"
         onClick={onClick}
-        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-white/[0.03] transition-colors ${
+        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-900 transition-colors ${
           selected ? "bg-emerald-900/30" : ""
         }`}
       >
@@ -194,7 +194,7 @@ function renderMarketRow(
       </button>
 
       {open && (
-        <div className="px-4 pb-4 pt-3 bg-white/[0.02]">
+        <div className="px-4 pb-4 pt-3 bg-zinc-900">
           <table className="w-full text-xs num border-separate border-spacing-y-0.5">
             <thead className="text-zinc-600">
               <tr>
@@ -285,7 +285,7 @@ function Stat({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-xl bg-white/[0.03] px-3 py-2">
+    <div className="rounded-xl bg-zinc-950 px-3 py-2">
       <div className="text-xs text-zinc-500">{label}</div>
       <div className={`num text-base font-bold ${valueClass}`}>{value}</div>
     </div>
@@ -310,7 +310,7 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   const ordered = journey; // 최신 → 오래된
 
   return (
-    <div className="px-4 pb-4 pt-3 bg-white/[0.02]">
+    <div className="px-4 pb-4 pt-3 bg-zinc-900">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <Stat label="누적 거래대금" value={formatKoreanMoney(accTradingValue)} />
         <Stat label="오늘 돌파" value={`${breakouts}회`} valueClass="text-emerald-400" />
@@ -468,7 +468,7 @@ function SignalLogPageInner() {
 
       {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex justify-end pb-2 border-b border-white/[0.08]">
+        <div className="flex justify-end pb-2 border-b border-zinc-800">
           <ChangeRateSelector value={minRate} onChange={setMinRate} />
         </div>
       </div>
@@ -477,14 +477,14 @@ function SignalLogPageInner() {
       <section>
         {/* 유형 필터 — 리스트 위 한 줄 */}
         <div className="py-2.5">
-          <div className="flex rounded-lg bg-white/[0.04] p-0.5 text-xs w-fit">
+          <div className="flex rounded-lg bg-zinc-800 p-0.5 text-xs w-fit">
             {TYPE_TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTypeFilter(t.key)}
                 className={`px-2.5 py-1 rounded-md transition-colors ${
-                  typeFilter === t.key ? "bg-white/[0.1] text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                  typeFilter === t.key ? "bg-zinc-950 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}
@@ -501,7 +501,7 @@ function SignalLogPageInner() {
         ) : feed.length === 0 ? (
           <EmptyState message={`${date} 시그널이 없습니다`} />
         ) : (
-          <ul className="divide-y divide-white/[0.04]">
+          <ul className="divide-y divide-zinc-800">
             <AnimatePresence initial={false}>
               {feed.map((row) => {
                 if (row.kind === "market") {
@@ -541,7 +541,7 @@ function SignalLogPageInner() {
                         setSelectedMarket(null);
                         setOpenKey(open ? null : rowKey);
                       }}
-                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-white/[0.03] transition-colors ${
+                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-900 transition-colors ${
                         e.stockCode === selectedCode ? "bg-emerald-900/30" : ""
                       }`}
                     >

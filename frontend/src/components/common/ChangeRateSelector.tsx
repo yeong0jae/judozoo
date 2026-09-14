@@ -8,7 +8,7 @@ export const CHANGE_RATE_OPTIONS = [-12, -7, -5, -3, 0, 3, 5, 7];
 function thumbTone(rate: number): string {
   if (rate > 0) return "bg-red-500/20";
   if (rate < 0) return "bg-blue-500/20";
-  return "bg-white/[0.12]";
+  return "bg-zinc-950";
 }
 function textTone(rate: number, active: boolean): string {
   if (rate > 0) return active ? "text-red-300" : "text-red-400/70";
@@ -33,7 +33,7 @@ export default function ChangeRateSelector({
   return (
     <div className="flex items-center gap-2 flex-wrap justify-end">
       <span className="text-xs text-zinc-500">등락률</span>
-      <div className="flex rounded-xl bg-white/[0.05] p-1 text-xs num">
+      <div className="flex rounded-xl bg-zinc-800 p-1 text-xs num">
         {options.map((rate) => {
           const active = rate === value;
           return (

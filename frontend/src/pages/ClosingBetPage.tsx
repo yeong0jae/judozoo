@@ -71,7 +71,7 @@ const INDICES: IndexInfo[] = [
 /** 실시간이 아닌 시세임을 알리는 배지. */
 function DelayBadge() {
   return (
-    <span className="text-[10px] text-zinc-500 bg-white/[0.04] rounded px-1 py-px">10분 지연</span>
+    <span className="text-[10px] text-zinc-500 bg-zinc-800 rounded px-1 py-px">10분 지연</span>
   );
 }
 
@@ -142,7 +142,7 @@ function MarketStrip({ sel, onSelect }: { sel: Selection; onSelect: (id: string)
   const nasdaqIndex = useNasdaqIndexQuote();
   const macro = useMacroQuotes();
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 divide-x divide-y lg:divide-y-0 divide-white/[0.06]">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 divide-x divide-y lg:divide-y-0 divide-zinc-800">
       {INDICES.map((ix) => {
         const active = sel.kind === "index" && sel.id === ix.id;
         // 매크로만 지표 둘을 한 칸에 담아 다른 칸과 모양이 다르다.
@@ -196,7 +196,7 @@ function MacroCell({
       type="button"
       onClick={onSelect}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
-        active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
+        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-900"
       }`}
     >
       <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
@@ -256,7 +256,7 @@ function IndexCell({
       type="button"
       onClick={onSelect}
       className={`flex flex-col px-3.5 py-3 text-left transition-colors ${
-        active ? "bg-blue-500/[0.08]" : "hover:bg-white/[0.03]"
+        active ? "bg-blue-500/[0.08]" : "hover:bg-zinc-900"
       }`}
     >
       <span className="flex items-center gap-1.5 text-[14px] font-medium text-zinc-300">
@@ -354,7 +354,7 @@ function DetailHeader({
             <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
               <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
               <span className="inline-flex items-baseline gap-2">{priceGroup}</span>
-              <span className="self-center text-xs text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">{category}</span>
+              <span className="self-center text-xs text-zinc-400 bg-zinc-800 rounded px-1.5 py-0.5">{category}</span>
             </div>
           ) : (
             <>
@@ -363,7 +363,7 @@ function DetailHeader({
                 <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                   <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
                   {code && <span className="num text-xs text-zinc-500">{code}</span>}
-                  <span className="text-xs text-zinc-400 bg-white/[0.04] rounded px-1.5 py-0.5">{category}</span>
+                  <span className="text-xs text-zinc-400 bg-zinc-800 rounded px-1.5 py-0.5">{category}</span>
                 </div>
               </div>
               <div className="mt-1 flex items-baseline gap-2 flex-wrap">{priceGroup}</div>
@@ -371,14 +371,14 @@ function DetailHeader({
           )}
         </div>
         {tab && setTab && (
-          <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+          <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
             {DETAIL_TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+                  tab === t.key ? "bg-zinc-950 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}
@@ -401,14 +401,14 @@ type ChartInterval = "1m" | "1d";
 /** 차트 위 1분봉/일봉 토글. */
 function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (v: ChartInterval) => void }) {
   return (
-    <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+    <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
       {INTERVAL_TABS.map((t) => (
         <button
           key={t.key}
           type="button"
           onClick={() => onChange(t.key)}
           className={`px-3 py-1.5 rounded-lg transition-colors ${
-            value === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+            value === t.key ? "bg-zinc-950 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
           {t.label}
@@ -783,7 +783,7 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
   const list = data?.sessions ?? [];
   // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다.
   const shownDate = data?.date ?? date;
-  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
+  const edge = "border-l border-zinc-800"; // 기관상세 묶음 경계선
   const numCols = 3 + FUTURES_ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
   const keyOf = (session: string, field: string) => `flowdelta:futures:${date}:${session}:${field}`;
   useEffect(() => pruneFlowDelta(date), [date]);
@@ -807,7 +807,7 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
                 <th className="text-right font-medium pb-1 px-2.5">개인</th>
                 <th className="text-right font-medium pb-1 px-2.5">외국인</th>
                 <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
-                <th colSpan={FUTURES_ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
+                <th colSpan={FUTURES_ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-zinc-800 ${edge}`}>
                   기관상세
                 </th>
                 <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
@@ -831,7 +831,7 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
                 return (
                   <tr
                     key={s.name}
-                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]`}
+                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900`}
                   >
                     <td className="text-left py-2 pr-3">
                       <div className="text-zinc-300">{s.name}</div>
@@ -883,7 +883,7 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
 function FuturesDailyCard({ market }: { market: MarketType }) {
   const { data, isLoading } = useFuturesInvestorDaily(market, 5);
   const records = data ?? [];
-  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
+  const edge = "border-l border-zinc-800"; // 기관상세 묶음 경계선
 
   return (
     <div className="px-1">
@@ -904,7 +904,7 @@ function FuturesDailyCard({ market }: { market: MarketType }) {
                 <th className="text-right font-medium pb-1 px-2.5">개인</th>
                 <th className="text-right font-medium pb-1 px-2.5">외국인</th>
                 <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
-                <th colSpan={FUTURES_ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
+                <th colSpan={FUTURES_ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-zinc-800 ${edge}`}>
                   기관상세
                 </th>
                 <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
@@ -926,7 +926,7 @@ function FuturesDailyCard({ market }: { market: MarketType }) {
               {records.map((r) => (
                 <tr
                   key={r.date}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
                 >
                   <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
                   <td className="text-right py-2 px-2.5">
@@ -1149,7 +1149,7 @@ function InvestorDailyTable({
   unit?: string;
   days?: number;
 }) {
-  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
+  const edge = "border-l border-zinc-800"; // 기관상세 묶음 경계선
 
   return (
     <div className="px-1">
@@ -1170,7 +1170,7 @@ function InvestorDailyTable({
                 <th className="text-right font-medium pb-1 px-2.5">개인</th>
                 <th className="text-right font-medium pb-1 px-2.5">외국인</th>
                 <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
-                <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
+                <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-zinc-800 ${edge}`}>
                   기관상세
                 </th>
                 <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
@@ -1192,7 +1192,7 @@ function InvestorDailyTable({
               {records.map((r) => (
                 <tr
                   key={r.date}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
                 >
                   <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
                   <td className="text-right py-2 px-2.5">
@@ -1229,7 +1229,7 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
   const list = data?.sessions ?? [];
   // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다.
   const shownDate = data?.date ?? date;
-  const edge = "border-l border-white/[0.06]";
+  const edge = "border-l border-zinc-800";
   const keyOf = (session: string, field: string) => `flowdelta:program:${market}:${date}:${session}:${field}`;
   useEffect(() => pruneFlowDelta(date), [date]);
 
@@ -1260,7 +1260,7 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
                 return (
                   <tr
                     key={s.name}
-                    className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                    className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
                   >
                     <td className="text-left py-2 pr-3">
                       <div className="text-zinc-300">{s.name}</div>
@@ -1296,7 +1296,7 @@ function ProgramSessionsCard({ market, date }: { market: MarketType; date: strin
 function ProgramDailyTable({ market }: { market: MarketType }) {
   const { data, isLoading } = useMarketProgramDaily(market, 5);
   const records = data ?? [];
-  const edge = "border-l border-white/[0.06]";
+  const edge = "border-l border-zinc-800";
 
   return (
     <div className="px-1">
@@ -1323,7 +1323,7 @@ function ProgramDailyTable({ market }: { market: MarketType }) {
               {records.map((r) => (
                 <tr
                   key={r.date}
-                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]"
+                  className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900"
                 >
                   <td className="text-left text-zinc-400 num py-2 pr-3">{fmtDay(r.date)}</td>
                   <td className="text-right py-2 px-2.5 font-medium"><NetNum eok={r.totalEok} /></td>
@@ -1352,7 +1352,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   const list = data?.sessions ?? [];
   // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다.
   const shownDate = data?.date ?? date;
-  const edge = "border-l border-white/[0.06]"; // 기관상세 묶음 경계선
+  const edge = "border-l border-zinc-800"; // 기관상세 묶음 경계선
   const numCols = 3 + ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
   const keyOf = (session: string, field: string) => `flowdelta:${market}:${date}:${session}:${field}`;
   useEffect(() => pruneFlowDelta(date), [date]);
@@ -1376,7 +1376,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                 <th className="text-right font-medium pb-1 px-2.5">개인</th>
                 <th className="text-right font-medium pb-1 px-2.5">외국인</th>
                 <th className="text-right font-medium pb-1 pl-2.5 pr-5">기관계</th>
-                <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-white/[0.06] ${edge}`}>
+                <th colSpan={ORG_COLS.length} className={`text-center font-medium pb-1.5 text-zinc-400 border-b border-zinc-800 ${edge}`}>
                   기관상세
                 </th>
                 <th className={`text-right font-medium pb-1 pl-5 pr-2.5 ${edge}`}>기타법인</th>
@@ -1400,7 +1400,7 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                 return (
                   <tr
                     key={s.name}
-                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-white/[0.02]`}
+                    className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-900`}
                   >
                     <td className="text-left py-2 pr-3">
                       <div className="text-zinc-300">{s.name}</div>

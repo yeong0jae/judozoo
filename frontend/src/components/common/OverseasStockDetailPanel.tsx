@@ -74,14 +74,14 @@ export default function OverseasStockDetailPanel({
               <div className="text-xs text-zinc-400 truncate">{d?.ename || d?.name || ""}</div>
             </div>
           </div>
-          <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+          <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+                  tab === t.key ? "bg-zinc-950 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}

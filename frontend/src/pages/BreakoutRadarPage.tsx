@@ -51,7 +51,7 @@ const MODES: { key: RadarMode; label: string }[] = [
 /** 보는 모드를 고른다. 정렬 기준도 같이 바뀐다 — 돌파매매와 눌림매매는 동시에 보는 게 아니다. */
 function ModeToggle({ value, onChange }: { value: RadarMode; onChange: (v: RadarMode) => void }) {
   return (
-    <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+    <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
       {MODES.map((m) => (
         <button
           key={m.key}
@@ -59,7 +59,7 @@ function ModeToggle({ value, onChange }: { value: RadarMode; onChange: (v: Radar
           onClick={() => onChange(m.key)}
           className={`px-4 py-1.5 rounded-lg transition-colors ${
             value === m.key
-              ? "bg-white/[0.1] text-zinc-100 font-medium"
+              ? "bg-zinc-950 text-zinc-100 font-medium"
               : "text-zinc-500 hover:text-zinc-300"
           }`}
         >
@@ -144,7 +144,7 @@ function BreakoutRadarPageInner() {
 
       {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-zinc-800">
           <ModeToggle value={mode} onChange={setRadarMode} />
           <ChangeRateSelector value={minChangeRate} onChange={setRate} />
         </div>
@@ -244,7 +244,7 @@ function RadarRow({
       }}
       data-stock-code={s.stockCode}
       onClick={() => onSelect(s.stockCode)}
-      className={`transition-colors cursor-pointer hover:[&>td]:bg-white/[0.03] [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
+      className={`transition-colors cursor-pointer hover:[&>td]:bg-zinc-900 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
         selected ? "[&>td]:bg-emerald-900/40" : ""
       }`}
     >

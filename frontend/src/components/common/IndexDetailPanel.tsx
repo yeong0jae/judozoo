@@ -80,14 +80,14 @@ export default function IndexDetailPanel({
             )}
           </div>
           {/* 상세/차트 토글 */}
-          <div className="flex rounded-xl bg-white/[0.04] p-0.5 text-xs shrink-0">
+          <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
             {DETAIL_TABS.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
                 className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  tab === t.key ? "bg-white/[0.1] text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+                  tab === t.key ? "bg-zinc-950 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {t.label}
@@ -195,7 +195,7 @@ function OrgCell({ label, eok }: { label: string; eok: number }) {
   const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
   const sign = eok > 0 ? "+" : eok < 0 ? "-" : "";
   return (
-    <div className="rounded-md bg-white/[0.03] px-1.5 py-1 text-center">
+    <div className="rounded-md bg-zinc-900 px-1.5 py-1 text-center">
       <div className="text-[11px] text-zinc-500">{label}</div>
       <div className={`num text-xs font-medium mt-0.5 ${tone}`}>
         {sign}
