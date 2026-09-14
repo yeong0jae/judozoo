@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import type { ReactNode } from "react";
 import {
   useKospiIndex,
   useKosdaqIndex,
@@ -18,7 +17,9 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 
-const TOP_N = 5;
+/** 위 구간(기준 통과)·아래 구간(거래대금 상위) 각각 최대 몇 줄까지. */
+const TOP_PASSED = 3;
+const TOP_FORCED = 3;
 
 /**
  * 첫 화면 — 지금 시장이 어떤지만 보여준다.
@@ -154,45 +155,86 @@ function Tile({
 // 주도주
 // ============================================================
 
+type Item = { key: string; name: string; symbol?: string; price: string; rate: number };
+
+/**
+ * 기준을 통과한 것과 거래대금으로 들어온 것을 가른다.
+ *
+ * 목록에는 거래대금 1~3위가 등락률과 무관하게 들어온다. 목록 화면은 20여 개라
+ * 셋이 묻히지만 홈은 몇 줄뿐이라 절반 넘게 기준 미달로 차 버린다. 그래서
+ * **통과분을 위로 올리고** 나머지는 구분선 아래에 흐리게 깐다.
+ *
+ * 위 구간은 등락률 높은 순이다 — 거래대금 순으로 자르면 제일 많이 오른 종목이
+ * 잘려 나간다(거래대금 상위는 대개 대형주다). 아래 구간은 응답 순서, 곧 거래대금 순.
+ */
+function split(items: Item[], threshold: number) {
+  const passed = [...items]
+    .filter((i) => i.rate >= threshold)
+    .sort((a, b) => b.rate - a.rate)
+    .slice(0, TOP_PASSED);
+  // 기준에 못 미쳤는데 목록에 있다면 거래대금 상위로 들어온 것이다
+  const forced = items.filter((i) => i.rate < threshold).slice(0, TOP_FORCED);
+  return { passed, forced };
+}
+
 function DomesticLeaders({ live, first }: { live: boolean; first: boolean }) {
   const [minChangeRate] = useMinChangeRate();
   const { data, isLoading } = useLeadingStockCandidates(minChangeRate);
-  const stocks = (data?.stocks ?? []).slice(0, TOP_N);
+  const items: Item[] = (data?.stocks ?? []).map((s) => ({
+    key: s.stockCode,
+    name: s.stockName,
+    price: formatPrice(s.currentPrice),
+    rate: s.priceChangeRate,
+  }));
 
   return (
-    <LeaderCard title="국내 주도주" market="domestic" live={live} first={first} loading={isLoading}>
-      {stocks.map((s, i) => (
-        <Row
-          key={s.stockCode}
-          rank={i + 1}
-          name={s.stockName}
-          price={formatPrice(s.currentPrice)}
-          rate={s.priceChangeRate}
-        />
-      ))}
-    </LeaderCard>
+    <LeaderCard
+      title="국내 주도주"
+      market="domestic"
+      live={live}
+      first={first}
+      loading={isLoading}
+      threshold={minChangeRate}
+      {...split(items, minChangeRate)}
+    />
   );
 }
 
 function OverseasLeaders({ live, first }: { live: boolean; first: boolean }) {
   const [minChangeRate] = useOverseasMinChangeRate();
   const { data, isLoading } = useOverseasRanking(minChangeRate);
-  const stocks = (data ?? []).slice(0, TOP_N);
+  const items: Item[] = (data ?? []).map((s) => ({
+    key: `${s.exchange}:${s.symbol}`,
+    name: s.name,
+    symbol: s.symbol,
+    price: `$${formatUsd(s.price)}`,
+    rate: s.rate,
+  }));
 
   return (
-    <LeaderCard title="해외 주도주" market="overseas" live={live} first={first} loading={isLoading}>
-      {stocks.map((s, i) => (
-        <Row
-          key={`${s.exchange}:${s.symbol}`}
-          rank={i + 1}
-          name={s.name}
-          symbol={s.symbol}
-          price={`$${formatUsd(s.price)}`}
-          rate={s.rate}
-        />
-      ))}
-    </LeaderCard>
+    <LeaderCard
+      title="해외 주도주"
+      market="overseas"
+      live={live}
+      first={first}
+      loading={isLoading}
+      threshold={minChangeRate}
+      {...split(items, minChangeRate)}
+    />
   );
+}
+
+/** "+7%" / "-7%" / "0%" — 칩과 구분선이 같은 표기를 쓴다. */
+const formatThreshold = (rate: number) => `${rate > 0 ? "+" : ""}${rate}%`;
+
+/**
+ * 등락률 칩의 색 — 한국 거래소 관행대로 양수 빨강 / 음수 파랑 / 0 중립.
+ * 목록 화면 선택기의 **선택된 칸과 같은 색**이라, 둘이 같은 값이라는 게 눈으로 이어진다.
+ */
+function chipTone(rate: number): string {
+  if (rate > 0) return "bg-red-500/15 text-red-700";
+  if (rate < 0) return "bg-blue-500/15 text-blue-700";
+  return "bg-elevated text-zinc-200";
 }
 
 /**
@@ -200,6 +242,9 @@ function OverseasLeaders({ live, first }: { live: boolean; first: boolean }) {
  *
  * 종목 상세로 바로 보내지 않는다. 상세는 로그인 뒤라, 첫 화면에서 누르자마자
  * 벽을 만나게 된다.
+ *
+ * 등락률 칩은 지금 걸린 기준을 말한다. 홈이 기준을 따로 갖지 않고 목록 화면과
+ * 같은 값을 쓰기 때문에, 그 값을 안 보여주면 "목록이랑 왜 다르지"가 된다.
  */
 function LeaderCard({
   title,
@@ -207,14 +252,18 @@ function LeaderCard({
   live,
   first,
   loading,
-  children,
+  threshold,
+  passed,
+  forced,
 }: {
   title: string;
   market: StockMarket;
   live: boolean;
   first: boolean;
   loading: boolean;
-  children: ReactNode;
+  threshold: number;
+  passed: Item[];
+  forced: Item[];
 }) {
   return (
     <Link
@@ -224,8 +273,8 @@ function LeaderCard({
         first ? "outline outline-1 outline-emerald-700/40" : "opacity-70"
       }`}
     >
-      <div className="flex items-center justify-between gap-2.5 border-b border-zinc-800 px-4 py-3">
-        <span className="flex items-center gap-2 text-sm font-bold">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-3.5 py-3">
+        <span className="flex min-w-0 items-center gap-2 text-sm font-bold">
           {title}
           {live && (
             <span className="rounded-full bg-blue-50 px-2 py-px text-[10.5px] font-medium text-blue-700">
@@ -234,36 +283,55 @@ function LeaderCard({
           )}
           {!live && <span className="text-[11px] font-normal text-zinc-500">마감 기준</span>}
         </span>
-        <span className="text-xs text-zinc-500 whitespace-nowrap">전체 보기 →</span>
+        <span
+          className={`flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11.5px] ${chipTone(threshold)}`}
+        >
+          {/* 숫자에만 mono를 건다 — 한글이 섞인 채로 걸면 한 칩 안에서 글꼴이 갈린다 */}
+          <span className="num">{formatThreshold(threshold)}</span> 이상
+          <span aria-hidden className="opacity-60">›</span>
+        </span>
       </div>
 
       {loading ? (
         <div className="space-y-2 p-4">
-          {Array.from({ length: TOP_N }).map((_, i) => (
+          {Array.from({ length: TOP_PASSED + TOP_FORCED }).map((_, i) => (
             <Skeleton key={i} className="h-5 w-full" />
           ))}
         </div>
+      ) : passed.length === 0 && forced.length === 0 ? (
+        // 목록이 통째로 비는 경우 — 개장 전이나 조회 실패. 머리만 남지 않게 한 줄 둔다.
+        <p className="px-3.5 py-7 text-center text-xs text-zinc-500">아직 후보가 없습니다</p>
       ) : (
-        // 행 사이에만 선을 긋는다 — 첫 행에 테두리를 주면 헤더 선과 겹쳐 두 줄로 보인다
-        <div className="divide-y divide-zinc-800/60">{children}</div>
+        <>
+          <div className="divide-y divide-zinc-800/60">
+            {passed.map((s, i) => (
+              <Row key={s.key} rank={i + 1} name={s.name} symbol={s.symbol} price={s.price} rate={s.rate} />
+            ))}
+          </div>
+
+          {forced.length > 0 && (
+            <>
+              {/* 왜 기준에 못 미친 종목이 있는지 — 거래대금 1~3위는 무조건 들어온다 */}
+              <div className="flex items-center gap-2 border-t border-zinc-800/60 bg-zinc-850/40 px-3.5 py-1.5">
+                <span className="text-[10.5px] text-zinc-500 whitespace-nowrap">
+                  {passed.length === 0 ? "주도주 없음 · 거래대금 상위" : "거래대금 상위"}
+                </span>
+                <span className="h-px flex-1 bg-zinc-800" />
+              </div>
+              <div className="divide-y divide-zinc-800/60 bg-zinc-850/25 opacity-60">
+                {forced.map((s, i) => (
+                  <Row key={s.key} rank={i + 1} name={s.name} symbol={s.symbol} price={s.price} rate={s.rate} />
+                ))}
+              </div>
+            </>
+          )}
+        </>
       )}
     </Link>
   );
 }
 
-function Row({
-  rank,
-  name,
-  symbol,
-  price,
-  rate,
-}: {
-  rank: number;
-  name: string;
-  symbol?: string;
-  price: string;
-  rate: number;
-}) {
+function Row({ rank, name, symbol, price, rate }: Omit<Item, "key"> & { rank: number }) {
   return (
     <div className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-baseline gap-2.5 px-4 py-3 text-[13.5px]">
       <span className="num text-[11.5px] text-zinc-500">{rank}</span>
