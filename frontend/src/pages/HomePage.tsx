@@ -265,9 +265,9 @@ function Row({
   rate: number;
 }) {
   return (
-    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-baseline gap-2.5 px-4 py-2.5 text-[13.5px]">
+    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-baseline gap-2.5 px-4 py-3 text-[13.5px]">
       <span className="num text-[11.5px] text-zinc-500">{rank}</span>
-      <span className="truncate text-zinc-200">
+      <span className="truncate text-[15px] text-zinc-200">
         {name}
         {symbol && <span className="num ml-1.5 text-[11px] text-zinc-500">{symbol}</span>}
       </span>
