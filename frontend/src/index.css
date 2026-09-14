@@ -104,8 +104,11 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* 숫자 표시 유틸 — 본문과 같은 Pretendard, 다만 자릿수 정렬은 유지 (tabular-nums) */
+/* 숫자 표시 유틸 — 고정폭 글꼴로 시세를 또렷하게. 자릿수 정렬은 그대로 유지.
+   주의: JetBrains Mono엔 한글 글리프가 없어 "1조 2,840억" 같은 값은
+   조·억만 본문 폰트로 떨어진다(한 값 안에서 글꼴이 갈린다). */
 .num {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
