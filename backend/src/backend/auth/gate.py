@@ -15,6 +15,7 @@ _SEG = r"[^/]+"
 _PUBLIC_PATTERNS = [
     # 주도주 후보 **목록만** 공개한다. 종목 상세(일봉·분봉·수급)는 로그인 뒤다.
     r"/api/leading-stocks/candidates",
+    r"/api/overseas-leading-stocks/ranking",
     # 휴장 배너
     r"/api/market/calendar/status",
     # 지수 시세 — 어디서나 얻을 수 있는 정보라 가릴 값어치가 없다.
