@@ -288,7 +288,7 @@ function SubjectDetail({ sel }: { sel: Selection }) {
     : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" />
     : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
     : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
-    : ix.id === "macro" ? <MacroDetail index={ix} />
+    : ix.id === "macro" ? <MacroDetail />
     : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} />
     : <LiveIndexDetail market="KOSPI" name={ix.name} />;
   return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
@@ -308,7 +308,6 @@ function DetailHeader({
   avatar,
   name,
   code,
-  category,
   price,
   pct,
   extra,
@@ -321,7 +320,6 @@ function DetailHeader({
   avatar?: ReactNode;
   name: string;
   code?: string;
-  category: string;
   price: number;
   pct: number;
   extra?: ReactNode;
@@ -354,7 +352,6 @@ function DetailHeader({
             <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
               <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
               <span className="inline-flex items-baseline gap-2">{priceGroup}</span>
-              <span className="self-center text-xs text-zinc-400 bg-zinc-800 rounded px-1.5 py-0.5">{category}</span>
             </div>
           ) : (
             <>
@@ -363,7 +360,6 @@ function DetailHeader({
                 <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                   <span className="text-lg font-bold tracking-tight text-zinc-100">{name}</span>
                   {code && <span className="num text-xs text-zinc-500">{code}</span>}
-                  <span className="text-xs text-zinc-400 bg-zinc-800 rounded px-1.5 py-0.5">{category}</span>
                 </div>
               </div>
               <div className="mt-1 flex items-baseline gap-2 flex-wrap">{priceGroup}</div>
@@ -434,7 +430,7 @@ function LiveIndexDetail({ market, name }: { market: MarketType; name: string })
 
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader name={name} category="지수" price={value} pct={pct} priceInline decimal />
+      <DetailHeader name={name} price={value} pct={pct} priceInline decimal />
       <div className="px-1">
         <div className="flex items-center justify-between mb-3">
           <span className={titleCls}>지수 차트</span>
@@ -476,7 +472,7 @@ function FuturesIndexDetail({ index, market }: { index: IndexInfo; market: Marke
 
   return (
     <div className="flex flex-col gap-4">
-      <DetailHeader name={index.name} category="지수선물" price={futValue} pct={futPct} priceInline decimal />
+      <DetailHeader name={index.name} price={futValue} pct={futPct} priceInline decimal />
 
       <div className="px-1">
         <div className="flex items-baseline justify-between mb-3">
@@ -542,7 +538,7 @@ function NightFuturesDetail({ index }: { index: IndexInfo }) {
     <div className="flex flex-col gap-4">
       <DetailHeader
         name={index.name}
-        category="야간선물"
+       
         price={data.price}
         pct={data.changeRate}
         chg={data.gap}
@@ -608,7 +604,7 @@ function NasdaqIndexDetail({ index }: { index: IndexInfo }) {
     <div className="flex flex-col gap-4">
       <DetailHeader
         name={index.name}
-        category="지수"
+       
         price={data.price}
         pct={data.changeRate}
         chg={data.priceChange}
@@ -652,7 +648,7 @@ function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
  * 매크로 상세 — 원달러 환율·WTI 유가·VIX를 한 화면에 세로로 쌓는다.
  * 환율은 24시간 돌지만 WTI는 CME 정산 휴식(06:00~07:00 KST)에, VIX는 미 정규장 밖에서 값이 멈춘다.
  */
-function MacroDetail({ index }: { index: IndexInfo }) {
+function MacroDetail() {
   const { data, isLoading } = useMacroQuotes();
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
@@ -665,17 +661,15 @@ function MacroDetail({ index }: { index: IndexInfo }) {
         unit="원"
         target="USD_KRW"
         quote={data.usdKrw}
-        category={index.name}
       />
       <MacroSection
         title="WTI 유가"
         unit="달러"
         target="WTI"
         quote={data.wti}
-        category={index.name}
         delayed
       />
-      <MacroSection title="VIX" unit="지수" target="VIX" quote={data.vix} category={index.name} />
+      <MacroSection title="VIX" unit="지수" target="VIX" quote={data.vix} />
     </div>
   );
 }
@@ -686,14 +680,12 @@ function MacroSection({
   unit,
   target,
   quote,
-  category,
   delayed,
 }: {
   title: string;
   unit: string;
   target: MacroTarget;
   quote: MacroQuote | null;
-  category: string;
   delayed?: boolean;
 }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
@@ -705,7 +697,7 @@ function MacroSection({
       ) : (
         <DetailHeader
           name={title}
-          category={category}
+         
           price={quote.price}
           pct={quote.changeRate}
           chg={quote.priceChange}

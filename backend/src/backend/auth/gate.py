@@ -4,7 +4,7 @@
 엔드포인트마다 의존성을 붙이면 새로 추가할 때 빠뜨리기 쉽고, 빠뜨린 쪽이 열린 채로 남는다.
 반대로 해두면 빠뜨렸을 때 막히므로 사고가 나도 노출이 아니라 불편으로 끝난다.
 
-공개로 두는 것은 주도주 후보 **목록**과 모든 화면에 뜨는 헤더용 지수뿐이다.
+공개로 두는 것은 주도주 후보 **목록**, 지수 시세, 코스피 야간 선물이다.
 """
 
 import re
@@ -17,9 +17,12 @@ _PUBLIC_PATTERNS = [
     r"/api/leading-stocks/candidates",
     # 휴장 배너
     r"/api/market/calendar/status",
-    # 헤더 지수 배지 — 공개 화면에도 뜬다. 어디서나 얻을 수 있는 정보라 가릴 값어치가 없다.
+    # 지수 시세 — 어디서나 얻을 수 있는 정보라 가릴 값어치가 없다.
     r"/api/market/kospi",
     r"/api/market/kosdaq",
+    # 코스피 야간 선물 — 정규장 밖 유일한 국내 지표라 로그인 없이 연다.
+    r"/api/market/futures/night/quote",
+    r"/api/market/futures/night/candles",
     # 로그인 흐름 자체
     r"/api/auth/.*",
 ]
