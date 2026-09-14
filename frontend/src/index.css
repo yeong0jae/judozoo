@@ -291,8 +291,10 @@ body {
   --color-emerald-200: rgba(52, 199, 89, 0.30);
   --color-emerald-800: #4ade80; /* 다크에서 readable한 밝은 녹 */
 
-  /* 손익(red/blue) 텍스트 — 다크에서 보이도록 한 단계 밝게 */
+  /* 손익(red/blue) 텍스트 — 다크에서 보이도록 한 단계 밝게.
+     700은 "선택됨"을 뜻해 600보다 더 밝아야 한다 — 파란 쪽(600 #60a5fa → 700 #93c5fd)과 대칭. */
   --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
 
   /* 시멘틱 */
   --color-surface: #1f2024;
