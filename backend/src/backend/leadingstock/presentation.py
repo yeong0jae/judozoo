@@ -155,19 +155,12 @@ class FilterResultItem(BaseModel):
     passed: bool
 
 
-class SwingHighSignalItem(BaseModel):
-    peak_price: int = Field(serialization_alias="peakPrice")
-    peak_at: datetime = Field(serialization_alias="peakAt")
-    gap_rate: float = Field(serialization_alias="gapRate")
-
-
 class LeadingStockDetailResponse(BaseModel):
     stock_code: str = Field(serialization_alias="stockCode")
     stock_name: str = Field(serialization_alias="stockName")
     current_price: int = Field(serialization_alias="currentPrice")
     price_change_rate: float = Field(serialization_alias="priceChangeRate")
     relative_volume: float | None = Field(serialization_alias="relativeVolume")
-    swing_high_signal: SwingHighSignalItem | None = Field(serialization_alias="swingHighSignal")
     filter_results: list[FilterResultItem] = Field(serialization_alias="filterResults")
 
 
@@ -340,15 +333,6 @@ def get_stock_detail(stock_code: str) -> ApiResponse[LeadingStockDetailResponse]
             stock_code=s.stock_code, stock_name=s.stock_name,
             current_price=s.current_price, price_change_rate=s.price_change_rate,
             relative_volume=ev.relative_volume,
-            swing_high_signal=(
-                SwingHighSignalItem(
-                    peak_price=ev.swing_high_signal.peak_price,
-                    peak_at=ev.swing_high_signal.peak_at,
-                    gap_rate=ev.swing_high_signal.gap_rate,
-                )
-                if ev.swing_high_signal
-                else None
-            ),
             filter_results=[
                 FilterResultItem(
                     filter_name=r.filter_name, criteria_description=r.criteria_description,

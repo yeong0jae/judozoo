@@ -36,19 +36,6 @@ class OverseasStockRank:
 
 
 @dataclass(frozen=True)
-class SwingHighSignal:
-    """분봉 전고점 돌파 시그널.
-
-    gap_rate = (고점 - 현재가) / 현재가 × 100.
-    양수 = 남은 상승률, 음수 = 이미 돌파.
-    """
-
-    peak_price: float
-    peak_at: datetime
-    gap_rate: float
-
-
-@dataclass(frozen=True)
 class FilterResult:
     filter_name: str
     criteria_description: str

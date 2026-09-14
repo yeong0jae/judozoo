@@ -8,7 +8,6 @@
 from backend.overseasleadingstock.domain import (
     FilterResult,
     OverseasStockRank,
-    SwingHighSignal,
 )
 from backend.platform.kis import overseas_chart, overseas_product, overseas_ranking
 
@@ -55,19 +54,6 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
 
     market_cap = overseas_product.fetch_market_cap(exchange, symbol)
 
-    # 분봉(차트와 캐시 공유) 최고가를 전고점(돌파선)으로
-    candles = overseas_chart.fetch_minute_candles(exchange, symbol)
-    peak = max(candles, key=lambda c: c.high) if candles else None
-    swing_high = (
-        SwingHighSignal(
-            peak_price=peak.high,
-            peak_at=peak.date_time,
-            gap_rate=(peak.high - stock.price) / stock.price * 100,
-        )
-        if peak is not None and stock.price > 0
-        else None
-    )
-
     filters = [
         FilterResult(
             filter_name="거래대금순위",
@@ -93,7 +79,6 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
         "stock": stock,
         "market_cap": market_cap,
         "filters": filters,
-        "swing_high": swing_high,
     }
 
 

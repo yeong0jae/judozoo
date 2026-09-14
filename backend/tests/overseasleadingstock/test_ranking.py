@@ -167,30 +167,6 @@ class Test종목_상세:
         assert 시총필터.passed is False
 
     @respx.mock
-    def test_분봉_최고가를_돌파선으로_삼는다(self, respx_mock, 토큰_발급):
-        거래소별_응답(respx_mock, nas=[순위행("AAA", "100")])  # price=100
-        respx_mock.get(PRODUCT_URL).mock(
-            return_value=httpx.Response(200, json={"rt_cd": "0", "output": None})
-        )
-        respx_mock.get(MINUTE_URL).mock(
-            side_effect=[
-                httpx.Response(200, json={"rt_cd": "0", "output2": [{
-                    "tymd": "20260825", "xymd": "20260825", "xhms": "093000",
-                    "kymd": "20260825", "khms": "223000",
-                    "open": "100", "high": "110", "low": "99", "last": "105",
-                    "evol": "10", "eamt": "1000",
-                }]}),
-                httpx.Response(200, json={"rt_cd": "0", "output2": []}),
-            ]
-        )
-
-        signal = application.evaluate_stock("NAS", "AAA")["swing_high"]
-
-        assert signal.peak_price == 110.0
-        assert signal.gap_rate == pytest.approx(10.0), "(110-100)/100*100"
-        assert signal.peak_at == datetime(2026, 8, 25, 22, 30)
-
-    @respx.mock
     def test_후보에_없는_종목은_조회할_수_없다(self, respx_mock, 토큰_발급):
         거래소별_응답(respx_mock, nas=[순위행("AAA", "100")])
 

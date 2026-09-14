@@ -36,12 +36,6 @@ class FilterResultItem(BaseModel):
     passed: bool
 
 
-class OverseasSwingHighSignal(BaseModel):
-    peak_price: float = Field(serialization_alias="peakPrice")
-    peak_at: datetime = Field(serialization_alias="peakAt")
-    gap_rate: float = Field(serialization_alias="gapRate")
-
-
 class OverseasStockDetailResponse(BaseModel):
     exchange: str
     symbol: str
@@ -54,7 +48,6 @@ class OverseasStockDetailResponse(BaseModel):
     trading_value: float = Field(serialization_alias="tradingValue")
     market_cap: int | None = Field(serialization_alias="marketCap")
     filter_results: list[FilterResultItem] = Field(serialization_alias="filterResults")
-    swing_high_signal: OverseasSwingHighSignal | None = Field(serialization_alias="swingHighSignal")
 
 
 class OverseasMinuteCandleItem(BaseModel):
@@ -96,7 +89,6 @@ def get_stock_detail(exchange: str, symbol: str) -> ApiResponse[OverseasStockDet
     """종목 상세 — 필터(거래대금순위·등락률·시총) 평가."""
     result = application.evaluate_stock(exchange.upper(), symbol.upper())
     stock: OverseasStockRank = result["stock"]
-    swing = result["swing_high"]
     return ApiResponse.ok(
         OverseasStockDetailResponse(
             exchange=stock.exchange,
@@ -118,15 +110,6 @@ def get_stock_detail(exchange: str, symbol: str) -> ApiResponse[OverseasStockDet
                 )
                 for f in result["filters"]
             ],
-            swing_high_signal=(
-                OverseasSwingHighSignal(
-                    peak_price=swing.peak_price,
-                    peak_at=swing.peak_at,
-                    gap_rate=swing.gap_rate,
-                )
-                if swing is not None
-                else None
-            ),
         )
     )
 

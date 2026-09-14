@@ -373,7 +373,6 @@ export interface LeadingStockDetailResponse {
   currentPrice: number;
   priceChangeRate: number;
   relativeVolume: number | null;
-  swingHighSignal: SwingHighSignal | null;
   filterResults: FilterResultItem[];
 }
 
@@ -386,12 +385,6 @@ export interface DailyCandleItem {
   volume: number;
 }
 
-export interface SwingHighSignal {
-  peakPrice: number;
-  peakAt: string;
-  gapRate: number;
-}
-
 // === 해외주식 주도주 (Overseas Leading Stocks) ===
 
 export interface OverseasFilterResult {
@@ -399,12 +392,6 @@ export interface OverseasFilterResult {
   criteriaDescription: string;
   actualValue: string;
   passed: boolean;
-}
-
-export interface OverseasSwingHighSignal {
-  peakPrice: number;
-  peakAt: string;
-  gapRate: number; // (고점-현재가)/현재가×100, 양수=남은 상승률
 }
 
 export interface OverseasStockDetailResponse {
@@ -419,7 +406,6 @@ export interface OverseasStockDetailResponse {
   tradingValue: number;
   marketCap: number | null; // 달러
   filterResults: OverseasFilterResult[];
-  swingHighSignal: OverseasSwingHighSignal | null;
 }
 
 export interface OverseasStockRankItem {

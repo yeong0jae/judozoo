@@ -18,7 +18,6 @@ from backend.leadingstock.domain import (
     MinuteCandle,
     MinuteCandles,
     SpikeDirection,
-    SwingHighSignal,
 )
 from backend.library.cache import ttl_cache
 from backend.library.time import today
@@ -81,12 +80,11 @@ class BreakoutRadarStock:
 
 @dataclass(frozen=True)
 class StockEvaluation:
-    """종목 상세 평가 — 필터 평가 + 상대거래량 + 돌파 시그널. 데이터 없으면 각각 None."""
+    """종목 상세 평가 — 필터 평가 + 상대거래량. 데이터 없으면 각각 None."""
 
     stock: LeadingStockSnapshot
     filter_results: list[flt.FilterEvaluationResult]
     relative_volume: float | None
-    swing_high_signal: SwingHighSignal | None
 
 
 def _criteria():
@@ -168,7 +166,6 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         stock=stock,
         filter_results=[f.evaluate(stock) for f in all_filters],
         relative_volume=DailyCandles(daily).relative_volume(today(), _RVOL_LOOKBACK_DAYS),
-        swing_high_signal=_breakout_high_candles(stock_code).day_high_signal(stock.current_price),
     )
 
 

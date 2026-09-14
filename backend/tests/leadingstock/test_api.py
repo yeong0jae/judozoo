@@ -5,7 +5,7 @@ from datetime import date, datetime
 import pytest
 
 from backend.leadingstock import application, events
-from backend.leadingstock.domain import LeadingStockSnapshot, SwingHighSignal
+from backend.leadingstock.domain import LeadingStockSnapshot
 from backend.leadingstock.entities import MarketSignalEvent, SignalEvent
 from backend.leadingstock.filters import FilterEvaluationResult
 from backend.leadingstock.signals import InvestorType, MarketSignalType, NetTradeSide, SignalEventType
@@ -63,29 +63,26 @@ class Test후보_목록:
 
 
 class Test종목_상세:
-    def test_필터_평가와_돌파_시그널을_함께_준다(self, 로그인_client, monkeypatch):
+    def test_필터_평가와_상대거래량을_함께_준다(self, 로그인_client, monkeypatch):
         평가 = application.StockEvaluation(
             stock=종목(),
             filter_results=[FilterEvaluationResult("거래대금순위", "상위 35위 이내", "3위", True)],
             relative_volume=2.5,
-            swing_high_signal=SwingHighSignal(peak_price=72_000, peak_at=AT, gap_rate=2.86),
         )
         monkeypatch.setattr(application, "evaluate_stock", lambda _c: 평가)
 
         데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
 
         assert 데이터["relativeVolume"] == 2.5
-        assert 데이터["swingHighSignal"]["peakPrice"] == 72_000
         assert 데이터["filterResults"][0]["filterName"] == "거래대금순위"
         assert 데이터["filterResults"][0]["passed"] is True
 
-    def test_돌파_시그널이_없으면_null(self, 로그인_client, monkeypatch):
-        평가 = application.StockEvaluation(종목(), [], None, None)
+    def test_상대거래량이_없으면_null(self, 로그인_client, monkeypatch):
+        평가 = application.StockEvaluation(종목(), [], None)
         monkeypatch.setattr(application, "evaluate_stock", lambda _c: 평가)
 
         데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
 
-        assert 데이터["swingHighSignal"] is None
         assert 데이터["relativeVolume"] is None
 
 
