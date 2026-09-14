@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLeadingStockCandidates, useOverseasRanking } from "../../api/queries";
-import { loadMinChangeRate, loadOverseasMinChangeRate } from "../../lib/changeRate";
+import { useMinChangeRate, useOverseasMinChangeRate } from "../../lib/changeRate";
 import { formatPct, formatPrice } from "../../lib/format";
 
 /** 국내를 흘리는 시간대 — 08:00~20:00. 나머지(20:01~07:59)는 미국장이 도는 때라 해외를 흘린다. */
@@ -18,7 +18,7 @@ function isDomesticHours(now: Date): boolean {
  * 헤더 시세 티커 — 장이 도는 쪽 주도주가 왼쪽으로 흐른다.
  *
  * 국내·해외 중 한쪽만 마운트한다. 둘 다 걸어두면 안 보이는 쪽까지 폴링해서다.
- * 목록은 각 화면과 **같은 조회**를 쓴다(등락률 임계값이 쿼리 키라 같은 값을 읽는다).
+ * 등락률 임계값은 각 화면과 store로 공유해, 화면에서 바꾸면 티커도 즉시 따라온다.
  *
  * 끊김 없이 도는 원리 — 같은 목록을 두 벌 이어 붙이고 절반(-50%)만큼 민다.
  * 한 바퀴가 끝나면 두 번째 벌이 첫 벌 자리에 정확히 와 있어 이음매가 보이지 않는다.
@@ -36,7 +36,8 @@ export default function HeaderTicker() {
 }
 
 function DomesticTicker() {
-  const { data } = useLeadingStockCandidates(loadMinChangeRate());
+  const [minChangeRate] = useMinChangeRate();
+  const { data } = useLeadingStockCandidates(minChangeRate);
   const stocks = data?.stocks ?? [];
   return (
     <Track
@@ -51,7 +52,8 @@ function DomesticTicker() {
 }
 
 function OverseasTicker() {
-  const { data } = useOverseasRanking(loadOverseasMinChangeRate());
+  const [minChangeRate] = useOverseasMinChangeRate();
+  const { data } = useOverseasRanking(minChangeRate);
   const stocks = data ?? [];
   return (
     <Track

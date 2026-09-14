@@ -10,10 +10,7 @@ import StockAvatar from "../components/common/StockAvatar";
 import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import PageHeader from "../components/layout/PageHeader";
-import {
-  OVERSEAS_MIN_CHANGE_RATE_KEY as MIN_CHANGE_RATE_KEY,
-  loadOverseasMinChangeRate,
-} from "../lib/changeRate";
+import { useOverseasMinChangeRate } from "../lib/changeRate";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import HolidayBanner from "../components/common/HolidayBanner";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
@@ -26,11 +23,8 @@ export default function OverseasLeadingStocks({
   market: StockMarket;
   onMarket: (m: StockMarket) => void;
 }) {
-  // 당일 등락률 임계값(%) — 국내와 동일하게 localStorage 보관, 기본 7%.
-  const [minChangeRate, setMinChangeRate] = useState(loadOverseasMinChangeRate);
-  useEffect(() => {
-    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(minChangeRate));
-  }, [minChangeRate]);
+  // 당일 등락률 임계값(%) — 헤더 티커와 공유한다.
+  const [minChangeRate, setMinChangeRate] = useOverseasMinChangeRate();
 
   const { data, isLoading, isFetching } = useOverseasRanking(minChangeRate);
   const stocks = data ?? [];

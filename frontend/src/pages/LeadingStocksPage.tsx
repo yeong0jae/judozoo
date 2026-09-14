@@ -4,7 +4,7 @@ import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import HolidayBanner from "../components/common/HolidayBanner";
-import { MIN_CHANGE_RATE_KEY, loadMinChangeRate } from "../lib/changeRate";
+import { useMinChangeRate } from "../lib/changeRate";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
@@ -58,11 +58,8 @@ function DomesticLeadingStocks({
 }) {
   // 목록은 공개, 종목 상세는 로그인 뒤다.
   const { data: me } = useMe();
-  // 당일 등락률 임계값(%) — 사용자 선택. 새로고침해도 유지되도록 localStorage에 보관, 기본 7%.
-  const [minChangeRate, setMinChangeRate] = useState(loadMinChangeRate);
-  useEffect(() => {
-    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(minChangeRate));
-  }, [minChangeRate]);
+  // 당일 등락률 임계값(%) — 헤더 티커와 공유한다(같은 값이어야 조회가 합쳐진다).
+  const [minChangeRate, setMinChangeRate] = useMinChangeRate();
   const candidatesQ = useLeadingStockCandidates(minChangeRate);
   const [openCode, setOpenCode] = useState<string | null>(null);
   // ↑/↓ 방향키로 선택 종목 이동
