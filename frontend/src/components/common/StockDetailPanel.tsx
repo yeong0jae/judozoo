@@ -141,7 +141,6 @@ export default function StockDetailPanel({
             <CandleChart
               key={`${stockCode}-m`}
               series={minuteSeries(minuteQ.data)}
-              maPeriod={60}
               priceLines={[
                 {
                   price: Math.max(...minuteQ.data.map((c) => c.high)),
