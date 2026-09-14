@@ -128,7 +128,7 @@ function Tile({
       className="block rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0 transition-opacity hover:opacity-90"
     >
       <div className="flex items-center gap-1.5 text-sm text-zinc-500">
-        <span>{label}</span>
+        <span className="text-zinc-200">{label}</span>
         {tag && (
           <span className="rounded border border-zinc-800 px-1 text-[11.5px] text-zinc-500">{tag}</span>
         )}
