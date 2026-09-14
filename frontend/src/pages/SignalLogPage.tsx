@@ -498,7 +498,17 @@ function SignalLogPageInner() {
             ))}
           </div>
         ) : feed.length === 0 ? (
-          <EmptyState message={`${date} 시그널이 없습니다`} />
+          <EmptyState
+            message={`${date} 시그널이 없습니다`}
+            hint={
+              <>
+                국내 종목·지수만 봅니다 — 해외 주도주는 시그널을 만들지 않습니다.
+                <br />
+                종목 시그널은 08:00~20:00, 지수 시그널은 09:00~15:30에 쌓입니다. 휴장일에는
+                만들지 않습니다.
+              </>
+            }
+          />
         ) : (
           <ul className="divide-y divide-zinc-800">
             <AnimatePresence initial={false}>
