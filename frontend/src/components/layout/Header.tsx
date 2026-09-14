@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import SettingsButton from "../header/SettingsButton";
-import AuthButton from "../header/AuthButton";
+import AccountButton from "../header/AccountButton";
 import { NAV } from "./nav";
 import Wordmark from "./Wordmark";
 
 /**
- * 슬림 상단바. 네비게이션은 좌측 레일(Sidebar)이 맡고 여기엔 설정·로그인만 둔다.
+ * 슬림 상단바. 네비게이션·계정·설정은 좌측 레일(Sidebar)이 맡는다.
  * 모바일에서는 레일이 숨으므로 여기 햄버거가 드로어로 네비를 제공한다.
  */
 export default function Header() {
@@ -34,9 +34,10 @@ export default function Header() {
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-1">
+        {/* 데스크톱은 좌측 레일 하단이 맡는다 — 레일이 숨는 모바일에서만 보여준다 */}
+        <div className="flex items-center gap-1 md:hidden">
+          <AccountButton placement="bottom" />
           <SettingsButton />
-          <AuthButton />
         </div>
       </div>
 
