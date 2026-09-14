@@ -13,6 +13,8 @@ import PageHeader from "../components/layout/PageHeader";
 import { useOverseasMinChangeRate } from "../lib/changeRate";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
+import LoginGate from "../components/common/LoginGate";
+import { useMe } from "../api/auth";
 
 
 export default function OverseasLeadingStocks({
@@ -28,6 +30,7 @@ export default function OverseasLeadingStocks({
   const { data, isLoading, isFetching } = useOverseasRanking(minChangeRate);
   const stocks = data ?? [];
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
+  const { data: me } = useMe();
 
   // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(
@@ -95,7 +98,14 @@ export default function OverseasLeadingStocks({
 
         {openSymbol && (
           <aside className="lg:sticky lg:top-6">
-            <OverseasStockDetailPanel exchange={selected?.exchange ?? null} symbol={openSymbol} />
+            {me?.authenticated ? (
+              <OverseasStockDetailPanel exchange={selected?.exchange ?? null} symbol={openSymbol} />
+            ) : (
+              <LoginGate
+                title="종목 상세"
+                description="필터 평가와 분봉, 일봉을 종목별로 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
+              />
+            )}
           </aside>
         )}
       </div>
