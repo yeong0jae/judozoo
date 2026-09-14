@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
-/* 폰트 — UI는 Pretendard Variable, 숫자/코드는 JetBrains Mono Variable */
+/* 폰트 — UI는 Pretendard Variable, 숫자/코드는 JetBrains Mono Variable, 워드마크는 Outfit */
 @import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/outfit";
 
 @theme {
   /* 폰트 패밀리 — Tailwind의 font-sans/font-mono 유틸이 이 토큰을 가리킨다 */
@@ -12,6 +13,8 @@
   --font-mono:
     "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular,
     Menlo, monospace;
+  /* 로고 워드마크 전용 — 본문에는 쓰지 않는다 */
+  --font-brand: "Outfit Variable", Outfit, var(--font-sans);
 
   /* ─── 라이트 정석 Toss 팔레트 ─────────────────────────────────────────
      Tailwind 기본 zinc/emerald/rose를 재매핑해, 페이지 코드의

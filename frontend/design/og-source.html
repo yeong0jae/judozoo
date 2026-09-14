@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>og.png 원본 — judozoo</title>
+    <!--
+      OG 이미지(1200×630) 원본. 빌드에 포함되지 않는다(public/ 밖).
+
+      내보내는 법:
+        1) 이 파일을 브라우저로 연다
+        2) 개발자도구 > Elements에서 <div class="og"> 우클릭 > "Capture node screenshot"
+        3) 받은 파일을 frontend/public/og.png 로 저장 (정확히 1200×630)
+
+      index.html의 og:image가 /og.png를 가리킨다. 파일이 없으면 미리보기에
+      제목·설명만 뜬다(깨지지는 않는다).
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@600&family=Noto+Sans+KR:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        background: #e5e8eb;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        font-family: "Noto Sans KR", sans-serif;
+      }
+
+      .og {
+        width: 1200px;
+        height: 630px;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 34px;
+        padding: 0 104px;
+        box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* 우측 아래로 흐르는 옅은 격자 — 차트 도구라는 걸 배경으로만 말한다 */
+      .grid-bg {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(to right, #f1f3f5 1px, transparent 1px),
+          linear-gradient(to bottom, #f1f3f5 1px, transparent 1px);
+        background-size: 60px 60px;
+        mask-image: linear-gradient(115deg, transparent 45%, #000 100%);
+        -webkit-mask-image: linear-gradient(115deg, transparent 45%, #000 100%);
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        position: relative;
+      }
+
+      .name {
+        font-family: "Outfit", sans-serif;
+        font-weight: 600;
+        font-size: 76px;
+        letter-spacing: -0.035em;
+        line-height: 1;
+        color: #191f28;
+      }
+
+      .tagline {
+        position: relative;
+        margin: 0;
+        font-size: 34px;
+        font-weight: 500;
+        line-height: 1.45;
+        letter-spacing: -0.02em;
+        color: #4e5968;
+        max-width: 17ch;
+      }
+
+      .tagline b {
+        color: #191f28;
+        font-weight: 500;
+      }
+
+      .foot {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 22px;
+        color: #8b95a1;
+      }
+
+      .foot .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #f43f5e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="og">
+      <div class="grid-bg"></div>
+
+      <div class="row">
+        <svg width="84" height="84" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15.5 3V6.4" fill="none" stroke="#191f28" stroke-width="2" stroke-linecap="round" />
+          <rect x="12.7" y="6.4" width="5.6" height="7.6" rx="1.4" fill="#f43f5e" />
+          <path
+            d="M15.5 14v1.9a3.8 3.8 0 0 1-7.6 0"
+            fill="none"
+            stroke="#191f28"
+            stroke-width="2.6"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span class="name">judozoo</span>
+      </div>
+
+      <p class="tagline">
+        장중 <b>주도주 후보</b>와 돌파·스파이크·반등 전이를 한 화면에
+      </p>
+
+      <div class="foot">
+        <span class="dot"></span>
+        <span>judozoo.com</span>
+      </div>
+    </div>
+  </body>
+</html>

@@ -5,6 +5,7 @@ import KosdaqIndexBadge from "../header/KosdaqIndexBadge";
 import SettingsButton from "../header/SettingsButton";
 import AuthButton from "../header/AuthButton";
 import { NAV } from "./nav";
+import Wordmark from "./Wordmark";
 
 /**
  * 슬림 상단바. 네비게이션은 좌측 레일(Sidebar)이 맡고 여기엔 지수·설정·로그인만 둔다.
@@ -28,6 +29,11 @@ export default function Header() {
             {menuOpen ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
           </svg>
         </button>
+
+        {/* 모바일엔 좌측 레일이 없어 브랜드가 화면에서 사라진다 — 여기서만 보여준다 */}
+        <NavLink to="/leading-stocks" className="md:hidden" title="judozoo">
+          <Wordmark size={22} />
+        </NavLink>
 
         <div className="flex-1" />
 
