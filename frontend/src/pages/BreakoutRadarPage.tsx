@@ -26,16 +26,7 @@ function shortCode(stockCode: string): string {
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
 }
 
-/** 돌파까지 남은 % → 임박도 라벨/색 */
-function radarStatus(gap: number): { label: string; cls: string; gap: string } {
-  if (gap <= 0)
-    return { label: "돌파", cls: "bg-emerald-500/15 text-emerald-400", gap: "text-emerald-400" };
-  if (gap < 2)
-    return { label: "임박", cls: "bg-red-500/20 text-red-300", gap: "text-red-300" };
-  if (gap < 4)
-    return { label: "주시", cls: "bg-yellow-500/15 text-yellow-400", gap: "text-yellow-400" };
-  return { label: "관망", cls: "bg-zinc-700/40 text-zinc-400", gap: "text-zinc-300" };
-}
+
 
 /** 근접 강조 — 3% 이내면 색으로 띄운다.
  *  저항은 따뜻한 색(위), 지지는 차가운 색(아래). 등락률의 red-600/blue-600과는
@@ -368,7 +359,6 @@ function RadarCard({
   onSelect?: (code: string) => void;
 }) {
   const code = shortCode(s.stockCode);
-  const st = radarStatus(s.gapRate);
   const gapWon = s.peakPrice - s.currentPrice;
   const supportWon = s.troughPrice === null ? 0 : s.currentPrice - s.troughPrice;
   const trough = s.troughAt ? new Date(s.troughAt) : null;
@@ -386,11 +376,10 @@ function RadarCard({
         onSelect ? "cursor-pointer" : ""
       } ${selected ? "bg-selected" : ""}`}
     >
-      {/* 1행: 종목 · 상태 */}
+      {/* 1행: 종목 */}
       <div className="flex items-center gap-2">
         <StockAvatar name={s.stockName} code={code} size={26} />
         <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.stockName}</span>
-        <span className={`text-xs font-medium px-1.5 py-0.5 rounded shrink-0 ${st.cls}`}>{st.label}</span>
       </div>
       {/* 2행: 모드에 해당하는 선 한 쌍 */}
       {mode === "resistance" ? (
