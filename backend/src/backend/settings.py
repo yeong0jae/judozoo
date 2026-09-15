@@ -103,7 +103,7 @@ class SignalEventSettings(BaseSettings):
 class MarketSignalSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LEADING_STOCK_MARKET_SIGNAL_", **_BASE)
 
-    poll_interval_millis: int = 120_000
+    poll_interval_millis: int = 60_000
     candle_poll_interval_millis: int = 30_000
     session_start: str = "09:00"          # 지수는 정규장에만 체결
     session_end: str = "15:30"

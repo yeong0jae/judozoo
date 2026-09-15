@@ -221,8 +221,8 @@ export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: stri
       apiFetch<SessionsResponse<MarketInvestorSession>>(
         `/api/market/${market}/investor/sessions?date=${date}`,
       ),
-    // 백엔드 순매수 스냅샷 폴러(30초)와 같은 주기 — 진행 중 세션 값이 30초마다 최신화된다.
-    refetchInterval: 30_000,
+    // 백엔드 순매수 스냅샷 폴러(60초)와 같은 주기 — 더 자주 물어도 같은 값을 받는다.
+    refetchInterval: 60_000,
   });
 }
 
