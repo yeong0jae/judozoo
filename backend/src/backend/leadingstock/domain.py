@@ -68,7 +68,12 @@ from enum import Enum  # noqa: E402
 
 
 class SpikeDirection(Enum):
-    """스파이크 봉의 방향 — 종가>시가면 매수, 종가<시가면 매도, 같으면 보합."""
+    """스파이크 봉의 방향 — 종가가 그 봉 고가권에서 끝났으면 매수, 저가권이면 매도.
+
+    시가와 비교하지 않는다. 위로 크게 찔렀다 되밀린 봉은 종가가 시가보다 1원 높아도
+    매수가 아니다 — 물량이 나온 자리다. 반대로 아래로 밀렸다 고가 근처로 회복한 봉은
+    음봉이어도 매수 쪽이다.
+    """
 
     BUY = "BUY"
     SELL = "SELL"
@@ -226,10 +231,20 @@ class MinuteCandles:
         ]
 
 
+# 종가가 봉 레인지의 어디서 끝났는지 — 상위/하위 30%를 매수·매도로 가른다.
+_SPIKE_BUY_POSITION = 0.7
+_SPIKE_SELL_POSITION = 0.3
+
+
 def _spike_direction(candle: MinuteCandle) -> SpikeDirection:
-    if candle.close_price > candle.open_price:
+    span = candle.high_price - candle.low_price
+    # 봉이 막 시작했거나 한 가격에만 체결되면 레인지가 없다 — 방향을 말할 수 없다
+    if span <= 0:
+        return SpikeDirection.FLAT
+    position = (candle.close_price - candle.low_price) / span
+    if position >= _SPIKE_BUY_POSITION:
         return SpikeDirection.BUY
-    if candle.close_price < candle.open_price:
+    if position <= _SPIKE_SELL_POSITION:
         return SpikeDirection.SELL
     return SpikeDirection.FLAT
 
