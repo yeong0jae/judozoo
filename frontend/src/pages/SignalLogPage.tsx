@@ -167,7 +167,7 @@ function renderMarketRow(
           selected ? "bg-selected" : ""
         }`}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
           <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(m.occurredAt)}`}>
             {clockOf(m.occurredAt)}
           </span>
@@ -177,10 +177,10 @@ function renderMarketRow(
           </span>
           <span className={leftCls}>{leftLabel}</span>
         </div>
-        <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
+        <div className="flex min-w-0 items-center gap-3 ml-auto">
           {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
           {netText && (
-            <span className="num text-xs text-zinc-500">누적 {netText}</span>
+            <span className="num truncate text-xs text-zinc-500">누적 {netText}</span>
           )}
           <span className="num text-xs text-zinc-100 w-20 text-right">
             {m.indexValue != null ? fmtIndex(m.indexValue) : ""}
@@ -555,7 +555,7 @@ function SignalLogPageInner() {
                       }`}
                     >
                       {/* 왼쪽: 시각·유형·종목 */}
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
                         <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(e.occurredAt)}`}>
                           {clockOf(e.occurredAt)}
                         </span>
@@ -566,9 +566,9 @@ function SignalLogPageInner() {
                         <StockAvatar name={e.stockName} code={code} />
                         <span className="text-sm font-semibold text-zinc-100 truncate">{e.stockName}</span>
                       </div>
-                      {/* 오른쪽: 디테일·현재가·등락률 (모바일에선 아래 줄로 래핑) */}
-                      <div className="flex items-center gap-3 shrink-0 ml-auto pl-[4.5rem] md:pl-0">
-                        <span className="num text-xs text-zinc-300">{detailOf(e)}</span>
+                      {/* 오른쪽: 디테일·현재가·등락률. 폰에선 아래 줄로 래핑되고, 좁으면 디테일부터 줄어든다 */}
+                      <div className="flex min-w-0 items-center gap-3 ml-auto">
+                        <span className="num truncate text-xs text-zinc-300">{detailOf(e)}</span>
                         <span className="num text-xs text-zinc-100 w-20 text-right">
                           {formatPrice(e.currentPrice)}
                         </span>

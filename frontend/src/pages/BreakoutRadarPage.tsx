@@ -126,7 +126,8 @@ function BreakoutRadarPageInner() {
 
       {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex items-center justify-between gap-2 pb-2 border-b border-zinc-800">
+        {/* 폰에서는 한 줄에 못 들어간다 — 선택기가 아랫줄로 내려가게 접는다 */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-800">
           <ModeToggle value={mode} onChange={setRadarMode} />
           <ChangeRateSelector value={minChangeRate} onChange={setRate} />
         </div>
