@@ -90,10 +90,11 @@ function Tick({ name, price, rate }: { name: string; price: ReactNode; rate: num
   const tone =
     rate > 0 ? "text-red-400" : rate < 0 ? "text-blue-400" : "text-zinc-500";
   return (
-    <span className="flex items-baseline gap-2 whitespace-nowrap border-r border-zinc-800/70 px-5">
-      <span className="text-[14px] font-medium text-zinc-300">{name}</span>
-      <span className="num text-[13px] text-zinc-500">{price}</span>
-      <span className={`num text-[13px] font-medium ${tone}`}>{formatPct(rate / 100)}</span>
+    // 폰은 한 칸을 좁혀야 한 화면에 두 종목이 걸린다 — 데스크톱은 원래 여백 그대로
+    <span className="flex items-baseline gap-1.5 whitespace-nowrap border-r border-zinc-800/70 px-3 md:gap-2 md:px-5">
+      <span className="text-[13px] font-medium text-zinc-300 md:text-[14px]">{name}</span>
+      <span className="num text-[12px] text-zinc-500 md:text-[13px]">{price}</span>
+      <span className={`num text-[12px] font-medium md:text-[13px] ${tone}`}>{formatPct(rate / 100)}</span>
     </span>
   );
 }

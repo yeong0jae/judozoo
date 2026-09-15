@@ -141,6 +141,11 @@ body {
   animation-play-state: paused;
 }
 
+/* 모바일은 한 칸이 좁아 같은 38초면 흐름이 그만큼 느려진다 — 체감 속도를 데스크톱에 맞춘다. */
+@media (max-width: 767px) {
+  .ticker-track { animation-duration: 30s; }
+}
+
 /* 움직임을 줄이는 설정이면 흐르지 않게 하고 직접 밀어 보게 둔다 */
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }

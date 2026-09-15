@@ -9,6 +9,10 @@ import Wordmark from "./Wordmark";
 /**
  * 슬림 상단바. 네비게이션·계정·설정은 좌측 레일(Sidebar)이 맡는다.
  * 모바일에서는 레일이 숨으므로 여기 햄버거가 드로어로 네비를 제공한다.
+ *
+ * 시세 티커는 폭이 있는 데스크톱에서만 상단바 안에 들어간다. 모바일은
+ * 자리가 없어 한 줄 아래 띠로 내린다. 띠도 이 헤더 안이라 sticky를 함께 타고,
+ * 어느 화면을 보고 있든 시세가 계속 보인다.
  */
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -44,6 +48,12 @@ export default function Header() {
           <AccountButton placement="bottom" />
           <SettingsButton />
         </div>
+      </div>
+
+      {/* 모바일 시세 띠 — 상단바에 자리가 없어 한 줄 아래로 내린다.
+          티커가 빈 목록이면 아무것도 렌더하지 않는다 — empty:hidden으로 띠까지 같이 접는다 */}
+      <div className="flex h-[34px] items-center border-t border-zinc-800 empty:hidden md:hidden">
+        <HeaderTicker />
       </div>
 
       {/* 모바일 드로어 */}
