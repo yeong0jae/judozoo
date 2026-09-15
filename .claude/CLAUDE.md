@@ -9,5 +9,5 @@ A leading-stock trading decision-support system (FastAPI/Python + React + MySQL)
 - `docs/plan.md` — phase-by-phase development plan
 - `docs/tasks/NNN-<title>.md` — per-phase task checklist. `NNN` is document order, not chronology
 - `docs/runbook-*.md` — operational runbooks
-- `.claude/rules/architecture.md` — architecture (auto-loaded as a rule)
+- `.claude/rules/*.md` — architecture / code style / testing / security (auto-loaded as rules)
 
