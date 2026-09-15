@@ -20,11 +20,11 @@ GCE VM(Ubuntu) + Docker Compose + Artifact Registry + Secret Manager + GitHub Ac
 | 리전 / 존 | `asia-northeast3` / `asia-northeast3-a` |
 | 초기 KIS 프로파일 | `vts` (모의투자) — `SPRING_PROFILES_ACTIVE`를 GitHub Variables로 빼서 추후 `real`로 전환 가능 |
 | MySQL | 같은 VM 안 Docker Compose 컨테이너 (`mysql:8.4` + named volume) |
-| GitHub 저장소 | `yeong0jae/autonomous-trading` (WIF attribute_condition 고정) |
+| GitHub 저장소 | `yeong0jae/judozoo` (WIF attribute_condition 고정) |
 
-## 레퍼런스와 다른 점 (autonomous-trading 특이사항)
+## 레퍼런스와 다른 점 (judozoo 특이사항)
 
-| 항목 | 레퍼런스 trading | autonomous-trading |
+| 항목 | 레퍼런스 trading | judozoo |
 | --- | --- | --- |
 | 백엔드 포트 | 8081 | **8080** |
 | MySQL | 외부/미사용 | **같은 compose에 mysql:8.4 컨테이너로 포함** |
@@ -174,9 +174,9 @@ networks:
 - `google_iam_workload_identity_pool.github` → pool id `auto-trading-pool`
 - `google_iam_workload_identity_pool_provider.github` → provider id `auto-trading-provider`
   - `issuer_uri = https://token.actions.githubusercontent.com`
-  - `attribute_condition = assertion.repository == "yeong0jae/autonomous-trading"`
+  - `attribute_condition = assertion.repository == "yeong0jae/judozoo"`
   - attribute_mapping: `google.subject = assertion.sub`, `attribute.repository = assertion.repository`
-- Deployer SA에 `roles/iam.workloadIdentityUser` 부여 (`attribute.repository/yeong0jae/autonomous-trading`)
+- Deployer SA에 `roles/iam.workloadIdentityUser` 부여 (`attribute.repository/yeong0jae/judozoo`)
 
 ### Artifact Registry
 

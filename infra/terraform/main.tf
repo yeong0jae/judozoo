@@ -40,7 +40,7 @@ resource "google_compute_address" "frontend" {
 # ---------------------------------------------------------------------------
 resource "google_service_account" "vm" {
   account_id   = "auto-trading-vm"
-  display_name = "autonomous-trading VM runtime SA"
+  display_name = "judozoo VM runtime SA"
 }
 
 resource "google_project_iam_member" "vm_ar_reader" {
@@ -235,7 +235,7 @@ resource "google_secret_manager_secret" "app" {
 # ---------------------------------------------------------------------------
 resource "google_service_account" "deployer" {
   account_id   = "auto-trading-gha-deployer"
-  display_name = "autonomous-trading GitHub Actions deployer SA"
+  display_name = "judozoo GitHub Actions deployer SA"
 }
 
 resource "google_project_iam_member" "deployer_ar_writer" {
@@ -280,7 +280,7 @@ resource "google_iam_workload_identity_pool" "github" {
 resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "auto-trading-provider"
-  display_name                       = "autonomous-trading GitHub OIDC"
+  display_name                       = "judozoo GitHub OIDC"
 
   attribute_mapping = {
     "google.subject"       = "assertion.sub"

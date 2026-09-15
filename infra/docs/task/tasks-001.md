@@ -22,7 +22,7 @@
 
 - [x] `versions.tf` — required_version ≥ 1.6, google provider ~> 6.0
 - [x] `backend.tf` — GCS backend, bucket=`trading-496508-tfstate`, prefix=`auto-trading/state`
-- [x] `variables.tf` — project_id, region(asia-northeast3), zone(asia-northeast3-a), github_repository(`yeong0jae/autonomous-trading`), allowed_web_source_ranges, machine_type(e2-medium), boot_disk_size_gb(20)
+- [x] `variables.tf` — project_id, region(asia-northeast3), zone(asia-northeast3-a), github_repository(`yeong0jae/judozoo`), allowed_web_source_ranges, machine_type(e2-medium), boot_disk_size_gb(20)
 - [x] `startup.sh` — Docker + compose plugin 설치 (레퍼런스와 동일)
 - [x] `main.tf` — APIs 활성화
 - [x] `main.tf` — `google_compute_address.frontend` (`auto-trading-frontend-ip`)

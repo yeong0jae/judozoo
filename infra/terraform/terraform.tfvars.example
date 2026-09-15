@@ -4,7 +4,7 @@
 # project_id        = "trading-496508"
 # region            = "asia-northeast3"
 # zone              = "asia-northeast3-a"
-# github_repository = "yeong0jae/autonomous-trading"
+# github_repository = "yeong0jae/judozoo"
 
 # 프론트 접근을 본인 IP로 제한하려면:
 # allowed_web_source_ranges = ["<내-공인-IP>/32"]
