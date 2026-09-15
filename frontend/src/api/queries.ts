@@ -151,7 +151,9 @@ export function useSignalEvents(date: string) {
   });
 }
 
-export function useMarketSignalEvents(date: string) {
+/** 지수 시그널은 로그인 뒤다 — 미로그인이면 부르지 않는다. 호출해봐야 401이고
+ *  폴링 주기마다 반복된다. 종목 시그널(`useSignalEvents`)은 미리보기로 열려 있다. */
+export function useMarketSignalEvents(date: string, enabled = true) {
   const isToday = date === todayStr();
   return useQuery({
     queryKey: QK.marketSignalEvents(date),
@@ -159,6 +161,7 @@ export function useMarketSignalEvents(date: string) {
       apiFetch<MarketSignalEventsResponse>(
         `/api/leading-stocks/market-signal-events?date=${date}`,
       ),
+    enabled,
     refetchInterval: isToday ? 5_000 : false,
   });
 }

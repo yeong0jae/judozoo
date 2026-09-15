@@ -37,16 +37,12 @@ class Test로그인_상태_조회:
 
 
 class Test실시간_로그_관문:
-    def test_미로그인이면_종목_시그널을_막는다(self, client):
-        res = client.get("/api/leading-stocks/signal-events")
-
-        assert res.status_code == 401
-        assert res.json()["code"] == "UNAUTHORIZED"
-
-    def test_미로그인이면_시장_시그널도_막는다(self, client):
+    def test_미로그인이면_시장_시그널을_막는다(self, client):
+        """종목 시그널은 미리보기로 열렸지만 지수 시그널은 로그인 뒤다."""
         res = client.get("/api/leading-stocks/market-signal-events")
 
         assert res.status_code == 401
+        assert res.json()["code"] == "UNAUTHORIZED"
 
     def test_공개_화면은_로그인_없이도_열린다(self, client):
         assert client.get("/health").status_code == 200

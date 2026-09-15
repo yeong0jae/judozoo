@@ -16,6 +16,7 @@ import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import StockAvatar from "../components/common/StockAvatar";
+import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import IndexDetailPanel from "../components/common/IndexDetailPanel";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
@@ -375,7 +376,47 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   );
 }
 
-function SignalLogPageInner() {
+/**
+ * 미리보기 끝 — 아래로 더 있다는 걸 보이고 로그인으로 잇는다.
+ *
+ * 가짜 행이다. 진짜 행을 흐리게 깔면 그 데이터가 브라우저까지 내려와야 하므로
+ * 차단이 아니라 가리기가 된다(개발자도구로 읽힌다). 서버가 자른 뒤라 여기엔 채울 내용이 없다.
+ */
+function PreviewGate({ shown, total }: { shown: number; total: number }) {
+  return (
+    <li className="relative">
+      {/* 아래로 갈수록 지워진다 — 줄마다 농도를 주면 계단이 생겨 "이어진다"가 덜 읽힌다.
+          티커 뷰포트(index.css)와 같은 마스크 방식이다. */}
+      <div
+        aria-hidden
+        className="select-none opacity-60"
+        style={{
+          maskImage: "linear-gradient(#000, transparent)",
+          WebkitMaskImage: "linear-gradient(#000, transparent)",
+        }}
+      >
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+            <span className="h-3 w-14 rounded bg-zinc-700" />
+            <span className="h-4 w-11 rounded bg-zinc-700" />
+            <span className="h-3.5 w-28 rounded bg-zinc-700" />
+            <span className="ml-auto h-3 w-16 rounded bg-zinc-700" />
+          </div>
+        ))}
+      </div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
+        {/* 미로그인은 날짜가 오늘로 고정이라 "오늘"이라 말할 수 있다.
+            숫자에만 mono를 건다 — 한글까지 걸면 한 줄 안에서 글꼴이 갈린다 */}
+        <p className="text-xs text-zinc-400">
+          오늘 <span className="num">{total}</span>건 중 <span className="num">{shown}</span>건을 보고 있습니다
+        </p>
+        <GoogleLoginButton />
+      </div>
+    </li>
+  );
+}
+
+function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
   const [date, setDate] = useState(todayStr());
   // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
   const [minRate, setMinRate] = useState(() => {
@@ -388,13 +429,16 @@ function SignalLogPageInner() {
   }, [minRate]);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL"); // 전이 유형 필터
   const eventsQ = useSignalEvents(date);
-  const marketQ = useMarketSignalEvents(date);
+  const marketQ = useMarketSignalEvents(date, authenticated);
   const data = eventsQ.data;
   const allEvents = data?.events ?? [];
   // 종목 시그널 — 등락률 하한 + 유형 필터. "시장"/특정 유형 선택 시 종목 행은 빠진다.
-  const events = allEvents.filter(
-    (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || matchesType(e.eventType, typeFilter)),
-  );
+  // 미로그인은 필터 조작이 막혀 있다 — 저장돼 있던 값이 미리보기를 조용히 깎지 않게 무시한다
+  const events = authenticated
+    ? allEvents.filter(
+        (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || matchesType(e.eventType, typeFilter)),
+      )
+    : allEvents;
   const allMarketEvents = marketQ.data?.events ?? []; // 여정용 — 필터 무관 전체
   // 시장 시그널 — 전체/지수 탭에서만 노출(등락률 필터 무관).
   const marketEvents = typeFilter === "ALL" || typeFilter === "MARKET" ? allMarketEvents : [];
@@ -418,14 +462,16 @@ function SignalLogPageInner() {
   const [selectedMarketAt, setSelectedMarketAt] = useState<string | null>(null); // 선택한 지수 시그널 발생 시각
   useEffect(() => {
     // 첫 로드 시 최신 종목 자동 선택 — 단, 사용자가 지수를 고른 상태면 건드리지 않는다.
+    if (!authenticated) return;
     if (selectedCode === null && selectedMarket === null && events.length > 0) {
       setSelectedCode(events[0].stockCode);
     }
-  }, [events, selectedCode, selectedMarket]);
+  }, [authenticated, events, selectedCode, selectedMarket]);
 
   // ↑/↓ 방향키로 행 단위 이동 — 같은 종목이 여러 행이어도 각 행을 거친다. 그 행을 열고 차트도 갱신.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
+      if (!authenticated) return;
       if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
       const tag = (ev.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -444,7 +490,7 @@ function SignalLogPageInner() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [events, openKey]);
+  }, [authenticated, events, openKey]);
 
   return (
     <div className="space-y-4">
@@ -454,28 +500,32 @@ function SignalLogPageInner() {
         queriedAt={formatFetchedAt(eventsQ.dataUpdatedAt)}
         loading={eventsQ.isFetching}
         trailing={
-          <DateNavigator
-            date={date}
-            onChange={(d) => {
-              setDate(d);
-              setSelectedCode(null);
-              setSelectedMarket(null);
-            }}
-          />
+          authenticated ? (
+            <DateNavigator
+              date={date}
+              onChange={(d) => {
+                setDate(d);
+                setSelectedCode(null);
+                setSelectedMarket(null);
+              }}
+            />
+          ) : undefined
         }
       />
 
       {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex justify-end pb-2 border-b border-zinc-800">
-          <ChangeRateSelector value={minRate} onChange={setMinRate} />
+      {authenticated && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="flex justify-end pb-2 border-b border-zinc-800">
+            <ChangeRateSelector value={minRate} onChange={setMinRate} />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <section>
-        {/* 유형 필터 — 리스트 위 한 줄 */}
-        <div className="py-2.5">
+        {/* 유형 필터 — 리스트 위 한 줄. 미로그인은 조작이 잠겨 아예 감춘다 */}
+        <div className={`py-2.5 ${authenticated ? "" : "hidden"}`}>
           <div className="flex rounded-lg bg-zinc-800 p-0.5 text-xs w-fit">
             {TYPE_TABS.map((t) => (
               <button
@@ -543,16 +593,18 @@ function SignalLogPageInner() {
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
+                    {/* 미로그인은 펼치지 않는다 — 여정이 로그인 전용 상세를 부른다 */}
                     <button
                       type="button"
+                      disabled={!authenticated}
                       onClick={() => {
                         setSelectedCode(e.stockCode);
                         setSelectedMarket(null);
                         setOpenKey(open ? null : rowKey);
                       }}
-                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-850 transition-colors ${
-                        e.stockCode === selectedCode ? "bg-selected" : ""
-                      }`}
+                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl transition-colors ${
+                        authenticated ? "hover:bg-zinc-850" : "cursor-default"
+                      } ${e.stockCode === selectedCode ? "bg-selected" : ""}`}
                     >
                       {/* 왼쪽: 시각·유형·종목 */}
                       <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
@@ -587,11 +639,20 @@ function SignalLogPageInner() {
                 );
               })}
             </AnimatePresence>
+            {/* totalCount는 서버가 자르기 전 전체 건수다 — 그린 행 수보다 크면 잘린 것이다 */}
+            {!authenticated && (data?.totalCount ?? 0) > feed.length && (
+              <PreviewGate shown={feed.length} total={data?.totalCount ?? 0} />
+            )}
           </ul>
         )}
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode || selectedMarket ? "" : "hidden lg:block"}`}>
-        {selectedMarket ? (
+        {!authenticated ? (
+          <LoginGate
+            title="종목 상세"
+            description="필터 평가·분봉·일봉·투자자 수급을 시그널이 뜬 종목별로 봅니다. 구글 계정으로 로그인하면 바로 열립니다."
+          />
+        ) : selectedMarket ? (
           <IndexDetailPanel
             market={selectedMarket}
             at={selectedMarketAt}
@@ -607,18 +668,10 @@ function SignalLogPageInner() {
 }
 
 
-/** 실시간 로그는 로그인한 사용자만 본다. 미로그인이면 데이터를 부르지 않고 안내만 띄운다 —
- *  호출해봐야 401이고, 불필요한 요청이 화면 폴링 주기마다 반복된다. */
+/** 미로그인도 최신 몇 건은 본다 — 서버가 잘라서 내려준다(`PREVIEW_COUNT`).
+ *  대신 날짜 이동·필터·지수 시그널·종목 상세는 로그인 뒤다. */
 export default function SignalLogPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
-  if (!me?.authenticated) {
-    return (
-      <LoginGate
-        title="주도주 시그널"
-        description="종목·시장 시그널 전이가 발생하는 대로 쌓입니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
-      />
-    );
-  }
-  return <SignalLogPageInner />;
+  return <SignalLogPageInner authenticated={!!me?.authenticated} />;
 }

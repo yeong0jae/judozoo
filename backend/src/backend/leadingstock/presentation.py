@@ -2,10 +2,11 @@
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from backend.auth.presentation import current_user
 from backend.leadingstock import application, events
 from backend.leadingstock.entities import step_eok
 from backend.leadingstock.infrastructure import investor_snapshot_at
@@ -198,12 +199,22 @@ def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[B
     )
 
 
+#: 미로그인 미리보기로 내려보내는 최신 시그널 건수.
+PREVIEW_COUNT = 10
+
+
 @router.get("/signal-events")
 def get_signal_events(
+    request: Request,
     date_: date | None = Query(None, alias="date"),
     db: Session = Depends(get_db),
 ) -> ApiResponse[SignalEventsResponse]:
-    """그날 발생한 돌파/임박/스파이크 전이를 최신순으로."""
+    """그날 발생한 돌파/임박/스파이크 전이를 최신순으로.
+
+    **미로그인이면 최신 `PREVIEW_COUNT`건만 내려간다.** 화면에서 자르면 나머지가
+    이미 브라우저에 도착해 있어 개발자도구로 읽힌다 — 잘라내는 일은 서버가 해야 한다.
+    `total_count`는 자르기 전 전체 건수라, 받는 쪽이 둘을 비교해 잘렸는지 안다.
+    """
     day = date_ or today()
     items = [
         SignalEventItem(
@@ -217,7 +228,10 @@ def get_signal_events(
         )
         for e in events.signal_events_on(db, day)
     ]
-    return ApiResponse.ok(SignalEventsResponse(date=day, total_count=len(items), events=items))
+    total = len(items)
+    if current_user(request) is None:
+        items = items[:PREVIEW_COUNT]
+    return ApiResponse.ok(SignalEventsResponse(date=day, total_count=total, events=items))
 
 
 @router.get("/market-signal-events")

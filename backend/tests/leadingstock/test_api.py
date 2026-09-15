@@ -115,6 +115,42 @@ class Test시그널_로그:
         assert 데이터["totalCount"] == 3
         assert [e["stockName"] for e in 데이터["events"]] == ["종목2", "종목1", "종목0"]
 
+    def test_미로그인은_최신_열건만_받는다(self, client, 이벤트_테이블):
+        """화면에서 자르면 나머지가 브라우저까지 내려가 읽힌다 — 서버가 잘라야 한다."""
+        with get_session_factory()() as s:
+            for i in range(12):
+                s.add(SignalEvent(
+                    occurred_at=datetime(2026, 9, 11, 10, i), trade_date=오늘,
+                    stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
+                    event_type=SignalEventType.VOLUME_SPIKE.value,
+                    current_price=1000, price_change_rate=5.0, trading_value=100,
+                    created_at=AT, updated_at=AT,
+                ))
+            s.commit()
+
+        데이터 = client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
+
+        assert len(데이터["events"]) == 10
+        # 자르기 전 전체 건수는 그대로 알려준다 — 받는 쪽이 "몇 건 더 있는지"를 말할 수 있게
+        assert 데이터["totalCount"] == 12
+        assert 데이터["events"][0]["stockName"] == "종목11"
+
+    def test_로그인하면_열건_넘게도_전부_받는다(self, 로그인_client, 이벤트_테이블):
+        with get_session_factory()() as s:
+            for i in range(12):
+                s.add(SignalEvent(
+                    occurred_at=datetime(2026, 9, 11, 10, i), trade_date=오늘,
+                    stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
+                    event_type=SignalEventType.VOLUME_SPIKE.value,
+                    current_price=1000, price_change_rate=5.0, trading_value=100,
+                    created_at=AT, updated_at=AT,
+                ))
+            s.commit()
+
+        데이터 = 로그인_client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
+
+        assert len(데이터["events"]) == 12
+
     def test_다른_날짜는_섞이지_않는다(self, 로그인_client, 이벤트_테이블):
         with get_session_factory()() as s:
             s.add(SignalEvent(

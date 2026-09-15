@@ -8,6 +8,7 @@ class Test로그인_없이_열어둔_경로:
         "path",
         [
             "/api/leading-stocks/candidates",
+            "/api/leading-stocks/signal-events",
             "/api/overseas-leading-stocks/ranking",
             "/api/market/calendar/status",
             "/api/market/kospi",
@@ -48,7 +49,8 @@ class Test로그인을_요구하는_경로:
             "/api/market/futures/kospi/investor/sessions",
             # 가공한 판단 결과들
             "/api/leading-stocks/breakout-radar",
-            "/api/leading-stocks/signal-events",
+            # 종목 시그널은 열었지만 지수 시그널은 닫은 채다 — 경로가 비슷해 섞이기 쉽다
+            "/api/leading-stocks/market-signal-events",
             "/api/market/nasdaq/quote",
             "/api/market/macro/quotes",
         ],
