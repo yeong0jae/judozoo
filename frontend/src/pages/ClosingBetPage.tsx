@@ -789,8 +789,8 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
                     className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850`}
                   >
                     <td className="text-left py-2 pr-3">
-                      <div className="text-zinc-300">{s.name}</div>
-                      <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+                      <div className="text-[0.8rem] text-zinc-300">{s.name}</div>
+                      <div className="text-[0.65rem] text-zinc-500 num">{s.time}</div>
                     </td>
                     {s.nets == null ? (
                       <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
@@ -1242,8 +1242,8 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                     className={`[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850`}
                   >
                     <td className="text-left py-2 pr-3">
-                      <div className="text-zinc-300">{s.name}</div>
-                      <div className="text-[10px] text-zinc-600 num">{s.time}</div>
+                      <div className="text-[0.8rem] text-zinc-300">{s.name}</div>
+                      <div className="text-[0.65rem] text-zinc-500 num">{s.time}</div>
                     </td>
                     {s.nets == null ? (
                       <td colSpan={numCols} className="text-right py-2 px-2.5 text-zinc-600">
