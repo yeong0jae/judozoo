@@ -12,10 +12,6 @@ AR_REPO="${2:?AR_REPO required}"
 REGION="${3:?REGION required}"
 
 DOMAIN="judozoo.com"
-GRAFANA_DOMAIN="grafana.${DOMAIN}"
-# Grafana를 볼 수 있는 IP. 앱(judozoo.com)은 전체 공개지만 관측 도구는 아니다.
-# 집·외부 IP가 바뀌면 여기를 고치고 재배포한다.
-GRAFANA_ALLOWED_IPS="REDACTED_IP REDACTED_IP REDACTED_IP REDACTED_IP REDACTED_IP REDACTED_IP"
 
 cd "$HOME"
 # mysql·backend가 둘 다 ./secrets/.env 를 읽는다.
@@ -28,6 +24,7 @@ fetch() {
 }
 
 DB_PASSWORD_VALUE="$(fetch AT_DB_PASSWORD)"
+
 
 umask 077
 cat > secrets/.env <<EOF
@@ -43,12 +40,10 @@ REAL_TOSS_CLIENT_SECRET=$(fetch AT_REAL_TOSS_CLIENT_SECRET)
 GF_SECURITY_ADMIN_PASSWORD=$(fetch AT_GRAFANA_ADMIN_PASSWORD)
 CLOUDFLARE_API_TOKEN=$(fetch AT_CLOUDFLARE_API_TOKEN)
 DOMAIN=${DOMAIN}
-GRAFANA_DOMAIN=${GRAFANA_DOMAIN}
 GOOGLE_CLIENT_ID=$(fetch AT_GOOGLE_CLIENT_ID)
 GOOGLE_CLIENT_SECRET=$(fetch AT_GOOGLE_CLIENT_SECRET)
 SESSION_SECRET=$(fetch AT_SESSION_SECRET)
 GF_MYSQL_PASSWORD=$(fetch AT_GRAFANA_MYSQL_PASSWORD)
-GRAFANA_ALLOWED_IPS=${GRAFANA_ALLOWED_IPS}
 EOF
 
 # Grafana용 읽기 전용 MySQL 계정. 가입자 패널이 app_user를 읽는다.
@@ -117,8 +112,9 @@ for i in $(seq 1 18); do
   echo "backend not ready ($status), retry $i"; sleep 5
 done
 
-# 2) 프론트 — Caddy를 거쳐 검사한다. 호스트에 3000을 더 이상 퍼블리시하지 않으므로
-#    localhost:3000은 쓸 수 없다. --resolve로 DNS를 우회해 루프백의 Caddy를 때리면
+# 2) 프론트 — Caddy를 거쳐 검사한다. 프론트는 호스트에 포트를 퍼블리시하지 않으므로
+#    직접 때릴 주소가 없다(호스트의 3000은 Grafana다 — 프론트의 3000은 컨테이너 내부 포트다).
+#    --resolve로 DNS를 우회해 루프백의 Caddy를 때리면
 #    TLS 인증서(SNI·유효기간)까지 한 번에 검증된다.
 for i in $(seq 1 24); do
   if curl -fsS --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/" >/dev/null; then

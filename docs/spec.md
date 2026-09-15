@@ -274,9 +274,11 @@ Docker가 없으면 `uv run pytest -m "not integration"`으로 통합 테스트�
 ## 11. 배포
 
 - 백엔드·프론트 도커라이즈 (multi-stage). nginx가 `/api`를 `backend:8000`으로 프록시
-- **Caddy가 유일한 입구** — `judozoo.com` → frontend, `grafana.judozoo.com` → Grafana.
-  TLS는 Let's Encrypt DNS-01(Cloudflare)로 자동 발급·갱신. 앱 컨테이너는 호스트에 포트를 열지 않는다
-- 방화벽은 tcp 80·443만 개방하고, 소스는 개인 IP 화이트리스트로 제한
+- **Caddy가 유일한 공개 입구** — `judozoo.com` → frontend.
+  TLS는 Let's Encrypt DNS-01(Cloudflare)로 자동 발급·갱신
+- 방화벽은 tcp 80·443을 전체 공개(`0.0.0.0/0`), SSH(22)와 Grafana(3000)는 IAP 대역만
+- **Grafana에 공개 경로가 없다** — IAP TCP 터널로만 붙는다.
+  공개 서브도메인을 두면 개인 IP 허용목록을 들고 다녀야 해서 입구 자체를 없앴다
 - `docker-compose.yml` / `docker-compose.prod.yml`
 - Terraform — GCP `asia-northeast3` VM + 고정 IP + Artifact Registry + Secret Manager + Workload Identity Federation
 - GitHub Actions — WIF 인증 → 빌드·푸시 → scp/ssh 배포 → 헬스체크

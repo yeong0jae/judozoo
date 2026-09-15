@@ -13,12 +13,7 @@
 	reverse_proxy frontend:3000
 }
 
-# Grafana는 공개 대상이 아니다. 방화벽은 포트 단위라 judozoo.com을 열면 이 서브도메인도
-# 같이 열린다 — 알려진 소프트웨어의 로그인 화면을 인터넷에 노출하지 않으려고 여기서 막는다.
-# Caddy가 엣지라 remote_ip가 실 클라이언트 IP다.
-{$GRAFANA_DOMAIN} {
-	import tls_dns
-	@denied not remote_ip {$GRAFANA_ALLOWED_IPS}
-	respond @denied 403
-	reverse_proxy grafana:3000
-}
+# Grafana는 Caddy를 거치지 않는다. IAP TCP 터널로만 붙는다 —
+# `gcloud compute start-iap-tunnel <vm> 3000 --local-host-port=localhost:3000`.
+# 공개 서브도메인을 두면 방화벽이 포트 단위라 로그인 화면이 인터넷에 노출되고,
+# 그걸 막으려고 개인 IP 허용목록을 들고 다녀야 했다. 입구 자체를 없앴다.
