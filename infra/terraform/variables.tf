@@ -19,7 +19,7 @@ variable "zone" {
 variable "github_repository" {
   description = "WIF에 허용할 GitHub 저장소 (owner/repo)"
   type        = string
-  default     = "yeong0jae/trading-desk"
+  default     = "yeong0jae/judozoo"
 }
 
 variable "allowed_web_source_ranges" {
