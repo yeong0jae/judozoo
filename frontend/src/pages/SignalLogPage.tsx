@@ -198,44 +198,48 @@ function renderMarketRow(
 
       {open && (
         <div className="px-4 pb-4 pt-3 bg-zinc-850">
-          <table className="w-full text-xs num border-separate border-spacing-y-0.5">
-            <thead className="text-zinc-600">
-              <tr>
-                <th className="text-left font-medium pb-1">시각</th>
-                <th className="text-left font-medium pb-1">시그널</th>
-                <th className="text-right font-medium pb-1">누적</th>
-                <th className="text-right font-medium pb-1">지수</th>
-                <th className="text-right font-medium pb-1">등락</th>
-              </tr>
-            </thead>
-            <tbody>
-              {journey.map((j, k) => {
-                const p = marketParts(j);
-                return (
-                  <tr key={`${j.kind}-${j.occurredAt}-${k}`}>
-                    <td className="text-zinc-500 py-0.5">{clockOf(j.occurredAt)}</td>
-                    <td>
-                      <span className={`font-semibold ${p.sideCls}`}>{p.leftLabel}</span>
-                      {p.rightLabel && <span className={p.sideCls}> {p.rightLabel}</span>}
-                    </td>
-                    <td className="text-right text-zinc-400">
-                      {p.netText ?? "—"}
-                    </td>
-                    <td className="text-right text-zinc-400">
-                      {j.indexValue != null ? fmtIndex(j.indexValue) : ""}
-                    </td>
-                    <td className="text-right">
-                      {j.changeRate != null ? (
-                        <ProfitText value={j.changeRate / 100} format={formatPct} className="num" />
-                      ) : (
-                        ""
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* 폰에서는 상세 칸이 접혀 행 높이가 들쭉날쭉해진다 — 접지 말고 옆으로 밀어 본다.
+              `-mx-4 px-4`는 스크롤 영역을 카드 가장자리까지 넓혀 잘린 글자가 여백에서 끊기지 않게 한다. */}
+          <div className="-mx-4 overflow-x-auto px-4">
+            <table className="w-full min-w-[26rem] whitespace-nowrap text-xs num border-separate border-spacing-y-0.5">
+              <thead className="text-zinc-600">
+                <tr>
+                  <th className="text-left font-medium pb-1">시각</th>
+                  <th className="text-left font-medium pb-1">시그널</th>
+                  <th className="text-right font-medium pb-1">누적</th>
+                  <th className="text-right font-medium pb-1">지수</th>
+                  <th className="text-right font-medium pb-1">등락</th>
+                </tr>
+              </thead>
+              <tbody>
+                {journey.map((j, k) => {
+                  const p = marketParts(j);
+                  return (
+                    <tr key={`${j.kind}-${j.occurredAt}-${k}`}>
+                      <td className="text-zinc-500 py-0.5">{clockOf(j.occurredAt)}</td>
+                      <td>
+                        <span className={`font-semibold ${p.sideCls}`}>{p.leftLabel}</span>
+                        {p.rightLabel && <span className={p.sideCls}> {p.rightLabel}</span>}
+                      </td>
+                      <td className="text-right text-zinc-400">
+                        {p.netText ?? "—"}
+                      </td>
+                      <td className="text-right text-zinc-400">
+                        {j.indexValue != null ? fmtIndex(j.indexValue) : ""}
+                      </td>
+                      <td className="text-right">
+                        {j.changeRate != null ? (
+                          <ProfitText value={j.changeRate / 100} format={formatPct} className="num" />
+                        ) : (
+                          ""
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </motion.li>
@@ -349,33 +353,37 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
           }
         />
       </div>
-      <table className="w-full text-xs num border-separate border-spacing-y-0.5">
-        <thead className="text-zinc-600">
-          <tr>
-            <th className="text-left font-medium pb-1">시각</th>
-            <th className="text-left font-medium pb-1">유형</th>
-            <th className="text-left font-medium pb-1">상세</th>
-            <th className="text-right font-medium pb-1">가격</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ordered.map((j, k) => {
-            const jm = EVENT_META[j.eventType];
-            return (
-              <tr key={`${j.eventType}-${j.occurredAt}-${k}`}>
-                <td className="text-zinc-500 py-0.5">{clockOf(j.occurredAt)}</td>
-                <td>
-                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
-                    {jm.label}
-                  </span>
-                </td>
-                <td className="text-zinc-300">{detailOf(j)}</td>
-                <td className="text-right text-zinc-400">{formatPrice(j.currentPrice)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {/* 폰에서는 상세 칸이 접혀 행 높이가 들쭉날쭉해진다 — 접지 말고 옆으로 밀어 본다.
+          `-mx-4 px-4`는 스크롤 영역을 카드 가장자리까지 넓혀 잘린 글자가 여백에서 끊기지 않게 한다. */}
+      <div className="-mx-4 overflow-x-auto px-4">
+        <table className="w-full min-w-[26rem] whitespace-nowrap text-xs num border-separate border-spacing-y-0.5">
+          <thead className="text-zinc-600">
+            <tr>
+              <th className="text-left font-medium pb-1">시각</th>
+              <th className="text-left font-medium pb-1">유형</th>
+              <th className="text-left font-medium pb-1">상세</th>
+              <th className="text-right font-medium pb-1">가격</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordered.map((j, k) => {
+              const jm = EVENT_META[j.eventType];
+              return (
+                <tr key={`${j.eventType}-${j.occurredAt}-${k}`}>
+                  <td className="text-zinc-500 py-0.5">{clockOf(j.occurredAt)}</td>
+                  <td>
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${jm.chip}`}>
+                      {jm.label}
+                    </span>
+                  </td>
+                  <td className="text-zinc-300">{detailOf(j)}</td>
+                  <td className="text-right text-zinc-400">{formatPrice(j.currentPrice)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
