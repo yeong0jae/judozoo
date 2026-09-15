@@ -39,8 +39,13 @@ export default function HomePage() {
   const krHoliday = useMarketCalendarStatus("KR").data?.isHoliday;
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
+  // 세션 중인가 — 프리·애프터마켓을 포함한다. 어느 쪽을 앞에 둘지 정하는 데 쓴다.
   const domesticLive = kr !== null && !krHoliday;
   const overseasLive = us !== null && !usHoliday;
+  // "장중"은 정규장일 때만이다. 프리·애프터마켓 숫자는 직전 종가에 가까워
+  // 그때 장중이라고 하면 살아 있는 값으로 읽힌다.
+  const domesticOpen = kr?.tone === "open" && !krHoliday;
+  const overseasOpen = us?.tone === "open" && !usHoliday;
   // 양쪽 다 쉬는 주말·새벽에는 국내를 앞에 둔다 — 여기는 국내 단타 화면이다
   const domesticFirst = domesticLive || !overseasLive;
 
@@ -48,14 +53,14 @@ export default function HomePage() {
   const now = new Date();
   const domestic = (
     <DomesticLeaders
-      live={domesticLive}
+      live={domesticOpen}
       first={domesticFirst}
       date={formatTradingDay(krTradingDay(now, !!krHoliday))}
     />
   );
   const overseas = (
     <OverseasLeaders
-      live={overseasLive}
+      live={overseasOpen}
       first={!domesticFirst}
       date={formatTradingDay(usTradingDay(now, !!usHoliday))}
     />
@@ -64,7 +69,7 @@ export default function HomePage() {
   return (
     <div className="space-y-5">
       <SessionStrip size="lg" />
-      <IndexTiles domesticLive={domesticLive} overseasLive={overseasLive} />
+      <IndexTiles domesticOpen={domesticOpen} overseasOpen={overseasOpen} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {domesticFirst ? (
@@ -90,17 +95,17 @@ export default function HomePage() {
 // ============================================================
 
 function IndexTiles({
-  domesticLive,
-  overseasLive,
+  domesticOpen,
+  overseasOpen,
 }: {
-  domesticLive: boolean;
-  overseasLive: boolean;
+  domesticOpen: boolean;
+  overseasOpen: boolean;
 }) {
   const kospi = useKospiIndex();
   const kosdaq = useKosdaqIndex();
   const night = useNightFuturesQuote();
   const nasdaq = useNasdaqIndexQuote();
-  const tag = domesticLive ? "장중" : "종가";
+  const tag = domesticOpen ? "장중" : "종가";
 
   return (
     // 슬러그는 lib/indices.ts가 정의한 것과 같아야 한다
@@ -134,7 +139,7 @@ function IndexTiles({
       <Tile
         label="나스닥"
         slug="nasdaq"
-        tag={overseasLive ? "장중" : "종가"}
+        tag={overseasOpen ? "장중" : "종가"}
         value={nasdaq.data?.price}
         rate={nasdaq.data?.changeRate}
       />
