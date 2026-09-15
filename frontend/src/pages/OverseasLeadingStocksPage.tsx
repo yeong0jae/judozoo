@@ -104,7 +104,7 @@ export default function OverseasLeadingStocks({
             ) : (
               <LoginGate
                 title="종목 상세"
-                description="필터 평가와 분봉, 일봉을 종목별로 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다."
+                description="필터 평가와 분봉, 일봉을 종목별로 봅니다. 로그인하면 확인할 수 있습니다."
               />
             )}
           </aside>

@@ -1309,7 +1309,7 @@ export default function ClosingBetPage() {
     if (!PUBLIC_SLUGS.has(ix.slug)) {
       return (
         <div className="flex flex-col gap-3">
-          <LoginGate title="지수·수급" description="지수와 선물, 투자자 수급을 한 화면에 모아 봅니다. 구글 계정으로 로그인하면 바로 볼 수 있습니다." />
+          <LoginGate title="지수·수급" description="지수와 선물, 투자자 수급을 한 화면에 모아 봅니다. 로그인하면 확인할 수 있습니다." />
           <div className="text-center">
             <Link
               to={`/market-analysis/${PUBLIC_DEFAULT_SLUG}`}

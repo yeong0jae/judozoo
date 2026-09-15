@@ -388,8 +388,8 @@ function Pitch() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-4">
       <p className="max-w-[56ch] text-[13px] text-zinc-500">
-        종목을 누르면 필터 평가와 분봉, 일봉, 투자자 수급까지 봅니다. 구글 계정으로 로그인하면 바로
-        열립니다.
+        종목을 누르면 필터 평가와 분봉, 일봉, 투자자 수급까지 봅니다. 로그인하면 확인할 수
+        있습니다.
       </p>
       <GoogleLoginButton />
     </div>
