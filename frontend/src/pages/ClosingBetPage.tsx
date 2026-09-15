@@ -446,7 +446,9 @@ function LiveIndexDetail({
         </div>
         <LiveChart market={market} interval={chartInterval} />
       </div>
-      {authenticated ? (
+      {/* 코스피 수급만 로그인 없이 연다 — 대표 지수 하나로 이 화면이 뭘 주는지 보이게 한다.
+          코스닥은 관문이다(auth/gate.py와 짝을 맞춘다). */}
+      {authenticated || market === "KOSPI" ? (
         <>
           <RealSessionsCard market={market} date={date} />
           <RealInvestorTable market={market} />

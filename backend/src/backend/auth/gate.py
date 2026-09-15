@@ -36,6 +36,10 @@ _PUBLIC_PATTERNS = [
     rf"/api/market/{_SEG}/candles",
     rf"/api/market/futures/{_SEG}/quote",
     rf"/api/market/futures/{_SEG}/candles",
+    # 수급 중에서는 **코스피만** 연다 — 대표 지수 하나로 이 화면이 뭘 주는지 보이게 한다.
+    # 코스닥·선물 수급은 로그인 뒤다. 경로 파라미터가 Market enum이라 대문자만 유효하다.
+    r"/api/market/KOSPI/investor/sessions",
+    r"/api/market/KOSPI/investor/daily",
     # 로그인 흐름 자체
     r"/api/auth/.*",
 ]

@@ -24,6 +24,9 @@ class Test로그인_없이_열어둔_경로:
             "/api/market/futures/KOSDAQ/candles",
             "/api/market/nasdaq/candles",
             "/api/market/macro/candles",
+            # 수급은 코스피만 연다
+            "/api/market/KOSPI/investor/sessions",
+            "/api/market/KOSPI/investor/daily",
             "/api/auth/google/callback",
         ],
     )
@@ -53,9 +56,10 @@ class Test로그인을_요구하는_경로:
             "/api/leading-stocks/candidates/005930/minute-candles",
             "/api/overseas-leading-stocks/NAS/NVDA",
             "/api/overseas-leading-stocks/NAS/NVDA/daily-candles",
-            # 시세·차트는 열었지만 투자자 수급은 닫은 채다 — 경로가 한 겹 차이라 섞이기 쉽다
-            "/api/market/KOSPI/investor/sessions",
-            "/api/market/KOSPI/investor/daily",
+            # 시세·차트는 열었지만 투자자 수급은 닫은 채다 — 경로가 한 겹 차이라 섞이기 쉽다.
+            # 코스피 수급만 예외로 열려 있어, 코스닥과 선물이 딸려 나가지 않는지 함께 본다.
+            "/api/market/KOSDAQ/investor/sessions",
+            "/api/market/KOSDAQ/investor/daily",
             "/api/market/futures/KOSPI/investor/sessions",
             "/api/market/futures/KOSPI/investor/daily",
             # 가공한 판단 결과들
