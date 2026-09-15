@@ -253,7 +253,7 @@ function detailOf(e: SignalEventItem) {
     return (
       <>
         <span className="text-rose-300">
-          🔥{e.spikeRatio.toFixed(1)}배
+          {e.spikeRatio.toFixed(1)}배
           {e.minuteTradingValue != null && ` ${formatKoreanMoney(e.minuteTradingValue)}`}
         </span>
         {dirLabel && <span className={dirCls}> {dirLabel}</span>}
