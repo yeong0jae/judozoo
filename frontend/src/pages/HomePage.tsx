@@ -4,6 +4,7 @@ import {
   useKosdaqIndex,
   useLeadingStockCandidates,
   useMarketCalendarStatus,
+  useNasdaqIndexQuote,
   useNightFuturesQuote,
   useOverseasRanking,
 } from "../api/queries";
@@ -63,7 +64,7 @@ export default function HomePage() {
   return (
     <div className="space-y-5">
       <SessionStrip size="lg" />
-      <IndexTiles domesticLive={domesticLive} />
+      <IndexTiles domesticLive={domesticLive} overseasLive={overseasLive} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {domesticFirst ? (
@@ -88,15 +89,22 @@ export default function HomePage() {
 // 지수
 // ============================================================
 
-function IndexTiles({ domesticLive }: { domesticLive: boolean }) {
+function IndexTiles({
+  domesticLive,
+  overseasLive,
+}: {
+  domesticLive: boolean;
+  overseasLive: boolean;
+}) {
   const kospi = useKospiIndex();
   const kosdaq = useKosdaqIndex();
   const night = useNightFuturesQuote();
+  const nasdaq = useNasdaqIndexQuote();
   const tag = domesticLive ? "장중" : "종가";
 
   return (
     // 슬러그는 lib/indices.ts가 정의한 것과 같아야 한다
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
       <Tile
         label="코스피"
         slug="kospi"
@@ -121,6 +129,14 @@ function IndexTiles({ domesticLive }: { domesticLive: boolean }) {
             ? `전일 종가 ${formatPrice(night.data.dayClose)} · 갭 ${night.data.gap.toFixed(2)}`
             : undefined
         }
+      />
+      {/* 국내 셋 뒤에 둔다 — 여기는 국내 단타 화면이고, 나스닥은 밤사이 분위기를 재는 참고값이다 */}
+      <Tile
+        label="나스닥"
+        slug="nasdaq"
+        tag={overseasLive ? "장중" : "종가"}
+        value={nasdaq.data?.price}
+        rate={nasdaq.data?.changeRate}
       />
     </div>
   );
