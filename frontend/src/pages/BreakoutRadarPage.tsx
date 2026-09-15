@@ -11,6 +11,7 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
+import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import ChangeRateSelector, {
   CHANGE_RATE_OPTIONS,
@@ -74,7 +75,44 @@ const resistanceCls = (gap: number) =>
 const supportCls = (gap: number | null) =>
   gap !== null && gap <= NEAR ? "text-sky-400" : "text-zinc-400";
 
-function BreakoutRadarPageInner() {
+/**
+ * 미리보기 끝 — 아래로 더 있다는 걸 보이고 로그인으로 잇는다.
+ *
+ * 막대는 가짜다. 서버가 이미 잘라서 채울 내용이 없다(진짜 행을 흐리게 깔면
+ * 그 데이터가 브라우저까지 내려와야 하므로 차단이 아니라 가리기가 된다).
+ * 목록이 표(데스크톱)와 카드(모바일) 두 벌이라 껍데기도 두 벌이다.
+ */
+function PreviewGateBody({ shown, total, widths }: { shown: number; total: number; widths: number[] }) {
+  return (
+    <div className="relative">
+      {/* 아래로 갈수록 지워진다 — 줄마다 농도를 주면 계단이 생겨 "이어진다"가 덜 읽힌다 */}
+      <div
+        aria-hidden
+        className="select-none opacity-60"
+        style={{
+          maskImage: "linear-gradient(#000, transparent)",
+          WebkitMaskImage: "linear-gradient(#000, transparent)",
+        }}
+      >
+        {widths.map((w, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+            <span className="h-7 w-7 shrink-0 rounded-full bg-zinc-700" />
+            <span className="h-3.5 rounded bg-zinc-700" style={{ width: w }} />
+            <span className="ml-auto h-3 w-16 rounded bg-zinc-700" />
+          </div>
+        ))}
+      </div>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
+        <p className="text-xs text-zinc-400">
+          오늘 <span className="num">{total}</span>개 중 <span className="num">{shown}</span>개를 보고 있습니다
+        </p>
+        <GoogleLoginButton />
+      </div>
+    </div>
+  );
+}
+
+function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
   // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
   const [minChangeRate, setMinChangeRate] = useState(() => {
     const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
@@ -94,7 +132,9 @@ function BreakoutRadarPageInner() {
     setMode(m);
   };
 
-  const radarQ = useBreakoutRadar(minChangeRate);
+  // 미로그인은 하한 없이 전체로 받는다. 7%를 걸면 지지 모드가 통째로 빈다 —
+  // 지지선에 닿는 건 대개 떨어지는 종목이라서다. 선택기도 감추므로 저장값을 쓰지 않는다.
+  const radarQ = useBreakoutRadar(authenticated ? minChangeRate : CHANGE_RATE_OPTIONS[0], mode);
   const data = radarQ.data;
   // 백엔드는 저항 근접 순으로 준다. 지지 모드면 여기서 다시 세운다 —
   // 데이터가 이미 다 와 있어서 추가 요청이 필요 없다.
@@ -109,11 +149,12 @@ function BreakoutRadarPageInner() {
   // 우측 차트에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   useEffect(() => {
+    if (!authenticated) return;
     if (selectedCode === null && stocks.length > 0) setSelectedCode(stocks[0].stockCode);
-  }, [stocks, selectedCode]);
+  }, [authenticated, stocks, selectedCode]);
 
   // ↑/↓ 방향키로 선택 종목 이동
-  useArrowStockNav(stocks.map((s) => s.stockCode), selectedCode, setSelectedCode);
+  useArrowStockNav(authenticated ? stocks.map((s) => s.stockCode) : [], selectedCode, setSelectedCode);
 
   return (
     <div className="space-y-4">
@@ -129,7 +170,11 @@ function BreakoutRadarPageInner() {
         {/* 폰에서는 한 줄에 못 들어간다 — 선택기가 아랫줄로 내려가게 접는다 */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-800">
           <ModeToggle value={mode} onChange={setRadarMode} />
-          <ChangeRateSelector value={minChangeRate} onChange={setRate} />
+          {authenticated ? (
+            <ChangeRateSelector value={minChangeRate} onChange={setRate} />
+          ) : (
+            <span className="text-[11.5px] text-zinc-600">등락률 선택은 로그인 뒤</span>
+          )}
         </div>
       </div>
 
@@ -164,10 +209,21 @@ function BreakoutRadarPageInner() {
                       key={s.stockCode}
                       s={s}
                       selected={s.stockCode === selectedCode}
-                      onSelect={setSelectedCode}
+                      onSelect={authenticated ? setSelectedCode : undefined}
                     />
                   ))}
                 </AnimatePresence>
+                {!authenticated && (data?.totalCount ?? 0) > stocks.length && (
+                  <tr>
+                    <td colSpan={5} className="p-0">
+                      <PreviewGateBody
+                        shown={stocks.length}
+                        total={data?.totalCount ?? 0}
+                        widths={[128, 168, 104]}
+                      />
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -178,15 +234,29 @@ function BreakoutRadarPageInner() {
                 key={s.stockCode}
                 s={s}
                 selected={s.stockCode === selectedCode}
-                onSelect={setSelectedCode}
+                onSelect={authenticated ? setSelectedCode : undefined}
               />
             ))}
+            {!authenticated && (data?.totalCount ?? 0) > stocks.length && (
+              <PreviewGateBody
+                shown={stocks.length}
+                total={data?.totalCount ?? 0}
+                widths={[112, 140, 96]}
+              />
+            )}
           </div>
           </>
         )}
       </section>
       <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
-        <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
+        {authenticated ? (
+          <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
+        ) : (
+          <LoginGate
+            title="종목 상세"
+            description="필터 평가·분봉·일봉·투자자 수급을 종목별로 봅니다. 로그인하면 확인할 수 있습니다."
+          />
+        )}
       </div>
       </div>
     </div>
@@ -202,7 +272,8 @@ function RadarRow({
   mode: RadarMode;
   s: BreakoutRadarItem;
   selected: boolean;
-  onSelect: (code: string) => void;
+  /** 미로그인이면 없다 — 눌러도 열 상세가 없어 클릭을 막는다 */
+  onSelect?: (code: string) => void;
 }) {
   const code = shortCode(s.stockCode);
   const gapWon = s.peakPrice - s.currentPrice;
@@ -226,10 +297,10 @@ function RadarRow({
         opacity: { duration: 0.2 },
       }}
       data-stock-code={s.stockCode}
-      onClick={() => onSelect(s.stockCode)}
-      className={`transition-colors cursor-pointer hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
-        selected ? "[&>td]:bg-selected" : ""
-      }`}
+      onClick={onSelect ? () => onSelect(s.stockCode) : undefined}
+      className={`transition-colors [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
+        onSelect ? "cursor-pointer hover:[&>td]:bg-zinc-850" : ""
+      } ${selected ? "[&>td]:bg-selected" : ""}`}
     >
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-3">
@@ -293,7 +364,8 @@ function RadarCard({
   mode: RadarMode;
   s: BreakoutRadarItem;
   selected: boolean;
-  onSelect: (code: string) => void;
+  /** 미로그인이면 없다 — 표 행과 같다 */
+  onSelect?: (code: string) => void;
 }) {
   const code = shortCode(s.stockCode);
   const st = radarStatus(s.gapRate);
@@ -309,10 +381,10 @@ function RadarCard({
   return (
     <div
       data-stock-code={s.stockCode}
-      onClick={() => onSelect(s.stockCode)}
-      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1.5 cursor-pointer ${
-        selected ? "bg-selected" : ""
-      }`}
+      onClick={onSelect ? () => onSelect(s.stockCode) : undefined}
+      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1.5 ${
+        onSelect ? "cursor-pointer" : ""
+      } ${selected ? "bg-selected" : ""}`}
     >
       {/* 1행: 종목 · 상태 */}
       <div className="flex items-center gap-2">
@@ -367,8 +439,5 @@ function RadarCard({
 export default function BreakoutRadarPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
-  if (!me?.authenticated) {
-    return <LoginGate title="지지·저항" description="주도주가 최근 3거래일 고가(저항선)와 저가(지지선)에 얼마나 가까운지 보여줍니다. 로그인하면 확인할 수 있습니다." />;
-  }
-  return <BreakoutRadarPageInner />;
+  return <BreakoutRadarPageInner authenticated={!!me?.authenticated} />;
 }

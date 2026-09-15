@@ -182,8 +182,20 @@ def get_candidates(minChangeRate: int | None = Query(None)) -> ApiResponse[Candi
 
 
 @router.get("/breakout-radar")
-def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[BreakoutRadarResponse]:  # noqa: N803
-    """후보를 저항선(최근 3거래일 고가) 근접 순으로. 지지선(최근 3거래일 저가)도 함께 싣는다."""
+def get_breakout_radar(
+    request: Request,
+    minChangeRate: int | None = Query(None),  # noqa: N803
+    mode: str = Query("resistance"),
+) -> ApiResponse[BreakoutRadarResponse]:
+    """후보를 저항선(최근 3거래일 고가) 근접 순으로. 지지선(최근 3거래일 저가)도 함께 싣는다.
+
+    **미로그인이면 상위 `RADAR_PREVIEW_COUNT`개만 내려간다.** `total_count`는 자르기 전
+    전체 수라, 받는 쪽이 둘을 비교해 잘렸는지 안다. 자세한 이유는 `get_signal_events` 참고.
+
+    `mode`는 **자를 때 어느 쪽 근접 순으로 세울지**를 정한다. 저항 순으로 자른 뒤 지지로
+    다시 세우면 "지지에 가까운 종목"이 아니라 "저항에 가까운 종목을 지지 순으로 늘어놓은 것"이
+    된다. 전부 받는 쪽(로그인)은 화면에서 다시 세우므로 이 값이 결과를 바꾸지 않는다.
+    """
     items = [
         BreakoutRadarItem(
             stock_code=s.stock_code, stock_name=s.stock_name,
@@ -194,13 +206,23 @@ def get_breakout_radar(minChangeRate: int | None = Query(None)) -> ApiResponse[B
         )
         for s in application.breakout_radar(_rate(minChangeRate))
     ]
+    total = len(items)
+    if current_user(request) is None:
+        if mode == "support":
+            # 지지선이 없는 종목은 뒤로 — 화면의 정렬과 같은 규칙이다
+            items.sort(key=lambda i: (i.support_gap_rate is None, i.support_gap_rate or 0.0))
+        items = items[:RADAR_PREVIEW_COUNT]
     return ApiResponse.ok(
-        BreakoutRadarResponse(queried_at=now(), total_count=len(items), stocks=items)
+        BreakoutRadarResponse(queried_at=now(), total_count=total, stocks=items)
     )
 
 
 #: 미로그인 미리보기로 내려보내는 최신 시그널 건수.
 PREVIEW_COUNT = 10
+
+#: 미로그인 미리보기로 내려보내는 지지·저항 종목 수. 시그널은 그날 쌓인 로그라 10건이지만
+#: 여기는 "지금 가장 가까운 것"이 핵심이라 상위 몇 개면 맛이 보인다.
+RADAR_PREVIEW_COUNT = 5
 
 
 @router.get("/signal-events")

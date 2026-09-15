@@ -128,12 +128,14 @@ export function useLeadingStockCandidates(minChangeRate: number) {
   });
 }
 
-export function useBreakoutRadar(minChangeRate: number) {
+/** `mode`는 미로그인 미리보기를 **어느 쪽 근접 순으로 자를지** 정한다.
+ *  전부 받는 로그인 쪽에서는 결과가 같다 — 화면이 어차피 다시 정렬한다. */
+export function useBreakoutRadar(minChangeRate: number, mode: "resistance" | "support" = "resistance") {
   return useQuery({
-    queryKey: QK.breakoutRadar(minChangeRate),
+    queryKey: [...QK.breakoutRadar(minChangeRate), mode],
     queryFn: () =>
       apiFetch<BreakoutRadarResponse>(
-        `/api/leading-stocks/breakout-radar?minChangeRate=${minChangeRate}`,
+        `/api/leading-stocks/breakout-radar?minChangeRate=${minChangeRate}&mode=${mode}`,
       ),
     refetchInterval: 5_000,
   });

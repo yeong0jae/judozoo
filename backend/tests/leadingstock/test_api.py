@@ -86,6 +86,65 @@ class Test종목_상세:
         assert 데이터["relativeVolume"] is None
 
 
+class Test지지_저항_미리보기:
+    @staticmethod
+    def 레이더_대역(monkeypatch, 개수):
+        from backend.leadingstock.application import BreakoutRadarStock
+
+        monkeypatch.setattr(application, "breakout_radar", lambda _r: [
+            BreakoutRadarStock(
+                stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
+                current_price=1000, price_change_rate=7.5,
+                peak_price=1100, peak_at=AT, gap_rate=1.0 + i, trading_value=100,
+            )
+            for i in range(개수)
+        ])
+
+    def test_미로그인은_상위_다섯개만_받는다(self, client, monkeypatch):
+        """화면에서 자르면 나머지가 브라우저까지 내려가 읽힌다 — 서버가 잘라야 한다."""
+        self.레이더_대역(monkeypatch, 8)
+
+        데이터 = client.get("/api/leading-stocks/breakout-radar").json()["data"]
+
+        assert len(데이터["stocks"]) == 5
+        # 자르기 전 전체 수는 그대로 알려준다 — 받는 쪽이 "몇 개 더 있는지"를 말할 수 있게
+        assert 데이터["totalCount"] == 8
+        assert 데이터["stocks"][0]["stockName"] == "종목00"
+
+    def test_지지_모드는_지지_근접_순으로_자른다(self, client, monkeypatch):
+        """저항 순으로 자른 뒤 지지로 세우면 "지지에 가까운 종목"이 아니게 된다."""
+        from backend.leadingstock.application import BreakoutRadarStock
+
+        def 종목(code, 저항갭, 지지갭):
+            return BreakoutRadarStock(
+                stock_code=code, stock_name=f"종목{code}",
+                current_price=1000, price_change_rate=-2.0,
+                peak_price=1100, peak_at=AT, gap_rate=저항갭, trading_value=100,
+                support_gap_rate=지지갭,
+            )
+
+        # 저항 순(기본)으로는 앞 5개에 "지지1위"가 들어가지 못한다
+        monkeypatch.setattr(application, "breakout_radar", lambda _r: [
+            종목("A", 1.0, 9.0), 종목("B", 2.0, 8.0), 종목("C", 3.0, 7.0),
+            종목("D", 4.0, 6.0), 종목("E", 5.0, 5.0), 종목("F", 6.0, 0.5),
+        ])
+
+        저항 = client.get("/api/leading-stocks/breakout-radar").json()["data"]
+        지지 = client.get(
+            "/api/leading-stocks/breakout-radar", params={"mode": "support"}
+        ).json()["data"]
+
+        assert [s["stockCode"] for s in 저항["stocks"]] == ["A", "B", "C", "D", "E"]
+        assert 지지["stocks"][0]["stockCode"] == "F"
+
+    def test_로그인하면_다섯개_넘게도_전부_받는다(self, 로그인_client, monkeypatch):
+        self.레이더_대역(monkeypatch, 8)
+
+        데이터 = 로그인_client.get("/api/leading-stocks/breakout-radar").json()["data"]
+
+        assert len(데이터["stocks"]) == 8
+
+
 @pytest.fixture
 def 이벤트_테이블(통합_db):
     for model in (SignalEvent, MarketSignalEvent):

@@ -19,6 +19,8 @@ _PUBLIC_PATTERNS = [
     # 종목 시그널 — 미리보기로 최신 몇 건만 연다. 자르는 건 엔드포인트가 한다
     # (여기서 열어도 응답 전체가 나가지는 않는다). 지수 시그널은 로그인 뒤다.
     r"/api/leading-stocks/signal-events",
+    # 지지·저항도 같은 방식 — 상위 몇 개만 엔드포인트가 잘라 내려보낸다
+    r"/api/leading-stocks/breakout-radar",
     r"/api/overseas-leading-stocks/ranking",
     # 휴장 배너
     r"/api/market/calendar/status",
