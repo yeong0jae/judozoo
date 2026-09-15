@@ -18,6 +18,7 @@ import { useArrowStockNav } from "../lib/useArrowStockNav";
 import OverseasLeadingStocks from "./OverseasLeadingStocksPage";
 import MarketToggle from "../components/common/MarketToggle";
 import { loadMarket, rememberMarket, type StockMarket } from "../lib/stockMarket";
+import { ALWAYS_INCLUDED_LABEL, ALWAYS_INCLUDED_RANKS } from "../lib/leadingStock";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -229,7 +230,7 @@ function CandidatesTable({
       </thead>
       <tbody>
         {stocks.length > 0 && (
-          <GroupHeader label="거래대금 1, 2, 3위" />
+          <GroupHeader label={ALWAYS_INCLUDED_LABEL} />
         )}
         {stocks.map((s, idx) => {
           const code = shortCode(s.stockCode);
@@ -237,7 +238,7 @@ function CandidatesTable({
           const isSelected = selectedCode === s.stockCode;
           return (
             <Fragment key={s.stockCode}>
-              {idx === 3 && <GroupHeader label="주도주 후보" />}
+              {idx === ALWAYS_INCLUDED_RANKS && <GroupHeader label="주도주 후보" />}
               <tr
                 data-stock-code={s.stockCode}
                 className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
@@ -319,8 +320,8 @@ function CandidatesCards({
         const isSelected = selectedCode === s.stockCode;
         return (
           <Fragment key={s.stockCode}>
-            {idx === 0 && <CardGroupHeader label="거래대금 1, 2, 3위" />}
-            {idx === 3 && <CardGroupHeader label="주도주 후보" />}
+            {idx === 0 && <CardGroupHeader label={ALWAYS_INCLUDED_LABEL} />}
+            {idx === ALWAYS_INCLUDED_RANKS && <CardGroupHeader label="주도주 후보" />}
             <div
               data-stock-code={s.stockCode}
               className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${

@@ -11,15 +11,15 @@ import { useMe } from "../api/auth";
 import { useMarketSessions } from "../lib/marketSession";
 import { useMinChangeRate, useOverseasMinChangeRate } from "../lib/changeRate";
 import { rememberMarket, type StockMarket } from "../lib/stockMarket";
+import { ALWAYS_INCLUDED_RANKS } from "../lib/leadingStock";
 import { formatPct, formatPrice, formatUsd } from "../lib/format";
 import SessionStrip from "../components/layout/SessionStrip";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 
-/** 위 구간(등락률 기준 통과) 최대 4줄 + 아래 구간(거래대금 1~2위) 2줄. */
+/** 위 구간(등락률 기준 통과)은 최대 4줄. 아래 구간은 거래대금 강제 포함분 전부. */
 const TOP_PASSED = 4;
-const TOP_VALUE = 2;
 
 /**
  * 첫 화면 — 지금 시장이 어떤지만 보여준다.
@@ -169,7 +169,7 @@ type Item = { key: string; name: string; symbol?: string; price: string; rate: n
  * (두 번 나오지 않게).
  */
 function split(items: Item[], threshold: number) {
-  const byValue = items.slice(0, TOP_VALUE);
+  const byValue = items.slice(0, ALWAYS_INCLUDED_RANKS);
   const shown = new Set(byValue.map((i) => i.key));
   const passed = items
     .filter((i) => i.rate >= threshold && !shown.has(i.key))
@@ -294,7 +294,7 @@ function LeaderCard({
 
       {loading ? (
         <div className="space-y-2 p-4">
-          {Array.from({ length: TOP_PASSED + TOP_VALUE }).map((_, i) => (
+          {Array.from({ length: TOP_PASSED + ALWAYS_INCLUDED_RANKS }).map((_, i) => (
             <Skeleton key={i} className="h-5 w-full" />
           ))}
         </div>

@@ -115,14 +115,17 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
         flt.DailyPriceChangeFilter(effective),
     ]).apply(candidates)
 
-    # 거래대금 순 정렬 유지 + 중복 제거 (top3가 survivors와 겹치면 자연 dedupe)
+    # 거래대금 순 정렬 유지 + 중복 제거 (강제 포함분이 survivors와 겹치면 자연 dedupe)
     merged: list[LeadingStockSnapshot] = []
     seen: set[str] = set()
     for stock in [*top_ranks, *survivors]:
         if stock.stock_code not in seen:
             seen.add(stock.stock_code)
             merged.append(stock)
-    log.info("Phase 1 통과 %d건 (상위3 강제 포함 + 필터 통과 %d건)", len(merged), len(survivors))
+    log.info(
+        "Phase 1 통과 %d건 (거래대금 상위 %d개 강제 포함 + 필터 통과 %d건)",
+        len(merged), _TOP_RANK_ALWAYS_INCLUDED, len(survivors),
+    )
     return merged
 
 

@@ -13,6 +13,7 @@ import PageHeader from "../components/layout/PageHeader";
 import { useOverseasMinChangeRate } from "../lib/changeRate";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
+import { ALWAYS_INCLUDED_LABEL, ALWAYS_INCLUDED_RANKS } from "../lib/leadingStock";
 import LoginGate from "../components/common/LoginGate";
 import { useMe } from "../api/auth";
 
@@ -162,12 +163,12 @@ function RankingTable({
         </tr>
       </thead>
       <tbody>
-        {stocks.length > 0 && <GroupHeader label="거래대금 1, 2, 3위" />}
+        {stocks.length > 0 && <GroupHeader label={ALWAYS_INCLUDED_LABEL} />}
         {stocks.map((s, idx) => {
           const isSelected = selectedSymbol === s.symbol;
           return (
             <Fragment key={s.symbol}>
-              {idx === 3 && <GroupHeader label="주도주 후보" />}
+              {idx === ALWAYS_INCLUDED_RANKS && <GroupHeader label="주도주 후보" />}
               <tr
                 data-stock-code={s.symbol}
                 className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
@@ -232,8 +233,8 @@ function RankingCards({
         const isSelected = selectedSymbol === s.symbol;
         return (
           <Fragment key={s.symbol}>
-            {idx === 0 && <CardGroupHeader label="거래대금 1, 2, 3위" />}
-            {idx === 3 && <CardGroupHeader label="주도주 후보" />}
+            {idx === 0 && <CardGroupHeader label={ALWAYS_INCLUDED_LABEL} />}
+            {idx === ALWAYS_INCLUDED_RANKS && <CardGroupHeader label="주도주 후보" />}
             <div
               data-stock-code={s.symbol}
               className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
