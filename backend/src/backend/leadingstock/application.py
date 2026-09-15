@@ -27,7 +27,7 @@ from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
 
-_TOP_RANK_ALWAYS_INCLUDED = 3
+_TOP_RANK_ALWAYS_INCLUDED = 2
 _RVOL_LOOKBACK_DAYS = 20
 _SPIKE_BASELINE_BARS = 20             # 직전 평균 산정 봉 수
 _SPIKE_MIN_TRADING_VALUE = 1_000_000_000  # 최신 1분봉 최소 거래대금(원)
@@ -103,8 +103,8 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
 
     etf, spac = flt.EtfExclusionFilter(), flt.SpacExclusionFilter()
 
-    # 개별종목 거래대금 1~3위는 등락률 무관 항상 포함 — 시장 톤 기준점 (ETF·스팩은 제외)
-    top_three = [c for c in candidates if etf.filter(c) and spac.filter(c)][:_TOP_RANK_ALWAYS_INCLUDED]
+    # 개별종목 거래대금 1~2위는 등락률 무관 항상 포함 — 시장 톤 기준점 (ETF·스팩은 제외)
+    top_ranks = [c for c in candidates if etf.filter(c) and spac.filter(c)][:_TOP_RANK_ALWAYS_INCLUDED]
 
     # 사용자 지정 등락률만 덮어쓴 임계값으로 Phase 1 구성
     effective = _criteria().model_copy(update={"min_daily_price_change_rate": min_daily_price_change_rate})
@@ -118,7 +118,7 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
     # 거래대금 순 정렬 유지 + 중복 제거 (top3가 survivors와 겹치면 자연 dedupe)
     merged: list[LeadingStockSnapshot] = []
     seen: set[str] = set()
-    for stock in [*top_three, *survivors]:
+    for stock in [*top_ranks, *survivors]:
         if stock.stock_code not in seen:
             seen.add(stock.stock_code)
             merged.append(stock)
