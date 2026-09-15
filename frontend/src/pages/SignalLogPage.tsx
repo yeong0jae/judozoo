@@ -298,7 +298,7 @@ function Stat({
 }
 
 /**
- * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·반등/꺾임 횟수·최대 스파이크
+ * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·매수/매도 스파이크 횟수·최대 스파이크
  * 거래대금·필터 충족) + 시간순 테이블. [journey]는 최신순으로 들어오고, 테이블도 최신→오래된으로 그대로 그린다.
  */
 function StockJourney({ stockCode, journey }: { stockCode: string; journey: SignalEventItem[] }) {
@@ -306,8 +306,10 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   const filters = detailQ.data?.filterResults;
   const passed = filters?.filter((f) => f.passed).length;
 
-  const rebounds = journey.filter((j) => j.eventType === "MA_REBOUND").length;
-  const breakdowns = journey.filter((j) => j.eventType === "MA_BREAKDOWN").length;
+  // 스파이크가 어느 쪽으로 터졌는지 — 보합은 방향이 없어 어느 쪽에도 안 센다
+  const spikes = journey.filter((j) => j.eventType === "VOLUME_SPIKE");
+  const buySpikes = spikes.filter((j) => j.spikeDirection === "BUY").length;
+  const sellSpikes = spikes.filter((j) => j.spikeDirection === "SELL").length;
   const spikeValues = journey
     .filter((j) => j.eventType === "VOLUME_SPIKE" && j.minuteTradingValue != null)
     .map((j) => j.minuteTradingValue as number);
@@ -320,12 +322,12 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         <Stat label="누적 거래대금" value={formatKoreanMoney(accTradingValue)} />
         <Stat
-          label="반등 · 꺾임"
+          label="매수 · 매도 스파이크"
           value={
             <>
-              <span className="text-orange-400">{rebounds}</span>
+              <span className="text-red-400">{buySpikes}</span>
               <span className="text-zinc-600"> · </span>
-              <span className="text-sky-400">{breakdowns}</span>
+              <span className="text-blue-400">{sellSpikes}</span>
             </>
           }
         />
