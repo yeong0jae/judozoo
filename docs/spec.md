@@ -282,7 +282,8 @@ Docker가 없으면 `uv run pytest -m "not integration"`으로 통합 테스트�
 - GitHub Actions — WIF 인증 → 빌드·푸시 → scp/ssh 배포 → 헬스체크
 - 인스턴스는 `kiwoom-real` **1대**. 과거 브로커별 다중 인스턴스 운영에서 단일 인스턴스로 축소했다
 
-자세한 내용은 [`infra/docs/plan.md`](../infra/docs/plan.md).
+실제 정의는 `docker-compose.yml`, `infra/terraform/`, `infra/deploy/remote_deploy.sh`,
+`.github/workflows/deploy.yml`이다.
 
 ---
 

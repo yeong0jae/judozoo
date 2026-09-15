@@ -57,7 +57,7 @@ Phase 단위로 관리하지 않는다. 화면·데이터 소스 단위로 필�
 | 5-B-2 | 실 API + STOMP 연결 | 폐기 |
 | 6 | 실적 리포트 + 운영 인지 채널 | 폐기 |
 | 7 | 보유 주식 수동 매도 | 폐기 |
-| 8 | 배포 인프라 — Docker + GCE + Terraform + GitHub Actions | **생존** |
+| 8 | 배포 인프라 — Docker + GCE + Terraform + GitHub Actions | **생존** (태스크 문서 없음) |
 | 9 | Broker 추상화 — `BrokerTradingClient` 인터페이스 | 폐기 |
 | 10 | Kiwoom 어댑터 + Profile 와이어링 | **일부 생존** (조회 클라이언트, Profile 구조) |
 | 11 | 3-인스턴스 배포 (kis-vts / kis-real / kiwoom-real) | **폐기** — 현재 `kiwoom-real` 1대만 운영 |
