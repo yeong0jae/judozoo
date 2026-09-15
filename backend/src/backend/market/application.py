@@ -6,7 +6,7 @@
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import select
@@ -134,6 +134,8 @@ class SessionNet:
     name: str
     time: str
     nets: Nets | None
+    #: 직전 스냅샷 대비 변화량. 마지막 스냅샷이 속한 구간에만 실린다(그리고 오늘만).
+    delta: Nets | None = None
 
 
 def investor_daily_history(market: Market, count: int) -> list[MarketInvestorDay]:
@@ -190,6 +192,40 @@ def _latest_date_with_data(session: Session, model, market: Market, on: date) ->
     return found or on
 
 
+def _last_two(session: Session, model, market: Market, on: date) -> tuple[object, object]:
+    """그날 마지막 스냅샷과 그 직전 것. 하나뿐이거나 없으면 그만큼 None."""
+    rows = list(
+        session.scalars(
+            select(model)
+            .where(model.market == market, model.trade_date == on)
+            .order_by(model.captured_at.desc())
+            .limit(2)
+        )
+    )
+    return (rows[0] if rows else None, rows[1] if len(rows) > 1 else None)
+
+
+def _attach_delta(sessions: list, session: Session, model, market: Market, on: date, today_: date):
+    """마지막 스냅샷이 속한 구간에 "직전 스냅샷 대비" 변화량을 얹는다.
+
+    **오늘만** 얹는다 — 지난 날짜의 "그날 마지막 1분 변화량"은 며칠 뒤에 볼 값이 아니다.
+    구간 판정은 `SessionNet.time`("HH:MM~HH:MM")을 그대로 쓴다. 경계 시각을 두 번 적지 않게.
+    """
+    if on != today_:
+        return sessions
+    latest, prev = _last_two(session, model, market, on)
+    if latest is None or prev is None:
+        return sessions
+    delta = latest.nets() - prev.nets()
+    hm = latest.captured_at.strftime("%H:%M")
+    return [
+        replace(s, delta=delta)
+        if s.nets is not None and s.time.split("~")[0] <= hm < s.time.split("~")[1]
+        else s
+        for s in sessions
+    ]
+
+
 def investor_sessions(session: Session, market: Market, on: date) -> tuple[date, list[SessionNet]]:
     """세션별 순매수 — 당일 누적 스냅샷 경계 diff. 데이터 없는 세션은 nets=None.
 
@@ -213,13 +249,14 @@ def investor_sessions(session: Session, market: Market, on: date) -> tuple[date,
         return later.nets() - earlier.nets()
 
     morning_net = diff(morning, open_) if open_ is not None else (morning.nets() if morning else None)
-    return on, [
+    sessions = [
         SessionNet("프리마켓", "08:00~09:00", open_.nets() if open_ else None),
         SessionNet("오전", "09:00~12:00", morning_net),
         SessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
         SessionNet("마감 구간", "15:00~15:40", diff(close, afternoon)),
         SessionNet("애프터마켓", "15:40~20:00", diff(after_close, close)),
     ]
+    return on, _attach_delta(sessions, session, MarketInvestorSnapshot, market, on, today())
 
 
 # ── 선물 투자자 수급 ────────────────────────────────────────────────────
@@ -235,6 +272,8 @@ class FuturesSessionNet:
     name: str
     time: str
     nets: FuturesNets | None
+    #: 직전 스냅샷 대비 변화량. `SessionNet.delta`와 같은 규칙이다.
+    delta: FuturesNets | None = None
 
 
 @dataclass(frozen=True)
@@ -318,11 +357,12 @@ def futures_investor_sessions(
             return None
         return later.nets() - earlier.nets()
 
-    return on, [
+    sessions = [
         FuturesSessionNet("오전", "08:45~12:00", morning.nets() if morning else None),
         FuturesSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
         FuturesSessionNet("마감 구간", "15:00~15:45", diff(close, afternoon)),
     ]
+    return on, _attach_delta(sessions, session, FuturesInvestorSnapshot, market, on, today())
 
 
 def _futures_snapshot_at(session: Session, market: Market, at: datetime):

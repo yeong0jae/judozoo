@@ -805,8 +805,6 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
   const shownDate = data?.date ?? date;
   const edge = "border-l border-zinc-800"; // 기관상세 묶음 경계선
   const numCols = 3 + FUTURES_ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
-  const keyOf = (session: string, field: string) => `flowdelta:futures:${date}:${session}:${field}`;
-  useEffect(() => pruneFlowDelta(date), [date]);
 
   return (
     <div className="px-1">
@@ -847,7 +845,6 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
             </thead>
             <tbody>
               {list.map((s) => {
-                const active = isActiveSession(s.time, date === todayStr());
                 return (
                   <tr
                     key={s.name}
@@ -864,24 +861,24 @@ function FuturesSessionsCard({ market, date }: { market: MarketType; date: strin
                     ) : (
                       <>
                         <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} active={active} />
+                          <FlowNum eok={s.nets.individual} delta={s.delta?.individual} />
                         </td>
                         <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} active={active} />
+                          <FlowNum eok={s.nets.foreign} delta={s.delta?.foreign} />
                         </td>
                         <td className="text-right py-2 pl-2.5 pr-5 font-medium">
-                          <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} active={active} />
+                          <FlowNum eok={s.nets.institution} delta={s.delta?.institution} />
                         </td>
                         {FUTURES_ORG_COLS.map((c, i) => (
                           <td
                             key={c.key}
                             className={`text-right py-2 ${orgPad(i, FUTURES_ORG_COLS.length)} ${i === 0 ? edge : ""}`}
                           >
-                            <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} active={active} />
+                            <FlowNum eok={s.nets!.breakdown[c.key]} delta={s.delta?.breakdown[c.key]} />
                           </td>
                         ))}
                         <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
-                          <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} active={active} />
+                          <FlowNum eok={s.nets.otherCorp} delta={s.delta?.otherCorp} />
                         </td>
                       </>
                     )}
@@ -1069,67 +1066,29 @@ function NetNum({ eok }: { eok: number }) {
   );
 }
 
-// 셀별 마지막 값·변화량을 localStorage에 담아 새로고침 후에도 복원한다. 키에 날짜가 있어 날이 바뀌면 자연 초기화.
-function loadCell(key: string): { v: number; d: number } | null {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-function saveCell(key: string, v: number, d: number) {
-  try {
-    localStorage.setItem(key, JSON.stringify({ v, d }));
-  } catch {
-    // 저장 실패(용량·프라이빗 모드)는 무시 — 델타는 부가 정보라 없어도 값은 정상.
-  }
-}
-
-/** 오늘 날짜가 안 든 flowdelta 잔재를 청소한다(날이 바뀌면 어제 변화량 제거). */
-function pruneFlowDelta(date: string) {
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const k = localStorage.key(i);
-    if (k?.startsWith("flowdelta:") && !k.includes(`:${date}:`)) localStorage.removeItem(k);
-  }
-}
-
-/** 지금 진행 중인 시간대인지 — 오늘이고 현재 시각이 그 구간("HH:MM~HH:MM") 안일 때만. */
-function isActiveSession(time: string, isToday: boolean): boolean {
-  if (!isToday) return false;
-  const [start, end] = time.split("~");
-  if (!start || !end) return false;
-  const now = new Date();
-  const hm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  return hm >= start && hm < end;
-}
 
 /**
- * 순매수 숫자 + 직전 폴 대비 변화량. 각 칸이 자기 값 변화를 직접 추적한다.
- * 변화량은 [active](지금 진행 중인 시간대)일 때만 표시한다 — 완료된 과거 구간은 값이 고정이라 의미 없다.
- * 마지막 변화량은 오른쪽에 흐리게 계속 남고(새로고침해도 localStorage에서 복원), 값이 또 바뀌면 다시 깜빡인다.
+ * 순매수 숫자 + 직전 스냅샷 대비 변화량.
+ *
+ * **변화량은 서버가 계산해 내려준다.** 예전에는 각 칸이 `localStorage`에 마지막 본 값을 들고
+ * 스스로 뺐는데, 그러면 기준이 브라우저마다 달랐다 — 처음 온 사람은 한 주기를 기다려야 했고,
+ * 자리를 비웠다 돌아오면 몇 시간치가 1분치인 척 깜빡였다.
+ *
+ * 값이 바뀔 때만 깜빡인다. 마지막 변화량은 장이 끝난 뒤에도 흐리게 남는다 —
+ * 서버가 그날 마지막 두 스냅샷의 차이를 계속 실어 주기 때문이다.
  */
-function FlowNum({ eok, storageKey, active }: { eok: number; storageKey: string; active: boolean }) {
-  const init = useRef<{ v: number; d: number }>(null as unknown as { v: number; d: number });
-  if (init.current == null) init.current = loadCell(storageKey) ?? { v: eok, d: 0 };
-  const prevRef = useRef(init.current.v);
+function FlowNum({ eok, delta }: { eok: number; delta?: number }) {
+  // 같은 값이 다시 와도 재생하지 않게, 델타가 바뀔 때만 seq를 올린다
   const seqRef = useRef(0);
-  const [last, setLast] = useState<{ delta: number; seq: number } | null>(
-    init.current.d !== 0 ? { delta: init.current.d, seq: 0 } : null,
-  );
-  useEffect(() => {
-    if (!active) return;
-    const d = eok - prevRef.current;
-    if (d === 0) return;
-    prevRef.current = eok;
+  const prevRef = useRef<number | undefined>(undefined);
+  if (delta !== prevRef.current) {
+    prevRef.current = delta;
     seqRef.current += 1;
-    setLast({ delta: d, seq: seqRef.current });
-    saveCell(storageKey, eok, d);
-  }, [eok, storageKey, active]);
+  }
   return (
     <span className="inline-flex items-baseline justify-end gap-1.5">
       <NetNum eok={eok} />
-      {active && last && <DeltaFlash key={last.seq} delta={last.delta} />}
+      {delta != null && delta !== 0 && <DeltaFlash key={seqRef.current} delta={delta} />}
     </span>
   );
 }
@@ -1138,7 +1097,7 @@ function FlowNum({ eok, storageKey, active }: { eok: number; storageKey: string;
 function DeltaFlash({ delta }: { delta: number }) {
   const tone = delta > 0 ? "text-red-400" : "text-blue-400";
   return (
-    <span className={`flow-delta num text-[10px] ${tone}`}>
+    <span className={`flow-delta num text-[11px] ${tone}`}>
       {delta > 0 ? "+" : "−"}
       {Math.abs(delta).toLocaleString("ko-KR")}
     </span>
@@ -1258,8 +1217,6 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
   const shownDate = data?.date ?? date;
   const edge = "border-l border-zinc-800"; // 기관상세 묶음 경계선
   const numCols = 3 + ORG_COLS.length + 1; // 개인·외국인·기관계 + 기관상세 + 기타법인
-  const keyOf = (session: string, field: string) => `flowdelta:${market}:${date}:${session}:${field}`;
-  useEffect(() => pruneFlowDelta(date), [date]);
 
   return (
     <div className="px-1">
@@ -1300,7 +1257,6 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
             </thead>
             <tbody>
               {list.map((s) => {
-                const active = isActiveSession(s.time, date === todayStr());
                 return (
                   <tr
                     key={s.name}
@@ -1317,21 +1273,21 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
                     ) : (
                       <>
                         <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.individual} storageKey={keyOf(s.name, "individual")} active={active} />
+                          <FlowNum eok={s.nets.individual} delta={s.delta?.individual} />
                         </td>
                         <td className="text-right py-2 px-2.5">
-                          <FlowNum eok={s.nets.foreign} storageKey={keyOf(s.name, "foreign")} active={active} />
+                          <FlowNum eok={s.nets.foreign} delta={s.delta?.foreign} />
                         </td>
                         <td className="text-right py-2 pl-2.5 pr-5 font-medium">
-                          <FlowNum eok={s.nets.institution} storageKey={keyOf(s.name, "institution")} active={active} />
+                          <FlowNum eok={s.nets.institution} delta={s.delta?.institution} />
                         </td>
                         {ORG_COLS.map((c, i) => (
                           <td key={c.key} className={`text-right py-2 ${orgPad(i, ORG_COLS.length)} ${i === 0 ? edge : ""}`}>
-                            <FlowNum eok={s.nets!.breakdown[c.key]} storageKey={keyOf(s.name, c.key)} active={active} />
+                            <FlowNum eok={s.nets!.breakdown[c.key]} delta={s.delta?.breakdown[c.key]} />
                           </td>
                         ))}
                         <td className={`text-right py-2 pl-5 pr-2.5 ${edge}`}>
-                          <FlowNum eok={s.nets.otherCorp} storageKey={keyOf(s.name, "otherCorp")} active={active} />
+                          <FlowNum eok={s.nets.otherCorp} delta={s.delta?.otherCorp} />
                         </td>
                       </>
                     )}

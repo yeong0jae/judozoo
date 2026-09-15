@@ -83,6 +83,9 @@ class SessionNetItem(BaseModel):
     name: str
     time: str
     nets: NetsItem | None
+    #: 직전 스냅샷 대비 변화량. 마지막 스냅샷이 속한 구간에만, 그리고 오늘만 실린다.
+    #: 화면은 이 값을 그대로 그리면 된다 — 예전처럼 브라우저가 직접 뺄 필요가 없다.
+    delta: NetsItem | None = None
 
 
 class SessionNetsResponse(BaseModel):
@@ -116,6 +119,8 @@ class FuturesSessionItem(BaseModel):
     name: str
     time: str
     nets: FuturesNetsItem | None
+    #: 직전 스냅샷 대비 변화량. `SessionNetItem.delta`와 같은 규칙이다.
+    delta: FuturesNetsItem | None = None
 
 
 class FuturesSessionsResponse(BaseModel):
@@ -312,7 +317,10 @@ def futures_investor_sessions(
         FuturesSessionsResponse(
             date=used,
             sessions=[
-                FuturesSessionItem(name=s.name, time=s.time, nets=_futures_nets_item(s.nets))
+                FuturesSessionItem(
+                    name=s.name, time=s.time,
+                    nets=_futures_nets_item(s.nets), delta=_futures_nets_item(s.delta),
+                )
                 for s in sessions
             ],
         )
@@ -368,7 +376,11 @@ def investor_sessions(
         SessionNetsResponse(
             date=used,
             sessions=[
-                SessionNetItem(name=s.name, time=s.time, nets=_nets_item(s.nets)) for s in sessions
+                SessionNetItem(
+                    name=s.name, time=s.time,
+                    nets=_nets_item(s.nets), delta=_nets_item(s.delta),
+                )
+                for s in sessions
             ],
         )
     )

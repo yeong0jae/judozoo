@@ -44,6 +44,55 @@ def 휴장판정_없음(monkeypatch):
     monkeypatch.setattr("backend.market.calendar.is_open", lambda _d: None)
 
 
+class Test직전_스냅샷_대비_변화량:
+    """화면의 깜빡이는 변화량. 예전엔 브라우저가 자기 마지막 값으로 뺐다 —
+    사람마다 기준이 달라져, 서버가 직전 스냅샷 기준으로 한 번만 계산한다."""
+
+    def test_마지막_스냅샷이_속한_구간에만_실린다(self, 빈_스냅샷_테이블, monkeypatch):
+        monkeypatch.setattr(application, "today", lambda: 당일)
+        with get_session_factory()() as s:
+            s.add_all([
+                수급스냅샷(9, 0, 개인=100, 외국인=-50, 기관=-50),
+                수급스냅샷(12, 0, 개인=300, 외국인=-150, 기관=-150),
+                수급스냅샷(13, 30, 개인=380, 외국인=-190, 기관=-190),   # 직전
+                수급스냅샷(13, 31, 개인=420, 외국인=-210, 기관=-210),   # 마지막
+            ])
+            s.commit()
+
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+
+        이름별 = {x.name: x.delta for x in 세션들}
+        # 13:31은 오후(12:00~15:00) 구간이다
+        assert 이름별["오후"].individual == 40
+        assert 이름별["오후"].foreign == -20
+        assert 이름별["오전"] is None
+        assert 이름별["프리마켓"] is None
+
+    def test_지난_날짜에는_싣지_않는다(self, 빈_스냅샷_테이블, monkeypatch):
+        """그날 마지막 1분 변화량은 며칠 뒤에 볼 값이 아니다."""
+        monkeypatch.setattr(application, "today", lambda: date(2026, 9, 14))
+        with get_session_factory()() as s:
+            s.add_all([
+                수급스냅샷(12, 0, 개인=300, 외국인=-150, 기관=-150),
+                수급스냅샷(13, 31, 개인=420, 외국인=-210, 기관=-210),
+            ])
+            s.commit()
+
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+
+        assert all(x.delta is None for x in 세션들)
+
+    def test_스냅샷이_하나뿐이면_뺄_대상이_없다(self, 빈_스냅샷_테이블, monkeypatch):
+        monkeypatch.setattr(application, "today", lambda: 당일)
+        with get_session_factory()() as s:
+            s.add(수급스냅샷(13, 31, 개인=420, 외국인=-210, 기관=-210))
+            s.commit()
+
+            _, 세션들 = application.investor_sessions(s, Market.KOSPI, 당일)
+
+        assert all(x.delta is None for x in 세션들)
+
+
 class Test투자자_세션_수급:
     def test_경계_스냅샷의_차이로_세션_순매수를_만든다(self, 빈_스냅샷_테이블):
         with get_session_factory()() as s:

@@ -83,6 +83,8 @@ export interface MarketInvestorSession {
   name: string;
   time: string;
   nets: MarketInvestorNets | null;
+  /** 직전 스냅샷 대비 변화량. 마지막 스냅샷이 속한 구간에만, 그리고 오늘만 온다. */
+  delta: MarketInvestorNets | null;
 }
 
 /** 코스피 선물(근월물) 시세 요약 — KIS 국내선물옵션. 값은 지수 포인트. */
@@ -172,6 +174,8 @@ export interface FuturesSession {
   name: string;
   time: string;
   nets: FuturesNets | null;
+  /** 직전 스냅샷 대비 변화량. `MarketInvestorSession.delta`와 같은 규칙이다. */
+  delta: FuturesNets | null;
 }
 
 /** 종목 관련 뉴스·공시 한 건 — KIS 종합 시황/공시. 제목만 오고 원문 링크는 없다. */
