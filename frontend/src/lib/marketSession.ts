@@ -99,3 +99,73 @@ export function useMarketSessions(): { kr: MarketSession | null; us: MarketSessi
     us: isEtWeekend(now) ? null : current(usSessions(now), now),
   };
 }
+
+// ============================================================
+// 거래일
+// ============================================================
+
+/**
+ * 주말이면 직전 금요일로 물러난다.
+ *
+ * 연휴는 맞추지 못한다 — 휴장 API가 알려주는 건 "오늘이 휴장인가"뿐이라
+ * 이틀 이상 쉬면 하루만 물러난 채로 남는다. 그래도 토·일에 열리지도 않은
+ * 날짜를 써 붙이는 것보다는 낫다.
+ */
+function backToWeekday(d: Date): Date {
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+  return d;
+}
+
+/**
+ * 국내 목록이 담고 있는 거래일.
+ *
+ * 개장 전(프리마켓 포함)에는 아직 전일 종가를 보고 있으므로 하루 물러난다.
+ */
+export function krTradingDay(now: Date, holiday: boolean): Date {
+  const day = new Date(now);
+  if (holiday || now.getHours() * 60 + now.getMinutes() < hm(9, 0)) {
+    day.setDate(day.getDate() - 1);
+  }
+  return backToWeekday(day);
+}
+
+/** 미 동부 기준 연·월·일과 자정 기준 분. */
+function etParts(now: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const at = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+  return {
+    year: at("year"),
+    month: at("month"),
+    day: at("day"),
+    minutes: at("hour") * 60 + at("minute"),
+  };
+}
+
+/**
+ * 해외 목록이 담고 있는 거래일 — **미국 현지 날짜**다.
+ *
+ * 한국 날짜를 붙이면 안 된다. 화요일 오전에 보는 해외 순위는 미국 금요일 장의
+ * 숫자라, 한국 날짜로는 화면의 값과 라벨이 어긋난다.
+ */
+export function usTradingDay(now: Date, holiday: boolean): Date {
+  const et = etParts(now);
+  const day = new Date(et.year, et.month - 1, et.day);
+  // 정규장 전이면(프리마켓 포함) 아직 전일 종가다 — 앱이 받는 건 정규장 순위뿐이다
+  if (holiday || et.minutes < hm(9, 30)) day.setDate(day.getDate() - 1);
+  return backToWeekday(day);
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** "9/15 (화)" */
+export function formatTradingDay(day: Date): string {
+  return `${day.getMonth() + 1}/${day.getDate()} (${WEEKDAYS[day.getDay()]})`;
+}

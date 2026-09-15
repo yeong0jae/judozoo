@@ -8,7 +8,12 @@ import {
   useOverseasRanking,
 } from "../api/queries";
 import { useMe } from "../api/auth";
-import { useMarketSessions } from "../lib/marketSession";
+import {
+  formatTradingDay,
+  krTradingDay,
+  usTradingDay,
+  useMarketSessions,
+} from "../lib/marketSession";
 import { useMinChangeRate, useOverseasMinChangeRate } from "../lib/changeRate";
 import { rememberMarket, type StockMarket } from "../lib/stockMarket";
 import { ALWAYS_INCLUDED_RANKS } from "../lib/leadingStock";
@@ -38,8 +43,22 @@ export default function HomePage() {
   // 양쪽 다 쉬는 주말·새벽에는 국내를 앞에 둔다 — 여기는 국내 단타 화면이다
   const domesticFirst = domesticLive || !overseasLive;
 
-  const domestic = <DomesticLeaders live={domesticLive} first={domesticFirst} />;
-  const overseas = <OverseasLeaders live={overseasLive} first={!domesticFirst} />;
+  // 두 쪽 날짜가 다를 수 있다 — 해외는 미국 현지 거래일이라 한국 오전에는 하루 뒤처진다
+  const now = new Date();
+  const domestic = (
+    <DomesticLeaders
+      live={domesticLive}
+      first={domesticFirst}
+      date={formatTradingDay(krTradingDay(now, !!krHoliday))}
+    />
+  );
+  const overseas = (
+    <OverseasLeaders
+      live={overseasLive}
+      first={!domesticFirst}
+      date={formatTradingDay(usTradingDay(now, !!usHoliday))}
+    />
+  );
 
   return (
     <div className="space-y-5">
@@ -168,6 +187,8 @@ type Item = { key: string; name: string; symbol?: string; price: string; rate: n
  * "전체 보기"로 넘어갔을 때 줄이 뒤바뀌지 않는다. 아래에 이미 있는 종목은 뺀다
  * (두 번 나오지 않게).
  */
+type LeadersProps = { live: boolean; first: boolean; date: string };
+
 function split(items: Item[], threshold: number) {
   const byValue = items.slice(0, ALWAYS_INCLUDED_RANKS);
   const shown = new Set(byValue.map((i) => i.key));
@@ -177,7 +198,7 @@ function split(items: Item[], threshold: number) {
   return { passed, byValue };
 }
 
-function DomesticLeaders({ live, first }: { live: boolean; first: boolean }) {
+function DomesticLeaders({ live, first, date }: LeadersProps) {
   const [minChangeRate] = useMinChangeRate();
   const { data, isLoading } = useLeadingStockCandidates(minChangeRate);
   const items: Item[] = (data?.stocks ?? []).map((s) => ({
@@ -190,6 +211,7 @@ function DomesticLeaders({ live, first }: { live: boolean; first: boolean }) {
   return (
     <LeaderCard
       title="국내 주도주"
+      date={date}
       market="domestic"
       live={live}
       first={first}
@@ -200,7 +222,7 @@ function DomesticLeaders({ live, first }: { live: boolean; first: boolean }) {
   );
 }
 
-function OverseasLeaders({ live, first }: { live: boolean; first: boolean }) {
+function OverseasLeaders({ live, first, date }: LeadersProps) {
   const [minChangeRate] = useOverseasMinChangeRate();
   const { data, isLoading } = useOverseasRanking(minChangeRate);
   const items: Item[] = (data ?? []).map((s) => ({
@@ -214,6 +236,7 @@ function OverseasLeaders({ live, first }: { live: boolean; first: boolean }) {
   return (
     <LeaderCard
       title="해외 주도주"
+      date={date}
       market="overseas"
       live={live}
       first={first}
@@ -248,6 +271,7 @@ function chipTone(rate: number): string {
  */
 function LeaderCard({
   title,
+  date,
   market,
   live,
   first,
@@ -257,6 +281,7 @@ function LeaderCard({
   byValue,
 }: {
   title: string;
+  date: string;
   market: StockMarket;
   live: boolean;
   first: boolean;
@@ -275,7 +300,11 @@ function LeaderCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-3.5 py-3">
         <span className="flex min-w-0 items-center gap-2 text-sm font-bold">
-          {title}
+          {/* 날짜와 제목은 한 덩어리로 읽힌다 — 좁은 화면에서도 둘 사이가 갈라지지 않게 */}
+          <span className="whitespace-nowrap">
+            <span className="mr-1.5 text-[12.5px] font-normal text-zinc-400">{date}</span>
+            {title}
+          </span>
           {live && (
             <span className="rounded-full bg-blue-50 px-2 py-px text-[10.5px] font-medium text-blue-700">
               장중
