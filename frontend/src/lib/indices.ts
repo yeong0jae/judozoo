@@ -20,11 +20,8 @@ export const INDICES: IndexInfo[] = [
   { id: "macro", slug: "macro", name: "매크로" },
 ];
 
-/** 로그인 없이 볼 수 있는 지수. 백엔드 허용목록(auth/gate.py)과 짝을 맞춘다. */
-export const PUBLIC_SLUGS = new Set(["night-futures"]);
-
-/** 미로그인 사용자를 보낼 곳. 로그인 게이트로 보내면 공개 지수에 닿을 길이 없다. */
-export const PUBLIC_DEFAULT_SLUG = "night-futures";
+// 지수는 전부 로그인 없이 본다 — 시세와 차트까지. 투자자 수급 표만 로그인 뒤다.
+// (예전에는 야간 선물만 공개라 "공개 지수로 보내기" 분기가 필요했다.)
 
 const DEFAULT_SLUG = "kospi";
 const LAST_SLUG_KEY = "market-analysis:slug";

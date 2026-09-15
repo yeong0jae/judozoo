@@ -4,8 +4,9 @@
 엔드포인트마다 의존성을 붙이면 새로 추가할 때 빠뜨리기 쉽고, 빠뜨린 쪽이 열린 채로 남는다.
 반대로 해두면 빠뜨렸을 때 막히므로 사고가 나도 노출이 아니라 불편으로 끝난다.
 
-공개로 두는 것은 주도주 후보 **목록**, 종목 시그널 **미리보기**, 지수 시세,
-코스피 야간 선물이다. 미리보기처럼 일부만 여는 경로는 엔드포인트가 직접 잘라 내려보낸다.
+공개로 두는 것은 주도주 후보 **목록**, 종목 시그널·지지저항 **미리보기**,
+그리고 지수·선물의 **시세와 차트**다. 투자자 수급(`investor/*`)은 로그인 뒤다.
+미리보기처럼 일부만 여는 경로는 엔드포인트가 직접 잘라 내려보낸다.
 """
 
 import re
@@ -27,9 +28,14 @@ _PUBLIC_PATTERNS = [
     # 지수 시세 — 어디서나 얻을 수 있는 정보라 가릴 값어치가 없다.
     r"/api/market/kospi",
     r"/api/market/kosdaq",
-    # 코스피 야간 선물 — 정규장 밖 유일한 국내 지표라 로그인 없이 연다.
-    r"/api/market/futures/night/quote",
-    r"/api/market/futures/night/candles",
+    r"/api/market/nasdaq/quote",
+    r"/api/market/macro/quotes",
+    # 시세와 차트는 연다. **수급(`investor/*`)만 로그인 뒤로 남긴다** — 지수·선물 가격은
+    # 어디서나 구할 수 있지만, 투자자별 순매수는 이 화면이 가공해 주는 값이다.
+    # `[^/]+`는 한 세그먼트라 `/futures/...`나 `/investor/...`로는 번지지 않는다.
+    rf"/api/market/{_SEG}/candles",
+    rf"/api/market/futures/{_SEG}/quote",
+    rf"/api/market/futures/{_SEG}/candles",
     # 로그인 흐름 자체
     r"/api/auth/.*",
 ]

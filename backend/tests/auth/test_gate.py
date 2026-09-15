@@ -14,8 +14,16 @@ class Test로그인_없이_열어둔_경로:
             "/api/market/calendar/status",
             "/api/market/kospi",
             "/api/market/kosdaq",
+            "/api/market/nasdaq/quote",
+            "/api/market/macro/quotes",
             "/api/market/futures/night/quote",
             "/api/market/futures/night/candles",
+            # 지수·선물의 시세와 차트 — 수급만 로그인 뒤로 남긴다
+            "/api/market/KOSPI/candles",
+            "/api/market/futures/KOSPI/quote",
+            "/api/market/futures/KOSDAQ/candles",
+            "/api/market/nasdaq/candles",
+            "/api/market/macro/candles",
             "/api/auth/google/callback",
         ],
     )
@@ -45,14 +53,14 @@ class Test로그인을_요구하는_경로:
             "/api/leading-stocks/candidates/005930/minute-candles",
             "/api/overseas-leading-stocks/NAS/NVDA",
             "/api/overseas-leading-stocks/NAS/NVDA/daily-candles",
-            # 야간 선물만 열었다 — 나머지 선물은 닫힌 채다
-            "/api/market/futures/kospi/quote",
-            "/api/market/futures/kospi/investor/sessions",
+            # 시세·차트는 열었지만 투자자 수급은 닫은 채다 — 경로가 한 겹 차이라 섞이기 쉽다
+            "/api/market/KOSPI/investor/sessions",
+            "/api/market/KOSPI/investor/daily",
+            "/api/market/futures/KOSPI/investor/sessions",
+            "/api/market/futures/KOSPI/investor/daily",
             # 가공한 판단 결과들
             # 종목 시그널은 열었지만 지수 시그널은 닫은 채다 — 경로가 비슷해 섞이기 쉽다
             "/api/leading-stocks/market-signal-events",
-            "/api/market/nasdaq/quote",
-            "/api/market/macro/quotes",
         ],
     )
     def test_상세와_가공_결과는_막힌다(self, path):
