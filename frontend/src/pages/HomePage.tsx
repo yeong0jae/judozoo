@@ -17,9 +17,9 @@ import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 
-/** 위 구간(기준 통과)·아래 구간(거래대금 상위) 각각 최대 몇 줄까지. */
-const TOP_PASSED = 3;
-const TOP_FORCED = 3;
+/** 위 구간(등락률 기준 통과) 최대 4줄 + 아래 구간(거래대금 1~2위) 2줄. */
+const TOP_PASSED = 4;
+const TOP_VALUE = 2;
 
 /**
  * 첫 화면 — 지금 시장이 어떤지만 보여준다.
@@ -158,23 +158,23 @@ function Tile({
 type Item = { key: string; name: string; symbol?: string; price: string; rate: number };
 
 /**
- * 기준을 통과한 것과 거래대금으로 들어온 것을 가른다.
+ * 홈 카드에 올릴 두 묶음을 만든다.
  *
- * 목록에는 거래대금 1~3위가 등락률과 무관하게 들어온다. 목록 화면은 20여 개라
- * 셋이 묻히지만 홈은 몇 줄뿐이라 절반 넘게 기준 미달로 차 버린다. 그래서
- * **통과분을 위로 올리고** 나머지는 구분선 아래에 흐리게 깐다.
+ * **아래는 거래대금 1~2위로 고정한다.** 등락률과 무관하게 봐야 할 종목이라
+ * 백엔드가 목록에 강제로 넣는 것이고, 기준을 바꿨다고 사라지면 안 된다.
+ * 응답이 거래대금 내림차순이라 앞 두 개가 곧 1·2위다.
  *
- * 위 구간은 등락률 높은 순이다 — 거래대금 순으로 자르면 제일 많이 오른 종목이
- * 잘려 나간다(거래대금 상위는 대개 대형주다). 아래 구간은 응답 순서, 곧 거래대금 순.
+ * **위는 등락률 기준을 통과한 것 중 거래대금 순으로 최대 넷.** 목록 화면과 같은 순서라
+ * "전체 보기"로 넘어갔을 때 줄이 뒤바뀌지 않는다. 아래에 이미 있는 종목은 뺀다
+ * (두 번 나오지 않게).
  */
 function split(items: Item[], threshold: number) {
-  const passed = [...items]
-    .filter((i) => i.rate >= threshold)
-    .sort((a, b) => b.rate - a.rate)
+  const byValue = items.slice(0, TOP_VALUE);
+  const shown = new Set(byValue.map((i) => i.key));
+  const passed = items
+    .filter((i) => i.rate >= threshold && !shown.has(i.key))
     .slice(0, TOP_PASSED);
-  // 기준에 못 미쳤는데 목록에 있다면 거래대금 상위로 들어온 것이다
-  const forced = items.filter((i) => i.rate < threshold).slice(0, TOP_FORCED);
-  return { passed, forced };
+  return { passed, byValue };
 }
 
 function DomesticLeaders({ live, first }: { live: boolean; first: boolean }) {
@@ -254,7 +254,7 @@ function LeaderCard({
   loading,
   threshold,
   passed,
-  forced,
+  byValue,
 }: {
   title: string;
   market: StockMarket;
@@ -263,7 +263,7 @@ function LeaderCard({
   loading: boolean;
   threshold: number;
   passed: Item[];
-  forced: Item[];
+  byValue: Item[];
 }) {
   return (
     <Link
@@ -294,11 +294,11 @@ function LeaderCard({
 
       {loading ? (
         <div className="space-y-2 p-4">
-          {Array.from({ length: TOP_PASSED + TOP_FORCED }).map((_, i) => (
+          {Array.from({ length: TOP_PASSED + TOP_VALUE }).map((_, i) => (
             <Skeleton key={i} className="h-5 w-full" />
           ))}
         </div>
-      ) : passed.length === 0 && forced.length === 0 ? (
+      ) : passed.length === 0 && byValue.length === 0 ? (
         // 목록이 통째로 비는 경우 — 개장 전이나 조회 실패. 머리만 남지 않게 한 줄 둔다.
         <p className="px-3.5 py-7 text-center text-xs text-zinc-500">아직 후보가 없습니다</p>
       ) : (
@@ -309,9 +309,9 @@ function LeaderCard({
             ))}
           </div>
 
-          {forced.length > 0 && (
+          {byValue.length > 0 && (
             <>
-              {/* 왜 기준에 못 미친 종목이 있는지 — 거래대금 1~3위는 무조건 들어온다 */}
+              {/* 등락률과 무관하게 늘 보여주는 자리 — 기준을 바꿔도 이 둘은 남는다 */}
               <div className="flex items-center gap-2 border-t border-zinc-800/60 bg-zinc-850/40 px-3.5 py-1.5">
                 <span className="text-[10.5px] text-zinc-500 whitespace-nowrap">
                   {passed.length === 0 ? "주도주 없음 · 거래대금 상위" : "거래대금 상위"}
@@ -319,7 +319,7 @@ function LeaderCard({
                 <span className="h-px flex-1 bg-zinc-800" />
               </div>
               <div className="divide-y divide-zinc-800/60 bg-zinc-850/25 opacity-60">
-                {forced.map((s, i) => (
+                {byValue.map((s, i) => (
                   <Row key={s.key} rank={i + 1} name={s.name} symbol={s.symbol} price={s.price} rate={s.rate} />
                 ))}
               </div>
