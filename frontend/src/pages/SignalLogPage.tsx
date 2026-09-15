@@ -168,7 +168,9 @@ function renderMarketRow(
           selected ? "bg-selected" : ""
         }`}
       >
-        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
+        {/* 최소폭이 있어야 좁을 때 오른쪽 묶음이 아랫줄로 접힌다. 없으면 flex-1(기준폭 0)이라
+            이 묶음이 0까지 눌리고, 안의 shrink-0들이 넘쳐 서로 겹친다 */}
+        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:min-w-[16rem] md:flex-1">
           <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(m.occurredAt)}`}>
             {clockOf(m.occurredAt)}
           </span>
@@ -606,8 +608,8 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                         authenticated ? "hover:bg-zinc-850" : "cursor-default"
                       } ${e.stockCode === selectedCode ? "bg-selected" : ""}`}
                     >
-                      {/* 왼쪽: 시각·유형·종목 */}
-                      <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:flex-1">
+                      {/* 왼쪽: 시각·유형·종목. 최소폭은 좁을 때 겹치지 않게 — 위 시장 행과 같은 이유 */}
+                      <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:min-w-[16rem] md:flex-1">
                         <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(e.occurredAt)}`}>
                           {clockOf(e.occurredAt)}
                         </span>
