@@ -205,10 +205,12 @@ def get_leaders() -> ApiResponse[list[CandidateStockItem]]:
 @router.get("/breakout-radar")
 def get_breakout_radar(
     request: Request,
-    minChangeRate: int | None = Query(None),  # noqa: N803
     mode: str = Query("resistance"),
 ) -> ApiResponse[BreakoutRadarResponse]:
-    """후보를 저항선(최근 3거래일 고가) 근접 순으로. 지지선(최근 3거래일 저가)도 함께 싣는다.
+    """후보를 돌파선(최근 3거래일 고가) 근접 순으로. 눌림선(최근 3거래일 저가)도 함께 싣는다.
+
+    **등락률 파라미터를 받지 않는다** — 눌림은 내린 종목에서 나오는 신호라 상승률 하한을
+    걸면 그쪽이 빈다. 어느 쪽에 얼마나 가까운 것만 볼지는 화면이 정한다.
 
     **미로그인이면 상위 `RADAR_PREVIEW_COUNT`개만 내려간다.** `total_count`는 자르기 전
     전체 수라, 받는 쪽이 둘을 비교해 잘렸는지 안다. 자세한 이유는 `get_signal_events` 참고.
@@ -225,7 +227,7 @@ def get_breakout_radar(
             trough_price=s.trough_price, trough_at=s.trough_at, support_gap_rate=s.support_gap_rate,
             trading_value=s.trading_value,
         )
-        for s in application.breakout_radar(_rate(minChangeRate))
+        for s in application.breakout_radar()
     ]
     total = len(items)
     if current_user(request) is None:

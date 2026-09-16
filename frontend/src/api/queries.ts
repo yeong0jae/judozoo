@@ -41,8 +41,7 @@ export const QK = {
   leadingStockCandidates: (minChangeRate: number) =>
     ["leading-stocks", "candidates", minChangeRate] as const,
   leadingStockLeaders: ["leading-stocks", "leaders"] as const,
-  breakoutRadar: (minChangeRate: number) =>
-    ["leading-stocks", "breakout-radar", minChangeRate] as const,
+  breakoutRadar: ["leading-stocks", "breakout-radar"] as const,
   signalEvents: (date: string) =>
     ["leading-stocks", "signal-events", date] as const,
   marketSignalEvents: (date: string) =>
@@ -147,13 +146,11 @@ export function useLeadingStockLeaders() {
 
 /** `mode`는 미로그인 미리보기를 **어느 쪽 근접 순으로 자를지** 정한다.
  *  전부 받는 로그인 쪽에서는 결과가 같다 — 화면이 어차피 다시 정렬한다. */
-export function useBreakoutRadar(minChangeRate: number, mode: "resistance" | "support" = "resistance") {
+export function useBreakoutRadar(mode: "resistance" | "support" = "resistance") {
   return useQuery({
-    queryKey: [...QK.breakoutRadar(minChangeRate), mode],
+    queryKey: [...QK.breakoutRadar, mode],
     queryFn: () =>
-      apiFetch<BreakoutRadarResponse>(
-        `/api/leading-stocks/breakout-radar?minChangeRate=${minChangeRate}&mode=${mode}`,
-      ),
+      apiFetch<BreakoutRadarResponse>(`/api/leading-stocks/breakout-radar?mode=${mode}`),
     refetchInterval: 5_000,
   });
 }

@@ -176,10 +176,15 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
     )
 
 
-def breakout_radar(min_daily_price_change_rate: float) -> list[BreakoutRadarStock]:
-    """후보를 **저항선 근접 순**으로 정렬한다. 지지선은 같은 행에 함께 싣는다."""
+def breakout_radar() -> list[BreakoutRadarStock]:
+    """후보를 **돌파선 근접 순**으로 정렬한다. 눌림선은 같은 행에 함께 싣는다.
+
+    **등락률로 거르지 않는다.** 눌림은 원래 내린 종목에서 나오는 신호라, 상승률 하한을
+    걸면 그쪽이 통째로 빈다. 시그널 폴러와 같은 감시 풀을 쓰므로 후보 조회도 분봉도
+    캐시가 겹쳐, 풀을 넓혀도 브로커 호출은 늘지 않는다.
+    """
     out = []
-    for c in find_candidate_stocks(min_daily_price_change_rate):
+    for c in find_candidate_stocks(get_settings().signal_event.min_change_rate):
         candles = _breakout_high_candles(c.stock_code)
         signal = candles.peak_signal(c.current_price)
         if signal is None:

@@ -111,12 +111,12 @@ class Test종목_상세:
         assert 데이터["relativeVolume"] is None
 
 
-class Test지지_저항_미리보기:
+class Test눌림_돌파_미리보기:
     @staticmethod
     def 레이더_대역(monkeypatch, 개수):
         from backend.leadingstock.application import BreakoutRadarStock
 
-        monkeypatch.setattr(application, "breakout_radar", lambda _r: [
+        monkeypatch.setattr(application, "breakout_radar", lambda: [
             BreakoutRadarStock(
                 stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
                 current_price=1000, price_change_rate=7.5,
@@ -136,7 +136,7 @@ class Test지지_저항_미리보기:
         assert 데이터["totalCount"] == 8
         assert 데이터["stocks"][0]["stockName"] == "종목00"
 
-    def test_지지_모드는_지지_근접_순으로_자른다(self, client, monkeypatch):
+    def test_눌림_모드는_눌림_근접_순으로_자른다(self, client, monkeypatch):
         """저항 순으로 자른 뒤 지지로 세우면 "지지에 가까운 종목"이 아니게 된다."""
         from backend.leadingstock.application import BreakoutRadarStock
 
@@ -149,7 +149,7 @@ class Test지지_저항_미리보기:
             )
 
         # 저항 순(기본)으로는 앞 5개에 "지지1위"가 들어가지 못한다
-        monkeypatch.setattr(application, "breakout_radar", lambda _r: [
+        monkeypatch.setattr(application, "breakout_radar", lambda: [
             종목("A", 1.0, 9.0), 종목("B", 2.0, 8.0), 종목("C", 3.0, 7.0),
             종목("D", 4.0, 6.0), 종목("E", 5.0, 5.0), 종목("F", 6.0, 0.5),
         ])

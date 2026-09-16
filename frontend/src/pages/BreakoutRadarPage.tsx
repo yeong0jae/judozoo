@@ -13,12 +13,7 @@ import NumWon from "../components/common/NumWon";
 import StockAvatar from "../components/common/StockAvatar";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import StockDetailPanel from "../components/common/StockDetailPanel";
-import ChangeRateSelector, {
-  CHANGE_RATE_OPTIONS,
-} from "../components/common/ChangeRateSelector";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
-
-const MIN_CHANGE_RATE_KEY = "breakoutRadar.minChangeRate";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -104,17 +99,6 @@ function PreviewGateBody({ shown, total, widths }: { shown: number; total: numbe
 }
 
 function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
-  // 등락률 임계값 — 새로고침해도 유지(라디오 풀은 주도주와 별개 키), 기본 7%.
-  const [minChangeRate, setMinChangeRate] = useState(() => {
-    const raw = localStorage.getItem(MIN_CHANGE_RATE_KEY);
-    const saved = Number(raw);
-    return raw !== null && CHANGE_RATE_OPTIONS.includes(saved) ? saved : 7;
-  });
-  const setRate = (r: number) => {
-    setMinChangeRate(r);
-    localStorage.setItem(MIN_CHANGE_RATE_KEY, String(r));
-  };
-
   const [mode, setMode] = useState<RadarMode>(() =>
     localStorage.getItem(MODE_KEY) === "support" ? "support" : "resistance",
   );
@@ -123,18 +107,19 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
     setMode(m);
   };
 
-  // 미로그인은 하한 없이 전체로 받는다. 7%를 걸면 지지 모드가 통째로 빈다 —
-  // 지지선에 닿는 건 대개 떨어지는 종목이라서다. 선택기도 감추므로 저장값을 쓰지 않는다.
-  const radarQ = useBreakoutRadar(authenticated ? minChangeRate : CHANGE_RATE_OPTIONS[0], mode);
+  const radarQ = useBreakoutRadar(mode);
   const data = radarQ.data;
-  // 백엔드는 저항 근접 순으로 준다. 지지 모드면 여기서 다시 세운다 —
+  // **지금 보는 선에서 NEAR% 이내인 것만 남긴다.** 목록에 있는 줄은 전부 색이 들어간
+  // 줄이라, 색이 곧 "볼 만한 것"이라는 뜻이 된다. 멀리 있는 종목은 어차피 할 일이 없다.
+  //
+  // 백엔드는 돌파 근접 순으로 준다. 눌림 모드면 여기서 다시 세운다 —
   // 데이터가 이미 다 와 있어서 추가 요청이 필요 없다.
   const stocks = useMemo(() => {
     const list = data?.stocks ?? [];
-    if (mode === "resistance") return list;
-    return [...list].sort(
-      (a, b) => (a.supportGapRate ?? Infinity) - (b.supportGapRate ?? Infinity),
-    );
+    if (mode === "resistance") return list.filter((s) => s.gapRate <= NEAR);
+    return list
+      .filter((s) => s.supportGapRate !== null && s.supportGapRate <= NEAR)
+      .sort((a, b) => (a.supportGapRate ?? Infinity) - (b.supportGapRate ?? Infinity));
   }, [data, mode]);
 
   // 우측 차트에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
@@ -151,21 +136,19 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
     <div className="space-y-4">
       <PageHeader
         title="눌림·돌파"
-        count={data?.totalCount}
+        // 서버가 준 전체 수가 아니라 **3% 안에 든 수**다 — 화면에 그린 줄과 같아야 한다
+        count={stocks.length}
         queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
         loading={radarQ.isFetching}
       />
 
-      {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
+      {/* 모드 토글은 목록 컬럼(50%) 폭에 맞춘다 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 폰에서는 한 줄에 못 들어간다 — 선택기가 아랫줄로 내려가게 접는다 */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-800">
           <ModeToggle value={mode} onChange={setRadarMode} />
-          {authenticated ? (
-            <ChangeRateSelector value={minChangeRate} onChange={setRate} />
-          ) : (
-            <span className="text-[11.5px] text-zinc-600">등락률 선택은 로그인 뒤</span>
-          )}
+          <span className="text-[11.5px] text-zinc-600">
+            {mode === "support" ? "눌림선" : "돌파선"} {NEAR}% 이내
+          </span>
         </div>
       </div>
 
@@ -178,7 +161,9 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
             ))}
           </div>
         ) : stocks.length === 0 ? (
-          <EmptyState message="후보 종목이 없습니다" />
+          <EmptyState
+            message={`${mode === "support" ? "눌림선" : "돌파선"} ${NEAR}% 안에 든 종목이 없습니다`}
+          />
         ) : (
           <>
           <div className="hidden md:block overflow-x-auto">
@@ -204,7 +189,7 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
                     />
                   ))}
                 </AnimatePresence>
-                {!authenticated && (data?.totalCount ?? 0) > stocks.length && (
+                {!authenticated && (data?.totalCount ?? 0) > (data?.stocks.length ?? 0) && (
                   <tr>
                     <td colSpan={5} className="p-0">
                       <PreviewGateBody
@@ -228,7 +213,7 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
                 onSelect={authenticated ? setSelectedCode : undefined}
               />
             ))}
-            {!authenticated && (data?.totalCount ?? 0) > stocks.length && (
+            {!authenticated && (data?.totalCount ?? 0) > (data?.stocks.length ?? 0) && (
               <PreviewGateBody
                 shown={stocks.length}
                 total={data?.totalCount ?? 0}
