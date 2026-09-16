@@ -150,7 +150,8 @@ function renderMarketRow(
 ) {
   const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
   const { sideCls, accent, leftLabel, rightLabel, netText } = marketParts(m);
-  const leftCls = accent ? `text-sm font-semibold ${sideCls}` : "text-sm font-semibold text-zinc-100";
+  // 종목 행의 종목명과 같은 자리 — 한 피드에 섞이므로 크기도 같이 간다
+  const leftCls = accent ? `text-xs font-semibold ${sideCls}` : "text-xs font-semibold text-zinc-100";
   return (
     <motion.li
       key={key}
@@ -183,7 +184,7 @@ function renderMarketRow(
         <div className="flex min-w-0 items-center gap-3 ml-auto">
           {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
           {netText && (
-            <span className="num truncate text-xs text-zinc-500">누적 {netText}</span>
+            <span className="num truncate text-[11px] text-zinc-500">누적 {netText}</span>
           )}
           <span className="num text-xs text-zinc-100 w-20 text-right">
             {m.indexValue != null ? fmtIndex(m.indexValue) : ""}
@@ -628,12 +629,12 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
                           {meta.label}
                         </span>
-                        <StockAvatar name={e.stockName} code={code} />
-                        <span className="text-sm font-semibold text-zinc-100 truncate">{e.stockName}</span>
+                        <StockAvatar name={e.stockName} code={code} size={28} />
+                        <span className="text-xs font-semibold text-zinc-100 truncate">{e.stockName}</span>
                       </div>
                       {/* 오른쪽: 디테일·현재가·등락률. 폰에선 아래 줄로 래핑되고, 좁으면 디테일부터 줄어든다 */}
                       <div className="flex min-w-0 items-center gap-3 ml-auto">
-                        <span className="num truncate text-xs text-zinc-300">{detailOf(e)}</span>
+                        <span className="num truncate text-[11px] text-zinc-300">{detailOf(e)}</span>
                         <span className="num text-xs text-zinc-100 w-20 text-right">
                           {formatPrice(e.currentPrice)}
                         </span>
