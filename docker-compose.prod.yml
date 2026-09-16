@@ -19,5 +19,3 @@ services:
     pull_policy: always
     restart: unless-stopped
 
-  mysql:
-    restart: unless-stopped

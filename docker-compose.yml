@@ -4,34 +4,16 @@
 # secrets/.env 가 있어야 부팅됨 (KIS/KIWOOM/토스 시크릿 + DB_PASSWORD).
 # 파일은 git에 올리지 않는다 — 배포 시 remote_deploy.sh가 Secret Manager에서 받아 쓴다.
 services:
-  mysql:
-    image: mysql:8.4
-    environment:
-      MYSQL_DATABASE: trading
-      TZ: Asia/Seoul
-    env_file:
-      - ./secrets/.env       # MYSQL_ROOT_PASSWORD 주입 (DB_PASSWORD와 동일 값)
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
-    networks:
-      - trading
-
   # 유일한 백엔드. nginx가 /api/ 전체를 여기로 보낸다.
   # 컨테이너 기본 UTC면 KST 기준 cron·벽시계가 9시간 어긋나므로 TZ를 고정한다.
   backend:
     build: ./backend
     environment:
       TZ: Asia/Seoul
-      DB_HOST: mysql
-      DB_PORT: 3306
       DB_NAME: trading
-      DB_USERNAME: root
+      # DB_HOST·DB_PORT·DB_USERNAME은 secrets/.env가 준다 (remote_deploy.sh가 씀).
+      # 여기 environment에 적으면 env_file을 덮어쓰고, ${...} 보간은 env_file을
+      # 읽지 못해 빈 값이 된다 — grafana 쪽에서 이미 겪은 함정이다.
     env_file:
       - ./secrets/.env
     expose:
@@ -43,9 +25,6 @@ services:
       timeout: 5s
       retries: 6
       start_period: 15s
-    depends_on:
-      mysql:
-        condition: service_healthy
     networks:
       - trading
 
@@ -127,7 +106,6 @@ services:
 volumes:
   caddy-data:
   caddy-config:
-  mysql-data:
   loki-data:
   alloy-data:
   grafana-data:

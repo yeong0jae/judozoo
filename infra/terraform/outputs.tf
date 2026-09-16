@@ -32,3 +32,8 @@ output "db_backup_bucket" {
   description = "DB 덤프 버킷 (remote_deploy.sh가 여기로 올린다)"
   value       = google_storage_bucket.db_backup.name
 }
+
+output "sql_private_ip" {
+  description = "Cloud SQL private IP (remote_deploy.sh의 DB_HOST 값)"
+  value       = google_sql_database_instance.db.private_ip_address
+}

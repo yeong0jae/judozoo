@@ -100,7 +100,7 @@ jobs:
           gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
             --command 'sudo rm -rf ~/observability'
           gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" --recurse \
-            docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh infra/deploy/backup_db.sh observability \
+            docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh observability \
             "${{ steps.vm.outputs.name }}:~/"
 
       # Deploy + 헬스체크를 한 SSH 세션에서 — remote_deploy.sh 마지막이 VM 내부 localhost:3000을 검사.

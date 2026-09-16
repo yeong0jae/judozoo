@@ -14,7 +14,7 @@ REGION="${3:?REGION required}"
 DOMAIN="judozoo.com"
 
 cd "$HOME"
-# mysql·backend가 둘 다 ./secrets/.env 를 읽는다.
+# backend·grafana·caddy가 ./secrets/.env 를 읽는다.
 mkdir -p secrets
 
 # Secret Manager에서 KIS/KIWOOM/DB 시크릿 → secrets/.env (VM 인스턴스 SA 권한 사용).
@@ -23,13 +23,20 @@ fetch() {
   gcloud secrets versions access latest --secret="$1"
 }
 
-DB_PASSWORD_VALUE="$(fetch AT_DB_PASSWORD)"
+# Cloud SQL 앱 계정. 기존 AT_DB_PASSWORD는 옛 mysql 컨테이너의 root 비밀번호라
+# 재사용하지 않는다 (이관 검증이 끝나면 폐기).
+DB_PASSWORD_VALUE="$(fetch AT_CLOUDSQL_APP_PASSWORD)"
+
+# DB_HOST는 Cloud SQL private IP. `terraform output sql_private_ip`가 정답이며,
+# 인스턴스를 재생성하지 않는 한 바뀌지 않는다.
 
 
 umask 077
 cat > secrets/.env <<EOF
 DB_PASSWORD=${DB_PASSWORD_VALUE}
-MYSQL_ROOT_PASSWORD=${DB_PASSWORD_VALUE}    # docker-compose.yml mysql 서비스가 이 변수명을 읽음
+DB_HOST=10.100.0.3
+DB_PORT=3306
+DB_USERNAME=judozoo_app
 REAL_KIS_APP_KEY=$(fetch AT_REAL_KIS_APP_KEY)
 REAL_KIS_APP_SECRET=$(fetch AT_REAL_KIS_APP_SECRET)
 REAL_KIWOOM_APP_KEY=$(fetch AT_KIWOOM_APP_KEY)
@@ -46,32 +53,8 @@ SESSION_SECRET=$(fetch AT_SESSION_SECRET)
 GF_MYSQL_PASSWORD=$(fetch AT_GRAFANA_MYSQL_PASSWORD)
 EOF
 
-# Grafana용 읽기 전용 MySQL 계정. 가입자 패널이 app_user를 읽는다.
-# 매 배포마다 다시 적용하므로 멱등하고, 비밀번호가 바뀌어도 따라간다.
-# SELECT 권한을 app_user 한 테이블로 제한한다 — 관측 도구에 DB 전체를 열어줄 이유가 없다.
-MYSQL_CID="$(sudo docker ps -qf name=mysql)"
-if [ -n "$MYSQL_CID" ]; then
-  GF_PW="$(grep '^GF_MYSQL_PASSWORD=' secrets/.env | cut -d= -f2-)"
-  sudo docker exec -e GF_PW="$GF_PW" "$MYSQL_CID" sh -c '
-    mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
-      CREATE USER IF NOT EXISTS \"grafana\"@\"%\" IDENTIFIED BY \"$GF_PW\";
-      ALTER USER \"grafana\"@\"%\" IDENTIFIED BY \"$GF_PW\";
-      GRANT SELECT ON trading.app_user TO \"grafana\"@\"%\";
-      FLUSH PRIVILEGES;"' 2>/dev/null && echo "grafana MySQL 계정 준비됨"
-fi
-
-# DB 백업 cron. 배포마다 덮어쓰므로 멱등하다.
-# root로 돌린다 — cron에는 TTY가 없어 sudo가 걸릴 수 있다.
-# 03:00 KST — 20:00 애프터마켓 캡처가 끝나고 다음 장 시작 전, 폴러가 조용한 시간.
-# 스크립트는 deploy.yml이 홈으로 scp한다.
-BACKUP_BUCKET="${PROJECT_ID:-trading-496508}-auto-trading-db-backup"
-sudo tee /etc/cron.d/judozoo-db-backup >/dev/null <<CRON
-SHELL=/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-CRON_TZ=Asia/Seoul
-0 3 * * * root bash $HOME/backup_db.sh ${BACKUP_BUCKET} >> /var/log/judozoo-backup.log 2>&1
-CRON
-sudo chmod 0644 /etc/cron.d/judozoo-db-backup
+# DB 백업은 Cloud SQL 자동 백업 + PITR이 맡는다. VM cron은 걷어냈다 —
+# 남은 /etc/cron.d/judozoo-db-backup 이 있으면 손으로 지워야 한다(배포는 안 지운다).
 
 # Artifact Registry pull 인증: VM 인스턴스 SA(metadata)로 토큰 발급 → docker login.
 # 모든 docker 명령을 동일하게 root(HOME=/root)로 실행해야 login 자격증명을

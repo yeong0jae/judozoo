@@ -10,6 +10,8 @@ resource "google_project_service" "apis" {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
     "storage.googleapis.com",
+    "sqladmin.googleapis.com",          # Cloud SQL
+    "servicenetworking.googleapis.com", # Cloud SQL private IP용 VPC 피어링
   ])
   service            = each.value
   disable_on_destroy = false
@@ -84,7 +86,7 @@ resource "google_compute_firewall" "ssh" {
     protocol = "tcp"
     # 3000 = Grafana. 공개 서브도메인 대신 IAP 터널로만 연다 —
     # `gcloud compute start-iap-tunnel <vm> 3000 --local-host-port=localhost:3000`
-    ports    = ["22", "3000"]
+    ports = ["22", "3000"]
   }
 
   # **IAP 대역만.** allowed_web_source_ranges를 같이 쓰면 안 된다 —
@@ -94,6 +96,40 @@ resource "google_compute_firewall" "ssh" {
   target_tags   = ["auto-trading"]
 
   depends_on = [google_project_service.apis]
+}
+
+# ---------------------------------------------------------------------------
+# Cloud SQL private IP 연결 (Private Service Access)
+#
+# Cloud SQL 인스턴스는 Google이 관리하는 테넌트 프로젝트에서 돌고 VPC 피어링으로
+# 우리 네트워크에 붙는다. 공인 IP를 만들지 않으니 인터넷에서 오는 경로가 아예 없고,
+# 피어링 트래픽은 VPC 방화벽을 거치지 않으므로 3306 규칙도 필요 없다.
+#
+# 예약 대역은 auto-mode 서브넷(10.128.0.0/9) **바깥**이어야 한다. 겹치면 피어링이
+# 실패하고, 한 번 잡은 대역은 넓히기 번거로우므로 처음부터 /24를 잡는다.
+# ---------------------------------------------------------------------------
+data "google_compute_network" "default" {
+  name       = "default"
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_compute_global_address" "sql_peering" {
+  name          = "judozoo-sql-peering"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  address       = "10.100.0.0"
+  prefix_length = 24
+  network       = data.google_compute_network.default.id
+}
+
+resource "google_service_networking_connection" "sql" {
+  network                 = data.google_compute_network.default.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.sql_peering.name]
+
+  # 없으면 destroy가 피어링을 못 떼고 멈춘다. ABANDON은 GCP 쪽 연결을 남긴 채
+  # state에서만 분리하므로, 다시 만들 때 기존 연결을 그대로 재사용한다.
+  deletion_policy = "ABANDON"
 }
 
 # ---------------------------------------------------------------------------
@@ -214,10 +250,11 @@ locals {
     "AT_REAL_TOSS_CLIENT_SECRET",
     "AT_CLOUDFLARE_API_TOKEN", # Caddy ACME DNS-01 챌린지 (Zone:DNS:Edit, judozoo.com 한정)
     "AT_GRAFANA_ADMIN_PASSWORD",
-    "AT_GOOGLE_CLIENT_ID",     # 구글 OAuth (웹 애플리케이션)
+    "AT_GOOGLE_CLIENT_ID", # 구글 OAuth (웹 애플리케이션)
     "AT_GOOGLE_CLIENT_SECRET",
-    "AT_SESSION_SECRET",       # 서명 쿠키 키. 바뀌면 전원 재로그인
+    "AT_SESSION_SECRET",         # 서명 쿠키 키. 바뀌면 전원 재로그인
     "AT_GRAFANA_MYSQL_PASSWORD", # Grafana가 app_user를 읽는 전용 계정 (SELECT만)
+    "AT_CLOUDSQL_APP_PASSWORD",  # Cloud SQL 앱 계정(judozoo_app). 값은 terraform이 생성해 넣는다
   ])
 }
 
@@ -301,4 +338,114 @@ resource "google_service_account_iam_member" "deployer_wif" {
   service_account_id = google_service_account.deployer.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
+}
+
+# ---------------------------------------------------------------------------
+# Cloud SQL for MySQL — private IP 전용
+#
+# 앱 계정 비밀번호는 terraform이 만들어 Secret Manager에 넣는다. 기존
+# AT_DB_PASSWORD를 재사용하지 않는 이유는, 그 값이 지금 돌고 있는 mysql 컨테이너의
+# root 비밀번호이고 실제 비밀번호는 볼륨 안에 박혀 있어서다 — 값을 바꾸면 이관 전에
+# 앱이 먼저 기존 DB에 못 붙는다.
+#
+# special = false 는 멋이 아니다. settings.py가 접속 URL을
+#   mysql+pymysql://{user}:{password}@{host}:{port}/{db}
+# 로 **인코딩 없이** 조립하므로, 비밀번호에 / @ : # ? 가 들어가면 URL이 깨진다.
+# ---------------------------------------------------------------------------
+resource "random_password" "cloudsql_app" {
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret_version" "cloudsql_app" {
+  secret      = google_secret_manager_secret.app["AT_CLOUDSQL_APP_PASSWORD"].id
+  secret_data = random_password.cloudsql_app.result
+}
+
+# Grafana 계정은 기존 시크릿(44자)을 그대로 쓴다. 새 인스턴스라 충돌하지 않는다.
+data "google_secret_manager_secret_version" "grafana_mysql" {
+  secret = "AT_GRAFANA_MYSQL_PASSWORD"
+}
+
+resource "google_sql_database_instance" "db" {
+  name = "judozoo-db-prod"
+  # **8.4가 아니라 8.0이다.** 8.4는 기본 에디션이 ENTERPRISE_PLUS로 잡히고, 그 에디션은
+  # 공유코어 티어를 거부한다(db-perf-optimized-N-* 만 허용 — 월 $200대). 8.0은
+  # ENTERPRISE라 db-g1-small을 쓴다. 소스는 mysql:8.4지만 스키마가 평범한 DDL이라
+  # 덤프를 8.0으로 복원하는 데 문제가 없다.
+  database_version = "MYSQL_8_0"
+  region           = var.region
+
+  # terraform 쪽 안전장치. 아래 settings.deletion_protection_enabled 와는 별개다 —
+  # 하나는 terraform이, 하나는 API가 막는다. 삭제한 인스턴스 이름은 한동안 재사용도 못 한다.
+  deletion_protection = true
+
+  settings {
+    # **명시해야 한다.** MySQL 8.4는 기본이 ENTERPRISE_PLUS로 잡히고, 그 에디션은
+    # 공유코어 티어를 거부한다(db-perf-optimized-N-* 만 허용 — 월 $200대).
+    edition                     = "ENTERPRISE"
+    tier                        = "db-g1-small"
+    availability_type           = "ZONAL"
+    disk_type                   = "PD_SSD"
+    disk_size                   = 10
+    disk_autoresize             = true
+    deletion_protection_enabled = true
+
+    ip_configuration {
+      ipv4_enabled    = false
+      private_network = data.google_compute_network.default.id
+    }
+
+    backup_configuration {
+      enabled = true
+      # **이게 없으면 PITR이 없다.** 자동 백업만으로는 초 단위로 되감지 못한다 —
+      # 이 이관의 핵심 명분이 사라진다.
+      binary_log_enabled             = true
+      start_time                     = "18:00" # UTC. = 03:00 KST, 현행 cron과 같은 시각
+      transaction_log_retention_days = 7
+
+      backup_retention_settings {
+        retained_backups = 7
+      }
+    }
+
+    # **UTC 기준이다.** day 1(월)~7(일), hour 0~23.
+    # 토 19:00 UTC = 일 04:00 KST. KST로 적으면 장중에 재시작을 맞는다.
+    maintenance_window {
+      day          = 6
+      hour         = 19
+      update_track = "stable"
+    }
+
+    # 기존 컬럼이 시간대 없는 DATETIME에 KST 벽시계를 담고 있다.
+    # 기본값(UTC)으로 두면 DB가 찍는 시각이 9시간 어긋난다.
+    database_flags {
+      name  = "default_time_zone"
+      value = "+09:00"
+    }
+  }
+
+  depends_on = [google_service_networking_connection.sql]
+}
+
+resource "google_sql_database" "trading" {
+  name      = "trading"
+  instance  = google_sql_database_instance.db.name
+  charset   = "utf8mb4"
+  collation = "utf8mb4_0900_ai_ci"
+}
+
+# 앱 전용 계정. root를 쓰지 않는다 — GRANT 범위는 §5에서 좁힌다.
+resource "google_sql_user" "app" {
+  name     = "judozoo_app"
+  instance = google_sql_database_instance.db.name
+  host     = "%"
+  password = random_password.cloudsql_app.result
+}
+
+resource "google_sql_user" "grafana" {
+  name     = "grafana"
+  instance = google_sql_database_instance.db.name
+  host     = "%"
+  password = data.google_secret_manager_secret_version.grafana_mysql.secret_data
 }
