@@ -300,27 +300,27 @@ function Row({
       } ${isNew ? "leading-stock-new" : ""} ${isSelected ? "[&>td]:bg-selected" : ""}`}
       onClick={() => onOpen(stock.stockCode)}
     >
-      <td className="pl-4 py-[11px] text-zinc-500 num w-10">{rank}</td>
-      <td className="px-2 py-[11px]">
+      <td className="pl-4 py-3.5 text-zinc-500 num w-10">{rank}</td>
+      <td className="px-2 py-3.5">
         <div className="flex items-center gap-2.5 min-w-0">
-          <StockAvatar name={stock.stockName} code={code} size={26} />
+          <StockAvatar name={stock.stockName} code={code} size={28} />
           <span className="font-semibold text-zinc-100 truncate">{stock.stockName}</span>
           <span className="text-[11.5px] text-zinc-500 num shrink-0">{code}</span>
         </div>
       </td>
-      <td className="px-4 py-[11px] text-right num font-medium text-zinc-100">
+      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
         {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
         <FlashOnChange value={stock.currentPrice} duration={1000}>
           <NumWon value={stock.currentPrice} />
         </FlashOnChange>
       </td>
-      <td className="px-4 py-[11px] text-right num font-medium">
+      <td className="px-4 py-3.5 text-right num font-medium">
         {/* 키움은 등락률을 이미 % 단위로 주고, formatPct는 분수→% 변환이라 /100 해서 맞춤 */}
         <FlashOnChange value={stock.priceChangeRate} duration={1000}>
           <ProfitText value={stock.priceChangeRate / 100} format={formatPct} />
         </FlashOnChange>
       </td>
-      <td className="px-4 py-[11px] text-right num text-zinc-400">
+      <td className="px-4 py-3.5 text-right num text-zinc-400">
         {formatKoreanMoney(stock.accumulatedTradingValue)}
       </td>
     </tr>
@@ -419,7 +419,7 @@ function Card({
   return (
     <div
       data-stock-code={stock.stockCode}
-      className={`rounded-xl px-4 py-3 flex flex-col gap-1 cursor-pointer ${
+      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
         line ? "border-b border-zinc-800/60" : ""
       } ${isNew ? "leading-stock-new" : ""} ${isSelected ? "bg-selected" : ""}`}
       onClick={() => onOpen(stock.stockCode)}
@@ -427,7 +427,7 @@ function Card({
       {/* 1행: 순위 · 아바타 · 종목명 · 현재가 */}
       <div className="flex items-center gap-2">
         <span className="text-zinc-500 text-xs num w-4 shrink-0">{rank}</span>
-        <StockAvatar name={stock.stockName} code={code} size={26} />
+        <StockAvatar name={stock.stockName} code={code} size={28} />
         <span className="font-semibold truncate flex-1 min-w-0">{stock.stockName}</span>
         <FlashOnChange value={stock.currentPrice} duration={1000}>
           <NumWon value={stock.currentPrice} className="num shrink-0 font-medium" />

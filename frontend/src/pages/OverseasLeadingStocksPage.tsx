@@ -228,21 +228,21 @@ function Row({
       } ${isSelected ? "[&>td]:bg-selected" : ""}`}
       onClick={() => onOpen(stock.symbol)}
     >
-      <td className="pl-4 py-[11px] text-zinc-500 num w-10">{rank}</td>
-      <td className="px-2 py-[11px]">
+      <td className="pl-4 py-3.5 text-zinc-500 num w-10">{rank}</td>
+      <td className="px-2 py-3.5">
         <div className="flex items-center gap-2.5 min-w-0">
-          <StockAvatar name={stock.name} code={stock.symbol} size={26} />
+          <StockAvatar name={stock.name} code={stock.symbol} size={28} />
           <span className="font-semibold text-zinc-100 truncate max-w-[12rem]">{stock.name}</span>
           <span className="text-[11.5px] text-zinc-500 num shrink-0">{stock.symbol}</span>
         </div>
       </td>
-      <td className="px-4 py-[11px] text-right num font-medium text-zinc-100">
+      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
         <NumUsd value={stock.price} prefix="" />
       </td>
-      <td className="px-4 py-[11px] text-right num font-medium">
+      <td className="px-4 py-3.5 text-right num font-medium">
         <ProfitText value={stock.rate / 100} format={formatPct} />
       </td>
-      <td className="px-4 py-[11px] text-right num text-zinc-400">
+      <td className="px-4 py-3.5 text-right num text-zinc-400">
         {Math.round(stock.tradingValue).toLocaleString("en-US")}
       </td>
     </tr>
@@ -333,7 +333,7 @@ function Card({
   return (
     <div
       data-stock-code={stock.symbol}
-      className={`rounded-xl px-4 py-3 flex flex-col gap-1 cursor-pointer ${
+      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
         line ? "border-b border-zinc-800/60" : ""
       } ${isSelected ? "bg-selected" : ""}`}
       onClick={() => onOpen(stock.symbol)}
@@ -341,7 +341,7 @@ function Card({
       {/* 1행: 순위 · 아바타 · 이름 · 현재가 */}
       <div className="flex items-center gap-2">
         <span className="text-zinc-500 text-xs num w-4 shrink-0">{rank}</span>
-        <StockAvatar name={stock.name} code={stock.symbol} size={26} />
+        <StockAvatar name={stock.name} code={stock.symbol} size={28} />
         <span className="font-semibold truncate flex-1 min-w-0">{stock.name}</span>
         <NumUsd value={stock.price} prefix="" className="num shrink-0 font-medium text-zinc-100" />
       </div>
