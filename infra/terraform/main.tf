@@ -239,8 +239,9 @@ resource "google_storage_bucket_iam_member" "vm_backup_writer" {
 #   echo -n "<value>" | gcloud secrets versions add AT_* --data-file=-
 # ---------------------------------------------------------------------------
 locals {
+  # AT_DB_PASSWORD는 2026-09-16 Cloud SQL 이관과 함께 폐기했다 — 옛 mysql 컨테이너의
+  # root 비밀번호였고, 앱은 AT_CLOUDSQL_APP_PASSWORD를 쓴다.
   app_secrets = toset([
-    "AT_DB_PASSWORD",
     "AT_KIWOOM_APP_KEY",
     "AT_KIWOOM_APP_SECRET",
     "AT_KIWOOM_ACCOUNT_NO",

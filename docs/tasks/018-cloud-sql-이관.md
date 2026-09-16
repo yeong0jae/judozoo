@@ -21,6 +21,13 @@ Goal: VM 안 `mysql:8.4` 컨테이너를 **Cloud SQL for MySQL(private IP 전용
 
 **논리적 손상 칸을 채우는 것은 Cloud SQL뿐이다.** 분봉·수급은 브로커에서 재취득이 불가능하므로 이 칸의 무게가 다른 칸보다 크다.
 
+> **이관 후 알게 된 것 — 야간 백업이 실제로는 돌지 않고 있었다.**
+> 볼륨을 폐기하기 전 GCS를 확인하니 7일 보관에 객체가 **3개**뿐이었고, 그중 둘은 이름에 `predrop`이
+> 붙은 수동 덤프였다. 자동 백업의 마지막 흔적은 2026-09-13이고 09-15·09-16 것은 없다.
+> 즉 비교표의 "현행 RPO 24시간"은 **낙관적인 전제였고 실제로는 백업이 거의 없는 상태**로 돌고 있었다.
+> 이관 판단의 근거가 약해진 게 아니라 더 강해진 셈이다. cron은 §6에서 걷어냈고 원인은 추적하지 않았다 —
+> Cloud SQL 자동 백업이 대신하므로 실익이 없다.
+
 ## 진입 조건 (2026-09-15 실측)
 
 | 항목 | 값 |
@@ -31,7 +38,7 @@ Goal: VM 안 `mysql:8.4` 컨테이너를 **Cloud SQL for MySQL(private IP 전용
 | VM | `auto-trading-app-kiwoom-real` e2-medium, 컨테이너 7개, available 2,247MB |
 | 부트디스크 | 19GB 중 9.4GB (52%) |
 | 서브넷 `default` | `10.178.0.0/20` (asia-northeast3), auto-mode |
-| 현재 백업 | `backup_db.sh` → GCS, 03:00 KST, 7일 보관, **RPO 최대 24시간** |
+| 현재 백업 | `backup_db.sh` → GCS, 03:00 KST, 7일 보관, 설계상 **RPO 24시간** — **실제로는 더 나빴다**(아래) |
 | 앱 DB 계정 | **`root`** (`docker-compose.yml:34`) |
 
 ## 설계 결정
@@ -216,19 +223,25 @@ gcloud compute ssh auto-trading-app-kiwoom-real --tunnel-through-iap --zone=asia
 sudo docker run --rm -it --network host mysql:8.4 mysql -h <private-ip> -u judozoo_app -p trading
 ```
 
-**GUI(DBeaver 등)** — VM에서 Cloud SQL Auth Proxy를 띄우고 그 포트로 IAP 터널:
+**GUI(DataGrip·DBeaver 등)** — **SSH 포트 포워딩 한 줄.** Auth Proxy는 필요 없다.
 ```bash
-# VM에서
-./cloud-sql-proxy --address 0.0.0.0 --port 3307 trading-496508:asia-northeast3:judozoo-db-prod
-# 로컬에서
-gcloud compute start-iap-tunnel auto-trading-app-kiwoom-real 3307 \
-  --local-host-port=localhost:33061 --zone=asia-northeast3-a
+gcloud compute ssh auto-trading-app-kiwoom-real --tunnel-through-iap \
+  --zone=asia-northeast3-a -- -N -L 33061:10.100.0.3:3306
 ```
-로컬 포트를 33061로 잡는 것은 `settings.py` 기본값과 같아서다.
+이 창을 띄워둔 채 GUI에서 `localhost:33061` / `judozoo_app` / DB `trading`으로 붙는다.
+비밀번호는 `gcloud secrets versions access latest --secret=AT_CLOUDSQL_APP_PASSWORD`.
 
-- [ ] 방화벽 `auto-trading-allow-ssh`에 3307 추가 (Auth Proxy를 쓸 경우)
-- [ ] Auth Proxy 경로를 쓸 때만 VM SA에 `roles/cloudsql.client` 부여
-      (private IP + 비밀번호 직결에는 **IAM 권한이 필요 없다**)
+`start-iap-tunnel`은 **VM만** 대상으로 삼아 Cloud SQL 주소에 직접 못 뚫는다. VM 위의 무언가가
+중계해야 하는데, 그 중계자가 Auth Proxy일 필요는 없다 — `ssh -L`이 이미 그 일을 한다.
+로컬 포트를 33061로 잡는 것은 `settings.py` 기본값과 같아서다(터널만 열면 로컬 백엔드가
+설정 변경 없이 운영 DB를 본다 — 편리한 만큼 위험하므로 상시로 쓰지 않는다).
+
+> Auth Proxy가 값을 하는 경우는 IAM 데이터베이스 인증(비밀번호 없는 접속)이나 인스턴스까지의
+> 자동 TLS가 필요할 때다. 여기서는 SSH·IAP가 이미 구간을 암호화한다.
+
+- [x] ~~방화벽에 3307 추가~~ / ~~VM SA에 `roles/cloudsql.client`~~ — **둘 다 필요 없었다.**
+      Auth Proxy를 세울 것 없이 **SSH 포트 포워딩**이 같은 일을 한다. 기존 IAP SSH(22)만 쓰므로
+      새 방화벽 규칙도, 추가 IAM도 없다. 2026-09-16 노트북에서 실측 확인.
 
 ## 검증
 
@@ -272,6 +285,9 @@ gcloud compute start-iap-tunnel auto-trading-app-kiwoom-real 3307 \
 - **기존 `mysql-data` 볼륨을 성급히 지우지 않는다.** 검증 후에도 최소 1주일은 롤백 경로로 남긴다.
 
 ## 후속
+
+- ~~옛 `mysql-data` 볼륨·`AT_DB_PASSWORD` 폐기~~ — 2026-09-16 완료. 볼륨 삭제로 부트디스크 52% → 48%,
+  시크릿은 terraform에서 제거해 destroy
 
 - `google_artifact_registry_repository.docker`가 **매 plan마다 in-place 변경으로 뜬다.** `cleanup_policies`를 같은 내용으로 다시 쓰는 수렴하지 않는 drift다 — 이미지가 지워지지는 않지만 plan이 늘 깨끗하지 않아 진짜 변경을 가린다
 
