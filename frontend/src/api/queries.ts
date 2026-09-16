@@ -5,6 +5,7 @@ import type {
   SessionsResponse,
   BreakoutRadarResponse,
   DailyCandleItem,
+  CandidateStockItem,
   CandidateStocksResponse,
   KospiIndex,
   FuturesQuote,
@@ -39,6 +40,7 @@ export const QK = {
   stockSearch: (q: string) => ["stocks", "search", q] as const,
   leadingStockCandidates: (minChangeRate: number) =>
     ["leading-stocks", "candidates", minChangeRate] as const,
+  leadingStockLeaders: ["leading-stocks", "leaders"] as const,
   breakoutRadar: (minChangeRate: number) =>
     ["leading-stocks", "breakout-radar", minChangeRate] as const,
   signalEvents: (date: string) =>
@@ -84,6 +86,7 @@ export const QK = {
   nasdaqIndexQuote: ["market", "nasdaq", "quote"] as const,
   nasdaqIndexCandles: (interval: string) =>
     ["market", "nasdaq", "candles", interval] as const,
+  overseasLeaders: ["overseas-leading-stocks", "leaders"] as const,
   overseasRanking: (minChangeRate: number) =>
     ["overseas-leading-stocks", "ranking", minChangeRate] as const,
   overseasDetail: (exchange: string, symbol: string) =>
@@ -124,6 +127,20 @@ export function useLeadingStockCandidates(minChangeRate: number) {
       apiFetch<CandidateStocksResponse>(
         `/api/leading-stocks/candidates?minChangeRate=${minChangeRate}`,
       ),
+    refetchInterval: 5_000,
+  });
+}
+
+/**
+ * 첫 화면 주도주 — 거래대금·등락률이 함께 높은 다섯 종목.
+ *
+ * 후보 목록과 달리 **등락률 인자를 받지 않는다.** 첫 화면은 보는 사람이 목록 화면에
+ * 걸어둔 기준과 무관하게 같은 답을 보여야 해서, 서버가 정한 규칙 하나만 쓴다.
+ */
+export function useLeadingStockLeaders() {
+  return useQuery({
+    queryKey: QK.leadingStockLeaders,
+    queryFn: () => apiFetch<CandidateStockItem[]>("/api/leading-stocks/leaders"),
     refetchInterval: 5_000,
   });
 }
@@ -424,6 +441,15 @@ export function useLeadingStockDetail(code: string | null) {
         `/api/leading-stocks/candidates/${code}`,
       ),
     enabled: code !== null,
+  });
+}
+
+/** 첫 화면 해외 주도주 — 국내와 같은 규칙, 같은 칸 수. */
+export function useOverseasLeaders() {
+  return useQuery({
+    queryKey: QK.overseasLeaders,
+    queryFn: () => apiFetch<OverseasStockRankItem[]>("/api/overseas-leading-stocks/leaders"),
+    refetchInterval: 15_000,
   });
 }
 

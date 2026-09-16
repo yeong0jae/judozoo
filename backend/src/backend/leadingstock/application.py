@@ -14,6 +14,7 @@ from backend.leadingstock import filters as flt
 from backend.leadingstock.domain import (
     DailyCandle,
     DailyCandles,
+    LeadingStocks,
     LeadingStockSnapshot,
     MinuteCandle,
     MinuteCandles,
@@ -127,6 +128,16 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
         len(merged), _TOP_RANK_ALWAYS_INCLUDED, len(survivors),
     )
     return merged
+
+
+def find_leaders(count: int) -> list[LeadingStockSnapshot]:
+    """거래대금·등락률이 함께 높은 상위 `count`개 — 첫 화면이 쓴다.
+
+    후보 목록과 달리 **사용자가 고른 등락률과 무관하다.** 첫 화면은 "오늘 뭐가 주도주냐"
+    하나만 답하는 자리라, 보는 사람이 어떤 기준을 걸어뒀는지에 따라 달라지면 안 된다.
+    임계값 0으로 후보를 받아(= 오른 종목 전부) 그 안에서 점수로 다시 세운다.
+    """
+    return LeadingStocks(find_candidate_stocks(0.0)).leaders(count)
 
 
 def evaluate_stock(stock_code: str) -> StockEvaluation:

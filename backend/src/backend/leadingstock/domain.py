@@ -8,6 +8,8 @@ Kotlin도 `KiwoomMarketClient`·`KiwoomIndexClient`가 이 타입들을 그대�
 from dataclasses import dataclass
 from datetime import date, datetime
 
+from backend.library.ranking import top_balanced
+
 
 @dataclass(frozen=True)
 class LeadingStockSnapshot:
@@ -129,6 +131,37 @@ class MovingAverageReading:
     below_band: bool
     above_band: bool
     ma: int
+
+
+#: 주도주 점수에서 거래대금 축에 주는 무게(나머지 0.55는 등락률). 0.5면 두 축이 대등하다.
+#:
+#: **0.5가 아니라 0.45인 이유** — 대등하게 두면 두 축의 등수가 정확히 맞바뀐 두 종목이
+#: 동점이 되고, 동점은 거래대금이 큰 쪽이 가져간다. 그래서 거래대금이 중간이어도 잘 오른
+#: 종목이 늘 밀렸다. **등락률 쪽으로 딱 그만큼만 기울인 값**이다. 더 내려 0.4 아래로 가면
+#: 시총 1천억대 상한가 종목이 대장주를 밀어내기 시작한다.
+#: 해외(`overseasleadingstock`)도 같은 값을 쓴다 — 두 카드가 나란히 서는 자리다.
+TRADING_VALUE_WEIGHT = 0.45
+
+
+class LeadingStocks:
+    """거래대금 상위 풀 — 그 안에서 "주도주다움"으로 다시 세운다."""
+
+    def __init__(self, stocks: list[LeadingStockSnapshot]) -> None:
+        self._stocks = stocks
+
+    def leaders(self, count: int) -> list[LeadingStockSnapshot]:
+        """거래대금·등락률 두 축이 모두 높은 순으로 `count`개.
+
+        **오른 종목만 본다.** 돈이 아무리 붙어도 내린 종목은 그날의 주도주가 아니다.
+        """
+        risen = [s for s in self._stocks if s.price_change_rate > 0]
+        return top_balanced(
+            risen,
+            lambda s: s.accumulated_trading_value,
+            lambda s: s.price_change_rate,
+            count,
+            TRADING_VALUE_WEIGHT,
+        )
 
 
 class MinuteCandles:

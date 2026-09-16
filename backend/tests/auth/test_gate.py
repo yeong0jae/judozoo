@@ -8,6 +8,8 @@ class Test로그인_없이_열어둔_경로:
         "path",
         [
             "/api/leading-stocks/candidates",
+            "/api/leading-stocks/leaders",
+            "/api/overseas-leading-stocks/leaders",
             "/api/leading-stocks/signal-events",
             "/api/leading-stocks/breakout-radar",
             "/api/overseas-leading-stocks/ranking",

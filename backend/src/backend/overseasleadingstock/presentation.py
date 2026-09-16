@@ -16,6 +16,10 @@ MIN_CHANGE_RATE = -12
 MAX_CHANGE_RATE = 7
 DEFAULT_MIN_CHANGE_RATE = 7.0
 
+#: 첫 화면 주도주 칸 수. 국내(`leadingstock.presentation.LEADERS_COUNT`)와 같은 값을 쓴다 —
+#: 두 카드가 나란히 서는 자리라 한쪽만 길면 눈에 띈다.
+LEADERS_COUNT = 5
+
 
 class OverseasStockRankItem(BaseModel):
     rank: int
@@ -82,6 +86,12 @@ def get_ranking(
         else DEFAULT_MIN_CHANGE_RATE
     )
     return ApiResponse.ok([_to_rank_item(r) for r in application.get_ranking(rate)])
+
+
+@router.get("/leaders")
+def get_leaders() -> ApiResponse[list[OverseasStockRankItem]]:
+    """첫 화면용 — 거래대금·등락률이 함께 높은 상위 `LEADERS_COUNT`개."""
+    return ApiResponse.ok([_to_rank_item(r) for r in application.get_leaders(LEADERS_COUNT)])
 
 
 @router.get("/{exchange}/{symbol}")

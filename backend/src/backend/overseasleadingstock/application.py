@@ -8,6 +8,7 @@
 from backend.overseasleadingstock.domain import (
     FilterResult,
     OverseasStockRank,
+    OverseasStockRanks,
 )
 from backend.platform.kis import overseas_chart, overseas_product, overseas_ranking
 
@@ -38,6 +39,16 @@ def get_ranking(min_change_rate: float) -> list[OverseasStockRank]:
     top_ranks = pool[:TOP_RANK_ALWAYS_INCLUDED]
     rest = [r for r in pool[TOP_RANK_ALWAYS_INCLUDED:] if r.rate >= min_change_rate]
     return [r.ranked(i + 1) for i, r in enumerate(top_ranks + rest)]
+
+
+def get_leaders(count: int) -> list[OverseasStockRank]:
+    """첫 화면용 — 거래대금·등락률이 함께 높은 상위 `count`개.
+
+    랭킹과 달리 **등락률 기준을 받지 않는다.** 첫 화면은 보는 사람이 랭킹 화면에
+    걸어둔 기준과 무관하게 같은 답을 보여야 한다.
+    """
+    leaders = OverseasStockRanks(_ranking_pool()).leaders(count)
+    return [r.ranked(i + 1) for i, r in enumerate(leaders)]
 
 
 def evaluate_stock(exchange: str, symbol: str) -> dict:

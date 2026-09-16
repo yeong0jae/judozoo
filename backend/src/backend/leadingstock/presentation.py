@@ -181,6 +181,27 @@ def get_candidates(minChangeRate: int | None = Query(None)) -> ApiResponse[Candi
     )
 
 
+#: 첫 화면 주도주 칸 수. 늘리려면 여기만 고친다.
+LEADERS_COUNT = 5
+
+
+@router.get("/leaders")
+def get_leaders() -> ApiResponse[list[CandidateStockItem]]:
+    """첫 화면용 — 거래대금·등락률이 함께 높은 상위 `LEADERS_COUNT`개.
+
+    `/candidates`와 달리 **등락률 파라미터를 받지 않는다.** 첫 화면은 보는 사람이
+    후보 목록에 걸어둔 기준과 무관하게 같은 답을 보여야 한다.
+    """
+    return ApiResponse.ok([
+        CandidateStockItem(
+            rank=i + 1, stock_code=s.stock_code, stock_name=s.stock_name,
+            current_price=s.current_price, price_change_rate=s.price_change_rate,
+            accumulated_trading_value=s.accumulated_trading_value,
+        )
+        for i, s in enumerate(application.find_leaders(LEADERS_COUNT))
+    ])
+
+
 @router.get("/breakout-radar")
 def get_breakout_radar(
     request: Request,

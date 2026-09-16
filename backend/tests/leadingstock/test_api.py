@@ -62,6 +62,31 @@ class Test후보_목록:
         assert 받은값 == [7.0]  # application.yaml 기준값
 
 
+class Test첫_화면_주도주:
+    def test_미로그인도_볼_수_있고_순위가_붙는다(self, client, monkeypatch):
+        monkeypatch.setattr(
+            application, "find_leaders",
+            lambda _c: [종목("005930", "삼성전자"), 종목("000660", "SK하이닉스")],
+        )
+
+        본문 = client.get("/api/leading-stocks/leaders").json()
+
+        assert 본문["code"] == "SUCCESS"
+        assert [s["rank"] for s in 본문["data"]] == [1, 2]
+        assert [s["stockName"] for s in 본문["data"]] == ["삼성전자", "SK하이닉스"]
+
+    def test_등락률_파라미터를_받지_않는다(self, client, monkeypatch):
+        """첫 화면은 목록 화면에 걸어둔 기준과 무관하게 같은 답을 줘야 한다."""
+        받은값 = []
+        monkeypatch.setattr(
+            application, "find_leaders", lambda c: 받은값.append(c) or []
+        )
+
+        client.get("/api/leading-stocks/leaders", params={"minChangeRate": -12})
+
+        assert 받은값 == [5]  # 파라미터와 무관하게 늘 다섯 칸
+
+
 class Test종목_상세:
     def test_필터_평가와_상대거래량을_함께_준다(self, 로그인_client, monkeypatch):
         평가 = application.StockEvaluation(

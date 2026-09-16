@@ -17,6 +17,9 @@ _SEG = r"[^/]+"
 _PUBLIC_PATTERNS = [
     # 주도주 후보 **목록만** 공개한다. 종목 상세(일봉·분봉·수급)는 로그인 뒤다.
     r"/api/leading-stocks/candidates",
+    # 첫 화면 주도주 — 후보 목록에서 다섯 줄만 추린 것이라 새로 여는 것이 없다
+    r"/api/leading-stocks/leaders",
+    r"/api/overseas-leading-stocks/leaders",
     # 종목 시그널 — 미리보기로 최신 몇 건만 연다. 자르는 건 엔드포인트가 한다
     # (여기서 열어도 응답 전체가 나가지는 않는다). 지수 시그널은 로그인 뒤다.
     r"/api/leading-stocks/signal-events",
