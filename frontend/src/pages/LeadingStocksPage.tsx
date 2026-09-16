@@ -28,6 +28,49 @@ function shortCode(stockCode: string): string {
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
 }
 
+/** 행 하이라이트 종류 — 목록 진입(amber)과 주도주 승격(violet)은 뜻이 다르다. */
+type Flash = "new" | "promoted" | null;
+
+/** 하이라이트가 남아 있는 시간(ms). CSS의 애니메이션 길이와 같아야 한다. */
+const FLASH_MS = 8000;
+
+/**
+ * 방금 이 목록에 들어온 코드들. 첫 로드는 비운 채 지나간다 —
+ * 화면을 열자마자 전부 반짝이면 "새로 들어왔다"는 뜻이 사라진다.
+ */
+function useArrivals(codes: string[]): Set<string> {
+  const key = codes.join(",");
+  const prevRef = useRef<Set<string> | null>(null);
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const current = new Set(key ? key.split(",") : []);
+    const prev = prevRef.current;
+    // 비교를 마치기 전에 갱신한다 — 갱신을 건너뛰면 다음 폴링이 같은 종목을 또 새것으로 본다
+    prevRef.current = current;
+    // 첫 로드(null)와 **빈 목록 다음**은 건너뛴다. 빈 상태와 비교하면 첫 응답 전체가
+    // 새로 들어온 것으로 잡혀 목록이 통째로 반짝인다.
+    if (prev === null || prev.size === 0) return;
+
+    const justArrived = [...current].filter((c) => !prev.has(c));
+    if (justArrived.length === 0) return;
+
+    setFresh((p) => new Set([...p, ...justArrived]));
+    const timers = justArrived.map((c) =>
+      setTimeout(() => {
+        setFresh((p) => {
+          const next = new Set(p);
+          next.delete(c);
+          return next;
+        });
+      }, FLASH_MS),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [key]);
+
+  return fresh;
+}
+
 /**
  * 주도주 후보 — 국내/해외 토글로 전환. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다.
  */
@@ -84,36 +127,11 @@ function DomesticLeadingStocks({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stocks]);
 
-  // 새로 진입한 종목 추적 — 행 8초 하이라이트용. 첫 로드는 마킹 제외.
-  const prevCodesRef = useRef<Set<string>>(new Set());
-  const [newCodes, setNewCodes] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    const current = new Set(stocks.map((s) => s.stockCode));
-    if (prevCodesRef.current.size > 0) {
-      const justArrived = [...current].filter(
-        (c) => !prevCodesRef.current.has(c),
-      );
-      if (justArrived.length > 0) {
-        setNewCodes((prev) => {
-          const next = new Set(prev);
-          justArrived.forEach((c) => next.add(c));
-          return next;
-        });
-        const timeouts = justArrived.map((c) =>
-          setTimeout(() => {
-            setNewCodes((prev) => {
-              const next = new Set(prev);
-              next.delete(c);
-              return next;
-            });
-          }, 8000),
-        );
-        // 컴포넌트 언마운트 시 타이머 정리
-        return () => timeouts.forEach(clearTimeout);
-      }
-    }
-    prevCodesRef.current = current;
-  }, [stocks]);
+  // 목록에 새로 든 종목과, 주도주 구간으로 올라온 종목을 따로 센다 — 뜻이 다른 사건이다
+  const arrived = useArrivals(stocks.map((s) => s.stockCode));
+  const promoted = useArrivals(leaders.map((s) => s.stockCode));
+  const flashOf = (code: string): Flash =>
+    promoted.has(code) ? "promoted" : arrived.has(code) ? "new" : null;
 
   const selector = (
     <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
@@ -155,14 +173,14 @@ function DomesticLeadingStocks({
               <CandidatesTable
                 leaders={leaders}
                 rest={rest}
-                newCodes={newCodes}
+                flashOf={flashOf}
                 selectedCode={openCode}
                 onOpen={(code) => setOpenCode(code)}
               />
               <CandidatesCards
                 leaders={leaders}
                 rest={rest}
-                newCodes={newCodes}
+                flashOf={flashOf}
                 selectedCode={openCode}
                 onOpen={(code) => setOpenCode(code)}
               />
@@ -218,13 +236,13 @@ function Header({
 function CandidatesTable({
   leaders,
   rest,
-  newCodes,
+  flashOf,
   selectedCode,
   onOpen,
 }: {
   leaders: CandidateStockItem[];
   rest: CandidateStockItem[];
-  newCodes: Set<string>;
+  flashOf: (code: string) => Flash;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
 }) {
@@ -236,7 +254,7 @@ function CandidatesTable({
         stock={s}
         rank={idx + 1}
         line={idx !== list.length - 1}
-        isNew={newCodes.has(s.stockCode)}
+        flash={flashOf(s.stockCode)}
         isSelected={selectedCode === s.stockCode}
         onOpen={onOpen}
       />
@@ -277,14 +295,14 @@ function Row({
   stock,
   rank,
   line,
-  isNew,
+  flash,
   isSelected,
   onOpen,
 }: {
   stock: CandidateStockItem;
   rank: number;
   line: boolean;
-  isNew: boolean;
+  flash: Flash;
   isSelected: boolean;
   onOpen: (stockCode: string) => void;
 }) {
@@ -294,7 +312,7 @@ function Row({
       data-stock-code={stock.stockCode}
       className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
         line ? "[&>td]:border-b [&>td]:border-zinc-800/60" : ""
-      } ${isNew ? "leading-stock-new" : ""} ${isSelected ? "[&>td]:bg-selected" : ""}`}
+      } ${flash ? `leading-stock-${flash}` : ""} ${isSelected ? "[&>td]:bg-selected" : ""}`}
       onClick={() => onOpen(stock.stockCode)}
     >
       <td className="pl-4 py-3.5 text-zinc-500 num w-10">{rank}</td>
@@ -352,13 +370,13 @@ function GroupHeader({
 function CandidatesCards({
   leaders,
   rest,
-  newCodes,
+  flashOf,
   selectedCode,
   onOpen,
 }: {
   leaders: CandidateStockItem[];
   rest: CandidateStockItem[];
-  newCodes: Set<string>;
+  flashOf: (code: string) => Flash;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
 }) {
@@ -369,7 +387,7 @@ function CandidatesCards({
         stock={s}
         rank={idx + 1}
         line={idx !== list.length - 1}
-        isNew={newCodes.has(s.stockCode)}
+        flash={flashOf(s.stockCode)}
         isSelected={selectedCode === s.stockCode}
         onOpen={onOpen}
       />
@@ -396,14 +414,14 @@ function Card({
   stock,
   rank,
   line,
-  isNew,
+  flash,
   isSelected,
   onOpen,
 }: {
   stock: CandidateStockItem;
   rank: number;
   line: boolean;
-  isNew: boolean;
+  flash: Flash;
   isSelected: boolean;
   onOpen: (stockCode: string) => void;
 }) {
@@ -413,7 +431,7 @@ function Card({
       data-stock-code={stock.stockCode}
       className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
         line ? "border-b border-zinc-800/60" : ""
-      } ${isNew ? "leading-stock-new" : ""} ${isSelected ? "bg-selected" : ""}`}
+      } ${flash ? `leading-stock-${flash}` : ""} ${isSelected ? "bg-selected" : ""}`}
       onClick={() => onOpen(stock.stockCode)}
     >
       {/* 1행: 순위 · 아바타 · 종목명 · 현재가 */}
