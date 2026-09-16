@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useRef, useState } from "react";
-import { useLeadingStockCandidates } from "../api/queries";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
 import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
@@ -18,7 +18,6 @@ import { useArrowStockNav } from "../lib/useArrowStockNav";
 import OverseasLeadingStocks from "./OverseasLeadingStocksPage";
 import MarketToggle from "../components/common/MarketToggle";
 import { loadMarket, rememberMarket, type StockMarket } from "../lib/stockMarket";
-import { ALWAYS_INCLUDED_LABEL, ALWAYS_INCLUDED_RANKS } from "../lib/leadingStock";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -56,17 +55,24 @@ function DomesticLeadingStocks({
   const { data: me } = useMe();
   // 당일 등락률 임계값(%) — 헤더 티커와 공유한다(같은 값이어야 조회가 합쳐진다).
   const [minChangeRate, setMinChangeRate] = useMinChangeRate();
+  const leadersQ = useLeadingStockLeaders();
   const candidatesQ = useLeadingStockCandidates(minChangeRate);
   const [openCode, setOpenCode] = useState<string | null>(null);
+
+  const data = candidatesQ.data;
+  // 위는 첫 화면과 같은 규칙으로 서버가 고른 주도주, 아래는 나머지 후보를 거래대금 순으로.
+  // 등락률 임계값은 **아래 구간에만** 걸린다 — 위는 어떤 기준을 걸어두든 같은 답이어야 한다.
+  const leaders = leadersQ.data ?? [];
+  const leaderCodes = new Set(leaders.map((s) => s.stockCode));
+  const rest = (data?.stocks ?? []).filter((s) => !leaderCodes.has(s.stockCode));
+  const stocks = [...leaders, ...rest];
+
   // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(
-    (candidatesQ.data?.stocks ?? []).map((s) => s.stockCode),
+    stocks.map((s) => s.stockCode),
     openCode,
     setOpenCode,
   );
-
-  const data = candidatesQ.data;
-  const stocks = data?.stocks ?? [];
 
   // 페이지 진입 시 첫 종목 기본 선택, 선택 종목이 리스트에서 사라지면 다시 첫 종목으로
   useEffect(() => {
@@ -109,21 +115,21 @@ function DomesticLeadingStocks({
     prevCodesRef.current = current;
   }, [stocks]);
 
+  const selector = (
+    <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
+  );
+
   return (
     <div className="space-y-4">
       <Header
-        totalCount={data?.totalCount}
+        totalCount={stocks.length}
         queriedAt={data?.queriedAt}
         loading={candidatesQ.isFetching}
       />
 
-      {/* 토글+필터는 목록 컬럼 폭에 맞춰(필터가 리스트 오른쪽 끝에 정렬) */}
+      {/* 등락률 선택기는 "후보" 구간 머리로 내려갔다 — 손잡이가 무엇을 줄이는지 옆에서 보이게 */}
       <div className={openCode ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6" : ""}>
-        <MarketToggle
-          value={market}
-          onChange={onMarket}
-          trailing={<ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />}
-        />
+        <MarketToggle value={market} onChange={onMarket} />
       </div>
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
@@ -135,7 +141,7 @@ function DomesticLeadingStocks({
         }
       >
         <section>
-          {candidatesQ.isLoading ? (
+          {candidatesQ.isLoading || leadersQ.isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-10 w-full" />
@@ -146,13 +152,17 @@ function DomesticLeadingStocks({
           ) : (
             <>
               <CandidatesTable
-                stocks={stocks}
+                leaders={leaders}
+                rest={rest}
+                selector={selector}
                 newCodes={newCodes}
                 selectedCode={openCode}
                 onOpen={(code) => setOpenCode(code)}
               />
               <CandidatesCards
-                stocks={stocks}
+                leaders={leaders}
+                rest={rest}
+                selector={selector}
                 newCodes={newCodes}
                 selectedCode={openCode}
                 onOpen={(code) => setOpenCode(code)}
@@ -193,7 +203,7 @@ function Header({
 }) {
   return (
     <PageHeader
-      title="주도주 필터"
+      title="오늘의 주도주"
       count={totalCount}
       queriedAt={queriedAt ? formatRelative(queriedAt) : undefined}
       loading={loading}
@@ -207,18 +217,36 @@ function Header({
 
 /** 종목의 대표 테마 칩. 전체 테마가 더 많으면 "+N" 표기. */
 function CandidatesTable({
-  stocks,
+  leaders,
+  rest,
+  selector,
   newCodes,
   selectedCode,
   onOpen,
 }: {
-  stocks: CandidateStockItem[];
+  leaders: CandidateStockItem[];
+  rest: CandidateStockItem[];
+  selector: ReactNode;
   newCodes: Set<string>;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
 }) {
+  /** 한 구간의 행들. 마지막 줄엔 실선을 빼 둔다 — 다음 구간 머리가 이미 경계를 만든다. */
+  const section = (list: CandidateStockItem[]) =>
+    list.map((s, idx) => (
+      <Row
+        key={s.stockCode}
+        stock={s}
+        rank={idx + 1}
+        line={idx !== list.length - 1}
+        isNew={newCodes.has(s.stockCode)}
+        isSelected={selectedCode === s.stockCode}
+        onOpen={onOpen}
+      />
+    ));
+
   return (
-    <table className="hidden md:table w-full text-xs border-separate border-spacing-y-1">
+    <table className="hidden md:table w-full text-xs border-separate border-spacing-y-0">
       <thead className="text-zinc-500 text-xs">
         <tr>
           <th className="pl-4 py-2.5 text-left whitespace-nowrap font-medium">순위</th>
@@ -229,69 +257,95 @@ function CandidatesTable({
         </tr>
       </thead>
       <tbody>
-        {stocks.length > 0 && (
-          <GroupHeader label={ALWAYS_INCLUDED_LABEL} />
+        {leaders.length > 0 && <GroupHeader label="주도주" />}
+        {section(leaders)}
+        {/* 후보 구간 머리는 통과 종목이 없어도 그린다 — 선택기가 여기 있어, 사라지면 기준을 되돌릴 수 없다 */}
+        <GroupHeader label="후보" hint="거래대금 순" trailing={selector} />
+        {rest.length > 0 ? (
+          section(rest)
+        ) : (
+          <tr>
+            <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
+              이 기준을 통과한 종목이 없습니다
+            </td>
+          </tr>
         )}
-        {stocks.map((s, idx) => {
-          const code = shortCode(s.stockCode);
-          const isNew = newCodes.has(s.stockCode);
-          const isSelected = selectedCode === s.stockCode;
-          return (
-            <Fragment key={s.stockCode}>
-              {idx === ALWAYS_INCLUDED_RANKS && <GroupHeader label="주도주 후보" />}
-              <tr
-                data-stock-code={s.stockCode}
-                className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
-                  isNew ? "leading-stock-new" : ""
-                } ${isSelected ? "[&>td]:bg-selected" : ""}`}
-                onClick={() => onOpen(s.stockCode)}
-              >
-              <td className="pl-4 py-3.5 text-zinc-500 num w-10">{s.rank}</td>
-              <td className="px-2 py-3.5">
-                <div className="flex items-center gap-3">
-                  <StockAvatar name={s.stockName} code={code} />
-                  <div className="min-w-0">
-                    <span className="font-semibold text-zinc-100">{s.stockName}</span>
-                    <div className="text-xs text-zinc-500 num mt-0.5">{code}</div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
-                {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
-                <FlashOnChange value={s.currentPrice} duration={1000}>
-                  <NumWon value={s.currentPrice} />
-                </FlashOnChange>
-              </td>
-              <td className="px-4 py-3.5 text-right num font-medium">
-                {/* 키움은 등락률을 이미 % 단위로 주고, formatPct는 분수→% 변환이라 /100 해서 맞춤 */}
-                <FlashOnChange value={s.priceChangeRate} duration={1000}>
-                  <ProfitText
-                    value={s.priceChangeRate / 100}
-                    format={formatPct}
-                  />
-                </FlashOnChange>
-              </td>
-              <td className="px-4 py-3.5 text-right num text-zinc-400">
-                {formatKoreanMoney(s.accumulatedTradingValue)}
-              </td>
-            </tr>
-            </Fragment>
-          );
-        })}
       </tbody>
     </table>
   );
 }
 
-function GroupHeader({ label, hint }: { label: string; hint?: string }) {
+/** 목록 한 줄. 코드는 이름 오른쪽에 — 아래 줄로 내리면 행이 두 줄 높이가 된다. */
+function Row({
+  stock,
+  rank,
+  line,
+  isNew,
+  isSelected,
+  onOpen,
+}: {
+  stock: CandidateStockItem;
+  rank: number;
+  line: boolean;
+  isNew: boolean;
+  isSelected: boolean;
+  onOpen: (stockCode: string) => void;
+}) {
+  const code = shortCode(stock.stockCode);
   return (
-    <tr aria-hidden>
+    <tr
+      data-stock-code={stock.stockCode}
+      className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
+        line ? "[&>td]:border-b [&>td]:border-zinc-800/60" : ""
+      } ${isNew ? "leading-stock-new" : ""} ${isSelected ? "[&>td]:bg-selected" : ""}`}
+      onClick={() => onOpen(stock.stockCode)}
+    >
+      <td className="pl-4 py-[11px] text-zinc-500 num w-10">{rank}</td>
+      <td className="px-2 py-[11px]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <StockAvatar name={stock.stockName} code={code} size={26} />
+          <span className="font-semibold text-zinc-100 truncate">{stock.stockName}</span>
+          <span className="text-[11.5px] text-zinc-500 num shrink-0">{code}</span>
+        </div>
+      </td>
+      <td className="px-4 py-[11px] text-right num font-medium text-zinc-100">
+        {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
+        <FlashOnChange value={stock.currentPrice} duration={1000}>
+          <NumWon value={stock.currentPrice} />
+        </FlashOnChange>
+      </td>
+      <td className="px-4 py-[11px] text-right num font-medium">
+        {/* 키움은 등락률을 이미 % 단위로 주고, formatPct는 분수→% 변환이라 /100 해서 맞춤 */}
+        <FlashOnChange value={stock.priceChangeRate} duration={1000}>
+          <ProfitText value={stock.priceChangeRate / 100} format={formatPct} />
+        </FlashOnChange>
+      </td>
+      <td className="px-4 py-[11px] text-right num text-zinc-400">
+        {formatKoreanMoney(stock.accumulatedTradingValue)}
+      </td>
+    </tr>
+  );
+}
+
+/** 구간 머리 — 표의 층을 가르는 자리라 행 글씨보다 크게 세운다. `trailing`은 우측 끝(등락률 선택기). */
+function GroupHeader({
+  label,
+  hint,
+  trailing,
+}: {
+  label: string;
+  hint?: string;
+  trailing?: ReactNode;
+}) {
+  return (
+    <tr>
       {/* 표 좌측 끝(순위 컬럼 자리)에서 라벨 시작 — 1·2·3 번호 컬럼과 좌측 정렬 일치 */}
-      <td colSpan={5} className="px-4 py-2.5">
-        <span className="text-xs font-semibold text-zinc-400">{label}</span>
-        {hint && (
-          <span className="ml-2 text-xs text-zinc-500 font-normal">{hint}</span>
-        )}
+      <td colSpan={5} className="px-4 pt-4 pb-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
+          {hint && <span className="text-xs text-zinc-500 font-normal">{hint}</span>}
+          {trailing && <div className="ml-auto">{trailing}</div>}
+        </div>
       </td>
     </tr>
   );
@@ -302,69 +356,114 @@ function GroupHeader({ label, hint }: { label: string; hint?: string }) {
 // ============================================================
 
 function CandidatesCards({
-  stocks,
+  leaders,
+  rest,
+  selector,
   newCodes,
   selectedCode,
   onOpen,
 }: {
-  stocks: CandidateStockItem[];
+  leaders: CandidateStockItem[];
+  rest: CandidateStockItem[];
+  selector: ReactNode;
   newCodes: Set<string>;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
 }) {
+  const section = (list: CandidateStockItem[]) =>
+    list.map((s, idx) => (
+      <Card
+        key={s.stockCode}
+        stock={s}
+        rank={idx + 1}
+        line={idx !== list.length - 1}
+        isNew={newCodes.has(s.stockCode)}
+        isSelected={selectedCode === s.stockCode}
+        onOpen={onOpen}
+      />
+    ));
+
   return (
-    <div className="md:hidden space-y-1">
-      {stocks.map((s, idx) => {
-        const code = shortCode(s.stockCode);
-        const isNew = newCodes.has(s.stockCode);
-        const isSelected = selectedCode === s.stockCode;
-        return (
-          <Fragment key={s.stockCode}>
-            {idx === 0 && <CardGroupHeader label={ALWAYS_INCLUDED_LABEL} />}
-            {idx === ALWAYS_INCLUDED_RANKS && <CardGroupHeader label="주도주 후보" />}
-            <div
-              data-stock-code={s.stockCode}
-              className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
-                isNew ? "leading-stock-new" : ""
-              } ${isSelected ? "bg-selected" : ""}`}
-              onClick={() => onOpen(s.stockCode)}
-            >
-              {/* 1행: 아바타 · 종목명 · 현재가 */}
-              <div className="flex items-center gap-2">
-                <span className="text-zinc-500 text-xs num w-4 shrink-0">{s.rank}</span>
-                <StockAvatar name={s.stockName} code={code} size={26} />
-                <span className="font-semibold truncate flex-1 min-w-0">
-                  {s.stockName}
-                </span>
-                <FlashOnChange value={s.currentPrice} duration={1000}>
-                  <NumWon value={s.currentPrice} className="num shrink-0 font-medium" />
-                </FlashOnChange>
-              </div>
-              {/* 2행: 코드·거래대금 · 등락률 */}
-              <div className="flex items-center gap-2 pl-[3.25rem]">
-                <span className="text-xs text-zinc-500 num whitespace-nowrap truncate flex-1 min-w-0">
-                  {code} · {formatKoreanMoney(s.accumulatedTradingValue)}
-                </span>
-                <FlashOnChange value={s.priceChangeRate} duration={1000}>
-                  <ProfitText
-                    value={s.priceChangeRate / 100}
-                    format={formatPct}
-                    className="num text-xs shrink-0"
-                  />
-                </FlashOnChange>
-              </div>
-            </div>
-          </Fragment>
-        );
-      })}
+    <div className="md:hidden">
+      {leaders.length > 0 && <CardGroupHeader label="주도주" />}
+      {section(leaders)}
+      {/* 통과 종목이 없어도 머리는 그린다 — 선택기가 여기 있다 */}
+      <CardGroupHeader label="후보" hint="거래대금 순" trailing={selector} />
+      {rest.length > 0 ? (
+        section(rest)
+      ) : (
+        <p className="px-4 py-6 text-center text-xs text-zinc-500">
+          이 기준을 통과한 종목이 없습니다
+        </p>
+      )}
     </div>
   );
 }
 
-function CardGroupHeader({ label }: { label: string }) {
+function Card({
+  stock,
+  rank,
+  line,
+  isNew,
+  isSelected,
+  onOpen,
+}: {
+  stock: CandidateStockItem;
+  rank: number;
+  line: boolean;
+  isNew: boolean;
+  isSelected: boolean;
+  onOpen: (stockCode: string) => void;
+}) {
+  const code = shortCode(stock.stockCode);
   return (
-    <div className="bg-zinc-950 border-t border-zinc-800 px-4 py-2.5">
-      <span className="text-sm font-semibold text-zinc-200">{label}</span>
+    <div
+      data-stock-code={stock.stockCode}
+      className={`rounded-xl px-4 py-3 flex flex-col gap-1 cursor-pointer ${
+        line ? "border-b border-zinc-800/60" : ""
+      } ${isNew ? "leading-stock-new" : ""} ${isSelected ? "bg-selected" : ""}`}
+      onClick={() => onOpen(stock.stockCode)}
+    >
+      {/* 1행: 순위 · 아바타 · 종목명 · 현재가 */}
+      <div className="flex items-center gap-2">
+        <span className="text-zinc-500 text-xs num w-4 shrink-0">{rank}</span>
+        <StockAvatar name={stock.stockName} code={code} size={26} />
+        <span className="font-semibold truncate flex-1 min-w-0">{stock.stockName}</span>
+        <FlashOnChange value={stock.currentPrice} duration={1000}>
+          <NumWon value={stock.currentPrice} className="num shrink-0 font-medium" />
+        </FlashOnChange>
+      </div>
+      {/* 2행: 코드·거래대금 · 등락률 — 폰은 한 줄에 다 넣으면 이름이 잘려 두 줄로 둔다 */}
+      <div className="flex items-center gap-2 pl-[3.25rem]">
+        <span className="text-xs text-zinc-500 num whitespace-nowrap truncate flex-1 min-w-0">
+          {code} · {formatKoreanMoney(stock.accumulatedTradingValue)}
+        </span>
+        <FlashOnChange value={stock.priceChangeRate} duration={1000}>
+          <ProfitText
+            value={stock.priceChangeRate / 100}
+            format={formatPct}
+            className="num text-xs shrink-0"
+          />
+        </FlashOnChange>
+      </div>
+    </div>
+  );
+}
+
+function CardGroupHeader({
+  label,
+  hint,
+  trailing,
+}: {
+  label: string;
+  hint?: string;
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className="bg-zinc-950 px-4 pt-4 pb-2 flex flex-wrap items-center gap-2">
+      <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
+      {hint && <span className="text-xs text-zinc-500">{hint}</span>}
+      {trailing && <div className="ml-auto">{trailing}</div>}
     </div>
   );
 }

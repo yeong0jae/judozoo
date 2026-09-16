@@ -28,7 +28,7 @@ export const NAV: NavItem[] = [
   {
     to: "/leading-stocks",
     label: "주도주",
-    full: "주도주 필터",
+    full: "오늘의 주도주",
     // 후보 여럿 중 하나가 솟는다 — 주인공 막대가 빨갛다
     icon: (
       <Icon>
