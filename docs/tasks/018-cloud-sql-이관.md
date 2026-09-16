@@ -239,7 +239,11 @@ gcloud compute start-iap-tunnel auto-trading-app-kiwoom-real 3307 \
 - [x] 앱이 **`root`가 아닌 `judozoo_app`으로** 붙는다
 - [x] Grafana 가입자 패널이 데이터를 그린다
 - [x] `grafana` 계정으로 `app_user` 외 테이블 SELECT가 **거부된다**
-- [ ] PITR 동작 확인 — 테스트 테이블을 만들고 5분 뒤 삭제한 다음, 삭제 직전 시점으로 **복제본 복원**이 되는지 (운영 인스턴스를 되감지 말 것)
+- [x] PITR 동작 확인 — 2026-09-16 검증. `pitr_test` 테이블을 만들고(14:08:32Z) 3분 뒤 DROP(14:11:33Z),
+      `gcloud sql instances clone judozoo-db-prod <임시> --point-in-time=2026-09-16T14:10:00Z`로 복제본을 세우니
+      지운 테이블이 그대로 살아 있었고 운영 데이터(`index_minute_candle` 42,847행)도 온전했다. 복제본은 삭제.
+      **운영을 되감지 않는다** — 되감으면 그 이후의 정상 데이터까지 날아간다. 복제본에서 필요한 것만 퍼온다.
+      복제본은 `deletion_protection`을 물려받으므로 지우기 전에 `gcloud sql instances patch <이름> --no-deletion-protection`이 필요하다.
 - [x] 백업 설정 확인 — `backupConfiguration.binaryLogEnabled: true`
 - [x] 유지보수 창이 **일요일 04:00 KST**로 보이는지 콘솔에서 확인
 - [x] 앱 VM에 `/etc/cron.d/judozoo-db-backup`이 **없다**
