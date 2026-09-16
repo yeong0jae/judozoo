@@ -1,8 +1,7 @@
 """해외 주도주 — 랭킹 / 상세 / 분봉 / 일봉.
 
 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위를 뽑는다.
-국내와 같은 흐름 — 거래대금 1~2위는 등락률과 무관하게 항상 포함하고,
-나머지는 당일 등락률이 기준 이상인 것만 남긴다.
+국내와 같은 흐름 — 거래대금 상위 풀에서 당일 등락률이 기준 이상인 것만 남긴다.
 """
 
 from backend.overseasleadingstock.domain import (
@@ -14,7 +13,6 @@ from backend.platform.kis import overseas_chart, overseas_product, overseas_rank
 
 EXCHANGES = ("NAS", "NYS", "AMS")
 TOP_N = 40
-TOP_RANK_ALWAYS_INCLUDED = 2
 MIN_CHANGE_RATE_PCT = 5.0          # 상세 B: 당일 등락률 하한
 MIN_MARKET_CAP_USD = 2_000_000_000  # 상세 C: 시가총액 $2B 하한
 
@@ -35,10 +33,9 @@ def _ranking_pool() -> list[OverseasStockRank]:
 
 
 def get_ranking(min_change_rate: float) -> list[OverseasStockRank]:
-    pool = _ranking_pool()
-    top_ranks = pool[:TOP_RANK_ALWAYS_INCLUDED]
-    rest = [r for r in pool[TOP_RANK_ALWAYS_INCLUDED:] if r.rate >= min_change_rate]
-    return [r.ranked(i + 1) for i, r in enumerate(top_ranks + rest)]
+    """거래대금 상위 풀에서 등락률 기준을 통과한 것만. 국내와 같이 순위 예외를 두지 않는다."""
+    survivors = [r for r in _ranking_pool() if r.rate >= min_change_rate]
+    return [r.ranked(i + 1) for i, r in enumerate(survivors)]
 
 
 def get_leaders(count: int) -> list[OverseasStockRank]:

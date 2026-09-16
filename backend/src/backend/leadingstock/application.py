@@ -28,7 +28,6 @@ from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
 
-_TOP_RANK_ALWAYS_INCLUDED = 2
 _RVOL_LOOKBACK_DAYS = 20
 _SPIKE_BASELINE_BARS = 20             # 직전 평균 산정 봉 수
 _SPIKE_MIN_TRADING_VALUE = 1_000_000_000  # 최신 1분봉 최소 거래대금(원)
@@ -94,40 +93,28 @@ def _criteria():
 
 @ttl_cache("candidateStocks", ttl_seconds=5, maxsize=15)
 def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingStockSnapshot]:
-    """Phase 1 필터만 적용한 후보 (거래대금 순위 + 당일 등락률).
+    """Phase 1 필터만 적용한 후보 (거래대금 순위 + 당일 등락률). 거래대금 내림차순.
 
     등락률 임계값은 사용자가 고르므로 **캐시 키도 그 값으로 분리**한다.
+
+    거래대금 1·2위를 등락률과 무관하게 끼워 넣던 예외는 없앴다 — 목록 위쪽이 주도주
+    구간으로 바뀌면서 대장주를 보여주는 일은 그쪽이 맡는다. 예외를 남겨두면 "거래대금 순"
+    구간에 기준 미달 종목이 설명 없이 섞인다.
     """
     log.info("후보 종목 조회 (Phase 1) — 등락률 >= %s%%", min_daily_price_change_rate)
     candidates = kiwoom_market.fetch_top_trading_value_stocks(50)
     log.info("거래대금 순위에서 %d건 수집", len(candidates))
 
-    etf, spac = flt.EtfExclusionFilter(), flt.SpacExclusionFilter()
-
-    # 개별종목 거래대금 1~2위는 등락률 무관 항상 포함 — 시장 톤 기준점 (ETF·스팩은 제외)
-    top_ranks = [c for c in candidates if etf.filter(c) and spac.filter(c)][:_TOP_RANK_ALWAYS_INCLUDED]
-
     # 사용자 지정 등락률만 덮어쓴 임계값으로 Phase 1 구성
     effective = _criteria().model_copy(update={"min_daily_price_change_rate": min_daily_price_change_rate})
     survivors = flt.FilterChain([
-        etf,
-        spac,
+        flt.EtfExclusionFilter(),
+        flt.SpacExclusionFilter(),
         flt.TradingValueRankFilter(effective),
         flt.DailyPriceChangeFilter(effective),
     ]).apply(candidates)
-
-    # 거래대금 순 정렬 유지 + 중복 제거 (강제 포함분이 survivors와 겹치면 자연 dedupe)
-    merged: list[LeadingStockSnapshot] = []
-    seen: set[str] = set()
-    for stock in [*top_ranks, *survivors]:
-        if stock.stock_code not in seen:
-            seen.add(stock.stock_code)
-            merged.append(stock)
-    log.info(
-        "Phase 1 통과 %d건 (거래대금 상위 %d개 강제 포함 + 필터 통과 %d건)",
-        len(merged), _TOP_RANK_ALWAYS_INCLUDED, len(survivors),
-    )
-    return merged
+    log.info("Phase 1 통과 %d건", len(survivors))
+    return survivors
 
 
 def find_leaders(count: int) -> list[LeadingStockSnapshot]:

@@ -86,30 +86,29 @@ class Test랭킹:
         assert [r.symbol for r in application.get_ranking(0.0)] == ["AAA"]
 
     @respx.mock
-    def test_거래대금_상위_2종목은_등락률과_무관하게_포함한다(self, respx_mock, 토큰_발급):
+    def test_거래대금_1위여도_등락률에_미달하면_뺀다(self, respx_mock, 토큰_발급):
+        """순위 예외를 없앴다 — 대장주를 보여주는 일은 화면 위쪽 주도주 구간이 맡는다."""
         거래소별_응답(
             respx_mock,
             nas=[
                 순위행("A", "500", rate="-9.0"),
                 순위행("B", "400", rate="-8.0"),
-                순위행("C", "300", rate="-7.0"),  # 3위부터는 등락률 컷 적용
+                순위행("C", "300", rate="-7.0"),
                 순위행("D", "200", rate="-6.0"),
                 순위행("E", "100", rate="9.0"),
             ],
         )
 
-        ranking = application.get_ranking(5.0)
-
-        assert [r.symbol for r in ranking] == ["A", "B", "E"]
+        assert [r.symbol for r in application.get_ranking(5.0)] == ["E"]
 
     @respx.mock
-    def test_등락률_기준에_미달하면_3위부터는_뺀다(self, respx_mock, 토큰_발급):
+    def test_기준에_미달하면_전부_빠져_빈_목록이_된다(self, respx_mock, 토큰_발급):
         거래소별_응답(
             respx_mock,
             nas=[순위행(s, str(600 - i * 100), rate="1.0") for i, s in enumerate("ABCDE")],
         )
 
-        assert [r.symbol for r in application.get_ranking(5.0)] == ["A", "B"]
+        assert application.get_ranking(5.0) == []
 
     @respx.mock
     def test_등락_방향은_sign으로_대비값에_부호를_준다(self, respx_mock, 토큰_발급):
@@ -198,8 +197,8 @@ class Test해외_주도주_API:
 
         body = 로그인_client.get("/api/overseas-leading-stocks/ranking?minChangeRate=99").json()
 
-        # 99 → 7로 잘리므로 6.0짜리는 상위 2개만 남는다
-        assert [r["symbol"] for r in body["data"]] == ["A", "B"]
+        # 99 → 7로 잘리므로 6.0짜리는 하나도 남지 않는다
+        assert body["data"] == []
 
     @respx.mock
     def test_거래소와_심볼은_대문자로_맞춰_조회한다(self, respx_mock, 토큰_발급, 로그인_client):
