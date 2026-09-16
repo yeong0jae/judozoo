@@ -7,7 +7,11 @@ export function formatKRW(value: number): string {
 export const formatKrw = formatKRW;
 
 // 한국식 단위 (조/억) — 거래대금처럼 큰 숫자에 사용.
-// 1_073_000_000_000_000 → "1,073조원" / 304_436_200_000 → "3,044억원"
+// 1_073_000_000_000_000 → "1,073조" / 304_436_200_000 → "3,044억"
+//
+// 조·억에는 "원"을 붙이지 않는다 — 단위가 이미 금액이라고 말한다. 같은 화면의 순매수
+// 표기(`formatEok`)도 "2,615억"이라 둘이 어긋나 보이던 걸 맞춘 것이다.
+// 1억 미만만 "원"을 남긴다. 단위 글자가 없어 숫자만 남으면 무엇의 수인지 알 수 없다.
 export function formatKoreanMoney(value: number): string {
   const amount = Math.round(value);
   const absAmount = Math.abs(amount);
@@ -19,12 +23,12 @@ export function formatKoreanMoney(value: number): string {
     const jo = Math.floor(absAmount / JO);
     const eok = Math.floor((absAmount % JO) / EOK);
     return eok > 0
-      ? `${sign}${nf.format(jo)}조 ${nf.format(eok)}억원`
-      : `${sign}${nf.format(jo)}조원`;
+      ? `${sign}${nf.format(jo)}조 ${nf.format(eok)}억`
+      : `${sign}${nf.format(jo)}조`;
   }
   if (absAmount >= EOK) {
     const eok = Math.floor(absAmount / EOK);
-    return `${sign}${nf.format(eok)}억원`;
+    return `${sign}${nf.format(eok)}억`;
   }
   return `${sign}${nf.format(absAmount)}원`;
 }
