@@ -201,7 +201,7 @@ Goal: VM 안 `mysql:8.4` 컨테이너를 **Cloud SQL for MySQL(private IP 전용
 - [x] `remote_deploy.sh` — 백업 cron 설치 블록 제거
 - [x] 앱 VM에서 `sudo rm -f /etc/cron.d/judozoo-db-backup` — **배포는 이 파일을 지우지 않는다.** 남겨두면 매일 03:00에 실패 로그만 쌓인다
 - [x] `infra/deploy/backup_db.sh` 삭제, `deploy.yml`의 scp 대상에서 제외
-- [ ] `docs/runbook-db-restore.md` 재작성 — 덤프 복원 절차가 **PITR 복원 절차**로 바뀐다
+- [x] `docs/runbook-db-restore.md` **삭제** — 내용 전체가 VM 안 mysql 컨테이너를 전제로 한 절차였다. PITR 복원은 콘솔이나 `gcloud sql instances clone --point-in-time`으로 하며, 문서로 붙들 만큼 손이 많이 가지 않는다
 - [x] GCS 백업 버킷은 **당분간 유지.** 직전 야간 덤프가 들어 있고, 그날치는 앱 VM의 `mysql-data` 볼륨이 아직 들고 있다
 
 > **Cloud SQL 백업은 같은 프로젝트 안에 있다.** 프로젝트 단위 사고에는 현행과 마찬가지로 대비가 안 된다. 주 1회 `gcloud sql export sql`로 GCS에 논리 덤프를 남기는 것은 후속으로 둔다.
@@ -272,7 +272,6 @@ gcloud compute start-iap-tunnel auto-trading-app-kiwoom-real 3307 \
 - `google_artifact_registry_repository.docker`가 **매 plan마다 in-place 변경으로 뜬다.** `cleanup_policies`를 같은 내용으로 다시 쓰는 수렴하지 않는 drift다 — 이미지가 지워지지는 않지만 plan이 늘 깨끗하지 않아 진짜 변경을 가린다
 
 - 주 1회 `gcloud sql export sql` → GCS. Cloud SQL 백업은 같은 프로젝트라 프로젝트 단위 사고에 무방비다
-- `docs/runbook-db-restore.md`를 PITR 기준으로 재작성 (§6)
 - HA 전환 검토 — 존 장애까지 막으려면. 비용 2배
 - `default-allow-internal` 축소 — 이번 안에서는 3306이 피어링으로 가서 급하지 않아졌다
 - 앱 VM 이름을 `judozoo-server-prod`로 — DB가 빠져 나가면 재생성 비용이 크게 준다
