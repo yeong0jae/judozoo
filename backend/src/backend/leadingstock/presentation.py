@@ -220,6 +220,10 @@ def get_breakout_radar(
 #: 미로그인 미리보기로 내려보내는 최신 시그널 건수.
 PREVIEW_COUNT = 10
 
+#: 미로그인 미리보기 등락률 하한(%). 감시 풀이 -12%까지 넓어(`signal_event.min_change_rate`)
+#: 그냥 자르면 미리보기 열 칸이 급락주 전이로 찰 수 있다 — 자르기 전에 건다.
+PREVIEW_MIN_CHANGE_RATE = 3.0
+
 #: 미로그인 미리보기로 내려보내는 지지·저항 종목 수. 시그널은 그날 쌓인 로그라 10건이지만
 #: 여기는 "지금 가장 가까운 것"이 핵심이라 상위 몇 개면 맛이 보인다.
 RADAR_PREVIEW_COUNT = 5
@@ -233,11 +237,16 @@ def get_signal_events(
 ) -> ApiResponse[SignalEventsResponse]:
     """그날 발생한 돌파/임박/스파이크 전이를 최신순으로.
 
-    **미로그인이면 최신 `PREVIEW_COUNT`건만 내려간다.** 화면에서 자르면 나머지가
-    이미 브라우저에 도착해 있어 개발자도구로 읽힌다 — 잘라내는 일은 서버가 해야 한다.
-    `total_count`는 자르기 전 전체 건수라, 받는 쪽이 둘을 비교해 잘렸는지 안다.
+    **미로그인이면 등락률 `PREVIEW_MIN_CHANGE_RATE`% 이상 중 최신 `PREVIEW_COUNT`건만
+    내려간다.** 화면에서 자르면 나머지가 이미 브라우저에 도착해 있어 개발자도구로 읽힌다 —
+    잘라내는 일은 서버가 해야 한다. `total_count`는 등락률로 거른 뒤, 건수로 자르기 전의
+    수라 받는 쪽이 둘을 비교해 잘렸는지 안다.
     """
     day = date_ or today()
+    rows = events.signal_events_on(db, day)
+    guest = current_user(request) is None
+    if guest:
+        rows = [e for e in rows if e.price_change_rate >= PREVIEW_MIN_CHANGE_RATE]
     items = [
         SignalEventItem(
             occurred_at=e.occurred_at, stock_code=e.stock_code, stock_name=e.stock_name,
@@ -248,10 +257,10 @@ def get_signal_events(
             spike_direction=e.spike_direction.value if e.spike_direction else None,
             ma=e.ma,
         )
-        for e in events.signal_events_on(db, day)
+        for e in rows
     ]
     total = len(items)
-    if current_user(request) is None:
+    if guest:
         items = items[:PREVIEW_COUNT]
     return ApiResponse.ok(SignalEventsResponse(date=day, total_count=total, events=items))
 

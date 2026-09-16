@@ -194,6 +194,41 @@ class Test시그널_로그:
         assert 데이터["totalCount"] == 12
         assert 데이터["events"][0]["stockName"] == "종목11"
 
+    def test_미로그인은_등락률_3퍼센트_미만을_못_본다(self, client, 이벤트_테이블):
+        """감시 풀이 -12%까지 넓어, 거르지 않으면 미리보기가 급락주 전이로 찰 수 있다."""
+        with get_session_factory()() as s:
+            for i, 등락률 in enumerate([-8.0, 2.9, 3.0, 9.0]):
+                s.add(SignalEvent(
+                    occurred_at=datetime(2026, 9, 11, 10, i), trade_date=오늘,
+                    stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
+                    event_type=SignalEventType.VOLUME_SPIKE.value,
+                    current_price=1000, price_change_rate=등락률, trading_value=100,
+                    created_at=AT, updated_at=AT,
+                ))
+            s.commit()
+
+        데이터 = client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
+
+        assert [e["stockName"] for e in 데이터["events"]] == ["종목03", "종목02"]
+        # 거른 뒤가 전체 건수다 — 로그인해도 못 볼 건수를 "더 있다"로 세지 않는다
+        assert 데이터["totalCount"] == 2
+
+    def test_로그인하면_등락률과_무관하게_전부_받는다(self, 로그인_client, 이벤트_테이블):
+        with get_session_factory()() as s:
+            for i, 등락률 in enumerate([-8.0, 9.0]):
+                s.add(SignalEvent(
+                    occurred_at=datetime(2026, 9, 11, 10, i), trade_date=오늘,
+                    stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
+                    event_type=SignalEventType.VOLUME_SPIKE.value,
+                    current_price=1000, price_change_rate=등락률, trading_value=100,
+                    created_at=AT, updated_at=AT,
+                ))
+            s.commit()
+
+        데이터 = 로그인_client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
+
+        assert 데이터["totalCount"] == 2
+
     def test_로그인하면_열건_넘게도_전부_받는다(self, 로그인_client, 이벤트_테이블):
         with get_session_factory()() as s:
             for i in range(12):
