@@ -53,8 +53,8 @@ export const NAV: NavItem[] = [
   },
   {
     to: "/breakout-radar",
-    label: "지지·저항",
-    full: "지지·저항",
+    label: "눌림·돌파",
+    full: "눌림·돌파",
     // 위아래 선 사이에 현재가가 놓인다 — 그 현재가가 빨갛다
     icon: (
       <Icon>

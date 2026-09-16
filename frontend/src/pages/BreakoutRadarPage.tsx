@@ -36,8 +36,8 @@ const MODE_KEY = "radar.mode";
 
 type RadarMode = "resistance" | "support";
 const MODES: { key: RadarMode; label: string }[] = [
-  { key: "support", label: "지지" },
-  { key: "resistance", label: "저항" },
+  { key: "support", label: "눌림" },
+  { key: "resistance", label: "돌파" },
 ];
 
 /** 보는 모드를 고른다. 정렬 기준도 같이 바뀐다 — 돌파매매와 눌림매매는 동시에 보는 게 아니다. */
@@ -150,7 +150,7 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="지지·저항"
+        title="눌림·돌파"
         count={data?.totalCount}
         queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
         loading={radarQ.isFetching}
