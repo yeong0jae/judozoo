@@ -176,7 +176,7 @@ function renderMarketRow(
             {clockOf(m.occurredAt)}
           </span>
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${MARKET_CHIP[m.market]}`}>
+          <span className={`text-[11.5px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${MARKET_CHIP[m.market]}`}>
             {MARKET_LABEL[m.market]}
           </span>
           <span className={leftCls}>{leftLabel}</span>
@@ -184,7 +184,7 @@ function renderMarketRow(
         <div className="flex min-w-0 items-center gap-3 ml-auto">
           {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
           {netText && (
-            <span className="num truncate text-xs text-zinc-500">누적 {netText}</span>
+            <span className="num truncate text-[11.5px] text-zinc-500">누적 {netText}</span>
           )}
           <span className="num text-xs text-zinc-100 w-20 text-right">
             {m.indexValue != null ? fmtIndex(m.indexValue) : ""}
@@ -626,7 +626,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                           {clockOf(e.occurredAt)}
                         </span>
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
-                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
+                        <span className={`text-[11.5px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
                           {meta.label}
                         </span>
                         <StockAvatar name={e.stockName} code={code} size={28} />
@@ -634,7 +634,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       </div>
                       {/* 오른쪽: 디테일·현재가·등락률. 폰에선 아래 줄로 래핑되고, 좁으면 디테일부터 줄어든다 */}
                       <div className="flex min-w-0 items-center gap-3 ml-auto">
-                        <span className="num truncate text-xs text-zinc-300">{detailOf(e)}</span>
+                        <span className="num truncate text-[11.5px] text-zinc-300">{detailOf(e)}</span>
                         <span className="num text-xs text-zinc-100 w-20 text-right">
                           {formatPrice(e.currentPrice)}
                         </span>
