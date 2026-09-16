@@ -32,7 +32,7 @@ function shortCode(stockCode: string): string {
 type Flash = "new" | "promoted" | null;
 
 /** 하이라이트가 남아 있는 시간(ms). CSS의 애니메이션 길이와 같아야 한다. */
-const FLASH_MS = 8000;
+const FLASH_MS = 4000;
 
 /**
  * 방금 이 목록에 들어온 코드들. 첫 로드는 비운 채 지나간다 —
