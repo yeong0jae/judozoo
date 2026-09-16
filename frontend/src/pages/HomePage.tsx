@@ -37,11 +37,12 @@ export default function HomePage() {
   const krHoliday = useMarketCalendarStatus("KR").data?.isHoliday;
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
-  // 세션 중인가 — 프리·애프터마켓을 포함한다. 어느 쪽을 앞에 둘지 정하는 데 쓴다.
+  // 세션 중인가 — 국내는 프리·애프터마켓까지(08:00~20:00), 해외는 프리마켓~정규장이다
+  // (해외 세션 정의에 애프터마켓이 없다). 어느 쪽을 앞에 둘지와 주도주 카드의 "장중"이 이 값을 쓴다.
   const domesticLive = kr !== null && !krHoliday;
   const overseasLive = us !== null && !usHoliday;
-  // "장중"은 정규장일 때만이다. 프리·애프터마켓 숫자는 직전 종가에 가까워
-  // 그때 장중이라고 하면 살아 있는 값으로 읽힌다.
+  // 지수 타일만 정규장으로 좁힌다. 지수는 정규장에만 체결돼서, 프리·애프터마켓에 "장중"이라
+  // 붙이면 멈춰 있는 숫자가 살아 있는 값으로 읽힌다.
   const domesticOpen = kr?.tone === "open" && !krHoliday;
   const overseasOpen = us?.tone === "open" && !usHoliday;
   // 양쪽 다 쉬는 주말·새벽에는 국내를 앞에 둔다 — 여기는 국내 단타 화면이다
@@ -51,14 +52,14 @@ export default function HomePage() {
   const now = new Date();
   const domestic = (
     <DomesticLeaders
-      live={domesticOpen}
+      live={domesticLive}
       first={domesticFirst}
       date={formatTradingDay(krTradingDay(now, !!krHoliday))}
     />
   );
   const overseas = (
     <OverseasLeaders
-      live={overseasOpen}
+      live={overseasLive}
       first={!domesticFirst}
       date={formatTradingDay(usTradingDay(now, !!usHoliday))}
     />
