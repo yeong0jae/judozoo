@@ -184,7 +184,7 @@ function renderMarketRow(
         <div className="flex min-w-0 items-center gap-3 ml-auto">
           {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
           {netText && (
-            <span className="num truncate text-[11.5px] text-zinc-500">누적 {netText}</span>
+            <span className="num truncate text-xs text-zinc-500">누적 {netText}</span>
           )}
           <span className="num text-xs text-zinc-100 w-20 text-right">
             {m.indexValue != null ? fmtIndex(m.indexValue) : ""}
@@ -634,7 +634,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       </div>
                       {/* 오른쪽: 디테일·현재가·등락률. 폰에선 아래 줄로 래핑되고, 좁으면 디테일부터 줄어든다 */}
                       <div className="flex min-w-0 items-center gap-3 ml-auto">
-                        <span className="num truncate text-[11.5px] text-zinc-300">{detailOf(e)}</span>
+                        <span className="num truncate text-xs text-zinc-300">{detailOf(e)}</span>
                         <span className="num text-xs text-zinc-100 w-20 text-right">
                           {formatPrice(e.currentPrice)}
                         </span>
