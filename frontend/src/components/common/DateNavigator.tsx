@@ -19,15 +19,37 @@ export function latestTradingDayStr(from: string = todayStr()): string {
   return localStr(dt);
 }
 
-/** YYYY-MM-DD → "M월 D일 (요일)". */
+/** YYYY-MM-DD → "9월 16일" + "(수)" — 요일은 따로 돌려준다(색을 달리 준다). */
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 const label = (s: string) => {
   const [y, m, d] = s.split("-").map(Number);
-  const wd = WD[new Date(y, m - 1, d).getDay()];
-  return `${m}월 ${d}일 (${wd})`;
+  return { day: `${m}월 ${d}일`, weekday: `(${WD[new Date(y, m - 1, d).getDay()]})` };
 };
 
-/** 좌우 화살표 + 팝업 달력으로 거래일(평일) 이동. date는 YYYY-MM-DD. */
+/** 화살표 — 텍스트 글리프(◀)는 폰트마다 크기·기준선이 달라 옆 글자와 안 맞는다. */
+function Chevron({ dir }: { dir: "prev" | "next" }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d={dir === "prev" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
+    </svg>
+  );
+}
+
+/** 좌우 화살표 + 팝업 달력으로 거래일(평일) 이동. date는 YYYY-MM-DD.
+ *
+ * 세 조각(이전·날짜·다음)을 트랙 하나에 담는다 — 같은 일을 하는 버튼들이라
+ * 앱의 다른 세그먼트(`ChangeRateSelector`·`MarketToggle`)와 같은 모양으로 묶는다.
+ * "오늘"만 트랙 밖에 둔다. 이동이 아니라 되돌리기라서다. */
 export default function DateNavigator({
   date,
   onChange,
@@ -47,43 +69,53 @@ export default function DateNavigator({
     onChange(localStr(next));
   };
   const isToday = date === todayStr();
+  const { day, weekday } = label(date);
+  // 화살표 칸. inline-flex라야 SVG 아래 기준선 여백이 안 생긴다.
+  // 비활성일 때 호버로 밝아지면 누를 수 있는 것처럼 보여, 글자색도 함께 묶어 둔다.
+  const stepCls =
+    "inline-flex rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-elevated hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400";
+
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <button
-        onClick={() => shift(-1)}
-        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800"
-        aria-label="이전 날짜"
-      >
-        ◀
-      </button>
-      <div className="relative">
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="bg-zinc-900 border border-zinc-800 rounded px-3 py-1 text-sm text-zinc-200 hover:bg-zinc-800 min-w-[110px]"
-        >
-          {label(date)}
+    <div className="flex items-center gap-1.5 text-sm">
+      <div className="flex items-center rounded-xl bg-zinc-800 p-1">
+        <button onClick={() => shift(-1)} className={stepCls} aria-label="이전 거래일">
+          <Chevron dir="prev" />
         </button>
-        {open && (
-          <DatePopover
-            value={date}
-            today={todayStr()}
-            onChange={onChange}
-            onClose={() => setOpen(false)}
-          />
-        )}
+
+        {/* 팝업은 이 칸을 기준으로 뜬다 */}
+        <div className="relative">
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="min-w-[7.25rem] rounded-lg px-2.5 py-1 font-medium text-zinc-100 transition-colors hover:bg-elevated"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+          >
+            {day} <span className="text-zinc-400">{weekday}</span>
+          </button>
+          {open && (
+            <DatePopover
+              value={date}
+              today={todayStr()}
+              onChange={onChange}
+              onClose={() => setOpen(false)}
+            />
+          )}
+        </div>
+
+        <button
+          onClick={() => shift(1)}
+          disabled={isToday}
+          className={stepCls}
+          aria-label="다음 거래일"
+        >
+          <Chevron dir="next" />
+        </button>
       </div>
-      <button
-        onClick={() => shift(1)}
-        disabled={isToday}
-        className="px-2 py-1 rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
-        aria-label="다음 날짜"
-      >
-        ▶
-      </button>
+
       <button
         onClick={() => onChange(todayStr())}
         disabled={isToday}
-        className="px-2 py-1 text-xs rounded text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
+        className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-850 hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400"
       >
         오늘
       </button>
