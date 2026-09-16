@@ -1,3 +1,5 @@
+from sqlalchemy.engine import make_url
+
 from backend.settings import Settings, get_settings
 
 
@@ -42,9 +44,22 @@ class TestDB_접속정보:
         monkeypatch.setenv("DB_USERNAME", "root")
         monkeypatch.setenv("DB_PASSWORD", "비밀")
 
-        url = Settings().database.url
+        parsed = make_url(Settings().database.url)
 
-        assert url.startswith("mysql+pymysql://root:비밀@mysql:3306/trading")
+        assert (parsed.host, parsed.port, parsed.database) == ("mysql", 3306, "trading")
+        assert (parsed.username, parsed.password) == ("root", "비밀")
+
+    def test_비밀번호의_특수문자가_URL_구획을_깨뜨리지_않는다(self, monkeypatch):
+        """`/`나 `@`가 날것으로 들어가면 호스트·DB 이름 구획이 밀려 엉뚱한 곳에 붙는다."""
+        monkeypatch.setenv("DB_HOST", "10.0.0.1")
+        monkeypatch.setenv("DB_PORT", "3306")
+        monkeypatch.setenv("DB_USERNAME", "judozoo_app")
+        monkeypatch.setenv("DB_PASSWORD", "p@ss/w:rd#1")
+
+        parsed = make_url(Settings().database.url)
+
+        assert parsed.password == "p@ss/w:rd#1"
+        assert (parsed.host, parsed.port, parsed.database) == ("10.0.0.1", 3306, "trading")
 
 
 class Test설정_캐시:

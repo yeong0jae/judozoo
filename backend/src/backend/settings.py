@@ -6,6 +6,7 @@ Kotlin의 `@ConfigurationProperties` + `application.yaml`에 대응한다.
 """
 
 from functools import lru_cache
+from urllib.parse import quote
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,8 +25,14 @@ class DatabaseSettings(BaseSettings):
 
     @property
     def url(self) -> str:
+        """계정·비밀번호를 퍼센트 인코딩한다.
+
+        `/ @ : # ?`가 그대로 들어가면 URL의 구획이 깨져 엉뚱한 호스트로 붙거나 파싱이 실패한다.
+        `quote_plus`가 아니라 `quote`인 이유는, 전자가 공백을 `+`로 바꾸는데 SQLAlchemy는
+        `unquote`로 되돌려서 `+`가 비밀번호에 그대로 남기 때문이다.
+        """
         return (
-            f"mysql+pymysql://{self.username}:{self.password}"
+            f"mysql+pymysql://{quote(self.username, safe='')}:{quote(self.password, safe='')}"
             f"@{self.host}:{self.port}/{self.name}?charset=utf8mb4"
         )
 
