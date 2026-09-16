@@ -35,24 +35,33 @@ type Flash = "new" | "promoted" | null;
 const FLASH_MS = 4000;
 
 /**
- * 방금 이 목록에 들어온 코드들. 첫 로드는 비운 채 지나간다 —
- * 화면을 열자마자 전부 반짝이면 "새로 들어왔다"는 뜻이 사라진다.
+ * 방금 이 목록에 들어온 코드들.
+ *
+ * `session`은 "이 목록을 같은 조건으로 계속 보고 있다"는 표시다. null이면 아직 볼 준비가
+ * 안 된 것이고, 값이 바뀌면 이전 기억을 버린다. 이게 없으면 목록이 **한 번에 채워지지 않는
+ * 순간마다** 오탐이 난다 —
+ *
+ * - 두 조회(주도주·후보)가 따로 도착하면, 먼저 온 쪽만 담긴 목록과 비교해 나머지가 전부 새것이 된다
+ * - 등락률을 바꾸면 조회 키가 달라져 목록이 새로 오는데, 옛 목록과 비교하면 늘어난 만큼 전부 반짝인다
+ *
+ * 첫 비교는 언제나 건너뛴다. 화면을 열자마자 전부 반짝이면 "새로 들어왔다"는 뜻이 사라진다.
  */
-function useArrivals(codes: string[]): Set<string> {
+function useArrivals(codes: string[], session: string | null): Set<string> {
   const key = codes.join(",");
-  const prevRef = useRef<Set<string> | null>(null);
+  const prevRef = useRef<{ session: string; codes: Set<string> } | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    if (session === null) return; // 아직 볼 준비가 안 됐다
+
     const current = new Set(key ? key.split(",") : []);
     const prev = prevRef.current;
     // 비교를 마치기 전에 갱신한다 — 갱신을 건너뛰면 다음 폴링이 같은 종목을 또 새것으로 본다
-    prevRef.current = current;
-    // 첫 로드(null)와 **빈 목록 다음**은 건너뛴다. 빈 상태와 비교하면 첫 응답 전체가
-    // 새로 들어온 것으로 잡혀 목록이 통째로 반짝인다.
-    if (prev === null || prev.size === 0) return;
+    prevRef.current = { session, codes: current };
+    // 기억이 없거나(첫 비교), 다른 조건에서 본 목록이거나, 직전이 빈 목록이면 비교하지 않는다
+    if (prev === null || prev.session !== session || prev.codes.size === 0) return;
 
-    const justArrived = [...current].filter((c) => !prev.has(c));
+    const justArrived = [...current].filter((c) => !prev.codes.has(c));
     if (justArrived.length === 0) return;
 
     setFresh((p) => new Set([...p, ...justArrived]));
@@ -66,7 +75,7 @@ function useArrivals(codes: string[]): Set<string> {
       }, FLASH_MS),
     );
     return () => timers.forEach(clearTimeout);
-  }, [key]);
+  }, [key, session]);
 
   return fresh;
 }
@@ -127,9 +136,12 @@ function DomesticLeadingStocks({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stocks]);
 
-  // 목록에 새로 든 종목과, 주도주 구간으로 올라온 종목을 따로 센다 — 뜻이 다른 사건이다
-  const arrived = useArrivals(stocks.map((s) => s.stockCode));
-  const promoted = useArrivals(leaders.map((s) => s.stockCode));
+  // 목록에 새로 든 종목과, 주도주 구간으로 올라온 종목을 따로 센다 — 뜻이 다른 사건이다.
+  // **두 조회가 다 도착해야** 비교를 시작한다. 한쪽만 온 목록과 비교하면 나머지가 전부 새것이 된다.
+  const session =
+    leadersQ.data && candidatesQ.data ? `domestic:${minChangeRate}` : null;
+  const arrived = useArrivals(stocks.map((s) => s.stockCode), session);
+  const promoted = useArrivals(leaders.map((s) => s.stockCode), session);
   const flashOf = (code: string): Flash =>
     promoted.has(code) ? "promoted" : arrived.has(code) ? "new" : null;
 
