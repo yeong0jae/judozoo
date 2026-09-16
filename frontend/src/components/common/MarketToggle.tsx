@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { StockMarket } from "../../lib/stockMarket";
 
 export type { StockMarket };
@@ -9,16 +10,19 @@ const TABS: { key: StockMarket; label: string }[] = [
 
 /**
  * 국내/해외 전환 — 언더라인 탭. 활성은 중립(흰색) 언더라인(파랑=하락과 혼동 방지). 하단 보더가 리스트와의 구분선.
+ * [trailing]을 주면 같은 줄 우측에 배치(예: 등락률 필터) — 좁으면 아래로 감싼다.
  */
 export default function MarketToggle({
   value,
   onChange,
+  trailing,
 }: {
   value: StockMarket;
   onChange: (market: StockMarket) => void;
+  trailing?: ReactNode;
 }) {
   return (
-    <div className="flex items-end border-b border-zinc-800">
+    <div className="flex items-end justify-between gap-x-4 gap-y-2 flex-wrap border-b border-zinc-800">
       <div className="flex gap-6">
         {TABS.map((t) => (
           <button
@@ -35,6 +39,7 @@ export default function MarketToggle({
           </button>
         ))}
       </div>
+      {trailing && <div className="pb-2 shrink-0">{trailing}</div>}
     </div>
   );
 }

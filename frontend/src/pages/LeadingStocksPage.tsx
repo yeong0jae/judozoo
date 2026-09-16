@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
 import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
@@ -127,9 +127,10 @@ function DomesticLeadingStocks({
         loading={candidatesQ.isFetching}
       />
 
-      {/* 등락률 선택기는 "후보" 구간 머리로 내려갔다 — 손잡이가 무엇을 줄이는지 옆에서 보이게 */}
+      {/* 토글+필터는 목록 컬럼 폭에 맞춰(필터가 리스트 오른쪽 끝에 정렬).
+          선택기가 맨 위에 있지만 **걸리는 곳은 아래 "후보" 구간뿐**이다 — 주도주는 기준과 무관하다 */}
       <div className={openCode ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6" : ""}>
-        <MarketToggle value={market} onChange={onMarket} />
+        <MarketToggle value={market} onChange={onMarket} trailing={selector} />
       </div>
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
@@ -154,7 +155,6 @@ function DomesticLeadingStocks({
               <CandidatesTable
                 leaders={leaders}
                 rest={rest}
-                selector={selector}
                 newCodes={newCodes}
                 selectedCode={openCode}
                 onOpen={(code) => setOpenCode(code)}
@@ -162,7 +162,6 @@ function DomesticLeadingStocks({
               <CandidatesCards
                 leaders={leaders}
                 rest={rest}
-                selector={selector}
                 newCodes={newCodes}
                 selectedCode={openCode}
                 onOpen={(code) => setOpenCode(code)}
@@ -219,14 +218,12 @@ function Header({
 function CandidatesTable({
   leaders,
   rest,
-  selector,
   newCodes,
   selectedCode,
   onOpen,
 }: {
   leaders: CandidateStockItem[];
   rest: CandidateStockItem[];
-  selector: ReactNode;
   newCodes: Set<string>;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
@@ -259,8 +256,8 @@ function CandidatesTable({
       <tbody>
         {leaders.length > 0 && <GroupHeader label="주도주" />}
         {section(leaders)}
-        {/* 후보 구간 머리는 통과 종목이 없어도 그린다 — 선택기가 여기 있어, 사라지면 기준을 되돌릴 수 없다 */}
-        <GroupHeader label="후보" hint="거래대금 순" trailing={selector} />
+        {/* 통과 종목이 없어도 머리는 그린다 — 없으면 "주도주만 있는 화면"으로 보여 기준이 걸렸다는 걸 알 수 없다 */}
+        <GroupHeader label="후보" hint="거래대금 순" />
         {rest.length > 0 ? (
           section(rest)
         ) : (
@@ -327,15 +324,13 @@ function Row({
   );
 }
 
-/** 구간 머리 — 표의 층을 가르는 자리라 행 글씨보다 크게 세운다. `trailing`은 우측 끝(등락률 선택기). */
+/** 구간 머리 — 표의 층을 가르는 자리라 행 글씨보다 크게 세운다. */
 function GroupHeader({
   label,
   hint,
-  trailing,
 }: {
   label: string;
   hint?: string;
-  trailing?: ReactNode;
 }) {
   return (
     <tr>
@@ -344,7 +339,6 @@ function GroupHeader({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
           {hint && <span className="text-xs text-zinc-500 font-normal">{hint}</span>}
-          {trailing && <div className="ml-auto">{trailing}</div>}
         </div>
       </td>
     </tr>
@@ -358,14 +352,12 @@ function GroupHeader({
 function CandidatesCards({
   leaders,
   rest,
-  selector,
   newCodes,
   selectedCode,
   onOpen,
 }: {
   leaders: CandidateStockItem[];
   rest: CandidateStockItem[];
-  selector: ReactNode;
   newCodes: Set<string>;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
@@ -387,8 +379,8 @@ function CandidatesCards({
     <div className="md:hidden">
       {leaders.length > 0 && <CardGroupHeader label="주도주" />}
       {section(leaders)}
-      {/* 통과 종목이 없어도 머리는 그린다 — 선택기가 여기 있다 */}
-      <CardGroupHeader label="후보" hint="거래대금 순" trailing={selector} />
+      {/* 통과 종목이 없어도 머리는 그린다 */}
+      <CardGroupHeader label="후보" hint="거래대금 순" />
       {rest.length > 0 ? (
         section(rest)
       ) : (
@@ -453,17 +445,14 @@ function Card({
 function CardGroupHeader({
   label,
   hint,
-  trailing,
 }: {
   label: string;
   hint?: string;
-  trailing?: ReactNode;
 }) {
   return (
     <div className="bg-zinc-950 px-4 pt-4 pb-2 flex flex-wrap items-center gap-2">
       <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
       {hint && <span className="text-xs text-zinc-500">{hint}</span>}
-      {trailing && <div className="ml-auto">{trailing}</div>}
     </div>
   );
 }

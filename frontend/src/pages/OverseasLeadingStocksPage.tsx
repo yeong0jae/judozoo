@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useOverseasLeaders, useOverseasRanking } from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
 import { formatFetchedAt, formatPct } from "../lib/format";
@@ -64,9 +64,9 @@ export default function OverseasLeadingStocks({
     <div className="space-y-4">
       <Header totalCount={stocks.length} loading={isFetching} fetchedAt={dataUpdatedAt} />
 
-      {/* 등락률 선택기는 "후보" 구간 머리로 내려갔다 */}
+      {/* 선택기가 맨 위에 있지만 걸리는 곳은 아래 "후보" 구간뿐이다 */}
       <div className={openSymbol ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6" : ""}>
-        <MarketToggle value={market} onChange={onMarket} />
+        <MarketToggle value={market} onChange={onMarket} trailing={selector} />
       </div>
 
       {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
@@ -91,14 +91,12 @@ export default function OverseasLeadingStocks({
               <RankingTable
                 leaders={leaders}
                 rest={rest}
-                selector={selector}
                 selectedSymbol={openSymbol}
                 onOpen={setOpenSymbol}
               />
               <RankingCards
                 leaders={leaders}
                 rest={rest}
-                selector={selector}
                 selectedSymbol={openSymbol}
                 onOpen={setOpenSymbol}
               />
@@ -154,13 +152,11 @@ function Header({
 function RankingTable({
   leaders,
   rest,
-  selector,
   selectedSymbol,
   onOpen,
 }: {
   leaders: OverseasStockRankItem[];
   rest: OverseasStockRankItem[];
-  selector: ReactNode;
   selectedSymbol: string | null;
   onOpen: (symbol: string) => void;
 }) {
@@ -190,8 +186,8 @@ function RankingTable({
       <tbody>
         {leaders.length > 0 && <GroupHeader label="주도주" />}
         {section(leaders)}
-        {/* 통과 종목이 없어도 머리는 그린다 — 선택기가 여기 있어, 사라지면 기준을 되돌릴 수 없다 */}
-        <GroupHeader label="후보" hint="거래대금 순" trailing={selector} />
+        {/* 통과 종목이 없어도 머리는 그린다 — 기준이 걸렸다는 걸 알 수 있게 */}
+        <GroupHeader label="후보" hint="거래대금 순" />
         {rest.length > 0 ? (
           section(rest)
         ) : (
@@ -249,15 +245,13 @@ function Row({
   );
 }
 
-/** 구간 머리 — 국내와 같은 규칙. `trailing`은 우측 끝(등락률 선택기). */
+/** 구간 머리 — 국내와 같은 규칙. */
 function GroupHeader({
   label,
   hint,
-  trailing,
 }: {
   label: string;
   hint?: string;
-  trailing?: ReactNode;
 }) {
   return (
     <tr>
@@ -265,7 +259,6 @@ function GroupHeader({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
           {hint && <span className="text-xs text-zinc-500 font-normal">{hint}</span>}
-          {trailing && <div className="ml-auto">{trailing}</div>}
         </div>
       </td>
     </tr>
@@ -279,13 +272,11 @@ function GroupHeader({
 function RankingCards({
   leaders,
   rest,
-  selector,
   selectedSymbol,
   onOpen,
 }: {
   leaders: OverseasStockRankItem[];
   rest: OverseasStockRankItem[];
-  selector: ReactNode;
   selectedSymbol: string | null;
   onOpen: (symbol: string) => void;
 }) {
@@ -305,7 +296,7 @@ function RankingCards({
     <div className="md:hidden">
       {leaders.length > 0 && <CardGroupHeader label="주도주" />}
       {section(leaders)}
-      <CardGroupHeader label="후보" hint="거래대금 순" trailing={selector} />
+      <CardGroupHeader label="후보" hint="거래대금 순" />
       {rest.length > 0 ? (
         section(rest)
       ) : (
@@ -357,17 +348,14 @@ function Card({
 function CardGroupHeader({
   label,
   hint,
-  trailing,
 }: {
   label: string;
   hint?: string;
-  trailing?: ReactNode;
 }) {
   return (
     <div className="bg-zinc-950 px-4 pt-4 pb-2 flex flex-wrap items-center gap-2">
       <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
       {hint && <span className="text-xs text-zinc-500">{hint}</span>}
-      {trailing && <div className="ml-auto">{trailing}</div>}
     </div>
   );
 }
