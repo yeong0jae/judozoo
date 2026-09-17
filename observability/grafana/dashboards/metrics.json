@@ -616,10 +616,11 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "node_memory_MemAvailable_bytes",
-          "legendFormat": "available"
+          "expr": "max by (host) (node_memory_MemAvailable_bytes)",
+          "legendFormat": "{{host}}"
         }
-      ]
+      ],
+      "description": "instance가 아니라 host로 묶는다 — 배포로 갈라진 과거 조각이 여러 줄로 보이지 않게."
     },
     {
       "id": 13,
@@ -665,7 +666,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"}",
+          "expr": "max by (mountpoint) (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"})",
           "legendFormat": "{{mountpoint}}"
         }
       ],

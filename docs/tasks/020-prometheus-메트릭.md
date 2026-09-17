@@ -7,10 +7,11 @@
 > 컨테이너를 하나도 인식하지 못했다(아래 함정). 컨테이너 메모리는 backend가 스스로 내는
 > `process_resident_memory_bytes`로 본다.
 >
-> **Grafana 프로비저닝은 두 번째 배포까지도 깨져 있었다.** `remote_deploy_ops.sh`에
+> **Grafana 프로비저닝은 두 번째 배포까지 깨져 있었다.** `remote_deploy_ops.sh`에
 > `--force-recreate`가 없어 grafana 컨테이너가 8시간 전 것 그대로였고, `rm -rf` + 재-scp로
-> 교체된 inode를 계속 가리켰다 — Prometheus 데이터소스와 메트릭 대시보드가 **한 번도
-> 올라간 적이 없다.** 아래 함정. 고쳤고 배포를 한 번 더 태워야 반영된다.
+> 교체된 inode를 계속 가리켰다 — Prometheus 데이터소스와 메트릭 대시보드가 한 번도 올라간
+> 적이 없었다(아래 함정). 세 번째 배포에서 해결 —
+> `inserting datasource from configuration name=Prometheus uid=prometheus`.
 
 Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다. 앱 VM의 `alloy`가 백엔드·호스트·컨테이너 메트릭을 걷어 ops VM의 Prometheus로 **remote_write**하고, Grafana가 Loki 옆에 그것을 붙인다.
 
@@ -257,7 +258,10 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 | 재배포 후 | cadvisor 에러 0건, alloy 83.9 → **60.4MB**. cadvisor 시계열은 staleness(5분) 뒤 사라진다 |
 | backend 재시작 | 재배포로 backend가 교체됐지만 **그 이전 데이터가 남아 있다** (12분 전 샘플 조회됨) |
 | TSDB | 612K / 약 15분치. 다만 cadvisor 2천 시계열이 섞인 값이라 24시간 뒤 다시 잰다 |
-| Grafana | **프로비저닝 실패 중** — `/etc/grafana/provisioning` 마운트가 stale. 아래 함정 |
+| Grafana | 3차 배포에서 해결. 데이터소스 `Prometheus` 등록, 대시보드 3장 프로비저닝, 에러 0건 |
+| 브로커 vendor | **4곳 전부 확인** — kis 6 · kiwoom 6 · toss 3 · yahoo 1 endpoint |
+| endpoint 카디널리티 | 총 16개. 야후가 **정확히 1개**라 심볼 정규화가 먹었다 |
+| 대시보드 쿼리 | 운영 데이터로 14개 실행 — 패널 대부분 값이 나온다 |
 
 ### 아직 확인 못 한 것
 
@@ -270,10 +274,10 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 - [x] ops VM `curl localhost:9090/-/ready` OK
 - [x] Prometheus `/api/v1/query?query=up` 에 `job="backend"` 시계열이 있다
 - [x] `scheduler_job_runs_total`이 장중에 증가한다 — 폴러 주기(10s/30s)와 맞는 기울기인지 본다
-- [ ] `http_client_requests_total`에 vendor 4곳이 모두 나타난다. **안 나타나는 vendor가 §2 편집을 빠뜨린 곳이다**
+- [x] `http_client_requests_total`에 vendor 4곳이 모두 나타난다. **안 나타나는 vendor가 §2 편집을 빠뜨린 곳이다**
 - [x] ~~cadvisor 메트릭에 컨테이너 4개가 보인다~~ — **불가로 판명해 항목 폐기.** 아래 함정
-- [ ] Grafana에서 Loki 패널과 Prometheus 패널이 **같은 대시보드에 함께** 뜬다
-      ← `--force-recreate` 수정을 배포한 뒤에야 가능하다. 그 전까지는 데이터소스 자체가 없다
+- [x] Grafana에 Prometheus 데이터소스와 메트릭 대시보드가 올라왔다 (3차 배포).
+      **패널 육안 확인은 남았다** — IAP 터널로 접속해서 본다
 - [x] **backend를 재시작**해도 Prometheus의 과거 데이터가 남아 있다 — 재배포가 backend를 교체했는데 그 이전 샘플이 조회됐다
 - [ ] ops VM 재부팅 후 prometheus 자동 복귀 + 볼륨 데이터 보존
 - [ ] 24시간 뒤 `du -sh` — TSDB 실크기를 재고 30일 추정치를 다시 계산한다
@@ -297,6 +301,7 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
       증상이 고약하다 — **스크레이프 타깃은 `up=1`이고 시계열도 2천 개 넘게 들어온다.** 전부 systemd 유닛(chrony·cron·containerd) 것이고 `name` 라벨이 없어 도커 컨테이너는 하나도 없다. 게다가 이 에러가 분당 alloy stdout에 쌓여 **Loki까지 오염시킨다.** 마운트로 고칠 수 있는 문제가 아니라서 걷어냈다.
       대신 `process_resident_memory_bytes{job="backend"}`를 쓴다 — 원래 답하려던 "backend 메모리가 새고 있나"에 직접 답하고, 이미 들어와 있다.
 - **`https://<도메인>/metrics`는 200을 준다.** 메트릭이 새는 게 아니라 nginx SPA fallback의 `index.html`이다. 상태코드만 보고 "노출됐다"고 판단하면 안 되고, 반대로 200을 보고 안심해서도 안 된다 — **본문을 봐야 한다.**
+- **내장 exporter의 `instance`는 alloy 컨테이너 ID다.** 배포할 때마다 바뀌므로 호스트 시계열이 매번 새로 갈라지고, 옛 조각은 stale로 남는다. 머신은 하나인데 30일 보존이면 배포 횟수만큼 조각이 쌓인다. 실제로 배포 두 번 만에 `node_memory_MemAvailable_bytes`가 2벌, 디스크가 mountpoint마다 2벌이 됐다. `discovery.relabel`로 `instance`를 호스트 이름에 고정했고, 대시보드도 `max by (host)`로 묶어 과거 조각이 여러 줄로 보이지 않게 했다.
 - **`job`은 라벨 이름으로 쓸 수 없다.** 처음엔 `scheduler_job_runs_total{job="signal-event-poller"}`로 만들었는데, `job`·`instance`는 Prometheus가 스크레이프 타깃에 붙이는 예약 라벨이라 충돌하면 우리 쪽이 `exported_job`으로 밀려난다. 로컬에서 실제로 흘려보고서야 드러났다:
       ```
       {job="backend", exported_job="signal-event-poller", result="success"}
