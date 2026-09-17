@@ -6,7 +6,8 @@
 # zone              = "asia-northeast3-a"
 # github_repository = "yeong0jae/judozoo"
 
-# 프론트 접근을 본인 IP로 제한하려면:
+# 웹 인바운드는 기본값이 Cloudflare 엣지 대역이다(variables.tf).
+# 프록시를 끄고 테스트하는 등 잠시 열어야 하면 여기서 덮어쓴다:
 # allowed_web_source_ranges = ["<내-공인-IP>/32"]
 
 # 머신 사양을 키우려면:
