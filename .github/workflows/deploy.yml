@@ -113,8 +113,8 @@ jobs:
       fail-fast: false                 # 한 인스턴스 실패해도 다른 인스턴스 배포 계속
       matrix:
         target:
-          - key: kiwoom-real
-            vm_var: VM_NAME_KIWOOM_REAL
+          - key: app
+            vm_var: VM_NAME_APP
     name: deploy ${{ matrix.target.key }}
     steps:
       - uses: actions/checkout@v4

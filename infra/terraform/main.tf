@@ -21,8 +21,16 @@ resource "google_project_service" "apis" {
 # 인스턴스 정의
 # ---------------------------------------------------------------------------
 locals {
+  # **키(`kiwoom-real`)를 바꾸지 않는다.** google_compute_address.frontend 가 같은 키를
+  # 쓰므로, 키를 건드리면 고정 외부 IP까지 재생성된다. 그러면 Cloudflare A 레코드와
+  # 키움 IP 허용목록을 둘 다 갱신해야 한다 — 이름 정리하자고 치를 값이 아니다.
+  #
+  # 키는 3인스턴스(kis-vts/kis-real/kiwoom-real) 시절 잔재이고 지금은 인스턴스가 하나다.
   instances = {
-    "kiwoom-real" = { name_suffix = "-kiwoom-real" }
+    "kiwoom-real" = {
+      name_suffix = "-kiwoom-real" # 고정 IP 이름에 계속 쓰인다
+      vm_name     = "judozoo-server-prod"
+    }
   }
 }
 
@@ -206,7 +214,7 @@ resource "google_service_networking_connection" "sql" {
 # ---------------------------------------------------------------------------
 resource "google_compute_instance" "app" {
   for_each     = local.instances
-  name         = "auto-trading-app${each.value.name_suffix}"
+  name         = each.value.vm_name
   machine_type = var.machine_type
   zone         = var.zone
   tags         = ["auto-trading"]
