@@ -356,6 +356,7 @@ export interface LeadingStockDetailResponse {
   priceChangeRate: number;
   relativeVolume: number | null;
   filterResults: FilterResultItem[];
+  market: string | null; // "KOSPI" | "KOSDAQ". 카탈로그에 없으면 null
 }
 
 export interface DailyCandleItem {

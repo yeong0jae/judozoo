@@ -66,10 +66,14 @@ export default function StockDetailPanel({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <StockAvatar name={detail?.stockName ?? "?"} code={shortCode(stockCode)} size={40} />
+              <StockAvatar name={detail?.stockName ?? "?"} code={shortCode(stockCode)} size={30} />
               <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                 <span className="text-lg font-bold tracking-tight text-zinc-100">{detail?.stockName ?? "…"}</span>
-                <span className="text-xs text-zinc-500 num">{shortCode(stockCode)}</span>
+                {/* 코드와 한 덩어리로 읽히게 같은 글꼴·같은 색으로 잇는다 */}
+                <span className="text-xs text-zinc-500 num">
+                  {shortCode(stockCode)}
+                  {detail?.market && ` · ${detail.market}`}
+                </span>
               </div>
             </div>
             {detail && (

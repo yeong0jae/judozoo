@@ -162,6 +162,8 @@ class LeadingStockDetailResponse(BaseModel):
     current_price: int = Field(serialization_alias="currentPrice")
     price_change_rate: float = Field(serialization_alias="priceChangeRate")
     relative_volume: float | None = Field(serialization_alias="relativeVolume")
+    #: 소속 시장 — 카탈로그에 없으면 None(화면은 그때 아무것도 적지 않는다)
+    market: str | None = None
     filter_results: list[FilterResultItem] = Field(serialization_alias="filterResults")
 
 
@@ -402,6 +404,7 @@ def get_stock_detail(stock_code: str) -> ApiResponse[LeadingStockDetailResponse]
             stock_code=s.stock_code, stock_name=s.stock_name,
             current_price=s.current_price, price_change_rate=s.price_change_rate,
             relative_volume=ev.relative_volume,
+            market=ev.market.name if ev.market else None,
             filter_results=[
                 FilterResultItem(
                     filter_name=r.filter_name, criteria_description=r.criteria_description,

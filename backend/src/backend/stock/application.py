@@ -16,7 +16,7 @@ from backend.library.cache import is_empty, ttl_cache
 from backend.library.db import get_session_factory
 from backend.platform.kiwoom import investor as kiwoom_investor
 from backend.stock import infrastructure
-from backend.stock.domain import OverseasStock, Stock, Stocks
+from backend.stock.domain import Market, OverseasStock, Stock, Stocks
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +52,15 @@ def search(query: str) -> list[StockSearchResult]:
         else []
     )
     return (domestic + overseas)[:SEARCH_LIMIT]
+
+
+def market_of(stock_code: str) -> Market | None:
+    """그 종목이 코스피인지 코스닥인지. 카탈로그에 없으면 None.
+
+    카탈로그는 메모리에 상주하므로 조회 비용이 없다 — 상세 화면이 매번 물어도 된다.
+    """
+    found = _domestic.find(stock_code)
+    return found.market if found else None
 
 
 def catalog_sizes() -> tuple[int, int]:

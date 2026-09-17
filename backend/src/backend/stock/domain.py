@@ -72,6 +72,12 @@ class Stocks:
         found.sort(key=lambda s: (s._relevance(q), s.name))
         return found[:limit]
 
+    def find(self, short_code: str) -> "Stock | None":
+        """단축코드로 한 종목. 거래소 접미사(`009150_AL`)가 붙어 와도 앞쪽만 본다 —
+        시세 쪽은 SOR 통합 코드를 쓰지만 카탈로그는 단축코드로 적재된다."""
+        code = short_code.split("_")[0].strip()
+        return next((s for s in self._stocks if s.short_code == code), None)
+
 
 class OverseasStock(Base):
     """해외 상장 종목(미국).

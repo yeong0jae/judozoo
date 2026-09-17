@@ -25,6 +25,8 @@ from backend.library.time import today
 from backend.platform.kiwoom import market as kiwoom_market
 from backend.platform.kiwoom import program as kiwoom_program
 from backend.settings import get_settings
+from backend.stock import application as stock_app
+from backend.stock.domain import Market
 
 log = logging.getLogger(__name__)
 
@@ -80,11 +82,12 @@ class BreakoutRadarStock:
 
 @dataclass(frozen=True)
 class StockEvaluation:
-    """종목 상세 평가 — 필터 평가 + 상대거래량. 데이터 없으면 각각 None."""
+    """종목 상세 평가 — 필터 평가 + 상대거래량 + 소속 시장. 데이터 없으면 각각 None."""
 
     stock: LeadingStockSnapshot
     filter_results: list[flt.FilterEvaluationResult]
     relative_volume: float | None
+    market: Market | None = None
 
 
 def _criteria():
@@ -173,6 +176,8 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         stock=stock,
         filter_results=[f.evaluate(stock) for f in all_filters],
         relative_volume=DailyCandles(daily).relative_volume(today(), _RVOL_LOOKBACK_DAYS),
+        # 소속 시장은 종목 카탈로그가 안다 — 시세에는 없는 정보라 stock 피처에 묻는다
+        market=stock_app.market_of(stock_code),
     )
 
 
