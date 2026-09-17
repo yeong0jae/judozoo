@@ -14,10 +14,22 @@ fetch() {
   gcloud secrets versions access latest --secret="$1"
 }
 
+# Slack 웹훅은 **먼저 변수로 받아 비었는지 본다.** 히어독 안에서 $(fetch ...)가 실패하면
+# set -e가 안 걸리고 빈 값으로 넘어간다 — 그러면 Grafana 수신처 URL이 비고, 알림이
+# 발송되지 않는데 배포도 알림도 아무 소리를 내지 않는다. 이 스택에서 이미 두 번 겪은
+# 실패 방식이라(020 함정 참고) 여기서 끊는다.
+SLACK_WEBHOOK_URL="$(fetch AT_GRAFANA_SLACK_WEBHOOK_URL || true)"
+if [ -z "$SLACK_WEBHOOK_URL" ]; then
+  echo "AT_GRAFANA_SLACK_WEBHOOK_URL 을 읽지 못했다 — Slack 알림이 조용히 죽는다."
+  echo "  gcloud secrets create AT_GRAFANA_SLACK_WEBHOOK_URL --data-file=- <<< '<웹훅 URL>'"
+  exit 1
+fi
+
 umask 077
 cat > secrets/.env <<EOF
 GF_SECURITY_ADMIN_PASSWORD=$(fetch AT_GRAFANA_ADMIN_PASSWORD)
 GF_MYSQL_PASSWORD=$(fetch AT_GRAFANA_MYSQL_PASSWORD)
+SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
 DB_HOST=10.100.0.3
 EOF
 
@@ -62,6 +74,8 @@ done
 for f in /etc/grafana/provisioning/datasources/prometheus.yaml \
          /etc/grafana/provisioning/datasources/loki.yaml \
          /etc/grafana/provisioning/dashboards/dashboards.yaml \
+         /etc/grafana/provisioning/alerting/rules.yaml \
+         /etc/grafana/provisioning/alerting/contact-points.yaml \
          /var/lib/grafana/dashboards/metrics.json; do
   if ! sudo docker compose "${COMPOSE[@]}" exec -T grafana test -f "$f"; then
     echo "grafana 마운트 깨짐: $f 가 컨테이너 안에 없다"; exit 1

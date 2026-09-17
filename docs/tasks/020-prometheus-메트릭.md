@@ -224,6 +224,43 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 - [x] `remote_deploy.sh`(앱) — **alloy 생존 검사 추가.** 기존 검사는 backend·프론트뿐이라, alloy가 죽어도 배포가 초록으로 끝난다. 위 함정의 유일한 방어선이다
 - [x] 배포 순서 확인 — `deploy-ops` → `deploy`. Prometheus가 먼저 서 있어야 alloy가 remote_write 재시도를 안 겪는다 (Loki와 같은 이유)
 
+## 8. Slack 알림 — ②번 패널
+
+**대시보드 13개 패널 중 여기만 알림을 붙인다.** 나머지는 상태를 보여주지만 이 패널만
+"지금 뭔가 잘못됐다"를 보여준다 — 평소 완전히 비어 있는 게 정상인 유일한 패널이다.
+Alertmanager는 세우지 않는다(설계 결정 표 참고). Grafana 알림이 같은 데이터소스를 그대로 쓴다.
+
+- [x] `provisioning/alerting/rules.yaml` — 규칙 2개. **계열이 둘이고 뜻이 달라서 나눈다**
+      - `스케줄러 잡이 실패를 삼키고 있다` — `scheduler_job_errors_total` (예외로 깨짐)
+      - `스케줄러 잡이 밀리고 있다` — `result="missed"` (이전 실행이 안 끝나 건너뜀)
+- [x] 문턱 **10분 내 3회 초과 + `for: 2m`**. 0으로 두지 않는 이유는 브로커 네트워크가
+      한 번 튀는 것으로 울리면 알림을 끄게 되기 때문이다. 10초 폴러가 진짜 깨지면 10분에
+      60번 실패하므로 3은 여전히 낮은 문턱이다
+- [x] `noDataState: OK` — 배포 중 backend가 잠깐 사라져 시계열이 끊기는 것으로 울리지 않는다
+- [x] `provisioning/alerting/contact-points.yaml` — Slack. URL은 `$SLACK_WEBHOOK_URL`
+      (`datasources/mysql.yaml`의 `$DB_HOST`와 같은 방식). **저장소에 URL이 없다**
+- [x] `provisioning/alerting/notification-policies.yaml` — 기본 라우트를 Slack으로,
+      `group_by: [alertname, job_id]`, `repeat_interval: 4h`
+- [x] `remote_deploy_ops.sh` — `AT_GRAFANA_SLACK_WEBHOOK_URL`을 Secret Manager에서 받는다.
+      **비어 있으면 배포를 끊는다** — 히어독 안의 `$(fetch ...)` 실패는 `set -e`에 안 걸려
+      빈 값으로 넘어가고, 그러면 알림이 발송되지 않는데 아무 소리도 안 난다
+- [x] 마운트 검사에 `alerting/` 파일 추가 (§7의 stale bind-mount 방어)
+- [ ] **`AT_GRAFANA_SLACK_WEBHOOK_URL` 시크릿 생성** ← 사람이 해야 한다. 이게 없으면 배포가 실패한다
+      ```
+      gcloud secrets create AT_GRAFANA_SLACK_WEBHOOK_URL --data-file=- <<< '<웹훅 URL>'
+      ```
+- [ ] 실제 Slack 채널에 메시지가 도착하는지 확인
+
+### 로컬 검증 (2026-09-17)
+
+| 항목 | 결과 |
+|---|---|
+| 프로비저닝 | Grafana 11.5.2 실기동 — `finished to provision alerting`, 에러 0건 |
+| 규칙 등록 | 2개 모두 등록. `for=2m`, `noData=OK`, threshold `gt 2` |
+| 규칙 평가 | 둘 다 `inactive` — 쿼리가 에러 없이 돌고 문턱 미달 상태 |
+| 수신처 | `$SLACK_WEBHOOK_URL` 확장 확인. 기본 라우트가 slack |
+| 전송 배선 | 더미 URL로 테스트 → `failed incoming webhook: no_team`. **Slack이 직접 거부한 응답**이라 요청이 제대로 나갔다는 뜻이다 |
+
 ## 검증
 
 ### 로컬에서 확인한 것 (2026-09-17, 배포 전)
