@@ -282,8 +282,8 @@ Prometheus와 무관하지만 §8과 **같은 문제**라서 여기 둔다 — �
 - [x] 채널 분리 — 운영 장애(§8)와 배포 이벤트가 섞이지 않게 별도 웹훅을 쓴다
 - [x] **`AT_SLACK_DEPLOY_WEBHOOK_URL` 시크릿 생성** (2026-09-17)
 - [x] `main.tf` — 배포 SA에 **이 시크릿 하나만** `secretAccessor`. 아래 함정 참고
-- [ ] `terraform apply` — 이게 있어야 notify job이 웹훅을 읽는다
-- [ ] 실제 채널에 성공·실패 메시지가 도착하는지 확인
+- [x] `terraform apply` (2026-09-18). 이후 `plan`이 `0 to add`
+- [x] 실제 채널에 메시지 도착 확인 (2026-09-18) — `ee91611` 실행의 notify job success
 
 ### 로컬 검증 (2026-09-17)
 
@@ -350,6 +350,9 @@ Prometheus와 무관하지만 §8과 **같은 문제**라서 여기 둔다 — �
 - [x] **backend를 재시작**해도 Prometheus의 과거 데이터가 남아 있다 — 재배포가 backend를 교체했는데 그 이전 샘플이 조회됐다
 - [ ] ops VM 재부팅 후 prometheus 자동 복귀 + 볼륨 데이터 보존
 - [ ] 24시간 뒤 `du -sh` — TSDB 실크기를 재고 30일 추정치를 다시 계산한다
+      **중간 측정 (2026-09-18 00:20 KST, 약 1시간 40분치): 2.9MB.** 단순 환산하면 월 ~1.2GB로
+      상한 4GB 안에 들어온다. 다만 이 구간에는 걷어내기 전 cadvisor 시계열 2,153개가 섞여
+      있어 과대 추정이다. 부트디스크는 아직 15GB 여유(24% 사용)
 - [x] `terraform plan` — 방화벽 apply 후 `0 to add, 1 to change, 0 to destroy`. 남은 1건은 019가 "늘 뜬다"고 적어둔 Artifact Registry drift다
 
 ## 알려진 함정
