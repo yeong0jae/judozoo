@@ -99,6 +99,75 @@ resource "google_compute_firewall" "ssh" {
 }
 
 # ---------------------------------------------------------------------------
+# Cloud NAT — 외부 IP 없는 VM의 아웃바운드
+#
+# ops VM(judozoo-ops-prod)에는 외부 IP를 주지 않는다. 그러면 Docker 설치와 apt 보안
+# 패치가 막히므로 **나가는 길만** 연다. NAT는 들어오는 연결을 열지 않는다.
+#
+# 외부 IP가 있는 VM은 NAT를 타지 않고 자기 IP로 그대로 나간다 — 브로커 IP 허용목록이
+# 앱 VM의 고정 IP를 보고 있으므로 앱 VM의 동작은 변하지 않는다.
+# ---------------------------------------------------------------------------
+resource "google_compute_router" "nat" {
+  name    = "judozoo-router"
+  network = data.google_compute_network.default.id
+  region  = var.region
+}
+
+resource "google_compute_router_nat" "nat" {
+  name                               = "judozoo-nat"
+  router                             = google_compute_router.nat.name
+  region                             = var.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
+  # 조용하되 실패는 남긴다. 전체 로깅은 양이 많고 볼 일도 없다.
+  log_config {
+    enable = true
+    filter = "ERRORS_ONLY"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# ops VM 방화벽
+#
+# **`auto-trading` 태그를 ops VM에 달지 않는다.** 그 태그는 allow-web(0.0.0.0/0 → 80,443)의
+# 타깃이라, 외부 IP가 없어도 규칙만큼은 인터넷을 향해 열린 상태가 된다.
+#
+# 3100은 앱 VM의 alloy가 로그를 밀어 넣는 통로다. default-allow-internal이 VPC 내부
+# 전 포트를 이미 열어두고 있어 이 규칙이 실제 경계는 아니지만, 의도를 코드로 남긴다.
+# ---------------------------------------------------------------------------
+resource "google_compute_firewall" "ops_loki" {
+  name    = "judozoo-ops-allow-loki"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3100"]
+  }
+
+  source_tags = ["auto-trading"]
+  target_tags = ["judozoo-ops"]
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_compute_firewall" "ops_iap" {
+  name    = "judozoo-ops-allow-iap"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    # 3000 = Grafana. 공개 서브도메인 없이 IAP 터널로만 연다.
+    ports = ["22", "3000"]
+  }
+
+  source_ranges = ["REDACTED_IP/20"]
+  target_tags   = ["judozoo-ops"]
+
+  depends_on = [google_project_service.apis]
+}
+
+# ---------------------------------------------------------------------------
 # Cloud SQL private IP 연결 (Private Service Access)
 #
 # Cloud SQL 인스턴스는 Google이 관리하는 테넌트 프로젝트에서 돌고 VPC 피어링으로
@@ -167,6 +236,53 @@ resource "google_compute_instance" "app" {
   }
 
   depends_on = [google_project_service.apis]
+}
+
+# ---------------------------------------------------------------------------
+# 관측 전용 VM — Loki · Grafana
+#
+# 용량 때문이 아니다(둘 합쳐 152MB). 앱 VM이 죽어도 **왜 죽었는지 볼 도구는 살아 있게**
+# 하려는 것이고, 배포마다 관측 스택이 강제 재생성되는 것을 끊으려는 것이다.
+#
+# 수집기(alloy)는 앱 VM에 남는다 — docker.sock이 유닉스 소켓이라 남의 호스트 컨테이너를
+# 읽지 못한다. 수집은 호스트마다, 저장은 한 곳에.
+#
+# 별도 PD를 두지 않는다. 대시보드는 git에 있고(프로비저닝 바인드) 로그는 7일짜리라,
+# VM을 재생성해도 잃을 것이 사용자 설정과 지난 로그뿐이다. DB와 판단 기준이 다르다.
+# ---------------------------------------------------------------------------
+resource "google_compute_instance" "ops" {
+  name         = "judozoo-ops-prod"
+  machine_type = "e2-small"
+  zone         = var.zone
+
+  # **`auto-trading`을 달지 않는다.** 그 태그는 allow-web(0.0.0.0/0 → 80,443)의 타깃이다.
+  tags = ["judozoo-ops"]
+
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2404-lts-amd64"
+      size  = var.boot_disk_size_gb
+    }
+  }
+
+  # access_config 블록이 없다 = 외부 IP 없음. 아웃바운드는 Cloud NAT가 맡는다.
+  network_interface {
+    network = "default"
+  }
+
+  # 앱 VM과 같은 런타임 SA. AR pull·Secret 접근이 이미 붙어 있다.
+  service_account {
+    email  = google_service_account.vm.email
+    scopes = ["cloud-platform"]
+  }
+
+  # Docker 설치뿐이라 앱 VM과 같은 스크립트를 쓴다.
+  metadata = {
+    enable-oslogin = "TRUE"
+    startup-script = file("${path.module}/startup.sh")
+  }
+
+  depends_on = [google_compute_router_nat.nat]
 }
 
 # ---------------------------------------------------------------------------

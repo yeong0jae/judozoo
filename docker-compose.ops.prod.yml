@@ -1,0 +1,10 @@
+# ops prod override: docker compose -f docker-compose.ops.yml -f docker-compose.ops.prod.yml up -d
+#
+# 앱 스택과 달리 여기엔 우리가 빌드한 이미지가 없다 — loki·grafana 모두 공개 이미지라
+# Artifact Registry도, IMAGE_TAG도 필요 없다. 재시작 정책만 얹는다.
+services:
+  loki:
+    restart: unless-stopped
+
+  grafana:
+    restart: unless-stopped

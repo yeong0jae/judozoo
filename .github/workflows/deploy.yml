@@ -69,8 +69,37 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
+  # 관측 VM. 앱보다 먼저 세워야 alloy가 Loki를 찾지 못해 재시도하는 구간이 없다.
+  # 빌드에 의존하지 않는다 — loki·grafana는 공개 이미지다.
+  deploy-ops:
+    runs-on: ubuntu-latest
+    name: deploy ops
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Sync compose + deploy script to ops VM
+        run: |
+          gcloud compute ssh "${{ vars.VM_NAME_OPS }}" --tunnel-through-iap --zone "${VM_ZONE}" \
+            --command 'sudo rm -rf ~/observability'
+          gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" --recurse \
+            docker-compose.ops.yml docker-compose.ops.prod.yml infra/deploy/remote_deploy_ops.sh observability \
+            "${{ vars.VM_NAME_OPS }}:~/"
+
+      - name: Deploy on ops VM
+        run: |
+          gcloud compute ssh "${{ vars.VM_NAME_OPS }}" --tunnel-through-iap --zone "${VM_ZONE}" \
+            --command "bash ~/remote_deploy_ops.sh"
+
   deploy:
-    needs: build
+    needs: [build, deploy-ops]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false                 # 한 인스턴스 실패해도 다른 인스턴스 배포 계속

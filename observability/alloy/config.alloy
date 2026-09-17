@@ -29,8 +29,13 @@ loki.source.docker "default" {
   relabel_rules = discovery.relabel.containers.rules
 }
 
+// Loki는 ops VM(judozoo-ops-prod)에 있다. alloy는 앱 VM에만 있으므로 호스트별로
+// 달라질 값이 없어 내부 DNS를 그대로 적는다.
+//
+// **이 주소가 틀려도 에러로 드러나지 않는다.** 앱은 멀쩡히 돌고 Grafana 대시보드만
+// 빈다. 로그가 사라졌다면 여기부터 본다.
 loki.write "default" {
   endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
+    url = "http://judozoo-ops-prod.asia-northeast3-a.c.trading-496508.internal:3100/loki/api/v1/push"
   }
 }

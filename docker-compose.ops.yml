@@ -1,0 +1,54 @@
+# 관측 전용 VM(judozoo-ops-prod)의 스택. 앱 VM의 docker-compose.yml과 겹치지 않는다.
+#
+#   docker compose -f docker-compose.ops.yml -f docker-compose.ops.prod.yml up -d
+#
+# 수집기(alloy)는 여기 없다. 걷을 것이 loki·grafana 자기 로그뿐인데 바로 옆 Loki로
+# 밀어 넣는 구조라, Loki가 죽으면 그 사실을 남길 곳도 같이 죽는다. 반쪽짜리에
+# 95MB를 쓰지 않는다 — ops 스택 문제는 SSH + docker logs 로 본다.
+services:
+  loki:
+    image: grafana/loki:3.4.2
+    command: -config.file=/etc/loki/local-config.yaml
+    # 앱 VM의 alloy가 **다른 머신에서** 붙는다. 같은 compose 네트워크 안에서만 쓰던
+    # 때와 달라지는 지점이다. 인터넷 노출은 없다 — 이 VM에는 외부 IP가 없고,
+    # judozoo-ops-allow-loki 가 tag auto-trading 에서 오는 3100만 연다.
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - ops
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      # 다른 컨테이너는 KST인데 여기만 UTC면 로그·기본 표시가 9시간 어긋난다.
+      TZ: Asia/Seoul
+      GF_SECURITY_ADMIN_USER: admin
+    # IAP 터널이 VM의 네트워크 인터페이스로 붙으므로 호스트 포트가 필요하다.
+    # 127.0.0.1에 묶으면 IAP가 닿지 못한다 — 0.0.0.0이어야 한다.
+    ports:
+      - "3000:3000"
+    # GF_SECURITY_ADMIN_PASSWORD · GF_MYSQL_PASSWORD · DB_HOST 가 여기 들어온다.
+    # compose 보간(${...})은 env_file을 못 읽으므로 컨테이너에 직접 주입해야 한다.
+    env_file:
+      - ./secrets/.env
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - loki
+    networks:
+      - ops
+
+# 별도 PD를 붙이지 않는다. 대시보드는 git(프로비저닝 바인드)에 있고 로그는 7일짜리라,
+# VM을 재생성해도 잃을 것이 사용자 설정과 지난 로그뿐이다.
+volumes:
+  loki-data:
+  grafana-data:
+
+networks:
+  ops:
+    driver: bridge

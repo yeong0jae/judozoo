@@ -55,15 +55,6 @@ services:
       - trading
 
   # 로그 수집/저장/조회 스택 (Alloy 스크레이프 → Loki → Grafana)
-  loki:
-    image: grafana/loki:3.4.2
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
-      - loki-data:/loki
-    networks:
-      - trading
-
   alloy:
     image: grafana/alloy:v1.7.5
     command:
@@ -74,41 +65,13 @@ services:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
-    depends_on:
-      - loki
-    networks:
-      - trading
-
-  grafana:
-    image: grafana/grafana:11.5.2
-    environment:
-      # 다른 컨테이너는 KST인데 여기만 UTC면 로그·기본 표시가 9시간 어긋난다.
-      TZ: Asia/Seoul
-      GF_SECURITY_ADMIN_USER: admin
-    # IAP 터널이 VM의 네트워크 인터페이스로 붙으므로 호스트 포트가 필요하다.
-    # 127.0.0.1에 묶으면 IAP가 닿지 못한다 — 0.0.0.0이어야 한다.
-    # 인터넷 노출은 없다: GCP 방화벽이 3000을 IAP 대역(REDACTED_IP/20)에만 연다.
-    ports:
-      - "3000:3000"
-    # GF_SECURITY_ADMIN_PASSWORD가 여기 들어온다 (Secret Manager → remote_deploy.sh).
-    # compose 보간(${...})은 env_file을 못 읽으므로 컨테이너에 직접 주입해야 한다.
-    env_file:
-      - ./secrets/.env
-    volumes:
-      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana-data:/var/lib/grafana
-    depends_on:
-      - loki
     networks:
       - trading
 
 volumes:
   caddy-data:
   caddy-config:
-  loki-data:
   alloy-data:
-  grafana-data:
 
 networks:
   trading:

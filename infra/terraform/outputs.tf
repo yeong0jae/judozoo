@@ -37,3 +37,13 @@ output "sql_private_ip" {
   description = "Cloud SQL private IP (remote_deploy.sh의 DB_HOST 값)"
   value       = google_sql_database_instance.db.private_ip_address
 }
+
+output "ops_vm_name" {
+  description = "관측 VM 이름 (GitHub Variables VM_NAME_OPS 값)"
+  value       = google_compute_instance.ops.name
+}
+
+output "ops_internal_dns" {
+  description = "앱 VM의 alloy가 로그를 밀어 넣을 주소"
+  value       = "${google_compute_instance.ops.name}.${google_compute_instance.ops.zone}.c.${var.project_id}.internal"
+}
