@@ -146,3 +146,63 @@ jobs:
         run: |
           gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
             --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION}"
+
+  # 배포 결과를 Slack으로.
+  #
+  # **이 job이 생긴 이유** — 2026-09-17 ops 배포가 실패했는데 아무도 몰랐다. GitHub를
+  # 직접 들여다보지 않으면 실패가 드러나지 않는다. 스케줄러 알림(020 §8)과 같은 문제다.
+  #
+  # 채널은 스케줄러 알림과 분리한다 — 운영 장애와 배포 이벤트가 섞이지 않게.
+  notify:
+    needs: [build, deploy-ops, deploy]
+    # 앞 job이 깨져도 돌아야 한다. 실패를 알리는 게 목적이므로 success()면 의미가 없다.
+    if: always()
+    runs-on: ubuntu-latest
+    name: notify
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # 웹훅을 GitHub Secrets에 복제하지 않는다. 러너가 이미 WIF로 붙어 있으므로
+      # Secret Manager가 그대로 단일 출처가 된다.
+      - name: Notify Slack
+        env:
+          BUILD: ${{ needs.build.result }}
+          OPS: ${{ needs.deploy-ops.result }}
+          APP: ${{ needs.deploy.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          url="$(gcloud secrets versions access latest --secret=AT_SLACK_DEPLOY_WEBHOOK_URL)"
+          # **로그에서 가린다.** 이 줄 이후 Actions 로그에 URL이 찍히면 ***로 대체된다.
+          # curl이 실패 메시지에 URL을 뱉는 경우까지 덮어준다.
+          echo "::add-mask::$url"
+          if [ -z "$url" ]; then
+            echo "AT_SLACK_DEPLOY_WEBHOOK_URL 이 비었다 — 배포 알림이 조용히 죽는다"
+            exit 1
+          fi
+
+          subject="$(git log -1 --pretty=%s)"
+
+          if [ "$BUILD" = success ] && [ "$OPS" = success ] && [ "$APP" = success ]; then
+            text="$(printf '✅ *배포 성공*\n`%s` %s\n<%s|실행 보기>' \
+              "${GITHUB_SHA:0:7}" "$subject" "$RUN_URL")"
+          else
+            # 어느 단계에서 깨졌는지가 메시지의 핵심이다. 이게 없으면 결국 GitHub를 연다.
+            text="$(printf '🔴 *배포 실패*\n`%s` %s\nbuild=%s  deploy-ops=%s  deploy=%s\n<%s|로그 보기>' \
+              "${GITHUB_SHA:0:7}" "$subject" "$BUILD" "$OPS" "$APP" "$RUN_URL")"
+          fi
+
+          code="$(jq -n --arg t "$text" '{text: $t}' \
+            | curl -sS -o /dev/null -w '%{http_code}' -X POST \
+                   -H 'Content-Type: application/json' --data @- "$url")"
+          echo "slack 응답 $code"
+          [ "$code" = 200 ] || { echo "Slack 전송 실패"; exit 1; }
