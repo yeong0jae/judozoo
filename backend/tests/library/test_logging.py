@@ -75,3 +75,69 @@ class Test그_외_예외:
     def test_필터는_기록을_버리지_않는다(self):
         assert 필터.filter(기록("x", exc=BrokerTokenUnavailable("y"))) is True
         assert 필터.filter(기록("x", exc=ValueError("y"))) is True
+
+
+class TestJSON_포맷:
+    """운영 로그는 한 줄 JSON이다. Loki에서 `| json | level="ERROR"` 로 거르기 위한 것."""
+
+    def 포맷(self, record) -> dict:
+        import json
+
+        from backend.library.logging_config import JsonFormatter
+
+        return json.loads(JsonFormatter().format(record))
+
+    def test_한_줄에_기본_필드를_싣는다(self):
+        d = self.포맷(기록("주도주 후보 %s건", ("12",)))
+
+        assert d["level"] == "ERROR"
+        assert d["logger"] == "t"
+        assert d["msg"] == "주도주 후보 12건"
+
+    def test_시각에_오프셋을_붙인다(self):
+        """오프셋이 없으면 Loki가 KST 벽시계를 UTC로 읽어 9시간 어긋난다."""
+        d = self.포맷(기록("x"))
+
+        assert d["ts"][-6] in "+-"
+
+    def test_한글이_이스케이프되지_않는다(self):
+        import json
+
+        from backend.library.logging_config import JsonFormatter
+
+        line = JsonFormatter().format(기록("분봉 파싱 실패"))
+
+        assert "분봉 파싱 실패" in line
+        assert json.loads(line)["msg"] == "분봉 파싱 실패"
+
+    def test_extra로_넘긴_값을_필드로_싣는다(self):
+        r = 기록("접속")
+        r.user = "u-1234"
+
+        assert self.포맷(r)["user"] == "u-1234"
+
+    def test_진짜_오류는_트레이스를_싣는다(self):
+        d = self.포맷(기록("분봉 파싱 실패", exc=ValueError("예상 못한 응답")))
+
+        assert "Traceback" in d["exc"]
+
+    def test_예외가_없으면_exc_필드가_없다(self):
+        assert "exc" not in self.포맷(기록("평범한 로그"))
+
+
+class Test액세스_로그_흡수:
+    """uvicorn은 자기 로거에 핸들러를 달고 propagate를 끈다 — 그대로 두면 액세스 로그만 딴 모양이다."""
+
+    def test_핸들러를_걷고_루트로_흘려보낸다(self):
+        import logging as _logging
+
+        from backend.library.logging_config import configure_logging
+
+        access = _logging.getLogger("uvicorn.access")
+        access.addHandler(_logging.NullHandler())
+        access.propagate = False
+
+        configure_logging()
+
+        assert access.handlers == []
+        assert access.propagate is True

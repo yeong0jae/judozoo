@@ -3,6 +3,9 @@
 services:
   backend:
     build: !reset null
+    # 운영 로그는 JSON 한 줄 — Grafana에서 `| json | level="ERROR"` 로 거른다.
+    environment:
+      LOG_FORMAT: json
     image: ${BACKEND_IMAGE}:${IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped

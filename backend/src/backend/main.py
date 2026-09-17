@@ -42,7 +42,7 @@ def load_stock_catalog() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    configure_logging(settings.debug_package)
+    configure_logging(settings.debug_package, log_format=settings.log_format)
     log.info("기동 — DB %s:%s/%s", settings.database.host, settings.database.port, settings.database.name)
     # 브로커 토큰 저장소 — 재기동이 발급을 소비하지 않게 한다. 카탈로그 적재보다 먼저 와야
     # 한다(적재가 KIS를 쓴다). 실패해도 fail-soft라 기동을 막지 않는다.

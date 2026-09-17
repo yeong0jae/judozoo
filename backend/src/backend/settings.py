@@ -132,6 +132,8 @@ class Settings(BaseSettings):
 
     app_name: str = "backend"
     debug_package: str = "backend"
+    # 운영은 json, 로컬은 text. docker-compose.prod.yml이 json을 준다.
+    log_format: str = Field("text", validation_alias="LOG_FORMAT")
 
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     kis: KisSettings = Field(default_factory=KisSettings)
