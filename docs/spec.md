@@ -178,7 +178,7 @@ MarketCap → TradingValueRank → DailyPriceChange → DailyHighPosition
 
 | 작업 | 시각 | 비고 |
 |------|------|------|
-| `StockCatalogRefresher` | 08:30 매일 | 종목 마스터 갱신 |
+| `StockCatalogRefresher` | 07:40 매일 | 종목 마스터 갱신 — NXT 프리마켓(08:00) 전 |
 | `MarketCloseSnapshotCapture` | 15:40 평일 | 정규장 마감 확정 수급 |
 | `ThemeCapturePoller` | 15:40 / 20:00 매일 | 정규장·애프터마켓 마감 후 2회 |
 | `OverseasIndexSnapshotCapture` | 06:10 화~토 | 미국장 마감 후 |
