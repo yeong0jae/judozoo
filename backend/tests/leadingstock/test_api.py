@@ -219,10 +219,10 @@ class Test시그널_로그:
         assert 데이터["totalCount"] == 12
         assert 데이터["events"][0]["stockName"] == "종목11"
 
-    def test_미로그인은_등락률_3퍼센트_미만을_못_본다(self, client, 이벤트_테이블):
+    def test_미로그인은_내린_종목의_전이를_못_본다(self, client, 이벤트_테이블):
         """감시 풀이 -12%까지 넓어, 거르지 않으면 미리보기가 급락주 전이로 찰 수 있다."""
         with get_session_factory()() as s:
-            for i, 등락률 in enumerate([-8.0, 2.9, 3.0, 9.0]):
+            for i, 등락률 in enumerate([-8.0, -0.1, 0.0, 9.0]):
                 s.add(SignalEvent(
                     occurred_at=datetime(2026, 9, 11, 10, i), trade_date=오늘,
                     stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
