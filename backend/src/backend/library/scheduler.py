@@ -10,7 +10,15 @@ import logging
 import os
 from zoneinfo import ZoneInfo
 
+from apscheduler.events import (
+    EVENT_JOB_ERROR,
+    EVENT_JOB_EXECUTED,
+    EVENT_JOB_MISSED,
+    EVENT_JOB_SUBMITTED,
+)
 from apscheduler.schedulers.background import BackgroundScheduler
+
+from backend.library import metrics
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +48,11 @@ def start() -> BackgroundScheduler | None:
     register_stock(_scheduler)
     register_market(_scheduler)
     register_leading(_scheduler)
+    # 잡마다 데코레이터를 다는 대신 리스너 하나. 잡을 새로 추가할 때 계측을 빠뜨릴 데가 없다.
+    _scheduler.add_listener(metrics.on_job_submitted, EVENT_JOB_SUBMITTED)
+    _scheduler.add_listener(
+        metrics.on_job_event, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR | EVENT_JOB_MISSED
+    )
     _scheduler.start()
     log.info("스케줄러 시작 — 등록된 작업 %d개", len(_scheduler.get_jobs()))
     return _scheduler

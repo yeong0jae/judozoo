@@ -1,0 +1,17 @@
+# ops VM의 Prometheus. **앱 메트릭은 여기 scrape_configs로 들어오지 않는다** —
+# 앱 VM의 alloy가 remote_write로 밀어 넣는다(020 §설계 결정).
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  # 자기 자신만 긁는다. 이게 비면 Prometheus 자체가 이상한 것이다.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+storage:
+  tsdb:
+    # **없으면 조용히 구멍이 생긴다.** Prometheus는 기본적으로 과거 시각 샘플을 거부한다.
+    # ops VM이 잠깐 죽었다 살아나면 alloy WAL이 밀린 샘플을 재전송하는데, 이 창이 없으면
+    # 그 구간이 통째로 버려진다. 019에서 alloy WAL 복귀를 확인해둔 것과 짝이 되는 설정.
+    out_of_order_time_window: 30m

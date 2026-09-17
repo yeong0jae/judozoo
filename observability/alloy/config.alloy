@@ -39,3 +39,58 @@ loki.write "default" {
     url = "http://judozoo-ops-prod.asia-northeast3-a.c.trading-496508.internal:3100/loki/api/v1/push"
   }
 }
+
+// ── 메트릭 ──────────────────────────────────────────────────────────────
+// [020](../../docs/tasks/020-prometheus-메트릭.md). Prometheus가 ops VM에서 이쪽을
+// 긁는(pull) 대신 alloy가 밀어 넣는다(push) — pull로 하려면 backend에 호스트 포트를
+// 내야 하고, `default-allow-internal` 아래에서는 그게 곧 VPC 전체 노출이다.
+// 로그와 방향이 같아지는 것도 이유다.
+
+prometheus.scrape "backend" {
+  targets         = [{ __address__ = "backend:8000" }]
+  job_name        = "backend"
+  metrics_path    = "/metrics"
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.ops.receiver]
+}
+
+// node_exporter·cAdvisor 컨테이너를 따로 띄우지 않는다 — alloy에 내장돼 있다.
+//
+// **경로 인자와 compose의 마운트가 짝이다. 한쪽만 바꾸면 alloy가 통째로 죽는다** —
+// 빈 메트릭으로 넘어가지 않고 설정 평가에서 exit 1이다(v1.7.5 실측). 즉 메트릭
+// 마운트 실수 하나가 **로그 수집까지 멈춘다.** remote_deploy.sh가 이걸 검사한다.
+prometheus.exporter.unix "host" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/sys"
+  rootfs_path = "/rootfs"
+}
+
+prometheus.exporter.cadvisor "containers" {
+  docker_host      = "unix:///var/run/docker.sock"
+  storage_duration = "5m"
+}
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  job_name        = "node"
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.ops.receiver]
+}
+
+prometheus.scrape "containers" {
+  targets         = prometheus.exporter.cadvisor.containers.targets
+  job_name        = "cadvisor"
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.ops.receiver]
+}
+
+// Loki와 같은 ops VM. **이 주소가 틀려도 에러로 드러나지 않는다** — 로그 쪽과 똑같이
+// 앱은 멀쩡히 돌고 Grafana 패널만 빈다.
+prometheus.remote_write "ops" {
+  endpoint {
+    url = "http://judozoo-ops-prod.asia-northeast3-a.c.trading-496508.internal:9090/api/v1/write"
+  }
+  external_labels = {
+    host = "judozoo-server-prod",
+  }
+}

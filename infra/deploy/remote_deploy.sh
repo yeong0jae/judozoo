@@ -94,7 +94,23 @@ for i in $(seq 1 18); do
   echo "backend not ready ($status), retry $i"; sleep 5
 done
 
-# 2) 프론트 — Caddy를 거쳐 검사한다. 프론트는 호스트에 포트를 퍼블리시하지 않으므로
+# 2) alloy — 메트릭 exporter(unix·cadvisor)가 호스트 마운트를 읽는다. 마운트가 하나라도
+#    없으면 alloy는 설정 평가 단계에서 **통째로 죽는다**(실측: exit 1). 메트릭만 비는 게
+#    아니라 **로그 수집까지 같이 멈추는데**, 나머지 검사는 전부 초록으로 통과한다.
+#    평가에 5초쯤 걸리므로 한 번 보고 끝내지 않고 여러 번 확인한다.
+for i in 1 2 3; do
+  sleep 5
+  state="$(sudo docker inspect --format '{{.State.Status}}' \
+    "$(sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q alloy)" 2>/dev/null || true)"
+  if [ "$state" != "running" ]; then
+    echo "alloy not running (status=${state:-unknown}) — 설정·마운트를 확인한다"
+    sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 30 alloy || true
+    exit 1
+  fi
+done
+echo "alloy OK"
+
+# 3) 프론트 — Caddy를 거쳐 검사한다. 프론트는 호스트에 포트를 퍼블리시하지 않으므로
 #    직접 때릴 주소가 없다(호스트의 3000은 Grafana다 — 프론트의 3000은 컨테이너 내부 포트다).
 #    --resolve로 DNS를 우회해 루프백의 Caddy를 때리면
 #    TLS 인증서(SNI·유효기간)까지 한 번에 검증된다.

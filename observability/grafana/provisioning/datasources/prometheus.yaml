@@ -1,0 +1,13 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    # ops VM 안에서는 같은 compose 네트워크라 서비스명이 그대로 맞는다 (loki.yaml과 동일).
+    url: http://prometheus:9090
+    # isDefault는 Loki에 둔다. 옮기면 기본 데이터소스를 암묵적으로 쓰던
+    # 기존 대시보드가 조용히 깨진다.
+    isDefault: false
+    jsonData:
+      timeInterval: 30s   # scrape_interval과 맞춘다 — rate() 구간이 어긋나지 않게

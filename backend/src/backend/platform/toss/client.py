@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from backend.library import token_store
+from backend.library import metrics, token_store
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
@@ -27,10 +27,29 @@ _EXPIRY_MARGIN_SECONDS = 300  # 만료 5분 전에 갱신
 _MIN_LIFETIME_SECONDS = 60
 
 
+def _endpoint_label(request: httpx.Request) -> str:
+    """메트릭 라벨 — `/api/v1/market-indicators/{symbol}/candles`의 심볼을 지운다.
+
+    종목코드를 그대로 두면 관심 종목 수만큼 시계열이 생긴다.
+    """
+    parts = request.url.path.split("/")
+    try:
+        parts[parts.index("market-indicators") + 1] = "{symbol}"
+    except (ValueError, IndexError):
+        pass
+    return "/".join(parts)
+
+
 def get_client() -> httpx.Client:
     global _client
     if _client is None:
-        _client = httpx.Client(base_url=get_settings().toss.base_url, timeout=30.0)
+        _client = httpx.Client(
+            base_url=get_settings().toss.base_url,
+            transport=metrics.MeteredTransport(
+                "toss", httpx.HTTPTransport(), label_endpoint=_endpoint_label
+            ),
+            timeout=30.0,
+        )
     return _client
 
 

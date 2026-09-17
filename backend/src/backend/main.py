@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -92,6 +93,22 @@ app.add_middleware(
     same_site="lax",
 )
 app.state.google_redirect_uri = _settings.google.redirect_uri
+
+# 메트릭 계측. **미들웨어 등록이 끝난 뒤**에 붙여야 한다 — 나중에 등록한 것이 바깥에 서므로
+# 여기 와야 세션·인증 관문까지 포함한 전체 시간이 잡힌다.
+#
+# `/health`는 compose 헬스체크가 10초마다 때리는 경로다. 빼지 않으면 요청 히스토그램이
+# 헬스체크로 뒤덮여 실제 트래픽이 안 보인다.
+#
+# **`/metrics`를 지키는 건 인증이 아니라 라우팅이다.** `_require_login`은 `/api`로 시작하는
+# 경로만 막고, nginx는 `/api/`만 백엔드로 넘긴다. nginx에 `location /metrics`를 추가하는
+# 순간 인터넷에 열린다 — 그 전제가 깨지지 않게 둔다.
+Instrumentator(
+    # 라우트에 매칭되지 않은 경로(봇의 /wp-login.php 난사)를 한 라벨로 묶는다.
+    # 없으면 요청 경로 하나마다 시계열이 생겨 폭발한다.
+    should_group_untemplated=True,
+    excluded_handlers=["/health", "/health/db", "/metrics"],
+).instrument(app).expose(app, include_in_schema=False)
 
 app.include_router(auth_router)
 app.include_router(news_router)

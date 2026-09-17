@@ -159,6 +159,23 @@ resource "google_compute_firewall" "ops_loki" {
   depends_on = [google_project_service.apis]
 }
 
+# alloy → Prometheus remote_write. 로그(3100)와 같은 방향·같은 출처다.
+# 기존 `ops_loki`에 포트를 끼워 넣지 않는다 — 규칙 이름이 거짓말이 된다.
+resource "google_compute_firewall" "ops_prometheus" {
+  name    = "judozoo-ops-allow-prom-write"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["9090"]
+  }
+
+  source_tags = ["auto-trading"]
+  target_tags = ["judozoo-ops"]
+
+  depends_on = [google_project_service.apis]
+}
+
 resource "google_compute_firewall" "ops_iap" {
   name    = "judozoo-ops-allow-iap"
   network = "default"

@@ -14,6 +14,8 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from backend.library import metrics
+
 log = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
@@ -40,6 +42,11 @@ class YahooBar:
     volume: float
 
 
+def _endpoint_label(request: httpx.Request) -> str:
+    """메트릭 라벨 — 심볼이 경로에 박혀 있다. 그대로 두면 조회 심볼 수만큼 시계열이 생긴다."""
+    return "/v8/finance/chart/{symbol}" if "/chart/" in request.url.path else request.url.path
+
+
 def get_client() -> httpx.Client:
     """User-Agent가 없으면 야후가 차단한다. 반드시 붙인다."""
     global _client
@@ -47,6 +54,9 @@ def get_client() -> httpx.Client:
         _client = httpx.Client(
             base_url=_BASE_URL,
             headers={"User-Agent": "Mozilla/5.0"},
+            transport=metrics.MeteredTransport(
+                "yahoo", httpx.HTTPTransport(), label_endpoint=_endpoint_label
+            ),
             timeout=30.0,
         )
     return _client

@@ -32,6 +32,7 @@ from backend.leadingstock.signals import (
     SignalReading,
     SignalState,
 )
+from backend.library import metrics
 from backend.library.db import get_session_factory
 from backend.library.time import KST, now, today
 from backend.market import calendar
@@ -40,6 +41,12 @@ from backend.settings import get_settings
 from backend.stock.domain import Market
 
 log = logging.getLogger(__name__)
+
+# 잡 id. `register()`와 메트릭 라벨이 같은 값을 써야 해서 상수로 둔다 —
+# 한쪽만 바뀌면 실패 카운터가 실행 카운터와 다른 라벨로 쌓인다.
+_SIGNAL_JOB = "signal-event-poller"
+_MARKET_SIGNAL_JOB = "market-signal-event-poller"
+_INDEX_REBOUND_JOB = "index-rebound-poller"
 
 _SNAPSHOT_START = time(8, 0)   # NXT 프리마켓 개장
 _SNAPSHOT_END = time(20, 0)    # NXT 애프터마켓 마감
@@ -69,6 +76,8 @@ def poll_signal_events() -> None:
     try:
         _detect_signal_events()
     except Exception:
+        # 삼킨 예외는 APScheduler에 성공으로 보인다 — 카운터를 여기서 직접 올린다.
+        metrics.job_failed(_SIGNAL_JOB)
         log.warning("시그널 전이 적재 실패", exc_info=True)
 
 
@@ -147,6 +156,7 @@ def poll_market_signal_events() -> None:
     try:
         _detect_market_signals()
     except Exception:
+        metrics.job_failed(_MARKET_SIGNAL_JOB)
         log.warning("시장 시그널 적재 실패", exc_info=True)
 
 
@@ -270,6 +280,7 @@ def poll_index_rebound() -> None:
     try:
         _detect_index_rebound()
     except Exception:
+        metrics.job_failed(_INDEX_REBOUND_JOB)
         log.warning("지수 반등 적재 실패", exc_info=True)
 
 
@@ -349,15 +360,15 @@ def register(scheduler: BaseScheduler) -> None:
     scheduler.add_job(
         poll_signal_events,
         IntervalTrigger(seconds=s.signal_event.poll_interval_millis / 1000),
-        id="signal-event-poller", replace_existing=True,
+        id=_SIGNAL_JOB, replace_existing=True,
     )
     scheduler.add_job(
         poll_market_signal_events,
         IntervalTrigger(seconds=s.market_signal.poll_interval_millis / 1000),
-        id="market-signal-event-poller", replace_existing=True,
+        id=_MARKET_SIGNAL_JOB, replace_existing=True,
     )
     scheduler.add_job(
         poll_index_rebound,
         IntervalTrigger(seconds=s.market_signal.candle_poll_interval_millis / 1000),
-        id="index-rebound-poller", replace_existing=True,
+        id=_INDEX_REBOUND_JOB, replace_existing=True,
     )

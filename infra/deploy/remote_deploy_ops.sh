@@ -35,12 +35,13 @@ sudo docker image prune -af
 
 # 헬스체크 — 배포와 같은 SSH 세션에서 끝낸다.
 for i in $(seq 1 24); do
-  loki_ok=0; graf_ok=0
+  loki_ok=0; graf_ok=0; prom_ok=0
   curl -fsS "http://localhost:3100/ready" >/dev/null 2>&1 && loki_ok=1
   curl -fsS "http://localhost:3000/api/health" >/dev/null 2>&1 && graf_ok=1
-  if [ "$loki_ok" = 1 ] && [ "$graf_ok" = 1 ]; then
-    echo "ops health OK ($i) — loki ready, grafana healthy"; exit 0
+  curl -fsS "http://localhost:9090/-/ready" >/dev/null 2>&1 && prom_ok=1
+  if [ "$loki_ok" = 1 ] && [ "$graf_ok" = 1 ] && [ "$prom_ok" = 1 ]; then
+    echo "ops health OK ($i) — loki ready, grafana healthy, prometheus ready"; exit 0
   fi
-  echo "not ready (loki=$loki_ok grafana=$graf_ok), retry $i"; sleep 5
+  echo "not ready (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok), retry $i"; sleep 5
 done
 echo "ops health check failed"; exit 1

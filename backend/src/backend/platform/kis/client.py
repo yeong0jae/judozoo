@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from backend.library import token_store
+from backend.library import metrics, token_store
 from backend.library.exception import BrokerTokenUnavailable
 from backend.library.rate_limiter import RateLimiter
 from backend.settings import get_settings
@@ -73,7 +73,11 @@ def get_client() -> httpx.Client:
         settings = get_settings()
         _client = httpx.Client(
             base_url=settings.kis.base_url,
-            transport=RateLimitedTransport(get_limiter(), httpx.HTTPTransport()),
+            # 계측을 리미터 **바깥**에 감아 호출자가 실제로 겪은 시간을 잰다(대기 포함).
+            # KIS는 경로가 엔드포인트마다 달라서 기본 라벨(경로)을 그대로 쓴다.
+            transport=metrics.MeteredTransport(
+                "kis", RateLimitedTransport(get_limiter(), httpx.HTTPTransport())
+            ),
             timeout=30.0,
         )
     return _client

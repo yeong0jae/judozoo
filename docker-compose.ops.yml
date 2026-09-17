@@ -20,6 +20,27 @@ services:
     networks:
       - ops
 
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # 30일과 4GB 중 **먼저 닿는 쪽**이 이긴다. 부트디스크가 20GB뿐이라 크기 상한이
+      # 실질적인 방어선이다. 로그(7일)보다 긴 이유는 메트릭이 "지난달 대비"를 보는 물건이라서다.
+      - --storage.tsdb.retention.time=30d
+      - --storage.tsdb.retention.size=4GB
+      # **이게 없으면 alloy의 push가 404로 조용히 버려진다.** 수신은 기본으로 꺼져 있다.
+      - --web.enable-remote-write-receiver
+    # 앱 VM의 alloy가 **다른 머신에서** 붙는다 — Loki 3100과 같은 이유로 호스트에 낸다.
+    # 인터넷 노출은 없다(이 VM에는 외부 IP가 없다).
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - ops
+
   grafana:
     image: grafana/grafana:11.5.2
     environment:
@@ -40,6 +61,7 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - loki
+      - prometheus
     networks:
       - ops
 
@@ -48,6 +70,9 @@ services:
 volumes:
   loki-data:
   grafana-data:
+  # 명명 볼륨이어야 한다 — Prometheus 이미지는 nobody(65534)로 돌고,
+  # 바인드로 바꾸면 소유권이 안 맞아 기동에 실패한다.
+  prometheus-data:
 
 networks:
   ops:

@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
-from backend.library import token_store
+from backend.library import metrics, token_store
 from backend.library.exception import BrokerTokenUnavailable
 from backend.library.rate_limiter import RateLimiter
 from backend.settings import get_settings
@@ -73,12 +73,22 @@ def get_limiter() -> RateLimiter:
     return _limiter
 
 
+def _endpoint_label(request: httpx.Request) -> str:
+    """메트릭 라벨 — 조회 TR은 `api-id`, 토큰 발급처럼 헤더가 없는 호출은 경로."""
+    return request.headers.get(API_ID_HEADER) or request.url.path
+
+
 def get_client() -> httpx.Client:
     global _client
     if _client is None:
         _client = httpx.Client(
             base_url=get_settings().kiwoom.base_url,
-            transport=QueryRateLimitedTransport(get_limiter(), httpx.HTTPTransport()),
+            # 경로는 `/api/dostk/sect` 하나에 TR이 여럿 실린다 — 기능을 가르는 건 api-id다.
+            transport=metrics.MeteredTransport(
+                "kiwoom",
+                QueryRateLimitedTransport(get_limiter(), httpx.HTTPTransport()),
+                label_endpoint=_endpoint_label,
+            ),
             timeout=30.0,
         )
     return _client
