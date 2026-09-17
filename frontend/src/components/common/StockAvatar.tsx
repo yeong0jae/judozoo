@@ -8,6 +8,10 @@
  */
 const SURFACE = "#2b2d33";
 
+/** 테두리 — 면과 바탕의 밝기 차가 작아 원이 번진다. 윤곽만 세우되 색은 늘리지 않는다.
+ *  카드 경계(8%)·행 구분선(5.5%)과 같은 재질의 선이다. */
+const RING = "rgba(255, 255, 255, 0.1)";
+
 /** 글자색 — 앱의 칩들이 쓰는 "색 계열 밝은 톤"과 같은 자리의 색. */
 const INK = [
   "#fda4af", "#93c5fd", "#86efac", "#fcd34d",
@@ -34,7 +38,16 @@ export default function StockAvatar({
   return (
     <span
       className="inline-flex items-center justify-center rounded-full font-semibold shrink-0"
-      style={{ width: size, height: size, background: SURFACE, color, fontSize: size * 0.42 }}
+      style={{
+        width: size,
+        height: size,
+        background: SURFACE,
+        color,
+        // 테두리가 크기를 늘리지 않게 — 목록의 칸 폭이 아바타 크기에 맞춰져 있다
+        boxSizing: "border-box",
+        border: `1px solid ${RING}`,
+        fontSize: size * 0.42,
+      }}
       aria-hidden
     >
       {ch}
