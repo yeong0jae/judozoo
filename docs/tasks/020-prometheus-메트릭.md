@@ -5,7 +5,12 @@
 >
 > **cadvisor는 배포 후에 뺐다.** 이 호스트의 Docker가 containerd 이미지 스토어를 써서 도커
 > 컨테이너를 하나도 인식하지 못했다(아래 함정). 컨테이너 메모리는 backend가 스스로 내는
-> `process_resident_memory_bytes`로 본다. **이 제거는 배포를 한 번 더 태워야 반영된다.**
+> `process_resident_memory_bytes`로 본다.
+>
+> **Grafana 프로비저닝은 두 번째 배포까지도 깨져 있었다.** `remote_deploy_ops.sh`에
+> `--force-recreate`가 없어 grafana 컨테이너가 8시간 전 것 그대로였고, `rm -rf` + 재-scp로
+> 교체된 inode를 계속 가리켰다 — Prometheus 데이터소스와 메트릭 대시보드가 **한 번도
+> 올라간 적이 없다.** 아래 함정. 고쳤고 배포를 한 번 더 태워야 반영된다.
 
 Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다. 앱 VM의 `alloy`가 백엔드·호스트·컨테이너 메트릭을 걷어 ops VM의 Prometheus로 **remote_write**하고, Grafana가 Loki 옆에 그것을 붙인다.
 
@@ -249,6 +254,10 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 | alloy 메모리 | **83.9MB** — exporter가 붙었는데도 019의 95MB보다 줄었다 |
 | `/metrics` 격리 | 호스트에서 `localhost:8000` 도달 불가(000). 컨테이너 안에서만 17,627바이트 |
 | cadvisor | **실패 → 제거.** 아래 함정 |
+| 재배포 후 | cadvisor 에러 0건, alloy 83.9 → **60.4MB**. cadvisor 시계열은 staleness(5분) 뒤 사라진다 |
+| backend 재시작 | 재배포로 backend가 교체됐지만 **그 이전 데이터가 남아 있다** (12분 전 샘플 조회됨) |
+| TSDB | 612K / 약 15분치. 다만 cadvisor 2천 시계열이 섞인 값이라 24시간 뒤 다시 잰다 |
+| Grafana | **프로비저닝 실패 중** — `/etc/grafana/provisioning` 마운트가 stale. 아래 함정 |
 
 ### 아직 확인 못 한 것
 
@@ -264,13 +273,21 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 - [ ] `http_client_requests_total`에 vendor 4곳이 모두 나타난다. **안 나타나는 vendor가 §2 편집을 빠뜨린 곳이다**
 - [x] ~~cadvisor 메트릭에 컨테이너 4개가 보인다~~ — **불가로 판명해 항목 폐기.** 아래 함정
 - [ ] Grafana에서 Loki 패널과 Prometheus 패널이 **같은 대시보드에 함께** 뜬다
-- [ ] **backend를 재시작**해도 Prometheus의 과거 데이터가 남아 있다 (019와 같은 확인)
+      ← `--force-recreate` 수정을 배포한 뒤에야 가능하다. 그 전까지는 데이터소스 자체가 없다
+- [x] **backend를 재시작**해도 Prometheus의 과거 데이터가 남아 있다 — 재배포가 backend를 교체했는데 그 이전 샘플이 조회됐다
 - [ ] ops VM 재부팅 후 prometheus 자동 복귀 + 볼륨 데이터 보존
 - [ ] 24시간 뒤 `du -sh` — TSDB 실크기를 재고 30일 추정치를 다시 계산한다
 - [x] `terraform plan` — 방화벽 apply 후 `0 to add, 1 to change, 0 to destroy`. 남은 1건은 019가 "늘 뜬다"고 적어둔 Artifact Registry drift다
 
 ## 알려진 함정
 
+- **ops 배포에 `--force-recreate`가 없으면 Grafana 프로비저닝이 조용히 죽는다.** `deploy.yml`은 매 배포마다 `sudo rm -rf ~/observability` 후 재-scp한다. 호스트 디렉토리의 inode가 교체되는데, compose는 설정이 안 바뀐 서비스를 **재사용**하므로 그 컨테이너는 사라진 inode를 계속 가리킨다. 컨테이너 안에서는 빈 디렉토리로 보인다:
+      ```
+      level=error msg="failed to search for dashboards"
+        error="readdirent /var/lib/grafana/dashboards: no such file or directory"
+      ```
+      **아무것도 실패하지 않는다.** grafana는 정상 기동하고 `/api/health`도 `ok`를 주고 배포는 초록이다. 이미 DB에 들어간 데이터소스·대시보드는 계속 보이므로 화면으로도 모른다. 020에서 Prometheus 데이터소스와 메트릭 대시보드가 **두 번의 배포 동안 한 번도 올라가지 못했다** — 컨테이너 생성 시각(`docker inspect -f {{.Created}}`)을 prometheus(신규)와 비교하고서야 드러났다.
+      앱 VM의 `remote_deploy.sh`는 alloy에 대해 **이미 같은 조치를 하고 있었다.** ops 쪽에만 없었다. `--force-recreate`를 넣고, 마운트가 실제로 보이는지 검사하는 단계를 붙였다.
 - **APScheduler 리스너는 "삼켜진 예외"를 성공으로 본다.** `poll_signal_events`는 내부에서 `except: log.warning(...)` 후 정상 리턴한다. 스케줄러 입장에서는 성공이다 — **이 작업이 답하려는 첫 번째 질문이 바로 여기인데, 리스너만 달면 정확히 그것만 못 잡는다.** catch 지점에서 카운터를 직접 올려야 한다.
 - **cadvisor는 이 호스트에서 도커 컨테이너를 못 본다.** Docker가 containerd 이미지 스토어를 쓴다(`docker info` → storage driver **`overlayfs`**). 그러면 `/var/lib/docker/image/<driver>/layerdb/`가 아예 없고, cadvisor는 컨테이너마다 이렇게 실패한다:
       ```

@@ -27,8 +27,17 @@ EOF
 
 COMPOSE=(-f docker-compose.ops.yml -f docker-compose.ops.prod.yml)
 
+# --force-recreate가 필요하다. deploy.yml이 매 배포마다 `sudo rm -rf ~/observability` 후
+# 재-scp하므로 호스트 디렉토리의 **inode가 교체된다**. 설정이 그대로면 compose는 컨테이너를
+# 재사용하는데, 그 컨테이너는 사라진 inode를 계속 가리켜 마운트가 빈 디렉토리로 보인다.
+#
+# **증상이 조용하다.** grafana는 정상 기동하고 헬스체크도 통과하며, 프로비저닝만 실패한다 —
+# 새 데이터소스·대시보드가 영영 안 올라온다. 이미 DB에 들어간 것들은 그대로 보이므로
+# 화면만 봐서는 눈치채기 어렵다. 020에서 Prometheus 데이터소스가 이래서 누락됐다.
+# 앱 VM의 remote_deploy.sh가 alloy에 같은 조치를 하고 있다.
+#
 # --remove-orphans: compose 파일에서 서비스를 지워도 이미 떠 있는 컨테이너는 남는다.
-sudo docker compose "${COMPOSE[@]}" up -d --remove-orphans
+sudo docker compose "${COMPOSE[@]}" up -d --force-recreate --remove-orphans
 
 # 이미지가 바뀌면 옛 것이 디스크에 쌓인다. 부트디스크 20GB뿐이다.
 sudo docker image prune -af
@@ -40,8 +49,23 @@ for i in $(seq 1 24); do
   curl -fsS "http://localhost:3000/api/health" >/dev/null 2>&1 && graf_ok=1
   curl -fsS "http://localhost:9090/-/ready" >/dev/null 2>&1 && prom_ok=1
   if [ "$loki_ok" = 1 ] && [ "$graf_ok" = 1 ] && [ "$prom_ok" = 1 ]; then
-    echo "ops health OK ($i) — loki ready, grafana healthy, prometheus ready"; exit 0
+    echo "ops health OK ($i) — loki ready, grafana healthy, prometheus ready"; healthy=1; break
   fi
   echo "not ready (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok), retry $i"; sleep 5
 done
-echo "ops health check failed"; exit 1
+[ "${healthy:-0}" = 1 ] || { echo "ops health check failed"; exit 1; }
+
+# 프로비저닝 마운트 검사. **헬스체크가 통과한 뒤에 본다** — 기동 중에 exec하면 오탐이 난다.
+# 위 stale bind-mount를 직접 잡는 장치다. 컨테이너 안에서 파일이 보이는지만 확인하므로
+# Grafana 비밀번호가 필요 없다. 이 검사가 없으면 프로비저닝 실패가 조용히 지나간다 —
+# grafana는 멀쩡히 뜨고 /api/health도 ok를 주기 때문이다.
+for f in /etc/grafana/provisioning/datasources/prometheus.yaml \
+         /etc/grafana/provisioning/datasources/loki.yaml \
+         /etc/grafana/provisioning/dashboards/dashboards.yaml \
+         /var/lib/grafana/dashboards/metrics.json; do
+  if ! sudo docker compose "${COMPOSE[@]}" exec -T grafana test -f "$f"; then
+    echo "grafana 마운트 깨짐: $f 가 컨테이너 안에 없다"; exit 1
+  fi
+done
+echo "grafana 프로비저닝 마운트 OK"
+
