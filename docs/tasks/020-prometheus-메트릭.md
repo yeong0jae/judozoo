@@ -245,11 +245,13 @@ Alertmanager는 세우지 않는다(설계 결정 표 참고). Grafana 알림이
       **비어 있으면 배포를 끊는다** — 히어독 안의 `$(fetch ...)` 실패는 `set -e`에 안 걸려
       빈 값으로 넘어가고, 그러면 알림이 발송되지 않는데 아무 소리도 안 난다
 - [x] 마운트 검사에 `alerting/` 파일 추가 (§7의 stale bind-mount 방어)
-- [ ] **`AT_GRAFANA_SLACK_WEBHOOK_URL` 시크릿 생성** ← 사람이 해야 한다. 이게 없으면 배포가 실패한다
+- [x] **`AT_GRAFANA_SLACK_WEBHOOK_URL` 시크릿 생성** (2026-09-17). 프로젝트 단위 `secretAccessor`가 이미 VM SA에 있어 추가 IAM은 필요 없었다
       ```
       gcloud secrets create AT_GRAFANA_SLACK_WEBHOOK_URL --data-file=- <<< '<웹훅 URL>'
       ```
-- [ ] 실제 Slack 채널에 메시지가 도착하는지 확인
+- [x] 배포 후 확인 — 웹훅 81자 주입됨, alerting 파일 3개 마운트, 에러 0건,
+      `ngalert.scheduler` 동작(tick 10s), Alertmanager 설정 적용
+- [ ] 실제 Slack 채널에 메시지가 도착하는지 확인 — Grafana UI의 Contact points → `slack` → Test
 
 ### 로컬 검증 (2026-09-17)
 
@@ -321,6 +323,8 @@ Alertmanager는 세우지 않는다(설계 결정 표 참고). Grafana 알림이
 - [x] `terraform plan` — 방화벽 apply 후 `0 to add, 1 to change, 0 to destroy`. 남은 1건은 019가 "늘 뜬다"고 적어둔 Artifact Registry drift다
 
 ## 알려진 함정
+
+- **ops 배포가 한 번 실패했다 — Grafana가 2분 안에 healthy가 되지 않았다.** 다음 배포에서는 10초 만에 떴고(마이그레이션은 `performed=0 skipped=629`로 건너뛴다) 원인은 특정하지 못했다. 컨테이너가 이미 교체돼 직전 로그가 사라졌기 때문이다. 재현되면 조사할 수 있도록 **헬스체크 실패 시 `ps`와 서비스별 로그 40줄을 남기게** 했다. `--force-recreate`가 매 배포마다 세 컨테이너를 재시작시키므로 이 경로는 앞으로도 계속 밟는다.
 
 - **ops 배포에 `--force-recreate`가 없으면 Grafana 프로비저닝이 조용히 죽는다.** `deploy.yml`은 매 배포마다 `sudo rm -rf ~/observability` 후 재-scp한다. 호스트 디렉토리의 inode가 교체되는데, compose는 설정이 안 바뀐 서비스를 **재사용**하므로 그 컨테이너는 사라진 inode를 계속 가리킨다. 컨테이너 안에서는 빈 디렉토리로 보인다:
       ```

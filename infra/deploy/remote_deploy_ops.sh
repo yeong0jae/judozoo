@@ -65,7 +65,17 @@ for i in $(seq 1 24); do
   fi
   echo "not ready (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok), retry $i"; sleep 5
 done
-[ "${healthy:-0}" = 1 ] || { echo "ops health check failed"; exit 1; }
+if [ "${healthy:-0}" != 1 ]; then
+  # **왜 안 떴는지 남긴다.** 이 줄만 있고 끝나면 다음에 같은 일이 나도 조사할 게 없다 —
+  # 컨테이너는 이미 교체돼 직전 로그가 사라진 뒤다(2026-09-17 grafana 2분 타임아웃 때 겪었다).
+  echo "ops health check failed (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok)"
+  sudo docker compose "${COMPOSE[@]}" ps || true
+  for svc in loki grafana prometheus; do
+    echo "----- $svc -----"
+    sudo docker compose "${COMPOSE[@]}" logs --tail 40 "$svc" || true
+  done
+  exit 1
+fi
 
 # 프로비저닝 마운트 검사. **헬스체크가 통과한 뒤에 본다** — 기동 중에 exec하면 오탐이 난다.
 # 위 stale bind-mount를 직접 잡는 장치다. 컨테이너 안에서 파일이 보이는지만 확인하므로
