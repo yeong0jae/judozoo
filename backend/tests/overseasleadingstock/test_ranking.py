@@ -77,13 +77,16 @@ class Test랭킹:
         assert [(r.rank, r.symbol) for r in ranking] == [(1, "BBB"), (2, "CCC"), (3, "AAA")]
 
     @respx.mock
-    def test_ETF는_풀에서_제외한다(self, respx_mock, 토큰_발급):
+    def test_ETF는_풀에서_제외하되_순위는_ETF를_포함해_매긴다(self, respx_mock, 토큰_발급):
+        """국내는 키움 원본 순위(ETF 포함)를 쓴다 — 여기서 다시 매기면 두 화면의 "몇 위"가 다른 뜻이 된다."""
         거래소별_응답(
             respx_mock,
             nas=[순위행("SPY", "900", ename="SPDR S&P 500"), 순위행("AAA", "100")],
         )
 
-        assert [r.symbol for r in application.get_ranking(0.0)] == ["AAA"]
+        ranking = application.get_ranking(0.0)
+
+        assert [(r.rank, r.symbol) for r in ranking] == [(2, "AAA")]
 
     @respx.mock
     def test_거래대금_1위여도_등락률에_미달하면_뺀다(self, respx_mock, 토큰_발급):
