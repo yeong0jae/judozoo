@@ -280,7 +280,9 @@ Prometheus와 무관하지만 §8과 **같은 문제**라서 여기 둔다 — �
 - [x] `echo "::add-mask::$url"` — Actions 로그에서 웹훅을 가린다. curl이 에러 메시지에
       URL을 뱉는 경우까지 덮는다
 - [x] 채널 분리 — 운영 장애(§8)와 배포 이벤트가 섞이지 않게 별도 웹훅을 쓴다
-- [ ] **`AT_SLACK_DEPLOY_WEBHOOK_URL` 시크릿 생성** ← 사람이 해야 한다
+- [x] **`AT_SLACK_DEPLOY_WEBHOOK_URL` 시크릿 생성** (2026-09-17)
+- [x] `main.tf` — 배포 SA에 **이 시크릿 하나만** `secretAccessor`. 아래 함정 참고
+- [ ] `terraform apply` — 이게 있어야 notify job이 웹훅을 읽는다
 - [ ] 실제 채널에 성공·실패 메시지가 도착하는지 확인
 
 ### 로컬 검증 (2026-09-17)
@@ -351,6 +353,14 @@ Prometheus와 무관하지만 §8과 **같은 문제**라서 여기 둔다 — �
 - [x] `terraform plan` — 방화벽 apply 후 `0 to add, 1 to change, 0 to destroy`. 남은 1건은 019가 "늘 뜬다"고 적어둔 Artifact Registry drift다
 
 ## 알려진 함정
+
+- **VM 서비스 계정과 GitHub Actions 러너는 다른 SA다.** `vm_secret_accessor`가 프로젝트 단위 `secretAccessor`를 주고 있어서 "새 시크릿은 자동으로 읽힌다"고 판단했는데, 그건 **VM SA**(`google_service_account.vm`) 얘기였다. `notify` job은 러너에서 **배포 SA**(`auto-trading-gha-deployer`)로 돌고, 그 SA에는 `artifactregistry.writer` · `compute.instanceAdmin.v1` · `compute.osAdminLogin` · `iap.tunnelResourceAccessor` 넷뿐이었다:
+      ```
+      PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied
+        ... authenticated as auto-trading-gha-deployer@...
+      ```
+      메시지가 "denied on resource **(or it may not exist)**"라 시크릿이 없는 것처럼도 읽힌다 — 존재 여부를 따로 확인해야 구분된다.
+      고칠 때 **프로젝트 단위로 주지 않았다.** `google_secret_manager_secret_iam_member`로 이 웹훅 하나에만 붙인다. 러너에 프로젝트 단위 secretAccessor를 주면 워크플로가 KIS·키움·토스 자격증명까지 읽을 수 있게 된다 — CI에 줄 권한이 아니다.
 
 - **작은따옴표 안에서 백틱을 이스케이프하면 백슬래시가 그대로 출력된다.** `printf '...\`%s\`...'`로 썼더니 Slack에 `` \`abc1234\` ``가 찍힌다 — 코드 서식 대신 백슬래시가 보인다. 작은따옴표 안에서는 백틱이 이미 리터럴이라 이스케이프가 필요 없다. actionlint의 SC2016 **info**(에러가 아니다)가 이 자리를 가리키고 있었다. 워크플로는 배포해봐야 결과를 아는 코드라, 이런 건 **파일에서 그 줄을 떼어내 그대로 실행해보는 것**이 가장 빠르다.
 

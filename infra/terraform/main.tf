@@ -419,6 +419,17 @@ resource "google_service_account" "deployer" {
   display_name = "judozoo GitHub Actions deployer SA"
 }
 
+# deploy.yml의 notify job이 Slack 배포 웹훅을 읽는다.
+#
+# **프로젝트 단위로 주지 않는다.** VM SA에는 `vm_secret_accessor`로 프로젝트 전체
+# secretAccessor가 붙어 있지만(VM이 모든 AT_* 를 쓴다), 러너는 이 웹훅 하나만 있으면
+# 된다. 프로젝트 단위로 주면 워크플로가 KIS·키움·토스 자격증명까지 읽을 수 있게 된다.
+resource "google_secret_manager_secret_iam_member" "deployer_slack_webhook" {
+  secret_id = "AT_SLACK_DEPLOY_WEBHOOK_URL"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.deployer.email}"
+}
+
 resource "google_project_iam_member" "deployer_ar_writer" {
   project = var.project_id
   role    = "roles/artifactregistry.writer"
