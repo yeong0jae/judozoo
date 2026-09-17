@@ -219,13 +219,13 @@ private IP라 로컬에서 직접 못 붙는다. **앱 VM을 경유**한다.
 
 **일회성 쿼리** — SSH로 들어가서 클라이언트 컨테이너로:
 ```bash
-gcloud compute ssh auto-trading-app-kiwoom-real --tunnel-through-iap --zone=asia-northeast3-a
+gcloud compute ssh judozoo-server-prod --tunnel-through-iap --zone=asia-northeast3-a
 sudo docker run --rm -it --network host mysql:8.4 mysql -h <private-ip> -u judozoo_app -p trading
 ```
 
 **GUI(DataGrip·DBeaver 등)** — **SSH 포트 포워딩 한 줄.** Auth Proxy는 필요 없다.
 ```bash
-gcloud compute ssh auto-trading-app-kiwoom-real --tunnel-through-iap \
+gcloud compute ssh judozoo-server-prod --tunnel-through-iap \
   --zone=asia-northeast3-a -- -N -L 33061:10.100.0.3:3306
 ```
 이 창을 띄워둔 채 GUI에서 `localhost:33061` / `judozoo_app` / DB `trading`으로 붙는다.
