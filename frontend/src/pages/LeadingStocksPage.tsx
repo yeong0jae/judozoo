@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
 import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
@@ -28,8 +28,8 @@ function shortCode(stockCode: string): string {
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
 }
 
-/** 행 하이라이트 종류 — 목록 진입(amber)과 주도주 승격(violet)은 뜻이 다르다. */
-type Flash = "new" | "promoted" | null;
+/** 행 하이라이트 종류 — 목록 진입(amber) · 주도주 승격(violet) · 강등(회색). */
+type Flash = "new" | "promoted" | "demoted" | null;
 
 /** 하이라이트가 남아 있는 시간(ms). CSS의 애니메이션 길이와 같아야 한다. */
 const FLASH_MS = 4000;
@@ -46,10 +46,14 @@ const FLASH_MS = 4000;
  *
  * 첫 비교는 언제나 건너뛴다. 화면을 열자마자 전부 반짝이면 "새로 들어왔다"는 뜻이 사라진다.
  */
-function useArrivals(codes: string[], session: string | null): Set<string> {
+function useMembership(
+  codes: string[],
+  session: string | null,
+): { entered: Set<string>; left: Set<string> } {
   const key = codes.join(",");
   const prevRef = useRef<{ session: string; codes: Set<string> } | null>(null);
-  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  const [entered, setEntered] = useState<Set<string>>(new Set());
+  const [left, setLeft] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (session === null) return; // 아직 볼 준비가 안 됐다
@@ -61,23 +65,69 @@ function useArrivals(codes: string[], session: string | null): Set<string> {
     // 기억이 없거나(첫 비교), 다른 조건에서 본 목록이거나, 직전이 빈 목록이면 비교하지 않는다
     if (prev === null || prev.session !== session || prev.codes.size === 0) return;
 
-    const justArrived = [...current].filter((c) => !prev.codes.has(c));
-    if (justArrived.length === 0) return;
+    const 들어옴 = [...current].filter((c) => !prev.codes.has(c));
+    const 나감 = [...prev.codes].filter((c) => !current.has(c));
+    if (들어옴.length === 0 && 나감.length === 0) return;
 
-    setFresh((p) => new Set([...p, ...justArrived]));
-    const timers = justArrived.map((c) =>
-      setTimeout(() => {
-        setFresh((p) => {
-          const next = new Set(p);
-          next.delete(c);
-          return next;
-        });
-      }, FLASH_MS),
-    );
+    const 잠시 = (
+      codes: string[],
+      set: (fn: (p: Set<string>) => Set<string>) => void,
+    ) => {
+      if (codes.length === 0) return [];
+      set((p) => new Set([...p, ...codes]));
+      return codes.map((c) =>
+        setTimeout(() => {
+          set((p) => {
+            const next = new Set(p);
+            next.delete(c);
+            return next;
+          });
+        }, FLASH_MS),
+      );
+    };
+
+    const timers = [...잠시(들어옴, setEntered), ...잠시(나감, setLeft)];
     return () => timers.forEach(clearTimeout);
   }, [key, session]);
 
-  return fresh;
+  return { entered, left };
+}
+
+/**
+ * 순서가 바뀐 줄을 새 자리로 미끄러뜨린다(FLIP).
+ *
+ * 직전 그림의 위치를 기억해 뒀다가, 새로 그려진 직후 **그 차이만큼 되돌려 놓고** 0으로 푼다.
+ * 애니메이션이 없으면 다음 응답에서 줄이 갑자기 다른 자리에 나타나, 무엇이 어디로 갔는지 알 수 없다.
+ */
+function useSlideOnReorder(ref: RefObject<HTMLElement>, orderKey: string) {
+  const prevTops = useRef<Map<string, number>>(new Map());
+
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+
+    const nodes = [...root.querySelectorAll<HTMLElement>("[data-stock-code]")];
+    const tops = new Map<string, number>();
+    for (const node of nodes) {
+      const code = node.dataset.stockCode!;
+      const top = node.getBoundingClientRect().top;
+      tops.set(code, top);
+
+      const before = prevTops.current.get(code);
+      const delta = before === undefined ? 0 : before - top;
+      if (delta === 0) continue;
+
+      node.style.transform = `translateY(${delta}px)`;
+      requestAnimationFrame(() => {
+        node.classList.add("row-sliding");
+        node.style.transform = "";
+      });
+      node.addEventListener("transitionend", () => node.classList.remove("row-sliding"), {
+        once: true,
+      });
+    }
+    prevTops.current = tops;
+  }, [ref, orderKey]);
 }
 
 /**
@@ -140,10 +190,23 @@ function DomesticLeadingStocks({
   // **두 조회가 다 도착해야** 비교를 시작한다. 한쪽만 온 목록과 비교하면 나머지가 전부 새것이 된다.
   const session =
     leadersQ.data && candidatesQ.data ? `domestic:${minChangeRate}` : null;
-  const arrived = useArrivals(stocks.map((s) => s.stockCode), session);
-  const promoted = useArrivals(leaders.map((s) => s.stockCode), session);
-  const flashOf = (code: string): Flash =>
-    promoted.has(code) ? "promoted" : arrived.has(code) ? "new" : null;
+  const listed = useMembership(stocks.map((s) => s.stockCode), session);
+  const lead = useMembership(leaders.map((s) => s.stockCode), session);
+  const codes = stocks.map((s) => s.stockCode);
+  const shown = new Set(codes);
+  const flashOf = (code: string): Flash => {
+    if (lead.entered.has(code)) return "promoted";
+    // 주도주에서 빠졌어도 목록에 남아 있을 때만 강등이다 — 아예 나간 종목은 그릴 자리가 없다
+    if (lead.left.has(code) && shown.has(code)) return "demoted";
+    return listed.entered.has(code) ? "new" : null;
+  };
+
+  // 순서가 바뀌면 줄이 새 자리로 미끄러진다 (표·카드 각각)
+  const orderKey = codes.join(",");
+  const tableRef = useRef<HTMLTableSectionElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
+  useSlideOnReorder(tableRef, orderKey);
+  useSlideOnReorder(cardsRef, orderKey);
 
   const selector = (
     <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
@@ -183,6 +246,7 @@ function DomesticLeadingStocks({
           ) : (
             <>
               <CandidatesTable
+                bodyRef={tableRef}
                 leaders={leaders}
                 rest={rest}
                 flashOf={flashOf}
@@ -190,6 +254,7 @@ function DomesticLeadingStocks({
                 onOpen={(code) => setOpenCode(code)}
               />
               <CandidatesCards
+                rootRef={cardsRef}
                 leaders={leaders}
                 rest={rest}
                 flashOf={flashOf}
@@ -246,12 +311,14 @@ function Header({
 
 /** 종목의 대표 테마 칩. 전체 테마가 더 많으면 "+N" 표기. */
 function CandidatesTable({
+  bodyRef,
   leaders,
   rest,
   flashOf,
   selectedCode,
   onOpen,
 }: {
+  bodyRef: RefObject<HTMLTableSectionElement>;
   leaders: CandidateStockItem[];
   rest: CandidateStockItem[];
   flashOf: (code: string) => Flash;
@@ -283,7 +350,7 @@ function CandidatesTable({
           <th className="px-4 py-2.5 text-right font-medium">거래대금</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody ref={bodyRef}>
         {leaders.length > 0 && <GroupHeader label="주도주" />}
         {section(leaders)}
         {/* 통과 종목이 없어도 머리는 그린다 — 없으면 "주도주만 있는 화면"으로 보여 기준이 걸렸다는 걸 알 수 없다 */}
@@ -380,12 +447,14 @@ function GroupHeader({
 // ============================================================
 
 function CandidatesCards({
+  rootRef,
   leaders,
   rest,
   flashOf,
   selectedCode,
   onOpen,
 }: {
+  rootRef: RefObject<HTMLDivElement>;
   leaders: CandidateStockItem[];
   rest: CandidateStockItem[];
   flashOf: (code: string) => Flash;
@@ -406,7 +475,7 @@ function CandidatesCards({
     ));
 
   return (
-    <div className="md:hidden">
+    <div className="md:hidden" ref={rootRef}>
       {leaders.length > 0 && <CardGroupHeader label="주도주" />}
       {section(leaders)}
       {/* 통과 종목이 없어도 머리는 그린다 */}

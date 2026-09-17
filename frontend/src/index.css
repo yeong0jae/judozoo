@@ -210,6 +210,32 @@ body {
   animation: leading-stock-promoted 4s ease-out;
 }
 
+/* 주도주에서 후보로 내려온 줄 — 색을 주지 않고 무채색으로만 짚는다.
+   나간 건 알아야 하지만 들어온 것만큼 반가운 소식은 아니다. */
+@keyframes leading-stock-demoted {
+  from {
+    background-color: rgba(255, 255, 255, 0.07);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.leading-stock-demoted {
+  animation: leading-stock-demoted 4s ease-out;
+}
+
+/* 순서가 바뀐 줄이 새 자리로 미끄러진다(FLIP). 자리 차이만큼 되돌려 놓고 0으로 푸는
+   방식이라, 트랜지션은 **움직이는 동안에만** 붙인다 — 늘 걸어두면 첫 그림에서도 흐른다. */
+.row-sliding {
+  transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-sliding {
+    transition: none;
+  }
+}
+
 /* 시간대별 수급 — 값이 갱신될 때 직전 변화량을 세 번 깜빡인 뒤 흐리게 유지 */
 @keyframes flow-delta {
   0% {
