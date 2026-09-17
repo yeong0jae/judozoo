@@ -84,9 +84,9 @@ resource "google_compute_firewall" "ssh" {
 
   allow {
     protocol = "tcp"
-    # 3000 = Grafana. 공개 서브도메인 대신 IAP 터널로만 연다 —
-    # `gcloud compute start-iap-tunnel <vm> 3000 --local-host-port=localhost:3000`
-    ports = ["22", "3000"]
+    # 22만. Grafana(3000)는 019에서 ops VM으로 떠났고 그쪽 규칙이
+    # judozoo-ops-allow-iap 다 — 여기 남겨두면 쓰지도 않는 포트가 열린 채 있다.
+    ports = ["22"]
   }
 
   # **IAP 대역만.** allowed_web_source_ranges를 같이 쓰면 안 된다 —
