@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useLeadingStockCandidates, useOverseasRanking } from "../../api/queries";
 import { useMinChangeRate, useOverseasMinChangeRate } from "../../lib/changeRate";
 import { formatPct, formatPrice } from "../../lib/format";
@@ -77,7 +77,8 @@ function Track({ items }: { items: Item[] }) {
 
   return (
     <div className="ticker-viewport min-w-0 flex-1" aria-label="주도주 시세">
-      <div className="ticker-track">
+      {/* 흐르는 속도는 CSS가 정한다 — 여기서는 몇 칸인지만 알려준다 */}
+      <div className="ticker-track" style={{ "--items": items.length } as CSSProperties}>
         {doubled.map((s, i) => (
           <Tick key={`${s.key}-${i}`} name={s.name} price={s.price} rate={s.rate} />
         ))}

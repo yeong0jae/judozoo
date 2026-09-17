@@ -125,10 +125,14 @@ body {
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent);
 }
 
+/* 한 바퀴 시간을 고정하면 종목이 많을수록 빨라진다 — 종목 수에 비례해 늘려
+   길이와 무관하게 같은 속도로 흐르게 한다. `--items`는 티커가 넣어 준다.
+   `max()`는 목록이 두세 개뿐일 때 한 바퀴가 너무 짧아지는 걸 막는 바닥이다. */
 .ticker-track {
   display: flex;
   width: max-content;
-  animation: ticker-marquee 38s linear infinite;
+  --per-item: 2.8s;
+  animation: ticker-marquee max(14s, calc(var(--per-item) * var(--items, 12))) linear infinite;
 }
 
 /* 지나가는 종목을 읽으려면 멈춰야 한다 */
@@ -136,9 +140,10 @@ body {
   animation-play-state: paused;
 }
 
-/* 모바일은 한 칸이 좁아 같은 38초면 흐름이 그만큼 느려진다 — 체감 속도를 데스크톱에 맞춘다. */
+/* 모바일은 한 칸이 좁아(px-3) 같은 시간이면 흐름이 그만큼 느려진다 — 칸당 시간을 줄여
+   체감 속도를 데스크톱에 맞춘다. */
 @media (max-width: 767px) {
-  .ticker-track { animation-duration: 30s; }
+  .ticker-track { --per-item: 2.2s; }
 }
 
 /* 움직임을 줄이는 설정이면 흐르지 않게 하고 직접 밀어 보게 둔다 */
