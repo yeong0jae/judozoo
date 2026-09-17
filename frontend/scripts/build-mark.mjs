@@ -57,4 +57,43 @@ for (const { file, size, indent } of targets) {
   writeFileSync(path, html.replace(region, (_m, head, tail) => head + block + tail));
 }
 
-console.log("마크를 다시 만들었다 — public/favicon.svg, " + targets.map((t) => t.file).join(", "));
+// ── design/icon-*.svg — 정사각 아이콘 원본 ────────────────────
+//
+// 파비콘과 달리 **마크를 캔버스 정중앙에 놓는다.** 뷰박스 중심(12,12)과 잉크 중심은
+// 다르다 — stroke 반폭과 round 캡까지 넣으면 잉크는 x 6.6~18.3, y 2.0~21.0 이고
+// 중심이 (12.45, 11.50)이다. 그냥 얹으면 살짝 어긋나 보인다.
+//
+// 마크 높이를 캔버스의 64%로 잡아 위아래 여백을 18%씩 둔다. 모서리는 굴리지 않는다 —
+// iOS·안드로이드가 알아서 깎는다.
+const INK = { cx: 12.45, cy: 11.5, height: 19.0 };
+const SIDE = INK.height / 0.64;
+const [vx, vy] = [INK.cx - SIDE / 2, INK.cy - SIDE / 2];
+const f = (n) => n.toFixed(3);
+
+function squareIcon({ ink, bg }) {
+  const plate = bg
+    ? `\n  <rect x="${f(vx)}" y="${f(vy)}" width="${f(SIDE)}" height="${f(SIDE)}" fill="${bg}"/>`
+    : "";
+  const body = svg({ size: 1024, ink, indent: 0 }).split("\n").slice(1, -1).join("\n");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(vx)} ${f(vy)} ${f(SIDE)} ${f(SIDE)}" width="1024" height="1024">
+  <!-- 생성 파일 — 고치지 말 것. src/components/layout/mark.json을 고치고 \`npm run mark\`. -->${plate}
+${body}
+</svg>
+`;
+}
+
+const icons = {
+  "design/icon-light.svg": { ink: mark.ink.light, bg: "#ffffff" },
+  "design/icon-dark.svg": { ink: mark.ink.dark, bg: mark.ink.light },
+  "design/icon-clear.svg": { ink: mark.ink.light, bg: null },
+};
+for (const [file, opts] of Object.entries(icons)) {
+  writeFileSync(resolve(root, file), squareIcon(opts));
+}
+
+console.log(
+  "마크를 다시 만들었다 — public/favicon.svg, " +
+    targets.map((t) => t.file).join(", ") +
+    ", " +
+    Object.keys(icons).join(", "),
+);
