@@ -114,13 +114,14 @@ class Test종목_상세:
 class Test눌림_돌파_미리보기:
     @staticmethod
     def 레이더_대역(monkeypatch, 개수):
+        """전부 돌파선 3% 안에 든 종목 — 가까운 순으로 0.1%씩 벌려 둔다."""
         from backend.leadingstock.application import BreakoutRadarStock
 
         monkeypatch.setattr(application, "breakout_radar", lambda: [
             BreakoutRadarStock(
                 stock_code=f"{i:06d}", stock_name=f"종목{i:02d}",
                 current_price=1000, price_change_rate=7.5,
-                peak_price=1100, peak_at=AT, gap_rate=1.0 + i, trading_value=100,
+                peak_price=1100, peak_at=AT, gap_rate=0.1 * i, trading_value=100,
             )
             for i in range(개수)
         ])
@@ -136,31 +137,66 @@ class Test눌림_돌파_미리보기:
         assert 데이터["totalCount"] == 8
         assert 데이터["stocks"][0]["stockName"] == "종목00"
 
-    def test_눌림_모드는_눌림_근접_순으로_자른다(self, client, monkeypatch):
-        """저항 순으로 자른 뒤 지지로 세우면 "지지에 가까운 종목"이 아니게 된다."""
+    def test_선에서_먼_종목은_목록에_없다(self, client, monkeypatch):
+        """전체 수도 거른 뒤 기준이라 "N개 중 M개"가 같은 모수를 센다."""
         from backend.leadingstock.application import BreakoutRadarStock
 
-        def 종목(code, 저항갭, 지지갭):
+        monkeypatch.setattr(application, "breakout_radar", lambda: [
+            BreakoutRadarStock(
+                stock_code=code, stock_name=code, current_price=1000, price_change_rate=7.5,
+                peak_price=1100, peak_at=AT, gap_rate=갭, trading_value=100,
+            )
+            for code, 갭 in [("가까움", 0.5), ("경계", 3.0), ("멂", 3.1), ("아주멂", 12.0)]
+        ])
+
+        데이터 = client.get("/api/leading-stocks/breakout-radar").json()["data"]
+
+        assert [s["stockCode"] for s in 데이터["stocks"]] == ["가까움", "경계"]
+        assert 데이터["totalCount"] == 2
+
+    def test_모드마다_자기_선으로_거르고_세운다(self, client, monkeypatch):
+        """돌파 모드는 돌파선, 눌림 모드는 눌림선 — 각자 3% 안에 든 것만 본다."""
+        from backend.leadingstock.application import BreakoutRadarStock
+
+        def 종목(code, 돌파갭, 눌림갭):
             return BreakoutRadarStock(
                 stock_code=code, stock_name=f"종목{code}",
                 current_price=1000, price_change_rate=-2.0,
-                peak_price=1100, peak_at=AT, gap_rate=저항갭, trading_value=100,
-                support_gap_rate=지지갭,
+                peak_price=1100, peak_at=AT, gap_rate=돌파갭, trading_value=100,
+                support_gap_rate=눌림갭,
             )
 
-        # 저항 순(기본)으로는 앞 5개에 "지지1위"가 들어가지 못한다
         monkeypatch.setattr(application, "breakout_radar", lambda: [
             종목("A", 1.0, 9.0), 종목("B", 2.0, 8.0), 종목("C", 3.0, 7.0),
             종목("D", 4.0, 6.0), 종목("E", 5.0, 5.0), 종목("F", 6.0, 0.5),
         ])
 
-        저항 = client.get("/api/leading-stocks/breakout-radar").json()["data"]
-        지지 = client.get(
+        돌파 = client.get("/api/leading-stocks/breakout-radar").json()["data"]
+        눌림 = client.get(
             "/api/leading-stocks/breakout-radar", params={"mode": "support"}
         ).json()["data"]
 
-        assert [s["stockCode"] for s in 저항["stocks"]] == ["A", "B", "C", "D", "E"]
-        assert 지지["stocks"][0]["stockCode"] == "F"
+        assert [s["stockCode"] for s in 돌파["stocks"]] == ["A", "B", "C"]
+        # 눌림선 3% 안은 F뿐 — 돌파선으로는 가장 먼 종목이다
+        assert [s["stockCode"] for s in 눌림["stocks"]] == ["F"]
+
+    def test_눌림선을_못_구한_종목은_눌림_모드에서_빠진다(self, client, monkeypatch):
+        from backend.leadingstock.application import BreakoutRadarStock
+
+        monkeypatch.setattr(application, "breakout_radar", lambda: [
+            BreakoutRadarStock(
+                stock_code="눌림없음", stock_name="눌림없음", current_price=1000,
+                price_change_rate=7.5, peak_price=1100, peak_at=AT, gap_rate=0.5,
+                trading_value=100, support_gap_rate=None,
+            )
+        ])
+
+        데이터 = client.get(
+            "/api/leading-stocks/breakout-radar", params={"mode": "support"}
+        ).json()["data"]
+
+        assert 데이터["stocks"] == []
+        assert 데이터["totalCount"] == 0
 
     def test_로그인하면_다섯개_넘게도_전부_받는다(self, 로그인_client, monkeypatch):
         self.레이더_대역(monkeypatch, 8)

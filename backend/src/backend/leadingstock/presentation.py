@@ -214,14 +214,14 @@ def get_breakout_radar(
     **등락률 파라미터를 받지 않는다** — 눌림은 내린 종목에서 나오는 신호라 상승률 하한을
     걸면 그쪽이 빈다. 어느 쪽에 얼마나 가까운 것만 볼지는 화면이 정한다.
 
-    **미로그인이면 상위 `RADAR_PREVIEW_COUNT`개만 내려간다.** `total_count`는 자르기 전
-    전체 수라, 받는 쪽이 둘을 비교해 잘렸는지 안다. 자세한 이유는 `get_signal_events` 참고.
+    `mode`가 **어느 선을 기준으로 볼지**를 정한다. 그 선에서 `RADAR_NEAR_RATE`% 이내인
+    종목만 담고, 가까운 순으로 세운다 — 멀리 있는 종목은 지금 할 일이 없다.
 
-    `mode`는 **자를 때 어느 쪽 근접 순으로 세울지**를 정한다. 저항 순으로 자른 뒤 지지로
-    다시 세우면 "지지에 가까운 종목"이 아니라 "저항에 가까운 종목을 지지 순으로 늘어놓은 것"이
-    된다. 전부 받는 쪽(로그인)은 화면에서 다시 세우므로 이 값이 결과를 바꾸지 않는다.
+    **미로그인이면 상위 `RADAR_PREVIEW_COUNT`개만 내려간다.** `total_count`는 근접 범위로
+    거른 뒤, 건수로 자르기 전의 수다. 받는 쪽이 둘을 비교해 잘렸는지 알고, 두 숫자가
+    같은 모수를 세므로 "N개 중 M개"가 거짓말이 되지 않는다.
     """
-    items = [
+    near = [
         BreakoutRadarItem(
             stock_code=s.stock_code, stock_name=s.stock_name,
             current_price=s.current_price, price_change_rate=s.price_change_rate,
@@ -230,12 +230,19 @@ def get_breakout_radar(
             trading_value=s.trading_value,
         )
         for s in application.breakout_radar()
+        if (
+            s.support_gap_rate is not None and s.support_gap_rate <= RADAR_NEAR_RATE
+            if mode == "support"
+            else s.gap_rate <= RADAR_NEAR_RATE
+        )
     ]
+    near.sort(
+        key=lambda i: i.support_gap_rate if mode == "support" and i.support_gap_rate is not None
+        else i.gap_rate
+    )
+    items = near
     total = len(items)
     if current_user(request) is None:
-        if mode == "support":
-            # 지지선이 없는 종목은 뒤로 — 화면의 정렬과 같은 규칙이다
-            items.sort(key=lambda i: (i.support_gap_rate is None, i.support_gap_rate or 0.0))
         items = items[:RADAR_PREVIEW_COUNT]
     return ApiResponse.ok(
         BreakoutRadarResponse(queried_at=now(), total_count=total, stocks=items)
@@ -250,9 +257,14 @@ PREVIEW_COUNT = 10
 #: 0이면 "내린 종목만 뺀다"는 뜻이고, 로그인 화면의 등락률 필터 기본값과도 같다.
 PREVIEW_MIN_CHANGE_RATE = 0.0
 
-#: 미로그인 미리보기로 내려보내는 지지·저항 종목 수. 시그널은 그날 쌓인 로그라 10건이지만
+#: 미로그인 미리보기로 내려보내는 눌림·돌파 종목 수. 시그널은 그날 쌓인 로그라 10건이지만
 #: 여기는 "지금 가장 가까운 것"이 핵심이라 상위 몇 개면 맛이 보인다.
 RADAR_PREVIEW_COUNT = 5
+
+#: 눌림·돌파로 볼 근접 범위(%). 선에서 이만큼 안에 든 종목만 목록에 담는다.
+#: 화면이 색을 넣는 기준(`BreakoutRadarPage`의 `NEAR`)과 **같은 값이어야 한다** —
+#: 다르면 목록에 있는데 색이 없는 줄이나 그 반대가 생긴다.
+RADAR_NEAR_RATE = 3.0
 
 
 @router.get("/signal-events")

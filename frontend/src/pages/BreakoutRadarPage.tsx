@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
@@ -109,18 +109,9 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
 
   const radarQ = useBreakoutRadar(mode);
   const data = radarQ.data;
-  // **지금 보는 선에서 NEAR% 이내인 것만 남긴다.** 목록에 있는 줄은 전부 색이 들어간
-  // 줄이라, 색이 곧 "볼 만한 것"이라는 뜻이 된다. 멀리 있는 종목은 어차피 할 일이 없다.
-  //
-  // 백엔드는 돌파 근접 순으로 준다. 눌림 모드면 여기서 다시 세운다 —
-  // 데이터가 이미 다 와 있어서 추가 요청이 필요 없다.
-  const stocks = useMemo(() => {
-    const list = data?.stocks ?? [];
-    if (mode === "resistance") return list.filter((s) => s.gapRate <= NEAR);
-    return list
-      .filter((s) => s.supportGapRate !== null && s.supportGapRate <= NEAR)
-      .sort((a, b) => (a.supportGapRate ?? Infinity) - (b.supportGapRate ?? Infinity));
-  }, [data, mode]);
+  // 지금 보는 선에서 NEAR% 이내인 것만 오고, 가까운 순으로 정렬돼 있다 — 거르고 세우는 일은
+  // 서버가 한다. 화면에서 또 거르면 `totalCount`와 모수가 달라져 "N개 중 M개"가 어긋난다.
+  const stocks = data?.stocks ?? [];
 
   // 우측 차트에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -136,8 +127,8 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
     <div className="space-y-4">
       <PageHeader
         title="눌림·돌파"
-        // 서버가 준 전체 수가 아니라 **3% 안에 든 수**다 — 화면에 그린 줄과 같아야 한다
-        count={stocks.length}
+        // 근접 범위로 거른 뒤의 전체 수 — 미로그인은 그중 다섯 줄만 받는다
+        count={data?.totalCount}
         queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
         loading={radarQ.isFetching}
       />
