@@ -18,10 +18,12 @@ commits together are a record of where someone lives.
 
 ### 3. Server public IPs do not belong in docs
 
-Today the address is the `judozoo.com` A record, so `dig` reveals it and writing it down
-looks harmless. But the moment the Cloudflare proxy goes on, the origin IP becomes a value
-to hide — it is the route that bypasses the proxy and hits the server directly. Don't write
-it down in the first place, so there is nothing to hunt for later.
+**The Cloudflare proxy is on (2026-09-17), so this is now live, not hypothetical.** `dig
+judozoo.com` returns Cloudflare edge addresses; the origin IP is the one route that bypasses
+the proxy and reaches the server directly. Web ingress is narrowed to Cloudflare's published
+ranges (`allowed_web_source_ranges`), so a direct hit now times out — but a firewall is one
+`terraform apply` away from being widened again. Don't write the address down in the first
+place, so there is nothing to hunt for later.
 
 `terraform output vm_external_ips` has the value when it is actually needed.
 
