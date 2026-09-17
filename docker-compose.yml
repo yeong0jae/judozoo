@@ -65,13 +65,12 @@ services:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
-      # 내장 exporter(unix·cadvisor)가 호스트를 읽는 통로. **config.alloy의 경로
+      # 내장 exporter(unix)가 호스트를 읽는 통로. **config.alloy의 경로
       # 인자와 짝이다 — 하나라도 빠지면 alloy가 exit 1로 죽고 로그 수집까지 멈춘다.**
       # /proc은 컨테이너 자기 것을 덮으면 안 되므로 /host/proc으로 받는다.
       - /:/rootfs:ro
       - /sys:/sys:ro
       - /proc:/host/proc:ro
-      - /var/lib/docker/:/var/lib/docker:ro
     networks:
       - trading
 

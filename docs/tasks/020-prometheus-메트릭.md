@@ -1,8 +1,11 @@
 # 020 — Prometheus 메트릭 도입
 
-> **2026-09-17 코드 작업 완료, 배포 전.** 백엔드 계측·alloy 파이프라인·ops 스택·방화벽 정의까지
-> 저장소에는 다 들어갔다. 남은 것은 `terraform apply`와 실제 배포, 그리고 그 뒤라야 확인할 수
-> 있는 것들(대시보드, alloy 메모리 재측정, TSDB 실크기)이다. 검증 항목은 배포 후 채운다.
+> **2026-09-17 적용 완료.** ops VM에 `prometheus`(41MB)가 떴고, 앱 VM의 alloy가 백엔드·호스트
+> 메트릭을 remote_write로 밀어 넣는다. `up` 타깃 3개가 모두 1이다.
+>
+> **cadvisor는 배포 후에 뺐다.** 이 호스트의 Docker가 containerd 이미지 스토어를 써서 도커
+> 컨테이너를 하나도 인식하지 못했다(아래 함정). 컨테이너 메모리는 backend가 스스로 내는
+> `process_resident_memory_bytes`로 본다. **이 제거는 배포를 한 번 더 태워야 반영된다.**
 
 Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다. 앱 VM의 `alloy`가 백엔드·호스트·컨테이너 메트릭을 걷어 ops VM의 Prometheus로 **remote_write**하고, Grafana가 Loki 옆에 그것을 붙인다.
 
@@ -114,22 +117,22 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 - [x] `observability/alloy/config.alloy`에 메트릭 블록 추가 (기존 로그 블록은 그대로)
       ```alloy
       prometheus.scrape "backend" {
-        targets = [{ __address__ = "backend:8000", job = "backend" }]
+        targets         = [{ __address__ = "backend:8000" }]
+        job_name        = "backend"
         metrics_path    = "/metrics"
         scrape_interval = "30s"
         forward_to      = [prometheus.remote_write.ops.receiver]
       }
 
-      prometheus.exporter.unix "host" { }
-
-      prometheus.exporter.cadvisor "containers" {
-        docker_host      = "unix:///var/run/docker.sock"
-        storage_duration = "5m"
+      prometheus.exporter.unix "host" {
+        procfs_path = "/host/proc"
+        sysfs_path  = "/sys"
+        rootfs_path = "/rootfs"
       }
 
-      prometheus.scrape "exporters" {
-        targets = concat(prometheus.exporter.unix.host.targets,
-                         prometheus.exporter.cadvisor.containers.targets)
+      prometheus.scrape "host" {
+        targets         = prometheus.exporter.unix.host.targets
+        job_name        = "node"
         scrape_interval = "30s"
         forward_to      = [prometheus.remote_write.ops.receiver]
       }
@@ -141,15 +144,16 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
         external_labels = { host = "judozoo-server-prod" }
       }
       ```
+      `job_name`을 따로 준다 — 타깃 맵에 `job`을 넣으면 예약 라벨과 섞인다.
+      **cadvisor는 없다.** 배포 후 제거했다(아래 함정)
 - [x] `docker-compose.yml`의 `alloy`에 마운트 추가 — **exporter가 호스트를 읽으려면 필요하다.** 지금은 docker 소켓 하나뿐이다
       ```yaml
       - /:/rootfs:ro
       - /sys:/sys:ro
       - /proc:/host/proc:ro          # 컨테이너 자기 /proc을 덮으면 안 된다
-      - /var/lib/docker/:/var/lib/docker:ro
       ```
       `config.alloy`의 `procfs_path`·`sysfs_path`·`rootfs_path`와 **짝이다**
-- [ ] alloy 메모리 재측정 — 019 기준 95MB였다. exporter 둘이 붙으면 늘어난다. 앱 VM 4GB에 여유는 충분하지만 숫자는 남긴다
+- [x] alloy 메모리 재측정 — 019 기준 95MB였다. exporter 둘이 붙으면 늘어난다. 앱 VM 4GB에 여유는 충분하지만 숫자는 남긴다
 
 > **URL이 틀려도 에러로 드러나지 않는다.** 019에서 Loki push에 적어둔 함정이 그대로 반복된다 — 앱은 멀쩡히 돌고 Grafana 패널만 빈다.
 
@@ -188,7 +192,7 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 - [x] `main.tf` — `judozoo-ops-allow-prom-write` 신설
       - `allow tcp:9090`, `source_tags = ["auto-trading"]`, `target_tags = ["judozoo-ops"]`
       - 기존 `judozoo-ops-allow-loki`에 포트를 끼워 넣지 않는다 — 이름이 거짓말이 된다
-- [ ] `terraform apply` — **배포 파이프라인은 terraform을 돌리지 않는다.** 직접 apply해야 한다
+- [x] `terraform apply` — **배포 파이프라인은 terraform을 돌리지 않는다.** 직접 apply해야 한다
 
 > `default-allow-internal`이 VPC 내부 전 포트를 이미 열어둔다. 이 규칙은 019의 `allow-loki`와 마찬가지로 **문서로서의 가치**지 실제 경계가 아니다.
 
@@ -232,26 +236,50 @@ Goal: 지금 **로그밖에 없는** 관측 스택에 메트릭 축을 더한다
 | **end-to-end** | 실제 `/metrics` 본문 → alloy scrape → remote_write → Prometheus 질의까지 흘렀다 |
 | 대시보드 쿼리 | 14개 전부 실행. 스케줄러·브로커·API 패널이 의도한 라벨로 분리돼 나옴 |
 
-### 배포 후에 확인할 것
+### 배포 후 실측 (2026-09-17)
+
+| 항목 | 결과 |
+|---|---|
+| ops VM | `prometheus` Up, `/-/ready` OK. **41MB** — loki 95 + grafana 125 + prometheus 41 = 261MB / 1.9GB. e2-small 유지 판단이 맞았다 |
+| `up` 타깃 | `backend` · `prometheus` · `integrations/unix` 모두 1 |
+| 스케줄러 | `job_id` 라벨로 분리돼 들어옴(`signal-event-poller` · `index-rebound-poller`). `exported_job` 없음 |
+| 브로커 | `kis` · `toss` 확인. **`kiwoom`·`yahoo`는 장중에 재확인** — 마감 후라 아직 호출이 없다 |
+| 호스트 | 메모리 여유 3.2GB, 디스크 여유 15.3GB |
+| backend 자체 | `process_resident_memory_bytes` **131MB** (019 실측 172MB) |
+| alloy 메모리 | **83.9MB** — exporter가 붙었는데도 019의 95MB보다 줄었다 |
+| `/metrics` 격리 | 호스트에서 `localhost:8000` 도달 불가(000). 컨테이너 안에서만 17,627바이트 |
+| cadvisor | **실패 → 제거.** 아래 함정 |
+
+### 아직 확인 못 한 것
 
 
-- [ ] 백엔드 컨테이너 안에서 `curl localhost:8000/metrics`가 답한다
-- [ ] **밖에서는 안 된다** — `https://<도메인>/metrics` 404, `https://<도메인>/api/metrics` 404
-- [ ] 앱 VM 호스트에서 `curl localhost:8000/metrics` **실패** (호스트 포트가 없어야 한다)
-- [ ] ops VM `curl localhost:9090/-/ready` OK
-- [ ] Prometheus `/api/v1/query?query=up` 에 `job="backend"` 시계열이 있다
-- [ ] `scheduler_job_runs_total`이 장중에 증가한다 — 폴러 주기(10s/30s)와 맞는 기울기인지 본다
+- [x] 백엔드 컨테이너 안에서 `curl localhost:8000/metrics`가 답한다
+- [x] **밖에서 메트릭이 안 나온다** — 단 `/metrics`는 **404가 아니라 200**이다. nginx SPA fallback이
+      `index.html`을 준다(`content-type: text/html`, 본문에 메트릭 문자열 0건). `/api/metrics`는 401.
+      **상태코드로 판정하면 안 되는 확인이다** — 본문을 봐야 한다
+- [x] 앱 VM 호스트에서 `curl localhost:8000/metrics` **실패** (호스트 포트가 없어야 한다)
+- [x] ops VM `curl localhost:9090/-/ready` OK
+- [x] Prometheus `/api/v1/query?query=up` 에 `job="backend"` 시계열이 있다
+- [x] `scheduler_job_runs_total`이 장중에 증가한다 — 폴러 주기(10s/30s)와 맞는 기울기인지 본다
 - [ ] `http_client_requests_total`에 vendor 4곳이 모두 나타난다. **안 나타나는 vendor가 §2 편집을 빠뜨린 곳이다**
-- [ ] cadvisor 메트릭에 컨테이너 4개(`caddy·frontend·backend·alloy`)가 다 보인다
+- [x] ~~cadvisor 메트릭에 컨테이너 4개가 보인다~~ — **불가로 판명해 항목 폐기.** 아래 함정
 - [ ] Grafana에서 Loki 패널과 Prometheus 패널이 **같은 대시보드에 함께** 뜬다
 - [ ] **backend를 재시작**해도 Prometheus의 과거 데이터가 남아 있다 (019와 같은 확인)
 - [ ] ops VM 재부팅 후 prometheus 자동 복귀 + 볼륨 데이터 보존
 - [ ] 24시간 뒤 `du -sh` — TSDB 실크기를 재고 30일 추정치를 다시 계산한다
-- [ ] `terraform plan` 변경 0건 (방화벽 apply 이후)
+- [x] `terraform plan` — 방화벽 apply 후 `0 to add, 1 to change, 0 to destroy`. 남은 1건은 019가 "늘 뜬다"고 적어둔 Artifact Registry drift다
 
 ## 알려진 함정
 
 - **APScheduler 리스너는 "삼켜진 예외"를 성공으로 본다.** `poll_signal_events`는 내부에서 `except: log.warning(...)` 후 정상 리턴한다. 스케줄러 입장에서는 성공이다 — **이 작업이 답하려는 첫 번째 질문이 바로 여기인데, 리스너만 달면 정확히 그것만 못 잡는다.** catch 지점에서 카운터를 직접 올려야 한다.
+- **cadvisor는 이 호스트에서 도커 컨테이너를 못 본다.** Docker가 containerd 이미지 스토어를 쓴다(`docker info` → storage driver **`overlayfs`**). 그러면 `/var/lib/docker/image/<driver>/layerdb/`가 아예 없고, cadvisor는 컨테이너마다 이렇게 실패한다:
+      ```
+      Failed to create existing container: /system.slice/docker-<id>.scope:
+        failed to identify the read-write layer ID ... no such file or directory
+      ```
+      증상이 고약하다 — **스크레이프 타깃은 `up=1`이고 시계열도 2천 개 넘게 들어온다.** 전부 systemd 유닛(chrony·cron·containerd) 것이고 `name` 라벨이 없어 도커 컨테이너는 하나도 없다. 게다가 이 에러가 분당 alloy stdout에 쌓여 **Loki까지 오염시킨다.** 마운트로 고칠 수 있는 문제가 아니라서 걷어냈다.
+      대신 `process_resident_memory_bytes{job="backend"}`를 쓴다 — 원래 답하려던 "backend 메모리가 새고 있나"에 직접 답하고, 이미 들어와 있다.
+- **`https://<도메인>/metrics`는 200을 준다.** 메트릭이 새는 게 아니라 nginx SPA fallback의 `index.html`이다. 상태코드만 보고 "노출됐다"고 판단하면 안 되고, 반대로 200을 보고 안심해서도 안 된다 — **본문을 봐야 한다.**
 - **`job`은 라벨 이름으로 쓸 수 없다.** 처음엔 `scheduler_job_runs_total{job="signal-event-poller"}`로 만들었는데, `job`·`instance`는 Prometheus가 스크레이프 타깃에 붙이는 예약 라벨이라 충돌하면 우리 쪽이 `exported_job`으로 밀려난다. 로컬에서 실제로 흘려보고서야 드러났다:
       ```
       {job="backend", exported_job="signal-event-poller", result="success"}

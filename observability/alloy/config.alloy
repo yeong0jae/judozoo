@@ -54,7 +54,13 @@ prometheus.scrape "backend" {
   forward_to      = [prometheus.remote_write.ops.receiver]
 }
 
-// node_exporter·cAdvisor 컨테이너를 따로 띄우지 않는다 — alloy에 내장돼 있다.
+// node_exporter를 따로 띄우지 않는다 — alloy에 내장돼 있다.
+//
+// **cadvisor는 뺐다.** 이 호스트의 Docker가 containerd 이미지 스토어를 쓰는데
+// (storage driver `overlayfs`), cadvisor는 `/var/lib/docker/image/<driver>/layerdb`에서
+// 레이어를 찾는다. 그 경로가 아예 없어서 도커 컨테이너를 **하나도** 인식하지 못하고,
+// systemd 유닛 시계열 2천여 개와 분당 에러 로그만 남겼다(그 로그는 Loki로도 들어간다).
+// 컨테이너 메모리는 backend가 스스로 내는 `process_resident_memory_bytes`로 본다.
 //
 // **경로 인자와 compose의 마운트가 짝이다. 한쪽만 바꾸면 alloy가 통째로 죽는다** —
 // 빈 메트릭으로 넘어가지 않고 설정 평가에서 exit 1이다(v1.7.5 실측). 즉 메트릭
@@ -65,21 +71,9 @@ prometheus.exporter.unix "host" {
   rootfs_path = "/rootfs"
 }
 
-prometheus.exporter.cadvisor "containers" {
-  docker_host      = "unix:///var/run/docker.sock"
-  storage_duration = "5m"
-}
-
 prometheus.scrape "host" {
   targets         = prometheus.exporter.unix.host.targets
   job_name        = "node"
-  scrape_interval = "30s"
-  forward_to      = [prometheus.remote_write.ops.receiver]
-}
-
-prometheus.scrape "containers" {
-  targets         = prometheus.exporter.cadvisor.containers.targets
-  job_name        = "cadvisor"
   scrape_interval = "30s"
   forward_to      = [prometheus.remote_write.ops.receiver]
 }
