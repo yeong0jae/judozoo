@@ -710,23 +710,35 @@ def _yahoo_candles(symbol: str, interval: str) -> list:
 
 
 @dataclass(frozen=True)
-class TodayNet:
-    """지수 한 칸의 당일 누적 순매수 — 현물은 억원, 선물은 계약이다."""
+class TodayNetInvestors:
+    """투자자 넷 — 현물은 억원, 선물은 계약이다."""
 
-    market: Market
-    futures: bool
-    index_value: float
-    change_rate: float
     individual: int
     foreign: int
     institution: int
     other_corp: int
 
 
+@dataclass(frozen=True)
+class TodayNet:
+    """지수 한 칸의 당일 누적 순매수."""
+
+    market: Market
+    futures: bool
+    index_value: float
+    change_rate: float
+    #: 수급만 못 받았을 때 None. **칸을 지우지 않는다** — KIS가 코스닥150 선물 투자자
+    #: 조회에 간헐적으로 500을 주는데, 그때마다 칸이 사라지면 카드가 넷이었다 셋이었다 한다.
+    #: 가격·등락률은 멀쩡히 왔으므로 그것만 보여주고 수급 줄은 화면이 비운다.
+    nets: TodayNetInvestors | None
+
+
 def today_nets() -> list[TodayNet]:
-    """코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수. 값이 없는 시장은 빠진다.
+    """코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수.
 
     현물(억원)과 선물(계약)은 단위가 달라 한 목록에 담겨도 서로 더하거나 견주지 않는다.
+
+    시세조차 못 받은 시장만 목록에서 빠진다. 수급만 비는 경우는 `nets=None`으로 남는다.
     """
     out: list[TodayNet] = []
     for market in Market:
@@ -737,21 +749,25 @@ def today_nets() -> list[TodayNet]:
             TodayNet(
                 market=market, futures=False,
                 index_value=nb.index_value, change_rate=nb.change_rate,
-                individual=nb.individual_eok, foreign=nb.foreign_eok,
-                institution=nb.institution_eok, other_corp=nb.other_corp_eok,
+                nets=TodayNetInvestors(
+                    individual=nb.individual_eok, foreign=nb.foreign_eok,
+                    institution=nb.institution_eok, other_corp=nb.other_corp_eok,
+                ),
             )
         )
     for market in Market:
         quote = futures_quote(market)
-        if quote is None or quote.investors is None:
+        if quote is None:
             continue
-        nets = quote.investors
+        i = quote.investors
         out.append(
             TodayNet(
                 market=market, futures=True,
                 index_value=quote.futures_price, change_rate=quote.change_rate,
-                individual=nets.individual, foreign=nets.foreign,
-                institution=nets.institution, other_corp=nets.other_corp,
+                nets=None if i is None else TodayNetInvestors(
+                    individual=i.individual, foreign=i.foreign,
+                    institution=i.institution, other_corp=i.other_corp,
+                ),
             )
         )
     return out

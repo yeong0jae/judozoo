@@ -333,16 +333,25 @@ export interface MarketInvestorNetBuyItem {
   changeRate: number | null;
 }
 
-/** 첫 화면 "오늘의 수급" 한 칸. `futures`가 단위를 가른다 — 현물은 억원, 선물은 계약. */
+/** 투자자 넷. 단위는 `TodayNetItem.futures`가 가른다 — 현물은 억원, 선물은 계약. */
+export interface TodayNets {
+  individual: number;
+  foreign: number;
+  institution: number;
+  otherCorp: number;
+}
+
+/**
+ * 첫 화면 "오늘의 수급" 한 칸.
+ *
+ * `nets`는 수급만 못 받았을 때 null이다 — 시세는 왔으므로 칸은 남고 수급 줄만 빈다.
+ */
 export interface TodayNetItem {
   market: MarketType;
   futures: boolean;
   indexValue: number;
   changeRate: number;
-  individual: number;
-  foreign: number;
-  institution: number;
-  otherCorp: number;
+  nets: TodayNets | null;
 }
 
 /** 지수 1분봉 — 가격은 지수값(소수), volume은 1000주 단위. */

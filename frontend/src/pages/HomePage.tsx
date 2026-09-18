@@ -436,8 +436,9 @@ function TodayNets({ live, clock }: { live: boolean; clock: string }) {
 
 function NetCard({ item }: { item: TodayNetItem }) {
   const { name, unit, slug } = netLabel(item);
+  const nets = item.nets;
   // 막대 길이는 그 카드 안에서만 뜻이 있다 — 가장 큰 값이 반칸을 꽉 채운다
-  const top = Math.max(...INVESTORS.map(({ key }) => Math.abs(item[key]))) || 1;
+  const top = nets ? Math.max(...INVESTORS.map(({ key }) => Math.abs(nets[key]))) || 1 : 1;
 
   return (
     <Link
@@ -458,7 +459,7 @@ function NetCard({ item }: { item: TodayNetItem }) {
 
       <div className="mt-2.5 space-y-2 border-t border-zinc-800 pt-2.5">
         {INVESTORS.map(({ key, label }) => (
-          <NetRow key={key} label={label} value={item[key]} top={top} />
+          <NetRow key={key} label={label} value={nets ? nets[key] : null} top={top} />
         ))}
       </div>
 
@@ -467,12 +468,20 @@ function NetCard({ item }: { item: TodayNetItem }) {
   );
 }
 
-/** 0선을 가운데 두고 순매수는 오른쪽, 순매도는 왼쪽으로 뻗는다. */
-function NetRow({ label, value, top }: { label: string; value: number; top: number }) {
+/**
+ * 0선을 가운데 두고 순매수는 오른쪽, 순매도는 왼쪽으로 뻗는다.
+ *
+ * `value`가 null이면 그 줄만 대시로 비운다 — 줄 높이는 그대로라 카드가 들썩이지 않는다.
+ */
+function NetRow({ label, value, top }: { label: string; value: number | null; top: number }) {
   // 반칸(50%) 기준 — 0이 아닌 값은 최소 한 줄이라도 보이게 바닥을 둔다
-  const width = value === 0 ? 0 : Math.max(1, (Math.abs(value) / top) * 50);
-  const tone = value > 0 ? "text-red-400" : value < 0 ? "text-blue-400" : "text-zinc-600";
-  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  const width = value === null || value === 0 ? 0 : Math.max(1, (Math.abs(value) / top) * 50);
+  const tone =
+    value === null ? "text-zinc-600"
+    : value > 0 ? "text-red-400"
+    : value < 0 ? "text-blue-400"
+    : "text-zinc-600";
+  const sign = value !== null && value > 0 ? "+" : value !== null && value < 0 ? "−" : "";
 
   return (
     <div className="flex items-center gap-2">
@@ -481,14 +490,15 @@ function NetRow({ label, value, top }: { label: string; value: number; top: numb
         <div className="absolute left-1/2 top-[-1px] h-2.5 w-px bg-zinc-700" />
         <div
           className={`absolute top-0 h-2 ${
-            value >= 0 ? "left-1/2 rounded-r-sm bg-red-400" : "right-1/2 rounded-l-sm bg-blue-400"
+            value !== null && value < 0
+              ? "right-1/2 rounded-l-sm bg-blue-400"
+              : "left-1/2 rounded-r-sm bg-red-400"
           }`}
           style={{ width: `${width}%` }}
         />
       </div>
       <span className={`num w-[3.9rem] shrink-0 text-right text-xs font-medium ${tone}`}>
-        {sign}
-        {Math.abs(value).toLocaleString("ko-KR")}
+        {value === null ? "—" : `${sign}${Math.abs(value).toLocaleString("ko-KR")}`}
       </span>
     </div>
   );

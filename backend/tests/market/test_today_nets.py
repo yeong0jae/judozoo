@@ -99,12 +99,10 @@ class Test오늘의_수급:
 
         현물, 선물 = application.today_nets()[0], application.today_nets()[2]
 
-        assert (현물.individual, 현물.foreign, 현물.institution, 현물.other_corp) == (
-            -8420, 6150, 2180, 90,
-        )
-        assert (선물.individual, 선물.foreign, 선물.institution, 선물.other_corp) == (
-            -4210, 12480, -7980, -290,
-        )
+        assert (현물.nets.individual, 현물.nets.foreign, 현물.nets.institution,
+                현물.nets.other_corp) == (-8420, 6150, 2180, 90)
+        assert (선물.nets.individual, 선물.nets.foreign, 선물.nets.institution,
+                선물.nets.other_corp) == (-4210, 12480, -7980, -290)
 
     def test_지수값과_등락률은_현물은_지수_선물은_선물가를_쓴다(self, mocker):
         mocker.patch.object(
@@ -123,6 +121,17 @@ class Test오늘의_수급:
         assert (결과[0].index_value, 결과[0].change_rate) == (2653.81, 1.24)
         assert (결과[2].index_value, 결과[2].change_rate) == (943.20, 2.71)
 
+    def test_선물_시세조차_안_오면_그_칸은_빠진다(self, mocker):
+        """수급만 빈 것과 다르다 — 지수값도 없으면 보여줄 게 없다."""
+        mocker.patch.object(
+            application.kiwoom_sector,
+            "fetch_sector_net_buy",
+            return_value=현물수급(개인=-1, 외인=1, 기관=0, 기타법인=0),
+        )
+        mocker.patch.object(application, "futures_quote", return_value=None)
+
+        assert all(n.futures is False for n in application.today_nets())
+
     def test_현물이_안_오면_그_시장은_빠지고_선물만_남는다(self, mocker):
         mocker.patch.object(application.kiwoom_sector, "fetch_sector_net_buy", return_value=None)
         mocker.patch.object(
@@ -138,8 +147,12 @@ class Test오늘의_수급:
             (Market.KOSDAQ, True),
         ]
 
-    def test_선물_투자자_조회가_비면_그_칸은_빠진다(self, mocker):
-        """시세는 왔는데 투자자만 None인 경우 — 0으로 채우면 "아무도 안 샀다"는 거짓말이 된다."""
+    def test_선물_투자자만_안_오면_칸은_남고_수급만_빈다(self, mocker):
+        """KIS가 코스닥150 선물 투자자 조회에 간헐적으로 500을 준다.
+
+        그때마다 칸을 빼면 카드가 넷이었다 셋이었다 한다. 시세는 왔으니 칸은 두고
+        수급만 비운다 — 0으로 채우면 "아무도 안 샀다"는 거짓말이 된다.
+        """
         mocker.patch.object(
             application.kiwoom_sector,
             "fetch_sector_net_buy",
@@ -154,7 +167,10 @@ class Test오늘의_수급:
 
         결과 = application.today_nets()
 
-        assert all(n.futures is False for n in 결과)
+        선물들 = [n for n in 결과 if n.futures]
+        assert len(선물들) == 2
+        assert all(n.nets is None for n in 선물들)
+        assert all(n.index_value == 943.20 for n in 선물들)
 
     def test_아무_값도_없으면_빈_목록이다(self, mocker):
         mocker.patch.object(application.kiwoom_sector, "fetch_sector_net_buy", return_value=None)

@@ -182,17 +182,23 @@ class MacroQuotesItem(BaseModel):
     vix: QuoteItem | None
 
 
+class TodayNetInvestorsItem(BaseModel):
+    individual: int
+    foreign: int
+    institution: int
+    other_corp: int = Field(serialization_alias="otherCorp")
+
+
 class TodayNetItem(BaseModel):
-    """`futures`가 단위를 가른다 — 현물은 억원, 선물은 계약."""
+    """`futures`가 단위를 가른다 — 현물은 억원, 선물은 계약.
+
+    `nets`는 수급만 못 받았을 때 null이다. 시세는 왔으므로 칸은 남는다."""
 
     market: str
     futures: bool
     index_value: float = Field(serialization_alias="indexValue")
     change_rate: float = Field(serialization_alias="changeRate")
-    individual: int
-    foreign: int
-    institution: int
-    other_corp: int = Field(serialization_alias="otherCorp")
+    nets: TodayNetInvestorsItem | None
 
 
 # ── 변환기 ─────────────────────────────────────────────────────────────
@@ -268,8 +274,7 @@ def investor_today() -> ApiResponse[list[TodayNetItem]]:
             TodayNetItem(
                 market=n.market.name, futures=n.futures,
                 index_value=n.index_value, change_rate=n.change_rate,
-                individual=n.individual, foreign=n.foreign,
-                institution=n.institution, other_corp=n.other_corp,
+                nets=None if n.nets is None else TodayNetInvestorsItem(**vars(n.nets)),
             )
             for n in application.today_nets()
         ]
