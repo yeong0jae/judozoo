@@ -80,6 +80,21 @@ export function formatRange({ from, to }: MarketSession): string {
   return `${clock(from)} ~ ${clock(to)}`;
 }
 
+/**
+ * 지금 화면의 주인공이 해외인가 — 국내 타일·주도주 카드의 순서를 이 하나가 정한다.
+ *
+ * **세션이 아니라 시각으로 가른다.** 국내가 도는 평일 08:00~19:59만 국내가 앞이고,
+ * 나머지는 전부 해외다. 밤과 새벽은 국내 숫자가 멈춰 있고, 주말은 이틀 내내 멈춰 있다 —
+ * 멈춘 목록을 주인공 자리에 두면 어제 종가를 오늘 시세로 읽는다.
+ *
+ * 그래서 토요일 낮에도 해외가 앞이다. 미국장도 쉬지만, 그쪽은 금요일 종가라 적어도
+ * "가장 최근에 끝난 장"이다.
+ */
+export function overseasIsMain(now: Date): boolean {
+  const hour = now.getHours();
+  return isKstWeekend(now) || hour >= 20 || hour < 8;
+}
+
 /** 해외 프리마켓이 열리는 한국시간 — "17:00". 서머타임이면 한 시간 당겨진다. */
 export function usOpenClock(now: Date): string {
   return clock(usSessions(now)[0].from);

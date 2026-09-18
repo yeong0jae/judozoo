@@ -15,6 +15,7 @@ import {
   formatTradingDay,
   krTradingDay,
   usTradingDay,
+  overseasIsMain,
   useMarketSessions,
 } from "../lib/marketSession";
 import { rememberMarket, type StockMarket } from "../lib/stockMarket";
@@ -41,15 +42,17 @@ export default function HomePage() {
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
   // 세션 중인가 — 국내는 프리·애프터마켓까지(08:00~20:00), 해외는 프리마켓~정규장이다
-  // (해외 세션 정의에 애프터마켓이 없다). 어느 쪽을 앞에 둘지와 주도주 카드의 "장중"이 이 값을 쓴다.
+  // (해외 세션 정의에 애프터마켓이 없다). 주도주 카드의 "장중" 칩이 이 값을 쓴다.
+  // 어느 쪽을 앞에 둘지는 이 값이 아니라 아래 `overseasIsMain`이 정한다.
   const domesticLive = kr !== null && !krHoliday;
   const overseasLive = us !== null && !usHoliday;
   // 지수 타일만 정규장으로 좁힌다. 지수는 정규장에만 체결돼서, 프리·애프터마켓에 "장중"이라
   // 붙이면 멈춰 있는 숫자가 살아 있는 값으로 읽힌다.
   const domesticOpen = kr?.tone === "open" && !krHoliday;
   const overseasOpen = us?.tone === "open" && !usHoliday;
-  // 양쪽 다 쉬는 주말·새벽에는 국내를 앞에 둔다 — 여기는 국내 단타 화면이다
-  const domesticFirst = domesticLive || !overseasLive;
+  // 주인공 자리는 시각이 정한다 — 평일 08:00~19:59만 국내고 나머지는 해외다.
+  // 지수 타일도 같은 규칙을 쓴다(`overseasIsMain`).
+  const domesticFirst = !overseasIsMain(now);
 
   // 두 쪽 날짜가 다를 수 있다 — 해외는 미국 현지 거래일이라 한국 오전에는 하루 뒤처진다
   const clock = formatClock(now);
@@ -163,12 +166,9 @@ function IndexTiles({
     ),
   };
 
-  // 20:00~07:59는 국내가 멈춰 있고 밤 시장이 도는 시간대다 — 그때는 살아 있는 숫자를
-  // 앞에 둔다. 낮에는 국내 둘이 주인공이고 나스닥은 밤사이 분위기를 재는 참고값이라 맨 뒤다.
-  // (주도주 카드가 장이 도는 쪽을 앞으로 보내는 것과 같은 규칙이다)
-  const hour = now.getHours();
-  const nightFirst = hour >= 20 || hour < 8;
-  const order = nightFirst
+  // 주도주 카드와 같은 규칙이다 — 국내가 멈춰 있는 시간대에는 살아 있는 숫자를 앞에 둔다.
+  // 낮에는 국내 둘이 주인공이고 나스닥은 밤사이 분위기를 재는 참고값이라 맨 뒤다.
+  const order = overseasIsMain(now)
     ? [tiles.nasdaq, tiles.night, tiles.kospi, tiles.kosdaq]
     : [tiles.kospi, tiles.kosdaq, tiles.night, tiles.nasdaq];
 
