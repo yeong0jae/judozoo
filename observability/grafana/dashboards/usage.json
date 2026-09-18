@@ -291,7 +291,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT CONVERT_TZ(DATE(created_at), '+09:00', '+00:00') AS time, COUNT(*) AS '신규 가입' FROM app_user WHERE $__timeFilter(CONVERT_TZ(created_at, '+09:00', '+00:00')) GROUP BY DATE(created_at) ORDER BY 1;"
+          "rawSql": "SELECT CONVERT_TZ(DATE(created_at), '+09:00', '+00:00') AS time, COUNT(*) AS '신규 가입' FROM app_user WHERE $__timeFilter(CONVERT_TZ(created_at, '+09:00', '+00:00')) GROUP BY 1 ORDER BY 1;"
         }
       ],
       "fieldConfig": {
@@ -312,7 +312,8 @@
         "tooltip": {
           "mode": "single"
         }
-      }
+      },
+      "description": "가입 일자별 인원. KST로 저장하고 Grafana는 UTC로 묻기 때문에 CONVERT_TZ로 맞춘다.\nGROUP BY는 고른 식 그대로(1) 묶는다 — DATE(created_at)로 묶으면 ONLY_FULL_GROUP_BY가 1055로 거절한다."
     },
     {
       "id": 7,
