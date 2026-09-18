@@ -125,9 +125,10 @@ Mem:  total 1960MB   available 1290MB
       `settings.py`에 엔드포인트와 on/off 스위치를 둔다 (`SCHEDULERS_ENABLED`와 같은 결)
 - [x] `main.py` lifespan에서 초기화. **테스트에서는 켜지 않는다**
 - [x] `/health`·`/metrics` 제외 — `OTEL_PYTHON_FASTAPI_EXCLUDED_URLS`
-- [x] httpx 계측 확인 — 커스텀 transport 체인 **위**를 감싸므로 스팬에 리미터 대기가 포함된다.
-      020의 `http_client_request_duration_seconds`와 같은 의미가 되어 서로 대조가 된다.
-      대기와 왕복을 가르려면 별도 스팬이 필요하다 — 후속
+- [x] httpx 계측 확인 — **예상과 반대였다.** 계측이 `HTTPTransport.handle_request`를 감싸
+      transport 체인의 **가장 안쪽**에 들어간다. 즉 스팬은 리미터 대기를 **제외한** 순수
+      왕복이다. 020의 메트릭(가장 바깥, 대기 포함)과 함께 대기를 사이에 두고 감싸는 셈이라,
+      **둘의 차이가 곧 대기 시간**이다 — 후속으로 미뤄둔 항목이 이 배치로 이미 풀렸다
 - [x] SQLAlchemy 계측은 `get_engine()`이 만든 엔진에 건다
 
 ## 3. 스케줄러 잡 스팬 (수동)
@@ -203,15 +204,15 @@ Tempo + alloy를 실제로 띄우고 **진짜 스팬을 흘렸다.** 조회된 �
 | Tempo 기동 | 2.10.8이 이 설정 그대로 `/ready` 200 |
 
 
-- [ ] backend 컨테이너 안에서 트레이스가 생성된다 (로그에 `trace_id` 필드가 보인다)
-- [ ] Tempo에 트레이스가 도착한다 — Grafana Explore에서 조회
-- [ ] **API 요청 트레이스에 DB 스팬이 자식으로 붙는다**
-- [ ] **스케줄러 잡 트레이스에 브로커 호출이 자식으로 붙는다** ← 이 작업의 핵심
-- [ ] Loki 로그 줄에서 `trace_id`를 눌러 Tempo로 점프된다
-- [ ] `/health` 트레이스가 **없다**
-- [ ] 승급 후 ops VM 메모리 여유 — Tempo 포함 실측치를 기록한다
+- [x] backend 컨테이너 안에서 트레이스가 생성된다 (로그에 `trace_id` 필드가 보인다)
+- [x] Tempo에 트레이스가 도착한다 — Grafana Explore에서 조회
+- [x] **API 요청 트레이스에 DB 스팬이 자식으로 붙는다**
+- [x] **스케줄러 잡 트레이스에 브로커 호출이 자식으로 붙는다** ← 이 작업의 핵심
+- [x] Loki 로그 줄에서 `trace_id`를 눌러 Tempo로 점프된다
+- [x] `/health` 트레이스가 **없다**
+- [x] 승급 후 ops VM 메모리 여유 — Tempo 포함 실측치를 기록한다
 - [ ] 24시간 뒤 `tempo-data` 실크기. 추정 100MB/일이 맞는지 본다
-- [ ] 배포 알림(020 §9)이 정상 동작 — 이번 배포에도 Slack 메시지가 온다
+- [x] 배포 알림(020 §9)이 정상 동작 — 이번 배포에도 Slack 메시지가 온다
 
 ## 알려진 함정 (착수 전에 아는 것)
 
@@ -262,6 +263,32 @@ Tempo + alloy를 실제로 띄우고 **진짜 스팬을 흘렸다.** 조회된 �
   같이 죽는다. `remote_deploy.sh`의 alloy 생존 검사가 유일한 방어선이다.
 - **Tempo를 붙이는 순간 ops VM 메모리가 이 스택의 병목이 된다.** 승급 후에도 세 컨테이너가
   계속 자라는 중이라(019 대비 2배) 한 번 재고 끝낼 값이 아니다.
+
+## 배포 후 실측 (2026-09-18)
+
+| 항목 | 결과 |
+|---|---|
+| 트레이스 도착 | `service.name=backend`, 재시작 후 107초에 40건 |
+| HTTP 서버 스팬 | 라우트 템플릿으로 루트에 선다 — `GET /api/market/{market}/candles` 등 |
+| 잡 트레이스 | 5개 잡 모두. `job signal-event-poller`에 브로커 호출 **70개**가 자식으로 붙는다 |
+| 로그 ↔ 트레이스 | Loki 로그의 `trace_id`로 Tempo 조회 성공 — **§4 연결 성립** |
+| `/health` | 트레이스 없음 |
+| 메모리 | tempo **33MB** · grafana 78 · loki 57 · prometheus 44 = **212MB / 3.8GB** |
+
+### 트레이스가 처음 답한 것
+
+`GET /api/leading-stocks/breakout-radar` — **14.4초, 스팬 61개**
+
+```
+GET /api/leading-stocks/breakout-radar   14,382ms
+  └─ SELECT trading                           5ms
+  └─ POST /api/dostk/rkinfo                  81ms
+  └─ POST /api/dostk/chart                   24ms   ← ×59개, 모두 16~81ms
+```
+
+자식을 다 더해도 1.2초다. **나머지 13초가 리미터 대기다.** 브로커가 느린 게 아니라
+키움 조회 한도(초당 N건)에 60번을 태우느라 기다린 것이다. 020 메트릭만으로는
+"vendor p95"까지였고 이 구분이 불가능했다 — 계획서의 질문 ③이 여기서 답이 된다.
 
 ## 후속
 

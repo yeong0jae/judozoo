@@ -44,8 +44,14 @@ def setup(endpoint: str, service_name: str, engine) -> None:
     from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
-    # httpx 계측은 커스텀 transport 체인 **위**를 감싼다. 즉 스팬에 리미터 대기가 포함되고,
-    # 020의 http_client_request_duration_seconds와 같은 의미가 된다(서로 대조가 된다).
+    # **스팬은 리미터 대기를 포함하지 않는다.** 계측이 `httpx.Client.send`가 아니라
+    # `HTTPTransport.handle_request`를 감싸서, transport 체인의 **가장 안쪽**에 들어간다 —
+    #   MeteredTransport(메트릭, 대기 포함) → RateLimitedTransport(여기서 대기) → OTel → HTTP
+    # 처음엔 반대로 적었다가 운영 트레이스를 보고 알았다.
+    #
+    # 결과적으로 020의 `http_client_request_duration_seconds`(바깥)와 이 스팬(안쪽)이
+    # 리미터 대기를 사이에 두고 감싼다. **둘의 차이가 곧 대기 시간이다** — 계획서에서
+    # 후속으로 미뤄뒀던 "대기와 왕복 분리"가 이 배치로 이미 가능해졌다.
     #
     # 이름을 손보는 이유 — 기본 스팬 이름이 메서드뿐(`POST`)이라, 잡 하나에 70개가 달리면
     # 워터폴에서 **어느 호출이 느린지 구분이 안 된다**. URL은 속성에 있지만 한 줄씩 열어봐야 한다.
