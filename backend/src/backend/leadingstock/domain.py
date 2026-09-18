@@ -147,7 +147,8 @@ class MovingAverageReading:
 #:
 #: 아래로 0.5까지는 두 축이 대등해지고, 0.4 아래로 내려가면 시총 1천억대 상한가 종목이
 #: 대장주를 밀어내기 시작한다.
-#: 해외(`overseasleadingstock`)도 같은 값을 쓴다 — 두 카드가 나란히 서는 자리다.
+#: 해외(`overseasleadingstock`)는 **따로 간다(0.55).** 두 카드가 나란히 서지만 풀의
+#: 성질이 다르다 — 거기 거래대금 편차가 훨씬 커서 같은 값으로는 등락률이 묻힌다.
 TRADING_VALUE_WEIGHT = 0.65
 
 
