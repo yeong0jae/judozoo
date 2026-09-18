@@ -15,6 +15,13 @@ dependencies = [
     "authlib>=1.3",          # 구글 OAuth + ID 토큰 검증
     "itsdangerous>=2.2",     # Starlette SessionMiddleware가 쿠키 서명에 쓴다
     "prometheus-fastapi-instrumentator>=7.0",  # prometheus-client가 딸려온다
+    # OpenTelemetry — 021. sdk/exporter는 버전을 함께 올려야 하고,
+    # instrumentation-* 는 별도 버전 라인(0.x)이다.
+    "opentelemetry-sdk>=1.30",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.30",
+    "opentelemetry-instrumentation-fastapi>=0.51b0",
+    "opentelemetry-instrumentation-httpx>=0.51b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.51b0",
 ]
 
 [dependency-groups]

@@ -5,12 +5,18 @@ import logging
 from apscheduler.schedulers.base import BaseScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from backend.library import tracing
+
 from backend.library.time import KST, today
 from backend.stock import application
 
 log = logging.getLogger(__name__)
 
 
+_JOB = "stock-catalog-refresh"
+
+
+@tracing.traced_job(_JOB)
 def refresh_catalog() -> None:
     application.refresh(today())
 
@@ -29,6 +35,6 @@ def register(scheduler: BaseScheduler) -> None:
     scheduler.add_job(
         refresh_catalog,
         CronTrigger(hour=7, minute=40, timezone=KST),
-        id="stock-catalog-refresh",
+        id=_JOB,
         replace_existing=True,
     )

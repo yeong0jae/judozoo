@@ -11,6 +11,9 @@ services:
     environment:
       TZ: Asia/Seoul
       DB_NAME: trading
+      # 트레이스를 alloy의 OTLP 수신구로 보낸다(021). 같은 compose 네트워크라
+      # 호스트 포트가 필요 없다. 비우면 계측 자체가 꺼진다 — 로컬 기본값이 그렇다.
+      OTLP_ENDPOINT: alloy:4317
       # DB_HOST·DB_PORT·DB_USERNAME은 secrets/.env가 준다 (remote_deploy.sh가 씀).
       # 여기 environment에 적으면 env_file을 덮어쓰고, ${...} 보간은 env_file을
       # 읽지 못해 빈 값이 된다 — grafana 쪽에서 이미 겪은 함정이다.

@@ -8,3 +8,13 @@ datasources:
     isDefault: true
     jsonData:
       maxLines: 1000
+      # **이 작업의 실제 상금**(021 §4). 로그 줄의 trace_id를 눌러 Tempo로 점프한다.
+      # 없으면 Tempo는 따로 열어보는 또 하나의 화면일 뿐이다.
+      derivedFields:
+        - name: trace_id
+          # JSON 로그의 필드에서 뽑는다 — 정규식 대신 파서 키를 쓴다.
+          matcherType: label
+          matcherRegex: trace_id
+          datasourceUid: tempo
+          url: "${__value.raw}"
+          urlDisplayLabel: 트레이스 보기

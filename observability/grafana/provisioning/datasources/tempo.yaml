@@ -1,0 +1,17 @@
+apiVersion: 1
+datasources:
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    # ops VM 안에서는 같은 compose 네트워크라 서비스명이 그대로 맞는다.
+    # 4317은 수집(OTLP)이고 조회는 3200이다 — 헷갈리기 쉬운 자리다.
+    url: http://tempo:3200
+    isDefault: false
+    jsonData:
+      # 트레이스에서 그 시각 로그로 되돌아간다. 점프가 양방향이어야 쓸 만해진다.
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -5m
+        spanEndTimeShift: 5m
+        filterByTraceID: true

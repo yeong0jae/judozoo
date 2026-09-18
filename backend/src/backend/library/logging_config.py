@@ -15,6 +15,7 @@ import sys
 from datetime import datetime
 
 from backend.library.exception import BrokerTokenUnavailable
+from backend.library.tracing import current_trace_id
 
 _FORMAT = "%(asctime)s %(levelname)-5s [%(threadName)s] %(name)s : %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -42,6 +43,12 @@ class JsonFormatter(logging.Formatter):
             "msg": record.getMessage(),
             "thread": record.threadName,
         }
+        # Loki에서 이 필드를 눌러 Tempo로 점프한다(021 §4). Grafana derivedFields가
+        # 이름으로 건다. **없는 게 정상인 로그가 있다** — 기동·스케줄러 밖 로그에는
+        # 스팬이 없다. 항상 있다고 가정하고 쿼리를 짜면 그 줄들이 사라진다.
+        trace_id = current_trace_id()
+        if trace_id:
+            payload["trace_id"] = trace_id
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
         # logger.info("...", extra={"user": "..."}) 로 넘긴 값만 실린다.

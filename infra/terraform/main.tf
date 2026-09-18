@@ -176,6 +176,23 @@ resource "google_compute_firewall" "ops_prometheus" {
   depends_on = [google_project_service.apis]
 }
 
+# alloy → Tempo OTLP. 로그(3100)·메트릭(9090)과 같은 방향·같은 출처다.
+# 기존 규칙에 포트를 끼워 넣지 않는다 — 이름이 거짓말이 된다.
+resource "google_compute_firewall" "ops_otlp" {
+  name    = "judozoo-ops-allow-otlp"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["4317"]
+  }
+
+  source_tags = ["auto-trading"]
+  target_tags = ["judozoo-ops"]
+
+  depends_on = [google_project_service.apis]
+}
+
 resource "google_compute_firewall" "ops_iap" {
   name    = "judozoo-ops-allow-iap"
   network = "default"

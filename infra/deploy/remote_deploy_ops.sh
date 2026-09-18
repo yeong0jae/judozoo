@@ -56,21 +56,22 @@ sudo docker image prune -af
 
 # 헬스체크 — 배포와 같은 SSH 세션에서 끝낸다.
 for i in $(seq 1 24); do
-  loki_ok=0; graf_ok=0; prom_ok=0
+  loki_ok=0; graf_ok=0; prom_ok=0; tempo_ok=0
   curl -fsS "http://localhost:3100/ready" >/dev/null 2>&1 && loki_ok=1
   curl -fsS "http://localhost:3000/api/health" >/dev/null 2>&1 && graf_ok=1
   curl -fsS "http://localhost:9090/-/ready" >/dev/null 2>&1 && prom_ok=1
-  if [ "$loki_ok" = 1 ] && [ "$graf_ok" = 1 ] && [ "$prom_ok" = 1 ]; then
-    echo "ops health OK ($i) — loki ready, grafana healthy, prometheus ready"; healthy=1; break
+  curl -fsS "http://localhost:3200/ready" >/dev/null 2>&1 && tempo_ok=1
+  if [ "$loki_ok" = 1 ] && [ "$graf_ok" = 1 ] && [ "$prom_ok" = 1 ] && [ "$tempo_ok" = 1 ]; then
+    echo "ops health OK ($i) — loki/prometheus/tempo ready, grafana healthy"; healthy=1; break
   fi
-  echo "not ready (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok), retry $i"; sleep 5
+  echo "not ready (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok tempo=$tempo_ok), retry $i"; sleep 5
 done
 if [ "${healthy:-0}" != 1 ]; then
   # **왜 안 떴는지 남긴다.** 이 줄만 있고 끝나면 다음에 같은 일이 나도 조사할 게 없다 —
   # 컨테이너는 이미 교체돼 직전 로그가 사라진 뒤다(2026-09-17 grafana 2분 타임아웃 때 겪었다).
-  echo "ops health check failed (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok)"
+  echo "ops health check failed (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok tempo=$tempo_ok)"
   sudo docker compose "${COMPOSE[@]}" ps || true
-  for svc in loki grafana prometheus; do
+  for svc in loki grafana prometheus tempo; do
     echo "----- $svc -----"
     sudo docker compose "${COMPOSE[@]}" logs --tail 40 "$svc" || true
   done
@@ -86,6 +87,7 @@ for f in /etc/grafana/provisioning/datasources/prometheus.yaml \
          /etc/grafana/provisioning/dashboards/dashboards.yaml \
          /etc/grafana/provisioning/alerting/rules.yaml \
          /etc/grafana/provisioning/alerting/contact-points.yaml \
+         /etc/grafana/provisioning/datasources/tempo.yaml \
          /var/lib/grafana/dashboards/metrics.json; do
   if ! sudo docker compose "${COMPOSE[@]}" exec -T grafana test -f "$f"; then
     echo "grafana 마운트 깨짐: $f 가 컨테이너 안에 없다"; exit 1

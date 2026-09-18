@@ -148,6 +148,10 @@ class Settings(BaseSettings):
     # 세션 쿠키 서명 키. 바뀌면 기존 세션이 전부 무효화된다(데이터는 무사).
     session_secret: str = Field("dev-only-insecure", validation_alias="SESSION_SECRET")
 
+    # 트레이스(021). 비어 있으면 계측 자체를 켜지 않는다 — 로컬·테스트 기본값이 그렇다.
+    # 운영은 docker-compose가 alloy의 OTLP 수신구를 준다.
+    otlp_endpoint: str = Field("", validation_alias="OTLP_ENDPOINT")
+
 
 @lru_cache
 def get_settings() -> Settings:

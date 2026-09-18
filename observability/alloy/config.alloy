@@ -100,3 +100,39 @@ prometheus.remote_write "ops" {
     host = "judozoo-server-prod",
   }
 }
+
+// ── 트레이스 ────────────────────────────────────────────────────────────
+// [021](../../docs/tasks/021-tempo-트레이스.md). backend가 OTLP로 여기 보내고,
+// alloy가 ops VM의 Tempo로 넘긴다. 로그·메트릭과 같은 방향이다.
+//
+// 호스트 포트가 필요 없다 — backend와 같은 compose 네트워크에 있어 `alloy:4317`로 닿는다.
+// 로그(Loki)·메트릭(Prometheus)과 달리 **받는 쪽이 앱 VM 안**이라는 점이 다르다.
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// 스팬마다 보내면 10초 폴러가 도는 이 앱에서 연결 수립 비용이 계속 붙는다.
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// **이 주소가 틀려도 에러로 드러나지 않는다** — 로그·메트릭과 같은 함정이다.
+// 앱은 멀쩡히 돌고 Tempo만 빈다.
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "judozoo-ops-prod.asia-northeast3-a.c.trading-496508.internal:4317"
+
+    // VPC 내부 평문. Loki·Prometheus로 보내는 것과 같은 수준이다.
+    tls {
+      insecure = true
+    }
+  }
+}

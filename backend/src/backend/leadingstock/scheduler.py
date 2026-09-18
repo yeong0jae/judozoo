@@ -32,7 +32,7 @@ from backend.leadingstock.signals import (
     SignalReading,
     SignalState,
 )
-from backend.library import metrics
+from backend.library import metrics, tracing
 from backend.library.db import get_session_factory
 from backend.library.time import KST, now, today
 from backend.market import calendar
@@ -69,6 +69,7 @@ _last_fired: dict[str, datetime] = {}
 _signal_trade_date: date | None = None
 
 
+@tracing.traced_job(_SIGNAL_JOB)
 def poll_signal_events() -> None:
     holiday, trading_hours = calendar.market_status()
     if holiday or not trading_hours:
@@ -148,6 +149,7 @@ _flow_states: dict[str, InvestorFlowState] = {}
 _market_trade_date: date | None = None
 
 
+@tracing.traced_job(_MARKET_SIGNAL_JOB)
 def poll_market_signal_events() -> None:
     if calendar.is_holiday(calendar.Region.KR):
         return
@@ -271,6 +273,7 @@ _index_loaded: set[Market] = set()
 _index_trade_date: date | None = None
 
 
+@tracing.traced_job(_INDEX_REBOUND_JOB)
 def poll_index_rebound() -> None:
     if calendar.is_holiday(calendar.Region.KR):
         return

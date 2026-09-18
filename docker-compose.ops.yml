@@ -41,6 +41,24 @@ services:
     networks:
       - ops
 
+  tempo:
+    # **3.x가 아니다.** Tempo 3.0은 아키텍처를 바꿔 `compactor`·`ingester`가 최상위
+    # 설정에서 사라지고 backend-scheduler 계열로 옮겨갔다(3.0.3에서 실측:
+    # "field compactor not found in type app.Config"). 단일 인스턴스 하나에
+    # 새 구조를 들일 이유가 없어 유지보수 중인 2.x를 쓴다 — 2.10.8은 3.0.3과 같은 날
+    # 릴리스됐다. 3.x로 옮기려면 설정을 새로 쓰는 별도 작업이다.
+    image: grafana/tempo:2.10.8
+    command: -config.file=/etc/tempo/tempo.yaml
+    # 앱 VM의 alloy가 **다른 머신에서** 붙는다 — Loki 3100·Prometheus 9090과 같은 이유로
+    # 호스트에 낸다. 3200은 Grafana가 같은 compose 네트워크에서 쓰므로 낼 필요가 없다.
+    ports:
+      - "4317:4317"
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - ops
+
   grafana:
     image: grafana/grafana:11.5.2
     environment:
@@ -62,6 +80,7 @@ services:
     depends_on:
       - loki
       - prometheus
+      - tempo
     networks:
       - ops
 
@@ -73,6 +92,7 @@ volumes:
   # 명명 볼륨이어야 한다 — Prometheus 이미지는 nobody(65534)로 돌고,
   # 바인드로 바꾸면 소유권이 안 맞아 기동에 실패한다.
   prometheus-data:
+  tempo-data:
 
 networks:
   ops:

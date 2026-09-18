@@ -113,7 +113,7 @@ Mem:  total 1960MB   available 1290MB
 
 ## 2. 백엔드 계측
 
-- [ ] `pyproject.toml` — OTel 의존성
+- [x] `pyproject.toml` — OTel 의존성 (sdk 1.44.0, instrumentation 0.65b0)
       ```
       opentelemetry-sdk
       opentelemetry-exporter-otlp-proto-grpc
@@ -121,66 +121,87 @@ Mem:  total 1960MB   available 1290MB
       opentelemetry-instrumentation-httpx
       opentelemetry-instrumentation-sqlalchemy
       ```
-- [ ] `library/tracing.py` 신설 — TracerProvider 설정, OTLP exporter, 자동 계측 등록.
+- [x] `library/tracing.py` 신설 — TracerProvider 설정, OTLP exporter, 자동 계측 등록.
       `settings.py`에 엔드포인트와 on/off 스위치를 둔다 (`SCHEDULERS_ENABLED`와 같은 결)
-- [ ] `main.py` lifespan에서 초기화. **테스트에서는 켜지 않는다**
-- [ ] `/health`·`/metrics` 제외 — `OTEL_PYTHON_FASTAPI_EXCLUDED_URLS`
-- [ ] httpx 계측 확인 — 커스텀 transport 체인 **위**를 감싸므로 스팬에 리미터 대기가 포함된다.
+- [x] `main.py` lifespan에서 초기화. **테스트에서는 켜지 않는다**
+- [x] `/health`·`/metrics` 제외 — `OTEL_PYTHON_FASTAPI_EXCLUDED_URLS`
+- [x] httpx 계측 확인 — 커스텀 transport 체인 **위**를 감싸므로 스팬에 리미터 대기가 포함된다.
       020의 `http_client_request_duration_seconds`와 같은 의미가 되어 서로 대조가 된다.
       대기와 왕복을 가르려면 별도 스팬이 필요하다 — 후속
-- [ ] SQLAlchemy 계측은 `get_engine()`이 만든 엔진에 건다
+- [x] SQLAlchemy 계측은 `get_engine()`이 만든 엔진에 건다
 
 ## 3. 스케줄러 잡 스팬 (수동)
 
 **자동 계측이 못 덮는 경로이고, 위 질문 ①이 정확히 여기다.**
 
-- [ ] `library/tracing.py`에 `traced_job(job_id)` 데코레이터
-- [ ] 잡 함수 5개에 적용 — `leadingstock` 3개, `market` 1개, `stock` 1개.
+- [x] `library/tracing.py`에 `traced_job(job_id)` 데코레이터
+- [x] 잡 함수 5개에 적용 — `leadingstock` 3개, `market` 1개, `stock` 1개.
       잡 id는 `leadingstock/scheduler.py`에 이미 상수로 있다(`_SIGNAL_JOB` 등, 020에서 뽑았다)
-- [ ] 리스너(`metrics.on_job_event`)와 **역할이 다르다** — 리스너는 잡이 끝난 뒤 집계하고,
+- [x] 리스너(`metrics.on_job_event`)와 **역할이 다르다** — 리스너는 잡이 끝난 뒤 집계하고,
       데코레이터는 잡이 도는 **동안** 스팬을 열어 자식(브로커·DB)이 붙게 한다. 둘 다 필요하다
-- [ ] 삼킨 예외를 스팬에도 기록한다 — `span.record_exception()`.
+- [x] 삼킨 예외를 스팬에도 기록한다 — `span.record_exception()`.
       020에서 배운 것: 잡이 `log.warning`으로 흘리면 밖에서는 성공으로 보인다
 
 ## 4. 로그 ↔ 트레이스 연결
 
-- [ ] `logging_config.py`의 `JsonFormatter.format()`에 현재 스팬의 `trace_id` 추가.
+- [x] `logging_config.py`의 `JsonFormatter.format()`에 현재 스팬의 `trace_id` 추가.
       유효한 스팬이 없으면 필드를 넣지 않는다(폴러 밖 로그까지 지저분해지지 않게)
-- [ ] Grafana Loki 데이터소스에 `derivedFields` — `trace_id` → Tempo로 점프
-- [ ] **이 단계가 이 작업의 실제 상금이다.** 없으면 Tempo는 따로 열어보는 또 하나의 화면일 뿐이다
+- [x] Grafana Loki 데이터소스에 `derivedFields` — `trace_id` → Tempo로 점프
+- [x] **이 단계가 이 작업의 실제 상금이다.** 없으면 Tempo는 따로 열어보는 또 하나의 화면일 뿐이다
 
 ## 5. alloy — OTLP 수신·전달
 
-- [ ] `config.alloy`에 `otelcol.receiver.otlp` (grpc 4317) + `otelcol.processor.batch`
+- [x] `config.alloy`에 `otelcol.receiver.otlp` (grpc 4317) + `otelcol.processor.batch`
       + `otelcol.exporter.otlp` → ops VM
-- [ ] `docker-compose.yml` — backend가 `alloy:4317`로 보내도록 환경변수. 같은 compose 네트워크라
+- [x] `docker-compose.yml` — backend가 `alloy:4317`로 보내도록 환경변수. 같은 compose 네트워크라
       호스트 포트는 **필요 없다**
-- [ ] **설정 오류는 alloy를 통째로 죽인다**(020 함정). `remote_deploy.sh`의 alloy 생존 검사가
+- [x] **설정 오류는 alloy를 통째로 죽인다**(020 함정). `remote_deploy.sh`의 alloy 생존 검사가
       이미 이걸 잡는다 — 검사가 그대로 유효한지 확인만 한다
 
 ## 6. ops 스택 — Tempo
 
-- [ ] `observability/tempo/tempo.yaml` — 단일 바이너리 모드, 로컬 스토리지, 보존 7일
-- [ ] `docker-compose.ops.yml` — `tempo` 서비스. 이미지 태그는 **정확한 패치 버전 고정**
+- [x] `observability/tempo/tempo.yaml` — 단일 바이너리 모드, 로컬 스토리지, 보존 7일
+- [x] `docker-compose.ops.yml` — `tempo` 서비스. 이미지 태그는 **정확한 패치 버전 고정**
       (loki `3.4.2`·grafana `11.5.2`·prometheus `v3.14.0`과 같은 원칙)
-- [ ] `ports: - "4317:4317"` — alloy가 다른 머신에서 붙는다 (Loki 3100·Prometheus 9090과 같은 이유)
-- [ ] 명명 볼륨 `tempo-data`
-- [ ] `docker-compose.ops.prod.yml` — `restart: unless-stopped`
-- [ ] Grafana 데이터소스 `tempo.yaml` — `isDefault`는 Loki에 그대로 둔다
+- [x] `ports: - "4317:4317"` — alloy가 다른 머신에서 붙는다 (Loki 3100·Prometheus 9090과 같은 이유)
+- [x] 명명 볼륨 `tempo-data`
+- [x] `docker-compose.ops.prod.yml` — `restart: unless-stopped`
+- [x] Grafana 데이터소스 `tempo.yaml` — `isDefault`는 Loki에 그대로 둔다
 
 ## 7. 방화벽
 
-- [ ] `main.tf` — `judozoo-ops-allow-otlp`, `tcp:4317`, `source_tags = ["auto-trading"]`
-- [ ] 기존 규칙에 포트를 끼워 넣지 않는다 — 이름이 거짓말이 된다 (020 §5와 같은 판단)
+- [x] `main.tf` — `judozoo-ops-allow-otlp`, `tcp:4317`, `source_tags = ["auto-trading"]`
+- [x] 기존 규칙에 포트를 끼워 넣지 않는다 — 이름이 거짓말이 된다 (020 §5와 같은 판단)
 - [ ] `terraform apply`는 배포 파이프라인에 없다. 직접 돌린다
 
 ## 8. 배포
 
-- [ ] `remote_deploy_ops.sh` 헬스체크에 Tempo 추가 (`/ready`)
-- [ ] 마운트 검사에 `tempo/tempo.yaml` 추가 — 020 §7의 stale bind-mount 방어
-- [ ] 배포 순서는 그대로 `deploy-ops` → `deploy`
+- [x] `remote_deploy_ops.sh` 헬스체크에 Tempo 추가 (`/ready`)
+- [x] 마운트 검사에 Tempo 데이터소스 추가 — 020 §7의 stale bind-mount 방어
+- [x] 배포 순서는 그대로 `deploy-ops` → `deploy`
 
 ## 검증
+
+### 로컬 end-to-end (2026-09-18, 배포 전)
+
+Tempo + alloy를 실제로 띄우고 **진짜 스팬을 흘렸다.** 조회된 트레이스 —
+
+```
+서비스: backend
+  루트  job signal-event-poller   {scheduler.job_id: signal-event-poller}
+    └─ GET /api/dostk/sect
+    └─ SELECT signal_event
+```
+
+| 항목 | 결과 |
+|---|---|
+| backend → alloy → Tempo | 흘렀다. Tempo `/api/traces/<id>`로 조회 확인 |
+| 잡 스팬 부모-자식 | **자식이 루트에 붙는다** — §3의 목적 그대로 |
+| 로그 `trace_id` | JSON 로그에 실렸고, **그 id로 트레이스를 꺼냈다**(§4 연결 증명) |
+| alloy 컴포넌트 | receiver/processor/exporter 셋 다 평가 통과, 에러 0건 |
+| 백엔드 테스트 | `548 passed` (기존 543 + 트레이스 5) |
+| Tempo 기동 | 2.10.8이 이 설정 그대로 `/ready` 200 |
+
 
 - [ ] backend 컨테이너 안에서 트레이스가 생성된다 (로그에 `trace_id` 필드가 보인다)
 - [ ] Tempo에 트레이스가 도착한다 — Grafana Explore에서 조회
@@ -193,6 +214,18 @@ Mem:  total 1960MB   available 1290MB
 - [ ] 배포 알림(020 §9)이 정상 동작 — 이번 배포에도 Slack 메시지가 온다
 
 ## 알려진 함정 (착수 전에 아는 것)
+
+- **Tempo 3.x는 설정 스키마가 다르다.** 최신 안정판이라고 `3.0.3`을 잡았다가 기동에 실패했다 —
+  ```
+  failed parsing config: field compactor not found in type app.Config
+                         field ingester not found in type app.Config
+  ```
+  3.0은 아키텍처를 바꿔 `compactor`·`ingester`가 `backend-scheduler.provider.work.*` 계열로
+  옮겨갔다. 단일 인스턴스 하나에 새 구조를 들일 이유가 없어 **2.10.8**로 갔다(3.0.3과 같은 날
+  릴리스된 유지보수 버전). 3.x로 옮기는 건 설정을 새로 쓰는 별도 작업이다.
+- **OTel provider는 프로세스당 한 번만 세워진다.** 두 번째 `set_tracer_provider`는 조용히
+  무시된다. 테스트에서 케이스마다 새로 만들었더니 두 번째부터 엉뚱한 exporter를 보며 실패했다 —
+  provider는 한 번 세우고 exporter를 비우는 구조여야 한다.
 
 - **잡 스팬은 자동으로 안 생긴다.** OTel에 APScheduler 계측이 없다. 수동으로 열지 않으면
   브로커 호출 스팬들이 부모 없이 흩어져, 정작 보려던 "이 잡 실행이 어디서 멈췄나"를 못 본다.

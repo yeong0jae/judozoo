@@ -1,0 +1,39 @@
+# ops VM의 Tempo. 단일 바이너리(monolithic) 모드 — 이 규모에서 마이크로서비스로 쪼갤 이유가 없다.
+#
+# 발생량은 020 메트릭으로 쟀다(021 진입 조건): 루트 스팬 0.5/s, 전체 약 3/s,
+# 하루 26만 스팬 ≈ 100MB. **샘플링하지 않는다** — 아낄 용량이 없고, 샘플링은
+# "느렸던 그 한 건"을 버릴 위험을 지는 거래다.
+server:
+  http_listen_port: 3200
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+
+compactor:
+  compaction:
+    # Loki와 같은 7일. 로그에서 트레이스로 점프하는 게 목적이라 한쪽만 남으면 링크가 깨진다.
+    block_retention: 168h
+
+# 단일 인스턴스라 링은 메모리에 둔다 (Loki가 같은 구성이다).
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+
+usage_report:
+  reporting_enabled: false

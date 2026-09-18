@@ -10,6 +10,7 @@ from datetime import time
 from apscheduler.schedulers.base import BaseScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
+from backend.library import tracing
 from backend.library.db import get_session_factory
 from backend.library.time import now, today
 from backend.market import application, calendar
@@ -22,6 +23,10 @@ _FUTURES_START = time(8, 45)   # 선물 개장
 _FUTURES_END = time(15, 45)    # 선물 마감
 
 
+_JOB = "futures-investor-poller"
+
+
+@tracing.traced_job(_JOB)
 def poll_futures_investors() -> None:
     if calendar.is_holiday(calendar.Region.KR):
         return
@@ -43,6 +48,6 @@ def register(scheduler: BaseScheduler) -> None:
     scheduler.add_job(
         poll_futures_investors,
         IntervalTrigger(seconds=60),
-        id="futures-investor-poller",
+        id=_JOB,
         replace_existing=True,
     )

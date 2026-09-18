@@ -9,5 +9,8 @@ services:
   prometheus:
     restart: unless-stopped
 
+  tempo:
+    restart: unless-stopped
+
   grafana:
     restart: unless-stopped
