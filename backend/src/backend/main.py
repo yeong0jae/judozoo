@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.library.db import get_engine
 from backend.library.exception import BrokerTokenUnavailable, EntityNotFoundError
 from backend.library import token_store
-from backend.library.logging_config import configure_logging
+from backend.library.logging_config import bind_user, configure_logging
 from backend.library import tracing
 from backend.library.scheduler import shutdown as shutdown_scheduler
 from backend.library.scheduler import start as start_scheduler
@@ -72,10 +72,14 @@ async def _require_login(request: Request, call_next):
     빠뜨린 쪽이 **열린 채로** 남는다. 여기서는 빠뜨리면 막히므로 사고가 노출이 아니라
     불편으로 끝난다. `/health`와 정적 경로는 `/api`가 아니라 애초에 대상이 아니다.
     """
+    user = CurrentUser.from_session(request.session.get(SESSION_KEY))
+    # 로그 컨텍스트도 여기서 심는다. 미들웨어를 하나 더 두면 같은 쿠키를 두 번 푸는 셈이고,
+    # 관문이 이미 사용자를 손에 쥔 자리가 여기다.
+    bind_user(user.google_sub if user else None)
+
     path = request.url.path
-    if path.startswith("/api") and not is_public(path):
-        if CurrentUser.from_session(request.session.get(SESSION_KEY)) is None:
-            return _error("UNAUTHORIZED", 401)
+    if path.startswith("/api") and not is_public(path) and user is None:
+        return _error("UNAUTHORIZED", 401)
     return await call_next(request)
 
 

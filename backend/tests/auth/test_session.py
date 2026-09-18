@@ -46,3 +46,22 @@ class Test실시간_로그_관문:
 
     def test_공개_화면은_로그인_없이도_열린다(self, client):
         assert client.get("/health").status_code == 200
+
+
+class Test여정_추적:
+    """누가 무엇을 보고 갔는지 로그로 잇기 위해, 관문이 사용자를 로그 컨텍스트에 심는다."""
+
+    def test_로그인한_요청은_사용자를_심는다(self, 로그인_client, mocker):
+        심기 = mocker.patch("backend.main.bind_user")
+
+        로그인_client.get("/api/auth/me")
+
+        심기.assert_called_with("test-sub")
+
+    def test_미로그인_요청은_비워_심는다(self, client, mocker):
+        """비워 심지 않으면 앞 요청의 사용자가 남아 남의 여정에 섞인다."""
+        심기 = mocker.patch("backend.main.bind_user")
+
+        client.get("/api/auth/me")
+
+        심기.assert_called_with(None)

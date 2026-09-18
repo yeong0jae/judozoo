@@ -12,6 +12,7 @@ JSON으로 바꾼 이유는 Loki에서 `| json | level="ERROR"` 처럼 **필드�
 import json
 import logging
 import sys
+from contextvars import ContextVar
 from datetime import datetime
 
 from backend.library.exception import BrokerTokenUnavailable
@@ -21,6 +22,25 @@ _FORMAT = "%(asctime)s %(levelname)-5s [%(threadName)s] %(name)s : %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # LogRecord가 기본으로 갖는 속성들. `extra=`로 넘어온 것만 골라 싣기 위해 쓴다.
+# 로그인한 사용자를 요청 동안 들고 있는다. 로그 한 줄마다 누구의 요청이었는지 남기기 위한 것 —
+# 이게 있어야 "이 사용자가 무엇을 보고 갔나"를 로그에서 이어 볼 수 있다.
+#
+# uvicorn이 요청마다 태스크를 새로 띄우고 ContextVar는 태스크별로 복사되므로 요청끼리 섞이지 않는다.
+# **되돌리지 않는다** — 응답을 내보내며 찍히는 uvicorn 액세스 로그가 미들웨어가 끝난 뒤에 나와서,
+# 거기서 되돌리면 정작 그 줄에 사용자가 안 실린다. 미들웨어가 요청마다 값을 다시 심고
+# 비로그인은 None으로 덮으므로 남는 값도 없다.
+_user: ContextVar[str | None] = ContextVar("log_user", default=None)
+
+
+def bind_user(user_id: str | None) -> None:
+    """요청을 시작하며 심는다. 비로그인이면 None을 심어 이전 값을 지운다."""
+    _user.set(user_id)
+
+
+def current_user() -> str | None:
+    return _user.get()
+
+
 _RESERVED = frozenset(vars(logging.LogRecord("", 0, "", 0, "", (), None))) | {
     "message",
     "asctime",
@@ -49,6 +69,11 @@ class JsonFormatter(logging.Formatter):
         trace_id = current_trace_id()
         if trace_id:
             payload["trace_id"] = trace_id
+        # 로그인한 사용자. **없는 게 정상인 로그가 많다** — 비로그인 요청과 스케줄러·기동
+        # 로그에는 사용자가 없다. trace_id와 같은 사정이다.
+        user = current_user()
+        if user:
+            payload["user"] = user
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
         # logger.info("...", extra={"user": "..."}) 로 넘긴 값만 실린다.

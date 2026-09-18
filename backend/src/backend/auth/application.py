@@ -72,3 +72,6 @@ def record_login(db: Session, user: CurrentUser, now: datetime) -> None:
         row.email = user.email  # 계정 이메일이 바뀌었을 수 있다
         row.last_login_at = now
     db.commit()
+    # 이 줄이 여정의 시작점이다. 콜백을 처리하는 동안에는 세션이 아직 없어서
+    # 관문이 사용자를 심지 못하므로, 여기서만 직접 싣는다.
+    log.info("로그인", extra={"user": user.google_sub})
