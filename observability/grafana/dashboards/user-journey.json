@@ -1,0 +1,212 @@
+{
+  "uid": "user-journey",
+  "title": "사용자 여정",
+  "tags": [
+    "logs",
+    "loki"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "type": "textbox",
+        "name": "user",
+        "label": "사용자 id",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      },
+      {
+        "type": "textbox",
+        "name": "ip",
+        "label": "방문자 IP",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "가입자 — 여기서 id를 고른다",
+      "description": "최근 로그인 순. 여기 id를 위 '사용자 id' 변수에 넣는다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "mysql"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "mysql"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id, email AS 이메일, DATE_FORMAT(created_at, '%Y-%m-%d') AS 가입, DATE_FORMAT(last_login_at, '%Y-%m-%d %H:%i') AS '마지막 로그인' FROM app_user ORDER BY last_login_at DESC LIMIT 50;"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "logs",
+      "title": "요청 흐름",
+      "description": "이 사용자의 요청을 시간순으로. 화면을 열 때 나가는 API 호출이 곧 여정이다.\nSPA라 화면 전환 자체는 서버에 오지 않는다 — 무엇을 봤는지는 API로 읽는다.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 24,
+        "h": 11
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Ascending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service=\"backend\"} | json | user = \"$user\" | logger = \"uvicorn.access\"",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "많이 부른 API",
+      "description": "이 사용자가 어디에 오래 머물렀는지. 폴링이 있어 절대값보다 비율을 본다.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "queryType": "instant",
+          "legendFormat": "{{path}}",
+          "expr": "topk(10, sum by (path) (count_over_time({service=\"backend\"} | json | user = \"$user\" | logger = \"uvicorn.access\" | line_format \"{{.msg}}\" | pattern `<_> - \"<method> <path> HTTP/<_>\" <status>` [$__range])))"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "이 사용자가 겪은 에러",
+      "description": "요청 중에 난 예외. 브로커 호출까지 같은 컨텍스트라 원인 줄이 함께 잡힌다.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Ascending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service=\"backend\"} | json | user = \"$user\" | level = \"ERROR\"",
+          "queryType": "range"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "IP로 보는 방문 흐름 (비로그인 포함)",
+      "description": "로그인하지 않은 방문자는 사용자 id가 없다. 그때는 nginx 로그를 IP로 본다.\nIP는 사람이 아니다 — 통신사 NAT로 여럿이 묶이고 모바일은 이동하면 바뀐다.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 11
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Ascending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service=\"frontend\"} |= \"$ip\" != \"/assets/\" != \"/favicon\" != \"/health\"",
+          "queryType": "range"
+        }
+      ]
+    }
+  ]
+}
