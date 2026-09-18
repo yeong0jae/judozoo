@@ -79,24 +79,35 @@ export function formatRange({ from, to }: MarketSession): string {
   return `${clock(from)} ~ ${clock(to)}`;
 }
 
+/** "09:35" — 보는 사람의 로컬 시각. */
+export function formatClock(now: Date): string {
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
 /**
  * 국내·해외의 현재 구간. 장이 아니거나 주말이면 `null`.
  *
  * 주말은 휴장 API도 알려주지만, 응답이 오기 전에 토요일 낮을 "정규장"이라
  * 말해버리지 않도록 여기서도 본다. 공휴일은 API만 안다.
  */
-export function useMarketSessions(): { kr: MarketSession | null; us: MarketSession | null } {
+export function useMarketSessions(): {
+  kr: MarketSession | null;
+  us: MarketSession | null;
+  now: Date;
+} {
   const [now, setNow] = useState(() => new Date());
 
-  // 경계를 넘으면 저절로 바뀌게 — 최대 1분 늦다
+  // 경계를 넘으면 저절로 바뀌게. 30초인 건 `now`를 분 단위 시계로도 쓰기 때문이다 —
+  // 1분 간격이면 화면의 시각이 최대 1분 뒤처져 보인다.
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
+    const id = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(id);
   }, []);
 
   return {
     kr: isKstWeekend(now) ? null : current(KR_SESSIONS, now),
     us: isEtWeekend(now) ? null : current(usSessions(now), now),
+    now,
   };
 }
 

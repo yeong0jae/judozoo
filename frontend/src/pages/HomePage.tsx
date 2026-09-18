@@ -10,6 +10,7 @@ import {
 } from "../api/queries";
 import { useMe } from "../api/auth";
 import {
+  formatClock,
   formatTradingDay,
   krTradingDay,
   usTradingDay,
@@ -33,7 +34,7 @@ const LEADERS_COUNT = 5;
  * 밤에 보는 국내 목록은 살아 있는 숫자가 아니라서다.
  */
 export default function HomePage() {
-  const { kr, us } = useMarketSessions();
+  const { kr, us, now } = useMarketSessions();
   const krHoliday = useMarketCalendarStatus("KR").data?.isHoliday;
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
@@ -49,12 +50,13 @@ export default function HomePage() {
   const domesticFirst = domesticLive || !overseasLive;
 
   // 두 쪽 날짜가 다를 수 있다 — 해외는 미국 현지 거래일이라 한국 오전에는 하루 뒤처진다
-  const now = new Date();
+  const clock = formatClock(now);
   const domestic = (
     <DomesticLeaders
       live={domesticLive}
       first={domesticFirst}
       date={formatTradingDay(krTradingDay(now, !!krHoliday))}
+      clock={clock}
     />
   );
   const overseas = (
@@ -62,6 +64,7 @@ export default function HomePage() {
       live={overseasLive}
       first={!domesticFirst}
       date={formatTradingDay(usTradingDay(now, !!usHoliday))}
+      clock={clock}
     />
   );
 
@@ -203,9 +206,9 @@ type Item = { key: string; name: string; symbol?: string; price: string; rate: n
  * 자리라, 보는 사람이 어떤 기준을 걸어뒀는지에 따라 답이 달라지면 안 된다. 순서와
  * 종목 선정은 서버가 정한다(거래대금·등락률 두 축의 백분위 기하평균).
  */
-type LeadersProps = { live: boolean; first: boolean; date: string };
+type LeadersProps = { live: boolean; first: boolean; date: string; clock: string };
 
-function DomesticLeaders({ live, first, date }: LeadersProps) {
+function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
   const { data, isLoading } = useLeadingStockLeaders();
   const items: Item[] = (data ?? []).map((s) => ({
     key: s.stockCode,
@@ -218,6 +221,7 @@ function DomesticLeaders({ live, first, date }: LeadersProps) {
     <LeaderCard
       title="국내 주도주"
       date={date}
+      clock={clock}
       market="domestic"
       live={live}
       first={first}
@@ -227,7 +231,7 @@ function DomesticLeaders({ live, first, date }: LeadersProps) {
   );
 }
 
-function OverseasLeaders({ live, first, date }: LeadersProps) {
+function OverseasLeaders({ live, first, date, clock }: LeadersProps) {
   const { data, isLoading } = useOverseasLeaders();
   const items: Item[] = (data ?? []).map((s) => ({
     key: `${s.exchange}:${s.symbol}`,
@@ -241,6 +245,7 @@ function OverseasLeaders({ live, first, date }: LeadersProps) {
     <LeaderCard
       title="해외 주도주"
       date={date}
+      clock={clock}
       market="overseas"
       live={live}
       first={first}
@@ -259,6 +264,7 @@ function OverseasLeaders({ live, first, date }: LeadersProps) {
 function LeaderCard({
   title,
   date,
+  clock,
   market,
   live,
   first,
@@ -267,6 +273,7 @@ function LeaderCard({
 }: {
   title: string;
   date: string;
+  clock: string;
   market: StockMarket;
   live: boolean;
   first: boolean;
@@ -288,9 +295,11 @@ function LeaderCard({
             <span className="mr-1.5 text-[12.5px] font-normal text-zinc-400">{date}</span>
             {title}
           </span>
+          {/* 시각은 "장중"에만 붙인다 — 마감 뒤 칩은 "마감 기준"이라, 옆에 지금 시각이 있으면
+              마감 시각으로 읽힌다 */}
           {live && (
             <span className="rounded-full bg-blue-50 px-2 py-px text-[10.5px] font-medium text-blue-700">
-              장중
+              장중 <span className="num">{clock}</span>
             </span>
           )}
           {!live && <span className="text-[11px] font-normal text-zinc-500">마감 기준</span>}
