@@ -70,7 +70,7 @@
       "id": 2,
       "type": "logs",
       "title": "요청 흐름",
-      "description": "이 사용자의 요청을 시간순으로. 화면을 열 때 나가는 API 호출이 곧 여정이다.\nSPA라 화면 전환 자체는 서버에 오지 않는다 — 무엇을 봤는지는 API로 읽는다.",
+      "description": "이 사용자의 요청을 **최신순**으로. 화면을 열 때 나가는 API 호출이 곧 여정이다.\nSPA라 화면 전환 자체는 서버에 오지 않는다 — 무엇을 봤는지는 API로 읽는다.\n줄은 JSON이라 펼쳐서 보여준다(trace_id·user가 그대로 보인다). Tempo로 점프하려면 줄을 연다.",
       "datasource": {
         "type": "loki",
         "uid": "loki"
@@ -85,10 +85,10 @@
         "showTime": true,
         "showLabels": false,
         "wrapLogMessage": true,
-        "prettifyLogMessage": false,
+        "prettifyLogMessage": true,
         "enableLogDetails": true,
         "dedupStrategy": "none",
-        "sortOrder": "Ascending"
+        "sortOrder": "Descending"
       },
       "targets": [
         {
@@ -140,7 +140,7 @@
       "id": 4,
       "type": "logs",
       "title": "이 사용자가 겪은 에러",
-      "description": "요청 중에 난 예외. 브로커 호출까지 같은 컨텍스트라 원인 줄이 함께 잡힌다.",
+      "description": "요청 중에 난 예외를 **최신순**으로. 브로커 호출까지 같은 컨텍스트라 원인 줄이 함께 잡힌다.\n줄은 JSON이라 펼쳐서 보여준다 — exc(스택트레이스)와 trace_id가 여기 들어 있다.",
       "datasource": {
         "type": "loki",
         "uid": "loki"
@@ -155,10 +155,10 @@
         "showTime": true,
         "showLabels": false,
         "wrapLogMessage": true,
-        "prettifyLogMessage": false,
+        "prettifyLogMessage": true,
         "enableLogDetails": true,
         "dedupStrategy": "none",
-        "sortOrder": "Ascending"
+        "sortOrder": "Descending"
       },
       "targets": [
         {
