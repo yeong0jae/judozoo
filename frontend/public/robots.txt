@@ -1,0 +1,7 @@
+# `/api`를 막지 않는다. 막으면 크롤러가 렌더할 때 XHR까지 못 가져와 빈 화면을 색인한다.
+# 값은 전부 TTL 캐시 뒤에 있고, 부하가 실제로 확인되면 그때 막는다.
+User-agent: *
+Allow: /
+
+# sitemap.xml은 `scripts/build-seo.mjs`가 seo.json에서 굽는다.
+Sitemap: https://judozoo.com/sitemap.xml
