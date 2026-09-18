@@ -33,7 +33,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [$__range])))",
+          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | ip =~ \"[0-9a-fA-F.:]+\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [$__range])))",
           "queryType": "instant",
           "datasource": {
             "type": "loki",
@@ -82,7 +82,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | method = \"GET\" [$__range]))",
+          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | ip =~ \"[0-9a-fA-F.:]+\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | method = \"GET\" [$__range]))",
           "queryType": "instant",
           "datasource": {
             "type": "loki",
@@ -131,7 +131,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | path =~ \"/api/.*\" [$__range]))",
+          "expr": "sum(count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | ip =~ \"[0-9a-fA-F.:]+\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | path =~ \"/api/.*\" [$__range]))",
           "queryType": "instant",
           "datasource": {
             "type": "loki",
@@ -235,7 +235,7 @@
             "uid": "loki"
           },
           "legendFormat": "사람",
-          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [1h])))"
+          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | ip =~ \"[0-9a-fA-F.:]+\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [1h])))"
         },
         {
           "refId": "B",
@@ -244,7 +244,7 @@
             "uid": "loki"
           },
           "legendFormat": "봇",
-          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua =~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [1h])))"
+          "expr": "count(sum by (ip) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | ip =~ \"[0-9a-fA-F.:]+\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua =~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" [1h])))"
         }
       ],
       "fieldConfig": {
@@ -337,7 +337,7 @@
           },
           "instant": true,
           "legendFormat": "{{path}}",
-          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | label_format path=`{{ regexReplaceAll \"[?].*\" .path \"\" }}` | path =~ \"(/|/leading-stocks/?|/signal-log/?|/breakout-radar/?|/market-analysis(/[a-z0-9-]+)?/?|/privacy/?|/terms/?)\" | method = \"GET\" [$__range])))"
+          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | ip =~ \"[0-9a-fA-F.:]+\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | label_format path=`{{ regexReplaceAll \"[?].*\" .path \"\" }}` | path =~ \"(/|/leading-stocks/?|/signal-log/?|/breakout-radar/?|/market-analysis(/[a-z0-9-]+)?/?|/privacy/?|/terms/?)\" | method = \"GET\" [$__range])))"
         }
       ],
       "fieldConfig": {
@@ -384,7 +384,7 @@
           },
           "instant": true,
           "legendFormat": "{{path}}",
-          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | label_format path=`{{ regexReplaceAll \"[?].*\" .path \"\" }}` | path !~ \"(/|/leading-stocks/?|/signal-log/?|/breakout-radar/?|/market-analysis(/[a-z0-9-]+)?/?|/privacy/?|/terms/?)\" [$__range])))"
+          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | ip =~ \"[0-9a-fA-F.:]+\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | label_format path=`{{ regexReplaceAll \"[?].*\" .path \"\" }}` | path !~ \"(/|/leading-stocks/?|/signal-log/?|/breakout-radar/?|/market-analysis(/[a-z0-9-]+)?/?|/privacy/?|/terms/?)\" [$__range])))"
         }
       ],
       "fieldConfig": {
