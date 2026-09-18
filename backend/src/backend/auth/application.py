@@ -58,6 +58,20 @@ def user_from_token(token: dict) -> CurrentUser | None:
     return CurrentUser(google_sub=str(sub), email=str(email))
 
 
+def with_internal_id(db: Session, user: CurrentUser) -> CurrentUser:
+    """내부 식별자가 없는 사용자에게 채워 준다. 없는 사람이면 그대로 돌려준다.
+
+    대체 키(V006) 이전에 발급된 세션에는 `id`가 없다. 그 사용자는 다시 로그인하기 전까지
+    로그에 실리지 않아 여정에서 빠진다. 다시 로그인하라고 요구하는 대신 여기서 한 번 채운다.
+
+    옛 세션 하나당 **한 번만** 읽는다 — 채워진 값이 세션에 들어가면 다시 오지 않는다.
+    """
+    if user.id is not None:
+        return user
+    row = db.scalar(select(AppUser).where(AppUser.google_sub == user.google_sub))
+    return user if row is None else replace(user, id=row.id)
+
+
 def record_login(db: Session, user: CurrentUser, now: datetime) -> CurrentUser:
     """최초면 생성, 재방문이면 마지막 로그인 시각만 갱신. **내부 식별자를 채워 돌려준다.**
 

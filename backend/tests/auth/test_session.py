@@ -86,3 +86,46 @@ class Test내부_식별자:
         복원 = CurrentUser.from_session({"sub": "1234", "email": "a@b.com", "id": "일곱"})
 
         assert 복원 is not None and 복원.id is None
+
+
+class Test옛_세션_메우기:
+    """대체 키(V006) 이전에 발급된 세션에는 내부 식별자가 없다.
+
+    다시 로그인하라고 요구하지 않고, 프론트가 화면마다 부르는 /me에서 조용히 채운다.
+    """
+
+    def 옛_세션_client(self, client):
+        from tests.conftest import 세션_쿠키
+
+        client.cookies.set("judozoo_session", 세션_쿠키(user_id=None))
+        return client
+
+    def test_식별자가_없으면_채워_넣는다(self, client, mocker):
+        메우기 = mocker.patch(
+            "backend.auth.application.with_internal_id",
+            return_value=CurrentUser(google_sub="test-sub", email="tester@example.com", id=3),
+        )
+
+        res = self.옛_세션_client(client).get("/api/auth/me")
+
+        assert res.status_code == 200
+        assert res.json()["data"]["authenticated"] is True
+        assert 메우기.call_count == 1
+
+    def test_채운_값이_쿠키로_되돌아간다(self, client, mocker):
+        """되돌아가지 않으면 요청마다 DB를 다시 읽는다."""
+        mocker.patch(
+            "backend.auth.application.with_internal_id",
+            return_value=CurrentUser(google_sub="test-sub", email="tester@example.com", id=3),
+        )
+
+        res = self.옛_세션_client(client).get("/api/auth/me")
+
+        assert "judozoo_session" in res.headers.get("set-cookie", "")
+
+    def test_이미_있으면_DB를_보지_않는다(self, 로그인_client, mocker):
+        메우기 = mocker.patch("backend.auth.application.with_internal_id")
+
+        로그인_client.get("/api/auth/me")
+
+        메우기.assert_not_called()
