@@ -49,10 +49,18 @@ services:
     # 릴리스됐다. 3.x로 옮기려면 설정을 새로 쓰는 별도 작업이다.
     image: grafana/tempo:2.10.8
     command: -config.file=/etc/tempo/tempo.yaml
-    # 앱 VM의 alloy가 **다른 머신에서** 붙는다 — Loki 3100·Prometheus 9090과 같은 이유로
-    # 호스트에 낸다. 3200은 Grafana가 같은 compose 네트워크에서 쓰므로 낼 필요가 없다.
+    # 4317(OTLP 수집)은 앱 VM의 alloy가 **다른 머신에서** 붙으므로 호스트에 낸다 —
+    # Loki 3100·Prometheus 9090과 같은 이유다.
+    #
+    # 3200(조회·상태)은 **127.0.0.1에만** 묶는다. Grafana는 같은 compose 네트워크에서
+    # `tempo:3200`으로 닿으므로 호스트 포트가 필요 없지만, **remote_deploy_ops.sh의
+    # 헬스체크가 호스트에서 `localhost:3200`을 친다.** 안 내면 그 검사가 영원히
+    # 연결 거부(000)로 실패한다 — 실제로 첫 배포가 이렇게 깨졌다.
+    # 0.0.0.0이 아닌 이유는 VPC에 굳이 열 이유가 없기 때문이다(grafana 3000은 IAP가
+    # 네트워크 인터페이스로 붙어서 0.0.0.0이어야 하는 것과 사정이 다르다).
     ports:
       - "4317:4317"
+      - "127.0.0.1:3200:3200"
     volumes:
       - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
