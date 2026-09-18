@@ -56,7 +56,7 @@ class Test여정_추적:
 
         로그인_client.get("/api/auth/me")
 
-        심기.assert_called_with("test-sub")
+        심기.assert_called_with(7)
 
     def test_미로그인_요청은_비워_심는다(self, client, mocker):
         """비워 심지 않으면 앞 요청의 사용자가 남아 남의 여정에 섞인다."""
@@ -65,3 +65,24 @@ class Test여정_추적:
         client.get("/api/auth/me")
 
         심기.assert_called_with(None)
+
+
+class Test내부_식별자:
+    """로그에 담는 것은 구글 계정 식별자가 아니라 이 시스템이 발급한 id다."""
+
+    def test_세션을_오가며_식별자가_보존된다(self):
+        원본 = CurrentUser(google_sub="1234", email="a@b.com", id=7)
+
+        assert CurrentUser.from_session(원본.to_session()) == 원본
+
+    def test_식별자가_없는_옛_세션도_사용자로_친다(self):
+        """로그인은 계속 되게 두고, 로그에만 사용자가 안 실린다. 다시 로그인하면 채워진다."""
+        복원 = CurrentUser.from_session({"sub": "1234", "email": "a@b.com"})
+
+        assert 복원 is not None
+        assert 복원.id is None
+
+    def test_식별자가_숫자가_아니면_없는_것으로_친다(self):
+        복원 = CurrentUser.from_session({"sub": "1234", "email": "a@b.com", "id": "일곱"})
+
+        assert 복원 is not None and 복원.id is None

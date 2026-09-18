@@ -75,7 +75,7 @@ async def _require_login(request: Request, call_next):
     user = CurrentUser.from_session(request.session.get(SESSION_KEY))
     # 로그 컨텍스트도 여기서 심는다. 미들웨어를 하나 더 두면 같은 쿠키를 두 번 푸는 셈이고,
     # 관문이 이미 사용자를 손에 쥔 자리가 여기다.
-    bind_user(user.google_sub if user else None)
+    bind_user(user.id if user else None)
 
     path = request.url.path
     if path.startswith("/api") and not is_public(path) and user is None:

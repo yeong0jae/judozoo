@@ -31,7 +31,9 @@ def 세션_쿠키() -> str:
     from backend.auth.domain import SESSION_KEY
 
     payload = base64.b64encode(
-        json.dumps({SESSION_KEY: {"sub": "test-sub", "email": "tester@example.com"}}).encode()
+        json.dumps(
+            {SESSION_KEY: {"sub": "test-sub", "email": "tester@example.com", "id": 7}}
+        ).encode()
     )
     return TimestampSigner(get_settings().session_secret).sign(payload).decode()
 

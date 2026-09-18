@@ -29,15 +29,15 @@ _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 # **되돌리지 않는다** — 응답을 내보내며 찍히는 uvicorn 액세스 로그가 미들웨어가 끝난 뒤에 나와서,
 # 거기서 되돌리면 정작 그 줄에 사용자가 안 실린다. 미들웨어가 요청마다 값을 다시 심고
 # 비로그인은 None으로 덮으므로 남는 값도 없다.
-_user: ContextVar[str | None] = ContextVar("log_user", default=None)
+_user: ContextVar[int | None] = ContextVar("log_user", default=None)
 
 
-def bind_user(user_id: str | None) -> None:
+def bind_user(user_id: int | None) -> None:
     """요청을 시작하며 심는다. 비로그인이면 None을 심어 이전 값을 지운다."""
     _user.set(user_id)
 
 
-def current_user() -> str | None:
+def current_user() -> int | None:
     return _user.get()
 
 
@@ -72,7 +72,7 @@ class JsonFormatter(logging.Formatter):
         # 로그인한 사용자. **없는 게 정상인 로그가 많다** — 비로그인 요청과 스케줄러·기동
         # 로그에는 사용자가 없다. trace_id와 같은 사정이다.
         user = current_user()
-        if user:
+        if user is not None:
             payload["user"] = user
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)

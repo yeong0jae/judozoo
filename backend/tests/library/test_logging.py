@@ -156,9 +156,9 @@ class Test사용자_필드:
     def test_로그인한_사용자를_필드로_싣는다(self):
         from backend.library.logging_config import bind_user
 
-        bind_user("108123456789012345678")
+        bind_user(7)
 
-        assert self.포맷(기록("주도주 후보 조회"))["user"] == "108123456789012345678"
+        assert self.포맷(기록("주도주 후보 조회"))["user"] == 7
 
     def test_비로그인이면_필드가_아예_없다(self):
         """스케줄러·기동 로그도 여기 해당한다. 항상 있다고 보고 쿼리를 짜면 그 줄들이 사라진다."""
@@ -171,7 +171,7 @@ class Test사용자_필드:
     def test_다음_요청이_이전_사용자를_물려받지_않는다(self):
         from backend.library.logging_config import bind_user
 
-        bind_user("이전-사용자")
+        bind_user(42)
         bind_user(None)
 
         assert "user" not in self.포맷(기록("공개 화면 조회"))

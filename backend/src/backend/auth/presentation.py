@@ -54,8 +54,8 @@ async def callback(request: Request, db: Session = Depends(get_db)):
     if user is None:
         return RedirectResponse("/?login=failed", status_code=302)
 
-    application.record_login(db, user, datetime.now())
-    request.session[SESSION_KEY] = user.to_session()
+    # 내부 식별자가 채워진 사용자를 담는다 — 이후 요청의 로그가 이 값을 쓴다.
+    request.session[SESSION_KEY] = application.record_login(db, user, datetime.now()).to_session()
     return RedirectResponse("/", status_code=302)
 
 

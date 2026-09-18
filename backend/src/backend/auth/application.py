@@ -1,9 +1,11 @@
 """구글 OAuth 흐름과 가입자 기록."""
 
 import logging
+from dataclasses import replace
 from datetime import datetime
 
 from authlib.integrations.starlette_client import OAuth
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.auth.domain import AppUser, CurrentUser
@@ -56,22 +58,26 @@ def user_from_token(token: dict) -> CurrentUser | None:
     return CurrentUser(google_sub=str(sub), email=str(email))
 
 
-def record_login(db: Session, user: CurrentUser, now: datetime) -> None:
-    """최초면 생성, 재방문이면 마지막 로그인 시각만 갱신."""
-    row = db.get(AppUser, user.google_sub)
+def record_login(db: Session, user: CurrentUser, now: datetime) -> CurrentUser:
+    """최초면 생성, 재방문이면 마지막 로그인 시각만 갱신. **내부 식별자를 채워 돌려준다.**
+
+    돌려주는 이유 — 이 값이 세션에 들어가야 이후 요청이 DB를 다시 읽지 않고도
+    로그에 사용자를 실을 수 있다.
+    """
+    row = db.scalar(select(AppUser).where(AppUser.google_sub == user.google_sub))
     if row is None:
-        db.add(
-            AppUser(
-                google_sub=user.google_sub,
-                email=user.email,
-                created_at=now,
-                last_login_at=now,
-            )
+        row = AppUser(
+            google_sub=user.google_sub,
+            email=user.email,
+            created_at=now,
+            last_login_at=now,
         )
+        db.add(row)
     else:
         row.email = user.email  # 계정 이메일이 바뀌었을 수 있다
         row.last_login_at = now
     db.commit()
     # 이 줄이 여정의 시작점이다. 콜백을 처리하는 동안에는 세션이 아직 없어서
     # 관문이 사용자를 심지 못하므로, 여기서만 직접 싣는다.
-    log.info("로그인", extra={"user": user.google_sub})
+    log.info("로그인", extra={"user": row.id})
+    return replace(user, id=row.id)
