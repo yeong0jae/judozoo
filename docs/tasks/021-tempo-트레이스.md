@@ -102,13 +102,14 @@ Mem:  total 1960MB   available 1290MB
 
 ## 1. ops VM 승급
 
-- [ ] `variables.tf` 또는 `main.tf` — ops 인스턴스 `machine_type = "e2-medium"`
-- [ ] **`allow_stopping_for_update = true` 추가.** 없으면 terraform이 머신 타입 변경을 거부한다
-- [ ] `terraform plan`이 **update in-place**인지 확인 — `destroy`가 뜨면 멈춘다.
+- [x] `main.tf` — ops 인스턴스 `machine_type = "e2-medium"`
+- [x] **`allow_stopping_for_update = true` 추가.** 없으면 terraform이 머신 타입 변경을 거부한다
+- [x] `terraform plan`이 **update in-place**인지 확인 — `0 to add, 2 to change, 0 to destroy`. — `destroy`가 뜨면 멈춘다.
       명명 볼륨이 부트디스크에 있어 재생성되면 **로그·메트릭이 전부 날아간다**
-- [ ] `terraform apply` → ops VM이 잠깐 내려간다. 앱 VM은 영향 없고, alloy WAL이 그 사이를 버틴다
+- [x] `terraform apply` (2026-09-18). ops VM이 잠깐 내려간다. 앱 VM은 영향 없고, alloy WAL이 그 사이를 버틴다
       (019에서 재부팅으로, 020에서 out-of-order 창으로 각각 확인한 경로다)
-- [ ] 승급 후 `free -m`으로 여유 재측정
+- [x] 승급 후 실측 — **available 1290MB → 3346MB**(total 3908). 컨테이너 셋 자동 복귀,
+      **승급 전 데이터 보존 확인**(6시간 전 샘플 조회됨, TSDB 14MB 유지, `up` 3개)
 
 ## 2. 백엔드 계측
 

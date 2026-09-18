@@ -276,9 +276,18 @@ resource "google_compute_instance" "app" {
 # VM을 재생성해도 잃을 것이 사용자 설정과 지난 로그뿐이다. DB와 판단 기준이 다르다.
 # ---------------------------------------------------------------------------
 resource "google_compute_instance" "ops" {
-  name         = "judozoo-ops-prod"
-  machine_type = "e2-small"
+  name = "judozoo-ops-prod"
+  # e2-small(2GB)에서 올렸다. 021에서 Tempo를 얹으면 여유가 800MB 밑으로 떨어지는데,
+  # 여기서 OOM이 나면 관측 스택 전체가 같이 죽는다 — 019가 막으려던 상황이 메모리로
+  # 재현되는 셈이다. 2026-09-18 실측: loki 171 + grafana 254 + prometheus 128 = 553MB로
+  # 019 측정치(합계 247MB)의 두 배를 넘었고 아직 안정되지 않았다.
+  machine_type = "e2-medium"
   zone         = var.zone
+
+  # 머신 타입 변경은 인스턴스를 멈춰야 한다. 이 플래그가 없으면 terraform이 거부한다.
+  # **재생성이 아니라 stop → 변경 → start다** — 부트디스크가 보존되므로 명명 볼륨에 있는
+  # 로그·메트릭도 남는다. plan에서 `destroy`가 뜨면 그대로 진행하면 안 된다.
+  allow_stopping_for_update = true
 
   # **`auto-trading`을 달지 않는다.** 그 태그는 allow-web(0.0.0.0/0 → 80,443)의 타깃이다.
   tags = ["judozoo-ops"]
