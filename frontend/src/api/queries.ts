@@ -23,6 +23,7 @@ import type {
   IndexMinuteCandleItem,
   MarketSignalEventsResponse,
   MarketInvestorNetBuyItem,
+  TodayNetItem,
   MarketCandleItem,
   MarketInvestorDay,
   MarketInvestorSession,
@@ -58,6 +59,7 @@ export const QK = {
   dailyCandles: (code: string, date: string) =>
     ["leading-stocks", "daily-candles", code, date] as const,
   kospiIndex: ["market", "kospi"] as const,
+  todayNets: ["market", "investor", "today"] as const,
   kosdaqIndex: ["market", "kosdaq"] as const,
   marketInvestorDaily: (market: string, count: number) =>
     ["market", market, "investor", "daily", count] as const,
@@ -203,6 +205,16 @@ export function useMarketInvestorNetBuyAt(at: string | null, enabled: boolean) {
         `/api/leading-stocks/market/investor-net-buy?at=${encodeURIComponent(at as string)}`,
       ),
     enabled: enabled && at !== null,
+  });
+}
+
+/** 첫 화면 "오늘의 수급" — 코스피·코스닥(억원)과 두 지수선물(계약). 로그인 뒤에만 부른다. */
+export function useTodayNets(enabled: boolean) {
+  return useQuery({
+    queryKey: QK.todayNets,
+    queryFn: () => apiFetch<TodayNetItem[]>("/api/market/investor/today"),
+    enabled,
+    refetchInterval: 30_000,
   });
 }
 

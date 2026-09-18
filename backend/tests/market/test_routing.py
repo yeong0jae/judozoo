@@ -19,6 +19,7 @@ def 외부호출_차단(monkeypatch):
     monkeypatch.setattr(application, "night_futures_candles", lambda interval, count: [])
     monkeypatch.setattr(application, "futures_quote", lambda market: None)
     monkeypatch.setattr(application, "daily_candles", lambda market, count: [])
+    monkeypatch.setattr(application, "today_nets", lambda: [])
     monkeypatch.setattr(calendar, "is_holiday", lambda region: False)
 
 
@@ -47,6 +48,13 @@ class Test리터럴_경로_우선:
         응답 = 로그인_client.get("/api/market/macro/candles", params={"target": "WTI", "interval": "1d"})
 
         assert 응답.status_code == 200
+
+    def test_오늘의_수급은_시장_수급_경로로_새지_않는다(self, 로그인_client):
+        """`/investor/today`가 `{market}=investor`로 들어가면 Market enum에 걸려 422가 난다."""
+        응답 = 로그인_client.get("/api/market/investor/today")
+
+        assert 응답.status_code == 200
+        assert 응답.json()["data"] == []
 
     def test_휴장_상태는_시장_경로로_새지_않는다(self, 로그인_client):
         응답 = 로그인_client.get("/api/market/calendar/status", params={"region": "KR"})

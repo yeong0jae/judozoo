@@ -391,6 +391,7 @@ class FuturesInvestorsSummary:
     foreign: int
     individual: int
     institution: int
+    other_corp: int
 
 
 @dataclass(frozen=True)
@@ -431,7 +432,9 @@ def futures_quote(market: Market) -> FuturesQuote | None:
         rmnn_days=near.rmnn_days,
         expiry_date=_expiry_of(near.name) or "",
         investors=(
-            FuturesInvestorsSummary(investors.foreign, investors.individual, investors.institution)
+            FuturesInvestorsSummary(
+                investors.foreign, investors.individual, investors.institution, investors.other_corp
+            )
             if investors
             else None
         ),
@@ -701,3 +704,54 @@ def _yahoo_candles(symbol: str, interval: str) -> list:
     if interval == "1d":
         return yahoo.fetch_candles(symbol, "1d", "6mo")
     return []
+
+
+# ── 홈 — 오늘의 수급 ────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class TodayNet:
+    """지수 한 칸의 당일 누적 순매수 — 현물은 억원, 선물은 계약이다."""
+
+    market: Market
+    futures: bool
+    index_value: float
+    change_rate: float
+    individual: int
+    foreign: int
+    institution: int
+    other_corp: int
+
+
+def today_nets() -> list[TodayNet]:
+    """코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수. 값이 없는 시장은 빠진다.
+
+    현물(억원)과 선물(계약)은 단위가 달라 한 목록에 담겨도 서로 더하거나 견주지 않는다.
+    """
+    out: list[TodayNet] = []
+    for market in Market:
+        nb = kiwoom_sector.fetch_sector_net_buy(_MRKT_TP[market])
+        if nb is None:
+            continue
+        out.append(
+            TodayNet(
+                market=market, futures=False,
+                index_value=nb.index_value, change_rate=nb.change_rate,
+                individual=nb.individual_eok, foreign=nb.foreign_eok,
+                institution=nb.institution_eok, other_corp=nb.other_corp_eok,
+            )
+        )
+    for market in Market:
+        quote = futures_quote(market)
+        if quote is None or quote.investors is None:
+            continue
+        nets = quote.investors
+        out.append(
+            TodayNet(
+                market=market, futures=True,
+                index_value=quote.futures_price, change_rate=quote.change_rate,
+                individual=nets.individual, foreign=nets.foreign,
+                institution=nets.institution, other_corp=nets.other_corp,
+            )
+        )
+    return out

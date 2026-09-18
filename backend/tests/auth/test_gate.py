@@ -64,6 +64,8 @@ class Test로그인을_요구하는_경로:
             "/api/market/KOSDAQ/investor/daily",
             "/api/market/futures/KOSPI/investor/sessions",
             "/api/market/futures/KOSPI/investor/daily",
+            # 첫 화면 "오늘의 수급"도 수급이다 — 홈에 실린다고 열리지 않는다
+            "/api/market/investor/today",
             # 가공한 판단 결과들
             # 종목 시그널은 열었지만 지수 시그널은 닫은 채다 — 경로가 비슷해 섞이기 쉽다
             "/api/leading-stocks/market-signal-events",

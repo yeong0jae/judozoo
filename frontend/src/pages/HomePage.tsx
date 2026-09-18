@@ -7,6 +7,7 @@ import {
   useNasdaqIndexQuote,
   useNightFuturesQuote,
   useOverseasLeaders,
+  useTodayNets,
 } from "../api/queries";
 import { useMe } from "../api/auth";
 import {
@@ -22,6 +23,7 @@ import SessionStrip from "../components/layout/SessionStrip";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
+import type { TodayNetItem } from "../types";
 
 /** 카드 한 장에 올리는 주도주 줄 수. 서버가 이미 그만큼만 내려준다 — 뼈대 높이에 쓴다. */
 const LEADERS_COUNT = 5;
@@ -86,6 +88,8 @@ export default function HomePage() {
           </>
         )}
       </div>
+
+      <TodayNets live={domesticOpen} clock={clock} />
 
       <Pitch />
     </div>
@@ -342,6 +346,133 @@ function Row({ rank, name, symbol, price, rate }: Omit<Item, "key"> & { rank: nu
       <span className="num text-xs text-zinc-500">{price}</span>
       <span className="num min-w-[3.6rem] text-right text-xs font-medium">
         <ProfitText value={rate} format={(v) => formatPct(v / 100)} />
+      </span>
+    </div>
+  );
+}
+
+// ============================================================
+// 오늘의 수급
+// ============================================================
+
+/** 카드 한 장에 세로로 쌓이는 네 줄. 순서는 화면에서 읽는 순서다. */
+const INVESTORS = [
+  { key: "individual", label: "개인" },
+  { key: "foreign", label: "외인" },
+  { key: "institution", label: "기관" },
+  { key: "otherCorp", label: "기타법인" },
+] as const;
+
+const MARKET_NAME: Record<string, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
+
+/** 현물은 억원, 선물은 계약 — 한 목록에 있어도 단위가 달라 서로 견주지 않는다. */
+function netLabel(item: TodayNetItem): { name: string; unit: string } {
+  const name = MARKET_NAME[item.market] ?? item.market;
+  return item.futures ? { name: `${name} 선물`, unit: "계약" } : { name, unit: "억원" };
+}
+
+/**
+ * 오늘의 수급 — 코스피·코스닥 현물과 두 지수선물의 당일 누적 투자자 순매수.
+ *
+ * **로그인 뒤에만 보인다.** 수급은 공개 API가 아니라(`auth/gate.py`), 게스트에게 띄우면
+ * 빈 카드 네 장만 남는다. 주도주 아래에 두는 것도 같은 이유다 — 첫 화면의 주인공은
+ * "오늘 뭐가 주도주냐"고, 수급은 그다음에 보는 재료다.
+ */
+function TodayNets({ live, clock }: { live: boolean; clock: string }) {
+  const { data: me } = useMe();
+  const authenticated = !!me?.authenticated;
+  const { data, isLoading } = useTodayNets(authenticated);
+
+  if (!authenticated) return null;
+
+  return (
+    <div>
+      <div className="mb-2.5 flex items-center gap-2">
+        <span className="text-sm font-bold">오늘의 수급</span>
+        {live && (
+          <span className="rounded-full bg-blue-50 px-2 py-px text-[10.5px] font-medium text-blue-700">
+            장중 <span className="num">{clock}</span>
+          </span>
+        )}
+        <span className="ml-auto text-[11.5px] text-zinc-500">
+          순매수 <span className="text-red-400">빨강</span> · 순매도{" "}
+          <span className="text-blue-400">파랑</span>
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[8.75rem] w-full rounded-xl" />
+          ))}
+        </div>
+      ) : !data || data.length === 0 ? (
+        <p className="rounded-xl bg-zinc-900 px-4 py-7 text-center text-xs text-zinc-500">
+          아직 오늘 수급이 없습니다
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {data.map((item) => (
+            <NetCard key={`${item.market}-${item.futures}`} item={item} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NetCard({ item }: { item: TodayNetItem }) {
+  const { name, unit } = netLabel(item);
+  // 막대 길이는 그 카드 안에서만 뜻이 있다 — 가장 큰 값이 반칸을 꽉 채운다
+  const top = Math.max(...INVESTORS.map(({ key }) => Math.abs(item[key]))) || 1;
+
+  return (
+    <div className="rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0">
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-[13.5px] font-semibold text-zinc-200">{name}</span>
+        <span className="num ml-auto text-xs text-zinc-400">
+          {item.indexValue.toLocaleString("ko-KR")}
+        </span>
+        <ProfitText
+          value={item.changeRate}
+          format={(v) => formatPct(v / 100)}
+          className="num text-xs font-medium"
+        />
+      </div>
+
+      <div className="mt-2.5 space-y-2 border-t border-zinc-800 pt-2.5">
+        {INVESTORS.map(({ key, label }) => (
+          <NetRow key={key} label={label} value={item[key]} top={top} />
+        ))}
+      </div>
+
+      <div className="mt-2.5 text-right text-[11px] text-zinc-500">단위 {unit}</div>
+    </div>
+  );
+}
+
+/** 0선을 가운데 두고 순매수는 오른쪽, 순매도는 왼쪽으로 뻗는다. */
+function NetRow({ label, value, top }: { label: string; value: number; top: number }) {
+  // 반칸(50%) 기준 — 0이 아닌 값은 최소 한 줄이라도 보이게 바닥을 둔다
+  const width = value === 0 ? 0 : Math.max(1, (Math.abs(value) / top) * 50);
+  const tone = value > 0 ? "text-red-400" : value < 0 ? "text-blue-400" : "text-zinc-600";
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-[3.4rem] shrink-0 text-[11.5px] text-zinc-400">{label}</span>
+      <div className="relative h-2 min-w-0 flex-1">
+        <div className="absolute left-1/2 top-[-1px] h-2.5 w-px bg-zinc-700" />
+        <div
+          className={`absolute top-0 h-2 ${
+            value >= 0 ? "left-1/2 rounded-r-sm bg-red-400" : "right-1/2 rounded-l-sm bg-blue-400"
+          }`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+      <span className={`num w-[3.9rem] shrink-0 text-right text-xs font-medium ${tone}`}>
+        {sign}
+        {Math.abs(value).toLocaleString("ko-KR")}
       </span>
     </div>
   );

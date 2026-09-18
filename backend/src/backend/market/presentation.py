@@ -140,6 +140,7 @@ class FuturesInvestorsItem(BaseModel):
     foreign: int
     individual: int
     institution: int
+    other_corp: int = Field(serialization_alias="otherCorp")
 
 
 class FuturesQuoteItem(BaseModel):
@@ -179,6 +180,19 @@ class MacroQuotesItem(BaseModel):
     usd_krw: QuoteItem | None = Field(serialization_alias="usdKrw")
     wti: QuoteItem | None
     vix: QuoteItem | None
+
+
+class TodayNetItem(BaseModel):
+    """`futures`가 단위를 가른다 — 현물은 억원, 선물은 계약."""
+
+    market: str
+    futures: bool
+    index_value: float = Field(serialization_alias="indexValue")
+    change_rate: float = Field(serialization_alias="changeRate")
+    individual: int
+    foreign: int
+    institution: int
+    other_corp: int = Field(serialization_alias="otherCorp")
 
 
 # ── 변환기 ─────────────────────────────────────────────────────────────
@@ -244,6 +258,22 @@ def kospi() -> ApiResponse[IndexItem]:
 def kosdaq() -> ApiResponse[IndexItem]:
     r = application.get_kosdaq()
     return ApiResponse.ok(IndexItem(current_value=r.current_value, change_rate=r.change_rate))
+
+
+@router.get("/investor/today")
+def investor_today() -> ApiResponse[list[TodayNetItem]]:
+    """첫 화면 "오늘의 수급" — 코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수."""
+    return ApiResponse.ok(
+        [
+            TodayNetItem(
+                market=n.market.name, futures=n.futures,
+                index_value=n.index_value, change_rate=n.change_rate,
+                individual=n.individual, foreign=n.foreign,
+                institution=n.institution, other_corp=n.other_corp,
+            )
+            for n in application.today_nets()
+        ]
+    )
 
 
 @router.get("/macro/quotes")

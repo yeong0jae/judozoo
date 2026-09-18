@@ -106,6 +106,7 @@ export interface FuturesInvestors {
   foreign: number;
   individual: number;
   institution: number;
+  otherCorp: number;
 }
 
 /** 코스피 야간선물(18:00~익일 06:00) 시세 — KIS 시장구분 CM. 값은 지수 포인트. */
@@ -330,6 +331,18 @@ export interface MarketInvestorNetBuyItem {
   // 스냅샷 적재 이전이거나 지수 수집이 실패한 시점이면 null이다 (백엔드 float | None).
   indexValue: number | null;
   changeRate: number | null;
+}
+
+/** 첫 화면 "오늘의 수급" 한 칸. `futures`가 단위를 가른다 — 현물은 억원, 선물은 계약. */
+export interface TodayNetItem {
+  market: MarketType;
+  futures: boolean;
+  indexValue: number;
+  changeRate: number;
+  individual: number;
+  foreign: number;
+  institution: number;
+  otherCorp: number;
 }
 
 /** 지수 1분봉 — 가격은 지수값(소수), volume은 1000주 단위. */
