@@ -2,20 +2,13 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useLeadingStockCandidates, useOverseasRanking } from "../../api/queries";
 import { useMinChangeRate, useOverseasMinChangeRate } from "../../lib/changeRate";
 import { formatPct, formatPrice } from "../../lib/format";
-
-/** 국내를 흘리는 시간대 — 08:00~20:00. 나머지(20:01~07:59)는 미국장이 도는 때라 해외를 흘린다. */
-const DOMESTIC_START_HOUR = 8;
-const DOMESTIC_END_HOUR = 20;
-
-function isDomesticHours(now: Date): boolean {
-  const h = now.getHours();
-  // 20시대는 20:00 정각만 국내 — 20:01부터 해외로 넘긴다
-  if (h === DOMESTIC_END_HOUR) return now.getMinutes() === 0;
-  return h >= DOMESTIC_START_HOUR && h < DOMESTIC_END_HOUR;
-}
+import { overseasIsMain } from "../../lib/marketSession";
 
 /**
- * 헤더 시세 티커 — 장이 도는 쪽 주도주가 왼쪽으로 흐른다.
+ * 헤더 시세 티커 — 주인공 쪽 주도주가 왼쪽으로 흐른다.
+ *
+ * 어느 쪽인지는 `overseasIsMain`이 정한다 — 홈의 지수 타일·주도주 카드와 같은 규칙이라
+ * 헤더만 국내를 흘리고 본문은 해외를 세우는 어긋남이 없다.
  *
  * 국내·해외 중 한쪽만 마운트한다. 둘 다 걸어두면 안 보이는 쪽까지 폴링해서다.
  * 등락률 임계값은 각 화면과 store로 공유해, 화면에서 바꾸면 티커도 즉시 따라온다.
@@ -24,11 +17,11 @@ function isDomesticHours(now: Date): boolean {
  * 한 바퀴가 끝나면 두 번째 벌이 첫 벌 자리에 정확히 와 있어 이음매가 보이지 않는다.
  */
 export default function HeaderTicker() {
-  const [domestic, setDomestic] = useState(() => isDomesticHours(new Date()));
+  const [domestic, setDomestic] = useState(() => !overseasIsMain(new Date()));
 
-  // 경계(08:00 / 20:01)를 넘기면 저절로 바뀌게 — 헤더는 화면을 옮겨도 죽지 않는다
+  // 경계(평일 08:00 / 20:00)를 넘기면 저절로 바뀌게 — 헤더는 화면을 옮겨도 죽지 않는다
   useEffect(() => {
-    const id = setInterval(() => setDomestic(isDomesticHours(new Date())), 60_000);
+    const id = setInterval(() => setDomestic(!overseasIsMain(new Date())), 60_000);
     return () => clearInterval(id);
   }, []);
 
