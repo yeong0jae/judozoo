@@ -337,7 +337,7 @@
           },
           "instant": true,
           "legendFormat": "{{path}}",
-          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | method = \"GET\" [$__range])))"
+          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | ua !~ \"(?i).*(bot|crawler|spider|slurp|daumoa|yeti|kakaotalk-scrap|facebookexternalhit|slackbot|twitterbot|discordbot|telegrambot|embedly|curl|wget|python-requests|go-http-client|headlesschrome|lighthouse|uptime|pingdom).*\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | path =~ \"(/|/leading-stocks/?|/signal-log/?|/breakout-radar/?|/market-analysis(/[a-z0-9-]+)?/?|/privacy/?|/terms/?)([?].*)?\" | method = \"GET\" [$__range])))"
         }
       ],
       "fieldConfig": {
@@ -359,16 +359,63 @@
           "mode": "single"
         }
       },
-      "description": "직접 진입이 많은 화면 순위다. SPA 화면 전환은 잡히지 않는다. 봇은 뺐다."
+      "description": "우리 화면 주소만 센다. 직접 진입이 많은 화면 순위이고 SPA 화면 전환은 잡히지 않는다. 봇은 뺐다.\n라우트를 추가하면 이 패널의 경로 목록에도 더해야 한다 — 안 더하면 새 화면이 '그 외 주소'에 뜬다.\n경로에 쿼리스트링이 붙으면(홍보 링크의 utm 등) 같은 화면이 여러 줄로 갈린다."
+    },
+    {
+      "id": 9,
+      "type": "barchart",
+      "title": "그 외 주소",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "instant": true,
+          "legendFormat": "{{path}}",
+          "expr": "topk(10, sum by (path) (count_over_time({service=\"frontend\"} | pattern `<ip> - <_> [<_>] \"<method> <path> <_>\" <status> <_> \"<_>\" \"<ua>\" \"<_>\"` | __error__=\"\" | status =~ \"[0-9]{3}\" | ip !~ \"172\\\\.(1[6-9]|2[0-9]|3[01])\\\\.\" | path !~ \"/assets/.*\" | path != \"/favicon.ico\" | path !~ \"/health.*\" | path !~ \"/api/.*\" | path !~ \"(/|/leading-stocks/?|/signal-log/?|/breakout-radar/?|/market-analysis(/[a-z0-9-]+)?/?|/privacy/?|/terms/?)([?].*)?\" [$__range])))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "화면 주소가 아닌 요청. robots.txt·sitemap.xml 같은 정상 요청과, 스캐너가 긁고 가는 주소(대부분 404)가 섞여 나온다.\n봇도 메서드도 거르지 않는다 — 긁는 주체가 대개 봇이고 탐침은 POST로도 온다. /api는 자체 패널이 있어 뺀다."
     },
     {
       "id": 8,
       "type": "table",
       "title": "가입자",
       "gridPos": {
-        "x": 12,
-        "y": 12,
-        "w": 12,
+        "x": 0,
+        "y": 20,
+        "w": 24,
         "h": 8
       },
       "datasource": {
