@@ -10,6 +10,9 @@ export default function Footer() {
           제공되는 정보는 투자 권유가 아니며, 투자 판단과 책임은 이용자 본인에게 있습니다.
         </span>
         <span className="flex-1" />
+        <a href="mailto:judozooweb@gmail.com" className="hover:text-zinc-400">
+          문의 judozooweb@gmail.com
+        </a>
         <Link to="/terms" className="hover:text-zinc-400">
           이용약관
         </Link>
