@@ -9,6 +9,13 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
+  # Tempo 자체 상태(021). 같은 compose 네트워크라 서비스명으로 닿는다.
+  # **트레이스 대시보드의 테이블이 비었을 때 "느린 게 없는 것"과 "수집이 죽은 것"을
+  # 가르는 유일한 근거다.** 앱 메트릭과 달리 이건 pull이다 — ops VM 안이라 경계를 안 넘는다.
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]
+
 storage:
   tsdb:
     # **없으면 조용히 구멍이 생긴다.** Prometheus는 기본적으로 과거 시각 샘플을 거부한다.

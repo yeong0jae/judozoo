@@ -167,6 +167,12 @@ Mem:  total 1960MB   available 1290MB
 - [x] `ports` — `4317:4317`(OTLP 수집) + `127.0.0.1:3200:3200`(헬스체크용). 아래 함정 참고 — alloy가 다른 머신에서 붙는다 (Loki 3100·Prometheus 9090과 같은 이유)
 - [x] 명명 볼륨 `tempo-data`
 - [x] `docker-compose.ops.prod.yml` — `restart: unless-stopped`
+- [x] Grafana 대시보드 `traces.json` — 패널 7개. 로그·메트릭과 같이 화면을 갖는다
+      - 수집 상태 3개: 스팬 수집률 · 트레이스 생성률 · **Tempo 수집기 상태(UP/DOWN)**
+      - 느린 것 2개: 느린 API 요청(>1s) · 느린 잡 실행(>3s) — 행을 누르면 스팬 트리로 들어간다
+      - 실패·외부 2개: 에러가 있는 트레이스 · 느린 브로커 호출(>200ms)
+- [x] `prometheus.yml`에 `tempo` 스크레이프 추가 — **표가 비었을 때 "느린 게 없다"와
+      "수집이 죽었다"를 가르는 유일한 근거다.** ops VM 안이라 경계를 안 넘는 pull이다
 - [x] Grafana 데이터소스 `tempo.yaml` — `isDefault`는 Loki에 그대로 둔다
 
 ## 7. 방화벽
@@ -289,6 +295,15 @@ GET /api/leading-stocks/breakout-radar   14,382ms
 자식을 다 더해도 1.2초다. **나머지 13초가 리미터 대기다.** 브로커가 느린 게 아니라
 키움 조회 한도(초당 N건)에 60번을 태우느라 기다린 것이다. 020 메트릭만으로는
 "vendor p95"까지였고 이 구분이 불가능했다 — 계획서의 질문 ③이 여기서 답이 된다.
+
+## 알려진 함정 (추가)
+
+- **빈 표는 두 가지를 뜻한다.** 트레이스 대시보드의 테이블이 비면 "느린 게 없다"일 수도,
+  "수집이 죽었다"일 수도 있다. 로컬 검증에서 Tempo를 띄우고 스팬을 한 건도 안 보냈더니
+  `tempo_distributor_spans_received_total`이 **아예 존재하지 않아**(카운터는 첫 증가 전까지
+  안 생긴다) 수집률 패널도 비었다 — Tempo가 죽은 것과 화면상 구분이 안 됐다.
+  그래서 `up{job="tempo"}`를 **별도 stat 패널**로 뒀다. UP인데 수집률이 0이면 앱이 안 보내는
+  것이고, DOWN이면 Tempo 쪽이다.
 
 ## 후속
 
