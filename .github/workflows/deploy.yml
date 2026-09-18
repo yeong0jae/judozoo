@@ -63,15 +63,48 @@ jobs:
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # **태그를 커밋 SHA가 아니라 그 디렉터리의 git 트리 해시로 붙인다.**
+      # 커밋 SHA는 매 커밋 바뀌므로, 내용이 같아도 compose가 "다른 이미지"로 보고
+      # 컨테이너를 재생성했다 — 프론트 문구 하나 고치면 장중에 백엔드가 재시작됐다.
+      # 트리 해시는 그 디렉터리 내용이 바뀔 때만 변한다(Dockerfile 포함).
+      - name: Resolve tag
+        id: tag
+        run: echo "value=$(git rev-parse HEAD:${{ matrix.image }})" >> "$GITHUB_OUTPUT"
+
+      # 같은 내용의 이미지가 이미 레지스트리에 있으면 빌드를 건너뛴다.
+      #
+      # **이건 속도 최적화가 아니라 재생성을 막는 핵심이다.** 같은 태그로 다시 빌드하면
+      # 빌드가 재현 가능하지 않은 이상 digest가 달라지고, `pull_policy: always`가 그걸
+      # 받아와 결국 컨테이너를 재생성한다. 안 바뀐 서비스는 **아예 밀어 올리지 않아야** 한다.
+      #
+      # workflow_dispatch로 돌리면 항상 다시 빌드한다 — 베이스 이미지 보안 패치를
+      # 가져오는 유일한 경로다(내용이 안 바뀌면 영영 재빌드되지 않기 때문에).
+      - name: Check existing
+        id: exists
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          elif gcloud artifacts docker images describe \
+                 "${AR_REPO}/${{ matrix.image }}:${{ steps.tag.outputs.value }}" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "이미 있음 — 빌드 건너뜀"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: docker/setup-buildx-action@v3
+        if: steps.exists.outputs.found != 'true'
 
       - name: Build & push ${{ matrix.image }}
+        if: steps.exists.outputs.found != 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.image }}
           push: true
           tags: |
-            ${{ env.AR_REPO }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.AR_REPO }}/${{ matrix.image }}:${{ steps.tag.outputs.value }}
             ${{ env.AR_REPO }}/${{ matrix.image }}:latest
           # GHA 캐시로 의존성 레이어(uv sync / npm ci) 재사용 — 매 실행 재다운로드 방지
           cache-from: type=gha,scope=${{ matrix.image }}
@@ -142,10 +175,24 @@ jobs:
 
       # Deploy + 헬스체크를 한 SSH 세션에서 — remote_deploy.sh 마지막이 VM 내부 localhost:3000을 검사.
       # (방화벽이 프론트 3000을 특정 IP로만 열 수 있어 러너에서 외부로 치지 않음)
+      # 빌드 때와 **같은 방식으로** 태그를 다시 구한다. 안 바뀐 서비스는 값이 그대로라
+      # compose가 그 컨테이너를 건드리지 않는다 — 이 작업의 목적이다.
+      - name: Resolve tags
+        id: tags
+        run: |
+          {
+            echo "backend=$(git rev-parse HEAD:backend)"
+            echo "frontend=$(git rev-parse HEAD:frontend)"
+            echo "caddy=$(git rev-parse HEAD:caddy)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy on VM
         run: |
           gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command "bash ~/remote_deploy.sh ${GITHUB_SHA} ${AR_REPO} ${REGION}"
+            --command "bash ~/remote_deploy.sh ${AR_REPO} ${REGION} \
+              ${{ steps.tags.outputs.backend }} \
+              ${{ steps.tags.outputs.frontend }} \
+              ${{ steps.tags.outputs.caddy }}"
 
   # 배포 결과를 Slack으로.
   #

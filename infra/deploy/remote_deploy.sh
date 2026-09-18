@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 # VM에서 실행되는 배포 스크립트. GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출.
-# 사용: bash ~/remote_deploy.sh <IMAGE_TAG> <AR_REPO> <REGION>
+# 사용: bash ~/remote_deploy.sh <AR_REPO> <REGION> <BACKEND_TAG> <FRONTEND_TAG> <CADDY_TAG>
+#
+# **태그가 서비스마다 다르다.** 각 디렉터리의 git 트리 해시라서 그 서비스 내용이
+# 바뀔 때만 값이 변한다. 안 바뀐 서비스는 태그가 같아 compose가 건드리지 않는다 —
+# 예전에는 커밋 SHA 하나를 셋이 공유해서, 프론트 문구만 고쳐도 장중에 백엔드가 재시작됐다.
 #
 # 전제:
 #  - VM 인스턴스 SA가 secretmanager.secretAccessor + artifactregistry.reader 보유
 #  - 호출 SSH 주체가 passwordless sudo 가능 (deploy SA = roles/compute.osAdminLogin)
 set -euo pipefail
 
-IMAGE_TAG="${1:?IMAGE_TAG required}"
-AR_REPO="${2:?AR_REPO required}"
-REGION="${3:?REGION required}"
+AR_REPO="${1:?AR_REPO required}"
+REGION="${2:?REGION required}"
+BACKEND_TAG="${3:?BACKEND_TAG required}"
+FRONTEND_TAG="${4:?FRONTEND_TAG required}"
+CADDY_TAG="${5:?CADDY_TAG required}"
 
 DOMAIN="judozoo.com"
 
@@ -64,7 +70,9 @@ COMPOSE_ENV=(
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
   "BACKEND_IMAGE=${AR_REPO}/backend"
   "CADDY_IMAGE=${AR_REPO}/caddy"
-  "IMAGE_TAG=${IMAGE_TAG}"
+  "BACKEND_TAG=${BACKEND_TAG}"
+  "FRONTEND_TAG=${FRONTEND_TAG}"
+  "CADDY_TAG=${CADDY_TAG}"
 )
 
 # 옛 배포 이미지가 누적돼 새 이미지 pull이 디스크 부족으로 실패하는 것 방지.

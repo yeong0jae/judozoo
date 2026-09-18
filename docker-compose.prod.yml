@@ -1,24 +1,29 @@
 # prod override: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# 필요한 env: FRONTEND_IMAGE, BACKEND_IMAGE, CADDY_IMAGE (Artifact Registry 경로), IMAGE_TAG
+# 필요한 env: FRONTEND_IMAGE, BACKEND_IMAGE, CADDY_IMAGE (Artifact Registry 경로)
+#             + BACKEND_TAG / FRONTEND_TAG / CADDY_TAG
+#
+# **태그를 셋이 공유하지 않는다.** 각각 그 디렉터리의 git 트리 해시라서, 안 바뀐 서비스는
+# 값이 그대로다 → compose가 그 컨테이너를 재생성하지 않는다. 커밋 SHA 하나를 공유하던
+# 때는 내용이 같아도 태그가 달라져 매 배포마다 셋 다 재시작했다.
 services:
   backend:
     build: !reset null
     # 운영 로그는 JSON 한 줄 — Grafana에서 `| json | level="ERROR"` 로 거른다.
     environment:
       LOG_FORMAT: json
-    image: ${BACKEND_IMAGE}:${IMAGE_TAG:-latest}
+    image: ${BACKEND_IMAGE}:${BACKEND_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
 
   frontend:
     build: !reset null
-    image: ${FRONTEND_IMAGE}:${IMAGE_TAG:-latest}
+    image: ${FRONTEND_IMAGE}:${FRONTEND_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
 
   caddy:
     build: !reset null
-    image: ${CADDY_IMAGE}:${IMAGE_TAG:-latest}
+    image: ${CADDY_IMAGE}:${CADDY_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
 
