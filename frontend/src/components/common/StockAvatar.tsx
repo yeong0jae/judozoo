@@ -5,18 +5,11 @@
  * 빨강·파랑은 등락률, amber는 신규 진입, violet은 승격, 시안은 코스닥, 주황은 돌파.
  * 아바타가 같은 채도의 원색을 깔면 뜻 없는 색이 신호처럼 읽힌다. 글자 한 겹이면
  * 종목을 구분하기엔 충분하고, 옆 칸의 숫자와 경쟁하지도 않는다.
+ *
+ * 면·테두리·글자 세 값 모두 index.css의 테마 토큰이다. 규칙은 양쪽이 같고 명도만
+ * 뒤집힌다 — 밝은 면에 300톤 글자를 얹으면 읽히지 않으므로 라이트는 700톤을 쓴다.
  */
-const SURFACE = "#2b2d33";
-
-/** 테두리 — 면과 바탕의 밝기 차가 작아 원이 번진다. 윤곽만 세우되 색은 늘리지 않는다.
- *  카드 경계(8%)·행 구분선(5.5%)과 같은 재질의 선이다. */
-const RING = "rgba(255, 255, 255, 0.1)";
-
-/** 글자색 — 앱의 칩들이 쓰는 "색 계열 밝은 톤"과 같은 자리의 색. */
-const INK = [
-  "#fda4af", "#93c5fd", "#86efac", "#fcd34d",
-  "#c4b5fd", "#f9a8d4", "#67e8f9", "#fdba74",
-];
+const INK_COUNT = 8;
 
 function hash(s: string): number {
   let h = 0;
@@ -33,7 +26,6 @@ export default function StockAvatar({
   code: string;
   size?: number;
 }) {
-  const color = INK[hash(code) % INK.length];
   const ch = name.trim().charAt(0) || "?";
   return (
     <span
@@ -41,11 +33,11 @@ export default function StockAvatar({
       style={{
         width: size,
         height: size,
-        background: SURFACE,
-        color,
+        background: "var(--avatar-surface)",
+        color: `var(--avatar-ink-${hash(code) % INK_COUNT})`,
         // 테두리가 크기를 늘리지 않게 — 목록의 칸 폭이 아바타 크기에 맞춰져 있다
         boxSizing: "border-box",
-        border: `1px solid ${RING}`,
+        border: "1px solid var(--avatar-ring)",
         fontSize: size * 0.42,
       }}
       aria-hidden

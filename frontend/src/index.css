@@ -87,6 +87,19 @@ html {
   color-scheme: light;
   --page-bg: #ffffff;
   --text-primary: #191f28;
+
+  /* 종목 아바타 — 면은 무채색, 색은 글자에만(StockAvatar.tsx의 규칙).
+     명도만 테마에 따라 뒤집는다. 밝은 면에는 글자가 어두워야 읽힌다. */
+  --avatar-surface: #e8ebef;
+  --avatar-ring: rgba(0, 0, 0, 0.07);
+  --avatar-ink-0: #be123c;
+  --avatar-ink-1: #1d4ed8;
+  --avatar-ink-2: #15803d;
+  --avatar-ink-3: #a16207;
+  --avatar-ink-4: #6d28d9;
+  --avatar-ink-5: #be185d;
+  --avatar-ink-6: #0e7490;
+  --avatar-ink-7: #c2410c;
 }
 
 body {
@@ -265,6 +278,18 @@ body {
   color-scheme: dark;
   --page-bg: #17181c;
   --text-primary: #f1f3f5;
+
+  /* 종목 아바타 — 면은 카드보다 한 단계 밝고, 글자는 칩들이 쓰는 "밝은 톤" 자리의 색 */
+  --avatar-surface: #2b2d33;
+  --avatar-ring: rgba(255, 255, 255, 0.1);
+  --avatar-ink-0: #fda4af;
+  --avatar-ink-1: #93c5fd;
+  --avatar-ink-2: #86efac;
+  --avatar-ink-3: #fcd34d;
+  --avatar-ink-4: #c4b5fd;
+  --avatar-ink-5: #f9a8d4;
+  --avatar-ink-6: #67e8f9;
+  --avatar-ink-7: #fdba74;
 
   /* zinc 스케일 — 라이트의 명도 역전을 다시 역전 */
   --color-zinc-50: #0e0e10;
