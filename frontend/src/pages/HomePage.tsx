@@ -176,8 +176,18 @@ function Tile({
     >
       <div className="flex items-center gap-1.5 text-sm text-zinc-500">
         <span className="text-zinc-200">{label}</span>
+        {/* 장중 칩은 주도주 카드의 "장중 14:07"과 같은 색이다 — 한 화면에서 같은 뜻이
+            다른 색으로 보이면, 둘이 다른 상태를 가리키는 줄 읽는다 */}
         {tag && (
-          <span className="rounded border border-zinc-800 px-1 text-[11.5px] text-zinc-500">{tag}</span>
+          <span
+            className={
+              tag === "장중"
+                ? "rounded-full bg-blue-50 px-2 py-px text-[11px] font-medium text-blue-700"
+                : "rounded border border-zinc-800 px-1 text-[11.5px] text-zinc-500"
+            }
+          >
+            {tag}
+          </span>
         )}
       </div>
       {value === undefined || rate === undefined ? (
