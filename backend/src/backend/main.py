@@ -45,9 +45,6 @@ def load_stock_catalog() -> None:
 async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.debug_package, log_format=settings.log_format)
-    # 트레이스는 로깅 다음, 나머지보다 먼저. 카탈로그 적재·토큰 발급이 이미 브로커를
-    # 두드리므로 그 호출부터 스팬에 담기려면 여기여야 한다.
-    tracing.setup(settings.otlp_endpoint, settings.app_name, get_engine())
     log.info("기동 — DB %s:%s/%s", settings.database.host, settings.database.port, settings.database.name)
     # 브로커 토큰 저장소 — 재기동이 발급을 소비하지 않게 한다. 카탈로그 적재보다 먼저 와야
     # 한다(적재가 KIS를 쓴다). 실패해도 fail-soft라 기동을 막지 않는다.
@@ -114,7 +111,13 @@ Instrumentator(
     excluded_handlers=["/health", "/health/db", "/metrics"],
 ).instrument(app).expose(app, include_in_schema=False)
 
-# 트레이스 계측도 미들웨어를 더한다. 메트릭과 같은 이유로 조립이 끝난 뒤에 붙인다.
+# 트레이스. **lifespan이 아니라 여기여야 한다** — FastAPI 계측은 미들웨어를 더하므로
+# 앱이 뜨기 전에 붙어야 하고, 그러려면 provider가 그보다 먼저 서 있어야 한다.
+# lifespan에 두었더니 instrument_app이 "아직 안 켜졌다"고 보고 **조용히 건너뛰었다** —
+# 잡·브로커 스팬만 오고 HTTP 서버 스팬이 0건이었다.
+tracing.setup(_settings.otlp_endpoint, _settings.app_name, get_engine())
+
+# 메트릭과 같은 이유로 미들웨어 조립이 끝난 뒤에 붙인다.
 tracing.instrument_app(app)
 
 app.include_router(auth_router)

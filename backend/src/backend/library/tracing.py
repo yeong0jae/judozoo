@@ -46,9 +46,29 @@ def setup(endpoint: str, service_name: str, engine) -> None:
 
     # httpx 계측은 커스텀 transport 체인 **위**를 감싼다. 즉 스팬에 리미터 대기가 포함되고,
     # 020의 http_client_request_duration_seconds와 같은 의미가 된다(서로 대조가 된다).
-    HTTPXClientInstrumentor().instrument()
+    #
+    # 이름을 손보는 이유 — 기본 스팬 이름이 메서드뿐(`POST`)이라, 잡 하나에 70개가 달리면
+    # 워터폴에서 **어느 호출이 느린지 구분이 안 된다**. URL은 속성에 있지만 한 줄씩 열어봐야 한다.
+    HTTPXClientInstrumentor().instrument(request_hook=_name_client_span)
     SQLAlchemyInstrumentor().instrument(engine=engine)
     log.info("트레이스 활성화 — %s", endpoint)
+
+
+def _name_client_span(span, request) -> None:
+    """외부 호출 스팬을 `POST /api/dostk/rkinfo` 모양으로 바꾼다.
+
+    메트릭의 `endpoint` 라벨과 달리 **경로를 정규화하지 않는다.** 트레이스는 한 건을 보는
+    물건이라 종목코드가 그대로 보이는 편이 낫고, 스팬 이름에는 카디널리티 문제가 없다.
+    """
+    try:
+        method = request.method.decode() if isinstance(request.method, bytes) else str(request.method)
+        path = request.url.path if hasattr(request.url, "path") else ""
+        if isinstance(path, bytes):
+            path = path.decode()
+        span.update_name(f"{method} {path}" if path else method)
+    except Exception:
+        # 이름이 안 예뻐지는 것보다 호출이 깨지는 게 훨씬 나쁘다.
+        pass
 
 
 def instrument_app(app) -> None:
