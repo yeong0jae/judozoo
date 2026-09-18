@@ -291,7 +291,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT CONVERT_TZ(DATE(created_at), '+09:00', '+00:00') AS time, COUNT(*) AS '신규 가입' FROM app_user WHERE $__timeFilter(CONVERT_TZ(created_at, '+09:00', '+00:00')) GROUP BY 1 ORDER BY 1;"
+          "rawSql": "SELECT DATE(created_at) - INTERVAL 9 HOUR AS time, COUNT(*) AS '신규 가입' FROM app_user WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1;"
         }
       ],
       "fieldConfig": {
@@ -313,7 +313,7 @@
           "mode": "single"
         }
       },
-      "description": "가입 일자별 인원. KST로 저장하고 Grafana는 UTC로 묻기 때문에 CONVERT_TZ로 맞춘다.\nGROUP BY는 고른 식 그대로(1) 묶는다 — DATE(created_at)로 묶으면 ONLY_FULL_GROUP_BY가 1055로 거절한다."
+      "description": "가입 일자별 인원. 대시보드 시간 범위를 따르므로 **범위를 넓게 잡아야 보인다**(가입은 드물다).\nCONVERT_TZ를 쓰지 않는다 — $__timeFilter가 인자를 쉼표로 쪼개서, 안에 쉼표 있는 함수를 넣으면 'Incorrect parameter count' 로 죽는다. 게다가 필요도 없다: Cloud SQL 플래그가 default_time_zone=+09:00 이라 FROM_UNIXTIME이 KST를 내놓고 created_at도 KST다.\n반환하는 time만 9시간 뺀다 — Grafana가 DATETIME을 UTC로 도장 찍어 읽기 때문이다.\nGROUP BY는 고른 식 그대로(1) 묶는다. DATE(created_at)로 묶으면 ONLY_FULL_GROUP_BY가 1055로 거절한다."
     },
     {
       "id": 7,
