@@ -208,12 +208,11 @@ export function useMarketInvestorNetBuyAt(at: string | null, enabled: boolean) {
   });
 }
 
-/** 첫 화면 "오늘의 수급" — 코스피·코스닥(억원)과 두 지수선물(계약). 로그인 뒤에만 부른다. */
-export function useTodayNets(enabled: boolean) {
+/** 첫 화면 "오늘의 수급" — 코스피·코스닥(억원)과 두 지수선물(계약). */
+export function useTodayNets() {
   return useQuery({
     queryKey: QK.todayNets,
     queryFn: () => apiFetch<TodayNetItem[]>("/api/market/investor/today"),
-    enabled,
     refetchInterval: 30_000,
   });
 }

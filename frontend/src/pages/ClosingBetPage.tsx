@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { useMe } from "../api/auth";
-import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import {
   INDICES,
   loadLastSlug,
@@ -53,7 +51,7 @@ function DelayBadge() {
  * 시황분석 — 장 막판 매수 판단용 지표 집약 대시보드.
  * 좌: 테마 관심목록 / 중앙: 선택 대상(종목·테마·지수) 상세 / 우: 종목 뉴스(종목을 골랐을 때만).
  */
-function ClosingBetPageInner({ ix, authenticated }: { ix: IndexInfo; authenticated: boolean }) {
+function ClosingBetPageInner({ ix }: { ix: IndexInfo }) {
   useEffect(() => {
     rememberSlug(ix.slug);
   }, [ix.slug]);
@@ -73,7 +71,7 @@ function ClosingBetPageInner({ ix, authenticated }: { ix: IndexInfo; authenticat
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             className="h-full min-h-0"
           >
-            <SubjectDetail ix={ix} authenticated={authenticated} />
+            <SubjectDetail ix={ix} />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -245,52 +243,16 @@ function IndexCell({
 // ============================================================
 // 중앙: 선택 대상 상세
 // ============================================================
-/**
- * 수급 표 자리 관문 — 표를 아예 렌더하지 않는다.
- *
- * 컴포넌트를 안 그리면 그 안의 훅도 안 돌아, 미로그인에게 401이 폴링마다 쌓이지 않는다.
- * 막대는 가짜다. 시그널·지지저항과 달리 여기는 잘라 보낼 일부가 없어 서버는 그대로 401이다.
- */
-function SupplyGate({ what }: { what: string }) {
-  return (
-    <div className="relative px-1">
-      {/* 아래로 갈수록 지워진다 — 줄마다 농도를 주면 계단이 생겨 "이어진다"가 덜 읽힌다 */}
-      <div
-        aria-hidden
-        className="select-none opacity-60"
-        style={{
-          maskImage: "linear-gradient(#000, transparent)",
-          WebkitMaskImage: "linear-gradient(#000, transparent)",
-        }}
-      >
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-3.5 py-3.5">
-            <span className="h-3 rounded bg-zinc-700" style={{ width: i === 0 ? 84 : 62 }} />
-            <span className="ml-auto h-3 w-14 rounded bg-zinc-700" />
-            <span className="h-3 w-14 rounded bg-zinc-700" />
-            <span className="h-3 w-14 rounded bg-zinc-700" />
-            <span className="h-3 w-14 rounded bg-zinc-700" />
-          </div>
-        ))}
-      </div>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
-        <p className="text-xs text-zinc-400">{what}은 로그인하면 확인할 수 있습니다</p>
-        <GoogleLoginButton />
-      </div>
-    </div>
-  );
-}
-
-function SubjectDetail({ ix, authenticated }: { ix: IndexInfo; authenticated: boolean }) {
+function SubjectDetail({ ix }: { ix: IndexInfo }) {
   // 야간선물·나스닥·매크로는 수급 표가 없어 그대로 둔다
   const detail =
-    ix.id === "kospiF" ? <FuturesIndexDetail index={ix} market="KOSPI" authenticated={authenticated} />
-    : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" authenticated={authenticated} />
+    ix.id === "kospiF" ? <FuturesIndexDetail index={ix} market="KOSPI" />
+    : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" />
     : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
     : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
     : ix.id === "macro" ? <MacroDetail />
-    : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} authenticated={authenticated} />
-    : <LiveIndexDetail market="KOSPI" name={ix.name} authenticated={authenticated} />;
+    : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} />
+    : <LiveIndexDetail market="KOSPI" name={ix.name} />;
   return <div className="h-full lg:overflow-y-auto pr-1">{detail}</div>;
 }
 
@@ -414,15 +376,7 @@ function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (
   );
 }
 
-function LiveIndexDetail({
-  market,
-  name,
-  authenticated,
-}: {
-  market: MarketType;
-  name: string;
-  authenticated: boolean;
-}) {
+function LiveIndexDetail({ market, name }: { market: MarketType; name: string }) {
   // 백엔드가 데이터 있는 가장 최근 거래일로 물러나고 실제 날짜를 함께 준다.
   // 여기서는 오늘을 그대로 보내면 된다 — 주말·공휴일 판정을 두 곳에 두지 않는다.
   const date = todayStr();
@@ -446,30 +400,14 @@ function LiveIndexDetail({
         </div>
         <LiveChart market={market} interval={chartInterval} />
       </div>
-      {/* 코스피 수급만 로그인 없이 연다 — 대표 지수 하나로 이 화면이 뭘 주는지 보이게 한다.
-          코스닥은 관문이다(auth/gate.py와 짝을 맞춘다). */}
-      {authenticated || market === "KOSPI" ? (
-        <>
-          <RealSessionsCard market={market} date={date} />
-          <RealInvestorTable market={market} />
-        </>
-      ) : (
-        <SupplyGate what="시간대별 수급과 최근 5일 수급" />
-      )}
+      <RealSessionsCard market={market} date={date} />
+      <RealInvestorTable market={market} />
     </div>
   );
 }
 
 /** 지수선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트. KIS 근월물 실시세. */
-function FuturesIndexDetail({
-  index,
-  market,
-  authenticated,
-}: {
-  index: IndexInfo;
-  market: MarketType;
-  authenticated: boolean;
-}) {
+function FuturesIndexDetail({ index, market }: { index: IndexInfo; market: MarketType }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data, isLoading } = useFuturesQuote(market);
   const spotName = market === "KOSPI" ? "KOSPI200" : "KOSDAQ150";
@@ -534,14 +472,8 @@ function FuturesIndexDetail({
         <FuturesChart market={market} interval={chartInterval} />
       </div>
 
-      {authenticated ? (
-        <>
-          <FuturesSessionsCard market={market} date={todayStr()} />
-          <FuturesDailyCard market={market} />
-        </>
-      ) : (
-        <SupplyGate what="선물 시간대별 수급과 일별 수급" />
-      )}
+      <FuturesSessionsCard market={market} date={todayStr()} />
+      <FuturesDailyCard market={market} />
     </div>
   );
 }
@@ -1307,19 +1239,11 @@ function RealSessionsCard({ market, date }: { market: MarketType; date: string }
 // ============================================================
 
 
-/**
- * 지수는 URL이 정한다 — `/market-analysis/<slug>`.
- *
- * 지수·선물의 **시세와 차트는 로그인 없이 다 열린다**. 투자자 수급 표만 관문 뒤다 —
- * 가격은 어디서나 구할 수 있지만 투자자별 순매수는 이 화면이 가공해 주는 값이라서다.
- */
+/** 지수는 URL이 정한다 — `/market-analysis/<slug>`. 이 화면은 통째로 로그인 없이 열린다. */
 export default function ClosingBetPage() {
   const { slug } = useParams();
-  const { data: me, isLoading } = useMe();
-  if (isLoading) return null;
-
   const ix = INDICES.find((i) => i.slug === slug);
   if (!ix) return <Navigate to={`/market-analysis/${loadLastSlug()}`} replace />;
 
-  return <ClosingBetPageInner ix={ix} authenticated={!!me?.authenticated} />;
+  return <ClosingBetPageInner ix={ix} />;
 }
