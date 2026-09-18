@@ -57,7 +57,7 @@ function usSessions(now: Date): MarketSession[] {
 }
 
 /** 미국장은 한국 새벽까지 이어진다 — 한국 요일로 세면 토요일 새벽(현지 금요일 장중)이 잘린다. */
-const isEtWeekend = (now: Date) => ["Sat", "Sun"].includes(etFormat(now, { weekday: "short" }));
+export const isEtWeekend = (now: Date) => ["Sat", "Sun"].includes(etFormat(now, { weekday: "short" }));
 
 const isKstWeekend = (now: Date) => now.getDay() === 0 || now.getDay() === 6;
 
@@ -73,10 +73,16 @@ function current(sessions: MarketSession[], now: Date): MarketSession | null {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+const clock = (m: number) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
+
 /** "09:00 ~ 15:40" */
 export function formatRange({ from, to }: MarketSession): string {
-  const clock = (m: number) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
   return `${clock(from)} ~ ${clock(to)}`;
+}
+
+/** 해외 프리마켓이 열리는 한국시간 — "17:00". 서머타임이면 한 시간 당겨진다. */
+export function usOpenClock(now: Date): string {
+  return clock(usSessions(now)[0].from);
 }
 
 /** "09:35" — 보는 사람의 로컬 시각. */

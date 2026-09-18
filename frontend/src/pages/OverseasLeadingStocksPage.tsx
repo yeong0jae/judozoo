@@ -15,6 +15,7 @@ import MarketToggle, { type StockMarket } from "../components/common/MarketToggl
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 import LoginGate from "../components/common/LoginGate";
 import { useMe } from "../api/auth";
+import { isEtWeekend, useMarketSessions, usOpenClock } from "../lib/marketSession";
 
 
 export default function OverseasLeadingStocks({
@@ -28,7 +29,7 @@ export default function OverseasLeadingStocks({
   const [minChangeRate, setMinChangeRate] = useOverseasMinChangeRate();
 
   const leadersQ = useOverseasLeaders();
-  const { data, isLoading, isFetching, dataUpdatedAt } = useOverseasRanking(minChangeRate);
+  const { data, isLoading, isError, isFetching, dataUpdatedAt } = useOverseasRanking(minChangeRate);
   // 국내와 같은 구조 — 위는 서버가 고른 주도주, 아래는 나머지를 거래대금 순으로.
   // 등락률 임계값은 아래 구간에만 걸린다.
   const leaders = leadersQ.data ?? [];
@@ -37,6 +38,7 @@ export default function OverseasLeadingStocks({
   const stocks = [...leaders, ...rest];
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
   const { data: me } = useMe();
+  const { us, now } = useMarketSessions();
 
   // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(
@@ -84,8 +86,12 @@ export default function OverseasLeadingStocks({
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
+          ) : isError || leadersQ.isError ? (
+            // 조회 실패와 "빈 시간대"를 가른다 — 둘 다 빈 목록이라 한 문구로 덮으면
+            // 장애가 정상으로 읽힌다
+            <EmptyState message="해외 주도주를 불러오지 못했습니다" />
           ) : stocks.length === 0 ? (
-            <EmptyState message="데이터가 없습니다" />
+            <EmptyRanking live={us !== null} now={now} />
           ) : (
             <>
               <RankingTable
@@ -118,6 +124,20 @@ export default function OverseasLeadingStocks({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * 목록이 빈 자리. 장중이면 더 할 말이 없고, 장이 닫혔으면 언제 채워지는지 알려준다.
+ *
+ * 시각은 `marketSession`이 계산한 한국시간이라 서머타임을 따라간다 —
+ * "17:00"으로 박아두면 겨울에 한 시간 틀린다.
+ */
+function EmptyRanking({ live, now }: { live: boolean; now: Date }) {
+  if (live) return <EmptyState message="데이터가 없습니다" />;
+  const when = isEtWeekend(now) ? "월요일 프리마켓" : "프리마켓";
+  return (
+    <EmptyState message="해외 주도주가 없습니다" hint={`${when} ${usOpenClock(now)}에 채워집니다.`} />
   );
 }
 
