@@ -128,16 +128,36 @@ jobs:
 
       - name: Sync compose + deploy script to ops VM
         run: |
+          # **rm 하지 않는다.** 디렉터리·파일 inode가 바뀌면 재사용된 컨테이너의 bind mount가
+          # 끊긴다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽은 원인). scp는 기존
+          # 파일을 truncate해 덮으므로 inode가 보존된다. rm이 있던 이유는 실패한 배포가
+          # root 소유로 남긴 디렉터리가 scp를 막았기 때문인데, 소유권만 고치면 된다.
           gcloud compute ssh "${{ vars.VM_NAME_OPS }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command 'sudo rm -rf ~/observability'
+            --command 'sudo mkdir -p ~/observability && sudo chown -R "$(id -u):$(id -g)" ~/observability'
           gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" --recurse \
             docker-compose.ops.yml docker-compose.ops.prod.yml infra/deploy/remote_deploy_ops.sh observability \
             "${{ vars.VM_NAME_OPS }}:~/"
 
+      # 설정 디렉터리별 트리 해시. 바뀐 서비스만 재생성된다 — 예전에는 --force-recreate로
+      # 매 배포마다 loki·prometheus·tempo가 재시작해 수집에 공백이 생겼다.
+      - name: Resolve config hashes
+        id: cfg
+        run: |
+          {
+            echo "loki=$(git rev-parse HEAD:observability/loki)"
+            echo "prometheus=$(git rev-parse HEAD:observability/prometheus)"
+            echo "tempo=$(git rev-parse HEAD:observability/tempo)"
+            echo "grafana=$(git rev-parse HEAD:observability/grafana)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy on ops VM
         run: |
           gcloud compute ssh "${{ vars.VM_NAME_OPS }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command "bash ~/remote_deploy_ops.sh"
+            --command "bash ~/remote_deploy_ops.sh \
+              ${{ steps.cfg.outputs.loki }} \
+              ${{ steps.cfg.outputs.prometheus }} \
+              ${{ steps.cfg.outputs.tempo }} \
+              ${{ steps.cfg.outputs.grafana }}"
 
   deploy:
     needs: [build, deploy-ops]
@@ -166,9 +186,12 @@ jobs:
 
       - name: Sync compose + deploy script to VM
         run: |
-          # 이전 실패 배포에서 docker가 root 소유 빈 디렉토리로 만들어둔 observability 잔재 제거 후 재동기화
+          # **rm 하지 않는다.** 디렉터리·파일 inode가 바뀌면 재사용된 컨테이너의 bind mount가
+          # 끊긴다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽은 원인). scp는 기존
+          # 파일을 truncate해 덮으므로 inode가 보존된다. rm이 있던 이유는 실패한 배포가
+          # root 소유로 남긴 디렉터리가 scp를 막았기 때문인데, 소유권만 고치면 된다.
           gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command 'sudo rm -rf ~/observability'
+            --command 'sudo mkdir -p ~/observability && sudo chown -R "$(id -u):$(id -g)" ~/observability'
           gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" --recurse \
             docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh observability \
             "${{ steps.vm.outputs.name }}:~/"
@@ -184,6 +207,7 @@ jobs:
             echo "backend=$(git rev-parse HEAD:backend)"
             echo "frontend=$(git rev-parse HEAD:frontend)"
             echo "caddy=$(git rev-parse HEAD:caddy)"
+            echo "alloy=$(git rev-parse HEAD:observability/alloy)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Deploy on VM
@@ -192,7 +216,8 @@ jobs:
             --command "bash ~/remote_deploy.sh ${AR_REPO} ${REGION} \
               ${{ steps.tags.outputs.backend }} \
               ${{ steps.tags.outputs.frontend }} \
-              ${{ steps.tags.outputs.caddy }}"
+              ${{ steps.tags.outputs.caddy }} \
+              ${{ steps.tags.outputs.alloy }}"
 
   # 배포 결과를 Slack으로.
   #

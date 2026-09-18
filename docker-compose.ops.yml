@@ -1,3 +1,9 @@
+# **설정 해시 라벨.** 각 서비스에 그 설정 디렉터리의 git 트리 해시를 라벨로 단다.
+# 라벨이 바뀌면 compose가 그 서비스만 재생성하고, 안 바뀐 서비스는 건드리지 않는다.
+# 예전에는 배포마다 `--force-recreate`로 셋을 다 재시작해 로그·메트릭·트레이스 수집에
+# 매번 공백이 생겼다. 설정 파일은 단일 파일 bind mount라 내용만 갈아끼워서는
+# 프로세스가 새 설정을 읽지 않는다 — 그래서 "재생성"이 필요하고, 라벨이 그 방아쇠다.
+
 # 관측 전용 VM(judozoo-ops-prod)의 스택. 앱 VM의 docker-compose.yml과 겹치지 않는다.
 #
 #   docker compose -f docker-compose.ops.yml -f docker-compose.ops.prod.yml up -d
@@ -17,6 +23,8 @@ services:
     volumes:
       - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
+    labels:
+      config.hash: ${LOKI_CONFIG_HASH}
     networks:
       - ops
 
@@ -38,6 +46,8 @@ services:
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
+    labels:
+      config.hash: ${PROMETHEUS_CONFIG_HASH}
     networks:
       - ops
 
@@ -64,6 +74,8 @@ services:
     volumes:
       - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
+    labels:
+      config.hash: ${TEMPO_CONFIG_HASH}
     networks:
       - ops
 
@@ -89,6 +101,8 @@ services:
       - loki
       - prometheus
       - tempo
+    labels:
+      config.hash: ${GRAFANA_CONFIG_HASH}
     networks:
       - ops
 

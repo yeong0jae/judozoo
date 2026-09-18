@@ -16,6 +16,7 @@ REGION="${2:?REGION required}"
 BACKEND_TAG="${3:?BACKEND_TAG required}"
 FRONTEND_TAG="${4:?FRONTEND_TAG required}"
 CADDY_TAG="${5:?CADDY_TAG required}"
+ALLOY_CONFIG_HASH="${6:?ALLOY_CONFIG_HASH required}"
 
 DOMAIN="judozoo.com"
 
@@ -73,6 +74,7 @@ COMPOSE_ENV=(
   "BACKEND_TAG=${BACKEND_TAG}"
   "FRONTEND_TAG=${FRONTEND_TAG}"
   "CADDY_TAG=${CADDY_TAG}"
+  "ALLOY_CONFIG_HASH=${ALLOY_CONFIG_HASH}"
 )
 
 # 옛 배포 이미지가 누적돼 새 이미지 pull이 디스크 부족으로 실패하는 것 방지.
@@ -80,10 +82,11 @@ COMPOSE_ENV=(
 sudo docker image prune -af
 
 sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-# deploy.yml의 `sudo rm -rf ~/observability` + 재-scp가 호스트 디렉토리의 inode를 교체하므로,
-# alloy를 강제 재생성해 stale bind-mount(기존 inode를 가리킨 채 빈 dir로 보이는 현상)를 회피한다.
-# loki·grafana는 ops VM으로 떠났다 — remote_deploy_ops.sh가 맡는다.
-sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate --no-deps alloy
+# **alloy를 무조건 재생성하지 않는다.** 예전에는 deploy.yml이 `rm -rf ~/observability` 후
+# 재-scp해서 inode가 교체됐고, 재사용된 컨테이너가 사라진 inode를 가리켜 설정이 빈 것처럼
+# 보였다. 지금은 rm 대신 소유권만 고쳐 inode를 보존하고, config.alloy가 실제로 바뀔 때만
+# ALLOY_CONFIG_HASH 라벨이 달라져 compose가 그때만 재생성한다.
+# loki·grafana·prometheus·tempo는 ops VM으로 떠났다 — remote_deploy_ops.sh가 맡는다.
 # --remove-orphans: compose 파일에서 서비스를 지워도 **이미 떠 있는 컨테이너는 남는다**.
 # Kotlin 백엔드를 제거했을 때 실제로 고아 컨테이너로 계속 돌아 폴러가 중복 적재됐다.
 sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans

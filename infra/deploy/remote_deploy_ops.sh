@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 # 관측 VM(judozoo-ops-prod)에서 실행되는 배포 스크립트.
-# GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출한다. 사용: bash ~/remote_deploy_ops.sh
+# GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출한다.
+# 사용: bash ~/remote_deploy_ops.sh <LOKI_HASH> <PROM_HASH> <TEMPO_HASH> <GRAFANA_HASH>
+#
+# 해시는 각 설정 디렉터리의 git 트리 해시다. 바뀐 서비스만 재생성하기 위한 것이다.
 #
 # 앱 VM의 remote_deploy.sh와 달리 이미지 빌드·pull이 없다 — loki·grafana 모두
 # 공개 이미지라 Artifact Registry를 거치지 않는다.
 set -euo pipefail
+
+LOKI_CONFIG_HASH="${1:?LOKI_CONFIG_HASH required}"
+PROMETHEUS_CONFIG_HASH="${2:?PROMETHEUS_CONFIG_HASH required}"
+TEMPO_CONFIG_HASH="${3:?TEMPO_CONFIG_HASH required}"
+GRAFANA_CONFIG_HASH="${4:?GRAFANA_CONFIG_HASH required}"
 
 cd "$HOME"
 # grafana가 ./secrets/.env 를 읽는다 (loki는 시크릿이 없다).
@@ -39,17 +47,28 @@ EOF
 
 COMPOSE=(-f docker-compose.ops.yml -f docker-compose.ops.prod.yml)
 
-# --force-recreate가 필요하다. deploy.yml이 매 배포마다 `sudo rm -rf ~/observability` 후
-# 재-scp하므로 호스트 디렉토리의 **inode가 교체된다**. 설정이 그대로면 compose는 컨테이너를
-# 재사용하는데, 그 컨테이너는 사라진 inode를 계속 가리켜 마운트가 빈 디렉토리로 보인다.
+# 설정 디렉터리별 git 트리 해시. 바뀐 서비스만 재생성시키는 방아쇠다.
+HASHES=(
+  "LOKI_CONFIG_HASH=${LOKI_CONFIG_HASH}"
+  "PROMETHEUS_CONFIG_HASH=${PROMETHEUS_CONFIG_HASH}"
+  "TEMPO_CONFIG_HASH=${TEMPO_CONFIG_HASH}"
+  "GRAFANA_CONFIG_HASH=${GRAFANA_CONFIG_HASH}"
+)
+
+# **--force-recreate를 쓰지 않는다.** 예전에는 deploy.yml이 `rm -rf ~/observability` 후
+# 재-scp해서 inode가 교체됐고, 그러면 재사용된 컨테이너가 사라진 inode를 가리켜 마운트가
+# 빈 디렉토리로 보였다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽었다).
+# 그래서 매번 강제 재생성했는데, 그 대가로 **배포마다 로그·메트릭·트레이스 수집에 공백**이
+# 생겼다.
 #
-# **증상이 조용하다.** grafana는 정상 기동하고 헬스체크도 통과하며, 프로비저닝만 실패한다 —
-# 새 데이터소스·대시보드가 영영 안 올라온다. 이미 DB에 들어간 것들은 그대로 보이므로
-# 화면만 봐서는 눈치채기 어렵다. 020에서 Prometheus 데이터소스가 이래서 누락됐다.
-# 앱 VM의 remote_deploy.sh가 alloy에 같은 조치를 하고 있다.
+# 지금은 두 가지로 바꿨다 —
+#  ① deploy.yml이 rm 대신 소유권만 고친다 → 디렉터리·파일 inode가 보존된다
+#  ② 각 서비스에 설정 디렉터리의 git 트리 해시를 라벨로 단다 → **바뀐 서비스만** 재생성된다
+# 설정 파일은 단일 파일 bind mount라 내용만 갈아끼워서는 프로세스가 새 설정을 읽지 않는다.
+# ②가 그 "읽게 만드는" 방아쇠다.
 #
 # --remove-orphans: compose 파일에서 서비스를 지워도 이미 떠 있는 컨테이너는 남는다.
-sudo docker compose "${COMPOSE[@]}" up -d --force-recreate --remove-orphans
+sudo env "${HASHES[@]}" docker compose "${COMPOSE[@]}" up -d --remove-orphans
 
 # 이미지가 바뀌면 옛 것이 디스크에 쌓인다. 부트디스크 20GB뿐이다.
 sudo docker image prune -af
@@ -70,10 +89,10 @@ if [ "${healthy:-0}" != 1 ]; then
   # **왜 안 떴는지 남긴다.** 이 줄만 있고 끝나면 다음에 같은 일이 나도 조사할 게 없다 —
   # 컨테이너는 이미 교체돼 직전 로그가 사라진 뒤다(2026-09-17 grafana 2분 타임아웃 때 겪었다).
   echo "ops health check failed (loki=$loki_ok grafana=$graf_ok prometheus=$prom_ok tempo=$tempo_ok)"
-  sudo docker compose "${COMPOSE[@]}" ps || true
+  sudo env "${HASHES[@]}" docker compose "${COMPOSE[@]}" ps || true
   for svc in loki grafana prometheus tempo; do
     echo "----- $svc -----"
-    sudo docker compose "${COMPOSE[@]}" logs --tail 40 "$svc" || true
+    sudo env "${HASHES[@]}" docker compose "${COMPOSE[@]}" logs --tail 40 "$svc" || true
   done
   exit 1
 fi
@@ -89,7 +108,7 @@ for f in /etc/grafana/provisioning/datasources/prometheus.yaml \
          /etc/grafana/provisioning/alerting/contact-points.yaml \
          /etc/grafana/provisioning/datasources/tempo.yaml \
          /var/lib/grafana/dashboards/metrics.json; do
-  if ! sudo docker compose "${COMPOSE[@]}" exec -T grafana test -f "$f"; then
+  if ! sudo env "${HASHES[@]}" docker compose "${COMPOSE[@]}" exec -T grafana test -f "$f"; then
     echo "grafana 마운트 깨짐: $f 가 컨테이너 안에 없다"; exit 1
   fi
 done

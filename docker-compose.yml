@@ -74,6 +74,11 @@ services:
       - /:/rootfs:ro
       - /sys:/sys:ro
       - /proc:/host/proc:ro
+    # 설정이 바뀔 때만 재생성된다(ops 스택과 같은 방식). 예전에는 배포마다
+    # --force-recreate로 무조건 재시작했다 — 설정 파일이 단일 파일 bind mount라
+    # 내용만 갈아끼워서는 프로세스가 새 설정을 안 읽기 때문이었다.
+    labels:
+      config.hash: ${ALLOY_CONFIG_HASH}
     networks:
       - trading
 
