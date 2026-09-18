@@ -493,12 +493,11 @@ function Pitch() {
   if (me?.authenticated) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-4">
+    <div className="flex flex-col items-center gap-3 border-t border-zinc-800 pt-6 pb-2">
       <GoogleLoginButton />
-      {/* 오른쪽 끝에 붙으므로 우측 정렬 — 왼쪽 정렬이면 접힌 줄의 끝이 들쭉날쭉하다 */}
-      <p className="max-w-[56ch] text-right text-[13px] text-zinc-500">
-        종목을 누르면 필터 평가와 분봉, 일봉, 투자자 수급까지 봅니다. 로그인하면 확인할 수
-        있습니다.
+      {/* 폭까지 풀지는 않는다 — 넓은 화면에서 한 줄이 너무 길어져 읽기 나빠진다 */}
+      <p className="max-w-[56ch] text-center text-[13px] text-zinc-500">
+        로그인하면 주도주 시그널과 여정, 눌림·돌파 페이지 전체를 확인할 수 있습니다.
       </p>
     </div>
   );
