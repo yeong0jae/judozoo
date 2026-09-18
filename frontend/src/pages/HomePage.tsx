@@ -73,7 +73,7 @@ export default function HomePage() {
   return (
     <div className="space-y-5">
       <SessionStrip size="lg" />
-      <IndexTiles domesticOpen={domesticOpen} overseasOpen={overseasOpen} />
+      <IndexTiles domesticOpen={domesticOpen} overseasOpen={overseasOpen} now={now} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {domesticFirst ? (
@@ -103,9 +103,11 @@ export default function HomePage() {
 function IndexTiles({
   domesticOpen,
   overseasOpen,
+  now,
 }: {
   domesticOpen: boolean;
   overseasOpen: boolean;
+  now: Date;
 }) {
   const kospi = useKospiIndex();
   const kosdaq = useKosdaqIndex();
@@ -113,24 +115,31 @@ function IndexTiles({
   const nasdaq = useNasdaqIndexQuote();
   const tag = domesticOpen ? "장중" : "종가";
 
-  return (
-    // 슬러그는 lib/indices.ts가 정의한 것과 같아야 한다
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+  // 슬러그는 lib/indices.ts가 정의한 것과 같아야 한다
+  const tiles = {
+    kospi: (
       <Tile
+        key="kospi"
         label="코스피"
         slug="kospi"
         tag={tag}
         value={kospi.data?.currentValue}
         rate={kospi.data?.changeRate}
       />
+    ),
+    kosdaq: (
       <Tile
+        key="kosdaq"
         label="코스닥"
         slug="kosdaq"
         tag={tag}
         value={kosdaq.data?.currentValue}
         rate={kosdaq.data?.changeRate}
       />
+    ),
+    night: (
       <Tile
+        key="night"
         label="코스피 야간 선물"
         slug="night-futures"
         value={night.data?.price}
@@ -141,14 +150,31 @@ function IndexTiles({
             : undefined
         }
       />
-      {/* 국내 셋 뒤에 둔다 — 여기는 국내 단타 화면이고, 나스닥은 밤사이 분위기를 재는 참고값이다 */}
+    ),
+    nasdaq: (
       <Tile
+        key="nasdaq"
         label="나스닥"
         slug="nasdaq"
         tag={overseasOpen ? "장중" : "종가"}
         value={nasdaq.data?.price}
         rate={nasdaq.data?.changeRate}
       />
+    ),
+  };
+
+  // 20:00~07:59는 국내가 멈춰 있고 밤 시장이 도는 시간대다 — 그때는 살아 있는 숫자를
+  // 앞에 둔다. 낮에는 국내 둘이 주인공이고 나스닥은 밤사이 분위기를 재는 참고값이라 맨 뒤다.
+  // (주도주 카드가 장이 도는 쪽을 앞으로 보내는 것과 같은 규칙이다)
+  const hour = now.getHours();
+  const nightFirst = hour >= 20 || hour < 8;
+  const order = nightFirst
+    ? [tiles.nasdaq, tiles.night, tiles.kospi, tiles.kosdaq]
+    : [tiles.kospi, tiles.kosdaq, tiles.night, tiles.nasdaq];
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+      {order}
     </div>
   );
 }
