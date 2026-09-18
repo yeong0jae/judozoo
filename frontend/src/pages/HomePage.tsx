@@ -375,10 +375,18 @@ const INVESTORS = [
 
 const MARKET_NAME: Record<string, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 
-/** 현물은 억원, 선물은 계약 — 한 목록에 있어도 단위가 달라 서로 견주지 않는다. */
-function netLabel(item: TodayNetItem): { name: string; unit: string } {
+/**
+ * 현물은 억원, 선물은 계약 — 한 목록에 있어도 단위가 달라 서로 견주지 않는다.
+ *
+ * `slug`는 `lib/indices.ts`가 정의한 것과 같아야 한다 — 카드를 누르면 그 지수의
+ * 지수·수급 화면으로 간다.
+ */
+function netLabel(item: TodayNetItem): { name: string; unit: string; slug: string } {
   const name = MARKET_NAME[item.market] ?? item.market;
-  return item.futures ? { name: `${name} 선물`, unit: "계약" } : { name, unit: "억원" };
+  const slug = item.market.toLowerCase();
+  return item.futures
+    ? { name: `${name} 선물`, unit: "계약", slug: `${slug}-futures` }
+    : { name, unit: "억원", slug };
 }
 
 /**
@@ -427,12 +435,15 @@ function TodayNets({ live, clock }: { live: boolean; clock: string }) {
 }
 
 function NetCard({ item }: { item: TodayNetItem }) {
-  const { name, unit } = netLabel(item);
+  const { name, unit, slug } = netLabel(item);
   // 막대 길이는 그 카드 안에서만 뜻이 있다 — 가장 큰 값이 반칸을 꽉 채운다
   const top = Math.max(...INVESTORS.map(({ key }) => Math.abs(item[key]))) || 1;
 
   return (
-    <div className="rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0">
+    <Link
+      to={`/market-analysis/${slug}`}
+      className="block rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0 transition-opacity hover:opacity-90"
+    >
       <div className="flex items-baseline gap-1.5">
         <span className="text-[13.5px] font-semibold text-zinc-200">{name}</span>
         <span className="num ml-auto text-xs text-zinc-400">
@@ -452,7 +463,7 @@ function NetCard({ item }: { item: TodayNetItem }) {
       </div>
 
       <div className="mt-2.5 text-right text-[11px] text-zinc-500">단위 {unit}</div>
-    </div>
+    </Link>
   );
 }
 
