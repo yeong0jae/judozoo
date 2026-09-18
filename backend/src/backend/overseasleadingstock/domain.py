@@ -38,7 +38,7 @@ class OverseasStockRank:
 
 
 #: 국내 `leadingstock.domain.TRADING_VALUE_WEIGHT`와 같은 값을 쓴다 — 고른 이유도 거기에.
-TRADING_VALUE_WEIGHT = 0.45
+TRADING_VALUE_WEIGHT = 0.7
 
 
 class OverseasStockRanks:

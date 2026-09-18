@@ -15,14 +15,14 @@ def 심볼들(stocks):
 
 
 class Test해외_주도주_선정:
-    def test_두_축이_모두_높은_것이_앞선다(self):
+    def test_거래대금_꼴찌는_아무리_올라도_맨_위로_오지_못한다(self):
         pool = [
             종목("BIG", 9_000_000_000, 2.0),
             종목("BOTH", 5_000_000_000, 9.0),
             종목("HOT", 100_000_000, 40.0),
         ]
 
-        assert 심볼들(OverseasStockRanks(pool).leaders(1)) == ["BOTH"]
+        assert 심볼들(OverseasStockRanks(pool).leaders(3))[-1] == "HOT"
 
     def test_내린_종목은_빠진다(self):
         pool = [종목("DOWN", 9_000_000_000, -1.0), 종목("UP", 100_000_000, 1.0)]
