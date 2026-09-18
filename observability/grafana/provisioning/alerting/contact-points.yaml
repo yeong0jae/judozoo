@@ -12,7 +12,9 @@ contactPoints:
         settings:
           url: $SLACK_WEBHOOK_URL
           title: '{{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} {{ .CommonLabels.alertname }}'
-          # 알림을 받고 바로 판단할 수 있어야 한다 — 어느 잡인지와 몇 건인지.
+          # 알림을 받고 바로 판단할 수 있어야 한다 — 어디서 났는지와 몇 건인지.
+          # job_id는 스케줄러 규칙에만 있다. 로그 규칙에는 없으므로 있을 때만 앞에 붙인다 —
+          # 조건 없이 쓰면 로그 알림이 `** — ...`로 온다.
           text: |
-            {{ range .Alerts }}*{{ .Labels.job_id }}* — {{ .Annotations.summary }}
+            {{ range .Alerts }}{{ if .Labels.job_id }}*{{ .Labels.job_id }}* — {{ end }}{{ .Annotations.summary }}
             {{ end }}

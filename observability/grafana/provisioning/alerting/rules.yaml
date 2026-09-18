@@ -81,3 +81,91 @@ groups:
                 - evaluator:
                     type: gt
                     params: [2]
+
+  # ── 로그 ─────────────────────────────────────────────────────────
+  # 위 두 규칙은 Prometheus를 보지만 여기는 Loki를 본다. 메트릭에 안 잡히는 실패 —
+  # 요청 처리 중 터진 예외, 브로커 응답 이상 — 는 로그에만 남는다.
+  #
+  # **문턱은 실측으로 정했다 (2026-09-18, 지난 24시간을 10분 창으로).**
+  #
+  #   전체 backend ERROR     중앙 2건 · p90 7건 · 24시간 최대 11건
+  #   backend.main(=사용자 500)  중앙 1건 · 24시간 최대 3건
+  #
+  # 즉 **에러는 평소에도 난다.** 대부분 브로커(KIS·키움)가 간헐적으로 5xx를 주는 것이고
+  # 스스로 회복한다. 0건에서 울리게 두면 하루 150건이 슬랙에 쌓이고, 그러면 알림을 끄게 된다 —
+  # 위 스케줄러 규칙이 문턱을 3으로 둔 것과 같은 판단이다.
+  # 그래서 **24시간 최대치보다 위**에 둔다. 지난 24시간이라면 한 번도 안 울렸을 값이다.
+  # 이건 "에러가 났다"가 아니라 "평소와 다르다"를 알리는 장치다.
+  - orgId: 1
+    name: 로그
+    folder: judozoo
+    interval: 1m
+    rules:
+      # ── 에러 급증 ─────────────────────────────────────────────────
+      - uid: log-error-storm
+        title: 에러 로그가 쏟아지고 있다
+        condition: THRESHOLD
+        for: 2m
+        # 배포 중 backend가 잠깐 사라지면 로그가 끊긴다. 그걸로 울리지 않는다.
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: '최근 10분 backend ERROR {{ $values.QUERY.Value }}건 (평소 중앙 2건, 24시간 최대 11건)'
+          runbook: 'Grafana "Log Monitoring"에서 Level=error로 좁혀 본다'
+        data:
+          - refId: QUERY
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              refId: QUERY
+              datasource: { type: loki, uid: loki }
+              queryType: instant
+              expr: 'sum(count_over_time({service="backend"} | json | level = "ERROR" [10m]))'
+          - refId: THRESHOLD
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [15]
+
+      # ── 사용자에게 나간 500 ────────────────────────────────────────
+      # `backend.main`의 "Unhandled exception"은 전역 핸들러가 잡은 것이다.
+      # 곧 **화면이 깨져 보인 사람이 있다**는 뜻이라, 전체 에러보다 낮은 문턱을 쓴다.
+      - uid: log-unhandled-exception
+        title: 사용자에게 500이 나가고 있다
+        condition: THRESHOLD
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: '최근 10분 처리 못 한 예외 {{ $values.QUERY.Value }}건 — 그만큼 500을 받은 요청이 있다'
+          runbook: 'Grafana "사용자 여정"에서 그 사용자의 에러 패널을 본다'
+        data:
+          - refId: QUERY
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              refId: QUERY
+              datasource: { type: loki, uid: loki }
+              queryType: instant
+              expr: 'sum(count_over_time({service="backend"} | json | level = "ERROR" | logger = "backend.main" [10m]))'
+          - refId: THRESHOLD
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [5]

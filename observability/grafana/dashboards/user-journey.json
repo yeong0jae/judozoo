@@ -45,7 +45,7 @@
       "description": "최근 로그인 순. 여기 id를 위 '사용자 id' 변수에 넣는다.",
       "datasource": {
         "type": "mysql",
-        "uid": "mysql"
+        "uid": "judozoo-mysql"
       },
       "gridPos": {
         "x": 0,
@@ -58,7 +58,7 @@
           "refId": "A",
           "datasource": {
             "type": "mysql",
-            "uid": "mysql"
+            "uid": "judozoo-mysql"
           },
           "format": "table",
           "rawQuery": true,
