@@ -1,6 +1,15 @@
-# 가입자 패널이 app_user를 읽는다. 계정은 remote_deploy.sh가 만들고 SELECT 권한을
-# app_user 한 테이블로 제한한다 — 관측 도구에 DB 전체를 열어줄 이유가 없다.
+# 가입자 패널이 app_user를, 의견 알림이 feedback을 읽는다. 계정은 Terraform이 만들고
+# SELECT 권한을 그 두 테이블로만 제한한다 — 관측 도구에 DB 전체를 열어줄 이유가 없다.
 # 비밀번호는 secrets/.env의 GF_MYSQL_PASSWORD (Grafana가 $VAR를 전개한다).
+#
+# **테이블을 하나 더 읽히려면 GRANT가 먼저다.** 권한은 배포로 재적용되지 않는 수동 1회
+# 작업이라(018 §5), 빠뜨리면 규칙은 올라가는데 쿼리만 조용히 실패한다. Grafana 화면에는
+# `db query error: query failed`로만 보여서 원인을 찾는 데 시간이 걸린다 —
+# 2026-09-19 feedback 테이블에서 실제로 겪었다.
+#
+#     GRANT SELECT ON trading.<새 테이블> TO 'grafana'@'%';
+#
+# `REVOKE ALL`은 쓰지 않는다 — ERROR 3879로 끊기고 그 뒤 GRANT가 실행되지 않는다.
 apiVersion: 1
 
 datasources:
