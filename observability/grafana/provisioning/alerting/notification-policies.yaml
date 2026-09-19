@@ -11,19 +11,24 @@ policies:
     repeat_interval: 4h
     # 가입은 장애가 아니다. 채널도 성격도 달라서 갈라 보낸다.
     routes:
+      # **한 건이 한 그룹이다.** `alertname`으로만 묶으면 먼저 온 알림이 그룹의 발송
+      # 슬롯을 쓰고, 5분(group_interval) 안에 들어온 다음 건은 그때까지 밀린 뒤 앞엣것과
+      # 함께 재탕돼 온다. `id`가 행마다 달라 그룹이 갈리므로 서로를 막지 않는다.
       - receiver: slack-signup
         matchers:
           - kind = signup
-        group_by: [alertname]
+        group_by: [alertname, id]
         group_wait: 30s
         group_interval: 5m
         # 한 번 알리면 끝이다. 안 고치면 다시 알릴 성질의 것이 아니라 길게 둔다.
         repeat_interval: 24h
       # 의견도 장애가 아니다. 가입과 같은 채널이되 문구가 달라 수신처는 따로 둔다.
+      # `id`로 가르는 이유는 가입과 같다 — 2026-09-19에 오류 알림 하나가 뒤따라온 첫
+      # 의견의 발송을 5분간 막았다.
       - receiver: slack-feedback
         matchers:
           - kind = feedback
-        group_by: [alertname]
+        group_by: [alertname, id]
         group_wait: 30s
         group_interval: 5m
         repeat_interval: 24h

@@ -198,7 +198,9 @@ groups:
           severity: info
           kind: signup
         annotations:
-          summary: '{{ $labels.at }}, {{ $labels.id }}번 사용자가 가입했습니다'
+          # 쿼리가 실패하면(execErrState: Error) 라벨이 없는 인스턴스가 뜬다 — 그대로 두면
+          # `[no value]번 사용자가 가입했습니다`로 온다. 오류는 오류라고 읽혀야 한다.
+          summary: '{{ if $labels.id }}{{ $labels.at }}, {{ $labels.id }}번 사용자가 가입했습니다{{ else }}가입 규칙이 질의에 실패했습니다 — Grafana에서 규칙 상태를 본다{{ end }}'
           runbook: 'Grafana "이용 현황"의 가입자 표에서 번호로 누구인지 본다'
         data:
           - refId: QUERY
@@ -258,7 +260,9 @@ groups:
           severity: info
           kind: feedback
         annotations:
-          summary: '{{ $labels.at }}, {{ $labels.user }}번 사용자 — {{ $labels.excerpt }}'
+          # 가입 규칙과 같은 방어 — 2026-09-19에 `[no value]번 사용자 — [no value]`를 받았다.
+          # 테이블은 있는데 Grafana 계정에 SELECT 권한이 없어 쿼리가 실패한 것이었다.
+          summary: '{{ if $labels.id }}{{ $labels.at }}, {{ $labels.user }}번 사용자 — {{ $labels.excerpt }}{{ else }}의견 규칙이 질의에 실패했습니다 — Grafana에서 규칙 상태를 본다{{ end }}'
           runbook: '전문은 Grafana에서 feedback 표를 본다. 누구인지는 "이용 현황"의 가입자 표에서 번호로 찾는다'
         data:
           - refId: QUERY
