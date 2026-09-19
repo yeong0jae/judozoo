@@ -396,7 +396,13 @@
             "lineWidth": 2
           },
           "unit": "s",
-          "min": 0
+          "min": 0,
+          "links": [
+            {
+              "title": "이 API의 느린 트레이스",
+              "url": "/d/judozoo-traces/?var-api=${__field.labels.handler}&${__url_time_range}"
+            }
+          ]
         },
         "overrides": []
       },
@@ -421,7 +427,8 @@
           "expr": "histogram_quantile(0.95, sum by (handler, le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
           "legendFormat": "{{handler}}"
         }
-      ]
+      ],
+      "description": "선을 누르면 **그 API의 느렸던 실제 요청**으로 넘어간다(트레이스 대시보드). 여기서는 느려진 사실까지만 보이고, 어디서 느렸는지는 스팬 트리에 있다."
     },
     {
       "id": 9,

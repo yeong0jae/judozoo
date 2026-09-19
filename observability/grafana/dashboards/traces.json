@@ -14,7 +14,79 @@
     "to": "now"
   },
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "api",
+        "label": "API",
+        "description": "목록은 Prometheus의 handler 라벨에서 온다. Tempo 태그 조회를 쓰지 않는 이유는 트레이스 보존이 7일이라 그 뒤로는 목록이 비기 때문이다 — 메트릭은 30일이고 라우트 목록은 020에서 이미 정규화돼 있다.",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(http_requests_total, handler)",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(http_requests_total, handler)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "regex": "/^\\/.*/",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": [],
+        "current": {
+          "text": "All",
+          "value": "$__all",
+          "selected": true
+        }
+      },
+      {
+        "name": "slow",
+        "label": "느림 기준",
+        "description": "'느리다'의 기준은 API마다 다르다. 1초는 breakout-radar에는 일상이고(021 실측 14.4초) 단건 조회에는 사고다.",
+        "type": "custom",
+        "query": "200ms,500ms,1s,3s,10s",
+        "options": [
+          {
+            "text": "200ms",
+            "value": "200ms",
+            "selected": false
+          },
+          {
+            "text": "500ms",
+            "value": "500ms",
+            "selected": false
+          },
+          {
+            "text": "1s",
+            "value": "1s",
+            "selected": true
+          },
+          {
+            "text": "3s",
+            "value": "3s",
+            "selected": false
+          },
+          {
+            "text": "10s",
+            "value": "10s",
+            "selected": false
+          }
+        ],
+        "current": {
+          "text": "1s",
+          "value": "1s",
+          "selected": true
+        },
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      }
+    ]
   },
   "panels": [
     {
@@ -193,12 +265,12 @@
     {
       "id": 3,
       "type": "table",
-      "title": "느린 API 요청 (>1s)",
+      "title": "느린 API 요청 (> $slow)",
       "datasource": {
         "type": "tempo",
         "uid": "tempo"
       },
-      "description": "행을 누르면 스팬 트리로 들어간다. 자식 시간의 합보다 루트가 훨씬 크면 그 차이는 레이트 리미터 대기다 — 스팬은 대기를 제외한 왕복만 잰다(021 실측).",
+      "description": "**위 드롭다운에서 API 하나를 고르면 그 API만 남는다.** 표는 20건까지만 싣기 때문에, 전체로 두면 무거운 API 한둘이 20줄을 다 먹고 조용한 API의 느린 건은 실리지도 않는다 — 그래서 표 안에서 눈으로 거르는 게 아니라 쿼리 단계에서 고른다.\n\n스팬 이름이 아니라 `http.route` 속성으로 거른다. 라우트 템플릿이라 종목코드마다 갈라지지 않고, 메트릭 대시보드의 `handler` 라벨과 같은 문자열이다(둘 다 FastAPI 라우트에서 나온다).\n\n행을 누르면 스팬 트리로 들어간다. 자식 시간의 합보다 루트가 훨씬 크면 그 차이는 레이트 리미터 대기다 — 스팬은 대기를 제외한 왕복만 잰다(021 실측).",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -231,7 +303,7 @@
             "uid": "tempo"
           },
           "queryType": "traceql",
-          "query": "{name =~ \"GET /api.*\" && duration > 1s}",
+          "query": "{span.http.route =~ \"$api\" && duration > $slow}",
           "limit": 20,
           "tableType": "traces"
         }
