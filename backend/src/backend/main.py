@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.library.db import get_engine
 from backend.library.exception import BrokerTokenUnavailable, EntityNotFoundError
 from backend.library import token_store
-from backend.library.logging_config import bind_user, configure_logging
+from backend.library.logging_config import bind_request, bind_user, configure_logging
 from backend.library import tracing
 from backend.library.scheduler import shutdown as shutdown_scheduler
 from backend.library.scheduler import start as start_scheduler
@@ -78,6 +78,7 @@ async def _require_login(request: Request, call_next):
     bind_user(user.id if user else None)
 
     path = request.url.path
+    bind_request(request.method, path)
     if path.startswith("/api") and not is_public(path) and user is None:
         return _error("UNAUTHORIZED", 401)
     return await call_next(request)

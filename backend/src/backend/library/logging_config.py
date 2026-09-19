@@ -41,6 +41,23 @@ def current_user() -> int | None:
     return _user.get()
 
 
+# 어느 요청이었는지. 트레이스백만으로는 URL을 알 수 없어 라우터 prefix를 코드에서 역산해야 했다.
+# 사용자와 같은 수명·같은 이유로 여기 둔다.
+#
+# **쿼리스트링은 싣지 않는다.** 구글 로그인 콜백이 authorization code를 쿼리로 받는데,
+# 그게 Loki에 평문으로 남는다. 파라미터가 필요하면 허용목록으로 골라 따로 싣는다.
+_request: ContextVar[str | None] = ContextVar("log_request", default=None)
+
+
+def bind_request(method: str | None, path: str | None) -> None:
+    """요청을 시작하며 심는다. 둘 중 하나라도 없으면 None을 심어 이전 값을 지운다."""
+    _request.set(f"{method} {path}" if method and path else None)
+
+
+def current_request() -> str | None:
+    return _request.get()
+
+
 _RESERVED = frozenset(vars(logging.LogRecord("", 0, "", 0, "", (), None))) | {
     "message",
     "asctime",
@@ -74,6 +91,10 @@ class JsonFormatter(logging.Formatter):
         user = current_user()
         if user is not None:
             payload["user"] = user
+        # 요청 경로. 사용자와 같이 **없는 게 정상인 로그가 많다**.
+        request = current_request()
+        if request:
+            payload["request"] = request
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
         # logger.info("...", extra={"user": "..."}) 로 넘긴 값만 실린다.

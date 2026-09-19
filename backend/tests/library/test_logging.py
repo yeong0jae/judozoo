@@ -175,3 +175,38 @@ class Test사용자_필드:
         bind_user(None)
 
         assert "user" not in self.포맷(기록("공개 화면 조회"))
+
+
+class Test요청_필드:
+    """어느 요청이었는지 한 줄에 남긴다. 트레이스백만으로는 URL을 알 수 없다."""
+
+    def 포맷(self, record) -> dict:
+        import json
+
+        from backend.library.logging_config import JsonFormatter
+
+        return json.loads(JsonFormatter().format(record))
+
+    def test_메서드와_경로를_함께_싣는다(self):
+        from backend.library.logging_config import bind_request
+
+        bind_request("GET", "/api/overseas-leading-stocks/leaders")
+
+        d = self.포맷(기록("Unhandled exception"))
+        assert d["request"] == "GET /api/overseas-leading-stocks/leaders"
+
+    def test_요청_밖에서는_필드가_아예_없다(self):
+        """스케줄러·기동 로그가 여기 해당한다."""
+        from backend.library.logging_config import bind_request
+
+        bind_request(None, None)
+
+        assert "request" not in self.포맷(기록("주도주 스캔 시작"))
+
+    def test_다음_요청이_이전_경로를_물려받지_않는다(self):
+        from backend.library.logging_config import bind_request
+
+        bind_request("GET", "/api/market/kospi")
+        bind_request(None, None)
+
+        assert "request" not in self.포맷(기록("스케줄러 기동"))
