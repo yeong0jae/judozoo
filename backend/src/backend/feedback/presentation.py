@@ -19,11 +19,11 @@ router = APIRouter()
 class FeedbackRequest(BaseModel):
     """공백만 보낸 것은 빈 것과 같다 — 먼저 털고 나서 길이를 본다.
 
-    2000자는 Slack 알림에 실을 수 있는 한도가 아니라(알림은 앞부분만 싣는다) 한 사람이
+    500자는 Slack 알림에 실을 수 있는 한도가 아니라(알림은 앞부분만 싣는다) 한 사람이
     한 번에 남길 만한 분량의 상한이다. 화면도 같은 값으로 막는다.
     """
 
-    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+    content: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
 @router.post("/api/feedback")

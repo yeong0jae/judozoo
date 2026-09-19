@@ -6,6 +6,13 @@ import { ApiError } from "../../api/client";
 import GoogleLoginButton from "../common/GoogleLoginButton";
 import { useToast } from "../toast/Toast";
 
+/** 빈 칸에 연하게 뜨는 예시. 무엇을 적어야 할지 모르는 것이 백지 앞의 가장 큰 벽이다. */
+const EXAMPLES = [
+  "예) 눌림·돌파에서 뒤로 가면 스크롤이 맨 위로 올라가요",
+  "예) 삼성전자 수급 숫자가 다른 곳과 달라요",
+  "예) 관심 종목만 모아 보는 화면이 있으면 좋겠어요",
+].join("\n");
+
 /**
  * 의견 보내기 — 편지 아이콘을 누르면 모달이 뜬다.
  *
@@ -82,7 +89,7 @@ function FeedbackModal({
     if (!보낼_수_있다) return;
     send.mutate(content, {
       onSuccess: () => {
-        toast.show({ message: "의견을 보냈습니다. 읽고 반영하겠습니다.", tone: "success" });
+        toast.show({ message: "소중한 의견 감사합니다.", tone: "success" });
         onSent();
       },
       onError: (e) => {
@@ -90,7 +97,7 @@ function FeedbackModal({
         const 로그인_끊김 = e instanceof ApiError && e.status === 401;
         toast.show({
           message: 로그인_끊김
-            ? "로그인이 풀렸습니다. 다시 로그인한 뒤 보내주세요."
+            ? "로그인 후 다시 시도해 주세요."
             : "보내지 못했습니다. 잠시 뒤 다시 시도해주세요.",
           tone: "error",
         });
@@ -104,7 +111,7 @@ function FeedbackModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl"
+        className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -130,8 +137,8 @@ function FeedbackModal({
               autoFocus
               value={content}
               onChange={(e) => onChange(e.target.value.slice(0, FEEDBACK_MAX_LENGTH))}
-              rows={6}
-              placeholder="여기에 적어주세요"
+              rows={8}
+              placeholder={EXAMPLES}
               className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-700 focus:outline-none"
             />
             <div className="mt-3 flex items-center justify-between gap-3">
@@ -151,7 +158,7 @@ function FeedbackModal({
         ) : (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <p className="max-w-xs text-sm text-zinc-500">
-              누가 보낸 의견인지 알아야 답을 드릴 수 있어 로그인이 필요합니다.
+              의견을 보내려면 로그인이 필요합니다.
             </p>
             <GoogleLoginButton />
           </div>

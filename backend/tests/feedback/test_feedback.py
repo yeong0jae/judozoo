@@ -44,7 +44,7 @@ class Test접수:
     def test_너무_긴_의견은_받지_않는다(self, 로그인_client, mocker):
         받은 = mocker.patch.object(application, "receive")
 
-        응답 = 로그인_client.post("/api/feedback", json={"content": "가" * 2001})
+        응답 = 로그인_client.post("/api/feedback", json={"content": "가" * 501})
 
         assert 응답.json()["code"] == "INVALID_PARAMETER"
         받은.assert_not_called()
