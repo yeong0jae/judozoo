@@ -30,6 +30,7 @@ dev = [
     "pytest-mock>=3.14",
     "respx>=0.23.1",
     "testcontainers[mysql]>=4.9",
+    "pyyaml>=6.0",           # 알림 규칙 파일을 읽어 SQL을 그대로 시험한다
 ]
 
 [tool.pytest.ini_options]

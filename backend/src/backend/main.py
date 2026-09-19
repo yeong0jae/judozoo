@@ -21,6 +21,7 @@ from backend.library.scheduler import start as start_scheduler
 from backend.auth.domain import SESSION_KEY, CurrentUser
 from backend.auth.gate import is_public
 from backend.auth.presentation import router as auth_router
+from backend.feedback.presentation import router as feedback_router
 from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.leadingstock.presentation import router as leading_router
@@ -49,14 +50,16 @@ async def lifespan(app: FastAPI):
     # 브로커 토큰 저장소 — 재기동이 발급을 소비하지 않게 한다. 카탈로그 적재보다 먼저 와야
     # 한다(적재가 KIS를 쓴다). 실패해도 fail-soft라 기동을 막지 않는다.
     token_store.create_table()
-    # 가입자 테이블. DB가 잠깐 죽어도 기동은 막지 않는다 — token_store와 같은 fail-soft.
-    # 실패하면 로그인 콜백에서 기록만 실패하고 공개 화면은 계속 뜬다.
+    # 가입자·의견 테이블. DB가 잠깐 죽어도 기동은 막지 않는다 — token_store와 같은 fail-soft.
+    # 실패하면 로그인 콜백과 의견 접수만 실패하고 공개 화면은 계속 뜬다.
     from backend.auth.domain import AppUser
+    from backend.feedback.domain import Feedback
 
     try:
         AppUser.__table__.create(get_engine(), checkfirst=True)
+        Feedback.__table__.create(get_engine(), checkfirst=True)
     except Exception:
-        log.warning("app_user 테이블 생성 실패 — 가입자 기록 없이 동작한다", exc_info=True)
+        log.warning("가입자·의견 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
     load_stock_catalog()
     start_scheduler()
     yield
@@ -126,6 +129,7 @@ tracing.setup(_settings.otlp_endpoint, _settings.app_name, get_engine())
 tracing.instrument_app(app)
 
 app.include_router(auth_router)
+app.include_router(feedback_router)
 app.include_router(news_router)
 app.include_router(overseas_router)
 app.include_router(stock_router)

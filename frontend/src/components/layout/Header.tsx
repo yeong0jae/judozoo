@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import SettingsButton from "../header/SettingsButton";
 import AccountButton from "../header/AccountButton";
+import FeedbackButton from "../header/FeedbackButton";
 import { NAV } from "./nav";
 import HeaderTicker from "./HeaderTicker";
 import Wordmark from "./Wordmark";
@@ -46,6 +47,7 @@ export default function Header() {
         {/* 데스크톱은 좌측 레일 하단이 맡는다 — 레일이 숨는 모바일에서만 보여준다 */}
         <div className="flex items-center gap-1 md:hidden">
           <AccountButton placement="bottom" />
+          <FeedbackButton />
           <SettingsButton />
         </div>
       </div>

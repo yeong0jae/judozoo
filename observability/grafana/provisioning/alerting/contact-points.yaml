@@ -36,3 +36,21 @@ contactPoints:
           text: |
             {{ range .Alerts }}{{ .Annotations.summary }}
             {{ end }}
+
+  # 의견 수신처. **가입과 같은 웹훅을 쓴다** — 둘 다 "나쁜 일이 아닌 알림"이라 채널이 같고,
+  # 시크릿을 하나 더 만들 값어치가 없다. 나중에 채널을 가르고 싶어지면 여기 url만
+  # 새 환경변수로 바꾸면 되고, 규칙과 라우트는 손댈 것이 없다.
+  #
+  # 가입과 같은 이유로 `disableResolveMessage: true` — 의견은 상태가 아니라 사건이다.
+  - orgId: 1
+    name: slack-feedback
+    receivers:
+      - uid: slack-feedback-webhook
+        type: slack
+        disableResolveMessage: true
+        settings:
+          url: $SIGNUP_SLACK_WEBHOOK_URL
+          title: '💬 {{ .CommonLabels.alertname }}'
+          text: |
+            {{ range .Alerts }}{{ .Annotations.summary }}
+            {{ end }}

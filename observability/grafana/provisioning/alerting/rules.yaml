@@ -233,3 +233,60 @@ groups:
                 - evaluator:
                     type: gt
                     params: [0]
+
+  # ── 의견 ─────────────────────────────────────────────────────────
+  # 가입과 같은 자리의 알림이다(나쁜 일이 아니고, DB를 직접 본다). 수신처만 갈라 둔다
+  # (notification-policies.yaml 의 kind=feedback 라우트).
+  #
+  # **문구에 본문 앞부분을 싣는다.** 의견은 "왔다"만 알아도 소용이 없고 Grafana를 열어야
+  # 내용을 안다. 앞 120자면 무슨 이야기인지는 거의 항상 잡힌다 — 전문은 `feedback` 표에 있다.
+  # 줄바꿈은 CHAR(10)/CHAR(13)로 지운다. 라벨에 줄바꿈이 들어가면 Slack 문구가 깨진다.
+  #
+  # `id`를 라벨에 두는 이유 — 알림 인스턴스의 정체성이 라벨이라, 없으면 같은 창에 들어온
+  # 같은 내용의 두 건이 한 건으로 합쳐진다.
+  - orgId: 1
+    name: 의견
+    folder: judozoo
+    interval: 1m
+    rules:
+      - uid: new-feedback
+        title: 새 의견
+        condition: THRESHOLD
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: info
+          kind: feedback
+        annotations:
+          summary: '{{ $labels.at }}, {{ $labels.user }}번 사용자 — {{ $labels.excerpt }}'
+          runbook: '전문은 Grafana에서 feedback 표를 본다. 누구인지는 "이용 현황"의 가입자 표에서 번호로 찾는다'
+        data:
+          - refId: QUERY
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: judozoo-mysql
+            model:
+              refId: QUERY
+              datasource: { type: mysql, uid: judozoo-mysql }
+              format: table
+              rawQuery: true
+              # 옛 세션이 보낸 건은 user_id가 비어 있다 — 그때는 '?'로 둔다(도메인 주석).
+              rawSql: "SELECT CAST(id AS CHAR) AS id, COALESCE(CAST(user_id AS CHAR), '?') AS user, DATE_FORMAT(created_at, '%m-%d %H:%i') AS at, REPLACE(REPLACE(LEFT(content, 120), CHAR(13), ' '), CHAR(10), ' ') AS excerpt, 1 AS value FROM feedback WHERE created_at >= NOW() - INTERVAL 10 MINUTE;"
+          - refId: REDUCE
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: REDUCE
+              type: reduce
+              expression: QUERY
+              reducer: last
+          - refId: THRESHOLD
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: REDUCE
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
