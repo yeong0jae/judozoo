@@ -4,7 +4,7 @@ const CONTACT = "judozooweb@gmail.com";
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="개인정보 처리방침" effectiveDate="2026-09-13">
+    <LegalPage title="개인정보 처리방침" effectiveDate="2026-09-19">
       <p>
         judozoo(이하 "서비스")는 주식 시장 데이터를 가공해 보여주는 개인 프로젝트입니다. 서비스는 아래
         범위에서만 개인정보를 수집·이용합니다.
@@ -78,8 +78,15 @@ export default function PrivacyPage() {
 
       <h2>9. 변경 고지</h2>
       <p>
-        이 방침이 변경되는 경우 시행일을 갱신하여 이 페이지에 공지합니다.
+        이 방침이 변경되는 경우 시행일을 갱신하고, 무엇이 달라졌는지 아래에 남깁니다.
       </p>
+      <ul>
+        <li>
+          2026-09-19 — 이용 통계 분석(Google Analytics)을 도입하면서 1항(방문·이용 기록),
+          4항(처리 위탁), 6항(분석 쿠키)을 개정했습니다.
+        </li>
+        <li>2026-09-13 — 최초 시행</li>
+      </ul>
     </LegalPage>
   );
 }
