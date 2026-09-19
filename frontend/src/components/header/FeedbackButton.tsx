@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMe } from "../../api/auth";
 import { FEEDBACK_MAX_LENGTH, useSendFeedback } from "../../api/feedback";
@@ -14,26 +14,50 @@ const EXAMPLES = [
 ].join("\n");
 
 /**
- * 의견 보내기 — 편지 아이콘을 누르면 모달이 뜬다.
+ * 의견 보내기 — 설정·계정과 같은 자리(좌측 레일 하단, 모바일은 상단바)에 선다.
  *
- * 설정·계정과 같은 자리(좌측 레일 하단, 모바일은 상단바)에 선다. 푸터의 메일 주소는
- * 그대로 두되, 메일 클라이언트를 여는 대신 여기서 바로 쓰고 끝낼 수 있게 한다.
+ * 레일에서는 계정 버튼과 같은 규칙을 따른다 — 아이콘은 팝오버만 열고, 모달은 그 안의
+ * 항목을 눌러야 뜬다. 아이콘 하나만 보고 무슨 버튼인지 알 길이 없어서, 글자가 한 번은
+ * 나와야 한다.
+ *
+ * 모바일 상단바에서는 `popover` 없이 쓴다. 항목이 하나뿐이라 좁은 화면에서는
+ * "눌렀더니 버튼 한 개짜리 상자가 뜨고 그걸 또 누른다"가 되기 때문이다.
  */
-export default function FeedbackButton() {
-  const [open, setOpen] = useState(false);
+export default function FeedbackButton({ popover = false }: { popover?: boolean }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   // 쓰던 글은 버튼 쪽에 둔다 — 모달은 바깥을 누르면 닫히는데, 그때 초안까지 사라지면
   // 잘못 눌렀다가 처음부터 다시 써야 한다.
   const [content, setContent] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  // 바깥 클릭·Esc로 닫기 — 계정 버튼과 같은 규칙
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const 눌린 = menuOpen || (!popover && modalOpen);
 
   return (
-    <>
+    <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => (popover ? setMenuOpen((v) => !v) : setModalOpen(true))}
         className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-          open ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
+          눌린 ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
         }`}
         aria-label="의견 보내기"
+        aria-expanded={popover ? menuOpen : undefined}
         title="의견 보내기"
       >
         {/* nav 아이콘과 같은 24 그리드·1.8 획 */}
@@ -42,18 +66,35 @@ export default function FeedbackButton() {
           <path d="M3.4 7.2 12 13.2l8.6-6" />
         </svg>
       </button>
-      {open && (
+
+      {/* 항목이 하나뿐이라 계정 패널(w-52)처럼 넓힐 이유가 없다 — 글자 폭에 맞춘다 */}
+      {menuOpen && (
+        <div className="absolute bottom-0 left-full z-40 ml-2 w-max origin-bottom-left rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-xl">
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              setModalOpen(true);
+            }}
+            className="w-full whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-850"
+          >
+            의견 보내기
+          </button>
+        </div>
+      )}
+
+      {modalOpen && (
         <FeedbackModal
           content={content}
           onChange={setContent}
-          onClose={() => setOpen(false)}
+          onClose={() => setModalOpen(false)}
           onSent={() => {
             setContent("");
-            setOpen(false);
+            setModalOpen(false);
           }}
         />
       )}
-    </>
+    </div>
   );
 }
 

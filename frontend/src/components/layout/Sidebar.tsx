@@ -40,7 +40,7 @@ export default function Sidebar() {
       {/* 하단 고정 — 위가 계정, 가운데가 의견, 맨 아래가 설정 */}
       <div className="mt-auto flex w-full flex-col items-center gap-1 pb-3">
         <AccountButton placement="right" />
-        <FeedbackButton />
+        <FeedbackButton popover />
         <SettingsButton />
       </div>
     </aside>
