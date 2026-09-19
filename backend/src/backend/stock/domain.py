@@ -8,7 +8,7 @@ Kotlin `stock.domain`과 1:1. 엔티티가 곧 도메인 객체다 — 검색 �
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Index, String
+from sqlalchemy import BigInteger, DateTime, Enum, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.library.db import Base
@@ -29,7 +29,10 @@ class Stock(Base):
 
     __tablename__ = "stocks"
 
-    short_code: Mapped[str] = mapped_column(String(12), primary_key=True)
+    #: 종목을 가리킬 때는 `short_code`를 쓴다. 이 `id`는 갱신(전체 교체)마다 새로 발급돼
+    #: 행을 가로질러 살아남지 않는다 — PK 모양을 맞추는 열이지 바깥에 내보낼 값이 아니다.
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    short_code: Mapped[str] = mapped_column(String(12), unique=True, nullable=False)
     standard_code: Mapped[str] = mapped_column(String(12), nullable=False)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     market: Mapped[Market] = mapped_column(Enum(Market, length=6), nullable=False)

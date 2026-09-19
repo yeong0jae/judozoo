@@ -17,7 +17,7 @@ DB가 말을 듣지 않아도 인증이 멈추면 안 되므로 모든 경로를
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, String, Text, select
+from sqlalchemy import BigInteger, DateTime, String, Text, select
 
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 
 class BrokerToken(Base):
-    """브로커별 최신 토큰 한 줄. `provider`가 곧 식별자다.
+    """브로커별 최신 토큰 한 줄. `provider`로 찾는다(UNIQUE).
 
     `expires_at`은 **naive UTC**로 둔다 — 다른 테이블은 KST 벽시계를 쓰지만
     이 값은 사람이 읽을 일이 없고 인증 모듈이 전부 UTC로 계산하므로 변환을 한 번 줄인다.
@@ -35,7 +35,8 @@ class BrokerToken(Base):
 
     __tablename__ = "broker_token"
 
-    provider: Mapped[str] = mapped_column(String(16), primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    provider: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)
     # 토스 토큰은 JWT라 750자를 넘는다 — varchar(512)로 뒀다가 저장이 통째로 실패했다.
     access_token: Mapped[str] = mapped_column(Text, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
