@@ -33,11 +33,20 @@ if [ -z "$SLACK_WEBHOOK_URL" ]; then
   exit 1
 fi
 
+# 가입 알림은 **다른 채널**로 간다. 슬랙 웹훅은 만들 때 채널이 박히므로 URL이 따로다.
+# 이쪽은 없어도 배포를 멈추지 않는다 — 장애 알림(위)이 죽으면 사고를 놓치지만,
+# 가입 알림이 빠지는 건 불편에 그친다. 대신 로그에 남겨 조용히 사라지지 않게 한다.
+SIGNUP_SLACK_WEBHOOK_URL="$(fetch AT_GRAFANA_SLACK_SIGNUP_WEBHOOK_URL || true)"
+if [ -z "$SIGNUP_SLACK_WEBHOOK_URL" ]; then
+  echo "AT_GRAFANA_SLACK_SIGNUP_WEBHOOK_URL 이 없다 — 가입 알림만 발송되지 않는다(배포는 계속)."
+fi
+
 umask 077
 cat > secrets/.env <<EOF
 GF_SECURITY_ADMIN_PASSWORD=$(fetch AT_GRAFANA_ADMIN_PASSWORD)
 GF_MYSQL_PASSWORD=$(fetch AT_GRAFANA_MYSQL_PASSWORD)
 SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+SIGNUP_SLACK_WEBHOOK_URL=${SIGNUP_SLACK_WEBHOOK_URL}
 DB_HOST=10.100.0.3
 EOF
 

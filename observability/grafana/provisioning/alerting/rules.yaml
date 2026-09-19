@@ -169,3 +169,59 @@ groups:
                 - evaluator:
                     type: gt
                     params: [5]
+
+  # ── 가입 ─────────────────────────────────────────────────────────
+  # 유일하게 "나쁜 일"이 아닌 알림이다. 그래서 채널도 수신처도 갈라 둔다
+  # (notification-policies.yaml 의 kind=signup 라우트).
+  #
+  # **로그가 아니라 DB를 본다.** `app_user`에 행이 생긴 것이 곧 가입이라 의미가 정확하고,
+  # alloy→Loki 파이프라인을 안 거쳐 중간에 끊길 데가 없다.
+  #
+  # 창을 10분으로 두고 `for`를 두지 않는다 — 장애 규칙과 달리 "잠깐 튄 것"이 없다.
+  # 한 건이라도 생기면 바로 알린다.
+  - orgId: 1
+    name: 가입
+    folder: judozoo
+    interval: 1m
+    rules:
+      - uid: new-signup
+        title: 신규 가입
+        condition: THRESHOLD
+        # DB를 못 읽었을 때 "가입 0명"으로 읽으면 안 된다. 조용히 넘긴다.
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: info
+          kind: signup
+        annotations:
+          summary: '최근 10분 사이에 {{ $values.REDUCE.Value }}명이 가입했다'
+          runbook: 'Grafana "이용 현황"의 가입자 표에서 누구인지 본다'
+        data:
+          - refId: QUERY
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: judozoo-mysql
+            model:
+              refId: QUERY
+              datasource: { type: mysql, uid: judozoo-mysql }
+              format: time_series
+              rawQuery: true
+              rawSql: "SELECT NOW() AS time, COUNT(*) AS value FROM app_user WHERE created_at >= NOW() - INTERVAL 10 MINUTE;"
+          - refId: REDUCE
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: REDUCE
+              type: reduce
+              expression: QUERY
+              reducer: last
+          - refId: THRESHOLD
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: REDUCE
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
