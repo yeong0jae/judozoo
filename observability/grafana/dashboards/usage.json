@@ -434,7 +434,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT email AS 이메일, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS 가입, DATE_FORMAT(last_login_at, '%Y-%m-%d %H:%i') AS '마지막 로그인' FROM app_user ORDER BY last_login_at DESC LIMIT 50;"
+          "rawSql": "SELECT id AS 번호, email AS 이메일, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS 가입, DATE_FORMAT(last_login_at, '%Y-%m-%d %H:%i') AS '마지막 로그인' FROM app_user ORDER BY last_login_at DESC LIMIT 50;"
         }
       ],
       "fieldConfig": {
