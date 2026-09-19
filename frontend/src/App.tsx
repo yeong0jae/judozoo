@@ -14,6 +14,7 @@ import Footer from "./components/layout/Footer";
 import { ToastProvider } from "./components/toast/Toast";
 import { ThemeProvider } from "./theme/theme";
 import { useTabTitle } from "./hooks/useTabTitle";
+import { usePageView } from "./hooks/usePageView";
 import { queryClient } from "./api/queryClient";
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
 
 function AppShell() {
   useTabTitle();
+  usePageView();
   const location = useLocation();
   return (
     <div className="min-h-full flex">

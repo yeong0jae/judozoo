@@ -40,6 +40,27 @@
         } catch (_) {}
       })();
     </script>
+    <!-- Google Analytics. 측정 ID는 페이지 소스에 그대로 드러나는 공개 식별자라 비밀이 아니다.
+         **운영 호스트에서만 로드한다** — 로컬 개발과 미리보기가 통계를 오염시키지 않게.
+         `send_page_view: false` — SPA라 첫 로드 한 번만 자동 집계되고 화면 전환은 안 잡힌다.
+         전환까지 포함해 `usePageView` 훅이 직접 보낸다. 자동 집계를 켜두면 첫 화면이 두 번 세어진다. -->
+    <script>
+      window.GA_MEASUREMENT_ID = "G-L25RGH4T6F";
+      (function () {
+        var id = window.GA_MEASUREMENT_ID;
+        if (location.hostname !== "judozoo.com" || id.indexOf("G-") !== 0) return;
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () {
+          window.dataLayer.push(arguments);
+        };
+        window.gtag("js", new Date());
+        window.gtag("config", id, { send_page_view: false });
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = "https://www.googletagmanager.com/gtag/js?id=" + id;
+        document.head.appendChild(s);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
