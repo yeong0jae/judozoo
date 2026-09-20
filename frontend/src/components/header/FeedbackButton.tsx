@@ -16,14 +16,16 @@ const EXAMPLES = [
 /**
  * 의견 보내기 — 설정·계정과 같은 자리(좌측 레일 하단, 모바일은 상단바)에 선다.
  *
- * 레일에서는 계정 버튼과 같은 규칙을 따른다 — 아이콘은 팝오버만 열고, 모달은 그 안의
- * 항목을 눌러야 뜬다. 아이콘 하나만 보고 무슨 버튼인지 알 길이 없어서, 글자가 한 번은
- * 나와야 한다.
- *
- * 모바일 상단바에서는 `popover` 없이 쓴다. 항목이 하나뿐이라 좁은 화면에서는
- * "눌렀더니 버튼 한 개짜리 상자가 뜨고 그걸 또 누른다"가 되기 때문이다.
+ * 계정 버튼과 같은 규칙을 따른다 — 아이콘은 팝오버만 열고, 모달은 그 안의 항목을
+ * 눌러야 뜬다. 아이콘 하나만 보고 무슨 버튼인지 알 길이 없어서, 글자가 한 번은
+ * 나와야 한다. 레일이든 상단바든 마찬가지라, 열리는 방향만 다르게 받는다.
  */
-export default function FeedbackButton({ popover = false }: { popover?: boolean }) {
+export default function FeedbackButton({
+  placement = "right",
+}: {
+  /** right = 좌측 레일에서 오른쪽으로, bottom = 헤더에서 아래로 */
+  placement?: "right" | "bottom";
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   // 쓰던 글은 버튼 쪽에 둔다 — 모달은 바깥을 누르면 닫히는데, 그때 초안까지 사라지면
@@ -46,18 +48,21 @@ export default function FeedbackButton({ popover = false }: { popover?: boolean 
     };
   }, [menuOpen]);
 
-  const 눌린 = menuOpen || (!popover && modalOpen);
+  const panel =
+    placement === "right"
+      ? "left-full bottom-0 ml-2 origin-bottom-left"
+      : "right-0 top-full mt-2 origin-top-right";
 
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => (popover ? setMenuOpen((v) => !v) : setModalOpen(true))}
+        onClick={() => setMenuOpen((v) => !v)}
         className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-          눌린 ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
+          menuOpen ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
         }`}
         aria-label="의견 보내기"
-        aria-expanded={popover ? menuOpen : undefined}
+        aria-expanded={menuOpen}
         title="의견 보내기"
       >
         {/* nav 아이콘과 같은 24 그리드·1.8 획 */}
@@ -69,7 +74,9 @@ export default function FeedbackButton({ popover = false }: { popover?: boolean 
 
       {/* 항목이 하나뿐이라 계정 패널(w-52)처럼 넓힐 이유가 없다 — 글자 폭에 맞춘다 */}
       {menuOpen && (
-        <div className="absolute bottom-0 left-full z-40 ml-2 w-max origin-bottom-left rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-xl">
+        <div
+          className={`absolute z-40 w-max rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-xl ${panel}`}
+        >
           <button
             type="button"
             onClick={() => {

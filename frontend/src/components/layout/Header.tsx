@@ -47,7 +47,7 @@ export default function Header() {
         {/* 데스크톱은 좌측 레일 하단이 맡는다 — 레일이 숨는 모바일에서만 보여준다 */}
         <div className="flex items-center gap-1 md:hidden">
           <AccountButton placement="bottom" />
-          <FeedbackButton />
+          <FeedbackButton placement="bottom" />
           <SettingsButton />
         </div>
       </div>
