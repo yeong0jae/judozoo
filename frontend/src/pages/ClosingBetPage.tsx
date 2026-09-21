@@ -274,7 +274,7 @@ function SupplyGate({ what }: { what: string }) {
         ))}
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
-        <p className="text-xs text-zinc-400">{what}은 로그인하면 확인할 수 있습니다</p>
+        <p className="text-xs text-zinc-400">{what}은 로그인 후 확인할 수 있습니다</p>
         <GoogleLoginButton />
       </div>
     </div>
