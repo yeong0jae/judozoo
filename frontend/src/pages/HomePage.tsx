@@ -549,7 +549,7 @@ function Pitch() {
       <GoogleLoginButton />
       {/* 폭까지 풀지는 않는다 — 넓은 화면에서 한 줄이 너무 길어져 읽기 나빠진다 */}
       <p className="max-w-[56ch] text-center text-[13px] text-zinc-500">
-        로그인하면 주도주 시그널과 여정, 눌림·돌파 페이지 전체를 확인할 수 있습니다.
+        로그인하면 오늘의 코스피, 코스닥, 선물 수급을 모아볼 수 있습니다.
       </p>
     </div>
   );
