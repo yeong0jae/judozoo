@@ -143,6 +143,34 @@ class QuietExpectedFailures(logging.Filter):
         return True
 
 
+class QuietProbeAccessLogs(logging.Filter):
+    """정상 응답한 프로브 액세스 로그는 버린다.
+
+    `/health`는 docker healthcheck가 10초마다, `/metrics`는 alloy가 30초마다 친다.
+    합쳐서 하루 11,000줄이 넘는데 전부 200이고, 사람이 읽을 일이 있는 줄은 하나도 없다.
+    Loki에서 진짜 요청을 찾으려면 이 둘을 눈으로 걸러내야 했다.
+
+    **4xx·5xx는 남긴다.** 프로브가 실패하는 순간은 오히려 봐야 하는 순간이다 —
+    healthcheck가 6번 연속 실패하면 배포 스크립트가 롤백을 건다.
+
+    쿼리스트링이 붙은 `/health?x=1`은 경로가 달라져 그대로 찍힌다. 두 경로 모두
+    쿼리를 받지 않으니 지금은 문제가 없고, 받게 되는 날 여기를 같이 고쳐야 한다.
+    """
+
+    _PATHS = frozenset({"/health", "/metrics"})
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name != "uvicorn.access":
+            return True
+        # uvicorn은 `'%s - "%s %s HTTP/%s" %d'` 에 (주소, 메서드, 경로, 버전, 상태)를 넘긴다.
+        # 이 모양이 바뀌면 조용히 거르기를 멈출 뿐, 로그를 잃지는 않게 둔다.
+        args = record.args
+        if not isinstance(args, tuple) or len(args) != 5:
+            return True
+        _, _, path, _, status = args
+        return not (path in self._PATHS and isinstance(status, int) and status < 400)
+
+
 def configure_logging(
     app_package: str = "backend",
     root_level: int = logging.INFO,
@@ -155,6 +183,7 @@ def configure_logging(
     handler.setFormatter(formatter)
     # 핸들러에 달아 uvicorn·starlette 로거까지 함께 덮는다.
     handler.addFilter(QuietExpectedFailures())
+    handler.addFilter(QuietProbeAccessLogs())
 
     root = logging.getLogger()
     root.handlers.clear()

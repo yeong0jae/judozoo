@@ -7,7 +7,7 @@
 import logging
 
 from backend.library.exception import BrokerTokenUnavailable
-from backend.library.logging_config import QuietExpectedFailures
+from backend.library.logging_config import QuietExpectedFailures, QuietProbeAccessLogs
 
 
 def 기록(msg, args=(), exc=None) -> logging.LogRecord:
@@ -22,6 +22,7 @@ def 기록(msg, args=(), exc=None) -> logging.LogRecord:
 
 
 필터 = QuietExpectedFailures()
+프로브필터 = QuietProbeAccessLogs()
 
 
 class Test백오프_예외:
@@ -141,6 +142,40 @@ class Test액세스_로그_흡수:
 
         assert access.handlers == []
         assert access.propagate is True
+
+
+class Test프로브_액세스_로그:
+    """healthcheck와 메트릭 스크레이프가 하루 11,000줄을 찍는다 — 전부 200이고 읽을 것이 없다."""
+
+    def 액세스(self, path: str, status: int, method: str = "GET") -> logging.LogRecord:
+        return logging.LogRecord(
+            "uvicorn.access",
+            logging.INFO,
+            "f.py",
+            1,
+            '%s - "%s %s HTTP/%s" %d',
+            ("127.0.0.1:56176", method, path, "1.1", status),
+            None,
+        )
+
+    def test_정상_응답한_헬스체크는_버린다(self):
+        assert 프로브필터.filter(self.액세스("/health", 200)) is False
+
+    def test_정상_응답한_메트릭_스크레이프는_버린다(self):
+        assert 프로브필터.filter(self.액세스("/metrics", 200)) is False
+
+    def test_실패한_헬스체크는_남긴다(self):
+        """6번 연속 실패하면 배포 스크립트가 롤백을 건다 — 그 순간이야말로 봐야 한다."""
+        assert 프로브필터.filter(self.액세스("/health", 503)) is True
+
+    def test_보통_요청은_그대로_남긴다(self):
+        assert 프로브필터.filter(self.액세스("/api/market/kospi", 200)) is True
+
+    def test_경로가_비슷할_뿐인_요청은_남긴다(self):
+        assert 프로브필터.filter(self.액세스("/api/health-report", 200)) is True
+
+    def test_액세스_로그가_아닌_기록은_건드리지_않는다(self):
+        assert 프로브필터.filter(기록("주도주 스캔 시작")) is True
 
 
 class Test사용자_필드:
