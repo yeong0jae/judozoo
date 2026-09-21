@@ -190,8 +190,9 @@ function etParts(now: Date) {
 export function usTradingDay(now: Date, holiday: boolean): Date {
   const et = etParts(now);
   const day = new Date(et.year, et.month - 1, et.day);
-  // 정규장 전이면(프리마켓 포함) 아직 전일 종가다 — 앱이 받는 건 정규장 순위뿐이다
-  if (holiday || et.minutes < hm(9, 30)) day.setDate(day.getDate() - 1);
+  // 프리마켓 전이면 아직 전일 종가다. 경계는 04:00(ET) — `usSessions`의 프리마켓 시작이자
+  // 거래대금 순위가 새 거래일 값으로 도는 시각이고, 화면도 그때 채워진다고 말한다(`usOpenClock`).
+  if (holiday || et.minutes < hm(4, 0)) day.setDate(day.getDate() - 1);
   return backToWeekday(day);
 }
 
