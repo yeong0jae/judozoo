@@ -20,7 +20,7 @@ export const INDICES: IndexInfo[] = [
   { id: "macro", slug: "macro", name: "매크로" },
 ];
 
-// 지수는 전부 로그인 없이 본다 — 시세와 차트, 투자자 수급까지.
+// 지수는 전부 로그인 없이 본다 — 시세와 차트까지. 투자자 수급 표만 로그인 뒤다.
 // (예전에는 야간 선물만 공개라 "공개 지수로 보내기" 분기가 필요했다.)
 
 const DEFAULT_SLUG = "kospi";

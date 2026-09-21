@@ -4,8 +4,8 @@
 엔드포인트마다 의존성을 붙이면 새로 추가할 때 빠뜨리기 쉽고, 빠뜨린 쪽이 열린 채로 남는다.
 반대로 해두면 빠뜨렸을 때 막히므로 사고가 나도 노출이 아니라 불편으로 끝난다.
 
-로그인을 요구하는 것은 **종목 상세**, 그리고 **시그널·눌림돌파** 두 화면이다.
-시장 전체를 말하는 값 — 지수·선물의 시세와 차트, 그리고 투자자 수급 — 은 전부 공개다.
+공개로 두는 것은 주도주 후보 **목록**, 종목 시그널·지지저항 **미리보기**,
+그리고 지수·선물의 **시세와 차트**다. 투자자 수급(`investor/*`)은 로그인 뒤다.
 미리보기처럼 일부만 여는 경로는 엔드포인트가 직접 잘라 내려보낸다.
 """
 
@@ -33,18 +33,12 @@ _PUBLIC_PATTERNS = [
     r"/api/market/kosdaq",
     r"/api/market/nasdaq/quote",
     r"/api/market/macro/quotes",
-    # 시세·차트·수급 모두 연다. `[^/]+`는 한 세그먼트라 `/futures/...`로는 번지지 않아,
-    # 현물과 선물을 따로 적어야 한다.
+    # 시세와 차트는 연다. **수급(`investor/*`)만 로그인 뒤로 남긴다** — 지수·선물 가격은
+    # 어디서나 구할 수 있지만, 투자자별 순매수는 이 화면이 가공해 주는 값이다.
+    # `[^/]+`는 한 세그먼트라 `/futures/...`나 `/investor/...`로는 번지지 않는다.
     rf"/api/market/{_SEG}/candles",
     rf"/api/market/futures/{_SEG}/quote",
     rf"/api/market/futures/{_SEG}/candles",
-    # 투자자 수급 — 시장 전체를 말하는 값이라 가리지 않는다. 종목별 수급은 종목 상세라 닫은 채다.
-    rf"/api/market/{_SEG}/investor/sessions",
-    rf"/api/market/{_SEG}/investor/daily",
-    rf"/api/market/futures/{_SEG}/investor/sessions",
-    rf"/api/market/futures/{_SEG}/investor/daily",
-    # 첫 화면 "오늘의 수급"
-    r"/api/market/investor/today",
     # 로그인 흐름 자체
     r"/api/auth/.*",
 ]

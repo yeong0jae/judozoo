@@ -418,11 +418,16 @@ function netLabel(item: TodayNetItem): { name: string; unit: string; slug: strin
 /**
  * 오늘의 수급 — 코스피·코스닥 현물과 두 지수선물의 당일 누적 투자자 순매수.
  *
- * 주도주 아래에 둔다 — 첫 화면의 주인공은 "오늘 뭐가 주도주냐"고, 수급은 그다음에 보는
- * 재료다. 로그인 없이 보인다(`auth/gate.py`).
+ * **로그인 뒤에만 보인다.** 수급은 공개 API가 아니라(`auth/gate.py`), 게스트에게 띄우면
+ * 빈 카드 네 장만 남는다. 주도주 아래에 두는 것도 같은 이유다 — 첫 화면의 주인공은
+ * "오늘 뭐가 주도주냐"고, 수급은 그다음에 보는 재료다.
  */
 function TodayNets({ live, clock }: { live: boolean; clock: string }) {
-  const { data, isLoading } = useTodayNets();
+  const { data: me } = useMe();
+  const authenticated = !!me?.authenticated;
+  const { data, isLoading } = useTodayNets(authenticated);
+
+  if (!authenticated) return null;
 
   return (
     <div>

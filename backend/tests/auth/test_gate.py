@@ -26,12 +26,6 @@ class Test로그인_없이_열어둔_경로:
             "/api/market/futures/KOSDAQ/candles",
             "/api/market/nasdaq/candles",
             "/api/market/macro/candles",
-            # 투자자 수급은 현물·선물 모두 연다
-            "/api/market/KOSPI/investor/sessions",
-            "/api/market/KOSDAQ/investor/daily",
-            "/api/market/futures/KOSPI/investor/sessions",
-            "/api/market/futures/KOSDAQ/investor/daily",
-            "/api/market/investor/today",
             "/api/auth/google/callback",
         ],
     )
@@ -61,10 +55,22 @@ class Test로그인을_요구하는_경로:
             "/api/leading-stocks/candidates/005930/minute-candles",
             "/api/overseas-leading-stocks/NAS/NVDA",
             "/api/overseas-leading-stocks/NAS/NVDA/daily-candles",
-            # 시장 수급은 열었지만 **종목별** 수급은 종목 상세라 닫은 채다
+            # 시세·차트는 열었지만 투자자 수급은 닫은 채다 — 경로가 한 겹 차이라 섞이기 쉽다.
+            # 현물과 선물 어느 쪽도 딸려 나가지 않는지 함께 본다.
+            "/api/market/KOSPI/investor/sessions",
+            "/api/market/KOSPI/investor/daily",
+            "/api/market/KOSDAQ/investor/sessions",
+            "/api/market/KOSDAQ/investor/daily",
+            "/api/market/futures/KOSPI/investor/sessions",
+            "/api/market/futures/KOSPI/investor/daily",
+            "/api/market/futures/KOSDAQ/investor/sessions",
+            "/api/market/futures/KOSDAQ/investor/daily",
+            # 첫 화면 "오늘의 수급"도 수급이다 — 홈에 실린다고 열리지 않는다
+            "/api/market/investor/today",
+            # 종목별 수급도 종목 상세라 닫은 채다
             "/api/stocks/005930/investor/daily",
-            # 시그널 화면에 속한 것들 — 종목 시그널 미리보기만 열고 나머지는 닫는다.
-            # 경로가 비슷해 시장 수급을 열 때 함께 딸려 나가기 쉽다.
+            # 가공한 판단 결과들 — 종목 시그널 미리보기만 열고 나머지는 닫는다.
+            # 경로가 비슷해 섞이기 쉽다.
             "/api/leading-stocks/market-signal-events",
             "/api/leading-stocks/market/investor-net-buy",
         ],
