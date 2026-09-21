@@ -126,13 +126,13 @@ class Test눌림_돌파_미리보기:
             for i in range(개수)
         ])
 
-    def test_미로그인은_상위_다섯개만_받는다(self, client, monkeypatch):
+    def test_미로그인은_상위_세개만_받는다(self, client, monkeypatch):
         """화면에서 자르면 나머지가 브라우저까지 내려가 읽힌다 — 서버가 잘라야 한다."""
         self.레이더_대역(monkeypatch, 8)
 
         데이터 = client.get("/api/leading-stocks/breakout-radar").json()["data"]
 
-        assert len(데이터["stocks"]) == 5
+        assert len(데이터["stocks"]) == 3
         # 자르기 전 전체 수는 그대로 알려준다 — 받는 쪽이 "몇 개 더 있는지"를 말할 수 있게
         assert 데이터["totalCount"] == 8
         assert 데이터["stocks"][0]["stockName"] == "종목00"
@@ -235,7 +235,7 @@ class Test시그널_로그:
         assert 데이터["totalCount"] == 3
         assert [e["stockName"] for e in 데이터["events"]] == ["종목2", "종목1", "종목0"]
 
-    def test_미로그인은_최신_열건만_받는다(self, client, 이벤트_테이블):
+    def test_미로그인은_최신_세건만_받는다(self, client, 이벤트_테이블):
         """화면에서 자르면 나머지가 브라우저까지 내려가 읽힌다 — 서버가 잘라야 한다."""
         with get_session_factory()() as s:
             for i in range(12):
@@ -250,7 +250,7 @@ class Test시그널_로그:
 
         데이터 = client.get("/api/leading-stocks/signal-events", params={"date": "2026-09-11"}).json()["data"]
 
-        assert len(데이터["events"]) == 10
+        assert len(데이터["events"]) == 3
         # 자르기 전 전체 건수는 그대로 알려준다 — 받는 쪽이 "몇 건 더 있는지"를 말할 수 있게
         assert 데이터["totalCount"] == 12
         assert 데이터["events"][0]["stockName"] == "종목11"
