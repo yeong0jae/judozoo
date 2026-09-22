@@ -194,7 +194,7 @@
         "prettifyLogMessage": false,
         "enableLogDetails": true,
         "dedupStrategy": "none",
-        "sortOrder": "Ascending"
+        "sortOrder": "Descending"
       },
       "targets": [
         {
