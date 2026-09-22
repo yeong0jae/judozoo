@@ -164,7 +164,7 @@ function DomesticLeadingStocks({
   const data = candidatesQ.data;
   // 위는 첫 화면과 같은 규칙으로 서버가 고른 주도주, 아래는 나머지 후보를 거래대금 순으로.
   // 등락률 임계값은 **아래 구간에만** 걸린다 — 위는 어떤 기준을 걸어두든 같은 답이어야 한다.
-  const leaders = leadersQ.data ?? [];
+  const leaders = leadersQ.data?.leaders ?? [];
   const leaderCodes = new Set(leaders.map((s) => s.stockCode));
   const rest = (data?.stocks ?? []).filter((s) => !leaderCodes.has(s.stockCode));
   const stocks = [...leaders, ...rest];

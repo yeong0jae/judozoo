@@ -21,6 +21,13 @@ _RANK_URL = "/api/dostk/rkinfo"
 _STOCK_INFO_URL = "/api/dostk/stkinfo"
 _CHART_URL = "/api/dostk/chart"
 
+#: 키움 등락부호(`pred_pre_sig`) 중 상한가. 1:상한 2:상승 3:보합 4:하한 5:하락.
+#:
+#: **등락률로 상한가를 가려내면 안 된다.** 신규상장 종목은 제한폭이 없어 부호가 2(상승)인 채로
+#: +150%가 나온다 — 2026-09-22 실측에서 한국제17호스팩이 +153.00%/부호 2였다.
+#: 거래소가 직접 주는 이 값만 상한가를 정확히 가른다.
+_SIG_LIMIT_UP = "1"
+
 
 def parse_price(value: str) -> int:
     """키움 가격 — 앞의 +/- 는 등락 방향 표식이라 떼고 절대값으로 읽는다."""
@@ -105,6 +112,7 @@ def _fetch_top_trading_value_once(count: int) -> list[LeadingStockSnapshot]:
                 price_change_rate=_to_float(item.get("flu_rt")),
                 trading_value_rank=_to_int(item.get("now_rank")) or (index + 1),
                 accumulated_trading_value=million * 1_000_000,
+                limit_up=item.get("pred_pre_sig") == _SIG_LIMIT_UP,
             )
         )
     return snapshots

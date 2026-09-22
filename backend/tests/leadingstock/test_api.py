@@ -63,6 +63,11 @@ class Test후보_목록:
 
 
 class Test첫_화면_주도주:
+    @pytest.fixture(autouse=True)
+    def 상한가_없음(self, monkeypatch):
+        """상한가를 말하지 않는 시험은 빈 목록을 기본값으로 둔다."""
+        monkeypatch.setattr(application, "find_limit_ups", lambda: [])
+
     def test_미로그인도_볼_수_있고_순위가_붙는다(self, client, monkeypatch):
         monkeypatch.setattr(
             application, "find_leaders",
@@ -72,8 +77,9 @@ class Test첫_화면_주도주:
         본문 = client.get("/api/leading-stocks/leaders").json()
 
         assert 본문["code"] == "SUCCESS"
-        assert [s["rank"] for s in 본문["data"]] == [1, 2]
-        assert [s["stockName"] for s in 본문["data"]] == ["삼성전자", "SK하이닉스"]
+        주도주 = 본문["data"]["leaders"]
+        assert [s["rank"] for s in 주도주] == [1, 2]
+        assert [s["stockName"] for s in 주도주] == ["삼성전자", "SK하이닉스"]
 
     def test_등락률_파라미터를_받지_않는다(self, client, monkeypatch):
         """첫 화면은 목록 화면에 걸어둔 기준과 무관하게 같은 답을 줘야 한다."""
@@ -85,6 +91,39 @@ class Test첫_화면_주도주:
         client.get("/api/leading-stocks/leaders", params={"minChangeRate": -12})
 
         assert 받은값 == [5]  # 파라미터와 무관하게 늘 다섯 칸
+
+
+class Test첫_화면_상한가:
+    def test_주도주와_한_응답에_함께_온다(self, client, monkeypatch):
+        """따로 부르면 호출 사이에 후보 풀이 갱신돼 둘이 다른 순간을 말할 수 있다."""
+        monkeypatch.setattr(application, "find_leaders", lambda _c: [종목("005930", "삼성전자")])
+        monkeypatch.setattr(
+            application, "find_limit_ups",
+            lambda: [종목("900001", "대성하이텍"), 종목("900002", "미래산업")],
+        )
+
+        데이터 = client.get("/api/leading-stocks/leaders").json()["data"]
+
+        assert [s["stockName"] for s in 데이터["leaders"]] == ["삼성전자"]
+        assert [s["stockName"] for s in 데이터["limitUps"]] == ["대성하이텍", "미래산업"]
+
+    def test_칩에_필요한_이름과_코드만_싣는다(self, client, monkeypatch):
+        """시세를 실으면 화면이 안 쓰는 값이 매 폴링마다 오간다."""
+        monkeypatch.setattr(application, "find_leaders", lambda _c: [])
+        monkeypatch.setattr(application, "find_limit_ups", lambda: [종목("900001", "대성하이텍")])
+
+        칩 = client.get("/api/leading-stocks/leaders").json()["data"]["limitUps"][0]
+
+        assert 칩 == {"stockCode": "900001", "stockName": "대성하이텍"}
+
+    def test_없는_날은_빈_목록이_온다(self, client, monkeypatch):
+        """후보 컷이 거래대금 35위라 0건이 기본값이다 — 화면은 이때 띠를 그리지 않는다."""
+        monkeypatch.setattr(application, "find_leaders", lambda _c: [종목()])
+        monkeypatch.setattr(application, "find_limit_ups", lambda: [])
+
+        데이터 = client.get("/api/leading-stocks/leaders").json()["data"]
+
+        assert 데이터["limitUps"] == []
 
 
 class Test종목_상세:

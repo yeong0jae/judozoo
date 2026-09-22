@@ -29,10 +29,12 @@ def 토큰_발급(respx_mock):
     )
 
 
-def 순위행(code: str, name: str, cur_prc: str = "+71500", rank: str = "1", tamt: str = "1000") -> dict:
+def 순위행(code: str, name: str, cur_prc: str = "+71500", rank: str = "1", tamt: str = "1000",
+         flu_rt: str = "+3.5", sig: str = "2") -> dict:
+    """`pred_pre_sig`는 등락부호 — 1:상한 2:상승 3:보합 4:하한 5:하락."""
     return {
         "stk_cd": code, "stk_nm": name, "cur_prc": cur_prc, "now_rank": rank,
-        "flu_rt": "+3.5", "trde_prica": tamt,
+        "flu_rt": flu_rt, "trde_prica": tamt, "pred_pre_sig": sig,
     }
 
 
@@ -53,6 +55,37 @@ class Test거래대금_상위:
         assert (s.stock_code, s.stock_name) == ("005930", "삼성전자")
         assert s.current_price == 71500       # "+71500" → 부호 제거
         assert s.accumulated_trading_value == 5_000_000_000  # 백만원 단위 → 원
+
+    @respx.mock
+    def test_등락부호로_상한가를_읽는다(self, respx_mock, 토큰_발급):
+        respx_mock.post(RANK_URL).mock(
+            return_value=httpx.Response(200, json={
+                "return_code": 0,
+                "trde_prica_upper": [
+                    순위행("900001", "잠긴잡주", flu_rt="+29.94", sig="1"),
+                    순위행("005930", "삼성전자", rank="2"),
+                ],
+            })
+        )
+
+        결과 = market.fetch_top_trading_value_stocks()
+
+        assert [s.limit_up for s in 결과] == [True, False]
+
+    @respx.mock
+    def test_많이_올랐어도_부호가_상한이_아니면_상한가가_아니다(self, respx_mock, 토큰_발급):
+        """신규상장 종목은 제한폭이 없어 부호 2인 채로 +150%가 온다 — 등락률로 가리면 틀린다."""
+        respx_mock.post(RANK_URL).mock(
+            return_value=httpx.Response(200, json={
+                "return_code": 0,
+                "trde_prica_upper": [순위행("0200G0", "한국제17호스팩", flu_rt="+153.00", sig="2")],
+            })
+        )
+
+        결과 = market.fetch_top_trading_value_stocks()
+
+        assert 결과[0].price_change_rate == 153.0
+        assert 결과[0].limit_up is False
 
     @respx.mock
     def test_목록이_없으면_예외로_올린다(self, respx_mock, 토큰_발급):

@@ -216,6 +216,18 @@ export interface CandidateStockItem {
   accumulatedTradingValue: number;
 }
 
+/** 첫 화면 상한가 칩 — 이름만 쓰는 자리라 시세가 없다. */
+export interface LimitUpItem {
+  stockCode: string;
+  stockName: string;
+}
+
+/** 첫 화면 주도주 카드가 통째로 쓰는 응답 — 탑5와 상한가가 같은 후보 풀에서 나온다. */
+export interface LeadersResponse {
+  leaders: CandidateStockItem[];
+  limitUps: LimitUpItem[];
+}
+
 export interface CandidateStocksResponse {
   queriedAt: string;
   totalCount: number;

@@ -30,6 +30,9 @@ class LeadingStockSnapshot:
     high_price: int = 0
     low_price: int = 0
     program_net_buy: int = 0
+    #: 상한가로 잠겼는가. **거래소가 준 판정**이라 등락률로 대신 가릴 수 없다 —
+    #: 신규상장 종목은 제한폭이 없어 +150%로도 상한가가 아니다.
+    limit_up: bool = False
 
 
 @dataclass(frozen=True)
@@ -171,6 +174,14 @@ class LeadingStocks:
             count,
             TRADING_VALUE_WEIGHT,
         )
+
+    def limit_ups(self) -> list[LeadingStockSnapshot]:
+        """이 풀 안에서 상한가인 종목 — 받은 순서(거래대금 내림차순) 그대로.
+
+        **점수로 다시 세우지 않는다.** 상한가는 등수를 다투는 값이 아니라 "지금 잠겼다"는
+        상태라, 몇 종목이 어느 종목인지만 뜻이 있다.
+        """
+        return [s for s in self._stocks if s.limit_up]
 
 
 class MinuteCandles:

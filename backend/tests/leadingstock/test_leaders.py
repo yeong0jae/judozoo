@@ -3,11 +3,11 @@
 from backend.leadingstock.domain import LeadingStocks, LeadingStockSnapshot
 
 
-def 종목(이름: str, 거래대금: int, 등락률: float) -> LeadingStockSnapshot:
+def 종목(이름: str, 거래대금: int, 등락률: float, 상한가: bool = False) -> LeadingStockSnapshot:
     return LeadingStockSnapshot(
         stock_code=이름, stock_name=이름, current_price=1000,
         price_change_rate=등락률, trading_value_rank=1,
-        accumulated_trading_value=거래대금,
+        accumulated_trading_value=거래대금, limit_up=상한가,
     )
 
 
@@ -58,3 +58,39 @@ class Test주도주_선정:
         pool = [종목("하락주", 9_000_000_000_000, -3.0)]
 
         assert LeadingStocks(pool).leaders(5) == []
+
+
+class Test상한가_추리기:
+    def test_후보_풀_전체에서_고른다(self):
+        """상한가는 잠기면서 거래가 말라 점수가 낮다 — 탑5 안에서만 찾으면 대개 안 나온다."""
+        pool = [
+            종목("대장주", 9_000_000_000_000, 3.0),
+            종목("잠긴잡주", 20_000_000_000, 29.9, 상한가=True),
+        ]
+
+        assert 이름들(LeadingStocks(pool).limit_ups()) == ["잠긴잡주"]
+        assert "잠긴잡주" not in 이름들(LeadingStocks(pool).leaders(1))
+
+    def test_많이_올랐어도_상한가가_아니면_빠진다(self):
+        """신규상장 종목은 제한폭이 없어 +150%로도 상한가가 아니다 — 등락률로 가리지 않는다."""
+        pool = [
+            종목("신규상장주", 300_000_000_000, 153.0),
+            종목("진짜상한가", 20_000_000_000, 29.94, 상한가=True),
+        ]
+
+        assert 이름들(LeadingStocks(pool).limit_ups()) == ["진짜상한가"]
+
+    def test_받은_순서를_그대로_지킨다(self):
+        """등수를 다투는 값이 아니라 "지금 잠겼다"는 상태라 다시 세우지 않는다."""
+        pool = [
+            종목("먼저", 90_000_000_000, 29.9, 상한가=True),
+            종목("중간", 50_000_000_000, 3.0),
+            종목("나중", 80_000_000_000, 30.0, 상한가=True),
+        ]
+
+        assert 이름들(LeadingStocks(pool).limit_ups()) == ["먼저", "나중"]
+
+    def test_한_종목도_없으면_빈_목록이다(self):
+        pool = [종목("평범주", 9_000_000_000_000, 3.0)]
+
+        assert LeadingStocks(pool).limit_ups() == []

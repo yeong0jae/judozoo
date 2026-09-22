@@ -24,7 +24,7 @@ import SessionStrip from "../components/layout/SessionStrip";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
-import type { TodayNetItem } from "../types";
+import type { LimitUpItem, TodayNetItem } from "../types";
 
 /** 카드 한 장에 올리는 주도주 줄 수. 서버가 이미 그만큼만 내려준다 — 뼈대 높이에 쓴다. */
 const LEADERS_COUNT = 5;
@@ -250,7 +250,7 @@ type LeadersProps = { live: boolean; first: boolean; date: string; clock: string
 
 function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
   const { data, isLoading } = useLeadingStockLeaders();
-  const items: Item[] = (data ?? []).map((s) => ({
+  const items: Item[] = (data?.leaders ?? []).map((s) => ({
     key: s.stockCode,
     name: s.stockName,
     price: formatPrice(s.currentPrice),
@@ -267,6 +267,7 @@ function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
       first={first}
       loading={isLoading}
       items={items}
+      limitUps={data?.limitUps ?? []}
     />
   );
 }
@@ -310,6 +311,7 @@ function LeaderCard({
   first,
   loading,
   items,
+  limitUps = [],
 }: {
   title: string;
   date: string;
@@ -319,6 +321,8 @@ function LeaderCard({
   first: boolean;
   loading: boolean;
   items: Item[];
+  /** 후보 풀 안의 상한가. 해외는 제한폭 자체가 없어 늘 비어 있다. */
+  limitUps?: LimitUpItem[];
 }) {
   return (
     <Link
@@ -364,6 +368,24 @@ function LeaderCard({
         <div className="divide-y divide-zinc-800/60">
           {items.map((s, i) => (
             <Row key={s.key} rank={i + 1} name={s.name} symbol={s.symbol} price={s.price} rate={s.rate} />
+          ))}
+        </div>
+      )}
+
+      {/* 상한가 — **없는 날은 줄째 사라진다.** 후보 컷이 거래대금 35위라 0건이 기본값이라,
+          "없음"을 매일 적으면 죽은 줄 하나가 카드에 상주한다. */}
+      {limitUps.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-800 px-4 py-3">
+          <span className="mr-0.5 text-[11.5px] font-medium text-zinc-400">
+            상한가 <span className="num">{limitUps.length}</span>
+          </span>
+          {limitUps.map((s) => (
+            <span
+              key={s.stockCode}
+              className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[12.5px] text-rose-700"
+            >
+              {s.stockName}
+            </span>
           ))}
         </div>
       )}

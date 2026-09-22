@@ -5,7 +5,7 @@ import type {
   SessionsResponse,
   BreakoutRadarResponse,
   DailyCandleItem,
-  CandidateStockItem,
+  LeadersResponse,
   CandidateStocksResponse,
   KospiIndex,
   FuturesQuote,
@@ -141,7 +141,7 @@ export function useLeadingStockCandidates(minChangeRate: number) {
 export function useLeadingStockLeaders() {
   return useQuery({
     queryKey: QK.leadingStockLeaders,
-    queryFn: () => apiFetch<CandidateStockItem[]>("/api/leading-stocks/leaders"),
+    queryFn: () => apiFetch<LeadersResponse>("/api/leading-stocks/leaders"),
     refetchInterval: 5_000,
   });
 }

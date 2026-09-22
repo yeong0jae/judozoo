@@ -130,6 +130,18 @@ def find_leaders(count: int) -> list[LeadingStockSnapshot]:
     return LeadingStocks(find_candidate_stocks(0.0)).leaders(count)
 
 
+def find_limit_ups() -> list[LeadingStockSnapshot]:
+    """후보 풀 안의 상한가 — 첫 화면 주도주 카드가 쓴다.
+
+    **주도주 탑5가 아니라 후보 풀 전체를 본다.** 상한가는 잠기면서 거래가 말라 거래대금
+    점수가 낮아지므로, 탑5 안에서만 찾으면 대개 한 종목도 안 나온다.
+
+    `find_candidate_stocks`가 캐시돼 있어 주도주와 같은 응답을 나눠 쓴다 — 키움을 두 번
+    두드리지 않는다. 후보 컷이 거래대금 35위라 **시장 전체 상한가가 아니다**(화면도 그렇게 말한다).
+    """
+    return LeadingStocks(find_candidate_stocks(0.0)).limit_ups()
+
+
 def evaluate_stock(stock_code: str) -> StockEvaluation:
     """모든 필터 평가 + 상대거래량 — 상세 보기용."""
     log.info("종목 평가: %s", stock_code)
