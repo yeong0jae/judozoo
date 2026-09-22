@@ -3,6 +3,7 @@
 import logging
 from contextlib import asynccontextmanager
 
+from anyio.to_thread import current_default_thread_limiter
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -15,6 +16,7 @@ from backend.library.db import get_engine
 from backend.library.exception import BrokerTokenUnavailable, EntityNotFoundError
 from backend.library import token_store
 from backend.library.logging_config import bind_request, bind_user, configure_logging
+from backend.library import metrics
 from backend.library import tracing
 from backend.library.scheduler import shutdown as shutdown_scheduler
 from backend.library.scheduler import start as start_scheduler
@@ -62,6 +64,9 @@ async def lifespan(app: FastAPI):
         log.warning("가입자·의견 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
     load_stock_catalog()
     start_scheduler()
+    # 스레드풀 계측. **여기여야 한다** — anyio 스레드풀은 실행 중인 이벤트 루프에 매여 있어
+    # 모듈 로드 시점에는 아직 없다. lifespan은 루프 안이라 그 자리가 여기다.
+    metrics.track_thread_pool(current_default_thread_limiter())
     yield
     shutdown_scheduler()
 

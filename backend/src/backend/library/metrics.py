@@ -1,7 +1,7 @@
 """Prometheus 메트릭 정의와 계측 도구.
 
 웹 요청 메트릭은 `main.py`의 Instrumentator가 만든다. 여기 있는 것은 그것이 못 보는
-둘이다 — **스케줄러 잡**과 **외부 HTTP 호출**.
+넷이다 — **스케줄러 잡**, **외부 HTTP 호출**, **스레드풀**, **레이트 리미터 대기**.
 
 이 모듈은 vendor를 모른다. `endpoint` 라벨을 어떻게 뽑을지는 호출측이 정한다
 (키움은 `api-id` 헤더, 토스·야후는 경로에 심볼이 박혀 있어 정규화가 필요하다).
@@ -12,8 +12,9 @@ import time
 from collections.abc import Callable
 
 import httpx
+from anyio import CapacityLimiter
 from apscheduler.events import EVENT_JOB_MISSED, JobExecutionEvent, JobSubmissionEvent
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +58,53 @@ HTTP_CLIENT_DURATION = Histogram(
     ["vendor", "endpoint"],
     buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, float("inf")),
 )
+
+# 리미터 대기. **대부분의 호출은 0초에 가깝다** — 한도에 안 걸리면 토큰이 바로 나온다.
+# 그래서 밀리초 단위 버킷이 아래쪽에 촘촘해야 "안 걸림"과 "조금 걸림"이 갈린다.
+# 위쪽은 KIS 타임아웃 30초·키움 20초를 덮는다.
+RATE_LIMITER_WAIT = Histogram(
+    "rate_limiter_wait_seconds",
+    "레이트 리미터에서 허가를 얻기까지 기다린 시간",
+    ["limiter"],
+    buckets=(0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, float("inf")),
+)
+
+# 허가를 못 얻고 버린 호출. **이 카운터가 움직이면 화면에 빈 칸이 뜬다** —
+# 호출자는 예외를 받고 그 자리를 채우지 못한다.
+RATE_LIMITER_TIMEOUTS = Counter(
+    "rate_limiter_timeouts_total",
+    "timeout 안에 허가를 얻지 못해 포기한 횟수",
+    ["limiter"],
+)
+
+# ── 스레드풀 ────────────────────────────────────────────────────────────
+#
+# sync 엔드포인트는 anyio 기본 스레드풀(40)에서 돈다. 브로커 호출이 전부 sync라
+# **리미터 대기가 이 슬롯을 잡은 채로 잠든다** — CPU는 놀고 응답만 밀리는 상태가 되고,
+# 자원 그래프(CPU·디스크)로는 아무것도 안 보인다. 그 구간을 보는 유일한 창이다.
+#
+# Gauge 셋은 `set_function`으로 스크레이프 시점에 읽는다. 폴링 루프를 따로 두면
+# 30초 스크레이프 사이의 값을 놓치거나, 반대로 안 쓰는 값을 계속 재게 된다.
+THREAD_POOL_TOTAL = Gauge("thread_pool_total_threads", "anyio 기본 스레드풀 정원")
+THREAD_POOL_BORROWED = Gauge("thread_pool_borrowed_threads", "사용 중인 스레드 수")
+
+# **이 값이 0을 넘으면 그 순간 요청이 밀리고 있다.** 정원이 다 찼고 뒤에 줄이 섰다는 뜻이라,
+# 점유율(borrowed/total)보다 먼저 봐야 할 지표다 — 점유율은 40/40에서 포화를 넘는 순간을
+# 더 보여주지 못하지만 이 값은 계속 자란다.
+THREAD_POOL_WAITING = Gauge("thread_pool_waiting_tasks", "스레드를 얻지 못해 대기 중인 요청 수")
+
+
+def track_thread_pool(limiter: CapacityLimiter) -> None:
+    """스레드풀 Gauge를 스크레이프에 연결한다.
+
+    **반드시 async 컨텍스트에서 얻은 limiter를 넘겨야 한다.** anyio의
+    `current_default_thread_limiter()`는 실행 중인 이벤트 루프를 찾아 값을 돌려주므로
+    동기 코드에서 부르면 실패한다. 한 번 잡아 둔 객체의 `.statistics()`는 내부 상태를
+    읽기만 해서 스크레이프 스레드에서 불러도 안전하다.
+    """
+    THREAD_POOL_TOTAL.set_function(lambda: limiter.total_tokens)
+    THREAD_POOL_BORROWED.set_function(lambda: limiter.borrowed_tokens)
+    THREAD_POOL_WAITING.set_function(lambda: limiter.statistics().tasks_waiting)
 
 
 # ── 스케줄러 ────────────────────────────────────────────────────────────

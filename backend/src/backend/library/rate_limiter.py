@@ -11,6 +11,8 @@ Kotlin의 Resilience4j `RateLimiter`에 대응한다. 핵심 시맨틱 두 가�
 import threading
 import time
 
+from backend.library import metrics
+
 
 class RateLimitTimeout(RuntimeError):
     """timeout 안에 허가를 얻지 못했다."""
@@ -35,23 +37,36 @@ class RateLimiter:
         self._lock = threading.Lock()
 
     def acquire(self, permits: int = 1) -> None:
-        """허가를 얻을 때까지 블로킹한다. timeout 초과 시 `RateLimitTimeout`."""
+        """허가를 얻을 때까지 블로킹한다. timeout 초과 시 `RateLimitTimeout`.
+
+        **대기 시간을 잰다.** `http_client_request_duration_seconds`는 리미터 대기와
+        브로커 왕복을 합쳐 재므로, 느린 원인이 우리 쪽 줄서기인지 상대 서버인지 가르지
+        못한다. 여기서 대기만 따로 남겨야 그 둘이 분리된다.
+
+        타임아웃은 히스토그램에 넣지 않고 카운터로만 센다 — 허가를 **못 얻은** 시간을
+        섞으면 성공 대기 분포가 상한(timeout)에 붙어 왜곡된다.
+        """
         if permits <= 0:
             raise ValueError("permits는 1 이상이어야 한다")
         if permits > self._capacity:
             raise ValueError(f"permits({permits})가 버킷 용량({self._capacity})보다 크다")
 
-        deadline = time.monotonic() + self._timeout
+        started = time.monotonic()
+        deadline = started + self._timeout
         while True:
             with self._lock:
                 self._refill()
                 if self._tokens >= permits:
                     self._tokens -= permits
+                    metrics.RATE_LIMITER_WAIT.labels(limiter=self.name).observe(
+                        time.monotonic() - started
+                    )
                     return
                 shortfall = permits - self._tokens
                 wait = shortfall * self._period / self._capacity
 
             if time.monotonic() + wait > deadline:
+                metrics.RATE_LIMITER_TIMEOUTS.labels(limiter=self.name).inc()
                 raise RateLimitTimeout(
                     f"[{self.name}] {self._timeout}초 안에 허가 {permits}건을 얻지 못했다"
                 )

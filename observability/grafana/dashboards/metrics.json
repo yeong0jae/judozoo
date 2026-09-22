@@ -678,6 +678,247 @@
         }
       ],
       "description": "부트디스크 20GB. Prometheus TSDB 상한 4GB와 Loki 7일치가 여기서 나눠 쓴다."
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "스레드풀 점유",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "thread_pool_borrowed_threads",
+          "legendFormat": "사용 중"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "thread_pool_total_threads",
+          "legendFormat": "정원"
+        }
+      ],
+      "description": "sync 엔드포인트가 도는 자리다. 브로커 호출이 리미터에서 기다리는 동안에도 슬롯을 쥐고 있어서, CPU가 한가한 채로 이 값만 정원에 붙는 구간이 생긴다."
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "스레드풀 대기 큐",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "none",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "thread_pool_waiting_tasks",
+          "legendFormat": "대기 중"
+        }
+      ],
+      "description": "**0을 넘으면 그 순간 요청이 밀리고 있다.** 정원이 다 찼고 뒤에 줄이 섰다는 뜻이다. 점유율은 40/40에서 더 보여줄 게 없지만 이 값은 계속 자라므로, 포화의 깊이는 여기서만 보인다."
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "리미터 대기 p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (limiter, le) (rate(rate_limiter_wait_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{limiter}}"
+        }
+      ],
+      "description": "브로커 p95에서 '상대가 느린 것'을 걷어낸 값 — 순수하게 우리 쪽에서 줄 선 시간이다. 이게 올라가면 스레드풀 포화의 원인이 리미터라는 뜻이고, 스레드풀을 늘려도 해결되지 않는다."
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "리미터 타임아웃",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "none",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (limiter) (increase(rate_limiter_timeouts_total[$__rate_interval]))",
+          "legendFormat": "{{limiter}}"
+        }
+      ],
+      "description": "허가를 못 얻고 포기한 호출. **이 선이 뜨면 화면에 빈 칸이 뜬다** — 호출자가 예외를 받아 그 자리를 채우지 못한다. 평소 0이어야 정상이다."
     }
   ]
 }
