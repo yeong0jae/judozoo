@@ -19,6 +19,8 @@ import {
   useMarketCandles,
   useMarketInvestorDaily,
   useMarketInvestorSessions,
+  useNasdaqFuturesCandles,
+  useNasdaqFuturesQuote,
   useNasdaqIndexCandles,
   useMacroCandles,
   useMacroQuotes,
@@ -111,9 +113,10 @@ function MarketStrip({ currentSlug }: { currentSlug: string }) {
   const kosdaqFutures = useFuturesQuote("KOSDAQ");
   const night = useNightFuturesQuote();
   const nasdaqIndex = useNasdaqIndexQuote();
+  const nasdaqFutures = useNasdaqFuturesQuote();
   const macro = useMacroQuotes();
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 divide-x divide-y lg:divide-y-0 divide-zinc-800">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 divide-x divide-y lg:divide-y-0 divide-zinc-800">
       {INDICES.map((ix) => {
         const active = ix.slug === currentSlug;
         // 매크로만 지표 둘을 한 칸에 담아 다른 칸과 모양이 다르다.
@@ -133,6 +136,7 @@ function MarketStrip({ currentSlug }: { currentSlug: string }) {
           : ix.id === "kospiF" ? toCell(futures.data?.futuresPrice, futures.data?.changeRate)
           : ix.id === "kosdaqF" ? toCell(kosdaqFutures.data?.futuresPrice, kosdaqFutures.data?.changeRate)
           : ix.id === "nightF" ? toCell(night.data?.price, night.data?.changeRate)
+          : ix.id === "nasdaqF" ? toCell(nasdaqFutures.data?.price, nasdaqFutures.data?.changeRate)
           : toCell(nasdaqIndex.data?.price, nasdaqIndex.data?.changeRate);
         return (
           <IndexCell
@@ -288,6 +292,7 @@ function SubjectDetail({ ix, authenticated }: { ix: IndexInfo; authenticated: bo
     : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" authenticated={authenticated} />
     : ix.id === "nightF" ? <NightFuturesDetail index={ix} />
     : ix.id === "nasdaq" ? <NasdaqIndexDetail index={ix} />
+    : ix.id === "nasdaqF" ? <NasdaqFuturesDetail index={ix} />
     : ix.id === "macro" ? <MacroDetail />
     : ix.id === "kosdaq" ? <LiveIndexDetail market="KOSDAQ" name={ix.name} authenticated={authenticated} />
     : <LiveIndexDetail market="KOSPI" name={ix.name} authenticated={authenticated} />;
@@ -662,6 +667,64 @@ function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
   return (
     <CandleChart
       key={`nasdaq-${interval}`}
+      series={series}
+      timeVisible={interval === "1m"}
+      priceDecimals={2}
+      className="w-full h-[21.25rem]"
+    />
+  );
+}
+
+/**
+ * 나스닥 선물 상세 — 나스닥100 근월물(CME NQ).
+ *
+ * **현물과 나눠 두는 이유는 도는 시간이 다르기 때문이다.** 나스닥 현물은 미 정규장에만 움직여
+ * 우리 장중엔 직전 마감가에 멈춰 있지만, 선물은 거의 하루 종일 돌아 장중 미국 심리를 읽어준다.
+ * 야후 무료 시세라 10분쯤 지연된다 — 그 사실을 배지로 함께 적는다.
+ */
+function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
+  const { data, isLoading } = useNasdaqFuturesQuote();
+
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!data) return <EmptyState message="나스닥 선물 시세를 불러오지 못했습니다" />;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <DetailHeader
+        name={index.name}
+        price={data.price}
+        pct={data.changeRate}
+        chg={data.priceChange}
+        extra={<DelayBadge />}
+        priceInline
+        decimal
+      />
+
+      <div className="px-1">
+        <div className="flex items-center justify-between mb-3">
+          <span className={titleCls}>나스닥 선물 차트</span>
+          <IntervalToggle value={chartInterval} onChange={setChartInterval} />
+        </div>
+        <NasdaqFuturesChart interval={chartInterval} />
+      </div>
+    </div>
+  );
+}
+
+/** 나스닥 선물 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
+function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
+  const { data, isLoading } = useNasdaqFuturesCandles(interval);
+  const items = data ?? [];
+  const series = useMemo(
+    () => (interval === "1d" ? marketDailySeries(items) : marketMinuteSeries(items)),
+    [items, interval],
+  );
+  if (isLoading) return <Skeleton className="h-[21.25rem] w-full" />;
+  if (!items.length) return <EmptyState message="캔들 데이터가 없습니다" />;
+  return (
+    <CandleChart
+      key={`nasdaq-futures-${interval}`}
       series={series}
       timeVisible={interval === "1m"}
       priceDecimals={2}

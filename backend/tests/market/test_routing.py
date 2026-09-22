@@ -16,6 +16,8 @@ def 외부호출_차단(monkeypatch):
     monkeypatch.setattr(application, "nasdaq_quote", lambda: None)
     monkeypatch.setattr(application, "macro_candles", lambda target, interval: [])
     monkeypatch.setattr(application, "night_futures_quote", lambda: None)
+    monkeypatch.setattr(application, "nasdaq_futures_quote", lambda: None)
+    monkeypatch.setattr(application, "nasdaq_futures_candles", lambda interval: [])
     monkeypatch.setattr(application, "night_futures_candles", lambda interval, count: [])
     monkeypatch.setattr(application, "futures_quote", lambda market: None)
     monkeypatch.setattr(application, "daily_candles", lambda market, count: [])
@@ -41,6 +43,18 @@ class Test리터럴_경로_우선:
 
     def test_야간선물_캔들도_마찬가지(self, 로그인_client):
         응답 = 로그인_client.get("/api/market/futures/night/candles", params={"interval": "1m"})
+
+        assert 응답.status_code == 200
+
+    def test_나스닥_선물은_선물_시장_경로로_새지_않는다(self, 로그인_client):
+        """`{market}`으로 새면 Market enum에 걸려 422가 난다 — 야간선물과 같은 함정이다."""
+        응답 = 로그인_client.get("/api/market/futures/nasdaq/quote")
+
+        assert 응답.status_code == 200
+        assert 응답.json()["data"] is None
+
+    def test_나스닥_선물_캔들도_마찬가지(self, 로그인_client):
+        응답 = 로그인_client.get("/api/market/futures/nasdaq/candles", params={"interval": "1m"})
 
         assert 응답.status_code == 200
 

@@ -24,6 +24,8 @@ class Test로그인_없이_열어둔_경로:
             "/api/market/KOSPI/candles",
             "/api/market/futures/KOSPI/quote",
             "/api/market/futures/KOSDAQ/candles",
+            "/api/market/futures/nasdaq/quote",
+            "/api/market/futures/nasdaq/candles",
             "/api/market/nasdaq/candles",
             "/api/market/macro/candles",
             "/api/auth/google/callback",

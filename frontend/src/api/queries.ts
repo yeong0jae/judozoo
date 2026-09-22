@@ -15,6 +15,7 @@ import type {
   StockNewsItem,
   MacroQuotes,
   MacroTarget,
+  NasdaqFuturesQuote,
   NasdaqIndexQuote,
   NightFuturesQuote,
   MarketIndex,
@@ -87,6 +88,9 @@ export const QK = {
   nasdaqIndexQuote: ["market", "nasdaq", "quote"] as const,
   nasdaqIndexCandles: (interval: string) =>
     ["market", "nasdaq", "candles", interval] as const,
+  nasdaqFuturesQuote: ["market", "futures", "nasdaq", "quote"] as const,
+  nasdaqFuturesCandles: (interval: string) =>
+    ["market", "futures", "nasdaq", "candles", interval] as const,
   overseasLeaders: ["overseas-leading-stocks", "leaders"] as const,
   overseasRanking: (minChangeRate: number) =>
     ["overseas-leading-stocks", "ranking", minChangeRate] as const,
@@ -319,6 +323,25 @@ export function useNasdaqIndexCandles(interval: "1d" | "1m") {
     queryKey: QK.nasdaqIndexCandles(interval),
     queryFn: () =>
       apiFetch<MarketCandleItem[]>(`/api/market/nasdaq/candles?interval=${interval}`),
+    refetchInterval: interval === "1m" ? 30_000 : false,
+  });
+}
+
+/** 나스닥100 선물(NQ=F) 시세 — 야후. 현물과 달리 우리 장중에도 돈다. */
+export function useNasdaqFuturesQuote() {
+  return useQuery({
+    queryKey: QK.nasdaqFuturesQuote,
+    queryFn: () => apiFetch<NasdaqFuturesQuote | null>("/api/market/futures/nasdaq/quote"),
+    refetchInterval: 30_000,
+  });
+}
+
+/** 나스닥 선물 캔들 — interval "1d"/"1m". */
+export function useNasdaqFuturesCandles(interval: "1d" | "1m") {
+  return useQuery({
+    queryKey: QK.nasdaqFuturesCandles(interval),
+    queryFn: () =>
+      apiFetch<MarketCandleItem[]>(`/api/market/futures/nasdaq/candles?interval=${interval}`),
     refetchInterval: interval === "1m" ? 30_000 : false,
   });
 }

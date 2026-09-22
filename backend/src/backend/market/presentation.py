@@ -317,6 +317,16 @@ def night_candles(interval: str = Query(), count: int = Query(90)) -> ApiRespons
     return ApiResponse.ok(_bar_items(application.night_futures_candles(interval, count)))
 
 
+@router.get("/futures/nasdaq/quote")
+def nasdaq_futures_quote() -> ApiResponse[QuoteItem | None]:
+    return ApiResponse.ok(_quote_item(application.nasdaq_futures_quote()))
+
+
+@router.get("/futures/nasdaq/candles")
+def nasdaq_futures_candles(interval: str = Query()) -> ApiResponse[list[CandleItem]]:
+    return ApiResponse.ok(_bar_items(application.nasdaq_futures_candles(interval)))
+
+
 # ── 선물 {market} ───────────────────────────────────────────────────────
 
 

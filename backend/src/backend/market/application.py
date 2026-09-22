@@ -648,6 +648,9 @@ class MacroQuotes:
 
 
 NASDAQ_SYMBOL = "^IXIC"
+#: 나스닥100 선물 근월물. 야후가 `NQ=F` 하나로 근월물을 물려준다 — 만기별 코드를 조립할 일이 없다.
+#: KIS는 CME가 유료시세라 못 쓴다.
+NASDAQ_FUTURES_SYMBOL = "NQ=F"
 # 매크로 대상 — 야후 심볼을 여기 한 곳에만 둔다.
 MACRO_SYMBOLS = {"USD_KRW": "KRW=X", "WTI": "CL=F", "VIX": "^VIX"}
 
@@ -674,6 +677,20 @@ def nasdaq_quote() -> QuoteResult | None:
 @ttl_cache("nasdaqIndexCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
 def nasdaq_candles(interval: str) -> list:
     return _yahoo_candles(NASDAQ_SYMBOL, interval)
+
+
+@ttl_cache("nasdaqFuturesQuote", ttl_seconds=10, maxsize=1, skip_if=lambda r: r is None)
+def nasdaq_futures_quote() -> QuoteResult | None:
+    """현물과 달리 거의 하루 종일 돈다 — **우리 장중에 미국 심리를 읽는 자리**다.
+
+    야후 무료 시세라 **10분쯤 지연**된다. 그래서 화면이 지연 배지를 함께 건다.
+    """
+    return _quote_of(NASDAQ_FUTURES_SYMBOL)
+
+
+@ttl_cache("nasdaqFuturesCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
+def nasdaq_futures_candles(interval: str) -> list:
+    return _yahoo_candles(NASDAQ_FUTURES_SYMBOL, interval)
 
 
 @ttl_cache("macroQuotes", ttl_seconds=10, maxsize=1)

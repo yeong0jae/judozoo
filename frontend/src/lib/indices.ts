@@ -16,6 +16,8 @@ export const INDICES: IndexInfo[] = [
   { id: "kosdaqF", slug: "kosdaq-futures", name: "코스닥 선물" },
   { id: "nightF", slug: "night-futures", name: "코스피 야간 선물" },
   { id: "nasdaq", slug: "nasdaq", name: "나스닥" },
+  // 야후 무료 시세라 10분쯤 지연된다 — 그래도 우리 장중에 도는 유일한 미국 지표다.
+  { id: "nasdaqF", slug: "nasdaq-futures", name: "나스닥 선물", delayed: true },
   // 지표 하나가 아니라 원달러·WTI 묶음이라 스트립에서 전용 칸을 쓴다.
   { id: "macro", slug: "macro", name: "매크로" },
 ];

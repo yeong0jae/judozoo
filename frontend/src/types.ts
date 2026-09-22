@@ -131,6 +131,14 @@ export interface NasdaqIndexQuote {
   changeRate: number; // 전일 대비 등락률(%)
 }
 
+/** 나스닥100 선물(NQ=F) 시세 — 야후. 무료 시세라 10분쯤 지연된다. */
+export interface NasdaqFuturesQuote {
+  price: number;
+  prevClose: number; // 전일 종가
+  priceChange: number; // 전일 대비(포인트)
+  changeRate: number; // 전일 대비 등락률(%)
+}
+
 /** 매크로 지표(원달러·WTI) 시세 — 야후 파이낸스. */
 export interface MacroQuote {
   price: number;
