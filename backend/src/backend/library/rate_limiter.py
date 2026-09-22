@@ -53,24 +53,27 @@ class RateLimiter:
 
         started = time.monotonic()
         deadline = started + self._timeout
-        while True:
-            with self._lock:
-                self._refill()
-                if self._tokens >= permits:
-                    self._tokens -= permits
-                    metrics.RATE_LIMITER_WAIT.labels(limiter=self.name).observe(
-                        time.monotonic() - started
-                    )
-                    return
-                shortfall = permits - self._tokens
-                wait = shortfall * self._period / self._capacity
+        # 대기 중인 스레드 수. 잠든 동안에도 스레드풀 슬롯을 쥐고 있어서,
+        # 이 값이 곧 "지금 이 리미터 때문에 묶여 있는 스레드"다.
+        with metrics.RATE_LIMITER_WAITING.labels(limiter=self.name).track_inprogress():
+            while True:
+                with self._lock:
+                    self._refill()
+                    if self._tokens >= permits:
+                        self._tokens -= permits
+                        metrics.RATE_LIMITER_WAIT.labels(limiter=self.name).observe(
+                            time.monotonic() - started
+                        )
+                        return
+                    shortfall = permits - self._tokens
+                    wait = shortfall * self._period / self._capacity
 
-            if time.monotonic() + wait > deadline:
-                metrics.RATE_LIMITER_TIMEOUTS.labels(limiter=self.name).inc()
-                raise RateLimitTimeout(
-                    f"[{self.name}] {self._timeout}초 안에 허가 {permits}건을 얻지 못했다"
-                )
-            time.sleep(wait)
+                if time.monotonic() + wait > deadline:
+                    metrics.RATE_LIMITER_TIMEOUTS.labels(limiter=self.name).inc()
+                    raise RateLimitTimeout(
+                        f"[{self.name}] {self._timeout}초 안에 허가 {permits}건을 얻지 못했다"
+                    )
+                time.sleep(wait)
 
     def _refill(self) -> None:
         """마지막 갱신 이후 경과 시간만큼 토큰을 채운다. 호출자가 락을 쥔 상태여야 한다."""

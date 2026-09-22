@@ -93,3 +93,40 @@ class Test스레드풀_계측:
         limiter.total_tokens = 100
 
         assert 게이지값(metrics.THREAD_POOL_TOTAL) == 100
+
+
+class Test외부_호출_동시성:
+    @respx.mock
+    def test_호출_중에는_잡히고_끝나면_풀린다(self):
+        """리미터 대기와 나란히 놓으면 '줄서기'와 '상대 서버 대기'가 갈린다."""
+        gauge = metrics.HTTP_CLIENT_IN_FLIGHT.labels("동시벤더")
+        관측값 = []
+
+        def 응답(request):
+            관측값.append(gauge._value.get())
+            return httpx.Response(200)
+
+        respx.get("https://example.test/v1/quote").mock(side_effect=응답)
+        client = httpx.Client(
+            base_url="https://example.test",
+            transport=metrics.MeteredTransport("동시벤더", httpx.HTTPTransport()),
+        )
+
+        client.get("/v1/quote")
+
+        assert 관측값 == [1.0], "호출이 도는 동안 잡혀 있어야 한다"
+        assert gauge._value.get() == 0, "끝난 호출이 남으면 값이 영영 떠 있는다"
+
+    @respx.mock
+    def test_실패한_호출도_새지_않는다(self):
+        """예외 경로에서 감소를 빠뜨리면 게이지가 실제보다 높은 채로 굳는다."""
+        respx.get("https://example.test/v1/quote").mock(side_effect=httpx.ConnectTimeout)
+        client = httpx.Client(
+            base_url="https://example.test",
+            transport=metrics.MeteredTransport("실패벤더", httpx.HTTPTransport()),
+        )
+
+        with pytest.raises(httpx.ConnectTimeout):
+            client.get("/v1/quote")
+
+        assert metrics.HTTP_CLIENT_IN_FLIGHT.labels("실패벤더")._value.get() == 0

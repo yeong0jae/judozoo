@@ -919,6 +919,128 @@
         }
       ],
       "description": "허가를 못 얻고 포기한 호출. **이 선이 뜨면 화면에 빈 칸이 뜬다** — 호출자가 예외를 받아 그 자리를 채우지 못한다. 평소 0이어야 정상이다."
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "스레드가 지금 무엇을 하고 있나",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 40,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate_limiter_waiting_threads)",
+          "legendFormat": "리미터에서 줄서는 중"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(http_client_in_flight_requests) - sum(rate_limiter_waiting_threads)",
+          "legendFormat": "브로커 응답 기다리는 중"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(thread_pool_borrowed_threads) - sum(http_client_in_flight_requests)",
+          "legendFormat": "그 외 (DB·계산)"
+        }
+      ],
+      "description": "점유된 스레드를 하는 일로 가른다. **맨 아래 칸이 두꺼우면 스레드를 늘려도 소용없다** — 정원이 아니라 리미터가 상한이기 때문이다. 위 두 칸이 두꺼우면 그때는 정원이 답이다. 스케줄러 잡은 anyio 풀 밖(APScheduler 자체 풀)에서 같은 리미터를 쓰므로 합이 정확히 맞지는 않는다 — 각 줄의 두께로 읽어야 한다."
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "리미터 대기 스레드 — 브로커별",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (limiter) (rate_limiter_waiting_threads)",
+          "legendFormat": "{{limiter}}"
+        }
+      ],
+      "description": "어느 브로커가 줄을 만들고 있는지 가른다. KIS·키움 각각 초당 5건이라 한쪽만 두꺼우면 그 쪽 호출을 줄이거나 캐시 TTL을 늘리는 것이 직접적인 처방이다."
     }
   ]
 }

@@ -1,3 +1,4 @@
+import threading
 import time
 
 import pytest
@@ -93,3 +94,36 @@ class Test대기_계측:
 
         assert 포기_횟수("계측-포기") == 포기_before + 1
         assert 대기_합계("계측-포기") == 대기_before
+
+
+class Test대기_중인_스레드_수:
+    def test_줄_선_스레드를_세고_빠져나가면_0으로_돌아온다(self):
+        """borrowed만으로는 40개가 잡힌 이유를 모른다 — 이 값이 그중 '리미터 탓'을 떼어낸다."""
+        limiter = RateLimiter(
+            "계측-동시", permits_per_period=1, period_seconds=0.3, timeout_seconds=30.0
+        )
+        gauge = metrics.RATE_LIMITER_WAITING.labels(limiter="계측-동시")
+
+        threads = [threading.Thread(target=limiter.acquire) for _ in range(5)]
+        for t in threads:
+            t.start()
+        time.sleep(0.15)  # 토큰 하나만 나간 시점 — 나머지는 자고 있다
+        대기중 = gauge._value.get()
+
+        for t in threads:
+            t.join()
+
+        assert 대기중 >= 2, "동시에 몰린 스레드가 대기로 안 잡히면 포화를 못 본다"
+        assert gauge._value.get() == 0, "빠져나간 스레드가 남으면 값이 영영 떠 있는다"
+
+    def test_포기하고_나가도_대기_수가_새지_않는다(self):
+        """예외 경로에서 감소를 빠뜨리면 게이지가 실제보다 높은 채로 굳는다."""
+        limiter = RateLimiter(
+            "계측-누수", permits_per_period=1, period_seconds=10.0, timeout_seconds=0.05
+        )
+        limiter.acquire()
+
+        with pytest.raises(RateLimitTimeout):
+            limiter.acquire()
+
+        assert metrics.RATE_LIMITER_WAITING.labels(limiter="계측-누수")._value.get() == 0

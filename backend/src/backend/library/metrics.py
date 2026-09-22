@@ -77,6 +77,30 @@ RATE_LIMITER_TIMEOUTS = Counter(
     ["limiter"],
 )
 
+# ── 스레드가 지금 무엇을 하고 있는가 ────────────────────────────────────
+#
+# `thread_pool_borrowed_threads`는 **몇 개가 쓰이는지**만 알려준다. 40개가 잡혀 있어도
+# 그것이 줄서기인지 브로커 응답 대기인지 DB 조회인지 구분되지 않아, 정작 "무엇을 고쳐야
+# 하나"에는 답하지 못한다. 아래 둘이 그 안을 가른다.
+#
+# `MeteredTransport`가 리미터 **바깥**에 감겨 있어 IN_FLIGHT는 대기까지 포함한다.
+# 따라서 `in_flight - waiting`이 실제로 소켓에 매달린 수다.
+#
+# **합이 borrowed와 맞지 않을 수 있다.** 스케줄러 잡은 anyio 풀이 아니라 APScheduler의
+# 자체 ThreadPoolExecutor에서 도는데 같은 리미터를 쓴다 — 그쪽 대기도 여기 잡힌다.
+# 빼기로 정확한 값을 얻으려 들지 말고, 각 줄을 그 자체로 읽어야 한다.
+RATE_LIMITER_WAITING = Gauge(
+    "rate_limiter_waiting_threads",
+    "지금 리미터에서 허가를 기다리며 잠들어 있는 스레드 수",
+    ["limiter"],
+)
+
+HTTP_CLIENT_IN_FLIGHT = Gauge(
+    "http_client_in_flight_requests",
+    "지금 외부 호출에 매달려 있는 스레드 수 — 리미터 대기 포함",
+    ["vendor"],
+)
+
 # ── 스레드풀 ────────────────────────────────────────────────────────────
 #
 # sync 엔드포인트는 anyio 기본 스레드풀(40)에서 돈다. 브로커 호출이 전부 sync라
@@ -178,14 +202,19 @@ class MeteredTransport(httpx.BaseTransport):
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         endpoint = self._label(request)
         started = time.monotonic()
-        try:
-            response = self._inner.handle_request(request)
-        except Exception as exc:
-            # 타임아웃·연결 거부. 예외 타입은 유한한 집합이라 라벨로 안전하다.
-            HTTP_CLIENT_REQUESTS.labels(self._vendor, endpoint, type(exc).__name__).inc()
-            raise
-        finally:
-            HTTP_CLIENT_DURATION.labels(self._vendor, endpoint).observe(time.monotonic() - started)
+        # endpoint는 라벨에서 뺀다 — 이 Gauge는 "지금 몇 개가 매달려 있나"를 보는 것이라
+        # 엔드포인트별로 쪼개면 대부분 0인 시계열만 늘고 합계는 읽기 어려워진다.
+        with HTTP_CLIENT_IN_FLIGHT.labels(self._vendor).track_inprogress():
+            try:
+                response = self._inner.handle_request(request)
+            except Exception as exc:
+                # 타임아웃·연결 거부. 예외 타입은 유한한 집합이라 라벨로 안전하다.
+                HTTP_CLIENT_REQUESTS.labels(self._vendor, endpoint, type(exc).__name__).inc()
+                raise
+            finally:
+                HTTP_CLIENT_DURATION.labels(self._vendor, endpoint).observe(
+                    time.monotonic() - started
+                )
         HTTP_CLIENT_REQUESTS.labels(self._vendor, endpoint, str(response.status_code)).inc()
         return response
 
