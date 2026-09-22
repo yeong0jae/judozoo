@@ -44,10 +44,18 @@ import type {
 } from "../types";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
-/** 실시간이 아닌 시세임을 알리는 배지. */
+/**
+ * 실시간이 아닌 시세임을 알리는 배지.
+ *
+ * 회색이면 라벨에 묻혀 안 읽힌다 — "지금 값이 아니다"는 놓치면 오독으로 이어지는 정보다.
+ * 색은 테마의 배지 패턴(`bg-X-50` + `text-X-700`)을 쓰고, 그중 경고 자리인 amber를 고른다
+ * (파랑은 "장중" 칩이, 빨강·파랑은 손익이 이미 쓴다).
+ */
 function DelayBadge() {
   return (
-    <span className="text-[10px] text-zinc-500 bg-zinc-800 rounded px-1 py-px">10분 지연</span>
+    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+      10분 지연
+    </span>
   );
 }
 
@@ -173,8 +181,10 @@ function MacroCell({
       <span className="text-[14px] font-medium text-zinc-300">{ix.name}</span>
       <div className="mt-0.5 flex flex-col gap-px">
         <MacroCellRow label="원달러" quote={quotes?.usdKrw} />
-        {/* WTI만 CME 시세라 지연. 원달러(FX 현물)는 지연 대상이 아니다. */}
-        <MacroCellRow label="WTI" quote={quotes?.wti} delayed />
+        {/* WTI만 CME 시세라 지연이지만, 지연 배지는 **매크로 상세에만** 둔다.
+            여기는 여덟 칸 중 하나라 한 줄에 배지까지 들어가지 않는다 — 넣으면 줄이 접혀
+            이 칸만 높아지고, 그리드 행 높이가 제일 큰 칸을 따라가 스트립 전체가 커진다. */}
+        <MacroCellRow label="WTI" quote={quotes?.wti} />
         <MacroCellRow label="VIX" quote={quotes?.vix} />
       </div>
     </Link>
@@ -185,11 +195,9 @@ function MacroCell({
 function MacroCellRow({
   label,
   quote,
-  delayed,
 }: {
   label: string;
   quote?: MacroQuote | null;
-  delayed?: boolean;
 }) {
   return (
     <div className="flex items-baseline gap-1.5 flex-wrap">
@@ -202,7 +210,6 @@ function MacroCellRow({
           <span className={`num text-[11px] font-medium ${colorByPnL(quote.changeRate)}`}>
             {formatPct(quote.changeRate / 100)}
           </span>
-          {delayed && <DelayBadge />}
         </>
       )}
     </div>
