@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from backend.auth import application
 from backend.auth.domain import SESSION_KEY, CurrentUser
@@ -55,7 +56,9 @@ async def callback(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/?login=failed", status_code=302)
 
     # 내부 식별자가 채워진 사용자를 담는다 — 이후 요청의 로그가 이 값을 쓴다.
-    request.session[SESSION_KEY] = application.record_login(db, user, datetime.now()).to_session()
+    # 동기 세션이라 이벤트 루프에서 바로 부르면 쿼리 동안 다른 요청이 전부 멈춘다.
+    recorded = await run_in_threadpool(application.record_login, db, user, datetime.now())
+    request.session[SESSION_KEY] = recorded.to_session()
     return RedirectResponse("/", status_code=302)
 
 
