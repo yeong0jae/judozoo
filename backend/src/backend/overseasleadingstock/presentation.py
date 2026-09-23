@@ -75,8 +75,8 @@ class OverseasDailyCandleItem(BaseModel):
     volume: int
 
 
-@router.get("/ranking")
-def get_ranking(
+@router.get("/candidates")
+def get_candidates(
     minChangeRate: int | None = Query(default=None),  # noqa: N803 — 기존 API 계약
 ) -> ApiResponse[list[OverseasStockRankItem]]:
     """나스닥·뉴욕·아멕스 통합 거래대금 상위."""
@@ -85,7 +85,7 @@ def get_ranking(
         if minChangeRate is not None
         else DEFAULT_MIN_CHANGE_RATE
     )
-    return ApiResponse.ok([_to_rank_item(r) for r in application.get_ranking(rate)])
+    return ApiResponse.ok([_to_rank_item(r) for r in application.get_candidates(rate)])
 
 
 @router.get("/leaders")

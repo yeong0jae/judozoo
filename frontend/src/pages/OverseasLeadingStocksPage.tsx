@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useOverseasLeaders, useOverseasRanking } from "../api/queries";
+import { useOverseasLeaders, useOverseasCandidates } from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
 import { formatFetchedAt, formatPct } from "../lib/format";
 import NumUsd from "../components/common/NumUsd";
@@ -29,7 +29,7 @@ export default function OverseasLeadingStocks({
   const [minChangeRate, setMinChangeRate] = useOverseasMinChangeRate();
 
   const leadersQ = useOverseasLeaders();
-  const { data, isLoading, isError, isFetching, dataUpdatedAt } = useOverseasRanking(minChangeRate);
+  const { data, isLoading, isError, isFetching, dataUpdatedAt } = useOverseasCandidates(minChangeRate);
   // 국내와 같은 구조 — 위는 서버가 고른 주도주, 아래는 나머지를 거래대금 순으로.
   // 등락률 임계값은 아래 구간에만 걸린다.
   const leaders = leadersQ.data ?? [];

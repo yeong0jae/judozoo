@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { useLeadingStockCandidates, useOverseasRanking } from "../../api/queries";
+import { useLeadingStockCandidates, useOverseasCandidates } from "../../api/queries";
 import { useMinChangeRate, useOverseasMinChangeRate } from "../../lib/changeRate";
 import { formatPct, formatPrice } from "../../lib/format";
 import { overseasIsMain } from "../../lib/marketSession";
@@ -46,7 +46,7 @@ function DomesticTicker() {
 
 function OverseasTicker() {
   const [minChangeRate] = useOverseasMinChangeRate();
-  const { data } = useOverseasRanking(minChangeRate);
+  const { data } = useOverseasCandidates(minChangeRate);
   const stocks = data ?? [];
   return (
     <Track

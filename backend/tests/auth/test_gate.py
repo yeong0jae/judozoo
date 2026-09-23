@@ -12,7 +12,7 @@ class Test로그인_없이_열어둔_경로:
             "/api/overseas-leading-stocks/leaders",
             "/api/leading-stocks/signal-events",
             "/api/leading-stocks/breakout-radar",
-            "/api/overseas-leading-stocks/ranking",
+            "/api/overseas-leading-stocks/candidates",
             "/api/market/calendar/status",
             "/api/market/kospi",
             "/api/market/kosdaq",
@@ -39,7 +39,7 @@ class Test로그인_없이_열어둔_경로:
         [
             "/api/market/kospi/",
             "/api/leading-stocks/candidates/",
-            "/api/overseas-leading-stocks/ranking/",
+            "/api/overseas-leading-stocks/candidates/",
             "/api/auth/google/callback/",
         ],
     )

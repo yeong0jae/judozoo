@@ -37,7 +37,7 @@ def _ranking_pool() -> list[OverseasStockRank]:
     return [r for r in ranked[:TOP_N] if not r.is_etf]
 
 
-def get_ranking(min_change_rate: float) -> list[OverseasStockRank]:
+def get_candidates(min_change_rate: float) -> list[OverseasStockRank]:
     """거래대금 상위 풀에서 등락률 기준을 통과한 것만. 국내와 같이 순위 예외를 두지 않는다.
 
     순위는 풀에서 받은 통합 순위를 그대로 둔다 — 걸러낸 뒤 다시 매기면 그 숫자가

@@ -92,8 +92,8 @@ export const QK = {
   nasdaqFuturesCandles: (interval: string) =>
     ["market", "futures", "nasdaq", "candles", interval] as const,
   overseasLeaders: ["overseas-leading-stocks", "leaders"] as const,
-  overseasRanking: (minChangeRate: number) =>
-    ["overseas-leading-stocks", "ranking", minChangeRate] as const,
+  overseasCandidates: (minChangeRate: number) =>
+    ["overseas-leading-stocks", "candidates", minChangeRate] as const,
   overseasDetail: (exchange: string, symbol: string) =>
     ["overseas-leading-stocks", "detail", exchange, symbol] as const,
   overseasMinuteCandles: (exchange: string, symbol: string) =>
@@ -485,12 +485,12 @@ export function useOverseasLeaders() {
   });
 }
 
-export function useOverseasRanking(minChangeRate: number) {
+export function useOverseasCandidates(minChangeRate: number) {
   return useQuery({
-    queryKey: QK.overseasRanking(minChangeRate),
+    queryKey: QK.overseasCandidates(minChangeRate),
     queryFn: () =>
       apiFetch<OverseasStockRankItem[]>(
-        `/api/overseas-leading-stocks/ranking?minChangeRate=${minChangeRate}`,
+        `/api/overseas-leading-stocks/candidates?minChangeRate=${minChangeRate}`,
       ),
     refetchInterval: 15_000,
   });

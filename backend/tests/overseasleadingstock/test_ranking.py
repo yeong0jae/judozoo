@@ -72,7 +72,7 @@ class Test랭킹:
             ams=[순위행("CCC", "200")],
         )
 
-        ranking = application.get_ranking(0.0)
+        ranking = application.get_candidates(0.0)
 
         assert [(r.rank, r.symbol) for r in ranking] == [(1, "BBB"), (2, "CCC"), (3, "AAA")]
 
@@ -84,7 +84,7 @@ class Test랭킹:
             nas=[순위행("SPY", "900", ename="SPDR S&P 500"), 순위행("AAA", "100")],
         )
 
-        ranking = application.get_ranking(0.0)
+        ranking = application.get_candidates(0.0)
 
         assert [(r.rank, r.symbol) for r in ranking] == [(2, "AAA")]
 
@@ -102,7 +102,7 @@ class Test랭킹:
             ],
         )
 
-        assert [r.symbol for r in application.get_ranking(5.0)] == ["E"]
+        assert [r.symbol for r in application.get_candidates(5.0)] == ["E"]
 
     @respx.mock
     def test_기준에_미달하면_전부_빠져_빈_목록이_된다(self, respx_mock, 토큰_발급):
@@ -111,14 +111,14 @@ class Test랭킹:
             nas=[순위행(s, str(600 - i * 100), rate="1.0") for i, s in enumerate("ABCDE")],
         )
 
-        assert application.get_ranking(5.0) == []
+        assert application.get_candidates(5.0) == []
 
     @respx.mock
     def test_등락_방향은_sign으로_대비값에_부호를_준다(self, respx_mock, 토큰_발급):
         """rate는 부호 포함으로 오지만 diff(대비)는 절댓값이다."""
         거래소별_응답(respx_mock, nas=[순위행("A", "100", sign="5")])  # 5=하락
 
-        assert application.get_ranking(0.0)[0].diff == -5.0
+        assert application.get_candidates(0.0)[0].diff == -5.0
 
 
 class Test시가총액_표기:
@@ -181,7 +181,7 @@ class Test해외_주도주_API:
     def test_랭킹_응답_형식이_기존_계약과_같다(self, respx_mock, 토큰_발급, 로그인_client):
         거래소별_응답(respx_mock, nas=[순위행("AAA", "1000", rate="10.0")])
 
-        body = 로그인_client.get("/api/overseas-leading-stocks/ranking?minChangeRate=5").json()
+        body = 로그인_client.get("/api/overseas-leading-stocks/candidates?minChangeRate=5").json()
 
         assert body["code"] == "SUCCESS"
         assert body["data"][0] == {
@@ -198,7 +198,7 @@ class Test해외_주도주_API:
             nas=[순위행(s, str(600 - i * 100), rate="6.0") for i, s in enumerate("ABCDE")],
         )
 
-        body = 로그인_client.get("/api/overseas-leading-stocks/ranking?minChangeRate=99").json()
+        body = 로그인_client.get("/api/overseas-leading-stocks/candidates?minChangeRate=99").json()
 
         # 99 → 7로 잘리므로 6.0짜리는 하나도 남지 않는다
         assert body["data"] == []
@@ -218,7 +218,7 @@ class Test해외_주도주_API:
     @respx.mock
     def test_잘못된_인자는_400으로_돌려준다(self, respx_mock, 토큰_발급, 로그인_client):
         """FastAPI 기본은 422지만 기존 API 계약은 400이다."""
-        response = 로그인_client.get("/api/overseas-leading-stocks/ranking?minChangeRate=abc")
+        response = 로그인_client.get("/api/overseas-leading-stocks/candidates?minChangeRate=abc")
 
         assert response.status_code == 400
         assert response.json() == {"code": "INVALID_PARAMETER", "status": 400, "data": None}

@@ -206,7 +206,7 @@ GET /api/leading-stocks/index/{market}/minute-candles
 ### 7.2 해외 주도주
 
 ```
-GET /api/overseas-leading-stocks/ranking
+GET /api/overseas-leading-stocks/candidates
 GET /api/overseas-leading-stocks/{exchange}/{symbol}
 GET /api/overseas-leading-stocks/{exchange}/{symbol}/minute-candles
 GET /api/overseas-leading-stocks/{exchange}/{symbol}/daily-candles

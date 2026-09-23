@@ -25,7 +25,7 @@ _PUBLIC_PATTERNS = [
     r"/api/leading-stocks/signal-events",
     # 지지·저항도 같은 방식 — 상위 몇 개만 엔드포인트가 잘라 내려보낸다
     r"/api/leading-stocks/breakout-radar",
-    r"/api/overseas-leading-stocks/ranking",
+    r"/api/overseas-leading-stocks/candidates",
     # 휴장 배너
     r"/api/market/calendar/status",
     # 지수 시세 — 어디서나 얻을 수 있는 정보라 가릴 값어치가 없다.
