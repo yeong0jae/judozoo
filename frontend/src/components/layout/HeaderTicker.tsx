@@ -1,8 +1,8 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { useLeadingStockCandidates, useOverseasCandidates } from "../../api/queries";
+import type { CSSProperties, ReactNode } from "react";
+import { useLeadingStockCandidates, useMarketCalendarStatus, useOverseasCandidates } from "../../api/queries";
 import { useMinChangeRate, useOverseasMinChangeRate } from "../../lib/changeRate";
 import { formatPct, formatPrice } from "../../lib/format";
-import { overseasIsMain } from "../../lib/marketSession";
+import { overseasIsMain, useMarketSessions } from "../../lib/marketSession";
 
 /**
  * 헤더 시세 티커 — 주인공 쪽 주도주가 왼쪽으로 흐른다.
@@ -17,15 +17,10 @@ import { overseasIsMain } from "../../lib/marketSession";
  * 한 바퀴가 끝나면 두 번째 벌이 첫 벌 자리에 정확히 와 있어 이음매가 보이지 않는다.
  */
 export default function HeaderTicker() {
-  const [domestic, setDomestic] = useState(() => !overseasIsMain(new Date()));
+  const { now } = useMarketSessions();
+  const krHoliday = useMarketCalendarStatus("KR").data?.isHoliday;
 
-  // 경계(평일 08:00 / 20:00)를 넘기면 저절로 바뀌게 — 헤더는 화면을 옮겨도 죽지 않는다
-  useEffect(() => {
-    const id = setInterval(() => setDomestic(!overseasIsMain(new Date())), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  return domestic ? <DomesticTicker /> : <OverseasTicker />;
+  return overseasIsMain(now, krHoliday) ? <OverseasTicker /> : <DomesticTicker />;
 }
 
 function DomesticTicker() {

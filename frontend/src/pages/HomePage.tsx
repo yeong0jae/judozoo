@@ -50,9 +50,9 @@ export default function HomePage() {
   // 붙이면 멈춰 있는 숫자가 살아 있는 값으로 읽힌다.
   const domesticOpen = kr?.tone === "open" && !krHoliday;
   const overseasOpen = us?.tone === "open" && !usHoliday;
-  // 주인공 자리는 시각이 정한다 — 평일 08:00~19:59만 국내고 나머지는 해외다.
+  // 주인공 자리는 시각이 정한다 — 국내가 여는 평일 08:00~19:59만 국내고 나머지는 해외다.
   // 지수 타일도 같은 규칙을 쓴다(`overseasIsMain`).
-  const domesticFirst = !overseasIsMain(now);
+  const domesticFirst = !overseasIsMain(now, krHoliday);
 
   // 두 쪽 날짜가 다를 수 있다 — 해외는 미국 현지 거래일이라 한국 오전에는 하루 뒤처진다
   const clock = formatClock(now);
@@ -76,7 +76,7 @@ export default function HomePage() {
   return (
     <div className="space-y-5">
       <SessionStrip size="lg" />
-      <IndexTiles domesticOpen={domesticOpen} overseasOpen={overseasOpen} now={now} />
+      <IndexTiles domesticOpen={domesticOpen} overseasOpen={overseasOpen} domesticFirst={domesticFirst} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {domesticFirst ? (
@@ -106,11 +106,11 @@ export default function HomePage() {
 function IndexTiles({
   domesticOpen,
   overseasOpen,
-  now,
+  domesticFirst,
 }: {
   domesticOpen: boolean;
   overseasOpen: boolean;
-  now: Date;
+  domesticFirst: boolean;
 }) {
   const kospi = useKospiIndex();
   const kosdaq = useKosdaqIndex();
@@ -168,9 +168,9 @@ function IndexTiles({
 
   // 주도주 카드와 같은 규칙이다 — 국내가 멈춰 있는 시간대에는 살아 있는 숫자를 앞에 둔다.
   // 낮에는 국내 둘이 주인공이고 나스닥은 밤사이 분위기를 재는 참고값이라 맨 뒤다.
-  const order = overseasIsMain(now)
-    ? [tiles.nasdaq, tiles.night, tiles.kospi, tiles.kosdaq]
-    : [tiles.kospi, tiles.kosdaq, tiles.night, tiles.nasdaq];
+  const order = domesticFirst
+    ? [tiles.kospi, tiles.kosdaq, tiles.night, tiles.nasdaq]
+    : [tiles.nasdaq, tiles.night, tiles.kospi, tiles.kosdaq];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">

@@ -89,10 +89,12 @@ export function formatRange({ from, to }: MarketSession): string {
  *
  * 그래서 토요일 낮에도 해외가 앞이다. 미국장도 쉬지만, 그쪽은 금요일 종가라 적어도
  * "가장 최근에 끝난 장"이다.
+ *
+ * 국내 휴장일(추석 등)도 주말과 같다. 휴장 여부를 아직 못 받았으면(`undefined`) 시각만 본다.
  */
-export function overseasIsMain(now: Date): boolean {
+export function overseasIsMain(now: Date, krHoliday?: boolean): boolean {
   const hour = now.getHours();
-  return isKstWeekend(now) || hour >= 20 || hour < 8;
+  return isKstWeekend(now) || !!krHoliday || hour >= 20 || hour < 8;
 }
 
 /** 해외 프리마켓이 열리는 한국시간 — "17:00". 서머타임이면 한 시간 당겨진다. */
