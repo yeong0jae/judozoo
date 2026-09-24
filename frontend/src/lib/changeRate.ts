@@ -7,8 +7,13 @@ import { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
  * 화면과 헤더 티커가 **같은 값**을 봐야 조회가 합쳐진다(쿼리 키가 이 값이라,
  * 다르면 같은 목록을 두 번 받는다). 그래서 localStorage를 각자 읽지 않고
  * 작은 store 하나를 구독한다 — 한쪽에서 바꾸면 나머지가 즉시 따라온다.
+ *
+ * 기본이 0인 건 **넓게 보여주고 사용자가 좁히게** 하려는 것이다. 선택지의 최댓값(7)로
+ * 시작하면 처음 온 사람이 가장 좁은 목록을 먼저 보고, 홈의 주도주 카드(등락률 하한 0)에서
+ * 본 종목이 목록에는 없는 일이 생긴다. 후보 필터 기준값 7.0(`settings.py`)과는 다른 값이다 —
+ * 그쪽은 "주도주 후보"의 정의고 이쪽은 화면이 처음 보여줄 범위다.
  */
-export const DEFAULT_MIN_CHANGE_RATE = 7;
+export const DEFAULT_MIN_CHANGE_RATE = 0;
 
 function read(key: string): number {
   try {
