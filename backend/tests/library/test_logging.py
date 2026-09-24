@@ -144,6 +144,22 @@ class Test액세스_로그_흡수:
         assert access.propagate is True
 
 
+class Test스케줄러_실행_로그:
+    def test_작업마다_남는_시작_성공_기록은_버린다(self):
+        from backend.library.logging_config import configure_logging
+
+        configure_logging()
+
+        assert not logging.getLogger("apscheduler.executors.default").isEnabledFor(logging.INFO)
+
+    def test_작업_예외와_누락은_남긴다(self):
+        from backend.library.logging_config import configure_logging
+
+        configure_logging()
+
+        assert logging.getLogger("apscheduler.executors.default").isEnabledFor(logging.WARNING)
+
+
 class Test프로브_액세스_로그:
     """healthcheck와 메트릭 스크레이프가 하루 11,000줄을 찍는다 — 전부 200이고 읽을 것이 없다."""
 

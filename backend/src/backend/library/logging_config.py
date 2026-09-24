@@ -192,5 +192,9 @@ def configure_logging(
 
     _absorb_uvicorn_loggers()
 
+    # APScheduler는 작업마다 시작·성공을 INFO로 두 줄씩 남긴다 — 10초 작업 하나만으로 하루 17,000줄이다.
+    # 실행 횟수는 메트릭이 센다. 예외(ERROR)와 누락 실행(WARNING)은 그대로 남는다.
+    logging.getLogger("apscheduler.executors").setLevel(logging.WARNING)
+
     # 애플리케이션 패키지만 DEBUG — logback의 `<logger name="at.backend" level="DEBUG"/>`
     logging.getLogger(app_package).setLevel(logging.DEBUG)
