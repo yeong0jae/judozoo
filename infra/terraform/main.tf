@@ -22,8 +22,8 @@ resource "google_project_service" "apis" {
 # ---------------------------------------------------------------------------
 locals {
   # **키(`kiwoom-real`)를 바꾸지 않는다.** google_compute_address.frontend 가 같은 키를
-  # 쓰므로, 키를 건드리면 고정 외부 IP까지 재생성된다. 그러면 Cloudflare A 레코드와
-  # 키움 IP 허용목록을 둘 다 갱신해야 한다 — 이름 정리하자고 치를 값이 아니다.
+  # 쓰므로, 키를 건드리면 고정 외부 IP까지 재생성된다. 그러면 키움 IP 허용목록을
+  # 갱신해야 한다 — 이름 정리하자고 치를 값이 아니다.
   #
   # 키는 3인스턴스(kis-vts/kis-real/kiwoom-real) 시절 잔재이고 지금은 인스턴스가 하나다.
   instances = {
@@ -66,26 +66,11 @@ resource "google_project_iam_member" "vm_secret_accessor" {
 }
 
 # ---------------------------------------------------------------------------
-# 방화벽: Caddy tcp:80,443만 / SSH는 IAP 대역만
+# 방화벽: SSH는 IAP 대역만. 웹 입구는 lb.tf(부하 분산기 대역 → 3000)
 # 기존 trading 인스턴스와 분리하기 위해 별도 target_tag 사용
 #
-# 앱 컨테이너는 호스트에 포트를 퍼블리시하지 않는다. 유일한 입구가 Caddy다.
+# 80/443은 열지 않는다 — 입구는 부하 분산기뿐이다(023). Cloudflare 대역 → Caddy 규칙은 지웠다.
 # ---------------------------------------------------------------------------
-resource "google_compute_firewall" "web" {
-  name    = "auto-trading-allow-web"
-  network = "default"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["80", "443"]
-  }
-
-  source_ranges = var.allowed_web_source_ranges
-  target_tags   = ["auto-trading"]
-
-  depends_on = [google_project_service.apis]
-}
-
 resource "google_compute_firewall" "ssh" {
   name    = "auto-trading-allow-ssh"
   network = "default"
@@ -97,7 +82,7 @@ resource "google_compute_firewall" "ssh" {
     ports = ["22"]
   }
 
-  # **IAP 대역만.** allowed_web_source_ranges를 같이 쓰면 안 된다 —
+  # **IAP 대역만.** 웹 규칙과 소스 대역을 같이 쓰면 안 된다 —
   # 앱을 0.0.0.0/0으로 공개하는 순간 SSH까지 인터넷 전체에 열린다.
   # 배포·운영 접속은 전부 IAP 터널(--tunnel-through-iap)을 거치므로 이것만 있으면 된다.
   source_ranges = ["REDACTED_IP/20"]
@@ -408,6 +393,7 @@ resource "google_storage_bucket_iam_member" "vm_backup_writer" {
 locals {
   # AT_DB_PASSWORD는 2026-09-16 Cloud SQL 이관과 함께 폐기했다 — 옛 mysql 컨테이너의
   # root 비밀번호였고, 앱은 AT_CLOUDSQL_APP_PASSWORD를 쓴다.
+  # AT_CLOUDFLARE_API_TOKEN은 2026-09-25 Caddy와 함께 폐기했다(023) — TLS는 부하 분산기가 맡는다.
   app_secrets = toset([
     "AT_KIWOOM_APP_KEY",
     "AT_KIWOOM_APP_SECRET",
@@ -416,7 +402,6 @@ locals {
     "AT_REAL_KIS_APP_SECRET",
     "AT_REAL_TOSS_CLIENT_ID", # 토스 Market Indicators (지수·투자자 매매대금)
     "AT_REAL_TOSS_CLIENT_SECRET",
-    "AT_CLOUDFLARE_API_TOKEN", # Caddy ACME DNS-01 챌린지 (Zone:DNS:Edit, judozoo.com 한정)
     "AT_GRAFANA_ADMIN_PASSWORD",
     "AT_GOOGLE_CLIENT_ID", # 구글 OAuth (웹 애플리케이션)
     "AT_GOOGLE_CLIENT_SECRET",

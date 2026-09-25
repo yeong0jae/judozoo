@@ -4,11 +4,11 @@
 # 한국 방문자가 Cloudflare LA 지점을 거쳐 태평양을 왕복하던 입구를 대신한다.
 # 구글 서울 진입점에서 구글 망으로 들어와 VM까지 내부망으로 간다.
 #
-# **기존 입구(Cloudflare → Caddy)와 나란히 선다.** DNS를 넘기기 전까지 이 경로로는
-# 아무도 오지 않는다. 전환·정리 순서는 docs/tasks/023 참고.
+# **유일한 공개 입구다.** Cloudflare 프록시 → Caddy 경로는 2026-09-25에 걷어냈다(docs/tasks/023).
+# Cloudflare는 DNS만 맡는다.
 #
 # TLS는 여기서 끝난다. 부하 분산기 → VM은 구글 망 안의 HTTP이고, VM의 nginx가
-# 호스트 3000을 직접 연다(Caddy를 거치지 않는다).
+# 호스트 3000을 직접 연다.
 # ---------------------------------------------------------------------------
 
 # `google_project_service.apis` 목록에 넣지 않는다. 그 리소스에 변경이 걸리면 거기 의존하는
@@ -99,8 +99,7 @@ resource "google_compute_backend_service" "frontend" {
 # **`PER_PROJECT_RECORD`여야 한다.** 표준 이름(`_acme-challenge.judozoo.com`)을 쓰는 FIXED_RECORD는
 # Cloudflare와 부딪힌다 — Cloudflare 네임서버가 그 이름의 TXT 질의에 **자기 엣지 인증서용 숨은 TXT**로
 # 답해서, CNAME을 따라가야 나오는 구글 토큰이 보이지 않는다. 2026-09-25에 `CONFIG`로 실패했다.
-# 전용 이름(`_acme-challenge_<고유값>`)을 쓰면 겹치지 않고, 표준 이름이 비어서 Caddy의
-# DNS-01 갱신도 다시 된다.
+# 전용 이름(`_acme-challenge_<고유값>`)을 쓰면 겹치지 않는다.
 # ---------------------------------------------------------------------------
 resource "google_certificate_manager_dns_authorization" "site" {
   name   = "judozoo-site-pp"
@@ -198,7 +197,6 @@ resource "google_compute_global_forwarding_rule" "http" {
 # 방화벽: 부하 분산기 프록시·상태 확인 대역 → nginx 3000
 #
 # 이 두 대역 밖에서는 3000에 닿지 못한다 — VM IP를 알아도 부하 분산기를 건너뛸 길이 없다.
-# 기존 `web` 규칙(Cloudflare 대역 → 80/443)은 전환 후 1주, 되돌리기용으로 남겨둔다.
 # ---------------------------------------------------------------------------
 resource "google_compute_firewall" "lb" {
   name    = "judozoo-allow-lb"

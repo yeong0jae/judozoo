@@ -6,10 +6,6 @@
 # zone              = "asia-northeast3-a"
 # github_repository = "yeong0jae/judozoo"
 
-# 웹 인바운드는 기본값이 Cloudflare 엣지 대역이다(variables.tf).
-# 프록시를 끄고 테스트하는 등 잠시 열어야 하면 여기서 덮어쓴다:
-# allowed_web_source_ranges = ["<내-공인-IP>/32"]
-
 # 머신 사양을 키우려면:
 # machine_type      = "e2-standard-2"
 # boot_disk_size_gb = 30
