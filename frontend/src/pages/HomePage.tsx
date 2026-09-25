@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   useKospiIndex,
@@ -19,9 +20,11 @@ import {
   useMarketSessions,
 } from "../lib/marketSession";
 import { rememberMarket, type StockMarket } from "../lib/stockMarket";
-import { formatPct, formatPrice, formatUsd } from "../lib/format";
+import { formatPct, formatPrice } from "../lib/format";
 import SessionStrip from "../components/layout/SessionStrip";
 import ProfitText from "../components/common/ProfitText";
+import NumWon from "../components/common/NumWon";
+import NumUsd from "../components/common/NumUsd";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import type { LimitUpItem, TodayNetItem } from "../types";
@@ -237,7 +240,8 @@ function Tile({
 // 주도주
 // ============================================================
 
-type Item = { key: string; name: string; symbol?: string; price: string; rate: number };
+// 가격은 통화마다 롤링 컴포넌트가 달라 그린 채로 받는다
+type Item = { key: string; name: string; symbol?: string; price: ReactNode; rate: number };
 
 /**
  * 첫 화면 주도주 카드.
@@ -253,7 +257,7 @@ function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
   const items: Item[] = (data?.leaders ?? []).map((s) => ({
     key: s.stockCode,
     name: s.stockName,
-    price: formatPrice(s.currentPrice),
+    price: <NumWon value={s.currentPrice} />,
     rate: s.priceChangeRate,
   }));
 
@@ -278,7 +282,7 @@ function OverseasLeaders({ live, first, date, clock }: LeadersProps) {
     key: `${s.exchange}:${s.symbol}`,
     name: s.name,
     symbol: s.symbol,
-    price: `$${formatUsd(s.price)}`,
+    price: <NumUsd value={s.price} />,
     rate: s.rate,
   }));
 
