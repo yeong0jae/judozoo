@@ -95,19 +95,31 @@ resource "google_compute_backend_service" "frontend" {
 #
 # **인증 CNAME은 terraform 밖(Cloudflare DNS)에 있다.** 값은 output `lb_dns_authorization`.
 # 지우면 인증서 갱신이 실패한다.
+#
+# **`PER_PROJECT_RECORD`여야 한다.** 표준 이름(`_acme-challenge.judozoo.com`)을 쓰는 FIXED_RECORD는
+# Cloudflare와 부딪힌다 — Cloudflare 네임서버가 그 이름의 TXT 질의에 **자기 엣지 인증서용 숨은 TXT**로
+# 답해서, CNAME을 따라가야 나오는 구글 토큰이 보이지 않는다. 2026-09-25에 `CONFIG`로 실패했다.
+# 전용 이름(`_acme-challenge_<고유값>`)을 쓰면 겹치지 않고, 표준 이름이 비어서 Caddy의
+# DNS-01 갱신도 다시 된다.
 # ---------------------------------------------------------------------------
 resource "google_certificate_manager_dns_authorization" "site" {
-  name   = "judozoo-site"
+  name   = "judozoo-site-pp"
   domain = var.domain
+  type   = "PER_PROJECT_RECORD"
+
+  # 인증서가 참조 중이라 먼저 지울 수 없다.
+  lifecycle {
+    create_before_destroy = true
+  }
 
   depends_on = [google_project_service.certificatemanager]
 }
 
-# 인증은 생성 직후 한 번 시도되고, 실패하면 재시도 간격을 알 수 없다. 첫 인증서는 CNAME을
-# 넣기 전에 시도해 CNAME_MISMATCH로 멈췄다(2026-09-25). 다시 받으려면 이름을 바꿔 새로 만든다 —
-# 맵 항목이 참조 중이라 먼저 지울 수 없으므로 create_before_destroy.
+# 인증은 생성 직후 시도되고, 실패하면 재시도 간격을 알 수 없다. 첫 인증서는 CNAME을 넣기 전에
+# 시도해 CNAME_MISMATCH로, 두 번째는 위의 Cloudflare 숨은 TXT 때문에 CONFIG로 멈췄다(2026-09-25).
+# 다시 받으려면 이름을 바꿔 새로 만든다 — 맵 항목이 참조 중이라 create_before_destroy.
 resource "google_certificate_manager_certificate" "site" {
-  name = "judozoo-site-v2"
+  name = "judozoo-site-v3"
 
   managed {
     domains            = [var.domain]
