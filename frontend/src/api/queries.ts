@@ -125,6 +125,12 @@ export function useStockSearch(query: string) {
   });
 }
 
+/**
+ * 주도주·후보 조회 주기. 서버가 국내·해외 거래대금 상위를 장중 10초마다 갈아 끼우므로 그에 맞춘다 —
+ * 더 자주 물어도 같은 값이고, 드물게 물으면 바뀐 값을 한 박자 늦게 본다.
+ */
+const POOL_REFRESH_MS = 10_000;
+
 export function useLeadingStockCandidates(minChangeRate: number) {
   return useQuery({
     queryKey: QK.leadingStockCandidates(minChangeRate),
@@ -132,7 +138,7 @@ export function useLeadingStockCandidates(minChangeRate: number) {
       apiFetch<CandidateStocksResponse>(
         `/api/leading-stocks/candidates?minChangeRate=${minChangeRate}`,
       ),
-    refetchInterval: 5_000,
+    refetchInterval: POOL_REFRESH_MS,
   });
 }
 
@@ -146,7 +152,7 @@ export function useLeadingStockLeaders() {
   return useQuery({
     queryKey: QK.leadingStockLeaders,
     queryFn: () => apiFetch<LeadersResponse>("/api/leading-stocks/leaders"),
-    refetchInterval: 5_000,
+    refetchInterval: POOL_REFRESH_MS,
   });
 }
 
@@ -481,7 +487,7 @@ export function useOverseasLeaders() {
   return useQuery({
     queryKey: QK.overseasLeaders,
     queryFn: () => apiFetch<OverseasStockRankItem[]>("/api/overseas-leading-stocks/leaders"),
-    refetchInterval: 15_000,
+    refetchInterval: POOL_REFRESH_MS,
   });
 }
 
@@ -492,7 +498,7 @@ export function useOverseasCandidates(minChangeRate: number) {
       apiFetch<OverseasStockRankItem[]>(
         `/api/overseas-leading-stocks/candidates?minChangeRate=${minChangeRate}`,
       ),
-    refetchInterval: 15_000,
+    refetchInterval: POOL_REFRESH_MS,
   });
 }
 
