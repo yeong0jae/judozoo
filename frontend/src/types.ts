@@ -400,6 +400,11 @@ export interface LeadingStockDetailResponse {
   relativeVolume: number | null;
   filterResults: FilterResultItem[];
   market: string | null; // "KOSPI" | "KOSDAQ". 카탈로그에 없으면 null
+  openingPrice: number;
+  highPrice: number;
+  lowPrice: number;
+  previousClose: number;
+  tradingValue: number | null; // 원. 거래대금 순위 밖이면 null
 }
 
 export interface DailyCandleItem {

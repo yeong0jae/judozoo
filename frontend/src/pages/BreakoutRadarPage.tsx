@@ -10,10 +10,10 @@ import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import NumWon from "../components/common/NumWon";
-import StockAvatar from "../components/common/StockAvatar";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
+import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -82,7 +82,6 @@ function PreviewGateBody({ shown, total, widths }: { shown: number; total: numbe
       >
         {widths.map((w, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3.5">
-            <span className="h-7 w-7 shrink-0 rounded-full bg-zinc-700" />
             <span className="h-3.5 rounded bg-zinc-700" style={{ width: w }} />
             <span className="ml-auto h-3 w-16 rounded bg-zinc-700" />
           </div>
@@ -112,8 +111,9 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
   // 지금 보는 선에서 NEAR% 이내인 것만 오고, 가까운 순으로 정렬돼 있다 — 거르고 세우는 일은
   // 서버가 한다. 화면에서 또 거르면 `totalCount`와 모수가 달라져 "N개 중 M개"가 어긋난다.
   const stocks = data?.stocks ?? [];
+  const mobile = useMobileDetail();
 
-  // 우측 차트에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
+  // 우측 상세에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   useEffect(() => {
     if (!authenticated) return;
@@ -123,111 +123,124 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
   // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(authenticated ? stocks.map((s) => s.stockCode) : [], selectedCode, setSelectedCode);
 
-  return (
-    <div className="space-y-4">
-      <PageHeader
-        title="눌림·돌파"
-        // 근접 범위로 거른 뒤의 전체 수 — 미로그인은 그중 다섯 줄만 받는다
-        count={data?.totalCount}
-        queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
-        loading={radarQ.isFetching}
-      />
+  // 미로그인이면 없다 — 눌러도 열 상세가 없어 클릭을 막는다
+  const onSelect = authenticated
+    ? (code: string) => {
+        setSelectedCode(code);
+        mobile.show();
+      }
+    : undefined;
+  const lineName = mode === "support" ? "눌림선" : "돌파선";
+  const gated = !authenticated && (data?.totalCount ?? 0) > (data?.stocks.length ?? 0);
 
-      {/* 모드 토글은 목록 컬럼(50%) 폭에 맞춘다 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-800">
+  const list = (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 lg:px-3.5">
+        <PageHeader
+          title="눌림·돌파"
+          // 근접 범위로 거른 뒤의 전체 수 — 미로그인은 그중 다섯 줄만 받는다
+          count={data?.totalCount}
+          queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
+          loading={radarQ.isFetching}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <ModeToggle value={mode} onChange={setRadarMode} />
-          <span className="text-[11.5px] text-zinc-600">
-            {mode === "support" ? "눌림선" : "돌파선"} {NEAR}% 이내
+          <span className="text-xs text-zinc-500">
+            {lineName} {NEAR}% 이내 · 가까운 순
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <section>
-        {radarQ.isLoading ? (
-          <div className="p-6 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
+      {radarQ.isLoading ? (
+        <div className="space-y-3 p-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      ) : stocks.length === 0 ? (
+        <EmptyState message={`${lineName} ${NEAR}% 안에 든 종목이 없습니다`} />
+      ) : (
+        <>
+          <div className="hidden lg:block">
+            <div className={`grid ${RADAR_COLS} gap-x-3 px-3.5 pb-1.5 text-[11px] text-zinc-500`}>
+              <span>종목</span>
+              <span className="text-right">{mode === "resistance" ? "돌파선" : "눌림선"}</span>
+              <span className="text-right">{mode === "resistance" ? "돌파까지" : "눌림부터"}</span>
+              <span className="text-right">현재가 · 거래대금</span>
+              <span className="text-right">등락률</span>
+            </div>
+            <AnimatePresence mode="popLayout">
+              {stocks.map((s) => (
+                <RadarRow
+                  key={s.stockCode}
+                  mode={mode}
+                  s={s}
+                  selected={s.stockCode === selectedCode}
+                  onSelect={onSelect}
+                />
+              ))}
+            </AnimatePresence>
+            {gated && <PreviewGateBody shown={stocks.length} total={data?.totalCount ?? 0} widths={[128, 168, 104]} />}
           </div>
-        ) : stocks.length === 0 ? (
-          <EmptyState
-            message={`${mode === "support" ? "눌림선" : "돌파선"} ${NEAR}% 안에 든 종목이 없습니다`}
-          />
-        ) : (
-          <>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-xs border-separate border-spacing-y-1">
-              <thead className="text-zinc-500 text-xs">
-                <tr>
-                  <th className="px-4 py-2.5 text-left">종목</th>
-                  <th className="px-4 py-2.5 text-right">{mode === "resistance" ? "저항선" : "지지선"}</th>
-                  <th className="px-4 py-2.5 text-right">{mode === "resistance" ? "저항까지" : "지지부터"}</th>
-                  <th className="px-4 py-2.5 text-right">거래대금</th>
-                  <th className="px-4 py-2.5 text-right">등락률</th>
-                </tr>
-              </thead>
-              <tbody>
-                <AnimatePresence mode="popLayout">
-                  {stocks.map((s) => (
-                    <RadarRow
-              mode={mode}
-                      key={s.stockCode}
-                      s={s}
-                      selected={s.stockCode === selectedCode}
-                      onSelect={authenticated ? setSelectedCode : undefined}
-                    />
-                  ))}
-                </AnimatePresence>
-                {!authenticated && (data?.totalCount ?? 0) > (data?.stocks.length ?? 0) && (
-                  <tr>
-                    <td colSpan={5} className="p-0">
-                      <PreviewGateBody
-                        shown={stocks.length}
-                        total={data?.totalCount ?? 0}
-                        widths={[128, 168, 104]}
-                      />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="md:hidden space-y-1">
+          <div className="lg:hidden">
             {stocks.map((s) => (
               <RadarCard
-            mode={mode}
                 key={s.stockCode}
+                mode={mode}
                 s={s}
                 selected={s.stockCode === selectedCode}
-                onSelect={authenticated ? setSelectedCode : undefined}
+                onSelect={onSelect}
               />
             ))}
-            {!authenticated && (data?.totalCount ?? 0) > (data?.stocks.length ?? 0) && (
-              <PreviewGateBody
-                shown={stocks.length}
-                total={data?.totalCount ?? 0}
-                widths={[112, 140, 96]}
-              />
-            )}
+            {gated && <PreviewGateBody shown={stocks.length} total={data?.totalCount ?? 0} widths={[112, 140, 96]} />}
           </div>
-          </>
-        )}
-      </section>
-      <div className={`lg:sticky lg:top-20 ${selectedCode ? "" : "hidden lg:block"}`}>
-        {authenticated ? (
-          <StockDetailPanel stockCode={selectedCode} defaultTab="minute" />
-        ) : (
-          <LoginGate
-            title="종목 상세"
-            description="필터 평가·분봉·일봉·투자자 수급을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
-          />
-        )}
-      </div>
-      </div>
+        </>
+      )}
     </div>
   );
+
+  const detail = authenticated ? (
+    <StockDetailPanel stockCode={selectedCode} onBack={mobile.hide} />
+  ) : (
+    <LoginGate
+      title="종목 상세"
+      description="주도주 조건·분봉·일봉·투자자 수급을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+    />
+  );
+
+  return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
+}
+
+/** 데스크톱 줄의 열 — 종목 · 선 · 남은 거리 · 현재가와 거래대금 · 등락률. */
+const RADAR_COLS = "grid-cols-[minmax(0,1fr)_6.5rem_5rem_6.5rem_4.5rem]";
+
+/** 선까지 남은 거리 — 넘었으면 "돌파"/"이탈", 아니면 원과 %. */
+function radarGap(mode: RadarMode, s: BreakoutRadarItem) {
+  if (mode === "resistance") {
+    return {
+      crossed: s.gapRate <= 0 ? "돌파" : null,
+      pct: s.gapRate,
+      won: s.peakPrice - s.currentPrice,
+      cls: resistanceCls(s.gapRate),
+    };
+  }
+  return {
+    crossed: s.supportGapRate !== null && s.supportGapRate <= 0 ? "이탈" : null,
+    pct: s.supportGapRate,
+    won: s.troughPrice === null ? null : s.currentPrice - s.troughPrice,
+    cls: supportCls(s.supportGapRate),
+  };
+}
+
+/** 선이 만들어진 시각 — "23일 10:42". 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링돼 고점은 +1분 보정. */
+function formedAt(mode: RadarMode, s: BreakoutRadarItem): { price: number | null; at: string | null } {
+  const hm = (d: Date) => `${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  if (mode === "resistance") {
+    const peak = new Date(s.peakAt);
+    peak.setMinutes(peak.getMinutes() + 1);
+    return { price: s.peakPrice, at: hm(peak) };
+  }
+  return { price: s.troughPrice, at: s.troughAt ? hm(new Date(s.troughAt)) : null };
 }
 
 function RadarRow({
@@ -242,19 +255,11 @@ function RadarRow({
   /** 미로그인이면 없다 — 눌러도 열 상세가 없어 클릭을 막는다 */
   onSelect?: (code: string) => void;
 }) {
-  const code = shortCode(s.stockCode);
-  const gapWon = s.peakPrice - s.currentPrice;
-  const supportWon = s.troughPrice === null ? 0 : s.currentPrice - s.troughPrice;
-  const trough = s.troughAt ? new Date(s.troughAt) : null;
-  // 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링됨 — HTS 기준 +1분 보정
-  const peak = new Date(s.peakAt);
-  peak.setMinutes(peak.getMinutes() + 1);
-  const peakTime = peak.toTimeString().slice(0, 5);
-  const troughTime = trough
-    ? `${String(trough.getHours()).padStart(2, "0")}:${String(trough.getMinutes()).padStart(2, "0")}`
-    : "";
+  const gap = radarGap(mode, s);
+  const line = formedAt(mode, s);
   return (
-    <motion.tr
+    <motion.button
+      type="button"
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -264,64 +269,50 @@ function RadarRow({
         opacity: { duration: 0.2 },
       }}
       data-stock-code={s.stockCode}
+      disabled={!onSelect}
       onClick={onSelect ? () => onSelect(s.stockCode) : undefined}
-      className={`transition-colors [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
-        onSelect ? "cursor-pointer hover:[&>td]:bg-zinc-850" : ""
-      } ${selected ? "[&>td]:bg-selected" : ""}`}
+      className={`grid w-full ${RADAR_COLS} items-center gap-x-3 rounded-xl px-3.5 py-2.5 text-left transition-colors ${
+        onSelect ? "hover:bg-zinc-850" : "cursor-default"
+      } ${selected ? "bg-selected hover:bg-selected" : ""}`}
     >
-      <td className="px-4 py-3.5">
-        <div className="flex items-center gap-3">
-          <StockAvatar name={s.stockName} code={code} />
-          <div className="min-w-0">
-            <div className="font-semibold text-zinc-100">{s.stockName}</div>
-            <div className="text-xs text-zinc-500 num mt-0.5">{code}</div>
-          </div>
-        </div>
-      </td>
-      {mode === "resistance" ? (
-        <>
-          <td className="px-4 py-3.5 text-right">
-            <div className="num text-zinc-300">{formatPrice(s.peakPrice)}</div>
-            <div className="num text-xs text-zinc-500">{peak.getDate()}일 {peakTime} 형성</div>
-          </td>
-          <td className={`px-4 py-3.5 text-right num font-semibold ${resistanceCls(s.gapRate)}`}>
-            {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
-          </td>
-        </>
-      ) : (
-        <>
-          <td className="px-4 py-3.5 text-right">
-            {s.troughPrice === null ? (
-              <span className="text-zinc-600">—</span>
-            ) : (
-              <>
-                <div className="num text-zinc-300">{formatPrice(s.troughPrice)}</div>
-                <div className="num text-xs text-zinc-500">
-                  {trough && `${trough.getDate()}일 ${troughTime} 형성`}
-                </div>
-              </>
-            )}
-          </td>
-          <td className={`px-4 py-3.5 text-right num font-semibold ${supportCls(s.supportGapRate)}`}>
-            {s.supportGapRate === null
-              ? "—"
-              : s.supportGapRate <= 0
-                ? "이탈"
-                : `${formatPrice(supportWon)}원 (${s.supportGapRate.toFixed(2)}%)`}
-          </td>
-        </>
-      )}
-      <td className="px-4 py-3.5 text-right num text-zinc-400">
-        {formatKoreanMoney(s.tradingValue)}
-      </td>
-      <td className="px-4 py-3.5 text-right">
-        <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num font-medium" />
-      </td>
-    </motion.tr>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm text-zinc-100">{s.stockName}</span>
+        <span className="num text-[11px] text-zinc-500">{shortCode(s.stockCode)}</span>
+      </span>
+      <span className="flex flex-col items-end gap-0.5">
+        {line.price === null ? (
+          <span className="text-zinc-600">—</span>
+        ) : (
+          <>
+            <span className="num text-[13px] text-zinc-300">{formatPrice(line.price)}</span>
+            {line.at && <span className="num text-[11px] text-zinc-500">{line.at} 형성</span>}
+          </>
+        )}
+      </span>
+      <span className={`flex flex-col items-end gap-0.5 ${gap.cls}`}>
+        {gap.crossed ? (
+          <span className="text-[13px]">{gap.crossed}</span>
+        ) : gap.pct === null || gap.won === null ? (
+          <span className="text-zinc-600">—</span>
+        ) : (
+          <>
+            <span className="num text-[13px]">{gap.pct.toFixed(2)}%</span>
+            <span className="num text-[11px] text-zinc-500">{formatPrice(gap.won)}원</span>
+          </>
+        )}
+      </span>
+      <span className="flex flex-col items-end gap-0.5">
+        <NumWon value={s.currentPrice} className="num text-[13px] text-zinc-100" />
+        <span className="num text-[11px] text-zinc-500">{formatKoreanMoney(s.tradingValue)}</span>
+      </span>
+      <span className="text-right">
+        <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num text-xs" />
+      </span>
+    </motion.button>
   );
 }
 
-/** 모바일 카드 — 표 컬럼을 압축 (저항선·지지선·상태 우선). */
+/** 모바일 카드 — 윗줄 종목·남은 거리, 아랫줄 선·형성 시각과 현재가·등락률. */
 function RadarCard({
   mode,
   s,
@@ -334,67 +325,36 @@ function RadarCard({
   /** 미로그인이면 없다 — 표 행과 같다 */
   onSelect?: (code: string) => void;
 }) {
-  const code = shortCode(s.stockCode);
-  const gapWon = s.peakPrice - s.currentPrice;
-  const supportWon = s.troughPrice === null ? 0 : s.currentPrice - s.troughPrice;
-  const trough = s.troughAt ? new Date(s.troughAt) : null;
-  const peak = new Date(s.peakAt);
-  peak.setMinutes(peak.getMinutes() + 1);
-  const peakTime = peak.toTimeString().slice(0, 5);
-  const troughTime = trough
-    ? `${String(trough.getHours()).padStart(2, "0")}:${String(trough.getMinutes()).padStart(2, "0")}`
-    : "";
+  const gap = radarGap(mode, s);
+  const line = formedAt(mode, s);
   return (
-    <div
+    <button
+      type="button"
       data-stock-code={s.stockCode}
+      disabled={!onSelect}
       onClick={onSelect ? () => onSelect(s.stockCode) : undefined}
-      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1.5 ${
-        onSelect ? "cursor-pointer" : ""
+      className={`flex w-full flex-col gap-1 rounded-xl px-2.5 py-2.5 text-left ${
+        onSelect ? "" : "cursor-default"
       } ${selected ? "bg-selected" : ""}`}
     >
-      {/* 1행: 종목 */}
-      <div className="flex items-center gap-2">
-        <StockAvatar name={s.stockName} code={code} size={26} />
-        <span className="font-semibold text-zinc-100 truncate flex-1 min-w-0">{s.stockName}</span>
-      </div>
-      {/* 2행: 모드에 해당하는 선 한 쌍 */}
-      {mode === "resistance" ? (
-        <div className="flex items-baseline justify-between gap-2 pl-9">
-          <span className="text-xs text-zinc-500 num">
-            저항 {formatPrice(s.peakPrice)} · {peak.getDate()}일 {peakTime}
-          </span>
-          <span className={`num text-sm font-semibold ${resistanceCls(s.gapRate)}`}>
-            {s.gapRate <= 0 ? "돌파" : `${formatPrice(gapWon)}원 (${s.gapRate.toFixed(2)}%)`}
-          </span>
-        </div>
-      ) : (
-        s.troughPrice !== null && (
-          <div className="flex items-baseline justify-between gap-2 pl-9">
-            <span className="text-xs text-zinc-500 num">
-              지지 {formatPrice(s.troughPrice)}
-              {trough && ` · ${trough.getDate()}일 ${troughTime}`}
-            </span>
-            <span className={`num text-sm font-semibold ${supportCls(s.supportGapRate)}`}>
-              {s.supportGapRate === null
-                ? "—"
-                : s.supportGapRate <= 0
-                  ? "이탈"
-                  : `${formatPrice(supportWon)}원 (${s.supportGapRate.toFixed(2)}%)`}
-            </span>
-          </div>
-        )
-      )}
-      {/* 3행: 코드·거래대금 · 현재가·등락률 */}
-      <div className="flex items-baseline justify-between gap-2 pl-9">
-        <span className="text-xs text-zinc-500 num truncate">
-          {code} · {formatKoreanMoney(s.tradingValue)}
+      <span className="flex w-full items-baseline justify-between gap-2.5">
+        <span className="min-w-0 truncate text-sm text-zinc-100">{s.stockName}</span>
+        <span className={`num shrink-0 text-[13px] ${gap.cls}`}>
+          {gap.crossed ??
+            (gap.pct === null || gap.won === null ? "—" : `${formatPrice(gap.won)}원 (${gap.pct.toFixed(2)}%)`)}
         </span>
-        <span className="flex items-baseline gap-2 shrink-0">
-          <NumWon value={s.currentPrice} className="num text-sm font-medium text-zinc-100" />
+      </span>
+      <span className="flex w-full items-baseline justify-between gap-2.5">
+        <span className="num truncate text-[11px] text-zinc-500">
+          {line.price !== null && `${mode === "resistance" ? "돌파선" : "눌림선"} ${formatPrice(line.price)}`}
+          {line.at && ` · ${line.at}`}
+        </span>
+        <span className="flex shrink-0 items-baseline gap-2">
+          <NumWon value={s.currentPrice} className="num text-xs text-zinc-300" />
           <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num text-xs" />
         </span>
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }
 

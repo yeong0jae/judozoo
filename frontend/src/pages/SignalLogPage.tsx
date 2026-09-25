@@ -15,10 +15,10 @@ import ProfitText from "../components/common/ProfitText";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
-import StockAvatar from "../components/common/StockAvatar";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import IndexDetailPanel from "../components/common/IndexDetailPanel";
+import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
 
@@ -27,12 +27,6 @@ const MIN_RATE_KEY = "signalLog.minRate";
 /** 행 고유 키 — 같은 종목이 여러 행이어도 인덱스로 구분(방향키 행 단위 이동·열림 식별용). */
 const rowKeyOf = (e: SignalEventItem, i: number) =>
   `${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`;
-
-/** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
-function shortCode(stockCode: string): string {
-  const idx = stockCode.indexOf("_");
-  return idx > 0 ? stockCode.slice(0, idx) : stockCode;
-}
 
 /** ISO LocalDateTime → HH:mm:ss (타임존 변환 없이 문자열에서 직접). */
 function clockOf(iso: string): string {
@@ -147,11 +141,12 @@ function renderMarketRow(
   selected: boolean,
   onClick: () => void,
   journey: MarketSignalEventItem[],
+  onShowDetail: () => void,
 ) {
   const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
   const { sideCls, accent, leftLabel, rightLabel, netText } = marketParts(m);
   // 종목 행의 종목명과 같은 자리 — 한 피드에 섞이므로 크기도 같이 간다
-  const leftCls = accent ? `text-xs font-semibold ${sideCls}` : "text-xs font-semibold text-zinc-100";
+  const leftCls = accent ? `text-sm ${sideCls}` : "text-sm text-zinc-300";
   return (
     <motion.li
       key={key}
@@ -165,40 +160,36 @@ function renderMarketRow(
       <button
         type="button"
         onClick={onClick}
-        className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl hover:bg-zinc-850 transition-colors ${
-          selected ? "bg-selected" : ""
+        className={`flex w-full flex-col gap-1 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-850 lg:px-3.5 ${
+          selected ? "bg-selected hover:bg-selected" : ""
         }`}
       >
-        {/* 최소폭이 있어야 좁을 때 오른쪽 묶음이 아랫줄로 접힌다. 없으면 flex-1(기준폭 0)이라
-            이 묶음이 0까지 눌리고, 안의 shrink-0들이 넘쳐 서로 겹친다 */}
-        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:min-w-[16rem] md:flex-1">
-          <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(m.occurredAt)}`}>
-            {clockOf(m.occurredAt)}
-          </span>
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-          <span className={`text-[11.5px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${MARKET_CHIP[m.market]}`}>
+        <span className="flex w-full items-center gap-2">
+          <span className={`num w-[3.75rem] shrink-0 text-xs ${clockClass(m.occurredAt)}`}>{clockOf(m.occurredAt)}</span>
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${MARKET_CHIP[m.market]}`}>
             {MARKET_LABEL[m.market]}
           </span>
           <span className={leftCls}>{leftLabel}</span>
-        </div>
-        <div className="flex min-w-0 items-center gap-3 ml-auto">
-          {rightLabel && <span className={`num text-xs font-semibold ${sideCls}`}>{rightLabel}</span>}
-          {netText && (
-            <span className="num truncate text-xs text-zinc-500">누적 {netText}</span>
-          )}
-          <span className="num text-xs text-zinc-100 w-20 text-right">
-            {m.indexValue != null ? fmtIndex(m.indexValue) : ""}
+          <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
+            <span className="num text-[13px] text-zinc-100">{m.indexValue != null ? fmtIndex(m.indexValue) : ""}</span>
+            <span className="w-14 text-right">
+              {m.changeRate != null && (
+                <ProfitText value={m.changeRate / 100} format={formatPct} className="num text-xs" />
+              )}
+            </span>
           </span>
-          <span className="w-16 text-right">
-            {m.changeRate != null && (
-              <ProfitText value={m.changeRate / 100} format={formatPct} className="num text-xs" />
-            )}
+        </span>
+        {(rightLabel || netText) && (
+          <span className="num truncate pl-[4.25rem] text-xs">
+            {rightLabel && <span className={sideCls}>{rightLabel}</span>}
+            {netText && <span className="text-zinc-500">{rightLabel ? " · " : ""}누적 {netText}</span>}
           </span>
-        </div>
+        )}
       </button>
 
       {open && (
-        <div className="px-4 pb-4 pt-3 bg-zinc-850">
+        <div className="mx-0.5 mb-1.5 mt-0.5 rounded-xl bg-zinc-900 px-4 pb-4 pt-3">
           {/* 폰에서는 상세 칸이 접혀 행 높이가 들쭉날쭉해진다 — 접지 말고 옆으로 밀어 본다.
               `-mx-4 px-4`는 스크롤 영역을 카드 가장자리까지 넓혀 잘린 글자가 여백에서 끊기지 않게 한다. */}
           <div className="-mx-4 overflow-x-auto px-4">
@@ -241,6 +232,7 @@ function renderMarketRow(
               </tbody>
             </table>
           </div>
+          {onShowDetail && <ShowDetailButton label="지수 차트 보기" onClick={onShowDetail} />}
         </div>
       )}
     </motion.li>
@@ -305,9 +297,18 @@ function Stat({
 
 /**
  * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·매수/매도 스파이크 횟수·최대 스파이크
- * 거래대금·필터 충족) + 시간순 테이블. [journey]는 최신순으로 들어오고, 테이블도 최신→오래된으로 그대로 그린다.
+ * 거래대금·주도주 조건) + 시간순 테이블. [journey]는 최신순으로 들어오고, 테이블도 최신→오래된으로 그대로 그린다.
  */
-function StockJourney({ stockCode, journey }: { stockCode: string; journey: SignalEventItem[] }) {
+function StockJourney({
+  stockCode,
+  journey,
+  onShowDetail,
+}: {
+  stockCode: string;
+  journey: SignalEventItem[];
+  /** 좁은 화면에서 종목 상세로 넘어가는 버튼 — 넓으면 상세가 이미 옆에 있다 */
+  onShowDetail?: () => void;
+}) {
   const detailQ = useLeadingStockDetail(stockCode);
   const filters = detailQ.data?.filterResults;
   const passed = filters?.filter((f) => f.passed).length;
@@ -324,8 +325,8 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
   const ordered = journey; // 최신 → 오래된
 
   return (
-    <div className="px-4 pb-4 pt-3 bg-zinc-850">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+    <div className="mx-0.5 mb-1.5 mt-0.5 rounded-xl bg-zinc-900 px-4 pb-4 pt-3">
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 2xl:grid-cols-4">
         <Stat label="누적 거래대금" value={formatKoreanMoney(accTradingValue)} />
         <Stat
           label="매수 · 매도 스파이크"
@@ -343,7 +344,7 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
           valueClass="text-rose-300"
         />
         <Stat
-          label="필터 충족"
+          label="주도주 조건"
           value={
             filters ? (
               <>
@@ -386,7 +387,24 @@ function StockJourney({ stockCode, journey }: { stockCode: string; journey: Sign
           </tbody>
         </table>
       </div>
+      {onShowDetail && <ShowDetailButton label="종목 상세 보기" onClick={onShowDetail} />}
     </div>
+  );
+}
+
+/** 여정 아래 — 좁은 화면에서만 보이는 "상세로" 버튼. */
+function ShowDetailButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-3 flex w-full items-center justify-center gap-0.5 rounded-xl bg-zinc-850 py-2.5 text-[13px] font-medium text-zinc-100 lg:hidden"
+    >
+      {label}
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-zinc-500">
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    </button>
   );
 }
 
@@ -469,6 +487,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
     ),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const mobile = useMobileDetail();
 
   // 우측 패널 선택 — 종목(차트) 또는 지수(시장 차트). 둘 중 하나만 활성.
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
@@ -506,171 +525,177 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [authenticated, events, openKey]);
 
-  return (
-    <div className="space-y-4">
-      <PageHeader
-        title="주도주 시그널"
-        count={data || marketQ.data ? feed.length : undefined}
-        queriedAt={formatFetchedAt(eventsQ.dataUpdatedAt)}
-        loading={eventsQ.isFetching}
-        trailing={
-          authenticated ? (
-            <DateNavigator
-              date={date}
-              onChange={(d) => {
-                setDate(d);
-                setSelectedCode(null);
-                setSelectedMarket(null);
-              }}
-            />
-          ) : undefined
-        }
-      />
-
-      {/* 등락률 필터는 목록 컬럼(50%) 폭에 맞춰 우측 정렬 */}
-      {authenticated && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="flex justify-end pb-2 border-b border-zinc-800">
+  const list = (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 lg:px-3.5">
+        <PageHeader
+          title="주도주 시그널"
+          count={data || marketQ.data ? feed.length : undefined}
+          queriedAt={formatFetchedAt(eventsQ.dataUpdatedAt)}
+          loading={eventsQ.isFetching}
+          trailing={
+            authenticated ? (
+              <DateNavigator
+                date={date}
+                onChange={(d) => {
+                  setDate(d);
+                  setSelectedCode(null);
+                  setSelectedMarket(null);
+                }}
+              />
+            ) : undefined
+          }
+        />
+        {/* 유형 필터와 등락률 — 미로그인은 조작이 잠겨 아예 감춘다 */}
+        {authenticated && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex w-fit rounded-xl bg-zinc-800 p-0.5 text-xs">
+              {TYPE_TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTypeFilter(t.key)}
+                  className={`rounded-lg px-2.5 py-1.5 transition-colors ${
+                    typeFilter === t.key ? "bg-elevated font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
             <ChangeRateSelector value={minRate} onChange={setMinRate} />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <section>
-        {/* 유형 필터 — 리스트 위 한 줄. 미로그인은 조작이 잠겨 아예 감춘다 */}
-        <div className={`py-2.5 ${authenticated ? "" : "hidden"}`}>
-          <div className="flex rounded-lg bg-zinc-800 p-0.5 text-xs w-fit">
-            {TYPE_TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTypeFilter(t.key)}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  typeFilter === t.key ? "bg-elevated text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+      {eventsQ.isLoading || marketQ.isLoading ? (
+        <div className="space-y-3 p-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
         </div>
-        {eventsQ.isLoading || marketQ.isLoading ? (
-          <div className="p-6 space-y-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : feed.length === 0 ? (
-          <EmptyState
-            message={`${date} 시그널이 없습니다`}
-            hint="국내 종목, 지수 시그널을 조회합니다."
-          />
-        ) : (
-          <ul className="divide-y divide-zinc-800">
-            <AnimatePresence initial={false}>
-              {feed.map((row) => {
-                if (row.kind === "market") {
-                  const m = row.m;
-                  const open = openKey === row.key;
-                  const selected = selectedMarket === m.market && selectedCode === null;
-                  const journey = open ? allMarketEvents.filter((x) => x.market === m.market) : [];
-                  return renderMarketRow(row.key, m, open, selected, () => {
+      ) : feed.length === 0 ? (
+        <EmptyState message={`${date} 시그널이 없습니다`} hint="국내 종목, 지수 시그널을 조회합니다." />
+      ) : (
+        <ul className="flex flex-col gap-0.5">
+          <AnimatePresence initial={false}>
+            {feed.map((row) => {
+              if (row.kind === "market") {
+                const m = row.m;
+                const open = openKey === row.key;
+                const selected = selectedMarket === m.market && selectedCode === null;
+                const journey = open ? allMarketEvents.filter((x) => x.market === m.market) : [];
+                return renderMarketRow(
+                  row.key,
+                  m,
+                  open,
+                  selected,
+                  () => {
                     setSelectedMarket(m.market);
                     setSelectedMarketAt(m.occurredAt);
                     setSelectedCode(null);
                     setOpenKey(open ? null : row.key);
-                  }, journey);
-                }
-                const e = row.e;
-                const rowKey = row.key;
-                const code = shortCode(e.stockCode);
-                const meta = EVENT_META[e.eventType];
-                const open = openKey === rowKey;
-                // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 여정은 필터와 무관하게 전체 경로를 보여준다
-                const stockEvents = open ? allEvents.filter((x) => x.stockCode === e.stockCode) : [];
-                const journey = stockEvents;
-                return (
-                  <motion.li
-                    key={rowKey}
-                    data-row-key={rowKey}
-                    layout
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {/* 미로그인은 펼치지 않는다 — 여정이 로그인 전용 상세를 부른다 */}
-                    <button
-                      type="button"
-                      disabled={!authenticated}
-                      onClick={() => {
-                        setSelectedCode(e.stockCode);
-                        setSelectedMarket(null);
-                        setOpenKey(open ? null : rowKey);
-                      }}
-                      className={`w-full flex items-center flex-wrap gap-x-3 gap-y-1 px-4 py-3 text-left rounded-xl transition-colors ${
-                        authenticated ? "hover:bg-zinc-850" : "cursor-default"
-                      } ${e.stockCode === selectedCode ? "bg-selected" : ""}`}
-                    >
-                      {/* 왼쪽: 시각·유형·종목. 최소폭은 좁을 때 겹치지 않게 — 위 시장 행과 같은 이유 */}
-                      <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:min-w-[16rem] md:flex-1">
-                        <span className={`num text-xs tabular-nums w-16 shrink-0 ${clockClass(e.occurredAt)}`}>
-                          {clockOf(e.occurredAt)}
-                        </span>
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
-                        <span className={`text-[11.5px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${meta.chip}`}>
-                          {meta.label}
-                        </span>
-                        <StockAvatar name={e.stockName} code={code} size={28} />
-                        <span className="text-xs font-semibold text-zinc-100 truncate">{e.stockName}</span>
-                      </div>
-                      {/* 오른쪽: 디테일·현재가·등락률. 폰에선 아래 줄로 래핑되고, 좁으면 디테일부터 줄어든다 */}
-                      <div className="flex min-w-0 items-center gap-3 ml-auto">
-                        <span className="num truncate text-xs text-zinc-300">{detailOf(e)}</span>
-                        <span className="num text-xs text-zinc-100 w-20 text-right">
-                          {formatPrice(e.currentPrice)}
-                        </span>
-                        <span className="w-16 text-right">
-                          <ProfitText
-                            value={e.priceChangeRate / 100}
-                            format={formatPct}
-                            className="num text-xs"
-                          />
-                        </span>
-                      </div>
-                    </button>
-
-                    {open && <StockJourney stockCode={e.stockCode} journey={journey} />}
-                  </motion.li>
+                  },
+                  journey,
+                  mobile.show,
                 );
-              })}
-            </AnimatePresence>
-            {/* totalCount는 서버가 자르기 전 전체 건수다 — 그린 행 수보다 크면 잘린 것이다 */}
-            {!authenticated && (data?.totalCount ?? 0) > feed.length && (
-              <PreviewGate shown={feed.length} total={data?.totalCount ?? 0} />
-            )}
-          </ul>
-        )}
-      </section>
-      <div className={`lg:sticky lg:top-20 ${selectedCode || selectedMarket ? "" : "hidden lg:block"}`}>
-        {!authenticated ? (
-          <LoginGate
-            title="종목 상세"
-            description="필터 평가·분봉·일봉·투자자 수급을 시그널이 뜬 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
-          />
-        ) : selectedMarket ? (
-          <IndexDetailPanel
-            market={selectedMarket}
-            at={selectedMarketAt}
-            changeRate={allMarketEvents.find((m) => m.market === selectedMarket)?.changeRate ?? null}
-          />
-        ) : (
-          <StockDetailPanel stockCode={selectedCode} defaultTab="minute" date={date} />
-        )}
-      </div>
-      </div>
+              }
+              const e = row.e;
+              const rowKey = row.key;
+              const meta = EVENT_META[e.eventType];
+              const open = openKey === rowKey;
+              // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 여정은 필터와 무관하게 전체 경로를 보여준다
+              const journey = open ? allEvents.filter((x) => x.stockCode === e.stockCode) : [];
+              return (
+                <motion.li
+                  key={rowKey}
+                  data-row-key={rowKey}
+                  layout
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {/* 미로그인은 펼치지 않는다 — 여정이 로그인 전용 상세를 부른다 */}
+                  <button
+                    type="button"
+                    disabled={!authenticated}
+                    onClick={() => {
+                      setSelectedCode(e.stockCode);
+                      setSelectedMarket(null);
+                      setOpenKey(open ? null : rowKey);
+                    }}
+                    className={`flex w-full flex-col gap-1 rounded-xl px-2.5 py-2.5 text-left transition-colors lg:px-3.5 ${
+                      authenticated ? "hover:bg-zinc-850" : "cursor-default"
+                    } ${e.stockCode === selectedCode ? "bg-selected hover:bg-selected" : ""}`}
+                  >
+                    {/* 윗줄: 시각·유형·종목 / 현재가·등락률 */}
+                    <span className="flex w-full items-center gap-2">
+                      <span className={`num w-[3.75rem] shrink-0 text-xs ${clockClass(e.occurredAt)}`}>
+                        {clockOf(e.occurredAt)}
+                      </span>
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
+                      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${meta.chip}`}>{meta.label}</span>
+                      <span className="min-w-0 truncate text-sm text-zinc-100">{e.stockName}</span>
+                      <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
+                        <span className="num text-[13px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
+                        <span className="w-14 text-right">
+                          <ProfitText value={e.priceChangeRate / 100} format={formatPct} className="num text-xs" />
+                        </span>
+                      </span>
+                    </span>
+                    {/* 아랫줄: 무엇이 일어났는지 — 한 줄에 다 넣으면 좁을 때 접혀 행 높이가 들쭉날쭉해진다 */}
+                    <span className="num truncate pl-[4.25rem] text-xs text-zinc-300">{detailOf(e)}</span>
+                  </button>
+
+                  {open && <StockJourney stockCode={e.stockCode} journey={journey} onShowDetail={mobile.show} />}
+                </motion.li>
+              );
+            })}
+          </AnimatePresence>
+          {/* totalCount는 서버가 자르기 전 전체 건수다 — 그린 행 수보다 크면 잘린 것이다 */}
+          {!authenticated && (data?.totalCount ?? 0) > feed.length && (
+            <PreviewGate shown={feed.length} total={data?.totalCount ?? 0} />
+          )}
+        </ul>
+      )}
     </div>
+  );
+
+  const detail = !authenticated ? (
+    <LoginGate
+      title="종목 상세"
+      description="주도주 조건·분봉·일봉·투자자 수급을 시그널이 뜬 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+    />
+  ) : selectedMarket ? (
+    <div className="flex flex-col gap-4">
+      <BackToList onBack={mobile.hide} />
+      <IndexDetailPanel
+        market={selectedMarket}
+        at={selectedMarketAt}
+        changeRate={allMarketEvents.find((m) => m.market === selectedMarket)?.changeRate ?? null}
+      />
+    </div>
+  ) : (
+    <StockDetailPanel stockCode={selectedCode} date={date} onBack={mobile.hide} />
+  );
+
+  return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
+}
+
+/** 모바일 상세 맨 위 "목록" — 지수 상세는 종목 상세와 달리 자체 버튼이 없다. */
+function BackToList({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      className="-ml-1 flex w-fit items-center gap-0.5 text-sm text-zinc-400 hover:text-zinc-200 lg:hidden"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M15 6l-6 6 6 6" />
+      </svg>
+      목록
+    </button>
   );
 }
 

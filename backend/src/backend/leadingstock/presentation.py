@@ -165,6 +165,12 @@ class LeadingStockDetailResponse(BaseModel):
     #: 소속 시장 — 카탈로그에 없으면 None(화면은 그때 아무것도 적지 않는다)
     market: str | None = None
     filter_results: list[FilterResultItem] = Field(serialization_alias="filterResults")
+    opening_price: int = Field(serialization_alias="openingPrice")
+    high_price: int = Field(serialization_alias="highPrice")
+    low_price: int = Field(serialization_alias="lowPrice")
+    previous_close: int = Field(serialization_alias="previousClose")
+    #: 누적 거래대금(원) — 거래대금 순위 밖이면 받아오지 않아 None
+    trading_value: int | None = Field(serialization_alias="tradingValue")
 
 
 @router.get("/candidates")
@@ -441,6 +447,9 @@ def get_stock_detail(stock_code: str) -> ApiResponse[LeadingStockDetailResponse]
             current_price=s.current_price, price_change_rate=s.price_change_rate,
             relative_volume=ev.relative_volume,
             market=ev.market.name if ev.market else None,
+            opening_price=s.opening_price, high_price=s.high_price, low_price=s.low_price,
+            previous_close=s.previous_close,
+            trading_value=s.accumulated_trading_value or None,
             filter_results=[
                 FilterResultItem(
                     filter_name=r.filter_name, criteria_description=r.criteria_description,

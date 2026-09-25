@@ -149,6 +149,33 @@ class Test종목_상세:
 
         assert 데이터["relativeVolume"] is None
 
+    def test_시가_고가_저가_전일과_거래대금을_싣는다(self, 로그인_client, monkeypatch):
+        """상세 머리가 전일 대비와 시고저를 그린다 — 등락률에서 역산하면 큰 가격대에서 원 단위가 어긋난다."""
+        시세 = LeadingStockSnapshot(
+            stock_code="005930", stock_name="삼성전자", current_price=286_500, price_change_rate=3.62,
+            trading_value_rank=1, accumulated_trading_value=9_100_600_000_000,
+            opening_price=283_000, previous_close=276_500, high_price=289_500, low_price=281_500,
+        )
+        monkeypatch.setattr(application, "evaluate_stock", lambda _c: application.StockEvaluation(시세, [], None))
+
+        데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
+
+        assert (데이터["openingPrice"], 데이터["highPrice"], 데이터["lowPrice"]) == (283_000, 289_500, 281_500)
+        assert 데이터["previousClose"] == 276_500
+        assert 데이터["tradingValue"] == 9_100_600_000_000
+
+    def test_거래대금_순위_밖이면_거래대금은_null(self, 로그인_client, monkeypatch):
+        """순위 밖 종목은 누적 거래대금을 받아오지 않는다 — 0원으로 그리면 거래가 없던 것처럼 읽힌다."""
+        순위밖 = LeadingStockSnapshot(
+            stock_code="005930", stock_name="삼성전자", current_price=70_000, price_change_rate=1.0,
+            trading_value_rank=0, accumulated_trading_value=0,
+        )
+        monkeypatch.setattr(application, "evaluate_stock", lambda _c: application.StockEvaluation(순위밖, [], None))
+
+        데이터 = 로그인_client.get("/api/leading-stocks/candidates/005930").json()["data"]
+
+        assert 데이터["tradingValue"] is None
+
 
 class Test눌림_돌파_미리보기:
     @staticmethod

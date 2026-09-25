@@ -9,13 +9,13 @@ import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
 import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
-import StockAvatar from "../components/common/StockAvatar";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import LoginGate from "../components/common/LoginGate";
 import { useMe } from "../api/auth";
 import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 import OverseasLeadingStocks from "./OverseasLeadingStocksPage";
+import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 import MarketToggle from "../components/common/MarketToggle";
 import { loadMarket, rememberMarket, type StockMarket } from "../lib/stockMarket";
 
@@ -160,6 +160,7 @@ function DomesticLeadingStocks({
   const leadersQ = useLeadingStockLeaders();
   const candidatesQ = useLeadingStockCandidates(minChangeRate);
   const [openCode, setOpenCode] = useState<string | null>(null);
+  const mobile = useMobileDetail();
 
   const data = candidatesQ.data;
   // 위는 첫 화면과 같은 규칙으로 서버가 고른 주도주, 아래는 나머지 후보를 거래대금 순으로.
@@ -201,85 +202,67 @@ function DomesticLeadingStocks({
     return listed.entered.has(code) ? "new" : null;
   };
 
-  // 순서가 바뀌면 줄이 새 자리로 미끄러진다 (표·카드 각각)
+  // 순서가 바뀌면 줄이 새 자리로 미끄러진다 (데스크톱 줄·모바일 줄 각각)
   const orderKey = codes.join(",");
-  const tableRef = useRef<HTMLTableSectionElement>(null);
+  const rowsRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
-  useSlideOnReorder(tableRef, orderKey);
+  useSlideOnReorder(rowsRef, orderKey);
   useSlideOnReorder(cardsRef, orderKey);
 
-  const selector = (
-    <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
-  );
+  const open = (code: string) => {
+    setOpenCode(code);
+    mobile.show();
+  };
 
-  return (
-    <div className="space-y-4">
-      <Header
-        totalCount={stocks.length}
-        queriedAt={data?.queriedAt}
-        loading={candidatesQ.isFetching}
-      />
-
-      {/* 토글+필터는 목록 컬럼 폭에 맞춰(필터가 리스트 오른쪽 끝에 정렬).
-          선택기가 맨 위에 있지만 **걸리는 곳은 아래 "후보" 구간뿐**이다 — 주도주는 기준과 무관하다 */}
-      <div className={openCode ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6" : ""}>
-        <MarketToggle value={market} onChange={onMarket} trailing={selector} />
+  const list = (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 lg:px-3.5">
+        <Header
+          totalCount={stocks.length}
+          queriedAt={data?.queriedAt}
+          loading={candidatesQ.isFetching}
+        />
+        {/* 선택기가 맨 위에 있지만 **걸리는 곳은 아래 "후보" 구간뿐**이다 — 주도주는 기준과 무관하다 */}
+        <MarketToggle
+          value={market}
+          onChange={onMarket}
+          trailing={<ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />}
+        />
       </div>
 
-      {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
-      <div
-        className={
-          openCode
-            ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6 items-start"
-            : ""
-        }
-      >
-        <section>
-          {candidatesQ.isLoading || leadersQ.isLoading ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : stocks.length === 0 ? (
-            <EmptyState message="조건을 통과한 후보가 없습니다" />
-          ) : (
-            <>
-              <CandidatesTable
-                bodyRef={tableRef}
-                leaders={leaders}
-                rest={rest}
-                flashOf={flashOf}
-                selectedCode={openCode}
-                onOpen={(code) => setOpenCode(code)}
-              />
-              <CandidatesCards
-                rootRef={cardsRef}
-                leaders={leaders}
-                rest={rest}
-                flashOf={flashOf}
-                selectedCode={openCode}
-                onOpen={(code) => setOpenCode(code)}
-              />
-            </>
-          )}
-        </section>
-
-        {openCode && (
-          <aside className="lg:sticky lg:top-6">
-            {me?.authenticated ? (
-              <StockDetailPanel stockCode={openCode} defaultTab="detail" />
-            ) : (
-              <LoginGate
-                title="종목 상세"
-                description="필터 평가, 분봉, 일봉, 투자자 수급을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
-              />
-            )}
-          </aside>
-        )}
-      </div>
+      {candidatesQ.isLoading || leadersQ.isLoading ? (
+        <div className="space-y-3 p-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      ) : stocks.length === 0 ? (
+        <EmptyState message="조건을 통과한 후보가 없습니다" />
+      ) : (
+        <CandidatesList
+          rowsRef={rowsRef}
+          cardsRef={cardsRef}
+          leaders={leaders}
+          rest={rest}
+          minChangeRate={minChangeRate}
+          flashOf={flashOf}
+          selectedCode={openCode}
+          onOpen={open}
+        />
+      )}
     </div>
   );
+
+  const detail = me?.authenticated ? (
+    <StockDetailPanel stockCode={openCode} onBack={mobile.hide} />
+  ) : (
+    <LoginGate
+      title="종목 상세"
+      description="주도주 조건, 분봉, 일봉, 투자자 수급을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+    />
+  );
+
+  return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
 }
 
 // ============================================================
@@ -306,251 +289,157 @@ function Header({
 }
 
 // ============================================================
-// Candidates table
+// 목록 — 넓으면 열 맞춘 줄, 좁으면 두 줄 카드
 // ============================================================
 
-/** 종목의 대표 테마 칩. 전체 테마가 더 많으면 "+N" 표기. */
-function CandidatesTable({
-  bodyRef,
+/** 데스크톱 줄의 열 — 순위 · 종목 · 거래대금 · 현재가 · 등락률. 머리와 줄이 같은 값을 쓴다. */
+const ROW_COLS =
+  "grid-cols-[1.25rem_minmax(0,1fr)_6.5rem_5.5rem_4.5rem] 2xl:grid-cols-[1.25rem_minmax(0,1fr)_7.25rem_6rem_5rem]";
+
+function CandidatesList({
+  rowsRef,
+  cardsRef,
   leaders,
   rest,
+  minChangeRate,
   flashOf,
   selectedCode,
   onOpen,
 }: {
-  bodyRef: RefObject<HTMLTableSectionElement>;
+  rowsRef: RefObject<HTMLDivElement>;
+  cardsRef: RefObject<HTMLDivElement>;
   leaders: CandidateStockItem[];
   rest: CandidateStockItem[];
+  minChangeRate: number;
   flashOf: (code: string) => Flash;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
 }) {
-  /** 한 구간의 행들. 마지막 줄엔 실선을 빼 둔다 — 다음 구간 머리가 이미 경계를 만든다. */
-  const section = (list: CandidateStockItem[]) =>
+  // 막대는 목록 안에서 가장 큰 거래대금이 꽉 찬 폭이다
+  const maxValue = Math.max(1, ...[...leaders, ...rest].map((s) => s.accumulatedTradingValue));
+  const section = (list: CandidateStockItem[], Item: typeof Row | typeof Card) =>
     list.map((s, idx) => (
-      <Row
+      <Item
         key={s.stockCode}
         stock={s}
         rank={idx + 1}
-        line={idx !== list.length - 1}
+        valueRatio={s.accumulatedTradingValue / maxValue}
         flash={flashOf(s.stockCode)}
         isSelected={selectedCode === s.stockCode}
         onOpen={onOpen}
       />
     ));
+  const restHint = `거래대금 순 · 등락률 ${minChangeRate > 0 ? "+" : ""}${minChangeRate}% 이상`;
+  // 통과 종목이 없어도 머리는 그린다 — 없으면 "주도주만 있는 화면"으로 보여 기준이 걸렸다는 걸 알 수 없다
+  const empty = <p className="px-4 py-6 text-center text-xs text-zinc-500">이 기준을 통과한 종목이 없습니다</p>;
 
   return (
-    <table className="hidden md:table w-full text-xs border-separate border-spacing-y-0">
-      <thead className="text-zinc-500 text-xs">
-        <tr>
-          <th className="pl-4 py-2.5 text-left whitespace-nowrap font-medium">순위</th>
-          <th className="px-2 py-2.5 text-left font-medium">종목</th>
-          <th className="px-4 py-2.5 text-right font-medium">현재가</th>
-          <th className="px-4 py-2.5 text-right font-medium">등락률</th>
-          <th className="px-4 py-2.5 text-right font-medium">거래대금</th>
-        </tr>
-      </thead>
-      <tbody ref={bodyRef}>
-        {leaders.length > 0 && <GroupHeader label="주도주" />}
-        {section(leaders)}
-        {/* 통과 종목이 없어도 머리는 그린다 — 없으면 "주도주만 있는 화면"으로 보여 기준이 걸렸다는 걸 알 수 없다 */}
-        <GroupHeader label="후보" hint="거래대금 순" />
-        {rest.length > 0 ? (
-          section(rest)
-        ) : (
-          <tr>
-            <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
-              이 기준을 통과한 종목이 없습니다
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+    <>
+      <div className="hidden lg:block" ref={rowsRef}>
+        <div className={`grid ${ROW_COLS} gap-x-3 px-3.5 pb-1.5 text-[11px] text-zinc-500`}>
+          <span />
+          <span>종목</span>
+          <span className="text-right">거래대금</span>
+          <span className="text-right">현재가</span>
+          <span className="text-right">등락률</span>
+        </div>
+        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} />}
+        {section(leaders, Row)}
+        <GroupHeader label="후보" count={rest.length} hint={restHint} />
+        {rest.length > 0 ? section(rest, Row) : empty}
+      </div>
+      <div className="lg:hidden" ref={cardsRef}>
+        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} />}
+        {section(leaders, Card)}
+        <GroupHeader label="후보" count={rest.length} hint={restHint} />
+        {rest.length > 0 ? section(rest, Card) : empty}
+      </div>
+    </>
   );
 }
 
-/** 목록 한 줄. 코드는 이름 오른쪽에 — 아래 줄로 내리면 행이 두 줄 높이가 된다. */
-function Row({
-  stock,
-  rank,
-  line,
-  flash,
-  isSelected,
-  onOpen,
-}: {
+type ItemProps = {
   stock: CandidateStockItem;
   rank: number;
-  line: boolean;
+  /** 목록 최대 거래대금 대비 비율(0~1) — 데스크톱 줄의 막대 */
+  valueRatio: number;
   flash: Flash;
   isSelected: boolean;
   onOpen: (stockCode: string) => void;
-}) {
-  const code = shortCode(stock.stockCode);
+};
+
+/** 데스크톱 한 줄 — 코드는 이름 아래. */
+function Row({ stock, rank, valueRatio, flash, isSelected, onOpen }: ItemProps) {
   return (
-    <tr
+    <button
+      type="button"
       data-stock-code={stock.stockCode}
-      className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
-        line ? "[&>td]:border-b [&>td]:border-zinc-800/60" : ""
-      } ${flash ? `leading-stock-${flash}` : ""} ${isSelected ? "[&>td]:bg-selected" : ""}`}
       onClick={() => onOpen(stock.stockCode)}
+      className={`grid w-full ${ROW_COLS} items-center gap-x-3 rounded-xl px-3.5 py-2.5 text-left transition-colors ${
+        isSelected ? "bg-selected" : "hover:bg-zinc-850"
+      } ${flash ? `leading-stock-${flash}` : ""}`}
     >
-      <td className="pl-4 py-3.5 text-zinc-500 num w-10">{rank}</td>
-      <td className="px-2 py-3.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <StockAvatar name={stock.stockName} code={code} size={28} />
-          <span className="font-semibold text-zinc-100 truncate">{stock.stockName}</span>
-          <span className="text-[11.5px] text-zinc-500 num shrink-0">{code}</span>
-        </div>
-      </td>
-      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
+      <span className="num text-right text-xs text-zinc-500">{rank}</span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm text-zinc-100">{stock.stockName}</span>
+        <span className="num text-[11px] text-zinc-500">{shortCode(stock.stockCode)}</span>
+      </span>
+      <span className="flex flex-col items-end gap-1.5">
+        <span className="num text-xs text-zinc-400">{formatKoreanMoney(stock.accumulatedTradingValue)}</span>
+        <span className="relative h-1 w-full overflow-hidden rounded-full bg-zinc-850">
+          <span className="absolute inset-y-0 right-0 rounded-full bg-zinc-500" style={{ width: `${valueRatio * 100}%` }} />
+        </span>
+      </span>
+      <span className="num text-right text-sm text-zinc-100">
         {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
         <FlashOnChange value={stock.currentPrice} duration={1000}>
           <NumWon value={stock.currentPrice} />
         </FlashOnChange>
-      </td>
-      <td className="px-4 py-3.5 text-right num font-medium">
+      </span>
+      <span className="num text-right text-xs">
         {/* 키움은 등락률을 이미 % 단위로 주고, formatPct는 분수→% 변환이라 /100 해서 맞춤 */}
         <FlashOnChange value={stock.priceChangeRate} duration={1000}>
           <ProfitText value={stock.priceChangeRate / 100} format={formatPct} />
         </FlashOnChange>
-      </td>
-      <td className="px-4 py-3.5 text-right num text-zinc-400">
-        {formatKoreanMoney(stock.accumulatedTradingValue)}
-      </td>
-    </tr>
+      </span>
+    </button>
   );
 }
 
-/** 구간 머리 — 표의 층을 가르는 자리라 행 글씨보다 크게 세운다. */
-function GroupHeader({
-  label,
-  hint,
-}: {
-  label: string;
-  hint?: string;
-}) {
+/** 모바일 한 줄 — 왼쪽 이름·거래대금, 오른쪽 현재가·등락률. */
+function Card({ stock, rank, flash, isSelected, onOpen }: ItemProps) {
   return (
-    <tr>
-      {/* 표 좌측 끝(순위 컬럼 자리)에서 라벨 시작 — 1·2·3 번호 컬럼과 좌측 정렬 일치 */}
-      <td colSpan={5} className="px-4 pt-4 pb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
-          {hint && <span className="text-xs text-zinc-500 font-normal">{hint}</span>}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-// ============================================================
-// Candidates cards (모바일)
-// ============================================================
-
-function CandidatesCards({
-  rootRef,
-  leaders,
-  rest,
-  flashOf,
-  selectedCode,
-  onOpen,
-}: {
-  rootRef: RefObject<HTMLDivElement>;
-  leaders: CandidateStockItem[];
-  rest: CandidateStockItem[];
-  flashOf: (code: string) => Flash;
-  selectedCode: string | null;
-  onOpen: (stockCode: string) => void;
-}) {
-  const section = (list: CandidateStockItem[]) =>
-    list.map((s, idx) => (
-      <Card
-        key={s.stockCode}
-        stock={s}
-        rank={idx + 1}
-        line={idx !== list.length - 1}
-        flash={flashOf(s.stockCode)}
-        isSelected={selectedCode === s.stockCode}
-        onOpen={onOpen}
-      />
-    ));
-
-  return (
-    <div className="md:hidden" ref={rootRef}>
-      {leaders.length > 0 && <CardGroupHeader label="주도주" />}
-      {section(leaders)}
-      {/* 통과 종목이 없어도 머리는 그린다 */}
-      <CardGroupHeader label="후보" hint="거래대금 순" />
-      {rest.length > 0 ? (
-        section(rest)
-      ) : (
-        <p className="px-4 py-6 text-center text-xs text-zinc-500">
-          이 기준을 통과한 종목이 없습니다
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Card({
-  stock,
-  rank,
-  line,
-  flash,
-  isSelected,
-  onOpen,
-}: {
-  stock: CandidateStockItem;
-  rank: number;
-  line: boolean;
-  flash: Flash;
-  isSelected: boolean;
-  onOpen: (stockCode: string) => void;
-}) {
-  const code = shortCode(stock.stockCode);
-  return (
-    <div
+    <button
+      type="button"
       data-stock-code={stock.stockCode}
-      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
-        line ? "border-b border-zinc-800/60" : ""
-      } ${flash ? `leading-stock-${flash}` : ""} ${isSelected ? "bg-selected" : ""}`}
       onClick={() => onOpen(stock.stockCode)}
+      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left ${
+        isSelected ? "bg-selected" : ""
+      } ${flash ? `leading-stock-${flash}` : ""}`}
     >
-      {/* 1행: 순위 · 아바타 · 종목명 · 현재가 */}
-      <div className="flex items-center gap-2">
-        <span className="text-zinc-500 text-xs num w-4 shrink-0">{rank}</span>
-        <StockAvatar name={stock.stockName} code={code} size={28} />
-        <span className="font-semibold truncate flex-1 min-w-0">{stock.stockName}</span>
+      <span className="num w-4 shrink-0 text-right text-[11px] text-zinc-500">{rank}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-sm text-zinc-100">{stock.stockName}</span>
+        <span className="num text-[11px] text-zinc-500">{formatKoreanMoney(stock.accumulatedTradingValue)}</span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-0.5">
         <FlashOnChange value={stock.currentPrice} duration={1000}>
-          <NumWon value={stock.currentPrice} className="num shrink-0 font-medium" />
+          <NumWon value={stock.currentPrice} className="num text-sm text-zinc-100" />
         </FlashOnChange>
-      </div>
-      {/* 2행: 코드·거래대금 · 등락률 — 폰은 한 줄에 다 넣으면 이름이 잘려 두 줄로 둔다 */}
-      <div className="flex items-center gap-2 pl-[3.25rem]">
-        <span className="text-xs text-zinc-500 num whitespace-nowrap truncate flex-1 min-w-0">
-          {code} · {formatKoreanMoney(stock.accumulatedTradingValue)}
-        </span>
         <FlashOnChange value={stock.priceChangeRate} duration={1000}>
-          <ProfitText
-            value={stock.priceChangeRate / 100}
-            format={formatPct}
-            className="num text-xs shrink-0"
-          />
+          <ProfitText value={stock.priceChangeRate / 100} format={formatPct} className="num text-xs" />
         </FlashOnChange>
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }
 
-function CardGroupHeader({
-  label,
-  hint,
-}: {
-  label: string;
-  hint?: string;
-}) {
+/** 구간 머리 — 목록의 층을 가르는 자리라 줄 글씨보다 크게 세운다. */
+function GroupHeader({ label, count, hint }: { label: string; count: number; hint?: string }) {
   return (
-    <div className="bg-zinc-950 px-4 pt-4 pb-2 flex flex-wrap items-center gap-2">
-      <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-2.5 pb-1.5 pt-4 lg:px-3.5">
+      <span className="text-[15px] font-bold tracking-tight text-zinc-100">{label}</span>
+      <span className="num text-xs text-zinc-400">{count}</span>
       {hint && <span className="text-xs text-zinc-500">{hint}</span>}
     </div>
   );
