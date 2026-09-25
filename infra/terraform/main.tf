@@ -338,8 +338,10 @@ resource "google_artifact_registry_repository" "docker" {
   cleanup_policies {
     id     = "delete-all"
     action = "DELETE"
+    # "전부". `older_than = "0s"`로 쓰면 GCP가 그 값을 버리고 tag_state ANY로 저장해서
+    # plan마다 변경으로 잡힌다(2026-09-25까지 그랬다). 저장되는 모양 그대로 쓴다.
     condition {
-      older_than = "0s"
+      tag_state = "ANY"
     }
   }
 
