@@ -73,3 +73,9 @@ variable "db_backup_retention_days" {
   type        = number
   default     = 7
 }
+
+variable "domain" {
+  description = "부하 분산기 인증서·인증서 맵이 받는 도메인 (023)"
+  type        = string
+  default     = "judozoo.com"
+}

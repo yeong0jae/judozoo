@@ -47,3 +47,13 @@ output "ops_internal_dns" {
   description = "앱 VM의 alloy가 로그를 밀어 넣을 주소"
   value       = "${google_compute_instance.ops.name}.${google_compute_instance.ops.zone}.c.${var.project_id}.internal"
 }
+
+output "lb_ip" {
+  description = "부하 분산기 전역 IP — 전환 시 Cloudflare A 레코드 값 (023)"
+  value       = google_compute_global_address.lb.address
+}
+
+output "lb_dns_authorization" {
+  description = "인증서 DNS 인증용 레코드 — Cloudflare DNS에 넣는다(회색 구름) (023)"
+  value       = google_certificate_manager_dns_authorization.site.dns_resource_record
+}
