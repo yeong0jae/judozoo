@@ -17,6 +17,10 @@ services:
 
   frontend:
     build: !reset null
+    # 부하 분산기가 붙는 입구(023). 방화벽이 구글 부하 분산기 대역에만 연다.
+    # 기본 compose에 두지 않는다 — 로컬에서는 ops compose의 Grafana가 3000을 쓴다.
+    ports:
+      - "3000:3000"
     image: ${FRONTEND_IMAGE}:${FRONTEND_TAG:-latest}
     pull_policy: always
     restart: unless-stopped

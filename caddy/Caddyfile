@@ -10,7 +10,11 @@
 
 {$DOMAIN} {
 	import tls_dns
-	reverse_proxy frontend:3000
+	# 방문자 IP를 nginx가 읽는 `X-Client-IP`로 옮겨 싣는다. 부하 분산기 경로와 헤더를 맞추려는 것(023).
+	# header_up은 값을 **덮어쓴다** — 방문자가 직접 실어 보낸 X-Client-IP는 여기서 사라진다.
+	reverse_proxy frontend:3000 {
+		header_up X-Client-IP {header.CF-Connecting-IP}
+	}
 }
 
 # Grafana는 Caddy를 거치지 않는다. IAP TCP 터널로만 붙는다 —
