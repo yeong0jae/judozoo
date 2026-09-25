@@ -6,7 +6,6 @@ import NumUsd from "../components/common/NumUsd";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
 import EmptyState from "../components/common/EmptyState";
-import StockAvatar from "../components/common/StockAvatar";
 import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import OverseasStockDetailPanel from "../components/common/OverseasStockDetailPanel";
 import PageHeader from "../components/layout/PageHeader";
@@ -14,6 +13,7 @@ import { useOverseasMinChangeRate } from "../lib/changeRate";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 import LoginGate from "../components/common/LoginGate";
+import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 import { useMe } from "../api/auth";
 import { isEtWeekend, useMarketSessions, usOpenClock } from "../lib/marketSession";
 
@@ -39,6 +39,7 @@ export default function OverseasLeadingStocks({
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
   const { data: me } = useMe();
   const { us, now } = useMarketSessions();
+  const mobile = useMobileDetail();
 
   // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(
@@ -57,74 +58,57 @@ export default function OverseasLeadingStocks({
   }, [stocks]);
 
   const selected = stocks.find((s) => s.symbol === openSymbol) ?? null;
+  const open = (symbol: string) => {
+    setOpenSymbol(symbol);
+    mobile.show();
+  };
 
-  const selector = (
-    <ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />
-  );
-
-  return (
-    <div className="space-y-4">
-      <Header totalCount={stocks.length} loading={isFetching} fetchedAt={dataUpdatedAt} />
-
-      {/* 선택기가 맨 위에 있지만 걸리는 곳은 아래 "후보" 구간뿐이다 */}
-      <div className={openSymbol ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6" : ""}>
-        <MarketToggle value={market} onChange={onMarket} trailing={selector} />
+  const list = (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 lg:px-3.5">
+        <Header totalCount={stocks.length} loading={isFetching} fetchedAt={dataUpdatedAt} />
+        {/* 선택기가 맨 위에 있지만 걸리는 곳은 아래 "후보" 구간뿐이다 */}
+        <MarketToggle
+          value={market}
+          onChange={onMarket}
+          trailing={<ChangeRateSelector value={minChangeRate} onChange={setMinChangeRate} />}
+        />
       </div>
 
-      {/* 종목 선택 시 좌(목록) / 우(상세) 2분할, 선택 없으면 목록 전체 폭 */}
-      <div
-        className={
-          openSymbol
-            ? "grid grid-cols-1 lg:grid-cols-[9fr_11fr] gap-6 items-start"
-            : ""
-        }
-      >
-        <section>
-          {isLoading || leadersQ.isLoading ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : isError || leadersQ.isError ? (
-            // 조회 실패와 "빈 시간대"를 가른다 — 둘 다 빈 목록이라 한 문구로 덮으면
-            // 장애가 정상으로 읽힌다
-            <EmptyState message="해외 주도주를 불러오지 못했습니다" />
-          ) : stocks.length === 0 ? (
-            <EmptyRanking live={us !== null} now={now} />
-          ) : (
-            <>
-              <RankingTable
-                leaders={leaders}
-                rest={rest}
-                selectedSymbol={openSymbol}
-                onOpen={setOpenSymbol}
-              />
-              <RankingCards
-                leaders={leaders}
-                rest={rest}
-                selectedSymbol={openSymbol}
-                onOpen={setOpenSymbol}
-              />
-            </>
-          )}
-        </section>
-
-        {openSymbol && (
-          <aside className="lg:sticky lg:top-6">
-            {me?.authenticated ? (
-              <OverseasStockDetailPanel exchange={selected?.exchange ?? null} symbol={openSymbol} />
-            ) : (
-              <LoginGate
-                title="종목 상세"
-                description="필터 평가와 분봉, 일봉을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
-              />
-            )}
-          </aside>
-        )}
-      </div>
+      {isLoading || leadersQ.isLoading ? (
+        <div className="space-y-3 p-3">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      ) : isError || leadersQ.isError ? (
+        // 조회 실패와 "빈 시간대"를 가른다 — 둘 다 빈 목록이라 한 문구로 덮으면
+        // 장애가 정상으로 읽힌다
+        <EmptyState message="해외 주도주를 불러오지 못했습니다" />
+      ) : stocks.length === 0 ? (
+        <EmptyRanking live={us !== null} now={now} />
+      ) : (
+        <RankingList
+          leaders={leaders}
+          rest={rest}
+          minChangeRate={minChangeRate}
+          selectedSymbol={openSymbol}
+          onOpen={open}
+        />
+      )}
     </div>
   );
+
+  const detail = me?.authenticated ? (
+    <OverseasStockDetailPanel exchange={selected?.exchange ?? null} symbol={openSymbol} onBack={mobile.hide} />
+  ) : (
+    <LoginGate
+      title="종목 상세"
+      description="주도주 조건과 분봉, 일봉을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+    />
+  );
+
+  return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
 }
 
 /**
@@ -166,215 +150,144 @@ function Header({
 }
 
 // ============================================================
-// Ranking table (데스크톱)
+// 목록 — 넓으면 열 맞춘 줄, 좁으면 두 줄 카드 (국내와 같은 짜임)
 // ============================================================
 
-function RankingTable({
+/** 데스크톱 줄의 열 — 순위 · 종목 · 거래대금 · 현재가 · 등락률. 머리와 줄이 같은 값을 쓴다. */
+const ROW_COLS =
+  "grid-cols-[1.25rem_minmax(0,1fr)_6.5rem_5.5rem_4.5rem] 2xl:grid-cols-[1.25rem_minmax(0,1fr)_7.25rem_6rem_5rem]";
+
+/** 달러 거래대금 → "$1.23B" / "$456M". 열 폭에 원 단위 전체 자릿수가 안 들어간다. */
+function compactUsd(v: number): string {
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  return `$${Math.round(v).toLocaleString("en-US")}`;
+}
+
+function RankingList({
   leaders,
   rest,
+  minChangeRate,
   selectedSymbol,
   onOpen,
 }: {
   leaders: OverseasStockRankItem[];
   rest: OverseasStockRankItem[];
+  minChangeRate: number;
   selectedSymbol: string | null;
   onOpen: (symbol: string) => void;
 }) {
-  const section = (list: OverseasStockRankItem[]) =>
+  // 막대는 목록 안에서 가장 큰 거래대금이 꽉 찬 폭이다
+  const maxValue = Math.max(1, ...[...leaders, ...rest].map((s) => s.tradingValue));
+  const section = (list: OverseasStockRankItem[], Item: typeof Row | typeof Card) =>
     list.map((s, idx) => (
-      <Row
+      <Item
         key={s.symbol}
         stock={s}
         rank={idx + 1}
-        line={idx !== list.length - 1}
+        valueRatio={s.tradingValue / maxValue}
         isSelected={selectedSymbol === s.symbol}
         onOpen={onOpen}
       />
     ));
+  const restHint = `거래대금 순 · 등락률 ${minChangeRate > 0 ? "+" : ""}${minChangeRate}% 이상`;
+  // 통과 종목이 없어도 머리는 그린다 — 기준이 걸렸다는 걸 알 수 있게
+  const empty = <p className="px-4 py-6 text-center text-xs text-zinc-500">이 기준을 통과한 종목이 없습니다</p>;
 
   return (
-    <table className="hidden md:table w-full text-xs border-separate border-spacing-y-0">
-      <thead className="text-zinc-500">
-        <tr>
-          <th className="pl-4 py-2.5 text-left font-medium w-10">순위</th>
-          <th className="px-2 py-2.5 text-left font-medium">종목</th>
-          <th className="px-4 py-2.5 text-right font-medium">현재가</th>
-          <th className="px-4 py-2.5 text-right font-medium">등락률</th>
-          <th className="px-4 py-2.5 text-right font-medium">거래대금(USD)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {leaders.length > 0 && <GroupHeader label="주도주" />}
-        {section(leaders)}
-        {/* 통과 종목이 없어도 머리는 그린다 — 기준이 걸렸다는 걸 알 수 있게 */}
-        <GroupHeader label="후보" hint="거래대금 순" />
-        {rest.length > 0 ? (
-          section(rest)
-        ) : (
-          <tr>
-            <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
-              이 기준을 통과한 종목이 없습니다
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+    <>
+      <div className="hidden lg:block">
+        <div className={`grid ${ROW_COLS} gap-x-3 px-3.5 pb-1.5 text-[11px] text-zinc-500`}>
+          <span />
+          <span>종목</span>
+          <span className="text-right">거래대금</span>
+          <span className="text-right">현재가</span>
+          <span className="text-right">등락률</span>
+        </div>
+        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} />}
+        {section(leaders, Row)}
+        <GroupHeader label="후보" count={rest.length} hint={restHint} />
+        {rest.length > 0 ? section(rest, Row) : empty}
+      </div>
+      <div className="lg:hidden">
+        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} />}
+        {section(leaders, Card)}
+        <GroupHeader label="후보" count={rest.length} hint={restHint} />
+        {rest.length > 0 ? section(rest, Card) : empty}
+      </div>
+    </>
   );
 }
 
-/** 목록 한 줄. 심볼은 이름 오른쪽에 — 아래 줄로 내리면 행이 두 줄 높이가 된다. */
-function Row({
-  stock,
-  rank,
-  line,
-  isSelected,
-  onOpen,
-}: {
+type ItemProps = {
   stock: OverseasStockRankItem;
   rank: number;
-  line: boolean;
+  /** 목록 최대 거래대금 대비 비율(0~1) — 데스크톱 줄의 막대 */
+  valueRatio: number;
   isSelected: boolean;
   onOpen: (symbol: string) => void;
-}) {
+};
+
+/** 데스크톱 한 줄 — 심볼은 이름 아래. */
+function Row({ stock, rank, valueRatio, isSelected, onOpen }: ItemProps) {
   return (
-    <tr
+    <button
+      type="button"
       data-stock-code={stock.symbol}
-      className={`cursor-pointer transition-colors hover:[&>td]:bg-zinc-850 [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl ${
-        line ? "[&>td]:border-b [&>td]:border-zinc-800/60" : ""
-      } ${isSelected ? "[&>td]:bg-selected" : ""}`}
       onClick={() => onOpen(stock.symbol)}
+      className={`grid w-full ${ROW_COLS} items-center gap-x-3 rounded-xl px-3.5 py-2.5 text-left transition-colors ${
+        isSelected ? "bg-selected" : "hover:bg-zinc-850"
+      }`}
     >
-      <td className="pl-4 py-3.5 text-zinc-500 num w-10">{rank}</td>
-      <td className="px-2 py-3.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <StockAvatar name={stock.name} code={stock.symbol} size={28} />
-          <span className="font-semibold text-zinc-100 truncate max-w-[12rem]">{stock.name}</span>
-          <span className="text-[11.5px] text-zinc-500 num shrink-0">{stock.symbol}</span>
-        </div>
-      </td>
-      <td className="px-4 py-3.5 text-right num font-medium text-zinc-100">
-        <NumUsd value={stock.price} prefix="" />
-      </td>
-      <td className="px-4 py-3.5 text-right num font-medium">
+      <span className="num text-right text-xs text-zinc-500">{rank}</span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm text-zinc-100">{stock.name}</span>
+        <span className="num text-[11px] text-zinc-500">{stock.symbol}</span>
+      </span>
+      <span className="flex flex-col items-end gap-1.5">
+        <span className="num text-xs text-zinc-400">{compactUsd(stock.tradingValue)}</span>
+        <span className="relative h-1 w-full overflow-hidden rounded-full bg-zinc-850">
+          <span className="absolute inset-y-0 right-0 rounded-full bg-zinc-500" style={{ width: `${valueRatio * 100}%` }} />
+        </span>
+      </span>
+      <NumUsd value={stock.price} prefix="" className="num text-right text-sm text-zinc-100" />
+      <span className="num text-right text-xs">
         <ProfitText value={stock.rate / 100} format={formatPct} />
-      </td>
-      <td className="px-4 py-3.5 text-right num text-zinc-400">
-        {Math.round(stock.tradingValue).toLocaleString("en-US")}
-      </td>
-    </tr>
+      </span>
+    </button>
+  );
+}
+
+/** 모바일 한 줄 — 왼쪽 이름·거래대금, 오른쪽 현재가·등락률. */
+function Card({ stock, rank, isSelected, onOpen }: ItemProps) {
+  return (
+    <button
+      type="button"
+      data-stock-code={stock.symbol}
+      onClick={() => onOpen(stock.symbol)}
+      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left ${isSelected ? "bg-selected" : ""}`}
+    >
+      <span className="num w-4 shrink-0 text-right text-[11px] text-zinc-500">{rank}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-sm text-zinc-100">{stock.name}</span>
+        <span className="num text-[11px] text-zinc-500">
+          {stock.symbol} · {compactUsd(stock.tradingValue)}
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-0.5">
+        <NumUsd value={stock.price} prefix="" className="num text-sm text-zinc-100" />
+        <ProfitText value={stock.rate / 100} format={formatPct} className="num text-xs" />
+      </span>
+    </button>
   );
 }
 
 /** 구간 머리 — 국내와 같은 규칙. */
-function GroupHeader({
-  label,
-  hint,
-}: {
-  label: string;
-  hint?: string;
-}) {
+function GroupHeader({ label, count, hint }: { label: string; count: number; hint?: string }) {
   return (
-    <tr>
-      <td colSpan={5} className="px-4 pt-4 pb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
-          {hint && <span className="text-xs text-zinc-500 font-normal">{hint}</span>}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-// ============================================================
-// Ranking cards (모바일)
-// ============================================================
-
-function RankingCards({
-  leaders,
-  rest,
-  selectedSymbol,
-  onOpen,
-}: {
-  leaders: OverseasStockRankItem[];
-  rest: OverseasStockRankItem[];
-  selectedSymbol: string | null;
-  onOpen: (symbol: string) => void;
-}) {
-  const section = (list: OverseasStockRankItem[]) =>
-    list.map((s, idx) => (
-      <Card
-        key={s.symbol}
-        stock={s}
-        rank={idx + 1}
-        line={idx !== list.length - 1}
-        isSelected={selectedSymbol === s.symbol}
-        onOpen={onOpen}
-      />
-    ));
-
-  return (
-    <div className="md:hidden">
-      {leaders.length > 0 && <CardGroupHeader label="주도주" />}
-      {section(leaders)}
-      <CardGroupHeader label="후보" hint="거래대금 순" />
-      {rest.length > 0 ? (
-        section(rest)
-      ) : (
-        <p className="px-4 py-6 text-center text-xs text-zinc-500">
-          이 기준을 통과한 종목이 없습니다
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Card({
-  stock,
-  rank,
-  line,
-  isSelected,
-  onOpen,
-}: {
-  stock: OverseasStockRankItem;
-  rank: number;
-  line: boolean;
-  isSelected: boolean;
-  onOpen: (symbol: string) => void;
-}) {
-  return (
-    <div
-      data-stock-code={stock.symbol}
-      className={`rounded-xl px-4 py-3.5 flex flex-col gap-1 cursor-pointer ${
-        line ? "border-b border-zinc-800/60" : ""
-      } ${isSelected ? "bg-selected" : ""}`}
-      onClick={() => onOpen(stock.symbol)}
-    >
-      {/* 1행: 순위 · 아바타 · 이름 · 현재가 */}
-      <div className="flex items-center gap-2">
-        <span className="text-zinc-500 text-xs num w-4 shrink-0">{rank}</span>
-        <StockAvatar name={stock.name} code={stock.symbol} size={28} />
-        <span className="font-semibold truncate flex-1 min-w-0">{stock.name}</span>
-        <NumUsd value={stock.price} prefix="" className="num shrink-0 font-medium text-zinc-100" />
-      </div>
-      {/* 2행: 심볼 · 등락률 */}
-      <div className="flex items-center gap-2 pl-[3.25rem]">
-        <span className="text-xs text-zinc-500 num truncate flex-1 min-w-0">{stock.symbol}</span>
-        <ProfitText value={stock.rate / 100} format={formatPct} className="num text-xs shrink-0" />
-      </div>
-    </div>
-  );
-}
-
-function CardGroupHeader({
-  label,
-  hint,
-}: {
-  label: string;
-  hint?: string;
-}) {
-  return (
-    <div className="bg-zinc-950 px-4 pt-4 pb-2 flex flex-wrap items-center gap-2">
-      <span className="text-[15.5px] font-bold text-zinc-100 tracking-tight">{label}</span>
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-2.5 pb-1.5 pt-4 lg:px-3.5">
+      <span className="text-[15px] font-bold tracking-tight text-zinc-100">{label}</span>
+      <span className="num text-xs text-zinc-400">{count}</span>
       {hint && <span className="text-xs text-zinc-500">{hint}</span>}
     </div>
   );

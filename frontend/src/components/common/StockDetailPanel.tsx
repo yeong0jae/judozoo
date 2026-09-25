@@ -6,7 +6,6 @@ import {
   useStockInvestorDaily,
 } from "../../api/queries";
 import type {
-  FilterResultItem,
   LeadingStockDetailResponse,
   MinuteCandleItem,
   StockInvestorDay,
@@ -17,6 +16,7 @@ import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
 import { todayStr } from "./DateNavigator";
 import NumWon from "./NumWon";
 import Skeleton from "./Skeleton";
+import { CHART_H, ChartEmpty, Chevron, LeadingConditions, Segmented } from "./detailParts";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -25,9 +25,6 @@ function shortCode(stockCode: string): string {
 }
 
 type ChartInterval = "1m" | "1d";
-
-/** 차트 높이 — 지수·수급 상세와 같다. 차트가 autoSize라 컨테이너 높이만 바꾸면 된다. */
-const CHART_H = "h-[21.25rem] 2xl:h-[26rem]";
 
 /**
  * 종목 상세 — 머리(가격·전일 대비·시고저) / 차트 / 주도주 조건 · 투자자별 순매수.
@@ -136,50 +133,6 @@ export default function StockDetailPanel({
   );
 }
 
-function ChartEmpty({ children }: { children: ReactNode }) {
-  return <div className={`${CHART_H} flex items-center justify-center text-xs text-zinc-600`}>{children}</div>;
-}
-
-function Chevron({ dir }: { dir: "left" | "right" }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={dir === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
-    </svg>
-  );
-}
-
-/** 탭 두 개짜리 세그먼트 — 지수·수급 화면의 토글과 같은 모양. */
-function Segmented<T extends string>({
-  label,
-  items,
-  value,
-  onChange,
-}: {
-  label: string;
-  items: [T, string][];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div role="tablist" aria-label={label} className="flex shrink-0 rounded-xl bg-zinc-800 p-0.5 text-xs">
-      {items.map(([key, text]) => (
-        <button
-          key={key}
-          type="button"
-          role="tab"
-          aria-selected={value === key}
-          onClick={() => onChange(key)}
-          className={`rounded-lg px-3 py-1.5 transition-colors ${
-            value === key ? "bg-elevated font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          {text}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ============================================================
 // 머리
 // ============================================================
@@ -284,53 +237,6 @@ function DetailHeader({
 }
 
 // ============================================================
-// 주도주 조건
-// ============================================================
-
-function LeadingConditions({ results }: { results: FilterResultItem[] }) {
-  const passedCount = results.filter((r) => r.passed).length;
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-baseline justify-between">
-        <h3 className="text-[15px] font-bold text-zinc-100">주도주 조건</h3>
-        <span className="num text-xs text-zinc-400">
-          <span className="font-bold text-emerald-400">{passedCount}</span> / {results.length} 통과
-        </span>
-      </div>
-      {/* 한 칸이 조건 하나 — 어디서 떨어졌는지가 순서로 읽힌다(판별력이 큰 조건이 앞) */}
-      <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-zinc-850" aria-hidden>
-        {results.map((r) => (
-          <span key={r.filterName} className={`flex-1 ${r.passed ? "bg-emerald-400/85" : "bg-red-400/90"}`} />
-        ))}
-      </div>
-      <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-        {results.map((r) => (
-          <li key={r.filterName} className="flex items-center gap-2.5 rounded-xl bg-zinc-900 px-3 py-2.5">
-            <span
-              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${
-                r.passed ? "bg-emerald-400/10 text-emerald-400" : "bg-red-400/10 text-red-400"
-              }`}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d={r.passed ? "M5 12l5 5 9-10" : "M7 7l10 10M17 7L7 17"} />
-              </svg>
-              <span className="sr-only">{r.passed ? "통과" : "미달"}</span>
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-px">
-              <span className="text-xs font-semibold text-zinc-300">{r.filterName}</span>
-              <span className="truncate text-[11px] text-zinc-500">{r.criteriaDescription}</span>
-            </span>
-            <span className={`num shrink-0 whitespace-nowrap text-xs font-semibold ${r.passed ? "text-zinc-100" : "text-red-400"}`}>
-              {r.actualValue}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-// ============================================================
 // 투자자별 순매수 — 오늘 / 최근 10일
 // ============================================================
 
@@ -412,8 +318,9 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
     <>
       <div className="grid grid-cols-3 gap-2">
         {tiles.map(([label, v]) => (
-          <div key={label} className="flex flex-col gap-2 rounded-xl bg-zinc-900 px-3 py-2.5 sm:px-3.5 sm:py-3">
-            <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between">
+          <div key={label} className="@container flex flex-col gap-2 rounded-xl bg-zinc-900 px-3 py-2.5 sm:px-3.5 sm:py-3">
+            {/* 라벨과 값을 한 줄에 두는 건 칸이 넓을 때만 — 좁으면 "개인 -21,676"처럼 붙어 읽힌다 */}
+            <div className="flex flex-col gap-0.5 @[11rem]:flex-row @[11rem]:items-baseline @[11rem]:justify-between">
               <span className="text-xs text-zinc-400">{label}</span>
               <Eok million={v} className="text-[15px] font-bold sm:text-[17px]" />
             </div>

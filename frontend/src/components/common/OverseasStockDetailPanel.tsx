@@ -1,18 +1,15 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   useOverseasStockDetail,
   useOverseasMinuteCandles,
   useOverseasDailyCandles,
 } from "../../api/queries";
-import type {
-  OverseasFilterResult,
-} from "../../types";
-import { formatPct, formatUsd } from "../../lib/format";
-import ProfitText from "./ProfitText";
+import type { OverseasStockDetailResponse } from "../../types";
+import { colorByPnL, formatPct, formatUsd } from "../../lib/format";
 import Skeleton from "./Skeleton";
-import StockAvatar from "./StockAvatar";
 import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
 import NumUsd from "./NumUsd";
+import { CHART_H, ChartEmpty, Chevron, LeadingConditions, Segmented } from "./detailParts";
 
 const EXCHANGE_LABEL: Record<string, string> = {
   NAS: "나스닥",
@@ -23,195 +20,142 @@ export function exchangeLabel(code: string): string {
   return EXCHANGE_LABEL[code] ?? code;
 }
 
-type DetailTab = "detail" | "minute" | "daily";
-const DETAIL_TABS: { key: DetailTab; label: string }[] = [
-  { key: "detail", label: "상세" },
-  { key: "minute", label: "1분봉" },
-  { key: "daily", label: "일봉" },
-];
+type ChartInterval = "1m" | "1d";
 
 /**
- * 해외 종목 상세/차트 패널 — exchange/symbol만 받아 detail로 완결. 후보 조회·실시간 로그 공용.
- * [chartOnly]면 상세 탭 없이 1분봉·일봉만 둔다(시황분석은 차트만 본다).
+ * 해외 종목 상세 — 국내 상세와 같은 짜임(머리 / 차트 / 주도주 조건). 해외는 투자자별 수급이 없다.
+ * [chartOnly]면 주도주 조건 없이 차트만 둔다.
+ * [onBack]을 주면 모바일에서 맨 위에 "목록" 버튼을 단다.
  */
 export default function OverseasStockDetailPanel({
   exchange,
   symbol,
   chartOnly = false,
+  onBack,
 }: {
   exchange: string | null;
   symbol: string | null;
   chartOnly?: boolean;
+  onBack?: () => void;
 }) {
-  const [tab, setTab] = useState<DetailTab>(chartOnly ? "minute" : "detail");
-  const tabs = chartOnly ? DETAIL_TABS.filter((t) => t.key !== "detail") : DETAIL_TABS;
+  const [interval, setChartInterval] = useState<ChartInterval>("1m");
   const detailQ = useOverseasStockDetail(exchange, symbol);
-  const minuteQ = useOverseasMinuteCandles(tab === "minute" ? exchange : null, tab === "minute" ? symbol : null);
-  const dailyQ = useOverseasDailyCandles(tab === "daily" ? exchange : null, tab === "daily" ? symbol : null);
-  const CH = "h-[28rem]";
+  const minuteQ = useOverseasMinuteCandles(interval === "1m" ? exchange : null, interval === "1m" ? symbol : null);
+  const dailyQ = useOverseasDailyCandles(interval === "1d" ? exchange : null, interval === "1d" ? symbol : null);
   const d = detailQ.data;
 
   if (!exchange || !symbol) {
     return (
-      <div className="h-[28rem] flex items-center justify-center text-sm text-zinc-600">
+      <div className="flex h-[28rem] items-center justify-center text-sm text-zinc-600">
         종목을 선택하면 표시됩니다
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col lg:max-h-[calc(100vh-8rem)]">
-      <header className="pb-4 border-b border-zinc-800">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <StockAvatar name={symbol} code={symbol} size={40} />
-            <div className="min-w-0">
-              <div className="flex items-center flex-wrap gap-x-2">
-                <span className="text-lg font-bold tracking-tight text-zinc-100">{symbol}</span>
-                <span className="text-xs text-zinc-500">{exchangeLabel(exchange)}</span>
-              </div>
-              <div className="text-xs text-zinc-400 truncate">{d?.ename || d?.name || ""}</div>
-            </div>
-          </div>
-          <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
-                  tab === t.key ? "bg-elevated text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {d && (
-          <div className="mt-3 flex items-baseline gap-2">
-            <NumUsd value={d.price} className="text-2xl font-bold num text-zinc-100 tracking-tight" />
-            <ProfitText value={d.rate / 100} format={formatPct} className="num text-sm font-semibold" />
-          </div>
-        )}
-      </header>
+  const minutes = minuteQ.data ?? [];
 
-      <div className="flex-1 lg:overflow-y-auto pt-5">
-        {tab === "detail" ? (
-          !d ? (
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              <FilterResultsList results={d.filterResults} />
-              <div className="space-y-6">
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                  <Field label="통합 순위" value={`${d.rank}위`} />
-                  <Field label="거래소" value={exchangeLabel(d.exchange)} />
-                  <Field
-                    label="전일 대비"
-                    value={
-                      <ProfitText
-                        value={d.rate / 100}
-                        format={() => `${d.diff >= 0 ? "+" : "-"}$${formatUsd(Math.abs(d.diff))}`}
-                        className="num"
-                      />
-                    }
-                  />
-                  <Field label="거래대금" value={`$${Math.round(d.tradingValue).toLocaleString("en-US")}`} />
-                  <Field label="종목명" value={d.name} span2 />
-                </dl>
-              </div>
-            </div>
-          )
-        ) : tab === "minute" ? (
+  return (
+    <div className="flex flex-col gap-6">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="-ml-1 -mb-2 flex w-fit items-center gap-0.5 text-sm text-zinc-400 hover:text-zinc-200 lg:hidden"
+        >
+          <Chevron dir="left" />
+          목록
+        </button>
+      )}
+
+      {!d ? <Skeleton className="h-28 w-full" /> : <DetailHeader detail={d} />}
+
+      <section className="rounded-2xl bg-zinc-900 p-3 sm:p-4">
+        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+          <h3 className="text-sm font-semibold text-zinc-400">
+            {interval === "1m" ? "1분봉 · 저항선·지지선" : "일봉"}
+          </h3>
+          <Segmented
+            label="차트 주기"
+            items={[
+              ["1m", "1분봉"],
+              ["1d", "일봉"],
+            ]}
+            value={interval}
+            onChange={setChartInterval}
+          />
+        </div>
+        {interval === "1m" ? (
           minuteQ.isLoading ? (
-            <Skeleton className={`${CH} w-full`} />
-          ) : !minuteQ.data || minuteQ.data.length === 0 ? (
-            <div className={`${CH} flex items-center justify-center text-xs text-zinc-600`}>
-              분봉 데이터가 없습니다
-            </div>
+            <Skeleton className={`${CHART_H} w-full`} />
+          ) : minutes.length === 0 ? (
+            <ChartEmpty>분봉 데이터가 없습니다</ChartEmpty>
           ) : (
             <CandleChart
               key={`${symbol}-m`}
-              series={minuteSeries(minuteQ.data)}
+              series={minuteSeries(minutes)}
               priceLines={[
-                {
-                  price: Math.max(...minuteQ.data.map((c) => c.high)),
-                  title: "저항선",
-                  color: "#fb923c",
-                },
-                {
-                  price: Math.min(...minuteQ.data.map((c) => c.low)),
-                  title: "지지선",
-                  color: "#38bdf8",
-                },
+                { price: Math.max(...minutes.map((c) => c.high)), title: "저항선", color: "#fb923c" },
+                { price: Math.min(...minutes.map((c) => c.low)), title: "지지선", color: "#38bdf8" },
               ]}
               priceDecimals={2}
-              className={`w-full ${CH}`}
+              className={`w-full ${CHART_H}`}
             />
           )
         ) : dailyQ.isLoading ? (
-          <Skeleton className={`${CH} w-full`} />
+          <Skeleton className={`${CHART_H} w-full`} />
         ) : !dailyQ.data || dailyQ.data.length === 0 ? (
-          <div className={`${CH} flex items-center justify-center text-xs text-zinc-600`}>
-            일봉 데이터가 없습니다
-          </div>
+          <ChartEmpty>일봉 데이터가 없습니다</ChartEmpty>
         ) : (
           <CandleChart
             key={`${symbol}-d`}
             series={dailySeries(dailyQ.data)}
             timeVisible={false}
             priceDecimals={2}
-            className={`w-full ${CH}`}
+            className={`w-full ${CHART_H}`}
           />
         )}
-      </div>
+      </section>
+
+      {!chartOnly && d && <LeadingConditions results={d.filterResults} />}
     </div>
   );
 }
 
-function Field({ label, value, span2 }: { label: string; value: React.ReactNode; span2?: boolean }) {
-  return (
-    <div className={span2 ? "col-span-2" : ""}>
-      <dt className="text-xs text-zinc-500 mb-1">{label}</dt>
-      <dd className="text-zinc-100 num font-medium">{value}</dd>
-    </div>
-  );
-}
+/** 부호 붙인 달러 — 음수는 하이픈이 아니라 마이너스 기호. */
+const signedUsd = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${formatUsd(Math.abs(v))}`;
 
-function FilterResultsList({ results }: { results: OverseasFilterResult[] }) {
-  const passedCount = results.filter((r) => r.passed).length;
+/** 심볼·이름·거래소 / 큰 가격·전일 대비·등락률 / 통합 순위·거래대금. */
+function DetailHeader({ detail }: { detail: OverseasStockDetailResponse }) {
+  const pct = detail.rate;
+  const pctBadge = pct > 0 ? "bg-red-500/10" : pct < 0 ? "bg-blue-500/10" : "bg-zinc-800";
+  const facts: [string, ReactNode][] = [
+    ["통합 순위", `${detail.rank}위`],
+    ["거래대금", `$${Math.round(detail.tradingValue).toLocaleString("en-US")}`],
+  ];
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-semibold text-zinc-400">필터</span>
-        <span className="text-xs num text-zinc-400">
-          <span className="text-emerald-400 font-semibold">{passedCount}</span> / {results.length} 통과
+    <header className="flex min-w-0 flex-col gap-2">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h2 className="text-lg font-bold tracking-tight text-zinc-100">{detail.symbol}</h2>
+        <span className="truncate text-xs text-zinc-500">
+          {detail.name} · {exchangeLabel(detail.exchange)}
         </span>
       </div>
-      {results.map((r) => (
-        <div
-          key={r.filterName}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-900"
-        >
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-zinc-200">{r.filterName}</div>
-            <div className="text-xs text-zinc-500 mt-0.5">{r.criteriaDescription}</div>
-          </div>
-          <div className="num text-xs text-zinc-300 shrink-0">{r.actualValue}</div>
-          <span
-            className={`text-[11px] px-2 py-0.5 rounded-md shrink-0 ${
-              r.passed ? "bg-emerald-400/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
-            }`}
-          >
-            {r.passed ? "통과" : "미달"}
-          </span>
-        </div>
-      ))}
-    </div>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <NumUsd value={detail.price} className="num text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl" />
+        <span className={`num text-base font-semibold ${colorByPnL(detail.diff)}`}>{signedUsd(detail.diff)}</span>
+        <span className={`num rounded-md px-2 py-0.5 text-[13px] font-bold ${pctBadge} ${colorByPnL(pct)}`}>
+          {formatPct(pct / 100)}
+        </span>
+      </div>
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px]">
+        {facts.flatMap(([label, value], i) => [
+          ...(i > 0 ? [<span key={`dot${i}`} aria-hidden className="text-zinc-700">·</span>] : []),
+          <span key={label} className="flex items-baseline gap-1.5">
+            <span className="text-zinc-500">{label}</span>
+            <span className="num font-semibold text-zinc-300">{value}</span>
+          </span>,
+        ])}
+      </p>
+    </header>
   );
 }
