@@ -115,11 +115,13 @@ resource "google_certificate_manager_dns_authorization" "site" {
   depends_on = [google_project_service.certificatemanager]
 }
 
-# 인증은 생성 직후 시도되고, 실패하면 재시도 간격을 알 수 없다. 첫 인증서는 CNAME을 넣기 전에
-# 시도해 CNAME_MISMATCH로, 두 번째는 위의 Cloudflare 숨은 TXT 때문에 CONFIG로 멈췄다(2026-09-25).
+# 인증은 **생성 몇 초 안에** 시도되고, 실패하면 재시도 간격을 알 수 없다. 결과는 30분 넘게 지나야
+# 조회된다. 첫·세 번째 인증서는 CNAME을 넣기 전에 시도해 CNAME_MISMATCH로, 두 번째는 위의
+# Cloudflare 숨은 TXT 때문에 CONFIG로 멈췄다(2026-09-25).
+# **DNS 인증을 새로 만들면 CNAME부터 넣고 그 다음에 인증서를 만든다.**
 # 다시 받으려면 이름을 바꿔 새로 만든다 — 맵 항목이 참조 중이라 create_before_destroy.
 resource "google_certificate_manager_certificate" "site" {
-  name = "judozoo-site-v3"
+  name = "judozoo-site-v4"
 
   managed {
     domains            = [var.domain]
