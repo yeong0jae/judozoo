@@ -52,8 +52,8 @@
       "description": "나스닥100 선물의 시세와 분봉·일봉 차트를 봅니다. 국내 장중에도 도는 미국 지표입니다."
     },
     "/market-analysis/macro": {
-      "title": "원달러 환율·WTI 유가 : judozoo",
-      "description": "원달러 환율과 WTI 유가 시세를 한 화면에서 봅니다."
+      "title": "원달러 환율·WTI 유가·미국채 금리 : judozoo",
+      "description": "원달러 환율, WTI 유가, VIX, 미국채 10년 금리를 한 화면에서 봅니다."
     },
     "/privacy": {
       "title": "개인정보 처리방침 : judozoo",

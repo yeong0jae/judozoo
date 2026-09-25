@@ -139,7 +139,7 @@ export interface NasdaqFuturesQuote {
   changeRate: number; // 전일 대비 등락률(%)
 }
 
-/** 매크로 지표(원달러·WTI) 시세 — 야후 파이낸스. */
+/** 매크로 지표(원달러·WTI·VIX·미국채 10년) 시세 — 야후 파이낸스. */
 export interface MacroQuote {
   price: number;
   prevClose: number; // 전일 종가
@@ -147,15 +147,16 @@ export interface MacroQuote {
   changeRate: number; // 전일 대비 등락률(%)
 }
 
-/** 원달러·WTI·VIX 묶음 — 일부만 실패하면 그쪽만 null. */
+/** 원달러·WTI·VIX·미국채 10년 묶음 — 일부만 실패하면 그쪽만 null. */
 export interface MacroQuotes {
   usdKrw: MacroQuote | null;
   wti: MacroQuote | null;
   vix: MacroQuote | null;
+  us10y: MacroQuote | null; // 금리 %가 그대로 온다 (5.21 = 5.21%)
 }
 
 /** 매크로 상세가 다루는 대상 — 백엔드 enum과 이름이 같아야 한다. */
-export type MacroTarget = "USD_KRW" | "WTI" | "VIX";
+export type MacroTarget = "USD_KRW" | "WTI" | "VIX" | "US10Y";
 
 /** 선물 기관 세부 순매수(계약) — KIS 선물 분류. */
 export interface FuturesOrgBreakdown {

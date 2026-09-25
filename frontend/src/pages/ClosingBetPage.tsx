@@ -160,7 +160,7 @@ function MarketStrip({ currentSlug }: { currentSlug: string }) {
   );
 }
 
-/** 매크로 칸 — 원달러·WTI를 두 줄로 압축. 다른 칸보다 글자가 작다. */
+/** 매크로 칸 — 원달러·WTI·VIX·미국채 10년을 한 줄씩 압축. 다른 칸보다 글자가 작다. */
 function MacroCell({
   ix,
   quotes,
@@ -186,6 +186,7 @@ function MacroCell({
             이 칸만 높아지고, 그리드 행 높이가 제일 큰 칸을 따라가 스트립 전체가 커진다. */}
         <MacroCellRow label="WTI" quote={quotes?.wti} />
         <MacroCellRow label="VIX" quote={quotes?.vix} />
+        <MacroCellRow label="美10년" quote={quotes?.us10y} />
       </div>
     </Link>
   );
@@ -741,8 +742,9 @@ function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
 }
 
 /**
- * 매크로 상세 — 원달러 환율·WTI 유가·VIX를 한 화면에 세로로 쌓는다.
+ * 매크로 상세 — 원달러 환율·WTI 유가·VIX·미국채 10년 금리를 한 화면에 세로로 쌓는다.
  * 환율은 24시간 돌지만 WTI는 CME 정산 휴식(06:00~07:00 KST)에, VIX는 미 정규장 밖에서 값이 멈춘다.
+ * 미국채 10년(`^TNX`)은 미 채권시장 시간(KST 21:20~04:00, 2026-09 실측)에만 움직인다.
  */
 function MacroDetail() {
   const { data, isLoading } = useMacroQuotes();
@@ -766,6 +768,7 @@ function MacroDetail() {
         delayed
       />
       <MacroSection title="VIX" unit="지수" target="VIX" quote={data.vix} />
+      <MacroSection title="미국채 10년 금리" unit="%" target="US10Y" quote={data.us10y} />
     </div>
   );
 }

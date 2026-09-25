@@ -645,6 +645,7 @@ class MacroQuotes:
     usd_krw: QuoteResult | None
     wti: QuoteResult | None
     vix: QuoteResult | None
+    us10y: QuoteResult | None
 
 
 NASDAQ_SYMBOL = "^IXIC"
@@ -652,7 +653,8 @@ NASDAQ_SYMBOL = "^IXIC"
 #: KIS는 CME가 유료시세라 못 쓴다.
 NASDAQ_FUTURES_SYMBOL = "NQ=F"
 # 매크로 대상 — 야후 심볼을 여기 한 곳에만 둔다.
-MACRO_SYMBOLS = {"USD_KRW": "KRW=X", "WTI": "CL=F", "VIX": "^VIX"}
+# `^TNX`는 미국채 10년 금리를 **% 그대로** 준다(5.209 = 5.209%). CBOE 원 지수처럼 ×10이 아니다.
+MACRO_SYMBOLS = {"USD_KRW": "KRW=X", "WTI": "CL=F", "VIX": "^VIX", "US10Y": "^TNX"}
 
 
 def _quote_of(symbol: str) -> QuoteResult | None:
@@ -700,13 +702,14 @@ def macro_quotes() -> MacroQuotes:
         usd_krw=_quote_of(MACRO_SYMBOLS["USD_KRW"]),
         wti=_quote_of(MACRO_SYMBOLS["WTI"]),
         vix=_quote_of(MACRO_SYMBOLS["VIX"]),
+        us10y=_quote_of(MACRO_SYMBOLS["US10Y"]),
     )
 
 
 @ttl_cache(
     "macroCandles",
     ttl_seconds=60,
-    maxsize=6,
+    maxsize=8,  # 대상 4 × 간격 2
     key=lambda target, interval: f"{target}{interval}",
     skip_if=is_empty,
 )

@@ -352,7 +352,7 @@ export function useNasdaqFuturesCandles(interval: "1d" | "1m") {
   });
 }
 
-/** 원달러·WTI 시세 — 야후. 상단 스트립이 한 칸에 둘 다 그린다. */
+/** 원달러·WTI·VIX·미국채 10년 시세 — 야후. 상단 스트립이 한 칸에 전부 그린다. */
 export function useMacroQuotes() {
   return useQuery({
     queryKey: QK.macroQuotes,

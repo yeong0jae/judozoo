@@ -180,6 +180,7 @@ class MacroQuotesItem(BaseModel):
     usd_krw: QuoteItem | None = Field(serialization_alias="usdKrw")
     wti: QuoteItem | None
     vix: QuoteItem | None
+    us10y: QuoteItem | None
 
 
 class TodayNetInvestorsItem(BaseModel):
@@ -286,7 +287,10 @@ def macro_quotes() -> ApiResponse[MacroQuotesItem]:
     q = application.macro_quotes()
     return ApiResponse.ok(
         MacroQuotesItem(
-            usd_krw=_quote_item(q.usd_krw), wti=_quote_item(q.wti), vix=_quote_item(q.vix)
+            usd_krw=_quote_item(q.usd_krw),
+            wti=_quote_item(q.wti),
+            vix=_quote_item(q.vix),
+            us10y=_quote_item(q.us10y),
         )
     )
 
