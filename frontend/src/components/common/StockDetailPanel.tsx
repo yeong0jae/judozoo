@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   useDailyCandles,
   useLeadingStockDetail,
@@ -266,42 +267,38 @@ function Eok({ million, className = "" }: { million: number; className?: string 
   );
 }
 
-type FlowTab = "today" | "daily";
-
-/** 키움 ka10059(전체·SOR통합). 한 번에 10일을 받아 오늘은 첫 줄을 쓴다 — 탭을 바꿔도 다시 부르지 않는다. */
+/** 키움 ka10059(전체·SOR통합). 한 번에 10일을 받아 오늘은 첫 줄을 쓴다 — 모달을 열어도 다시 부르지 않는다. */
 function InvestorSection({ stockCode }: { stockCode: string }) {
   const { data, isLoading, isError } = useStockInvestorDaily(stockCode, 10);
-  const [tab, setTab] = useState<FlowTab>("today");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const days = data ?? [];
-
-  const sub = days.length === 0 ? null : tab === "today" ? `${dayLabel(days[0].date)} · 억원` : `최근 ${days.length}거래일 · 억원`;
 
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <h3 className="text-[15px] font-bold text-zinc-100">투자자별 순매수</h3>
-          {sub && <span className="num text-xs text-zinc-500">{sub}</span>}
+          {days.length > 0 && <span className="num text-xs text-zinc-500">{dayLabel(days[0].date)} · 억원</span>}
         </div>
-        <Segmented
-          label="수급 기간"
-          items={[
-            ["today", "오늘"],
-            ["daily", "최근 10일"],
-          ]}
-          value={tab}
-          onChange={setTab}
-        />
+        {days.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="flex shrink-0 items-center gap-0.5 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+          >
+            최근 {days.length}일
+            <Chevron dir="right" />
+          </button>
+        )}
       </div>
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
       ) : isError || days.length === 0 ? (
         <p className="py-6 text-center text-xs text-zinc-600">투자자별 수급 데이터가 없습니다</p>
-      ) : tab === "today" ? (
-        <TodayFlow day={days[0]} />
       ) : (
-        <DailyFlow days={days} />
+        <TodayFlow day={days[0]} />
       )}
+      {historyOpen && <InvestorHistoryModal days={days} onClose={() => setHistoryOpen(false)} />}
     </section>
   );
 }
@@ -352,53 +349,124 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
   );
 }
 
-/**
- * 최근 N일 — 맨 위에 합계, 그 아래 날짜별. 상세 칸은 좁아 기관 세부 일곱 열은 싣지 않는다
- * (오늘 탭의 기관 상세와 지수·수급 화면이 그 자리를 맡는다).
- */
-function DailyFlow({ days }: { days: StockInvestorDay[] }) {
-  const cols: { key: "individualMillion" | "foreignMillion" | "institutionMillion" | "otherCorpMillion"; label: string }[] = [
-    { key: "individualMillion", label: "개인" },
-    { key: "foreignMillion", label: "외국인" },
-    { key: "institutionMillion", label: "기관" },
-    { key: "otherCorpMillion", label: "기타법인" },
-  ];
-  const sum = (k: (typeof cols)[number]["key"]) => days.reduce((acc, d) => acc + d[k], 0);
-  const td = "py-1.5 pl-2 text-right whitespace-nowrap";
+/** 기관상세 묶음을 가르는 세로선 — 시황분석 일별 표와 같은 규칙. */
+const ORG_EDGE = "border-l border-zinc-800";
+const orgPad = (i: number, len: number) =>
+  `${i === 0 ? "pl-5" : "pl-2.5"} ${i === len - 1 ? "pr-5" : "pr-2.5"}`;
+
+/** 순매수 백만원 그대로 — 모달은 기관 세부까지 펼쳐 보여서, 억으로 반올림하면 작은 칸이 0으로 뭉개진다. */
+function NetMillion({ million }: { million: number }) {
+  const tone = million > 0 ? "text-red-400" : million < 0 ? "text-blue-400" : "text-zinc-600";
+  const sign = million > 0 ? "+" : million < 0 ? "−" : "";
   return (
-    <div className="rounded-xl bg-zinc-900 py-0.5 pl-1 pr-3.5">
-      <table className="w-full border-collapse text-xs">
-        <thead className="text-[11px] text-zinc-500">
-          <tr>
-            <th className="py-1.5 pl-2.5 pr-2 text-left font-medium">일자</th>
-            {cols.map((c) => (
-              <th key={c.key} className={`py-1.5 pl-2 text-right ${c.key === "institutionMillion" ? "font-semibold text-zinc-300" : "font-medium"}`}>
-                {c.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="border-t border-zinc-800 bg-zinc-850/60">
-            <td className="py-1.5 pl-2.5 pr-2 font-bold text-zinc-100">{days.length}일 합계</td>
-            {cols.map((c) => (
-              <td key={c.key} className={td}>
-                <Eok million={sum(c.key)} className="font-bold" />
-              </td>
-            ))}
-          </tr>
-          {days.map((d) => (
-            <tr key={d.date} className="border-t border-zinc-800">
-              <td className="num py-1.5 pl-2.5 pr-2 whitespace-nowrap text-zinc-300">{dayLabel(d.date)}</td>
-              {cols.map((c) => (
-                <td key={c.key} className={td}>
-                  <Eok million={d[c.key]} className={c.key === "institutionMillion" ? "font-bold" : "font-medium"} />
-                </td>
+    <span className={`num ${tone}`}>
+      {sign}
+      {Math.abs(million).toLocaleString("ko-KR")}
+    </span>
+  );
+}
+
+/**
+ * 최근 10일 수급 모달 — 개인·외국인·기관계 + 기관 상세 일곱 열 + 기타법인, 맨 위에 합계.
+ * 상세 칸은 좁아 이 열들이 다 안 들어간다. 트리거가 스크롤 칸 안에 있어 body로 포털한다.
+ */
+function InvestorHistoryModal({ days, onClose }: { days: StockInvestorDay[]; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const cells = (d: Pick<StockInvestorDay, "individualMillion" | "foreignMillion" | "institutionMillion" | "otherCorpMillion" | "breakdown">, strong: boolean) => (
+    <>
+      <td className="px-2.5 py-2 text-right"><NetMillion million={d.individualMillion} /></td>
+      <td className="px-2.5 py-2 text-right"><NetMillion million={d.foreignMillion} /></td>
+      <td className="py-2 pl-2.5 pr-5 text-right font-semibold"><NetMillion million={d.institutionMillion} /></td>
+      {ORG_DETAIL.map((c, i) => (
+        <td key={c.key} className={`py-2 text-right ${orgPad(i, ORG_DETAIL.length)} ${i === 0 ? ORG_EDGE : ""} ${strong ? "font-semibold" : ""}`}>
+          <NetMillion million={d.breakdown[c.key]} />
+        </td>
+      ))}
+      <td className={`py-2 pl-5 pr-2.5 text-right ${ORG_EDGE} ${strong ? "font-semibold" : ""}`}>
+        <NetMillion million={d.otherCorpMillion} />
+      </td>
+    </>
+  );
+  const sum = (f: (d: StockInvestorDay) => number) => days.reduce((acc, d) => acc + f(d), 0);
+  const total = {
+    individualMillion: sum((d) => d.individualMillion),
+    foreignMillion: sum((d) => d.foreignMillion),
+    institutionMillion: sum((d) => d.institutionMillion),
+    otherCorpMillion: sum((d) => d.otherCorpMillion),
+    breakdown: ORG_DETAIL.reduce(
+      (acc, c) => ({ ...acc, [c.key]: sum((d) => d.breakdown[c.key]) }),
+      {} as StockOrgBreakdown,
+    ),
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`최근 ${days.length}일 수급`}
+        className="max-h-[85dvh] w-full max-w-5xl overflow-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-baseline gap-x-2.5">
+            <h3 className="text-lg font-semibold text-zinc-100">최근 {days.length}일 수급</h3>
+            <span className="text-xs text-zinc-500">순매수 · 백만원</span>
+          </div>
+          <button type="button" onClick={onClose} aria-label="닫기" className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        {/* 폰에서는 옆으로 밀어 본다 — 첫 열(일자)은 붙어 있다 */}
+        <div className="overflow-x-auto">
+          <table className="w-full whitespace-nowrap text-xs">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="sticky left-0 bg-zinc-900 pb-1 pr-3" />
+                <th className="px-2.5 pb-1 text-right font-medium">개인</th>
+                <th className="px-2.5 pb-1 text-right font-medium">외국인</th>
+                <th className="pb-1 pl-2.5 pr-5 text-right font-semibold text-zinc-300">기관계</th>
+                <th colSpan={ORG_DETAIL.length} className={`border-b border-zinc-800 pb-1.5 text-center font-medium text-zinc-400 ${ORG_EDGE}`}>
+                  기관상세
+                </th>
+                <th className={`pb-1 pl-5 pr-2.5 text-right font-medium ${ORG_EDGE}`}>기타법인</th>
+              </tr>
+              <tr>
+                <th className="sticky left-0 bg-zinc-900 pb-1.5 pr-3 text-left font-medium">일자</th>
+                <th />
+                <th />
+                <th />
+                {ORG_DETAIL.map((c, i) => (
+                  <th key={c.key} className={`pb-1.5 pt-1.5 text-right font-medium ${orgPad(i, ORG_DETAIL.length)} ${i === 0 ? ORG_EDGE : ""}`}>
+                    {c.label}
+                  </th>
+                ))}
+                <th className={ORG_EDGE} />
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="[&>td]:border-t [&>td]:border-zinc-700 [&>td]:bg-zinc-850">
+                <td className="sticky left-0 py-2 pr-3 text-left font-bold text-zinc-100">{days.length}일 합계</td>
+                {cells(total, true)}
+              </tr>
+              {days.map((d) => (
+                <tr key={d.date} className="[&>td]:border-t [&>td]:border-zinc-800/50 [&>td]:transition-colors hover:[&>td]:bg-zinc-850">
+                  <td className="num sticky left-0 bg-zinc-900 py-2 pr-3 text-left text-zinc-400">{dayLabel(d.date)}</td>
+                  {cells(d, false)}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
