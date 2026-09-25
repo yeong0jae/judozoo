@@ -249,6 +249,25 @@ body {
   }
 }
 
+/* 모바일 목록 ↔ 상세 — 들어가면 오른쪽에서, 돌아오면 왼쪽에서 밀려 들어온다.
+   `hidden`이 풀리는 순간 애니메이션이 다시 돈다. 목록·상세가 나란히 보이는 폭(lg)에선 걸지 않는다. */
+@keyframes pane-from-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pane-from-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 1023.98px) and (prefers-reduced-motion: no-preference) {
+  .pane-from-right {
+    animation: pane-from-right 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .pane-from-left {
+    animation: pane-from-left 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
 /* 시간대별 수급 — 값이 갱신될 때 직전 변화량을 세 번 깜빡인 뒤 흐리게 유지 */
 @keyframes flow-delta {
   0% {

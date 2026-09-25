@@ -18,15 +18,21 @@ export default function ListDetail({
   /** 좁은 화면에서 상세를 보여줄지 — `useMobileDetail().open` */
   detailOpen: boolean;
 }) {
-  // 두 칸 모두 `relative` — 안의 absolute 요소(sr-only 등)가 스크롤 칸을 빠져나와 페이지 높이를 늘리지 않게
+  // 목록은 한 번이라도 상세에 다녀온 뒤에만 밀려 들어온다 — 첫 진입까지 움직이면 산만하다.
+  // 클래스는 붙여 둔 채로 두고, `hidden`이 풀릴 때마다 애니메이션이 다시 돈다.
+  const visited = useRef(false);
+  if (detailOpen) visited.current = true;
+
+  // 두 칸 모두 `relative` — 안의 absolute 요소(sr-only 등)가 스크롤 칸을 빠져나와 페이지 높이를 늘리지 않게.
+  // 밀려 들어오는 동안 가로 스크롤이 생기지 않게 좁은 폭에서는 가로로 자른다.
   return (
-    <div className="lg:flex lg:h-[calc(100dvh-6.5rem)] lg:min-h-[40rem]">
+    <div className="max-lg:overflow-x-clip lg:flex lg:h-[calc(100dvh-6.5rem)] lg:min-h-[40rem]">
       <aside
-        className={`${detailOpen ? "hidden" : ""} relative shrink-0 lg:block lg:w-[28rem] lg:overflow-y-auto lg:border-r lg:border-zinc-800 lg:pr-3 xl:w-[32rem] 2xl:w-[37.5rem]`}
+        className={`${detailOpen ? "hidden" : ""} ${visited.current ? "pane-from-left" : ""} relative shrink-0 lg:block lg:w-[28rem] lg:overflow-y-auto lg:border-r lg:border-zinc-800 lg:pr-3 xl:w-[32rem] 2xl:w-[37.5rem]`}
       >
         {list}
       </aside>
-      <div className={`${detailOpen ? "" : "hidden"} relative min-w-0 flex-1 pb-6 lg:block lg:overflow-y-auto lg:pl-8 lg:pr-1`}>
+      <div className={`${detailOpen ? "" : "hidden"} pane-from-right relative min-w-0 flex-1 pb-6 lg:block lg:overflow-y-auto lg:pl-8 lg:pr-1`}>
         {detail}
       </div>
     </div>
