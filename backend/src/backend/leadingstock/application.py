@@ -8,7 +8,7 @@ Phase 1(거래대금 순위 + 당일 등락률)로 후보를 추리고, 상세 �
 import dataclasses
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from backend.leadingstock import filters as flt
 from backend.leadingstock.domain import (
@@ -21,7 +21,8 @@ from backend.leadingstock.domain import (
     SpikeDirection,
 )
 from backend.library.cache import ttl_cache
-from backend.library.time import today
+from backend.library.time import now, today
+from backend.market import calendar
 from backend.platform.kiwoom import market as kiwoom_market
 from backend.platform.kiwoom import program as kiwoom_program
 from backend.settings import get_settings
@@ -94,13 +95,40 @@ def _criteria():
     return get_settings().criteria
 
 
-#: 후보 풀의 원천 — 거래대금 상위 몇 개를 받는가. 캐시 키가 이 값이라 부르는 곳이 모두 같아야 한다.
+#: 후보 풀의 원천 — 거래대금 상위 몇 개를 받는가.
 _POOL_SIZE = 50
+#: 장중 수명. 갱신 폴러(10초)가 한 번 늦어도 비지 않게 여유를 둔다.
+_POOL_TTL_SECONDS = 15
+#: 장이 다시 도는 시각 — `market.calendar`의 거래 시간 시작(NXT 프리마켓)과 같다.
+_SESSION_START = time(8, 0)
+
+
+def _pool_ttl() -> float:
+    """장중엔 짧게, 장이 멈춘 동안(장 밖·휴장)은 다음 08:00까지 들고 있는다.
+
+    멈춘 동안엔 값이 안 바뀌니 다시 물을 이유가 없다. 장중에 넣은 값은 15초로 끝나므로
+    마감 직전 값이 밤새 남지 않고, 마감 뒤 첫 요청이 받은 값이 다음 장까지 간다.
+    휴장일은 08:00에 한 번 더 받아 다음 08:00까지 간다 — 며칠 뒤가 휴장인지 따지지 않는다.
+    """
+    holiday, trading_hours = calendar.market_status()
+    if not holiday and trading_hours:
+        return _POOL_TTL_SECONDS
+    at = now()
+    reopen = datetime.combine(at.date(), _SESSION_START)
+    if at >= reopen:
+        reopen += timedelta(days=1)
+    return (reopen - at).total_seconds()
+
+
+@ttl_cache("tradingValuePool", ttl_seconds=_pool_ttl, maxsize=1)
+def _trading_value_pool() -> list[LeadingStockSnapshot]:
+    """거래대금 상위 — 후보 목록·주도주·상세 평가가 같은 응답을 나눠 쓴다."""
+    return kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE)
 
 
 def refresh_trading_value_pool() -> None:
     """거래대금 상위를 만료 전에 새로 받아 갈아 끼운다 — 장중 갱신 폴러가 부른다."""
-    kiwoom_market.fetch_top_trading_value_stocks.refresh(_POOL_SIZE)
+    _trading_value_pool.refresh()
 
 
 @ttl_cache("candidateStocks", ttl_seconds=5, maxsize=15)
@@ -114,7 +142,7 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
     구간에 기준 미달 종목이 설명 없이 섞인다.
     """
     log.info("후보 종목 조회 (Phase 1) — 등락률 >= %s%%", min_daily_price_change_rate)
-    candidates = kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE)
+    candidates = _trading_value_pool()
     log.info("거래대금 순위에서 %d건 수집", len(candidates))
 
     # 사용자 지정 등락률만 덮어쓴 임계값으로 Phase 1 구성
@@ -156,7 +184,7 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
     log.info("종목 평가: %s", stock_code)
 
     rank_info = next(
-        (s for s in kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE) if s.stock_code == stock_code),
+        (s for s in _trading_value_pool() if s.stock_code == stock_code),
         None,
     )
     base = kiwoom_market.fetch_stock_detail(stock_code)

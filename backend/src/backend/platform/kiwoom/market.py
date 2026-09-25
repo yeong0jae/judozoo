@@ -65,13 +65,11 @@ def _with_token_retry(call):
         return call()
 
 
-@ttl_cache("topTradingValueStocks", ttl_seconds=15, maxsize=1)
 def fetch_top_trading_value_stocks(count: int = 50) -> list[LeadingStockSnapshot]:
     """거래대금 상위 (ka10032).
 
-    장중에는 `leadingstock.scheduler`가 10초마다 `refresh`로 갈아 끼워, 화면·시그널 폴러·상세 클릭이
-    항상 캐시에서 받는다. TTL 15초는 갱신이 한 번 늦어도 비지 않게 둔 여유다.
-    장 밖에는 갱신이 쉬고 부르는 쪽이 채운다.
+    **캐시하지 않는다.** 언제까지 들고 있을지가 장 상태(휴장 포함)에 달려 있어
+    `leadingstock.application`이 캐시를 쥔다.
     빈 응답·오류는 예외로 올린다. 빈 결과를 캐싱하면 후속 폴링이 TTL 동안 빈 목록을 돌려준다.
     """
     return _with_token_retry(lambda: _fetch_top_trading_value_once(count))

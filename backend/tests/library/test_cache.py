@@ -264,3 +264,41 @@ class Test미리_갱신하면:
             assert 갱신.result() == 조회.result() == "새 값"
 
         assert 호출횟수 == 1
+
+
+class Test수명을_함수로_주면:
+    """장중엔 짧게, 장이 멈춘 동안은 다음 장까지 — 넣는 순간의 상황으로 수명을 정한다."""
+
+    def test_넣을_때마다_그때의_수명을_쓴다(self):
+        수명들 = iter([0.1, 60])
+        호출횟수 = 0
+
+        @ttl_cache("테스트_가변수명", ttl_seconds=lambda: next(수명들))
+        def 조회() -> int:
+            nonlocal 호출횟수
+            호출횟수 += 1
+            return 호출횟수
+
+        조회()                 # 0.1초짜리로 들어간다
+        time.sleep(0.15)
+        조회()                 # 만료돼 다시 부르고, 이번엔 60초짜리로 들어간다
+        time.sleep(0.15)
+
+        assert 조회() == 2
+        assert 호출횟수 == 2
+
+    def test_갈아_끼울_때도_수명을_새로_정한다(self):
+        수명들 = iter([60, 0.1, 60])
+        호출횟수 = 0
+
+        @ttl_cache("테스트_가변수명_갱신", ttl_seconds=lambda: next(수명들))
+        def 조회() -> int:
+            nonlocal 호출횟수
+            호출횟수 += 1
+            return 호출횟수
+
+        조회()                 # 60초짜리
+        조회.refresh()         # 0.1초짜리로 바뀐다
+        time.sleep(0.15)
+
+        assert 조회() == 3     # 60초짜리였다면 다시 부르지 않았다

@@ -14,21 +14,25 @@ Kotlin의 `@Cacheable` + Caffeine에 대응한다. 인프로세스로 유지한�
 **`fn.refresh(...)`는 캐시를 보지 않고 새로 불러 갈아 끼운다.** 만료를 기다리지 않고 미리 채우는
 폴러가 쓴다. 이것도 진행 중인 호출로 올라가므로, 갱신이 늦어 그 사이 만료된 키를 물은 스레드는
 브로커를 따로 부르지 않고 갱신 결과를 기다린다. 실패하면 기존 값을 건드리지 않는다.
+
+**`ttl_seconds`에 함수를 주면 넣는 순간마다 수명을 새로 정한다.** 장중에는 짧게, 장이 멈춘 동안은
+다음 장까지 들고 있게 하는 데 쓴다. 이 함수는 락 밖에서 부른다 — 휴장 판정처럼 외부를 탈 수 있다.
 """
 
 from collections.abc import Callable, Hashable
 from concurrent.futures import Future
 from functools import wraps
 from threading import Lock
+from time import monotonic
 from typing import Any, ParamSpec, TypeVar
 
-from cachetools import TTLCache
+from cachetools import TLRUCache, TTLCache
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 # 이름 → 캐시. 운영 중 상태를 들여다보거나 테스트에서 비우기 위해 노출한다.
-_caches: dict[str, TTLCache] = {}
+_caches: dict[str, TTLCache | TLRUCache] = {}
 _locks: dict[str, Lock] = {}
 # 이름 → (키 → 진행 중인 호출). 선두 스레드가 끝나면 비운다.
 _inflight: dict[str, dict[Hashable, Future]] = {}
@@ -36,19 +40,26 @@ _inflight: dict[str, dict[Hashable, Future]] = {}
 
 def ttl_cache(
     name: str,
-    ttl_seconds: float = 60.0,
+    ttl_seconds: float | Callable[[], float] = 60.0,
     maxsize: int = 100,
     key: Callable[..., Hashable] | None = None,
     skip_if: Callable[[Any], bool] | None = None,
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
     :param name: 캐시 이름. Kotlin `@Cacheable("...")`의 이름을 그대로 쓴다.
-    :param ttl_seconds: 항목 수명.
+    :param ttl_seconds: 항목 수명. 함수면 넣을 때마다 불러 그 항목의 수명으로 쓴다.
     :param maxsize: 최대 엔트리 수. 초과 시 오래된 항목부터 밀려난다.
     :param key: 인자 → 캐시 키. 기본은 위치·키워드 인자 전체.
     :param skip_if: 결과가 이 조건을 만족하면 **저장하지 않는다**.
     """
-    cache = _caches.setdefault(name, TTLCache(maxsize=maxsize, ttl=ttl_seconds))
+    ttl_of = ttl_seconds if callable(ttl_seconds) else None
+    # 수명이 항목마다 다르면 (만료 시각, 값)으로 담고 TLRUCache가 그 시각을 읽는다
+    cache = _caches.setdefault(
+        name,
+        TLRUCache(maxsize=maxsize, ttu=lambda _key, entry, _now: entry[0], timer=monotonic)
+        if ttl_of
+        else TTLCache(maxsize=maxsize, ttl=ttl_seconds),
+    )
     lock = _locks.setdefault(name, Lock())
     inflight = _inflight.setdefault(name, {})
 
@@ -57,7 +68,7 @@ def ttl_cache(
             cache_key = key(*args, **kwargs) if key else (args, tuple(sorted(kwargs.items())))
             with lock:
                 if not force and cache_key in cache:
-                    return cache[cache_key]
+                    return cache[cache_key][1] if ttl_of else cache[cache_key]
                 pending = inflight.get(cache_key)
                 if pending is None:
                     pending = inflight[cache_key] = Future()
@@ -81,9 +92,11 @@ def ttl_cache(
                 pending.set_exception(e)
                 raise
 
+            store = skip_if is None or not skip_if(result)
+            expires_at = monotonic() + ttl_of() if store and ttl_of else None
             with lock:
-                if skip_if is None or not skip_if(result):
-                    cache[cache_key] = result
+                if store:
+                    cache[cache_key] = (expires_at, result) if ttl_of else result
                 del inflight[cache_key]
             pending.set_result(result)
             return result
