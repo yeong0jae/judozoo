@@ -103,12 +103,19 @@ resource "google_certificate_manager_dns_authorization" "site" {
   depends_on = [google_project_service.certificatemanager]
 }
 
+# 인증은 생성 직후 한 번 시도되고, 실패하면 재시도 간격을 알 수 없다. 첫 인증서는 CNAME을
+# 넣기 전에 시도해 CNAME_MISMATCH로 멈췄다(2026-09-25). 다시 받으려면 이름을 바꿔 새로 만든다 —
+# 맵 항목이 참조 중이라 먼저 지울 수 없으므로 create_before_destroy.
 resource "google_certificate_manager_certificate" "site" {
-  name = "judozoo-site"
+  name = "judozoo-site-v2"
 
   managed {
     domains            = [var.domain]
     dns_authorizations = [google_certificate_manager_dns_authorization.site.id]
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
