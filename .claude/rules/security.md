@@ -18,12 +18,14 @@ commits together are a record of where someone lives.
 
 ### 3. Server public IPs do not belong in docs
 
-**The Cloudflare proxy is on (2026-09-17), so this is now live, not hypothetical.** `dig
-judozoo.com` returns Cloudflare edge addresses; the origin IP is the one route that bypasses
-the proxy and reaches the server directly. Web ingress is narrowed to Cloudflare's published
-ranges (`allowed_web_source_ranges`), so a direct hit now times out — but a firewall is one
-`terraform apply` away from being widened again. Don't write the address down in the first
-place, so there is nothing to hunt for later.
+**The site sits behind a GCP load balancer (2026-09-25, [023](../../docs/tasks/023-구글-부하분산기-전환.md)),
+so this is live, not hypothetical.** `dig judozoo.com` returns the load balancer address — that one
+is public by design and is not an access path to the VM. The VM's own address is: web ingress is
+narrowed to Google's load balancer ranges (`130.211.0.0/22`, `35.191.0.0/16`, port 3000), so a direct
+hit times out — but a firewall is one `terraform apply` away from being widened again. Don't write
+the VM address down in the first place, so there is nothing to hunt for later.
+
+The VM keeps a static external IP because Kiwoom allowlists it for **outbound** broker calls.
 
 `terraform output vm_external_ips` has the value when it is actually needed.
 

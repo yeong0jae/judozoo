@@ -97,7 +97,7 @@ async def _require_login(request: Request, call_next):
 app.add_middleware(BaseHTTPMiddleware, dispatch=_require_login)
 
 # 세션 쿠키 — authlib이 OAuth state·nonce를 여기 보관하므로 라우터보다 먼저 붙어야 한다.
-# https_only는 운영 전제(Caddy가 TLS 종단). 로컬 http에서 로그인을 시험하려면 꺼야 한다.
+# https_only는 운영 전제(부하 분산기가 TLS 종단). 로컬 http에서 로그인을 시험하려면 꺼야 한다.
 _settings = get_settings()
 app.add_middleware(
     SessionMiddleware,

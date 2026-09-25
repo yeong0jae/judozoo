@@ -282,9 +282,10 @@ Docker가 없으면 `uv run pytest -m "not integration"`으로 통합 테스트�
 ## 11. 배포
 
 - 백엔드·프론트 도커라이즈 (multi-stage). nginx가 `/api`를 `backend:8000`으로 프록시
-- **Caddy가 유일한 공개 입구** — `judozoo.com` → frontend.
-  TLS는 Let's Encrypt DNS-01(Cloudflare)로 자동 발급·갱신
-- 방화벽은 tcp 80·443을 전체 공개(`0.0.0.0/0`), SSH(22)와 Grafana(3000)는 IAP 대역만
+- **GCP 전역 외부 부하 분산기가 유일한 공개 입구** — `judozoo.com` → VM의 nginx(:3000).
+  TLS는 Certificate Manager 관리형 인증서(DNS 인증), 정적 파일은 Cloud CDN, 압축은 부하 분산기(023).
+  Cloudflare는 DNS만 맡는다(프록시 꺼짐)
+- 방화벽은 tcp 3000을 구글 부하 분산기 대역에만, SSH(22)와 Grafana(3000)는 IAP 대역만
 - **Grafana에 공개 경로가 없다** — IAP TCP 터널로만 붙는다.
   공개 서브도메인을 두면 개인 IP 허용목록을 들고 다녀야 해서 입구 자체를 없앴다
 - `docker-compose.yml` / `docker-compose.prod.yml`

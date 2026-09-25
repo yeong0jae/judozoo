@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # VM에서 실행되는 배포 스크립트. GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출.
-# 사용: bash ~/remote_deploy.sh <AR_REPO> <REGION> <BACKEND_TAG> <FRONTEND_TAG> <CADDY_TAG>
+# 사용: bash ~/remote_deploy.sh <AR_REPO> <REGION> <BACKEND_TAG> <FRONTEND_TAG> <ALLOY_CONFIG_HASH>
 #
 # **태그가 서비스마다 다르다.** 각 디렉터리의 git 트리 해시라서 그 서비스 내용이
 # 바뀔 때만 값이 변한다. 안 바뀐 서비스는 태그가 같아 compose가 건드리지 않는다 —
@@ -15,13 +15,10 @@ AR_REPO="${1:?AR_REPO required}"
 REGION="${2:?REGION required}"
 BACKEND_TAG="${3:?BACKEND_TAG required}"
 FRONTEND_TAG="${4:?FRONTEND_TAG required}"
-CADDY_TAG="${5:?CADDY_TAG required}"
-ALLOY_CONFIG_HASH="${6:?ALLOY_CONFIG_HASH required}"
-
-DOMAIN="judozoo.com"
+ALLOY_CONFIG_HASH="${5:?ALLOY_CONFIG_HASH required}"
 
 cd "$HOME"
-# backend·grafana·caddy가 ./secrets/.env 를 읽는다.
+# backend가 ./secrets/.env 를 읽는다.
 mkdir -p secrets
 
 # Secret Manager에서 KIS/KIWOOM/DB 시크릿 → secrets/.env (VM 인스턴스 SA 권한 사용).
@@ -51,8 +48,6 @@ REAL_KIWOOM_APP_SECRET=$(fetch AT_KIWOOM_APP_SECRET)
 REAL_KIWOOM_ACCOUNT_NO=$(fetch AT_KIWOOM_ACCOUNT_NO)
 REAL_TOSS_CLIENT_ID=$(fetch AT_REAL_TOSS_CLIENT_ID)
 REAL_TOSS_CLIENT_SECRET=$(fetch AT_REAL_TOSS_CLIENT_SECRET)
-CLOUDFLARE_API_TOKEN=$(fetch AT_CLOUDFLARE_API_TOKEN)
-DOMAIN=${DOMAIN}
 GOOGLE_CLIENT_ID=$(fetch AT_GOOGLE_CLIENT_ID)
 GOOGLE_CLIENT_SECRET=$(fetch AT_GOOGLE_CLIENT_SECRET)
 SESSION_SECRET=$(fetch AT_SESSION_SECRET)
@@ -70,10 +65,8 @@ gcloud auth print-access-token \
 COMPOSE_ENV=(
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
   "BACKEND_IMAGE=${AR_REPO}/backend"
-  "CADDY_IMAGE=${AR_REPO}/caddy"
   "BACKEND_TAG=${BACKEND_TAG}"
   "FRONTEND_TAG=${FRONTEND_TAG}"
-  "CADDY_TAG=${CADDY_TAG}"
   "ALLOY_CONFIG_HASH=${ALLOY_CONFIG_HASH}"
 )
 
@@ -121,12 +114,10 @@ for i in 1 2 3; do
 done
 echo "alloy OK"
 
-# 3) 프론트 — Caddy를 거쳐 검사한다. 프론트는 호스트에 포트를 퍼블리시하지 않으므로
-#    직접 때릴 주소가 없다(호스트의 3000은 Grafana다 — 프론트의 3000은 컨테이너 내부 포트다).
-#    --resolve로 DNS를 우회해 루프백의 Caddy를 때리면
-#    TLS 인증서(SNI·유효기간)까지 한 번에 검증된다.
+# 3) 프론트 — 부하 분산기가 붙는 호스트 3000을 그대로 때린다(023). TLS는 부하 분산기가
+#    끝내므로 여기서 볼 인증서가 없다. `/healthz`가 아니라 `/`를 쳐서 index.html까지 확인한다.
 for i in $(seq 1 24); do
-  if curl -fsS --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/" >/dev/null; then
+  if curl -fsS "http://127.0.0.1:3000/" >/dev/null; then
     echo "health OK ($i)"; exit 0
   fi
   echo "not ready, retry $i"; sleep 10

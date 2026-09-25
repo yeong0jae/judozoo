@@ -43,7 +43,7 @@ jobs:
     strategy:
       matrix:
         # 이미지별로 러너를 나눠 병렬 빌드. 디렉터리명 = 이미지명 = 빌드 컨텍스트.
-        image: [backend, frontend, caddy]
+        image: [backend, frontend]
     name: build ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
@@ -206,7 +206,6 @@ jobs:
           {
             echo "backend=$(git rev-parse HEAD:backend)"
             echo "frontend=$(git rev-parse HEAD:frontend)"
-            echo "caddy=$(git rev-parse HEAD:caddy)"
             echo "alloy=$(git rev-parse HEAD:observability/alloy)"
           } >> "$GITHUB_OUTPUT"
 
@@ -216,7 +215,6 @@ jobs:
             --command "bash ~/remote_deploy.sh ${AR_REPO} ${REGION} \
               ${{ steps.tags.outputs.backend }} \
               ${{ steps.tags.outputs.frontend }} \
-              ${{ steps.tags.outputs.caddy }} \
               ${{ steps.tags.outputs.alloy }}"
 
   # 배포 결과를 Slack으로.
