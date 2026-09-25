@@ -61,6 +61,19 @@
         document.head.appendChild(s);
       })();
     </script>
+    <!-- Cloudflare Web Analytics(실사용자 측정). 토큰은 GA 측정 ID처럼 페이지에 드러나는 공개 값이다.
+         프록시가 켜져 있을 땐 Cloudflare가 자동으로 넣어줬지만, 부하 분산기로 옮기면서(023) 프록시를 꺼서
+         직접 싣는다. 첫 화면 20초 문제를 잡은 도구라 전환 전후 비교에 필요하다. GA와 같이 운영 호스트에서만. -->
+    <script>
+      (function () {
+        if (location.hostname !== "judozoo.com") return;
+        var s = document.createElement("script");
+        s.defer = true;
+        s.src = "https://static.cloudflareinsights.com/beacon.min.js";
+        s.setAttribute("data-cf-beacon", '{"token": "2c3b548b4f694e3e918d509473c04b76"}');
+        document.head.appendChild(s);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
