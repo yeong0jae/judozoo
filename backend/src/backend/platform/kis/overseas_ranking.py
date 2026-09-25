@@ -4,7 +4,6 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from backend.library.cache import ttl_cache
 from backend.platform.kis.client import auth_headers, get_client
 
 log = logging.getLogger(__name__)
@@ -32,8 +31,8 @@ class OverseasRankItem:
     ename: str
 
 
-@ttl_cache("kisOverseasRanking", ttl_seconds=15, maxsize=3)
 def fetch_trading_value_ranking(excd: str) -> list[OverseasRankItem]:
+    """캐시하지 않는다 — 세 거래소를 합친 풀 단위로 `overseasleadingstock.application`이 쥔다."""
     log.info("KIS 해외주식 거래대금순위 조회: excd=%s", excd)
     response = get_client().get(
         "/uapi/overseas-stock/v1/ranking/trade-pbmn",

@@ -4,6 +4,8 @@
 국내와 같은 흐름 — 거래대금 상위 풀에서 당일 등락률이 기준 이상인 것만 남긴다.
 """
 
+from backend.library.cache import ttl_cache
+from backend.market import calendar
 from backend.overseasleadingstock.domain import (
     FilterResult,
     OverseasStockRank,
@@ -15,8 +17,22 @@ EXCHANGES = ("NAS", "NYS", "AMS")
 TOP_N = 40
 MIN_CHANGE_RATE_PCT = 5.0          # 상세 B: 당일 등락률 하한
 MIN_MARKET_CAP_USD = 2_000_000_000  # 상세 C: 시가총액 $2B 하한
+#: 장중 수명. 갱신 폴러(10초)가 한 번 늦어도 비지 않게 여유를 둔다.
+_POOL_TTL_SECONDS = 15
 
 
+def _pool_ttl() -> float:
+    """장중엔 짧게, 장이 멈춘 동안(장 밖·미국 휴장)은 다음 미 동부 04:00까지 들고 있는다.
+
+    국내(`leadingstock.application._pool_ttl`)와 같은 규칙이다. 멈춘 동안엔 값이 안 바뀐다.
+    """
+    holiday, trading_hours = calendar.us_market_status()
+    if not holiday and trading_hours:
+        return _POOL_TTL_SECONDS
+    return calendar.seconds_until_us_session()
+
+
+@ttl_cache("overseasRankingPool", ttl_seconds=_pool_ttl, maxsize=1)
 def _ranking_pool() -> list[OverseasStockRank]:
     """세 거래소를 합쳐 순위를 매기고, 상위 컷 안에서 ETF를 걷어낸다.
 
@@ -35,6 +51,11 @@ def _ranking_pool() -> list[OverseasStockRank]:
     rows.sort(key=lambda r: r.trading_value, reverse=True)
     ranked = [r.ranked(i + 1) for i, r in enumerate(rows)]
     return [r for r in ranked[:TOP_N] if not r.is_etf]
+
+
+def refresh_ranking_pool() -> None:
+    """후보 풀을 만료 전에 새로 받아 갈아 끼운다 — 장중 갱신 폴러가 부른다."""
+    _ranking_pool.refresh()
 
 
 def get_candidates(min_change_rate: float) -> list[OverseasStockRank]:

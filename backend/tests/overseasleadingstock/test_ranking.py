@@ -22,6 +22,12 @@ def kis_초기화():
     kis_client.reset()
 
 
+@pytest.fixture(autouse=True)
+def 미국_장중(monkeypatch):
+    """후보 풀의 수명이 미국 장 상태로 정해진다 — 휴장 판정이 토스를 타지 않게 장중으로 고정한다."""
+    monkeypatch.setattr("backend.market.calendar.us_market_status", lambda: (False, True))
+
+
 @pytest.fixture
 def 토큰_발급(respx_mock):
     respx_mock.post(TOKEN_URL).mock(
@@ -222,3 +228,30 @@ class Test해외_주도주_API:
 
         assert response.status_code == 400
         assert response.json() == {"code": "INVALID_PARAMETER", "status": 400, "data": None}
+
+
+class Test후보_풀_보관_기간:
+    def test_장중에는_15초만_들고_있는다(self):
+        assert application._pool_ttl() == 15
+
+    def test_장이_멈춘_동안은_다음_미국장까지_들고_있는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.us_market_status", lambda: (False, False))
+        monkeypatch.setattr("backend.market.calendar.seconds_until_us_session", lambda: 7 * 3600)
+
+        assert application._pool_ttl() == 7 * 3600
+
+    def test_미국_휴장일에는_장_시간이어도_다음_미국장까지_들고_있는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.us_market_status", lambda: (True, True))
+        monkeypatch.setattr("backend.market.calendar.seconds_until_us_session", lambda: 24 * 3600)
+
+        assert application._pool_ttl() == 24 * 3600
+
+    @respx.mock
+    def test_후보와_주도주와_상세가_세_거래소_조회를_한_번_나눠_쓴다(self, respx_mock, 토큰_발급):
+        route = respx_mock.get(RANKING_URL).mock(return_value=순위응답([순위행("AAA", "1000")]))
+
+        application.get_candidates(0.0)
+        application.get_candidates(5.0)
+        application.get_leaders(5)
+
+        assert route.call_count == 3      # 거래소마다 한 번

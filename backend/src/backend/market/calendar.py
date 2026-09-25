@@ -4,7 +4,7 @@
 """
 
 import threading
-from datetime import date, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from enum import Enum
 from zoneinfo import ZoneInfo
 
@@ -102,6 +102,31 @@ def market_status() -> tuple[bool, bool]:
     """(휴장 여부, 거래시간 내 여부)."""
     current = now().time()
     return is_holiday(Region.KR), _TRADING_START <= current <= _TRADING_END
+
+
+# --- 미국 장 상태 --------------------------------------------------------
+
+# 미 동부 기준. 프리마켓부터 정규장 마감까지 — 화면 세션(`lib/marketSession.ts`)과 같다.
+_US_TRADING_START = time(4, 0)
+_US_TRADING_END = time(16, 0)
+
+
+def _us_now() -> datetime:
+    return now().replace(tzinfo=KST).astimezone(Region.US.zone)
+
+
+def us_market_status() -> tuple[bool, bool]:
+    """(미국 휴장 여부, 미 동부 04:00~16:00 안인지). 서머타임은 시간대가 알아서 반영한다."""
+    return is_holiday(Region.US), _US_TRADING_START <= _us_now().time() < _US_TRADING_END
+
+
+def seconds_until_us_session() -> float:
+    """다음 미 동부 04:00까지 남은 초."""
+    at = _us_now()
+    day = at.date() if at.time() < _US_TRADING_START else at.date() + timedelta(days=1)
+    reopen = datetime.combine(day, _US_TRADING_START, tzinfo=Region.US.zone)
+    # 같은 시간대끼리 빼면 벽시계 차이가 나와 서머타임 전환일에 한 시간 어긋난다
+    return (reopen.astimezone(UTC) - at.astimezone(UTC)).total_seconds()
 
 
 def reset() -> None:

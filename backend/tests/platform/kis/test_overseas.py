@@ -69,18 +69,6 @@ class Test거래대금순위:
         with pytest.raises(RuntimeError, match="거래대금순위 오류"):
             fetch_trading_value_ranking("NAS")
 
-    @respx.mock
-    def test_거래소별로_따로_캐시한다(self, respx_mock, 토큰_발급):
-        route = respx_mock.get(RANKING_URL).mock(
-            return_value=httpx.Response(200, json={"rt_cd": "0", "msg1": "", "output2": [{"symb": "A"}]})
-        )
-
-        fetch_trading_value_ranking("NAS")
-        fetch_trading_value_ranking("NAS")
-        fetch_trading_value_ranking("NYS")
-
-        assert route.call_count == 2
-
 
 class Test시가총액:
     @respx.mock
