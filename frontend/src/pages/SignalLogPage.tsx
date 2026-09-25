@@ -173,7 +173,7 @@ function renderMarketRow(
           <span className={leftCls}>{leftLabel}</span>
           <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
             <span className="num text-[13px] text-zinc-100">{m.indexValue != null ? fmtIndex(m.indexValue) : ""}</span>
-            <span className="w-14 text-right">
+            <span className="min-w-14 whitespace-nowrap text-right">
               {m.changeRate != null && (
                 <ProfitText value={m.changeRate / 100} format={formatPct} className="num text-xs" />
               )}
@@ -548,7 +548,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
         />
         {/* 유형 필터와 등락률 — 미로그인은 조작이 잠겨 아예 감춘다 */}
         {authenticated && (
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-col gap-2">
             <div className="flex w-fit rounded-xl bg-zinc-800 p-0.5 text-xs">
               {TYPE_TABS.map((t) => (
                 <button
@@ -563,7 +563,9 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                 </button>
               ))}
             </div>
-            <ChangeRateSelector value={minRate} onChange={setMinRate} />
+            <div className="flex justify-end">
+              <ChangeRateSelector value={minRate} onChange={setMinRate} />
+            </div>
           </div>
         )}
       </div>
@@ -639,7 +641,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       <span className="min-w-0 truncate text-sm text-zinc-100">{e.stockName}</span>
                       <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
                         <span className="num text-[13px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
-                        <span className="w-14 text-right">
+                        <span className="min-w-14 whitespace-nowrap text-right">
                           <ProfitText value={e.priceChangeRate / 100} format={formatPct} className="num text-xs" />
                         </span>
                       </span>

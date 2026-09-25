@@ -18,14 +18,15 @@ export default function ListDetail({
   /** 좁은 화면에서 상세를 보여줄지 — `useMobileDetail().open` */
   detailOpen: boolean;
 }) {
+  // 두 칸 모두 `relative` — 안의 absolute 요소(sr-only 등)가 스크롤 칸을 빠져나와 페이지 높이를 늘리지 않게
   return (
     <div className="lg:flex lg:h-[calc(100dvh-6.5rem)] lg:min-h-[40rem]">
       <aside
-        className={`${detailOpen ? "hidden" : ""} shrink-0 lg:block lg:w-[28rem] lg:overflow-y-auto lg:border-r lg:border-zinc-800 lg:pr-3 xl:w-[32rem] 2xl:w-[37.5rem]`}
+        className={`${detailOpen ? "hidden" : ""} relative shrink-0 lg:block lg:w-[28rem] lg:overflow-y-auto lg:border-r lg:border-zinc-800 lg:pr-3 xl:w-[32rem] 2xl:w-[37.5rem]`}
       >
         {list}
       </aside>
-      <div className={`${detailOpen ? "" : "hidden"} min-w-0 flex-1 pb-6 lg:block lg:overflow-y-auto lg:pl-8 lg:pr-1`}>
+      <div className={`${detailOpen ? "" : "hidden"} relative min-w-0 flex-1 pb-6 lg:block lg:overflow-y-auto lg:pl-8 lg:pr-1`}>
         {detail}
       </div>
     </div>
