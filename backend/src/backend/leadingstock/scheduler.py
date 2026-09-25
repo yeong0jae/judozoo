@@ -1,4 +1,4 @@
-"""주도주 폴러 — 종목 시그널(10s) / 시장 시그널(30s) / 지수 반등(30s) / 마감 스냅샷(15:40).
+"""주도주 폴러 — 거래대금 상위 갱신(10s) / 종목 시그널(10s) / 시장 시그널(30s) / 지수 반등(30s) / 마감 스냅샷(15:40).
 
 폴러는 **화면을 아무도 안 보고 있어도** 쌓이게 하려고 서버가 능동적으로 돈다.
 직전 상태는 메모리에 들고 일자가 바뀌면 버린다. 흐름 전환 정점만 DB에 남겨 재시작에도 복원한다.
@@ -47,6 +47,10 @@ log = logging.getLogger(__name__)
 _SIGNAL_JOB = "signal-event-poller"
 _MARKET_SIGNAL_JOB = "market-signal-event-poller"
 _INDEX_REBOUND_JOB = "index-rebound-poller"
+_POOL_REFRESH_JOB = "trading-value-pool-refresher"
+
+# 거래대금 상위 캐시(TTL 15초)를 만료 전에 갈아 끼우는 주기
+_POOL_REFRESH_SECONDS = 10
 
 _SNAPSHOT_START = time(8, 0)   # NXT 프리마켓 개장
 _SNAPSHOT_END = time(20, 0)    # NXT 애프터마켓 마감
@@ -60,6 +64,25 @@ _lock = threading.Lock()
 def _session_window() -> tuple[time, time]:
     s = get_settings().market_signal
     return time.fromisoformat(s.session_start), time.fromisoformat(s.session_end)
+
+
+# ── 거래대금 상위 갱신 ──────────────────────────────────────────────────
+
+
+@tracing.traced_job(_POOL_REFRESH_JOB)
+def refresh_trading_value_pool() -> None:
+    """장중에는 거래대금 상위를 늘 채워 둔다 — 화면과 시그널 폴러가 키움 응답을 기다리지 않게.
+
+    실패해도 기존 값은 TTL이 남은 동안 그대로 쓰인다. 다음 회차가 다시 시도한다.
+    """
+    holiday, trading_hours = calendar.market_status()
+    if holiday or not trading_hours:
+        return
+    try:
+        application.refresh_trading_value_pool()
+    except Exception:
+        metrics.job_failed(_POOL_REFRESH_JOB)
+        log.warning("거래대금 상위 갱신 실패", exc_info=True)
 
 
 # ── 종목 시그널 폴러 ────────────────────────────────────────────────────
@@ -360,6 +383,11 @@ def _merge_index_candles(session, market: Market, on: date, fresh: list[IndexMin
 
 def register(scheduler: BaseScheduler) -> None:
     s = get_settings()
+    scheduler.add_job(
+        refresh_trading_value_pool,
+        IntervalTrigger(seconds=_POOL_REFRESH_SECONDS),
+        id=_POOL_REFRESH_JOB, replace_existing=True,
+    )
     scheduler.add_job(
         poll_signal_events,
         IntervalTrigger(seconds=s.signal_event.poll_interval_millis / 1000),

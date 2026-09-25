@@ -10,6 +10,10 @@ Kotlin의 `@Cacheable` + Caffeine에 대응한다. 인프로세스로 유지한�
 **만료 순간의 중복 호출은 합친다(single-flight).** TTL이 5초인데 화면 폴링도 5초라
 경계에서 여러 스레드가 동시에 미스를 만난다. 각자 브로커를 부르면 같은 값을 N번 받고,
 공유 리미터가 그들을 줄 세우는 동안 스레드 N개가 그만큼 더 묶인다.
+
+**`fn.refresh(...)`는 캐시를 보지 않고 새로 불러 갈아 끼운다.** 만료를 기다리지 않고 미리 채우는
+폴러가 쓴다. 이것도 진행 중인 호출로 올라가므로, 갱신이 늦어 그 사이 만료된 키를 물은 스레드는
+브로커를 따로 부르지 않고 갱신 결과를 기다린다. 실패하면 기존 값을 건드리지 않는다.
 """
 
 from collections.abc import Callable, Hashable
@@ -49,11 +53,10 @@ def ttl_cache(
     inflight = _inflight.setdefault(name, {})
 
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
-        @wraps(fn)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        def call(force: bool, args: tuple, kwargs: dict) -> R:
             cache_key = key(*args, **kwargs) if key else (args, tuple(sorted(kwargs.items())))
             with lock:
-                if cache_key in cache:
+                if not force and cache_key in cache:
                     return cache[cache_key]
                 pending = inflight.get(cache_key)
                 if pending is None:
@@ -85,7 +88,15 @@ def ttl_cache(
             pending.set_result(result)
             return result
 
+        @wraps(fn)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            return call(False, args, kwargs)
+
+        def refresh(*args: P.args, **kwargs: P.kwargs) -> R:
+            return call(True, args, kwargs)
+
         wrapper.cache_name = name  # type: ignore[attr-defined]
+        wrapper.refresh = refresh  # type: ignore[attr-defined]
         return wrapper
 
     return decorator

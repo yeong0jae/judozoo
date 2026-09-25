@@ -94,6 +94,15 @@ def _criteria():
     return get_settings().criteria
 
 
+#: 후보 풀의 원천 — 거래대금 상위 몇 개를 받는가. 캐시 키가 이 값이라 부르는 곳이 모두 같아야 한다.
+_POOL_SIZE = 50
+
+
+def refresh_trading_value_pool() -> None:
+    """거래대금 상위를 만료 전에 새로 받아 갈아 끼운다 — 장중 갱신 폴러가 부른다."""
+    kiwoom_market.fetch_top_trading_value_stocks.refresh(_POOL_SIZE)
+
+
 @ttl_cache("candidateStocks", ttl_seconds=5, maxsize=15)
 def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingStockSnapshot]:
     """Phase 1 필터만 적용한 후보 (거래대금 순위 + 당일 등락률). 거래대금 내림차순.
@@ -105,7 +114,7 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
     구간에 기준 미달 종목이 설명 없이 섞인다.
     """
     log.info("후보 종목 조회 (Phase 1) — 등락률 >= %s%%", min_daily_price_change_rate)
-    candidates = kiwoom_market.fetch_top_trading_value_stocks(50)
+    candidates = kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE)
     log.info("거래대금 순위에서 %d건 수집", len(candidates))
 
     # 사용자 지정 등락률만 덮어쓴 임계값으로 Phase 1 구성
@@ -147,7 +156,7 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
     log.info("종목 평가: %s", stock_code)
 
     rank_info = next(
-        (s for s in kiwoom_market.fetch_top_trading_value_stocks(50) if s.stock_code == stock_code),
+        (s for s in kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE) if s.stock_code == stock_code),
         None,
     )
     base = kiwoom_market.fetch_stock_detail(stock_code)

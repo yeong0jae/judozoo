@@ -192,3 +192,75 @@ class Test만료_순간에_여러_스레드가_동시에_물으면:
 
         assert 한_번만_터진다() == "성공"
         assert 호출횟수 == 2
+
+
+class Test미리_갱신하면:
+    """장중 폴러가 만료 전에 갈아 끼운다 — 화면은 늘 캐시에서 받는다."""
+
+    def test_캐시에_값이_있어도_새로_불러_갈아_끼운다(self):
+        호출횟수 = 0
+
+        @ttl_cache("테스트_갱신_교체", ttl_seconds=60)
+        def 조회() -> int:
+            nonlocal 호출횟수
+            호출횟수 += 1
+            return 호출횟수
+
+        조회()
+        조회.refresh()
+
+        assert 조회() == 2
+        assert 호출횟수 == 2
+
+    def test_갈아_끼우면_수명이_다시_시작된다(self):
+        호출횟수 = 0
+
+        @ttl_cache("테스트_갱신_수명", ttl_seconds=0.2)
+        def 조회() -> int:
+            nonlocal 호출횟수
+            호출횟수 += 1
+            return 호출횟수
+
+        조회()
+        time.sleep(0.15)
+        조회.refresh()
+        time.sleep(0.15)      # 처음 넣은 시점으로는 만료됐을 시각
+
+        assert 조회() == 2
+        assert 호출횟수 == 2
+
+    def test_실패하면_기존_값을_남긴다(self):
+        실패시킨다 = False
+
+        @ttl_cache("테스트_갱신_실패", ttl_seconds=60)
+        def 조회() -> str:
+            if 실패시킨다:
+                raise RuntimeError("브로커 오류")
+            return "기존"
+
+        조회()
+        실패시킨다 = True
+        with pytest.raises(RuntimeError):
+            조회.refresh()
+
+        assert 조회() == "기존"
+
+    def test_갱신이_진행_중이면_비어_있는_캐시를_물은_쪽은_그_결과를_기다린다(self):
+        호출횟수 = 0
+        시작됨 = Barrier(2)
+
+        @ttl_cache("테스트_갱신_합류", ttl_seconds=60)
+        def 느린_조회() -> str:
+            nonlocal 호출횟수
+            호출횟수 += 1
+            시작됨.wait()
+            time.sleep(0.05)
+            return "새 값"
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            갱신 = pool.submit(느린_조회.refresh)
+            시작됨.wait()
+            조회 = pool.submit(느린_조회)
+            assert 갱신.result() == 조회.result() == "새 값"
+
+        assert 호출횟수 == 1

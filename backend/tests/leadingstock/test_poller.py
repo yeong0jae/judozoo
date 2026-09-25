@@ -214,3 +214,42 @@ class Test수급_스냅샷:
             assert len(적재) == 1
             assert 적재[0].index_value == 2500.0
             assert 적재[0].change_rate == 1.5
+
+
+class Test거래대금_상위_갱신:
+    def test_장중이면_거래대금_상위를_갈아_끼운다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
+        호출됨 = []
+        monkeypatch.setattr(application, "refresh_trading_value_pool", lambda: 호출됨.append(1))
+
+        scheduler.refresh_trading_value_pool()
+
+        assert 호출됨 == [1]
+
+    def test_휴장이면_갱신하지_않는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (True, True))
+        호출됨 = []
+        monkeypatch.setattr(application, "refresh_trading_value_pool", lambda: 호출됨.append(1))
+
+        scheduler.refresh_trading_value_pool()
+
+        assert 호출됨 == []
+
+    def test_장_시간이_아니면_갱신하지_않는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, False))
+        호출됨 = []
+        monkeypatch.setattr(application, "refresh_trading_value_pool", lambda: 호출됨.append(1))
+
+        scheduler.refresh_trading_value_pool()
+
+        assert 호출됨 == []
+
+    def test_실패해도_폴러가_죽지_않는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
+
+        def 터진다():
+            raise RuntimeError("키움 오류")
+
+        monkeypatch.setattr(application, "refresh_trading_value_pool", 터진다)
+
+        scheduler.refresh_trading_value_pool()
