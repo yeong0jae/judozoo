@@ -179,7 +179,7 @@ function FeedbackModal({
         {authed ? (
           <>
             <p className="mb-3 text-sm text-zinc-400">
-              불편한 점, 틀린 숫자, 있었으면 하는 화면 — 무엇이든 좋습니다.
+              불편한 점, 틀린 숫자, 있었으면 하는 화면. 무엇이든 좋습니다.
             </p>
             <textarea
               autoFocus
