@@ -190,9 +190,10 @@ export default function LeaderCalendarPage() {
               {Array.from({ length: leadingBlanks }, (_, i) => (
                 <div key={`b${i}`} className="hidden sm:block bg-zinc-900" />
               ))}
-              {days.map((d) => (
+              {days.map((d, i) => (
                 <DayCell
                   key={d}
+                  corner={cornerOf(leadingBlanks + i, leadingBlanks + days.length + trailingBlanks)}
                   date={d}
                   today={today}
                   mode={mode}
@@ -268,6 +269,13 @@ export default function LeaderCalendarPage() {
 }
 
 /** 기록된 날 → 종목. 휴장일은 빼고 `closedDates`로 따로 든다. */
+/** 달력 아래 두 모서리 칸 — 테두리의 둥근 모서리가 선택 테두리를 자르지 않게 같은 둥글기를 준다(폰 목록은 해당 없음). */
+function cornerOf(index: number, total: number): string {
+  if (index === total - 5) return "sm:rounded-bl-[13px]";
+  if (index === total - 1) return "sm:rounded-br-[13px]";
+  return "";
+}
+
 function byDate(items: LeaderDayItem[] | undefined): Map<string, LeaderStockItem[]> {
   return new Map((items ?? []).filter((d) => !d.closed).map((d) => [d.date, d.stocks]));
 }
@@ -357,7 +365,9 @@ function DayCell({
   selected,
   focus,
   onSelect,
+  corner,
 }: {
+  corner: string;
   date: string;
   today: string;
   mode: Mode;
@@ -449,7 +459,7 @@ function DayCell({
 
   const base = `min-h-0 sm:min-h-[132px] flex-col gap-[8px] px-[12px] pt-[10px] pb-[12px] text-left transition-[background-color,opacity] duration-150 ${
     dim ? "opacity-30" : ""
-  } ${hit ? "bg-emerald-700/5" : "bg-zinc-950"} ${closed ? "leader-closed" : ""}`;
+  } ${hit ? "bg-emerald-700/5" : "bg-zinc-950"} ${closed ? "leader-closed" : ""} ${corner}`;
 
   // 폰에서는 기록 없는 날을 목록에서 뺀다
   if (!has && !loading) return <div className={`${base} hidden sm:flex`}>{head}</div>;
