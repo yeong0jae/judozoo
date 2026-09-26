@@ -406,12 +406,6 @@ function ShowDetailButton({ label, onClick }: { label: string; onClick: () => vo
   );
 }
 
-/** YYYY-MM-DD → "09-23(수)" — 지난 날짜를 볼 때 머리의 갱신 표시 자리에 쓴다. */
-function closedDayLabel(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}(${"일월화수목금토"[new Date(y, m - 1, d).getDay()]})`;
-}
-
 /** YYYY-MM-DD → "9월 23일" */
 function dayLabel(iso: string): string {
   const [, m, d] = iso.split("-").map(Number);
@@ -553,7 +547,8 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
           fetchedAt={eventsQ.dataUpdatedAt}
           // 지난 날짜는 다시 부르지 않는다 — 고리도 차오르지 않는다
           refreshMs={date === todayStr() ? LIVE_REFRESH_MS : undefined}
-          closedLabel={date === todayStr() ? undefined : `${closedDayLabel(date)} 마감`}
+          // 날짜는 옆의 날짜 이동에 이미 있다
+          closedLabel={date === todayStr() ? undefined : "마감"}
           loading={eventsQ.isFetching}
           trailing={
             <DateNavigator
