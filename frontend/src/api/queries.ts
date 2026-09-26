@@ -6,6 +6,7 @@ import type {
   BreakoutRadarResponse,
   DailyCandleItem,
   LeadersResponse,
+  LeaderCalendarResponse,
   CandidateStocksResponse,
   KospiIndex,
   FuturesQuote,
@@ -43,6 +44,7 @@ export const QK = {
   leadingStockCandidates: (minChangeRate: number) =>
     ["leading-stocks", "candidates", minChangeRate] as const,
   leadingStockLeaders: ["leading-stocks", "leaders"] as const,
+  leaderCalendar: (month: string) => ["leader-calendar", month] as const,
   breakoutRadar: ["leading-stocks", "breakout-radar"] as const,
   signalEvents: (date: string) =>
     ["leading-stocks", "signal-events", date] as const,
@@ -153,6 +155,14 @@ export function useLeadingStockLeaders() {
     queryKey: QK.leadingStockLeaders,
     queryFn: () => apiFetch<LeadersResponse>("/api/leading-stocks/leaders"),
     refetchInterval: POOL_REFRESH_MS,
+  });
+}
+
+/** 주도주 캘린더 한 달치. `month`는 "2026-09". 값은 하루 두 번(국내 20:01, 해외 16:01 ET) 바뀐다. */
+export function useLeaderCalendar(month: string) {
+  return useQuery({
+    queryKey: QK.leaderCalendar(month),
+    queryFn: () => apiFetch<LeaderCalendarResponse>(`/api/leader-calendar?month=${month}`),
   });
 }
 

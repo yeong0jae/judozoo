@@ -9,6 +9,10 @@
       "title": "오늘의 주도주 : judozoo",
       "description": "거래대금과 등락률, 분봉 거래대금 급증으로 추린 당일 주도주 후보를 필터별 평가와 함께 봅니다."
     },
+    "/leader-calendar": {
+      "title": "주도주 캘린더 : judozoo",
+      "description": "날마다 마감 때 뽑힌 국내·해외 주도주를 달력 한 장으로 되돌아봅니다."
+    },
     "/signal-log": {
       "title": "주도주 시그널 기록 : judozoo",
       "description": "장중에 일어난 돌파·임박·스파이크·반등 전이를 일어난 순서대로 기록합니다."

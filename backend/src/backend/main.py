@@ -27,6 +27,7 @@ from backend.feedback.presentation import router as feedback_router
 from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.leadingstock.presentation import router as leading_router
+from backend.leadercalendar.presentation import router as leader_calendar_router
 from backend.market.presentation import router as market_router
 from backend.stock.presentation import router as stock_router
 from backend.settings import get_settings
@@ -56,12 +57,15 @@ async def lifespan(app: FastAPI):
     # 실패하면 로그인 콜백과 의견 접수만 실패하고 공개 화면은 계속 뜬다.
     from backend.auth.domain import AppUser
     from backend.feedback.domain import Feedback
+    from backend.leadercalendar.entities import LeaderDay, LeaderDayStock
 
     try:
         AppUser.__table__.create(get_engine(), checkfirst=True)
         Feedback.__table__.create(get_engine(), checkfirst=True)
+        LeaderDay.__table__.create(get_engine(), checkfirst=True)
+        LeaderDayStock.__table__.create(get_engine(), checkfirst=True)
     except Exception:
-        log.warning("가입자·의견 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
+        log.warning("가입자·의견·주도주 캘린더 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
     load_stock_catalog()
     start_scheduler()
     # 스레드풀 계측. **여기여야 한다** — anyio 스레드풀은 실행 중인 이벤트 루프에 매여 있어
@@ -140,6 +144,7 @@ app.include_router(overseas_router)
 app.include_router(stock_router)
 app.include_router(market_router)
 app.include_router(leading_router)
+app.include_router(leader_calendar_router)
 
 
 def _error(code: str, status: int) -> JSONResponse:

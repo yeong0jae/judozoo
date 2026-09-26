@@ -20,6 +20,8 @@ _PUBLIC_PATTERNS = [
     # 첫 화면 주도주 — 후보 목록에서 다섯 줄만 추린 것이라 새로 여는 것이 없다
     r"/api/leading-stocks/leaders",
     r"/api/overseas-leading-stocks/leaders",
+    # 주도주 캘린더 — 위 두 카드가 마감 때 고른 것을 날짜별로 모은 것이라 새로 여는 것이 없다
+    r"/api/leader-calendar",
     # 종목 시그널 — 미리보기로 최신 몇 건만 연다. 자르는 건 엔드포인트가 한다
     # (여기서 열어도 응답 전체가 나가지는 않는다). 지수 시그널은 로그인 뒤다.
     r"/api/leading-stocks/signal-events",

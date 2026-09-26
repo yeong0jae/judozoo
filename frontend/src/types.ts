@@ -459,3 +459,27 @@ export interface SessionsResponse<T> {
   date: string;
   sessions: T[];
 }
+
+/** 주도주 캘린더 — 홈 주도주 카드가 마감 때 고른 종목 한 줄.
+ *  가격·거래대금 단위는 시장으로 읽는다(국내 원, 해외 달러). `exchange`는 해외만. */
+export interface LeaderStockItem {
+  rank: number;
+  exchange: string | null;
+  code: string;
+  name: string;
+  price: number;
+  changeRate: number; // %
+  tradingValue: number;
+}
+
+/** `stocks`가 비면 그날 주도주가 없었다. 날 자체가 없으면 기록이 없다. `date`는 현지 거래일. */
+export interface LeaderDayItem {
+  date: string;
+  stocks: LeaderStockItem[];
+}
+
+export interface LeaderCalendarResponse {
+  domestic: LeaderDayItem[];
+  /** 요청한 달 1일의 직전 평일부터 — 1일 칸에 붙는 해외장이 전달에 있다. */
+  overseas: LeaderDayItem[];
+}

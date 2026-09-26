@@ -40,6 +40,7 @@ def start() -> BackgroundScheduler | None:
     if _scheduler is not None:
         return _scheduler
 
+    from backend.leadercalendar.scheduler import register as register_leader_calendar
     from backend.leadingstock.scheduler import register as register_leading
     from backend.market.scheduler import register as register_market
     from backend.overseasleadingstock.scheduler import register as register_overseas
@@ -50,6 +51,7 @@ def start() -> BackgroundScheduler | None:
     register_market(_scheduler)
     register_leading(_scheduler)
     register_overseas(_scheduler)
+    register_leader_calendar(_scheduler)
     # 잡마다 데코레이터를 다는 대신 리스너 하나. 잡을 새로 추가할 때 계측을 빠뜨릴 데가 없다.
     _scheduler.add_listener(metrics.on_job_submitted, EVENT_JOB_SUBMITTED)
     _scheduler.add_listener(
