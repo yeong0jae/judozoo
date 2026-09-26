@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../api/client";
 import {
+  useBreakoutRadar,
   useKospiIndex,
   useKosdaqIndex,
   useLeadingStockLeaders,
@@ -20,14 +23,15 @@ import {
   useMarketSessions,
 } from "../lib/marketSession";
 import { rememberMarket, type StockMarket } from "../lib/stockMarket";
-import { formatPct, formatPrice } from "../lib/format";
+import { formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import SessionStrip from "../components/layout/SessionStrip";
 import ProfitText from "../components/common/ProfitText";
 import NumWon from "../components/common/NumWon";
 import NumUsd from "../components/common/NumUsd";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
-import type { LimitUpItem, TodayNetItem } from "../types";
+import type { LimitUpItem, SignalEventsResponse, TodayNetItem } from "../types";
+import { EVENT_META, clockOf, detailOf } from "../components/common/signalParts";
 
 /** 카드 한 장에 올리는 주도주 줄 수. 서버가 이미 그만큼만 내려준다 — 뼈대 높이에 쓴다. */
 const LEADERS_COUNT = 5;
@@ -62,7 +66,6 @@ export default function HomePage() {
   const domestic = (
     <DomesticLeaders
       live={domesticLive}
-      first={domesticFirst}
       date={formatTradingDay(krTradingDay(now, !!krHoliday))}
       clock={clock}
     />
@@ -70,18 +73,20 @@ export default function HomePage() {
   const overseas = (
     <OverseasLeaders
       live={overseasLive}
-      first={!domesticFirst}
       date={formatTradingDay(usTradingDay(now, !!usHoliday))}
       clock={clock}
     />
   );
 
   return (
-    <div className="space-y-5">
-      <SessionStrip size="lg" />
+    <div className="flex flex-col gap-5 sm:gap-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-xl font-extrabold text-zinc-100 sm:text-[22px]">{todayTitle(now)}</h1>
+        <SessionStrip />
+      </div>
       <IndexTiles domesticOpen={domesticOpen} overseasOpen={overseasOpen} domesticFirst={domesticFirst} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
         {domesticFirst ? (
           <>
             {domestic}
@@ -95,11 +100,20 @@ export default function HomePage() {
         )}
       </div>
 
-      <TodayNets live={domesticOpen} clock={clock} />
+      {/* 목록 화면들로 들어가는 문 — 둘 다 비로그인에게도 열린 미리보기(최신 3건)를 그대로 쓴다 */}
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
+        <RecentSignals />
+        <NearBreakout />
+      </div>
 
-      <Pitch />
+      <TodayNets live={domesticOpen} clock={clock} />
     </div>
   );
+}
+
+/** "9월 26일 토요일" */
+function todayTitle(now: Date): string {
+  return `${now.getMonth() + 1}월 ${now.getDate()}일 ${"일월화수목금토"[now.getDay()]}요일`;
 }
 
 // ============================================================
@@ -176,7 +190,7 @@ function IndexTiles({
     : [tiles.nasdaq, tiles.night, tiles.kospi, tiles.kosdaq];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
       {order}
     </div>
   );
@@ -201,10 +215,10 @@ function Tile({
   return (
     <Link
       to={`/market-analysis/${slug}`}
-      className="block rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0 transition-opacity hover:opacity-90"
+      className="flex min-w-0 flex-col gap-1.5 rounded-2xl bg-zinc-900 px-3.5 py-3 transition-colors hover:bg-zinc-850 sm:gap-2 sm:px-[18px] sm:py-4"
     >
-      <div className="flex items-center gap-1.5 text-sm text-zinc-500">
-        <span className="text-zinc-200">{label}</span>
+      <div className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-zinc-300 sm:text-[13px]">
+        {label}
         {/* 장중 칩은 주도주 카드의 "장중 14:07"과 같은 색이다 — 한 화면에서 같은 뜻이
             다른 색으로 보이면, 둘이 다른 상태를 가리키는 줄 읽는다 */}
         {tag && (
@@ -212,7 +226,7 @@ function Tile({
             className={
               tag === "장중"
                 ? "rounded-full bg-blue-50 px-2 py-px text-[11px] font-medium text-blue-700"
-                : "rounded border border-zinc-800 px-1 text-[11.5px] text-zinc-500"
+                : "rounded border border-zinc-800 px-1 text-[11px] text-zinc-500"
             }
           >
             {tag}
@@ -220,18 +234,17 @@ function Tile({
         )}
       </div>
       {value === undefined || rate === undefined ? (
-        <Skeleton className="mt-1.5 h-7 w-28" />
+        <Skeleton className="h-7 w-28" />
       ) : (
-        <>
-          <div className="num text-xl font-bold leading-snug">
-            <ProfitText value={rate} format={() => value.toLocaleString("ko-KR")} />
-          </div>
-          <div className="num text-[15px] font-medium">
-            <ProfitText value={rate} format={(v) => formatPct(v / 100)} />
-          </div>
-        </>
+        // 값은 흰색, 색은 등락률에만 — 지수·수급 목록과 같은 규칙이다
+        <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+          <span className="num text-[19px] font-bold tracking-tight text-zinc-100 sm:text-2xl">
+            {value.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          <ProfitText value={rate} format={(v) => formatPct(v / 100)} className="num text-[13px]" />
+        </div>
       )}
-      {sub && <div className="num mt-0.5 text-[11px] text-zinc-500">{sub}</div>}
+      {sub && <div className="num text-[11px] text-zinc-500">{sub}</div>}
     </Link>
   );
 }
@@ -240,8 +253,26 @@ function Tile({
 // 주도주
 // ============================================================
 
-// 가격은 통화마다 롤링 컴포넌트가 달라 그린 채로 받는다
-type Item = { key: string; name: string; symbol?: string; price: ReactNode; rate: number };
+// 가격은 통화마다 롤링 컴포넌트가 달라 그린 채로 받는다. 거래대금도 통화마다 단위가 달라 글자로 받는다
+type Item = {
+  key: string;
+  name: string;
+  code: string;
+  price: ReactNode;
+  rate: number;
+  value: number; // 막대 길이용 원값
+  valueLabel: string;
+};
+
+/** 달러 거래대금 → "$1.23B" / "$456M". 칸 폭에 전체 자릿수가 안 들어간다. */
+function compactUsd(v: number): string {
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  return `$${Math.round(v).toLocaleString("en-US")}`;
+}
+
+/** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
+const shortCode = (code: string) => (code.includes("_") ? code.slice(0, code.indexOf("_")) : code);
 
 /**
  * 첫 화면 주도주 카드.
@@ -250,15 +281,18 @@ type Item = { key: string; name: string; symbol?: string; price: ReactNode; rate
  * 자리라, 보는 사람이 어떤 기준을 걸어뒀는지에 따라 답이 달라지면 안 된다. 순서와
  * 종목 선정은 서버가 정한다(거래대금·등락률 두 축의 백분위 기하평균).
  */
-type LeadersProps = { live: boolean; first: boolean; date: string; clock: string };
+type LeadersProps = { live: boolean; date: string; clock: string };
 
-function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
+function DomesticLeaders({ live, date, clock }: LeadersProps) {
   const { data, isLoading } = useLeadingStockLeaders();
   const items: Item[] = (data?.leaders ?? []).map((s) => ({
     key: s.stockCode,
     name: s.stockName,
+    code: shortCode(s.stockCode),
     price: <NumWon value={s.currentPrice} />,
     rate: s.priceChangeRate,
+    value: s.accumulatedTradingValue,
+    valueLabel: formatKoreanMoney(s.accumulatedTradingValue),
   }));
 
   return (
@@ -268,7 +302,6 @@ function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
       clock={clock}
       market="domestic"
       live={live}
-      first={first}
       loading={isLoading}
       items={items}
       limitUps={data?.limitUps ?? []}
@@ -276,14 +309,16 @@ function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
   );
 }
 
-function OverseasLeaders({ live, first, date, clock }: LeadersProps) {
+function OverseasLeaders({ live, date, clock }: LeadersProps) {
   const { data, isLoading } = useOverseasLeaders();
   const items: Item[] = (data ?? []).map((s) => ({
     key: `${s.exchange}:${s.symbol}`,
     name: s.name,
-    symbol: s.symbol,
-    price: <NumUsd value={s.price} />,
+    code: s.symbol,
+    price: <NumUsd value={s.price} prefix="" />,
     rate: s.rate,
+    value: s.tradingValue,
+    valueLabel: compactUsd(s.tradingValue),
   }));
 
   return (
@@ -293,18 +328,42 @@ function OverseasLeaders({ live, first, date, clock }: LeadersProps) {
       clock={clock}
       market="overseas"
       live={live}
-      first={first}
       loading={isLoading}
       items={items}
     />
   );
 }
 
+/** 카드 머리 — 제목·기준 / 오른쪽 "전체 보기". 홈의 카드 넷이 같이 쓴다. */
+function CardHead({ title, sub, more }: { title: string; sub?: ReactNode; more?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2.5 px-3.5 pb-2 pt-3.5 sm:px-[18px] sm:pb-3 sm:pt-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+        <h2 className="whitespace-nowrap text-[15px] font-bold text-zinc-100">{title}</h2>
+        {sub}
+      </div>
+      {more && (
+        <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-xs text-zinc-400">
+          {more}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-zinc-500">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
+      )}
+    </div>
+  );
+}
+
+const cardCls = "flex min-w-0 flex-col overflow-hidden rounded-2xl bg-zinc-900 pb-1.5 transition-colors hover:bg-zinc-900/80";
+
+/** 데스크톱 줄의 열 — 순위 · 종목 · 거래대금 · 현재가 · 등락률. 머리와 줄이 같은 값을 쓴다. */
+const LEADER_COLS = "sm:grid-cols-[1rem_minmax(0,1fr)_7rem_6rem_4.5rem]";
+
 /**
- * 목록 한 칸. 누르면 주도주 필터 화면으로 — 해당 쪽(국내/해외)이 열린 채로.
+ * 누르면 주도주 필터 화면으로 — 해당 쪽(국내/해외)이 열린 채로.
  *
  * 종목 상세로 바로 보내지 않는다. 상세는 로그인 뒤라, 첫 화면에서 누르자마자
- * 벽을 만나게 된다.
+ * 벽을 만나게 된다. 어느 쪽이 먼저 오는지는 순서로만 가린다 — 뒤쪽을 흐리게 하면 읽기만 나빠진다.
  */
 function LeaderCard({
   title,
@@ -312,7 +371,6 @@ function LeaderCard({
   clock,
   market,
   live,
-  first,
   loading,
   items,
   limitUps = [],
@@ -322,45 +380,35 @@ function LeaderCard({
   clock: string;
   market: StockMarket;
   live: boolean;
-  first: boolean;
   loading: boolean;
   items: Item[];
   /** 후보 풀 안의 상한가. 해외는 제한폭 자체가 없어 늘 비어 있다. */
   limitUps?: LimitUpItem[];
 }) {
+  const max = Math.max(1, ...items.map((s) => s.value));
   return (
-    <Link
-      to="/leading-stocks"
-      onClick={() => rememberMarket(market)}
-      className={`block rounded-xl bg-zinc-900 overflow-hidden min-w-0 transition-opacity hover:opacity-90 ${
-        first ? "outline outline-1 outline-emerald-700/40" : "opacity-70"
-      }`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-3.5 py-3">
-        <span className="flex min-w-0 items-center gap-2 text-sm font-bold">
-          {/* 날짜와 제목은 한 덩어리로 읽힌다 — 좁은 화면에서도 둘 사이가 갈라지지 않게 */}
-          <span className="whitespace-nowrap">
-            <span className="mr-1.5 text-[12.5px] font-normal text-zinc-400">{date}</span>
-            {title}
-          </span>
-          {/* 시각은 "장중"에만 붙인다 — 마감 뒤 칩은 "마감 기준"이라, 옆에 지금 시각이 있으면
-              마감 시각으로 읽힌다 */}
-          {live && (
-            <span className="rounded-full bg-blue-50 px-2 py-px text-[10.5px] font-medium text-blue-700">
-              장중 <span className="num">{clock}</span>
-            </span>
-          )}
-          {!live && <span className="text-[11px] font-normal text-zinc-500">마감 기준</span>}
-        </span>
-        {/* 기준을 말하던 자리다. 홈이 자기 규칙으로 뽑으니 말할 기준이 없어, 링크라는 것만 남긴다 */}
-        <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-elevated px-2.5 py-0.5 text-[11.5px] text-zinc-400">
-          전체 보기
-          <span aria-hidden className="opacity-60">›</span>
-        </span>
-      </div>
+    <Link to="/leading-stocks" onClick={() => rememberMarket(market)} className={cardCls}>
+      <CardHead
+        title={title}
+        more="전체 보기"
+        sub={
+          <>
+            <span className="num text-xs text-zinc-500">{date}</span>
+            {/* 시각은 "장중"에만 붙인다 — 마감 뒤 칩은 "마감 기준"이라, 옆에 지금 시각이 있으면
+                마감 시각으로 읽힌다 */}
+            {live ? (
+              <span className="rounded-full bg-blue-50 px-2 py-px text-[11px] font-medium text-blue-700">
+                장중 <span className="num">{clock}</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-zinc-500">마감 기준</span>
+            )}
+          </>
+        }
+      />
 
       {loading ? (
-        <div className="space-y-2 p-4">
+        <div className="space-y-2 px-4 pb-3">
           {Array.from({ length: LEADERS_COUNT }).map((_, i) => (
             <Skeleton key={i} className="h-5 w-full" />
           ))}
@@ -369,25 +417,29 @@ function LeaderCard({
         // 개장 전이거나, 오른 종목이 한 종목도 없는 날. 머리만 남지 않게 한 줄 둔다.
         <p className="px-3.5 py-7 text-center text-xs text-zinc-500">아직 주도주가 없습니다</p>
       ) : (
-        <div className="divide-y divide-zinc-800/60">
+        <>
+          <div className={`hidden gap-x-3 px-[18px] pb-1.5 text-[11px] text-zinc-500 sm:grid ${LEADER_COLS}`}>
+            <span />
+            <span>종목</span>
+            <span className="text-right">거래대금</span>
+            <span className="text-right">현재가</span>
+            <span className="text-right">등락률</span>
+          </div>
           {items.map((s, i) => (
-            <Row key={s.key} rank={i + 1} name={s.name} symbol={s.symbol} price={s.price} rate={s.rate} />
+            <LeaderRow key={s.key} rank={i + 1} item={s} ratio={s.value / max} />
           ))}
-        </div>
+        </>
       )}
 
       {/* 상한가 — **없는 날은 줄째 사라진다.** 후보 컷이 거래대금 35위라 0건이 기본값이라,
           "없음"을 매일 적으면 죽은 줄 하나가 카드에 상주한다. */}
       {limitUps.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-800 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-800 px-4 pb-1.5 pt-3">
           <span className="mr-0.5 text-[11.5px] font-medium text-zinc-400">
             상한가 <span className="num">{limitUps.length}</span>
           </span>
           {limitUps.map((s) => (
-            <span
-              key={s.stockCode}
-              className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[12.5px] text-rose-700"
-            >
+            <span key={s.stockCode} className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[12.5px] text-rose-700">
               {s.stockName}
             </span>
           ))}
@@ -397,20 +449,156 @@ function LeaderCard({
   );
 }
 
-function Row({ rank, name, symbol, price, rate }: Omit<Item, "key"> & { rank: number }) {
+/** 넓으면 열 맞춘 한 줄(거래대금 막대 포함), 좁으면 왼쪽 이름·거래대금 / 오른쪽 현재가·등락률. */
+function LeaderRow({ rank, item, ratio }: { rank: number; item: Item; ratio: number }) {
   return (
-    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-baseline gap-2.5 px-4 py-3 text-[13.5px]">
-      <span className="num text-[11.5px] text-zinc-500">{rank}</span>
-      <span className="truncate text-[15px] text-zinc-200">
-        {name}
-        {symbol && <span className="num ml-1.5 text-[11px] text-zinc-500">{symbol}</span>}
+    <div className={`flex items-center gap-2.5 border-t border-zinc-800 px-3.5 py-2.5 sm:grid sm:gap-x-3 sm:px-[18px] ${LEADER_COLS}`}>
+      <span className="num w-3 shrink-0 text-right text-[11px] text-zinc-500 sm:w-auto sm:text-xs">{rank}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[13.5px] text-zinc-100">{item.name}</span>
+        <span className="num text-[11px] text-zinc-500">
+          {item.code}
+          <span className="sm:hidden"> · {item.valueLabel}</span>
+        </span>
       </span>
-      <span className="num text-xs text-zinc-500">{price}</span>
-      <span className="num min-w-[3.6rem] text-right text-xs font-medium">
-        <ProfitText value={rate} format={(v) => formatPct(v / 100)} />
+      <span className="hidden flex-col items-end gap-1.5 sm:flex">
+        <span className="num text-xs text-zinc-400">{item.valueLabel}</span>
+        <span className="relative h-1 w-full overflow-hidden rounded-full bg-zinc-850">
+          <span className="absolute inset-y-0 right-0 rounded-full bg-zinc-500" style={{ width: `${ratio * 100}%` }} />
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-0.5 sm:contents">
+        <span className="num text-right text-[13.5px] text-zinc-100">{item.price}</span>
+        <span className="num text-right text-xs">
+          <ProfitText value={item.rate} format={(v) => formatPct(v / 100)} />
+        </span>
       </span>
     </div>
   );
+}
+
+// ============================================================
+// 지금 움직임 — 최근 시그널 · 돌파 임박
+// ============================================================
+
+/** 최근 거래일을 거꾸로 짚어 가며 시그널이 있는 첫 날을 찾는다 — 주말·연휴에 빈 카드가 뜨지 않게. */
+const SIGNAL_LOOKBACK = 7;
+
+function useLatestSignals() {
+  return useQuery({
+    queryKey: ["home", "latest-signals"],
+    queryFn: async () => {
+      const day = new Date();
+      for (let i = 0; i < SIGNAL_LOOKBACK; i++) {
+        if (day.getDay() !== 0 && day.getDay() !== 6) {
+          const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+          const res = await apiFetch<SignalEventsResponse>(`/api/leading-stocks/signal-events?date=${iso}`);
+          if (res.events.length > 0) return res;
+        }
+        day.setDate(day.getDate() - 1);
+      }
+      return null;
+    },
+    refetchInterval: 10_000,
+  });
+}
+
+/** 시그널 화면의 줄과 같은 두 줄 — 위 시각·유형·종목·현재가·등락률, 아래 무엇이 일어났는지. */
+function RecentSignals() {
+  const { data, isLoading } = useLatestSignals();
+  const events = (data?.events ?? []).slice(0, PREVIEW_ROWS);
+  return (
+    <Link to="/signal-log" className={cardCls}>
+      <CardHead
+        title="최근 시그널"
+        more="전체 보기"
+        sub={
+          data && (
+            <span className="num text-xs text-zinc-500">
+              {dayLabel(data.date)} · {data.totalCount}건
+            </span>
+          )
+        }
+      />
+      {isLoading ? (
+        <div className="space-y-2 px-4 pb-3">
+          {Array.from({ length: PREVIEW_ROWS }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
+      ) : events.length === 0 ? (
+        <p className="px-3.5 py-7 text-center text-xs text-zinc-500">최근 시그널이 없습니다</p>
+      ) : (
+        events.map((e, i) => {
+          const meta = EVENT_META[e.eventType];
+          return (
+            <div key={`${e.stockCode}-${e.occurredAt}-${i}`} className="flex flex-col gap-1 border-t border-zinc-800 px-3.5 py-2.5 sm:px-[18px]">
+              <span className="flex items-center gap-2">
+                <span className="num w-[3.75rem] shrink-0 text-xs text-zinc-500">{clockOf(e.occurredAt)}</span>
+                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${meta.chip}`}>{meta.label}</span>
+                <span className="min-w-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
+                <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
+                  <span className="num text-[13.5px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
+                  <ProfitText value={e.priceChangeRate / 100} format={formatPct} className="num min-w-14 whitespace-nowrap text-right text-xs" />
+                </span>
+              </span>
+              <span className="num truncate pl-[4.25rem] text-xs text-zinc-300">{detailOf(e)}</span>
+            </div>
+          );
+        })
+      )}
+    </Link>
+  );
+}
+
+/** 돌파선 3% 안에 든 종목 — 가까운 순. 눌림·돌파 화면의 "돌파" 모드와 같은 목록의 앞 세 줄이다. */
+function NearBreakout() {
+  const { data, isLoading } = useBreakoutRadar("resistance");
+  const stocks = (data?.stocks ?? []).slice(0, PREVIEW_ROWS);
+  return (
+    <Link to="/breakout-radar" className={cardCls}>
+      <CardHead title="돌파 임박" more="전체 보기" sub={<span className="text-xs text-zinc-500">돌파선 3% 이내 · 가까운 순</span>} />
+      {isLoading ? (
+        <div className="space-y-2 px-4 pb-3">
+          {Array.from({ length: PREVIEW_ROWS }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
+      ) : stocks.length === 0 ? (
+        <p className="px-3.5 py-7 text-center text-xs text-zinc-500">돌파선 가까이 온 종목이 없습니다</p>
+      ) : (
+        stocks.map((s) => {
+          // 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링돼 고점은 +1분 보정한다(눌림·돌파 화면과 같다)
+          const peak = new Date(s.peakAt);
+          peak.setMinutes(peak.getMinutes() + 1);
+          const at = `${peak.getDate()}일 ${String(peak.getHours()).padStart(2, "0")}:${String(peak.getMinutes()).padStart(2, "0")}`;
+          return (
+            <div key={s.stockCode} className="flex items-center gap-3 border-t border-zinc-800 px-3.5 py-2.5 sm:px-[18px]">
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-[13.5px] text-zinc-100">{s.stockName}</span>
+                <span className="num text-[11px] text-zinc-500">
+                  돌파선 {formatPrice(s.peakPrice)} · {at}
+                </span>
+              </span>
+              <span className="num shrink-0 text-[13.5px] text-orange-400">
+                {s.gapRate <= 0 ? "돌파" : `${s.gapRate.toFixed(2)}% 남음`}
+              </span>
+              <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num w-14 shrink-0 text-right text-xs" />
+            </div>
+          );
+        })
+      )}
+    </Link>
+  );
+}
+
+/** 카드 한 장에 올리는 미리보기 줄 수 — 비로그인이 서버에서 받는 수와 같다. */
+const PREVIEW_ROWS = 3;
+
+/** yyyy-MM-dd → "09-23(수)" */
+function dayLabel(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}(${"일월화수목금토"[new Date(y, m - 1, d).getDay()]})`;
 }
 
 // ============================================================
@@ -453,35 +641,41 @@ function TodayNets({ live, clock }: { live: boolean; clock: string }) {
   const authenticated = !!me?.authenticated;
   const { data, isLoading } = useTodayNets(authenticated);
 
-  if (!authenticated) return null;
+  // 비로그인은 빈 카드 대신 이 자리가 무엇인지 말하고 로그인으로 잇는다
+  if (!authenticated) {
+    return (
+      <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-dashed border-zinc-800 px-4 py-5 text-center">
+        <span className="text-[13.5px] font-semibold text-zinc-100">오늘의 수급은 로그인 후에 보입니다</span>
+        <span className="text-xs text-zinc-500">코스피·코스닥 현물과 선물의 투자자별 순매수</span>
+        <GoogleLoginButton />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="mb-2.5 flex items-center gap-2">
-        <span className="text-sm font-bold">오늘의 수급</span>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <h2 className="text-[15px] font-bold text-zinc-100">오늘의 수급</h2>
         {live && (
-          <span className="rounded-full bg-blue-50 px-2 py-px text-[10.5px] font-medium text-blue-700">
+          <span className="rounded-full bg-blue-50 px-2 py-px text-[11px] font-medium text-blue-700">
             장중 <span className="num">{clock}</span>
           </span>
         )}
         <span className="ml-auto text-[11.5px] text-zinc-500">
-          순매수 <span className="text-red-400">빨강</span> · 순매도{" "}
-          <span className="text-blue-400">파랑</span>
+          순매수 <span className="text-red-400">빨강</span> · 순매도 <span className="text-blue-400">파랑</span>
         </span>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-[8.75rem] w-full rounded-xl" />
+            <Skeleton key={i} className="h-[9.5rem] w-full rounded-2xl" />
           ))}
         </div>
       ) : !data || data.length === 0 ? (
-        <p className="rounded-xl bg-zinc-900 px-4 py-7 text-center text-xs text-zinc-500">
-          아직 오늘 수급이 없습니다
-        </p>
+        <p className="rounded-2xl bg-zinc-900 px-4 py-7 text-center text-xs text-zinc-500">아직 오늘 수급이 없습니다</p>
       ) : (
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
           {data.map((item) => (
             <NetCard key={`${item.market}-${item.futures}`} item={item} />
           ))}
@@ -500,7 +694,7 @@ function NetCard({ item }: { item: TodayNetItem }) {
   return (
     <Link
       to={`/market-analysis/${slug}`}
-      className="block rounded-xl bg-zinc-900 px-4 py-3.5 min-w-0 transition-opacity hover:opacity-90"
+      className="block min-w-0 rounded-2xl bg-zinc-900 px-4 py-3.5 transition-colors hover:bg-zinc-850 sm:px-[18px] sm:py-4"
     >
       <div className="flex items-baseline gap-1.5">
         <span className="text-[13.5px] font-semibold text-zinc-200">{name}</span>
@@ -557,26 +751,6 @@ function NetRow({ label, value, top }: { label: string; value: number | null; to
       <span className={`num w-[3.9rem] shrink-0 text-right text-xs font-medium ${tone}`}>
         {value === null ? "—" : `${sign}${Math.abs(value).toLocaleString("ko-KR")}`}
       </span>
-    </div>
-  );
-}
-
-// ============================================================
-// 소개 띠
-// ============================================================
-
-/** 로그인 전에만 보인다 — 이미 아는 이야기를 매일 읽힐 이유가 없다. */
-function Pitch() {
-  const { data: me } = useMe();
-  if (me?.authenticated) return null;
-
-  return (
-    <div className="flex flex-col items-center gap-3 border-t border-zinc-800 pt-6 pb-2">
-      <GoogleLoginButton />
-      {/* 폭까지 풀지는 않는다 — 넓은 화면에서 한 줄이 너무 길어져 읽기 나빠진다 */}
-      <p className="max-w-[56ch] text-center text-[13px] text-zinc-500">
-        로그인하면 오늘의 코스피, 코스닥, 선물 수급을 모아볼 수 있습니다.
-      </p>
     </div>
   );
 }
