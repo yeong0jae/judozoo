@@ -561,13 +561,13 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
         {/* 유형 필터와 등락률 — 미로그인은 조작이 잠겨 아예 감춘다 */}
         {authenticated && (
           <div className="flex flex-col gap-2">
-            <div className="flex w-fit rounded-lg bg-zinc-800 p-0.5 text-[11.5px]">
+            <div className="flex w-fit rounded-xl bg-zinc-800 p-0.5 text-[11.5px]">
               {TYPE_TABS.map((t) => (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => setTypeFilter(t.key)}
-                  className={`rounded-md px-2 py-1 transition-colors ${
+                  className={`rounded-lg px-2.5 py-[5px] transition-colors ${
                     typeFilter === t.key ? "bg-elevated font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
