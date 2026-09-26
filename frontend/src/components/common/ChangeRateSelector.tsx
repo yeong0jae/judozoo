@@ -33,7 +33,7 @@ export default function ChangeRateSelector({
   return (
     <div className="flex items-center gap-2 flex-wrap justify-end">
       <span className="text-xs text-zinc-500">등락률</span>
-      <div className="flex rounded-xl bg-zinc-800 p-1 text-xs num">
+      <div className="flex rounded-xl bg-zinc-800 p-[3px] text-xs num">
         {options.map((rate) => {
           const active = rate === value;
           return (
@@ -42,7 +42,7 @@ export default function ChangeRateSelector({
               type="button"
               onClick={() => onChange(rate)}
               whileTap={{ scale: 0.92 }}
-              className="relative px-2.5 py-1 rounded-lg"
+              className="relative px-[9px] py-1 rounded-lg"
               aria-pressed={active}
             >
               {active && (
