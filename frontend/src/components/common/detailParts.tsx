@@ -85,7 +85,7 @@ export function LeadingConditions({ results }: { results: { filterName: string; 
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-px">
               <span className="break-keep text-xs font-semibold text-zinc-300">{r.filterName}</span>
-              <span className="truncate text-xs text-zinc-500">{r.criteriaDescription}</span>
+              <span className="truncate text-[11.5px] text-zinc-500">{r.criteriaDescription}</span>
             </span>
             <span className={`num shrink-0 whitespace-nowrap text-xs font-semibold ${r.passed ? "text-zinc-100" : "text-red-400"}`}>
               {r.actualValue}
