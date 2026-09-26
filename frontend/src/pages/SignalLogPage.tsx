@@ -560,7 +560,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
         />
         {/* 유형 필터와 등락률 — 미로그인은 조작이 잠겨 아예 감춘다 */}
         {authenticated && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex w-fit rounded-xl bg-zinc-800 p-0.5 text-[11.5px]">
               {TYPE_TABS.map((t) => (
                 <button
@@ -575,7 +575,8 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                 </button>
               ))}
             </div>
-            <div className="flex justify-end">
+            {/* 폭이 모자라 줄이 바뀌어도 오른쪽에 붙는다 */}
+            <div className="ml-auto">
               <ChangeRateSelector value={minRate} onChange={setMinRate} />
             </div>
           </div>
