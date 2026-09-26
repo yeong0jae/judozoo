@@ -79,7 +79,7 @@ function ClosingBetPageInner({ ix, authenticated }: { ix: IndexInfo; authenticat
     <div className="flex flex-col gap-4 lg:flex-row lg:gap-0 lg:h-[calc(100dvh-6.5rem)] lg:min-h-[40rem]">
       <aside className="hidden lg:block w-72 shrink-0 overflow-y-auto border-r border-zinc-800 pr-3">
         <div className="flex flex-col gap-1.5 px-3 pb-1">
-          <h1 className="text-[17px] font-bold text-zinc-100">지수·수급</h1>
+          <h1 className="text-[20px] font-bold text-zinc-100">지수·수급</h1>
           <HolidayBanner />
         </div>
         <IndexList groups={groups} />
