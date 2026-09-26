@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useLeaderTimeline } from "../api/queries";
+import { useLeaderTimeline, useMarketCalendarStatus } from "../api/queries";
 import DateNavigator, { latestTradingDayStr, todayStr } from "../components/common/DateNavigator";
 import Skeleton from "../components/common/Skeleton";
 import {
@@ -71,6 +71,14 @@ export default function LeaderTimelinePage() {
   const [hover, setHover] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  // 국내는 가장 최근 거래일로 연다 — 주말만 건너뛰면 추석 같은 휴장일이나 08:00 전엔 빈 화면이다(시그널과 같다).
+  // 사용자가 날짜를 고른 뒤에는 건드리지 않는다
+  const krCalendar = useMarketCalendarStatus("KR").data;
+  const datePicked = useRef(false);
+  useEffect(() => {
+    if (market !== "kr" || datePicked.current || !krCalendar?.previousOpenDay) return;
+    if (krCalendar.isHoliday || marketNow("kr").min < 480) setDate(krCalendar.previousOpenDay);
+  }, [market, krCalendar]);
 
   const now = marketNow(market);
   const spec0 = market === "kr" ? { start: 480, end: 1200 } : { start: 240, end: 960 };
@@ -103,10 +111,12 @@ export default function LeaderTimelinePage() {
   const changeMarket = (m: TimelineMarket) => {
     setMarket(m);
     setDate(latestTradingDayStr(marketNow(m).date));
+    datePicked.current = false;
     setPinned(null);
     setPlaying(false);
   };
   const changeDate = (d: string) => {
+    datePicked.current = true;
     setDate(d);
     setPinned(null);
     setPlaying(false);
@@ -206,7 +216,7 @@ export default function LeaderTimelinePage() {
           ) : isError ? (
             <p className="py-16 text-center text-[14px] text-zinc-500">타임라인을 불러오지 못했습니다</p>
           ) : !model || !model.live.length ? (
-            <p className="py-16 text-center text-[14px] text-zinc-500">이 날은 기록이 없어요 — 휴장이거나 기록을 시작하기 전이에요</p>
+            <p className="py-16 text-center text-[14px] text-zinc-500">이 날은 기록이 없어요. 휴장이거나 기록을 시작하기 전이에요</p>
           ) : (
             <Chart
               model={model}
