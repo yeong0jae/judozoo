@@ -514,7 +514,7 @@ function TodayNets({ live, clock }: { live: boolean; clock: string }) {
   if (!authenticated) {
     return (
       <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-dashed border-zinc-800 px-4 py-5 text-center">
-        <span className="text-[13.5px] font-semibold text-zinc-100">오늘의 수급은 로그인 후에 보입니다</span>
+        <span className="text-[13.5px] font-semibold text-zinc-100">오늘의 수급은 로그인 후 확인할 수 있습니다.</span>
         <span className="text-xs text-zinc-500">코스피·코스닥 현물과 선물의 투자자별 순매수</span>
         <GoogleLoginButton />
       </div>
