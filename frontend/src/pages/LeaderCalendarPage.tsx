@@ -149,7 +149,7 @@ export default function LeaderCalendarPage() {
                 type="button"
                 aria-pressed={mode === m.key}
                 onClick={() => setMode(m.key)}
-                className={`h-7 px-3 rounded-md text-sm font-semibold transition-colors ${
+                className={`h-7 px-3 rounded-md text-[13px] font-medium transition-colors ${
                   mode === m.key ? "bg-elevated text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
