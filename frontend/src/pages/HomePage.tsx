@@ -203,7 +203,7 @@ function Tile({
       to={`/market-analysis/${slug}`}
       className="flex min-w-0 flex-col gap-1.5 rounded-2xl bg-zinc-900 px-3.5 py-3 transition-colors hover:bg-zinc-850 sm:gap-2 sm:px-[18px] sm:py-4"
     >
-      <div className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-zinc-300 sm:text-sm">
+      <div className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-zinc-300 sm:text-[13.5px]">
         {label}
         {/* 장중 칩은 주도주 카드의 "장중 14:07"과 같은 색이다 — 한 화면에서 같은 뜻이
             다른 색으로 보이면, 둘이 다른 상태를 가리키는 줄 읽는다 */}
