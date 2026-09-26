@@ -336,7 +336,7 @@ function CandidatesList({
   return (
     <>
       <div className="hidden lg:block" ref={rowsRef}>
-        <div className={`grid ${ROW_COLS} gap-x-3 px-3.5 pb-1.5 text-[11px] text-zinc-500`}>
+        <div className={`grid ${ROW_COLS} gap-x-3 px-3.5 pb-1.5 text-xs text-zinc-500`}>
           <span />
           <span>종목</span>
           <span className="text-right">거래대금</span>
