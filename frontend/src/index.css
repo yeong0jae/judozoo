@@ -100,6 +100,10 @@ html {
   --avatar-ink-5: #be185d;
   --avatar-ink-6: #0e7490;
   --avatar-ink-7: #c2410c;
+
+  /* 주도주 캘린더의 해외 띠 — 한 칸에서 국내와 섞이지 않게 면과 라벨 색을 나눈다 */
+  --leader-overseas: #6d5bd0;
+  --leader-overseas-tint: #f5f3fd;
 }
 
 body {
@@ -309,6 +313,9 @@ body {
   --avatar-ink-5: #f9a8d4;
   --avatar-ink-6: #67e8f9;
   --avatar-ink-7: #fdba74;
+
+  --leader-overseas: #a597f0;
+  --leader-overseas-tint: #1e1c2b;
 
   /* zinc 스케일 — 라이트의 명도 역전을 다시 역전 */
   --color-zinc-50: #0e0e10;

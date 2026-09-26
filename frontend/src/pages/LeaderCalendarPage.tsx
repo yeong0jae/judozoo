@@ -242,7 +242,7 @@ export default function LeaderCalendarPage() {
                     </div>
                     <div className="h-1.5 rounded-full bg-zinc-900 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-emerald-700/80"
+                        className={`h-full rounded-full ${c.overseas ? "bg-(--leader-overseas)" : "bg-emerald-700/80"}`}
                         style={{ width: `${(c.n / frequent[0][1].n) * 100}%` }}
                       />
                     </div>
@@ -293,7 +293,11 @@ function NavButton({ label, onClick, d }: { label: string; onClick: () => void; 
 
 function MarketTag({ overseas }: { overseas: boolean }) {
   return (
-    <span className="shrink-0 rounded px-1.5 py-px text-[10px] font-bold bg-zinc-900 text-zinc-500">
+    <span
+      className={`shrink-0 rounded px-1.5 py-px text-[10px] font-bold ${
+        overseas ? "bg-(--leader-overseas-tint) text-(--leader-overseas)" : "bg-zinc-900 text-zinc-500"
+      }`}
+    >
       {overseas ? "해외" : "국내"}
     </span>
   );
@@ -377,8 +381,8 @@ function DayCell({
   ) : (
     <>
       {showUs && (
-        <div className="-mx-1 flex flex-col gap-0.5 rounded-lg bg-zinc-900 px-2 py-1.5">
-          <div className="flex items-center justify-between text-[10.5px] font-bold text-zinc-500">
+        <div className="-mx-1 flex flex-col gap-0.5 rounded-lg bg-(--leader-overseas-tint) px-2 py-1.5">
+          <div className="flex items-center justify-between text-[10.5px] font-bold text-(--leader-overseas)">
             <span>해외 · {short(overseasDate)}</span>
             {overseas!.length > 0 && <CountDots n={overseas!.length} />}
           </div>
@@ -495,7 +499,7 @@ function DetailList({
 }) {
   return (
     <div className="mt-3">
-      <div className="mb-1 flex justify-between text-xs font-bold text-zinc-500">
+      <div className={`mb-1 flex justify-between text-xs font-bold ${usd ? "text-(--leader-overseas)" : "text-zinc-500"}`}>
         <span>{title}</span>
         {stocks && stocks.length > 0 && <span>{stocks.length}종목</span>}
       </div>
