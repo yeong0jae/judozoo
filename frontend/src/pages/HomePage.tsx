@@ -465,7 +465,7 @@ function LeaderRow({ rank, item, ratio }: { rank: number; item: Item; ratio: num
       </span>
       <span className="hidden flex-col items-end gap-1.5 sm:flex">
         <span className="num text-xs text-zinc-400">{item.valueLabel}</span>
-        <span className="relative h-1 w-full overflow-hidden rounded-full bg-zinc-850">
+        <span className="relative h-[3px] w-full overflow-hidden rounded-full bg-zinc-850">
           <span className="absolute inset-y-0 right-0 rounded-full bg-zinc-500" style={{ width: `${ratio * 100}%` }} />
         </span>
       </span>

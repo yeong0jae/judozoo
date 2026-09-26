@@ -246,7 +246,7 @@ function Row({ stock, rank, valueRatio, isSelected, onOpen }: ItemProps) {
       </span>
       <span className="flex flex-col items-end gap-1.5">
         <span className="num text-xs text-zinc-400">{compactUsd(stock.tradingValue)}</span>
-        <span className="relative h-1 w-full overflow-hidden rounded-full bg-zinc-850">
+        <span className="relative h-[3px] w-full overflow-hidden rounded-full bg-zinc-850">
           <span className="absolute inset-y-0 right-0 rounded-full bg-zinc-500" style={{ width: `${valueRatio * 100}%` }} />
         </span>
       </span>
