@@ -142,14 +142,14 @@ export default function LeaderCalendarPage() {
           <p className="mt-1 text-xs text-zinc-500">{caption}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-lg bg-zinc-900 p-0.5" role="group" aria-label="시장">
+          <div className="inline-flex rounded-[9px] bg-zinc-900 p-[3px]" role="group" aria-label="시장">
             {MODES.map((m) => (
               <button
                 key={m.key}
                 type="button"
                 aria-pressed={mode === m.key}
                 onClick={() => setMode(m.key)}
-                className={`h-7 px-3 rounded-md text-[13px] font-medium transition-colors ${
+                className={`h-[26px] px-[11px] rounded-[7px] text-[13px] font-medium transition-colors ${
                   mode === m.key ? "bg-elevated text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
