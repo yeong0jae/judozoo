@@ -19,10 +19,11 @@
         "type": "textbox",
         "name": "user",
         "label": "사용자 id",
-        "query": "",
+        "description": "Loki 정규식이라 값 전체와 맞춘다. .+ = 로그인한 사용자 전부(기본), 7 = 그 사용자만, 빈칸 = user가 없는 로그만",
+        "query": ".+",
         "current": {
-          "text": "",
-          "value": ""
+          "text": ".+",
+          "value": ".+"
         }
       },
       {
@@ -42,7 +43,7 @@
       "id": 1,
       "type": "table",
       "title": "가입자 — 여기서 id를 고른다",
-      "description": "최근 로그인 순. 여기 id를 위 '사용자 id' 변수에 넣는다.",
+      "description": "최근 로그인 순. 여기 id를 위 '사용자 id' 변수에 넣는다. 기본값 .+는 로그인한 사용자 전부를 모아 본다.",
       "datasource": {
         "type": "mysql",
         "uid": "judozoo-mysql"
@@ -97,7 +98,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service=\"backend\"} | json | user = \"$user\" | logger = \"uvicorn.access\"",
+          "expr": "{service=\"backend\"} | json | user =~ \"$user\" | logger = \"uvicorn.access\"",
           "queryType": "range"
         }
       ]
@@ -132,7 +133,7 @@
           },
           "queryType": "instant",
           "legendFormat": "{{path}}",
-          "expr": "topk(10, sum by (path) (count_over_time({service=\"backend\"} | json | user = \"$user\" | logger = \"uvicorn.access\" | line_format \"{{.msg}}\" | pattern `<_> - \"<method> <path> HTTP/<_>\" <status>` [$__range])))"
+          "expr": "topk(10, sum by (path) (count_over_time({service=\"backend\"} | json | user =~ \"$user\" | logger = \"uvicorn.access\" | line_format \"{{.msg}}\" | pattern `<_> - \"<method> <path> HTTP/<_>\" <status>` [$__range])))"
         }
       ]
     },
@@ -167,7 +168,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service=\"backend\"} | json | user = \"$user\" | level = \"ERROR\"",
+          "expr": "{service=\"backend\"} | json | user =~ \"$user\" | level = \"ERROR\"",
           "queryType": "range"
         }
       ]
