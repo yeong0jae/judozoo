@@ -72,7 +72,7 @@ export default function OverseasStockDetailPanel({
       <section className="rounded-2xl bg-zinc-900 p-3 sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <h3 className="text-sm font-semibold text-zinc-400">
-            {interval === "1m" ? "1분봉 · 저항선·지지선" : "일봉"}
+            {interval === "1m" ? "1분봉" : "일봉"}
           </h3>
           <Segmented
             label="차트 주기"
