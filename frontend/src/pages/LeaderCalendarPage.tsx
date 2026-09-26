@@ -138,7 +138,7 @@ export default function LeaderCalendarPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold">주도주 캘린더</h2>
+          <h2 className="text-[20px] font-bold">주도주 캘린더</h2>
           <p className="mt-1 text-xs text-zinc-500">{caption}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

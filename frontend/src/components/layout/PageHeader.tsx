@@ -28,7 +28,7 @@ export default function PageHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div className="min-w-0">
-        <h2 className="text-xl font-bold">{title}</h2>
+        <h2 className="text-[20px] font-bold">{title}</h2>
         <SessionStrip />
       </div>
 
