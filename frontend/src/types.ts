@@ -11,6 +11,8 @@ export type MarketRegion = "KR" | "US";
 
 export interface CalendarStatus {
   isHoliday: boolean;
+  /** 오늘 전의 마지막 개장일(yyyy-MM-dd) — 국내만. 서버가 모르면 null */
+  previousOpenDay: string | null;
 }
 
 export interface StockSearchResult {

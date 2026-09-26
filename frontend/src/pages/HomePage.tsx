@@ -45,7 +45,8 @@ const LEADERS_COUNT = 5;
  */
 export default function HomePage() {
   const { kr, us, now } = useMarketSessions();
-  const krHoliday = useMarketCalendarStatus("KR").data?.isHoliday;
+  const krCalendar = useMarketCalendarStatus("KR").data;
+  const krHoliday = krCalendar?.isHoliday;
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
   // 세션 중인가 — 국내는 프리·애프터마켓까지(08:00~20:00), 해외는 프리마켓~정규장이다
@@ -66,7 +67,7 @@ export default function HomePage() {
   const domestic = (
     <DomesticLeaders
       live={domesticLive}
-      date={formatTradingDay(krTradingDay(now, !!krHoliday))}
+      date={formatTradingDay(krTradingDay(now, !!krHoliday, krCalendar?.previousOpenDay))}
       clock={clock}
     />
   );
@@ -166,7 +167,8 @@ function IndexTiles({
         rate={night.data?.changeRate}
         sub={
           night.data
-            ? `전일 종가 ${formatPrice(night.data.dayClose)} · 갭 ${night.data.gap.toFixed(2)}`
+            ? // 선물은 소수 둘째 자리까지 호가된다 — 주가용 정수 반올림을 쓰면 1,127.75가 1,128로 뭉개진다
+              `전일 종가 ${night.data.dayClose.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · 갭 ${night.data.gap.toFixed(2)}`
             : undefined
         }
       />

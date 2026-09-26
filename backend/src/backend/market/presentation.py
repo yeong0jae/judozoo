@@ -25,6 +25,8 @@ router = APIRouter(prefix="/api/market")
 
 class CalendarStatus(BaseModel):
     is_holiday: bool = Field(serialization_alias="isHoliday")
+    #: 오늘 전의 마지막 개장일 — 국내만(개장일 목록이 KIS 국내 것뿐이다). 모르면 None
+    previous_open_day: date | None = Field(serialization_alias="previousOpenDay")
 
 
 class IndexItem(BaseModel):
@@ -252,7 +254,8 @@ def _quote_item(q) -> QuoteItem | None:
 @router.get("/calendar/status")
 def calendar_status(region: calendar.Region = Query()) -> ApiResponse[CalendarStatus]:
     """시장 휴장 상태 — 배너용. region KR(국내)/US(해외)."""
-    return ApiResponse.ok(CalendarStatus(is_holiday=calendar.is_holiday(region)))
+    previous = calendar.previous_open_day(region.today()) if region is calendar.Region.KR else None
+    return ApiResponse.ok(CalendarStatus(is_holiday=calendar.is_holiday(region), previous_open_day=previous))
 
 
 @router.get("/kospi")

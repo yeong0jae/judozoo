@@ -33,6 +33,16 @@ def is_open(on: date) -> bool | None:
     return on in days
 
 
+def previous_open_day(on: date) -> date | None:
+    """`on` 전날까지 중 마지막 개장일. 목록을 못 받았으면 None — 날짜를 지어내지 않는다.
+
+    화면이 "마지막 거래일"을 적을 때 쓴다. 주말만 건너뛰면 추석 같은 연휴 평일을
+    거래일로 적는다. 목록이 기준일 20일 전부터 오므로 그 안의 연휴는 다 건너뛴다.
+    """
+    earlier = [d for d in _refreshed_open_days() if d < on]
+    return max(earlier) if earlier else None
+
+
 def _refreshed_open_days() -> frozenset[date]:
     global _cached_day, _open_days
     current = today()

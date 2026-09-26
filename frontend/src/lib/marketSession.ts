@@ -141,9 +141,8 @@ export function useMarketSessions(): {
 /**
  * 주말이면 직전 금요일로 물러난다.
  *
- * 연휴는 맞추지 못한다 — 휴장 API가 알려주는 건 "오늘이 휴장인가"뿐이라
- * 이틀 이상 쉬면 하루만 물러난 채로 남는다. 그래도 토·일에 열리지도 않은
- * 날짜를 써 붙이는 것보다는 낫다.
+ * 연휴는 맞추지 못한다 — 서버가 직전 개장일을 못 줬을 때의 폴백이다. 그래도 토·일에
+ * 열리지도 않은 날짜를 써 붙이는 것보다는 낫다.
  */
 function backToWeekday(d: Date): Date {
   while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
@@ -153,13 +152,18 @@ function backToWeekday(d: Date): Date {
 /**
  * 국내 목록이 담고 있는 거래일.
  *
- * 개장 전(프리마켓 포함)에는 아직 전일 종가를 보고 있으므로 하루 물러난다.
+ * 개장 전(프리마켓 포함)이나 휴장일에는 아직 직전 거래일 종가를 보고 있다. 그 날짜는
+ * 서버가 개장일 목록으로 짚어 준 [previousOpenDay](yyyy-MM-dd)를 쓴다 — 주말만 건너뛰면
+ * 추석 같은 연휴 평일을 거래일로 적는다. 서버가 모르면(null) 주말만 건너뛴다.
  */
-export function krTradingDay(now: Date, holiday: boolean): Date {
-  const day = new Date(now);
-  if (holiday || now.getHours() * 60 + now.getMinutes() < hm(9, 0)) {
-    day.setDate(day.getDate() - 1);
+export function krTradingDay(now: Date, holiday: boolean, previousOpenDay?: string | null): Date {
+  if (!holiday && now.getHours() * 60 + now.getMinutes() >= hm(9, 0)) return new Date(now);
+  if (previousOpenDay) {
+    const [y, m, d] = previousOpenDay.split("-").map(Number);
+    return new Date(y, m - 1, d);
   }
+  const day = new Date(now);
+  day.setDate(day.getDate() - 1);
   return backToWeekday(day);
 }
 

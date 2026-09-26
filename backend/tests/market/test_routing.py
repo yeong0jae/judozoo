@@ -4,6 +4,8 @@ Spring은 리터럴 패턴을 우선하지만 FastAPI는 **선언 순서**로 �
 순서가 뒤집히면 `/market/nasdaq/candles`가 `{market}=nasdaq`으로 들어가 400이 난다.
 """
 
+from datetime import date
+
 import pytest
 
 from backend.market import application, calendar
@@ -23,6 +25,7 @@ def 외부호출_차단(monkeypatch):
     monkeypatch.setattr(application, "daily_candles", lambda market, count: [])
     monkeypatch.setattr(application, "today_nets", lambda: [])
     monkeypatch.setattr(calendar, "is_holiday", lambda region: False)
+    monkeypatch.setattr(calendar, "previous_open_day", lambda on: None)
 
 
 class Test리터럴_경로_우선:
@@ -74,7 +77,7 @@ class Test리터럴_경로_우선:
         응답 = 로그인_client.get("/api/market/calendar/status", params={"region": "KR"})
 
         assert 응답.status_code == 200
-        assert 응답.json()["data"] == {"isHoliday": False}
+        assert 응답.json()["data"] == {"isHoliday": False, "previousOpenDay": None}
 
 
 class Test시장_경로:
@@ -92,3 +95,20 @@ class Test시장_경로:
         응답 = 로그인_client.get("/api/market/calendar/status", params={"region": "JP"})
 
         assert 응답.status_code == 400
+
+
+class Test직전_개장일_응답:
+    def test_국내는_직전_개장일을_싣는다(self, client, monkeypatch):
+        monkeypatch.setattr(calendar, "previous_open_day", lambda on: date(2026, 9, 23))
+
+        응답 = client.get("/api/market/calendar/status", params={"region": "KR"})
+
+        assert 응답.json()["data"]["previousOpenDay"] == "2026-09-23"
+
+    def test_해외는_싣지_않는다(self, client, monkeypatch):
+        """개장일 목록(KIS)이 국내 것뿐이다 — 미국 날짜를 국내 달력으로 짚으면 틀린다."""
+        monkeypatch.setattr(calendar, "previous_open_day", lambda on: date(2026, 9, 23))
+
+        응답 = client.get("/api/market/calendar/status", params={"region": "US"})
+
+        assert 응답.json()["data"]["previousOpenDay"] is None

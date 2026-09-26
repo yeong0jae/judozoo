@@ -1,6 +1,6 @@
 """미국 장 상태 — 한국 시간으로 도는 서버가 미 동부 기준으로 판정한다. 서머타임이 함정이다."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 
@@ -55,3 +55,29 @@ class Test다음_미국장까지_남은_시간:
 
         # 다음 04:00 EST는 한국 11/1 18:00 — 22시간 뒤
         assert calendar.seconds_until_us_session() == 22 * 3600
+
+
+class Test직전_개장일:
+    """주말만 건너뛰면 추석 같은 연휴에 장이 안 열린 날을 거래일로 적는다 — 개장일 목록으로 짚는다."""
+
+    @staticmethod
+    def 개장일(monkeypatch, *days: date) -> None:
+        monkeypatch.setattr(calendar, "_refreshed_open_days", lambda: frozenset(days))
+
+    def test_연휴를_건너뛰어_마지막으로_연_날을_준다(self, monkeypatch):
+        # 2026 추석 — 9/24(목)~9/25(금) 휴장, 9/23(수)이 마지막 개장일
+        self.개장일(monkeypatch, date(2026, 9, 22), date(2026, 9, 23), date(2026, 9, 28))
+
+        assert calendar.previous_open_day(date(2026, 9, 26)) == date(2026, 9, 23)
+
+    def test_그날은_넣지_않는다(self, monkeypatch):
+        """오늘이 개장일이어도 '직전'은 어제 이전이다 — 오늘을 쓸지는 화면이 시각으로 정한다."""
+        self.개장일(monkeypatch, date(2026, 9, 22), date(2026, 9, 23))
+
+        assert calendar.previous_open_day(date(2026, 9, 23)) == date(2026, 9, 22)
+
+    def test_목록을_못_받았으면_모른다고_한다(self, monkeypatch):
+        """빈 목록으로 날짜를 지어내면 틀린 날을 확신 있게 적는다 — 화면이 주말 폴백을 쓰게 둔다."""
+        self.개장일(monkeypatch)
+
+        assert calendar.previous_open_day(date(2026, 9, 26)) is None
