@@ -1286,7 +1286,7 @@ function FlowTable({
             <th className={`${sticky} py-1.5 pr-3 text-left font-medium`}>{firstLabel}</th>
             <th className={th}>개인</th>
             <th className={th}>외국인</th>
-            <th className={`${th} font-semibold text-zinc-300`}>기관계</th>
+            <th className={th}>기관계</th>
             {cols.map((c, i) => (
               <th key={c.key} className={`${th} ${org(i)}`}>
                 {c.label}
