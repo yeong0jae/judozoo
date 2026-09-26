@@ -146,7 +146,8 @@ function renderMarketRow(
   journey: MarketSignalEventItem[],
   onShowDetail: () => void,
 ) {
-  const { sideCls, accent, leftLabel, rightLabel, netText } = marketParts(m);
+  // 누적(netText)은 펼친 여정 표에만 싣는다 — 목록 행은 종목 행처럼 한 줄이다
+  const { sideCls, accent, leftLabel, rightLabel } = marketParts(m);
   // 종목 행의 종목명과 같은 자리 — 한 피드에 섞이므로 크기도 같이 간다
   const leftCls = accent ? `text-[13.5px] ${sideCls}` : "text-[13.5px] text-zinc-300";
   return (
@@ -162,17 +163,18 @@ function renderMarketRow(
       <button
         type="button"
         onClick={onClick}
-        className={`flex w-full flex-col gap-1 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-850 lg:px-3.5 ${
+        className={`flex w-full rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-850 lg:px-3.5 ${
           selected ? "bg-selected hover:bg-selected" : ""
         }`}
       >
-        <span className="flex w-full items-center gap-2">
+        <span className="flex w-full min-w-0 items-center gap-2">
           <span className={`num w-[3.75rem] shrink-0 text-xs ${clockClass(m.occurredAt)}`}>{clockOf(m.occurredAt)}</span>
           <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${MARKET_CHIP[m.market]}`}>
             {MARKET_LABEL[m.market]}
           </span>
-          <span className={leftCls}>{leftLabel}</span>
-          <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
+          <span className={`shrink-0 ${leftCls}`}>{leftLabel}</span>
+          {rightLabel && <span className={`num min-w-0 truncate text-xs ${sideCls}`}>{rightLabel}</span>}
+          <span className="ml-auto flex shrink-0 items-baseline gap-2.5 pl-2">
             <span className="num text-[13.5px] text-zinc-100">{m.indexValue != null ? fmtIndex(m.indexValue) : ""}</span>
             <span className="min-w-14 whitespace-nowrap text-right">
               {m.changeRate != null && (
@@ -181,12 +183,6 @@ function renderMarketRow(
             </span>
           </span>
         </span>
-        {(rightLabel || netText) && (
-          <span className="num truncate pl-[4.25rem] text-xs">
-            {rightLabel && <span className={sideCls}>{rightLabel}</span>}
-            {netText && <span className="text-zinc-500">{rightLabel ? " · " : ""}누적 {netText}</span>}
-          </span>
-        )}
       </button>
 
       {open && (
