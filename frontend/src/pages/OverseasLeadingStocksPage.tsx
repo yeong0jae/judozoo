@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useOverseasLeaders, useOverseasCandidates } from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
-import { formatFetchedAt, formatPct } from "../lib/format";
+import { formatPct } from "../lib/format";
 import NumUsd from "../components/common/NumUsd";
 import ProfitText from "../components/common/ProfitText";
 import Skeleton from "../components/common/Skeleton";
@@ -143,7 +143,7 @@ function Header({
     <PageHeader
       title="오늘의 주도주"
       count={totalCount}
-      queriedAt={formatFetchedAt(fetchedAt)}
+      fetchedAt={fetchedAt}
       loading={loading}
     />
   );

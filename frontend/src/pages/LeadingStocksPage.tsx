@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
 import type { CandidateStockItem } from "../types";
-import { formatKoreanMoney, formatPct, formatRelative } from "../lib/format";
+import { formatKoreanMoney, formatPct } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import { useMinChangeRate } from "../lib/changeRate";
 import PageHeader from "../components/layout/PageHeader";
@@ -219,7 +219,7 @@ function DomesticLeadingStocks({
       <div className="flex flex-col gap-3 lg:px-3.5">
         <Header
           totalCount={stocks.length}
-          queriedAt={data?.queriedAt}
+          fetchedAt={candidatesQ.dataUpdatedAt}
           loading={candidatesQ.isFetching}
         />
         {/* 선택기가 맨 위에 있지만 **걸리는 곳은 아래 "후보" 구간뿐**이다 — 주도주는 기준과 무관하다 */}
@@ -271,18 +271,19 @@ function DomesticLeadingStocks({
 
 function Header({
   totalCount,
-  queriedAt,
+  fetchedAt,
   loading,
 }: {
   totalCount: number | undefined;
-  queriedAt: string | undefined;
+  /** 이 화면이 마지막으로 받아 온 시각(ms) — 서버 캐시 시각이 아니라 화면 기준이다 */
+  fetchedAt: number;
   loading: boolean;
 }) {
   return (
     <PageHeader
       title="오늘의 주도주"
       count={totalCount}
-      queriedAt={queriedAt ? formatRelative(queriedAt) : undefined}
+      fetchedAt={fetchedAt}
       loading={loading}
     />
   );

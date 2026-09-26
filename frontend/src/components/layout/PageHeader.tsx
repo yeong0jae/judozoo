@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { formatRelative } from "../../lib/format";
 import SessionStrip from "./SessionStrip";
 
 /**
@@ -9,22 +10,33 @@ import SessionStrip from "./SessionStrip";
  * 격자로 열을 나누면 제목 열이 0까지 눌려 폰에서 제목이 글자 단위로 쪼개진다.
  *
  * 갱신 주기는 문구로 적지 않는다 — 점과 상대시각이 이미 말하고 있다.
+ * 상대시각은 1초마다 다시 센다 — 폴링이 올 때만 다시 그리면 "방금"에 멈춰 있어 흐르는 게 안 보인다.
  */
 export default function PageHeader({
   title,
   count,
-  queriedAt,
+  fetchedAt,
   loading,
   trailing,
 }: {
   title: string;
   count?: number;
-  /** 마지막 조회 시각을 사람이 읽는 형태로 (예: "3초 전"). 없으면 점만 보여준다. */
-  queriedAt?: string;
+  /** 이 화면이 마지막으로 받아 온 시각(ms, TanStack `dataUpdatedAt`). 0이면 점만 보여준다.
+   *  서버의 `queriedAt`은 쓰지 않는다 — 응답 시각일 뿐 시세를 받아 온 시각이 아니라, 휴장 중엔 캐시가 하루를 간다. */
+  fetchedAt?: number;
   loading: boolean;
   /** 우측 상단에 건수와 나란히 놓을 컨트롤 (날짜 이동 등). */
   trailing?: ReactNode;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!fetchedAt) return;
+    setNow(Date.now()); // 새로 받자마자 "방금"부터 다시 센다
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [fetchedAt]);
+  const ago = fetchedAt ? formatRelative(new Date(fetchedAt).toISOString(), new Date(now)) : undefined;
+
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div className="min-w-0">
@@ -50,7 +62,7 @@ export default function PageHeader({
             }`}
             aria-label={loading ? "갱신 중" : "대기"}
           />
-          {queriedAt}
+          {ago}
         </span>
       </div>
     </div>

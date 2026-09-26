@@ -112,21 +112,10 @@ export function formatDuration(startIso: string, endIso: string): string {
   return `${s}s`;
 }
 
-/**
- * TanStack Query의 `dataUpdatedAt`(ms) → "3초 전".
- *
- * 서버가 조회 시각(`queriedAt`)을 함께 주는 응답은 그걸 쓰고, 안 주는 응답은
- * 브라우저가 받은 시각으로 대신한다. 폴링 간격이 5초라 둘의 차이는 왕복 시간뿐이다.
- * 아직 한 번도 못 받았으면(0) 시각을 붙이지 않는다.
- */
-export function formatFetchedAt(ms: number, now = new Date()): string | undefined {
-  return ms ? formatRelative(new Date(ms).toISOString(), now) : undefined;
-}
-
 export function formatRelative(iso: string, now = new Date()): string {
   const ms = now.getTime() - new Date(iso).getTime();
   if (Number.isNaN(ms)) return "-";
-  if (ms < 5_000) return "방금";
+  if (ms < 1_000) return "방금";
   const sec = Math.floor(ms / 1000);
   if (sec < 60) return `${sec}초 전`;
   const min = Math.floor(sec / 60);

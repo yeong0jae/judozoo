@@ -4,7 +4,7 @@ import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
 import { useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
-import { formatKoreanMoney, formatPct, formatPrice, formatRelative } from "../lib/format";
+import { formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import PageHeader from "../components/layout/PageHeader";
 import Skeleton from "../components/common/Skeleton";
@@ -140,7 +140,7 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
           title="눌림·돌파"
           // 근접 범위로 거른 뒤의 전체 수 — 미로그인은 그중 다섯 줄만 받는다
           count={data?.totalCount}
-          queriedAt={data?.queriedAt ? formatRelative(data.queriedAt) : undefined}
+          fetchedAt={radarQ.dataUpdatedAt}
           loading={radarQ.isFetching}
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
