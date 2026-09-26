@@ -146,7 +146,7 @@ function renderMarketRow(
   const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
   const { sideCls, accent, leftLabel, rightLabel, netText } = marketParts(m);
   // 종목 행의 종목명과 같은 자리 — 한 피드에 섞이므로 크기도 같이 간다
-  const leftCls = accent ? `text-sm ${sideCls}` : "text-sm text-zinc-300";
+  const leftCls = accent ? `text-[13.5px] ${sideCls}` : "text-[13.5px] text-zinc-300";
   return (
     <motion.li
       key={key}
@@ -172,7 +172,7 @@ function renderMarketRow(
           </span>
           <span className={leftCls}>{leftLabel}</span>
           <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
-            <span className="num text-[13px] text-zinc-100">{m.indexValue != null ? fmtIndex(m.indexValue) : ""}</span>
+            <span className="num text-[13.5px] text-zinc-100">{m.indexValue != null ? fmtIndex(m.indexValue) : ""}</span>
             <span className="min-w-14 whitespace-nowrap text-right">
               {m.changeRate != null && (
                 <ProfitText value={m.changeRate / 100} format={formatPct} className="num text-xs" />
@@ -638,9 +638,9 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       </span>
                       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
                       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${meta.chip}`}>{meta.label}</span>
-                      <span className="min-w-0 truncate text-sm text-zinc-100">{e.stockName}</span>
+                      <span className="min-w-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
                       <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
-                        <span className="num text-[13px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
+                        <span className="num text-[13.5px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
                         <span className="min-w-14 whitespace-nowrap text-right">
                           <ProfitText value={e.priceChangeRate / 100} format={formatPct} className="num text-xs" />
                         </span>

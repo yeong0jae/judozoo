@@ -276,7 +276,7 @@ function RadarRow({
       } ${selected ? "bg-selected hover:bg-selected" : ""}`}
     >
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm text-zinc-100">{s.stockName}</span>
+        <span className="truncate text-[13.5px] text-zinc-100">{s.stockName}</span>
         <span className="num text-[11px] text-zinc-500">{shortCode(s.stockCode)}</span>
       </span>
       <span className="flex flex-col items-end gap-0.5">
@@ -302,7 +302,7 @@ function RadarRow({
         )}
       </span>
       <span className="flex flex-col items-end gap-0.5">
-        <NumWon value={s.currentPrice} className="num text-[13px] text-zinc-100" />
+        <NumWon value={s.currentPrice} className="num text-[13.5px] text-zinc-100" />
         <span className="num text-[11px] text-zinc-500">{formatKoreanMoney(s.tradingValue)}</span>
       </span>
       <span className="text-right">
@@ -338,7 +338,7 @@ function RadarCard({
       } ${selected ? "bg-selected" : ""}`}
     >
       <span className="flex w-full items-baseline justify-between gap-2.5">
-        <span className="min-w-0 truncate text-sm text-zinc-100">{s.stockName}</span>
+        <span className="min-w-0 truncate text-[13.5px] text-zinc-100">{s.stockName}</span>
         <span className={`num shrink-0 text-[13px] ${gap.cls}`}>
           {gap.crossed ??
             (gap.pct === null || gap.won === null ? "—" : `${formatPrice(gap.won)}원 (${gap.pct.toFixed(2)}%)`)}

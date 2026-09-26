@@ -241,7 +241,7 @@ function Row({ stock, rank, valueRatio, isSelected, onOpen }: ItemProps) {
     >
       <span className="num text-right text-xs text-zinc-500">{rank}</span>
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm text-zinc-100">{stock.name}</span>
+        <span className="truncate text-[13.5px] text-zinc-100">{stock.name}</span>
         <span className="num text-[11px] text-zinc-500">{stock.symbol}</span>
       </span>
       <span className="flex flex-col items-end gap-1.5">
@@ -250,7 +250,7 @@ function Row({ stock, rank, valueRatio, isSelected, onOpen }: ItemProps) {
           <span className="absolute inset-y-0 right-0 rounded-full bg-zinc-500" style={{ width: `${valueRatio * 100}%` }} />
         </span>
       </span>
-      <NumUsd value={stock.price} prefix="" className="num text-right text-sm text-zinc-100" />
+      <NumUsd value={stock.price} prefix="" className="num text-right text-[13.5px] text-zinc-100" />
       <span className="num text-right text-xs">
         <ProfitText value={stock.rate / 100} format={formatPct} />
       </span>
@@ -269,13 +269,13 @@ function Card({ stock, rank, isSelected, onOpen }: ItemProps) {
     >
       <span className="num w-4 shrink-0 text-right text-[11px] text-zinc-500">{rank}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-sm text-zinc-100">{stock.name}</span>
+        <span className="truncate text-[13.5px] text-zinc-100">{stock.name}</span>
         <span className="num text-[11px] text-zinc-500">
           {stock.symbol} · {compactUsd(stock.tradingValue)}
         </span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5">
-        <NumUsd value={stock.price} prefix="" className="num text-sm text-zinc-100" />
+        <NumUsd value={stock.price} prefix="" className="num text-[13.5px] text-zinc-100" />
         <ProfitText value={stock.rate / 100} format={formatPct} className="num text-xs" />
       </span>
     </button>
