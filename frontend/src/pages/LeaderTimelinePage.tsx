@@ -557,41 +557,62 @@ function ChangeLog({
   cursor: number;
   onPick: (i: number) => void;
 }) {
+  // 같은 분에 일어난 변화는 한 묶음으로 — 14:35에 여섯 줄이 흩어지면 무슨 일이 한꺼번에 있었는지 안 보인다
+  const groups = useMemo(() => {
+    const byMin = new Map<number, TimelineEvent[]>();
+    (model?.events ?? []).forEach((e) => byMin.set(e.i, [...(byMin.get(e.i) ?? []), e]));
+    return [...byMin.entries()].sort((a, b) => b[0] - a[0]); // 최신이 위
+  }, [model]);
+  // 보고 있는 시각의 직전(또는 그 시각) 묶음을 강조하고, 목록을 그리로 스크롤한다
+  const active = groups.find(([i]) => i <= cursor)?.[0];
+  const listRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    listRef.current?.querySelector<HTMLElement>(`[data-i="${active}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
   const name = (k: number) => model?.names[k] ?? "";
-  const text = (e: TimelineEvent) =>
-    e.type === "none" ? ["주도주 없음", "오른 종목 없음"]
-      : e.type === "in" ? [name(e.k), `${e.r}위로 들어옴`]
-        : e.type === "out" ? [name(e.k), "빠짐"]
-          : [name(e.k), "1위로 올라섬"];
-  const icon = (e: TimelineEvent) =>
-    e.type === "in" ? { c: "+", style: { color: "var(--tl-new)", background: "var(--tl-new-bg)" } }
-      : e.type === "top" ? { c: "1", style: { color: "var(--tl-r1-fg)", background: "var(--tl-r1)" } }
-        : { c: e.type === "none" ? "0" : "−", style: { color: "var(--color-zinc-500)", background: "var(--color-zinc-850)" } };
+  const chip = (e: TimelineEvent, n: number) => {
+    if (e.type === "in")
+      return (
+        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] px-[7px] py-[3px] text-[13px] font-semibold" style={{ color: "var(--tl-new)", background: "var(--tl-new-bg)" }}>
+          ＋ {name(e.k)}
+          <i className="num grid h-[16px] min-w-[16px] place-items-center rounded-[4px] px-[3px] text-[11px] font-bold not-italic" style={{ background: `var(--tl-r${e.r})`, color: `var(--tl-r${e.r}-fg)` }}>{e.r}</i>
+        </span>
+      );
+    if (e.type === "out")
+      return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[13px] text-zinc-500">－ {name(e.k)}</span>;
+    if (e.type === "top")
+      return (
+        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[13px] font-bold">
+          <i className="num grid h-[16px] w-[16px] place-items-center rounded-[4px] text-[11px] not-italic" style={{ background: "var(--tl-r1)", color: "var(--tl-r1-fg)" }}>1</i>
+          {name(e.k)} 1위로
+        </span>
+      );
+    return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[13px] text-zinc-500">주도주 없음</span>;
+  };
 
   return (
-    <section className="flex max-h-[620px] flex-col rounded-[14px] border border-zinc-800 px-[16px] py-[14px] text-[16px] leading-[normal]">
+    <section className="flex max-h-[680px] flex-col rounded-[14px] border border-zinc-800 px-[16px] py-[14px] text-[14px] leading-[normal]">
       <h3 className="mb-[10px] text-[17px] font-bold">변화 기록</h3>
-      {!model ? null : (
-        <ol className="flex flex-col overflow-y-auto">
-          {[...model.events].reverse().map((e, n) => {
-            const [b, small] = text(e);
-            const ic = icon(e);
-            return (
-              <li key={`${e.i}-${e.type}-${n}`}>
-                <button
-                  type="button"
-                  onClick={() => onPick(e.i)}
-                  className={`-mx-[6px] grid w-[calc(100%+12px)] grid-cols-[44px_18px_minmax(0,1fr)] items-center gap-[8px] rounded-[8px] px-[6px] py-[7px] text-left text-[15px] hover:bg-zinc-850 ${
-                    e.i === cursor ? "bg-zinc-850" : ""
-                  }`}
-                >
-                  <span className="num text-[14px] text-zinc-500">{hhmm(model.spec.start + e.i + offset)}</span>
-                  <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] text-[13px] font-bold" style={ic.style}>{ic.c}</span>
-                  <span className="truncate"><b className="font-semibold">{b}</b> <small className="text-zinc-500">{small}</small></span>
-                </button>
-              </li>
-            );
-          })}
+      {model && (
+        <ol ref={listRef} className="relative flex flex-col overflow-y-auto">
+          {groups.map(([i, evs], n) => (
+            <li key={i} data-i={i} className="relative grid grid-cols-[48px_14px_minmax(0,1fr)] gap-x-[8px]">
+              {/* 세로 선 — 묶음이 시간 흐름으로 이어져 보이게 */}
+              <span aria-hidden className={`absolute left-[58px] w-px bg-zinc-800 ${n === 0 ? "top-[14px]" : "top-0"} ${n === groups.length - 1 ? "h-[14px]" : "bottom-0"}`} />
+              <button type="button" onClick={() => onPick(i)} className={`num self-start pt-[7px] text-left text-[13px] ${i === active ? "font-bold text-zinc-100" : "text-zinc-500"}`}>
+                {hhmm(model.spec.start + i + offset)}
+              </button>
+              <span aria-hidden className={`relative z-[1] mt-[12px] h-[8px] w-[8px] justify-self-center rounded-full ${i === active ? "bg-zinc-100" : "bg-zinc-700"}`} />
+              <button
+                type="button"
+                onClick={() => onPick(i)}
+                className={`-mr-[6px] mb-[4px] flex flex-wrap content-start gap-[5px] rounded-[8px] px-[6px] py-[5px] text-left hover:bg-zinc-850 ${i === active ? "bg-zinc-850" : ""}`}
+              >
+                {evs.map(chip)}
+              </button>
+            </li>
+          ))}
         </ol>
       )}
     </section>
