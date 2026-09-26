@@ -30,8 +30,8 @@ const label = (s: string) => {
 function Chevron({ dir }: { dir: "prev" | "next" }) {
   return (
     <svg
-      width="14"
-      height="14"
+      width="15"
+      height="15"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -75,10 +75,10 @@ export default function DateNavigator({
   // 화살표 칸. inline-flex라야 SVG 아래 기준선 여백이 안 생긴다.
   // 비활성일 때 호버로 밝아지면 누를 수 있는 것처럼 보여, 글자색도 함께 묶어 둔다.
   const stepCls =
-    "inline-flex rounded-[7px] p-[5px] text-zinc-400 transition-colors hover:bg-elevated hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400";
+    "inline-flex rounded-[7px] p-[6px] text-zinc-400 transition-colors hover:bg-elevated hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400";
 
   return (
-    <div className="flex items-center gap-[6px] text-[13px]">
+    <div className="flex items-center gap-[6px] text-[14px]">
       <div className="flex items-center rounded-[10px] bg-zinc-800 p-[3px]">
         <button onClick={() => shift(-1)} className={stepCls} aria-label="이전 거래일">
           <Chevron dir="prev" />
@@ -88,7 +88,7 @@ export default function DateNavigator({
         <div className="relative">
           <button
             onClick={() => setOpen((o) => !o)}
-            className="min-w-[96px] rounded-[7px] px-[8px] py-[3px] font-medium text-zinc-100 transition-colors hover:bg-elevated"
+            className="min-w-[104px] rounded-[7px] px-[9px] py-[4px] font-medium text-zinc-100 transition-colors hover:bg-elevated"
             aria-haspopup="dialog"
             aria-expanded={open}
           >
@@ -117,7 +117,7 @@ export default function DateNavigator({
       <button
         onClick={() => onChange(todayStr())}
         disabled={isToday}
-        className="rounded-[7px] px-[8px] py-[4px] text-[12px] text-zinc-400 transition-colors hover:bg-zinc-850 hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400"
+        className="rounded-[7px] px-[9px] py-[5px] text-[12.5px] text-zinc-400 transition-colors hover:bg-zinc-850 hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400"
       >
         오늘
       </button>
