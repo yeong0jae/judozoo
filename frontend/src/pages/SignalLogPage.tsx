@@ -243,8 +243,9 @@ function renderMarketRow(
 /**
  * 이벤트별 핵심 수치 한 줄. 돌파선 가격은 그때의 현재가×(1+갭/100)으로 역산.
  * 스파이크는 배율+그 분봉 거래대금(rose)과 그 순간 누적 거래대금(흐리게)을 함께 보인다.
+ * 누적은 여정 표에만 싣는다 — 목록 행은 한 줄이라 자리가 없다(`accumulated=false`).
  */
-function detailOf(e: SignalEventItem) {
+function detailOf(e: SignalEventItem, accumulated = true) {
   if (e.eventType === "VOLUME_SPIKE") {
     if (!e.spikeRatio) return "";
     const dirCls =
@@ -258,7 +259,7 @@ function detailOf(e: SignalEventItem) {
           {e.minuteTradingValue != null && ` ${formatKoreanMoney(e.minuteTradingValue)}`}
         </span>
         {dirLabel && <span className={dirCls}> {dirLabel}</span>}
-        <span className="text-zinc-500"> · 누적 {formatKoreanMoney(e.tradingValue)}</span>
+        {accumulated && <span className="text-zinc-500"> · 누적 {formatKoreanMoney(e.tradingValue)}</span>}
       </>
     );
   }
@@ -642,26 +643,28 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       setSelectedMarket(null);
                       setOpenKey(open ? null : rowKey);
                     }}
-                    className={`flex w-full flex-col gap-1 rounded-xl px-2.5 py-2.5 text-left transition-colors lg:px-3.5 ${
+                    className={`flex w-full rounded-xl px-2.5 py-2.5 text-left transition-colors lg:px-3.5 ${
                       authenticated ? "hover:bg-zinc-850" : "cursor-default"
                     } ${e.stockCode === selectedCode ? "bg-selected hover:bg-selected" : ""}`}
                   >
-                    {/* 윗줄: 시각·유형·종목 / 현재가·등락률 */}
-                    <span className="flex w-full items-center gap-2">
+                    {/* 한 줄: 시각·유형·종목·상세 / 현재가·등락률. 줄바꿈하지 않는다 — 좁으면 종목명과 상세가
+                        말줄임으로 줄고 가격은 오른쪽에 남아, 행 높이가 들쭉날쭉하지 않다 */}
+                    <span className="flex w-full min-w-0 items-center gap-2">
                       <span className={`num w-[3.75rem] shrink-0 text-xs ${clockClass(e.occurredAt)}`}>
                         {clockOf(e.occurredAt)}
                       </span>
                       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${meta.chip}`}>{meta.label}</span>
-                      <span className="min-w-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
-                      <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
+                      {/* 좁으면 상세가 준다. 종목명은 줄지 않는다 — "SK하…"로 잘리면 무슨 행인지 모른다.
+                          아주 긴 이름만 줄 폭의 45%에서 자른다 */}
+                      <span className="max-w-[45%] shrink-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
+                      <span className="num min-w-0 truncate text-xs text-zinc-300">{detailOf(e, false)}</span>
+                      <span className="ml-auto flex shrink-0 items-baseline gap-2.5 pl-2">
                         <span className="num text-[13.5px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
                         <span className="min-w-14 whitespace-nowrap text-right">
                           <ProfitText value={e.priceChangeRate / 100} format={formatPct} className="num text-xs" />
                         </span>
                       </span>
                     </span>
-                    {/* 아랫줄: 무엇이 일어났는지 — 한 줄에 다 넣으면 좁을 때 접혀 행 높이가 들쭉날쭉해진다 */}
-                    <span className="num truncate pl-[4.25rem] text-xs text-zinc-300">{detailOf(e)}</span>
                   </button>
 
                   {open && <StockJourney stockCode={e.stockCode} journey={journey} onShowDetail={mobile.show} />}
