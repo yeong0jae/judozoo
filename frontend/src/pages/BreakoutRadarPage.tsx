@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
-import { useBreakoutRadar } from "../api/queries";
+import { LIVE_REFRESH_MS, useBreakoutRadar } from "../api/queries";
 import type { BreakoutRadarItem } from "../types";
 import { formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
@@ -141,6 +141,7 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
           // 근접 범위로 거른 뒤의 전체 수 — 미로그인은 그중 다섯 줄만 받는다
           count={data?.totalCount}
           fetchedAt={radarQ.dataUpdatedAt}
+          refreshMs={LIVE_REFRESH_MS}
           loading={radarQ.isFetching}
         />
         <div className="flex flex-wrap items-center justify-between gap-2">

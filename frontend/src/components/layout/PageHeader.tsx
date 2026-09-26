@@ -16,6 +16,7 @@ export default function PageHeader({
   title,
   count,
   fetchedAt,
+  refreshMs,
   loading,
   trailing,
 }: {
@@ -24,6 +25,9 @@ export default function PageHeader({
   /** 이 화면이 마지막으로 받아 온 시각(ms, TanStack `dataUpdatedAt`). 0이면 점만 보여준다.
    *  서버의 `queriedAt`은 쓰지 않는다 — 응답 시각일 뿐 시세를 받아 온 시각이 아니라, 휴장 중엔 캐시가 하루를 간다. */
   fetchedAt?: number;
+  /** 자동 갱신 주기(ms). 주면 고리가 받은 순간부터 이 시간에 걸쳐 차오른다 — 다 차면 다음 갱신이다.
+   *  없으면(지난 날짜처럼 다시 부르지 않는 화면) 고리를 흐린 채 채워 둔다. */
+  refreshMs?: number;
   loading: boolean;
   /** 우측 상단에 건수와 나란히 놓을 컨트롤 (날짜 이동 등). */
   trailing?: ReactNode;
@@ -56,15 +60,40 @@ export default function PageHeader({
         </div>
 
         <span className="flex items-center gap-1.5 text-xs text-zinc-500 whitespace-nowrap">
-          <span
-            className={`inline-block w-1.5 h-1.5 rounded-full bg-accent ${
-              loading ? "animate-ping" : "animate-pulse"
-            }`}
-            aria-label={loading ? "갱신 중" : "대기"}
-          />
+          <RefreshRing fetchedAt={fetchedAt ?? 0} refreshMs={refreshMs} loading={loading} />
           {ago}
         </span>
       </div>
     </div>
+  );
+}
+
+/** 고리 둘레 — r=5. 채워지는 양을 dashoffset으로 줄여 간다. */
+const RING = 2 * Math.PI * 5;
+
+/**
+ * 다음 갱신까지 남은 시간 — 받은 순간 비었다가 주기에 걸쳐 시계 방향으로 찬다.
+ * 새로 받으면(`fetchedAt`이 바뀌면) key가 바뀌어 애니메이션이 처음부터 다시 돈다.
+ */
+function RefreshRing({ fetchedAt, refreshMs, loading }: { fetchedAt: number; refreshMs?: number; loading: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" className="-rotate-90" role="img" aria-label={loading ? "갱신 중" : "다음 갱신까지"}>
+      <circle cx="7" cy="7" r="5" fill="none" strokeWidth="2" className="stroke-zinc-800" />
+      {refreshMs && fetchedAt ? (
+        <circle
+          key={fetchedAt}
+          cx="7"
+          cy="7"
+          r="5"
+          fill="none"
+          strokeWidth="2"
+          strokeLinecap="round"
+          className="refresh-ring stroke-accent"
+          style={{ strokeDasharray: RING, animationDuration: `${refreshMs}ms`, ["--ring" as string]: RING }}
+        />
+      ) : (
+        <circle cx="7" cy="7" r="5" fill="none" strokeWidth="2" className="stroke-zinc-600" />
+      )}
+    </svg>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
+import { POOL_REFRESH_MS, useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
 import type { CandidateStockItem } from "../types";
 import { formatKoreanMoney, formatPct } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
@@ -284,6 +284,7 @@ function Header({
       title="오늘의 주도주"
       count={totalCount}
       fetchedAt={fetchedAt}
+      refreshMs={POOL_REFRESH_MS}
       loading={loading}
     />
   );

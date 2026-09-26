@@ -273,6 +273,20 @@ body {
   }
 }
 
+/* 화면 머리의 갱신 고리 — 받은 순간 비었다가 자동 갱신 주기에 걸쳐 찬다(주기는 인라인 animation-duration). */
+@keyframes refresh-ring {
+  from { stroke-dashoffset: var(--ring); }
+  to { stroke-dashoffset: 0; }
+}
+.refresh-ring {
+  animation: refresh-ring linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .refresh-ring {
+    animation: none;
+  }
+}
+
 /* 시간대별 수급 — 값이 갱신될 때 직전 변화량을 세 번 깜빡인 뒤 흐리게 유지 */
 @keyframes flow-delta {
   0% {

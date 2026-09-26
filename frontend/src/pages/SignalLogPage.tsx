@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
-import { useSignalEvents, useMarketSignalEvents, useLeadingStockDetail, useMarketCalendarStatus } from "../api/queries";
+import { LIVE_REFRESH_MS, useSignalEvents, useMarketSignalEvents, useLeadingStockDetail, useMarketCalendarStatus } from "../api/queries";
 import type {
   SignalEventItem,
   SignalEventType,
@@ -545,6 +545,8 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
           title="주도주 시그널"
           count={data || marketQ.data ? feed.length : undefined}
           fetchedAt={eventsQ.dataUpdatedAt}
+          // 지난 날짜는 다시 부르지 않는다 — 고리도 차오르지 않는다
+          refreshMs={date === todayStr() ? LIVE_REFRESH_MS : undefined}
           loading={eventsQ.isFetching}
           trailing={
             <DateNavigator

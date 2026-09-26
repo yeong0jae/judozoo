@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useOverseasLeaders, useOverseasCandidates } from "../api/queries";
+import { POOL_REFRESH_MS, useOverseasLeaders, useOverseasCandidates } from "../api/queries";
 import type { OverseasStockRankItem } from "../types";
 import { formatPct } from "../lib/format";
 import NumUsd from "../components/common/NumUsd";
@@ -144,6 +144,7 @@ function Header({
       title="오늘의 주도주"
       count={totalCount}
       fetchedAt={fetchedAt}
+      refreshMs={POOL_REFRESH_MS}
       loading={loading}
     />
   );
