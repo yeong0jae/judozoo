@@ -318,7 +318,7 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
           <div key={label} className="@container flex flex-col gap-2 rounded-xl bg-zinc-900 px-3 py-2.5 sm:px-3.5 sm:py-3">
             {/* 라벨과 값을 한 줄에 두는 건 칸이 넓을 때만 — 좁으면 "개인 -21,676"처럼 붙어 읽힌다 */}
             <div className="flex flex-col gap-0.5 @[11rem]:flex-row @[11rem]:items-baseline @[11rem]:justify-between">
-              <span className="text-xs text-zinc-400">{label}</span>
+              <span className="text-xs text-zinc-300">{label}</span>
               <Eok million={v} className="text-[15px] font-bold sm:text-[17px]" />
             </div>
             <div className="relative h-1 overflow-hidden rounded-full bg-zinc-850">
