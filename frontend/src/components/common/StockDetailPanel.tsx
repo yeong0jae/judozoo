@@ -332,18 +332,18 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
         ))}
       </div>
       <div className="rounded-xl bg-zinc-900 px-3.5 pb-1.5 pt-1 text-xs">
-        <div className="flex justify-between py-2">
-          <span className="font-semibold text-zinc-300">기관 상세</span>
-          <span className="text-zinc-500">
-            기타법인 <Eok million={day.otherCorpMillion} className="font-semibold" />
-          </span>
-        </div>
+        <div className="py-2 font-semibold text-zinc-300">기관 상세</div>
         {ORG_DETAIL.map((o) => (
           <div key={o.key} className="flex justify-between border-t border-zinc-800 py-1.5">
             <span className="text-zinc-400">{o.label}</span>
             <Eok million={day.breakdown[o.key]} className="font-semibold" />
           </div>
         ))}
+      </div>
+      {/* 기타법인은 기관이 아니다 — 기관 상세 안에 두면 그 일부로 읽힌다 */}
+      <div className="flex justify-between rounded-xl bg-zinc-900 px-3.5 py-2.5 text-xs">
+        <span className="font-semibold text-zinc-300">기타법인</span>
+        <Eok million={day.otherCorpMillion} className="font-semibold" />
       </div>
     </>
   );
