@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMe } from "../api/auth";
 import LoginGate from "../components/common/LoginGate";
 import { AnimatePresence, motion } from "motion/react";
-import { useSignalEvents, useMarketSignalEvents, useLeadingStockDetail } from "../api/queries";
+import { useSignalEvents, useMarketSignalEvents, useLeadingStockDetail, useMarketCalendarStatus } from "../api/queries";
 import type {
   SignalEventItem,
   SignalEventType,
@@ -23,6 +23,9 @@ import DateNavigator, { todayStr } from "../components/common/DateNavigator";
 import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
 
 const MIN_RATE_KEY = "signalLog.minRate";
+
+/** 시그널이 쌓이기 시작하는 시각 — NXT 프리마켓이 08:00에 연다. 그 전의 오늘은 빈 날이다. */
+const SIGNAL_START_HOUR = 8;
 
 /** 행 고유 키 — 같은 종목이 여러 행이어도 인덱스로 구분(방향키 행 단위 이동·열림 식별용). */
 const rowKeyOf = (e: SignalEventItem, i: number) =>
@@ -454,6 +457,15 @@ function PreviewGate({ shown, total, date }: { shown: number; total: number; dat
 
 function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
   const [date, setDate] = useState(todayStr());
+  // 처음 열 때는 가장 최근 거래일 — 휴장일이나 프리마켓(08:00) 전에 오늘을 열면 빈 목록뿐이다.
+  // 사용자가 날짜를 한 번 고른 뒤에는 건드리지 않는다.
+  const krCalendar = useMarketCalendarStatus("KR").data;
+  const datePicked = useRef(false);
+  useEffect(() => {
+    if (datePicked.current || !krCalendar?.previousOpenDay) return;
+    const beforeSession = new Date().getHours() < SIGNAL_START_HOUR;
+    if (krCalendar.isHoliday || beforeSession) setDate(krCalendar.previousOpenDay);
+  }, [krCalendar]);
   // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
   const [minRate, setMinRate] = useState(() => {
     const raw = localStorage.getItem(MIN_RATE_KEY);
@@ -541,6 +553,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
             <DateNavigator
               date={date}
               onChange={(d) => {
+                datePicked.current = true;
                 setDate(d);
                 setSelectedCode(null);
                 setSelectedMarket(null);
