@@ -39,15 +39,15 @@ function clockClass(iso: string): string {
   return hm >= "09:00" && hm <= "15:20" ? "text-zinc-100" : "text-zinc-500";
 }
 
-const EVENT_META: Record<SignalEventType, { label: string; chip: string; dot: string }> = {
-  VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300", dot: "bg-rose-400" },
+const EVENT_META: Record<SignalEventType, { label: string; chip: string }> = {
+  VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300" },
   // 지지·저항 화면과 같은 색을 쓴다 — 주황=위(저항 방향), 하늘=아래(지지 방향).
   // 색이 화면마다 다른 방향을 뜻하면 읽는 사람이 매번 다시 배워야 한다.
-  MA_REBOUND: { label: "반등", chip: "bg-orange-500/15 text-orange-400", dot: "bg-orange-400" },
-  MA_BREAKDOWN: { label: "꺾임", chip: "bg-sky-500/15 text-sky-400", dot: "bg-sky-400" },
+  MA_REBOUND: { label: "반등", chip: "bg-orange-500/15 text-orange-400" },
+  MA_BREAKDOWN: { label: "꺾임", chip: "bg-sky-500/15 text-sky-400" },
   // 생성 중단(2026-09-13). 과거 날짜 조회용으로만 남는다 — 흐린 톤으로 구분한다.
-  BREAKOUT: { label: "돌파", chip: "bg-zinc-700/40 text-zinc-400", dot: "bg-zinc-500" },
-  BREAKOUT_IMMINENT: { label: "임박", chip: "bg-zinc-700/40 text-zinc-500", dot: "bg-zinc-600" },
+  BREAKOUT: { label: "돌파", chip: "bg-zinc-700/40 text-zinc-400" },
+  BREAKOUT_IMMINENT: { label: "임박", chip: "bg-zinc-700/40 text-zinc-500" },
 };
 
 // 방향이 짝인 것끼리 한 탭으로 묶는다.
@@ -143,7 +143,6 @@ function renderMarketRow(
   journey: MarketSignalEventItem[],
   onShowDetail: () => void,
 ) {
-  const dot = m.market === "KOSPI" ? "bg-indigo-400" : "bg-cyan-400";
   const { sideCls, accent, leftLabel, rightLabel, netText } = marketParts(m);
   // 종목 행의 종목명과 같은 자리 — 한 피드에 섞이므로 크기도 같이 간다
   const leftCls = accent ? `text-[13.5px] ${sideCls}` : "text-[13.5px] text-zinc-300";
@@ -166,7 +165,6 @@ function renderMarketRow(
       >
         <span className="flex w-full items-center gap-2">
           <span className={`num w-[3.75rem] shrink-0 text-xs ${clockClass(m.occurredAt)}`}>{clockOf(m.occurredAt)}</span>
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
           <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${MARKET_CHIP[m.market]}`}>
             {MARKET_LABEL[m.market]}
           </span>
@@ -640,7 +638,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       <span className={`num w-[3.75rem] shrink-0 text-xs ${clockClass(e.occurredAt)}`}>
                         {clockOf(e.occurredAt)}
                       </span>
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.dot}`} />
                       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${meta.chip}`}>{meta.label}</span>
                       <span className="min-w-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
                       <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
