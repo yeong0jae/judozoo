@@ -174,17 +174,17 @@ export default function LeaderCalendarPage() {
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] items-start">
-        <section className="rounded-2xl border border-zinc-800 overflow-hidden" aria-label="달력">
+      <div className="grid gap-[24px] xl:grid-cols-[minmax(0,1fr)_320px] items-start">
+        <section className="rounded-[14px] border border-zinc-800 overflow-hidden text-[14px] leading-[normal]" aria-label="달력">
           <div className="hidden sm:grid grid-cols-5 border-b border-zinc-800">
             {["월", "화", "수", "목", "금"].map((w) => (
-              <div key={w} className="px-3 py-2 text-xs font-semibold text-zinc-500">
+              <div key={w} className="px-[12px] py-[10px] text-[12px] font-semibold text-zinc-500">
                 {w}
               </div>
             ))}
           </div>
           {isError ? (
-            <p className="py-16 text-center text-sm text-zinc-500">달력을 불러오지 못했습니다</p>
+            <p className="py-16 text-center text-[14px] text-zinc-500">달력을 불러오지 못했습니다</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-px bg-zinc-800">
               {Array.from({ length: leadingBlanks }, (_, i) => (
@@ -214,7 +214,7 @@ export default function LeaderCalendarPage() {
           )}
         </section>
 
-        <aside className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+        <aside className="grid gap-[16px] text-[14px] leading-[normal] sm:grid-cols-2 xl:grid-cols-1">
           <DayDetail
             date={current}
             today={today}
@@ -225,40 +225,40 @@ export default function LeaderCalendarPage() {
             overseasDate={current ? previousWeekday(current) : null}
             overseas={current ? overseas.get(previousWeekday(current)) : undefined}
           />
-          <section className="rounded-2xl border border-zinc-800 p-4">
-            <h3 className="text-[0.9375rem] font-bold">자주 뽑힌 종목</h3>
-            <p className="mt-0.5 mb-3 text-xs text-zinc-500">
+          <section className="rounded-[14px] border border-zinc-800 p-[16px]">
+            <h3 className="text-[15px] font-bold">자주 뽑힌 종목</h3>
+            <p className="mt-[2px] mb-[12px] text-[12px] text-zinc-500">
               {frequent.length ? "이달 두 번 이상 뽑힌 종목" : "두 번 이상 뽑힌 종목이 없습니다"}
             </p>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-[2px]">
               {frequent.map(([k, c]) => (
                 <button
                   key={k}
                   type="button"
                   aria-pressed={focus === k}
                   onClick={() => setFocus(focus === k ? null : k)}
-                  className={`-mx-2 grid grid-cols-[minmax(0,1fr)_2.5rem] items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-zinc-850 ${
+                  className={`-mx-[8px] grid grid-cols-[minmax(0,1fr)_36px] items-center gap-[10px] rounded-[8px] px-[8px] py-[6px] text-left hover:bg-zinc-850 ${
                     focus === k ? "bg-zinc-850 ring-1 ring-inset ring-emerald-700/50" : ""
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className="mb-1 flex items-center gap-1.5 text-[0.8125rem] font-semibold">
+                    <div className="mb-[5px] flex items-center gap-[6px] text-[13px] font-semibold">
                       {mode === "both" && <MarketTag overseas={c.overseas} />}
                       <span className="truncate">{c.name}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-zinc-900 overflow-hidden">
+                    <div className="h-[6px] rounded-[3px] bg-zinc-900 overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${c.overseas ? "bg-(--leader-overseas)" : "bg-emerald-700/80"}`}
+                        className={`h-full rounded-[3px] ${c.overseas ? "bg-(--leader-overseas)" : "bg-emerald-700/80"}`}
                         style={{ width: `${(c.n / frequent[0][1].n) * 100}%` }}
                       />
                     </div>
                   </div>
-                  <span className="text-right text-xs text-zinc-300 num">{c.n}일</span>
+                  <span className="text-right text-[12px] text-zinc-300 num">{c.n}일</span>
                 </button>
               ))}
             </div>
             {frequent.length > 0 && (
-              <p className="mt-2.5 text-[0.6875rem] text-zinc-500">종목을 누르면 그 종목이 뽑힌 날만 달력에 남습니다.</p>
+              <p className="mt-[10px] text-[11px] text-zinc-500">종목을 누르면 그 종목이 뽑힌 날만 달력에 남습니다.</p>
             )}
           </section>
         </aside>
@@ -305,7 +305,7 @@ function NavButton({ label, onClick, d }: { label: string; onClick: () => void; 
 function MarketTag({ overseas }: { overseas: boolean }) {
   return (
     <span
-      className={`shrink-0 rounded px-1.5 py-px text-[0.625rem] font-bold ${
+      className={`shrink-0 rounded-[4px] px-[5px] py-px text-[10px] font-bold ${
         overseas ? "bg-(--leader-overseas-tint) text-(--leader-overseas)" : "bg-zinc-900 text-zinc-500"
       }`}
     >
@@ -317,9 +317,9 @@ function MarketTag({ overseas }: { overseas: boolean }) {
 /** 몇 종목이 뽑혔는지 — 5칸 점. */
 function CountDots({ n }: { n: number }) {
   return (
-    <span className="flex gap-0.5" aria-label={`${n}종목`}>
+    <span className="flex gap-[2px]" aria-label={`${n}종목`}>
       {Array.from({ length: MAX }, (_, i) => (
-        <i key={i} className={`h-1 w-1 rounded-full bg-current ${i < n ? "opacity-75" : "opacity-20"}`} />
+        <i key={i} className={`h-[4px] w-[4px] rounded-full bg-current ${i < n ? "opacity-75" : "opacity-20"}`} />
       ))}
     </span>
   );
@@ -331,15 +331,15 @@ function Rows({ stocks, limit, focus }: { stocks: LeaderStockItem[]; limit: numb
       {stocks.slice(0, limit).map((s, i) => (
         <div
           key={stockKey(s)}
-          className={`flex items-baseline justify-between gap-1.5 rounded ${
-            i === 0 ? "text-sm font-bold text-zinc-100" : "text-[0.8125rem] text-zinc-300"
-          } ${focus === stockKey(s) ? "-mx-1 px-1 bg-emerald-700/10 text-emerald-700" : ""}`}
+          className={`flex items-baseline justify-between gap-[6px] rounded-[4px] ${
+            i === 0 ? "text-[14px] font-bold text-zinc-100" : "text-[13px] text-zinc-300"
+          } ${focus === stockKey(s) ? "-mx-[4px] px-[4px] bg-emerald-700/10 text-emerald-700" : ""}`}
         >
           <span className="truncate">{s.name}</span>
-          <span className="shrink-0 text-[0.6875rem] font-semibold text-red-600 num">{pct(s.changeRate)}</span>
+          <span className="shrink-0 text-[11px] font-semibold text-red-600 num">{pct(s.changeRate)}</span>
         </div>
       ))}
-      {stocks.length > limit && <span className="text-[0.6875rem] text-zinc-500">외 {stocks.length - limit}종목</span>}
+      {stocks.length > limit && <span className="text-[11px] text-zinc-500">외 {stocks.length - limit}종목</span>}
     </>
   );
 }
@@ -383,11 +383,11 @@ function DayCell({
 
   const tag =
     closed ? (
-      <span className="text-[0.6875rem] font-semibold text-zinc-500">휴장</span>
+      <span className="text-[11px] font-semibold text-zinc-500">휴장</span>
     ) : date === today ? (
-      <span className="text-[0.6875rem] font-semibold text-zinc-500">오늘</span>
+      <span className="text-[11px] font-semibold text-zinc-500">오늘</span>
     ) : future && showUs ? (
-      <span className="text-[0.6875rem] font-semibold text-zinc-500">국내 장 전</span>
+      <span className="text-[11px] font-semibold text-zinc-500">국내 장 전</span>
     ) : mode === "domestic" && domestic ? (
       <span className="text-zinc-300">
         <CountDots n={domestic.length} />
@@ -395,28 +395,28 @@ function DayCell({
     ) : null;
 
   const body = loading ? (
-    <Skeleton className="h-16 w-full" />
+    <Skeleton className="h-[64px] w-full" />
   ) : (
     <>
       {showUs && (
-        <div className="-mx-1 flex flex-col gap-0.5 rounded-lg bg-(--leader-overseas-tint) px-2 py-1.5">
-          <div className="flex items-center justify-between text-[0.65625rem] font-bold text-(--leader-overseas)">
+        <div className="-mx-[4px] flex flex-col gap-[3px] rounded-[8px] bg-(--leader-overseas-tint) px-[8px] py-[6px]">
+          <div className="flex items-center justify-between text-[10.5px] font-bold text-(--leader-overseas)">
             <span>해외 · {short(overseasDate)}</span>
             {overseas && overseas.length > 0 && <CountDots n={overseas.length} />}
           </div>
           {usClosed ? (
-            <span className="text-xs text-zinc-500">휴장</span>
+            <span className="text-[12px] text-zinc-500">휴장</span>
           ) : overseas!.length ? (
             <Rows stocks={overseas!} limit={mode === "both" ? 2 : MAX} focus={focus} />
           ) : (
-            <span className="text-xs text-zinc-500">주도주 없음</span>
+            <span className="text-[12px] text-zinc-500">주도주 없음</span>
           )}
         </div>
       )}
       {showKr && (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-[3px]">
           {mode === "both" && (
-            <div className="flex items-center justify-between text-[0.65625rem] font-bold text-zinc-500">
+            <div className="flex items-center justify-between text-[10.5px] font-bold text-zinc-500">
               <span>국내</span>
               {domestic!.length > 0 && <CountDots n={domestic!.length} />}
             </div>
@@ -424,7 +424,7 @@ function DayCell({
           {domestic!.length ? (
             <Rows stocks={domestic!} limit={mode === "both" ? 3 : MAX} focus={focus} />
           ) : (
-            <span className="text-xs text-zinc-500">주도주 없음</span>
+            <span className="text-[12px] text-zinc-500">주도주 없음</span>
           )}
         </div>
       )}
@@ -432,22 +432,22 @@ function DayCell({
   );
 
   const head = (
-    <div className="flex items-center justify-between gap-1.5">
-      <span className="flex items-baseline gap-1.5">
+    <div className="flex items-center justify-between gap-[6px]">
+      <span className="flex items-baseline gap-[6px]">
         <span
-          className={`num text-[0.8125rem] font-semibold ${
-            date === today ? "-ml-1 rounded-full bg-zinc-100 px-1.5 text-zinc-950" : future ? "text-zinc-500" : "text-zinc-300"
+          className={`num text-[13px] font-semibold ${
+            date === today ? "-ml-[4px] rounded-full bg-zinc-100 px-[7px] text-zinc-950" : future ? "text-zinc-500" : "text-zinc-300"
           }`}
         >
           {d.getDate()}
         </span>
-        <span className="text-[0.6875rem] text-zinc-500 sm:hidden">{WEEKDAYS[d.getDay()]}</span>
+        <span className="text-[11px] text-zinc-500 sm:hidden">{WEEKDAYS[d.getDay()]}</span>
       </span>
       {tag}
     </div>
   );
 
-  const base = `min-h-0 sm:min-h-[8.5rem] flex-col gap-2 p-2.5 sm:p-3 text-left transition-[background-color,opacity] duration-150 ${
+  const base = `min-h-0 sm:min-h-[132px] flex-col gap-[8px] px-[12px] pt-[10px] pb-[12px] text-left transition-[background-color,opacity] duration-150 ${
     dim ? "opacity-30" : ""
   } ${hit ? "bg-emerald-700/5" : "bg-zinc-950"} ${closed ? "leader-closed" : ""}`;
 
@@ -487,9 +487,9 @@ function DayDetail({
 }) {
   if (!date) {
     return (
-      <section className="rounded-2xl border border-zinc-800 p-4">
-        <h3 className="text-[0.9375rem] font-bold">기록이 없습니다</h3>
-        <p className="mt-1 text-xs text-zinc-500">이 달에는 아직 남은 주도주가 없습니다.</p>
+      <section className="rounded-[14px] border border-zinc-800 p-[16px]">
+        <h3 className="text-[15px] font-bold">기록이 없습니다</h3>
+        <p className="mt-[2px] text-[12px] text-zinc-500">이 달에는 아직 남은 주도주가 없습니다.</p>
       </section>
     );
   }
@@ -504,8 +504,8 @@ function DayDetail({
   const usEmpty = usClosed ? "휴장" : overseas ? "주도주 없음" : "기록이 없습니다";
 
   return (
-    <section className="rounded-2xl border border-zinc-800 p-4">
-      <h3 className="text-[0.9375rem] font-bold">
+    <section className="rounded-[14px] border border-zinc-800 p-[16px]">
+      <h3 className="text-[15px] font-bold">
         {d.getMonth() + 1}월 {d.getDate()}일 ({WEEKDAYS[d.getDay()]})
       </h3>
       {mode !== "domestic" && overseasDate && (
@@ -528,8 +528,8 @@ function DetailList({
   usd?: boolean;
 }) {
   return (
-    <div className="mt-3">
-      <div className={`mb-1 flex justify-between text-xs font-bold ${usd ? "text-(--leader-overseas)" : "text-zinc-500"}`}>
+    <div className="mt-[14px]">
+      <div className={`mb-[4px] flex justify-between text-[12px] font-bold ${usd ? "text-(--leader-overseas)" : "text-zinc-500"}`}>
         <span>{title}</span>
         {stocks && stocks.length > 0 && <span>{stocks.length}종목</span>}
       </div>
@@ -538,19 +538,19 @@ function DetailList({
           {stocks.map((s) => (
             <li
               key={stockKey(s)}
-              className="grid grid-cols-[1.1rem_minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-0.5 border-t border-zinc-800 py-2 first:border-t-0"
+              className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-baseline gap-x-[10px] gap-y-[2px] border-t border-zinc-800 py-[8px] first:border-t-0"
             >
-              <span className="text-xs font-semibold text-zinc-500 num">{s.rank}</span>
-              <span className="truncate font-bold">{s.name}</span>
-              <span className="text-right text-xs font-semibold text-red-600 num">{pct(s.changeRate)}</span>
-              <span className="col-start-2 col-span-2 text-[0.6875rem] text-zinc-500 num">
+              <span className="text-[12px] font-semibold text-zinc-500 num">{s.rank}</span>
+              <span className="truncate text-[14px] font-bold">{s.name}</span>
+              <span className="text-right text-[12px] font-semibold text-red-600 num">{pct(s.changeRate)}</span>
+              <span className="col-start-2 col-span-2 text-[11px] text-zinc-500 num">
                 거래대금 {usd ? compactUsd(s.tradingValue) : formatKoreanMoney(s.tradingValue)}
               </span>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="py-1.5 text-[0.8125rem] text-zinc-500">{empty}</p>
+        <p className="py-[6px] text-[13px] text-zinc-500">{empty}</p>
       )}
     </div>
   );
