@@ -155,7 +155,7 @@ export default function LeaderTimelinePage() {
         </div>
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
         <section className="overflow-hidden rounded-[14px] border border-zinc-800 text-[16px] leading-[normal]" aria-label="타임라인">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-[14px] py-[12px]">
             <div className="flex items-baseline gap-[10px]">
