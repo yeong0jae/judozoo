@@ -46,6 +46,12 @@ function marketNow(market: TimelineMarket): { date: string; min: number } {
 
 /** 좁은 왼쪽 칸에 맞춘 짧은 표기 — "5.6조" / "3,005억" (시안과 같다) */
 const krw = (v: number) => (v >= 1e12 ? `${(v / 1e12).toFixed(1)}조` : `${Math.round(v / 1e8).toLocaleString("ko-KR")}억`);
+/** 한국 시각 기준 월/일 — 해외는 한국 자정을 넘으면 다음 날이 된다(뉴욕 9/25 장이 한국 9/26 새벽으로) */
+function monthDay(date: string, kstMin: number) {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + Math.floor(kstMin / 1440));
+  return `${dt.getMonth() + 1}/${dt.getDate()}`;
+}
 const usd = (v: number) => (v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : `$${(v / 1e6).toFixed(0)}M`);
 const pct = (r: number) => `${r > 0 ? "+" : ""}${r.toFixed(2)}%`;
 const fmtDur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ""}` : `${m}분`);
@@ -153,6 +159,9 @@ export default function LeaderTimelinePage() {
         <section className="overflow-hidden rounded-[14px] border border-zinc-800 text-[14px] leading-[normal]" aria-label="타임라인">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-[14px] py-[12px]">
             <div className="flex items-baseline gap-[10px]">
+              {model && shown >= 0 && (
+                <span className="num text-[22px] font-semibold text-zinc-500">{monthDay(date, model.spec.start + shown + offset)}</span>
+              )}
               <b className="num text-[22px] font-semibold">{model && shown >= 0 ? hhmm(model.spec.start + shown + offset) : "--:--"}</b>
               <span className="text-[12px] text-zinc-500">
                 {model && shown >= 0 &&
