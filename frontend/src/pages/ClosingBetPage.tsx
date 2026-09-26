@@ -1276,7 +1276,7 @@ function FlowTable({
             <th />
             <th
               colSpan={cols.length}
-              className="rounded-t-lg border-x border-zinc-800 bg-zinc-900 pt-1 pb-1.5 text-center font-semibold text-zinc-400"
+              className="rounded-t-lg border-x border-zinc-800 bg-zinc-900 pt-1 pb-1.5 text-center text-xs font-semibold text-zinc-400"
             >
               기관 상세
             </th>
