@@ -567,7 +567,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                   key={t.key}
                   type="button"
                   onClick={() => setTypeFilter(t.key)}
-                  className={`rounded-lg px-2.5 py-[5px] transition-colors ${
+                  className={`rounded-lg px-[11px] py-[5.5px] transition-colors ${
                     typeFilter === t.key ? "bg-elevated font-medium text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
