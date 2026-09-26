@@ -1204,7 +1204,7 @@ function FlowTiles({ nets, caption }: { nets: Nets | null; caption?: string }) {
       {items.map(([label, v]) => (
         <div key={label} className="flex flex-col gap-2.5 rounded-xl bg-zinc-900 px-3 py-2.5 sm:px-4 sm:py-3.5">
           <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between">
-            <span className="text-xs text-zinc-400 sm:text-[13px]">
+            <span className="text-[13px] text-zinc-400 sm:text-sm">
               {label}
               {caption && <span className="text-[10px] text-zinc-500 sm:text-[11px]"> {caption}</span>}
             </span>
