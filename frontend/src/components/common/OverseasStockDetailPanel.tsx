@@ -141,7 +141,7 @@ function DetailHeader({ detail }: { detail: OverseasStockDetailResponse }) {
         </span>
       </div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <NumUsd value={detail.price} className="num text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl" />
+        <NumUsd value={detail.price} className="num text-2xl font-bold tracking-tight text-zinc-100 sm:text-3xl" />
         <span className={`num text-base font-semibold ${colorByPnL(detail.diff)}`}>{signedUsd(detail.diff)}</span>
         <span className={`num rounded-md px-2 py-0.5 text-[13px] font-bold ${pctBadge} ${colorByPnL(pct)}`}>
           {formatPct(pct / 100)}

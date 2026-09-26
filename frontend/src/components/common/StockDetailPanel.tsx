@@ -210,7 +210,7 @@ function DetailHeader({
           </span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <NumWon value={detail.currentPrice} className="num text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl" />
+          <NumWon value={detail.currentPrice} className="num text-2xl font-bold tracking-tight text-zinc-100 sm:text-3xl" />
           {hasPrev && <span className={`num text-base font-semibold ${colorByPnL(chg)}`}>{signedWon(chg)}</span>}
           <span className={`num rounded-md px-2 py-0.5 text-[13px] font-bold ${pctBadge} ${colorByPnL(pct)}`}>
             {formatPct(pct / 100)}
