@@ -18,8 +18,8 @@ import {
   type TimelineModel,
 } from "../lib/leaderTimeline";
 
-const ROW_H = 52;
-const DIV_H = 26;
+const ROW_H = 48;
+const DIV_H = 24;
 const RANKS = [1, 2, 3, 4, 5];
 const SPEEDS = [0.5, 1, 2];
 /** 1× = 하루(약 12시간)를 30초 */
@@ -143,7 +143,7 @@ export default function LeaderTimelinePage() {
                 type="button"
                 aria-pressed={market === m.key}
                 onClick={() => changeMarket(m.key)}
-                className={`h-[26px] px-[11px] rounded-[7px] text-[15px] font-medium transition-colors ${
+                className={`h-[26px] px-[11px] rounded-[7px] text-[14px] font-medium transition-colors ${
                   market === m.key ? "bg-elevated text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
@@ -156,21 +156,21 @@ export default function LeaderTimelinePage() {
       </div>
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
-        <section className="overflow-hidden rounded-[14px] border border-zinc-800 text-[16px] leading-[normal]" aria-label="타임라인">
+        <section className="overflow-hidden rounded-[14px] border border-zinc-800 text-[15px] leading-[normal]" aria-label="타임라인">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-[14px] py-[12px]">
             <div className="flex items-baseline gap-[10px]">
               {model && shown >= 0 && (
-                <span className="num text-[26px] font-semibold text-zinc-500">{monthDay(date, model.spec.start + shown + offset)}</span>
+                <span className="num text-[24px] font-semibold text-zinc-500">{monthDay(date, model.spec.start + shown + offset)}</span>
               )}
-              <b className="num text-[26px] font-semibold">{model && shown >= 0 ? hhmm(model.spec.start + shown + offset) : "--:--"}</b>
-              <span className="text-[14px] text-zinc-500">
+              <b className="num text-[24px] font-semibold">{model && shown >= 0 ? hhmm(model.spec.start + shown + offset) : "--:--"}</b>
+              <span className="text-[13px] text-zinc-500">
                 {model && shown >= 0 &&
                   `${model.spec.sessionName(model.spec.start + shown)}${market === "us" ? ` · 뉴욕 ${hhmm(model.spec.start + shown)}` : ""}${live && shown === last ? " · 최신" : ""}`}
               </span>
             </div>
             <div className="flex items-center gap-2">
               {live && pinned !== null && cursor !== last && (
-                <button type="button" onClick={() => setPinned(null)} className="h-[30px] rounded-[8px] bg-[var(--tl-r4)] px-3 text-[15px] font-semibold text-[var(--tl-r4-fg)]">
+                <button type="button" onClick={() => setPinned(null)} className="h-[30px] rounded-[8px] bg-[var(--tl-r4)] px-3 text-[14px] font-semibold text-[var(--tl-r4-fg)]">
                   최신으로 →
                 </button>
               )}
@@ -181,7 +181,7 @@ export default function LeaderTimelinePage() {
                     type="button"
                     aria-pressed={speed === sp}
                     onClick={() => setSpeed(sp)}
-                    className={`h-[26px] px-[9px] rounded-[7px] text-[14px] font-medium ${
+                    className={`h-[26px] px-[9px] rounded-[7px] text-[13px] font-medium ${
                       speed === sp ? "bg-elevated text-zinc-100" : "text-zinc-500 hover:text-zinc-300"
                     }`}
                   >
@@ -192,7 +192,7 @@ export default function LeaderTimelinePage() {
               <button type="button" onClick={stop} aria-label="정지 — 처음으로" title="정지 — 처음으로" className="grid h-[30px] w-[30px] place-items-center rounded-[8px] bg-zinc-900 text-zinc-300 hover:bg-zinc-850">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
               </button>
-              <button type="button" onClick={play} aria-pressed={playing} className="inline-flex h-[30px] items-center gap-[6px] rounded-[8px] bg-zinc-900 px-3 text-[15px] font-semibold text-zinc-300 hover:bg-zinc-850">
+              <button type="button" onClick={play} aria-pressed={playing} className="inline-flex h-[30px] items-center gap-[6px] rounded-[8px] bg-zinc-900 px-3 text-[14px] font-semibold text-zinc-300 hover:bg-zinc-850">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   {playing ? <path d="M8 5v14M16 5v14" /> : <path d="M7 5l12 7-12 7z" />}
                 </svg>
@@ -204,9 +204,9 @@ export default function LeaderTimelinePage() {
           {isLoading ? (
             <div className="p-4"><Skeleton className="h-[320px] w-full" /></div>
           ) : isError ? (
-            <p className="py-16 text-center text-[15px] text-zinc-500">타임라인을 불러오지 못했습니다</p>
+            <p className="py-16 text-center text-[14px] text-zinc-500">타임라인을 불러오지 못했습니다</p>
           ) : !model || !model.live.length ? (
-            <p className="py-16 text-center text-[15px] text-zinc-500">이 날은 기록이 없어요 — 휴장이거나 기록을 시작하기 전이에요</p>
+            <p className="py-16 text-center text-[14px] text-zinc-500">이 날은 기록이 없어요 — 휴장이거나 기록을 시작하기 전이에요</p>
           ) : (
             <Chart
               model={model}
@@ -236,7 +236,7 @@ function Ago({ iso }: { iso: string }) {
   }, []);
   const sec = Math.max(0, Math.floor((Date.now() - new Date(`${iso}+09:00`).getTime()) / 1000));
   return (
-    <span className="flex items-center gap-1.5 text-[14px] text-zinc-500">
+    <span className="flex items-center gap-1.5 text-[13px] text-zinc-500">
       <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
       {sec < 1 ? "방금" : sec < 60 ? `${sec}초 전` : `${Math.floor(sec / 60)}분 전`}
     </span>
@@ -307,13 +307,13 @@ function Chart({
         }}
       >
         {/* 시간축 · 세션 */}
-        <div className="grid h-[38px] grid-cols-[var(--tl-label)_minmax(0,1fr)]">
+        <div className="grid h-[36px] grid-cols-[var(--tl-label)_minmax(0,1fr)]">
           <div className="sticky left-0 z-[2] border-r border-zinc-800 bg-zinc-950" />
           <div className="relative">
             {hours.map((i) => (
               <span
                 key={i}
-                className="num absolute top-1/2 text-[13px] text-zinc-500"
+                className="num absolute top-1/2 text-[12px] text-zinc-500"
                 style={{ left: i === 0 ? 0 : pctOf(i + 0.5), transform: i === 0 ? "translate(2px,-50%)" : i >= SLOTS - 1 ? "translate(-100%,-50%)" : "translate(-50%,-50%)" }}
               >
                 {hhmm(spec.start + i + offset).slice(0, 2)}
@@ -321,13 +321,13 @@ function Chart({
             ))}
           </div>
         </div>
-        <div className="grid h-[26px] grid-cols-[var(--tl-label)_minmax(0,1fr)]">
+        <div className="grid h-[24px] grid-cols-[var(--tl-label)_minmax(0,1fr)]">
           <div className="sticky left-0 z-[2] border-r border-zinc-800 bg-zinc-950" />
           <div className="relative">
             {sessions.map(([a, b, label, regular]) => (
               <span
                 key={label}
-                className={`absolute inset-y-[4px] flex items-center justify-center overflow-hidden whitespace-nowrap rounded-[5px] text-[12.5px] font-bold ${
+                className={`absolute inset-y-[4px] flex items-center justify-center overflow-hidden whitespace-nowrap rounded-[5px] text-[11.5px] font-bold ${
                   regular ? "bg-zinc-850 text-zinc-300" : "bg-zinc-900 text-zinc-500"
                 }`}
                 style={{ left: `calc(${pctOf(a - spec.start)} + 1px)`, width: `calc(${((b - a) / SLOTS) * 100}% - 2px)` }}
@@ -369,7 +369,7 @@ function Chart({
         </div>
 
         {/* 겹쳐 그리는 것들 — 쉬는 구간 빗금, 장 진행 중, 세로선, 마우스 영역 */}
-        <div className="pointer-events-none absolute bottom-0 right-0 top-[64px] left-[var(--tl-label)]">
+        <div className="pointer-events-none absolute bottom-0 right-0 top-[60px] left-[var(--tl-label)]">
           {gapCols.length > 0 && gapRuns(gapCols).map(([a, b]) => (
             <div key={a} className="tl-hatch absolute inset-y-0" style={{ left: pctOf(a), width: `${((b - a) / SLOTS) * 100}%` }} />
           ))}
@@ -386,14 +386,14 @@ function Chart({
         >
           {live && last < SLOTS - 1 && (
             <div className="tl-hatch absolute inset-y-0 right-0 border-l border-dashed border-zinc-600" style={{ left: pctOf(last + 1) }}>
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[15px] font-semibold text-zinc-500">
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[14px] font-semibold text-zinc-500">
                 장 진행 중
               </span>
             </div>
           )}
           <div className="pointer-events-none absolute inset-y-0 w-[2px] -ml-px bg-zinc-100/90" style={{ left: pctOf(shown + 0.5) }}>
             <b
-              className="num absolute top-[2px] whitespace-nowrap rounded-[5px] bg-zinc-100 px-[6px] py-[2px] text-[13px] font-bold text-zinc-950"
+              className="num absolute top-[2px] whitespace-nowrap rounded-[5px] bg-zinc-100 px-[6px] py-[2px] text-[12px] font-bold text-zinc-950"
               style={{ left: "50%", transform: shown > SLOTS - 40 ? "translateX(-100%)" : shown < 40 ? "none" : "translateX(-50%)" }}
             >
               {hhmm(spec.start + shown + offset)}
@@ -401,7 +401,7 @@ function Chart({
           </div>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-[10px] border-t border-zinc-800 px-[14px] py-[10px] text-[14px] text-zinc-500">
+      <div className="flex flex-wrap items-center gap-[10px] border-t border-zinc-800 px-[14px] py-[10px] text-[13px] text-zinc-500">
         순위
         {RANKS.map((r) => (
           <span key={r} className="inline-flex items-center gap-[5px]">
@@ -434,10 +434,10 @@ function metaOf(model: TimelineModel, k: number) {
 function Divider({ y, label, hidden = false }: { y: number; label: string; hidden?: boolean }) {
   return (
     <div
-      className="tl-row absolute inset-x-0 top-0 grid h-[26px] grid-cols-[var(--tl-label)_minmax(0,1fr)]"
+      className="tl-row absolute inset-x-0 top-0 grid h-[24px] grid-cols-[var(--tl-label)_minmax(0,1fr)]"
       style={{ transform: `translateY(${y}px)`, visibility: hidden ? "hidden" : undefined }}
     >
-      <div className="sticky left-0 z-[2] flex items-center border-r border-zinc-800 bg-zinc-950 px-[12px] text-[12.5px] font-bold text-zinc-500">
+      <div className="sticky left-0 z-[2] flex items-center border-r border-zinc-800 bg-zinc-950 px-[12px] text-[11.5px] font-bold text-zinc-500">
         {label}
       </div>
       <div />
@@ -448,16 +448,16 @@ function Divider({ y, label, hidden = false }: { y: number; label: string; hidde
 function Placeholder({ n, y, none }: { n: number; y: number; none: boolean }) {
   return (
     <div
-      className="tl-row absolute inset-x-0 top-0 grid h-[52px] grid-cols-[var(--tl-label)_minmax(0,1fr)] border-t border-zinc-800"
+      className="tl-row absolute inset-x-0 top-0 grid h-[48px] grid-cols-[var(--tl-label)_minmax(0,1fr)] border-t border-zinc-800"
       style={{ transform: `translateY(${y}px)` }}
     >
       <div className="sticky left-0 z-[2] flex items-center gap-[9px] border-r border-zinc-800 bg-zinc-950 px-[12px]">
-        <span className="num grid h-[26px] w-[26px] flex-none place-items-center rounded-[6px] text-[14px] font-bold text-zinc-600 shadow-[inset_0_0_0_1px_var(--color-zinc-800)]">
+        <span className="num grid h-[24px] w-[24px] flex-none place-items-center rounded-[6px] text-[13px] font-bold text-zinc-600 shadow-[inset_0_0_0_1px_var(--color-zinc-800)]">
           {n}
         </span>
         <div className="flex min-w-0 flex-col gap-[2px]">
-          <b className="truncate text-[15px] font-medium text-zinc-600">{none ? "주도주 없음" : "비어 있음"}</b>
-          {none && <small className="truncate text-[12.5px] text-zinc-600">주도주에 오른 종목이 없어요</small>}
+          <b className="truncate text-[14px] font-medium text-zinc-600">{none ? "주도주 없음" : "비어 있음"}</b>
+          {none && <small className="truncate text-[11.5px] text-zinc-600">주도주에 오른 종목이 없어요</small>}
         </div>
       </div>
       <div />
@@ -472,7 +472,7 @@ const Lane = memo(function Lane({ segments }: { segments: Segment[] }) {
       {segments.map((s) => (
         <i
           key={s.start}
-          className="absolute top-1/2 h-[24px] -translate-y-1/2"
+          className="absolute top-1/2 h-[22px] -translate-y-1/2"
           style={{
             left: `${(s.start / SLOTS) * 100}%`,
             width: `${((s.end - s.start) / SLOTS) * 100}%`,
@@ -505,12 +505,12 @@ function StockRow({
   const out = rank === null;
   return (
     <div
-      className={`tl-row absolute inset-x-0 top-0 grid h-[52px] grid-cols-[var(--tl-label)_minmax(0,1fr)] border-t border-zinc-800 ${hidden ? "pointer-events-none opacity-0" : ""}`}
+      className={`tl-row absolute inset-x-0 top-0 grid h-[48px] grid-cols-[var(--tl-label)_minmax(0,1fr)] border-t border-zinc-800 ${hidden ? "pointer-events-none opacity-0" : ""}`}
       style={{ transform: `translateY(${y}px)` }}
     >
       <div className="sticky left-0 z-[2] flex min-w-0 items-center gap-[9px] border-r border-zinc-800 bg-zinc-950 px-[12px]">
         <span
-          className="num grid h-[26px] w-[26px] flex-none place-items-center rounded-[6px] text-[14px] font-bold"
+          className="num grid h-[24px] w-[24px] flex-none place-items-center rounded-[6px] text-[13px] font-bold"
           style={out
             ? { color: "var(--color-zinc-600)", boxShadow: "inset 0 0 0 1px var(--color-zinc-800)" }
             : { background: `var(--tl-r${rank})`, color: `var(--tl-r${rank}-fg)` }}
@@ -518,11 +518,11 @@ function StockRow({
           {out ? "–" : rank}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-          <b className={`flex items-center gap-[5px] truncate text-[15px] font-semibold ${out ? "text-zinc-600" : ""}`}>
+          <b className={`flex items-center gap-[5px] truncate text-[14px] font-semibold ${out ? "text-zinc-600" : ""}`}>
             <span className="truncate">{name}</span>
             {move && (
               <i
-                className="flex-none rounded-[4px] px-[4px] text-[12px] font-bold not-italic"
+                className="flex-none rounded-[4px] px-[4px] text-[11px] font-bold not-italic"
                 style={move === "새로"
                   ? { color: "var(--tl-new)", background: "var(--tl-new-bg)" }
                   : { color: "var(--color-zinc-300)", background: "var(--color-zinc-850)" }}
@@ -531,15 +531,15 @@ function StockRow({
               </i>
             )}
           </b>
-          <small className={`num truncate text-[12.5px] max-sm:hidden ${out ? "text-zinc-600" : "text-zinc-500"}`}>{meta}</small>
+          <small className={`num truncate text-[11.5px] max-sm:hidden ${out ? "text-zinc-600" : "text-zinc-500"}`}>{meta}</small>
         </div>
-        <div className="num flex flex-none flex-col items-end gap-[2px] text-[13.5px]">
+        <div className="num flex flex-none flex-col items-end gap-[2px] text-[12.5px]">
           {out ? (
-            <span className="text-[13px] text-zinc-600">{gapLabel}</span>
+            <span className="text-[12px] text-zinc-600">{gapLabel}</span>
           ) : (
             <>
               {rate !== null && <span className={`font-semibold ${rate >= 0 ? "text-red-600" : "text-blue-600"}`}>{pct(rate)}</span>}
-              {value && <span className="text-[12.5px] text-zinc-500 max-sm:hidden">{value}</span>}
+              {value && <span className="text-[11.5px] text-zinc-500 max-sm:hidden">{value}</span>}
             </>
           )}
         </div>
@@ -574,40 +574,40 @@ function ChangeLog({
   const chip = (e: TimelineEvent, n: number) => {
     if (e.type === "in")
       return (
-        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] px-[7px] py-[3px] text-[13px] font-semibold" style={{ color: "var(--tl-new)", background: "var(--tl-new-bg)" }}>
+        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] px-[7px] py-[3px] text-[12.5px] font-semibold" style={{ color: "var(--tl-new)", background: "var(--tl-new-bg)" }}>
           ＋ {name(e.k)}
           <i className="num grid h-[16px] min-w-[16px] place-items-center rounded-[4px] px-[3px] text-[11px] font-bold not-italic" style={{ background: `var(--tl-r${e.r})`, color: `var(--tl-r${e.r}-fg)` }}>{e.r}</i>
         </span>
       );
     if (e.type === "out")
-      return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[13px] text-zinc-500">－ {name(e.k)}</span>;
+      return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] text-zinc-500">－ {name(e.k)}</span>;
     if (e.type === "top")
       return (
-        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[13px] font-bold">
+        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] font-bold">
           <i className="num grid h-[16px] w-[16px] place-items-center rounded-[4px] text-[11px] not-italic" style={{ background: "var(--tl-r1)", color: "var(--tl-r1-fg)" }}>1</i>
           {name(e.k)} 1위로
         </span>
       );
-    return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[13px] text-zinc-500">주도주 없음</span>;
+    return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] text-zinc-500">주도주 없음</span>;
   };
 
   return (
     <section className="flex max-h-[680px] flex-col rounded-[14px] border border-zinc-800 px-[16px] py-[14px] text-[14px] leading-[normal]">
-      <h3 className="mb-[10px] text-[17px] font-bold">변화 기록</h3>
+      <h3 className="mb-[10px] text-[16px] font-bold">변화 기록</h3>
       {model && (
-        <ol ref={listRef} className="relative flex flex-col overflow-y-auto">
+        <ol ref={listRef} className="relative flex flex-col overflow-y-auto overflow-x-hidden">
           {groups.map(([i, evs], n) => (
             <li key={i} data-i={i} className="relative grid grid-cols-[48px_14px_minmax(0,1fr)] gap-x-[8px]">
               {/* 세로 선 — 묶음이 시간 흐름으로 이어져 보이게 */}
               <span aria-hidden className={`absolute left-[58px] w-px bg-zinc-800 ${n === 0 ? "top-[14px]" : "top-0"} ${n === groups.length - 1 ? "h-[14px]" : "bottom-0"}`} />
-              <button type="button" onClick={() => onPick(i)} className={`num self-start pt-[7px] text-left text-[13px] ${i === active ? "font-bold text-zinc-100" : "text-zinc-500"}`}>
+              <button type="button" onClick={() => onPick(i)} className={`num self-start pt-[7px] text-left text-[12.5px] ${i === active ? "font-bold text-zinc-100" : "text-zinc-500"}`}>
                 {hhmm(model.spec.start + i + offset)}
               </button>
               <span aria-hidden className={`relative z-[1] mt-[12px] h-[8px] w-[8px] justify-self-center rounded-full ${i === active ? "bg-zinc-100" : "bg-zinc-700"}`} />
               <button
                 type="button"
                 onClick={() => onPick(i)}
-                className={`-mr-[6px] mb-[4px] flex flex-wrap content-start gap-[5px] rounded-[8px] px-[6px] py-[5px] text-left hover:bg-zinc-850 ${i === active ? "bg-zinc-850" : ""}`}
+                className={`mb-[4px] flex flex-wrap content-start gap-[5px] rounded-[8px] px-[6px] py-[5px] text-left hover:bg-zinc-850 ${i === active ? "bg-zinc-850" : ""}`}
               >
                 {evs.map(chip)}
               </button>

@@ -443,8 +443,8 @@ body {
 }
 
 /* 주도주 타임라인 — 종목 줄은 절대 위치로 두고 순서가 바뀌면 위아래로 미끄러진다 */
-.tl-chart { --tl-label: 280px; }
-@media (max-width: 640px) { .tl-chart { --tl-label: 190px; } }
+.tl-chart { --tl-label: 264px; }
+@media (max-width: 640px) { .tl-chart { --tl-label: 180px; } }
 .tl-row { transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .3s ease; will-change: transform; }
 .tl-rows.instant .tl-row { transition: none; }
 @media (prefers-reduced-motion: reduce) { .tl-row { transition: none; } }
