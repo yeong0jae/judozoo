@@ -472,9 +472,11 @@ export interface LeaderStockItem {
   tradingValue: number;
 }
 
-/** `stocks`가 비면 그날 주도주가 없었다. 날 자체가 없으면 기록이 없다. `date`는 현지 거래일. */
+/** `closed`면 휴장. 아니고 `stocks`가 비면 그날 주도주가 없었다. 날 자체가 없으면 기록이 없다.
+ *  `date`는 현지 거래일. */
 export interface LeaderDayItem {
   date: string;
+  closed: boolean;
   stocks: LeaderStockItem[];
 }
 

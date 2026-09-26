@@ -104,6 +104,7 @@ html {
   /* 주도주 캘린더의 해외 띠 — 한 칸에서 국내와 섞이지 않게 면과 라벨 색을 나눈다 */
   --leader-overseas: #6d5bd0;
   --leader-overseas-tint: #f5f3fd;
+  --leader-closed-line: rgba(0, 0, 0, 0.03);
 }
 
 body {
@@ -316,6 +317,7 @@ body {
 
   --leader-overseas: #a597f0;
   --leader-overseas-tint: #1e1c2b;
+  --leader-closed-line: rgba(255, 255, 255, 0.035);
 
   /* zinc 스케일 — 라이트의 명도 역전을 다시 역전 */
   --color-zinc-50: #0e0e10;
@@ -405,4 +407,9 @@ body {
   --color-border-soft: rgba(255, 255, 255, 0.08);
   --color-text-muted: #8b95a1;
   --color-text-subtle: #6b7684;
+}
+
+/* 주도주 캘린더 휴장 칸 — 빗금. 칸은 그대로 두고 "장이 없었다"는 것만 결로 알린다 */
+.leader-closed {
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--leader-closed-line) 6px 7px);
 }

@@ -1,7 +1,8 @@
 """주도주 캘린더 엔티티 — 홈 주도주 카드가 마감 때 고른 종목을 날짜별로 남긴다.
 
 날(`LeaderDay`)과 종목(`LeaderDayStock`)을 나눈 이유 — 주도주가 0개인 날이 있다. 날 행만 있고
-종목 행이 없으면 "주도주 없음", 날 행이 없으면 "기록 없음"이다. 종목 테이블 하나로는 둘이 갈리지 않는다.
+종목 행이 없으면 "주도주 없음"(`closed`면 휴장), 날 행이 없으면 "기록 없음"이다.
+종목 테이블 하나로는 셋이 갈리지 않는다.
 
 FK는 걸지 않는다 — 코드베이스 관례다(V007). 날을 지울 때 종목도 같은 트랜잭션에서 지운다.
 """
@@ -9,7 +10,7 @@ FK는 걸지 않는다 — 코드베이스 관례다(V007). 날을 지울 때 �
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, Float, Index, Numeric, SmallInteger, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Enum, Float, Index, Numeric, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.leadingstock.domain import LeadingStockSnapshot
@@ -31,12 +32,14 @@ class LeaderDay(Base):
     region: Mapped[Region] = mapped_column(Enum(Region, length=2), nullable=False)
     trade_date: Mapped[date] = mapped_column(Date, nullable=False)
     taken_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    #: 휴장일 — 종목 행이 없다. 이름(추석 등)은 휴장 판정 API가 주지 않아 남기지 않는다
+    closed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     @classmethod
-    def taken(cls, region: Region, trade_date: date, at: datetime) -> "LeaderDay":
-        return cls(region=region, trade_date=trade_date, taken_at=at, created_at=at, updated_at=at)
+    def taken(cls, region: Region, trade_date: date, at: datetime, closed: bool = False) -> "LeaderDay":
+        return cls(region=region, trade_date=trade_date, taken_at=at, closed=closed, created_at=at, updated_at=at)
 
 
 class LeaderDayStock(Base):

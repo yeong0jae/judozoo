@@ -25,9 +25,10 @@ class LeaderStockItem(BaseModel):
 
 
 class LeaderDayItem(BaseModel):
-    """`stocks`가 비어 있으면 그날은 주도주가 없었다. 날 자체가 없으면 기록이 없다."""
+    """`closed`면 휴장. 아니고 `stocks`가 비어 있으면 그날은 주도주가 없었다. 날 자체가 없으면 기록이 없다."""
 
     date: date
+    closed: bool
     stocks: list[LeaderStockItem]
 
 
@@ -53,6 +54,7 @@ def _items(days: list[RecordedDay]) -> list[LeaderDayItem]:
     return [
         LeaderDayItem(
             date=d.trade_date,
+            closed=d.closed,
             stocks=[
                 LeaderStockItem(
                     rank=s.rank, exchange=s.exchange, code=s.code, name=s.name,

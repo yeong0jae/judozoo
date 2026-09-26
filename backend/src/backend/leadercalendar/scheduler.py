@@ -35,13 +35,17 @@ def snapshot_overseas() -> None:
 
 
 def _snapshot(region: Region, job: str, take) -> None:
-    """거래일은 **현지 날짜**다 — 16:01 뉴욕은 KST로 다음 날 새벽이라 `today()`를 쓰면 하루 밀린다."""
-    if calendar.is_holiday(region):
-        return
+    """거래일은 **현지 날짜**다 — 16:01 뉴욕은 KST로 다음 날 새벽이라 `today()`를 쓰면 하루 밀린다.
+
+    휴장일은 건너뛰지 않고 **휴장으로 남긴다** — 캘린더가 빈 칸과 휴장을 가를 수 있게.
+    """
     trade_date = region.today()
     try:
         with get_session_factory()() as session:
-            take(session, trade_date, now())
+            if calendar.is_holiday(region):
+                application.record_closed(session, region, trade_date, now())
+            else:
+                take(session, trade_date, now())
     except Exception:
         # 삼킨 예외는 APScheduler에 성공으로 보인다 — 카운터를 여기서 직접 올린다.
         metrics.job_failed(job)

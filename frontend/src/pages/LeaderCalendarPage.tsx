@@ -78,6 +78,8 @@ export default function LeaderCalendarPage() {
 
   const domestic = useMemo(() => byDate(data?.domestic), [data]);
   const overseas = useMemo(() => byDate(data?.overseas), [data]);
+  const krClosed = useMemo(() => closedDates(data?.domestic), [data]);
+  const usClosed = useMemo(() => closedDates(data?.overseas), [data]);
   const days = useMemo(() => weekdaysOf(view.y, view.m), [view]);
 
   const setMode = (m: Mode) => {
@@ -196,6 +198,8 @@ export default function LeaderCalendarPage() {
                   mode={mode}
                   loading={isLoading}
                   domestic={domestic.get(d)}
+                  krClosed={krClosed.has(d)}
+                  usClosed={usClosed.has(previousWeekday(d))}
                   overseasDate={previousWeekday(d)}
                   overseas={overseas.get(previousWeekday(d))}
                   selected={d === current}
@@ -216,6 +220,8 @@ export default function LeaderCalendarPage() {
             today={today}
             mode={mode}
             domestic={current ? domestic.get(current) : undefined}
+            krClosed={current ? krClosed.has(current) : false}
+            usClosed={current ? usClosed.has(previousWeekday(current)) : false}
             overseasDate={current ? previousWeekday(current) : null}
             overseas={current ? overseas.get(previousWeekday(current)) : undefined}
           />
@@ -261,8 +267,13 @@ export default function LeaderCalendarPage() {
   );
 }
 
+/** 기록된 날 → 종목. 휴장일은 빼고 `closedDates`로 따로 든다. */
 function byDate(items: LeaderDayItem[] | undefined): Map<string, LeaderStockItem[]> {
-  return new Map((items ?? []).map((d) => [d.date, d.stocks]));
+  return new Map((items ?? []).filter((d) => !d.closed).map((d) => [d.date, d.stocks]));
+}
+
+function closedDates(items: LeaderDayItem[] | undefined): Set<string> {
+  return new Set((items ?? []).filter((d) => d.closed).map((d) => d.date));
 }
 
 /** 그달의 평일 — 주말 칸은 두지 않는다. */
@@ -339,6 +350,8 @@ function DayCell({
   mode,
   loading,
   domestic,
+  krClosed,
+  usClosed,
   overseasDate,
   overseas,
   selected,
@@ -350,6 +363,8 @@ function DayCell({
   mode: Mode;
   loading: boolean;
   domestic: LeaderStockItem[] | undefined;
+  krClosed: boolean;
+  usClosed: boolean;
   overseasDate: string;
   overseas: LeaderStockItem[] | undefined;
   selected: boolean;
@@ -358,15 +373,18 @@ function DayCell({
 }) {
   const d = parse(date);
   const future = date > today;
-  const showUs = mode !== "domestic" && overseas !== undefined;
+  const showUs = mode !== "domestic" && (overseas !== undefined || usClosed);
   const showKr = mode !== "overseas" && domestic !== undefined;
-  const has = showUs || showKr;
-  const shown = [...(showKr ? domestic! : []), ...(showUs ? overseas! : [])];
+  const closed = mode !== "overseas" && krClosed;
+  const has = showUs || showKr || closed;
+  const shown = [...(showKr ? domestic! : []), ...(showUs && overseas ? overseas : [])];
   const hit = focus !== null && shown.some((s) => stockKey(s) === focus);
   const dim = focus !== null && !hit;
 
   const tag =
-    date === today ? (
+    closed ? (
+      <span className="text-[0.6875rem] font-semibold text-zinc-500">휴장</span>
+    ) : date === today ? (
       <span className="text-[0.6875rem] font-semibold text-zinc-500">오늘</span>
     ) : future && showUs ? (
       <span className="text-[0.6875rem] font-semibold text-zinc-500">국내 장 전</span>
@@ -384,9 +402,11 @@ function DayCell({
         <div className="-mx-1 flex flex-col gap-0.5 rounded-lg bg-(--leader-overseas-tint) px-2 py-1.5">
           <div className="flex items-center justify-between text-[0.65625rem] font-bold text-(--leader-overseas)">
             <span>해외 · {short(overseasDate)}</span>
-            {overseas!.length > 0 && <CountDots n={overseas!.length} />}
+            {overseas && overseas.length > 0 && <CountDots n={overseas.length} />}
           </div>
-          {overseas!.length ? (
+          {usClosed ? (
+            <span className="text-xs text-zinc-500">휴장</span>
+          ) : overseas!.length ? (
             <Rows stocks={overseas!} limit={mode === "both" ? 2 : MAX} focus={focus} />
           ) : (
             <span className="text-xs text-zinc-500">주도주 없음</span>
@@ -429,7 +449,7 @@ function DayCell({
 
   const base = `min-h-0 sm:min-h-[8.5rem] flex-col gap-2 p-2.5 sm:p-3 text-left transition-[background-color,opacity] duration-150 ${
     dim ? "opacity-30" : ""
-  } ${hit ? "bg-emerald-700/5" : "bg-zinc-950"}`;
+  } ${hit ? "bg-emerald-700/5" : "bg-zinc-950"} ${closed ? "leader-closed" : ""}`;
 
   // 폰에서는 기록 없는 날을 목록에서 뺀다
   if (!has && !loading) return <div className={`${base} hidden sm:flex`}>{head}</div>;
@@ -451,6 +471,8 @@ function DayDetail({
   today,
   mode,
   domestic,
+  krClosed,
+  usClosed,
   overseasDate,
   overseas,
 }: {
@@ -458,6 +480,8 @@ function DayDetail({
   today: string;
   mode: Mode;
   domestic: LeaderStockItem[] | undefined;
+  krClosed: boolean;
+  usClosed: boolean;
   overseasDate: string | null;
   overseas: LeaderStockItem[] | undefined;
 }) {
@@ -470,8 +494,14 @@ function DayDetail({
     );
   }
   const d = parse(date);
-  const krEmpty = date > today ? "아직 장이 열리기 전입니다" : domestic ? "거래대금 상위 중 오른 종목이 없었습니다" : "기록이 없습니다";
-  const usEmpty = overseas ? "주도주 없음" : "기록이 없습니다";
+  const krEmpty = krClosed
+    ? "휴장"
+    : date > today
+      ? "아직 장이 열리기 전입니다"
+      : domestic
+        ? "거래대금 상위 중 오른 종목이 없었습니다"
+        : "기록이 없습니다";
+  const usEmpty = usClosed ? "휴장" : overseas ? "주도주 없음" : "기록이 없습니다";
 
   return (
     <section className="rounded-2xl border border-zinc-800 p-4">

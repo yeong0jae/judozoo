@@ -27,6 +27,7 @@ LEADERS_COUNT = 5
 class RecordedDay:
     trade_date: date
     stocks: list[LeaderDayStock]
+    closed: bool = False
 
 
 def snapshot_domestic(session: Session, trade_date: date, at: datetime) -> int:
@@ -46,7 +47,15 @@ def snapshot_overseas(session: Session, trade_date: date, at: datetime) -> int:
     return len(stocks)
 
 
-def _record(session: Session, region: Region, trade_date: date, at: datetime, stocks: list[LeaderDayStock]) -> None:
+def record_closed(session: Session, region: Region, trade_date: date, at: datetime) -> None:
+    """휴장일을 남긴다 — 날 행만 있고 종목은 없다. 캘린더가 "기록 없음"과 휴장을 가를 수 있게."""
+    _record(session, region, trade_date, at, [], closed=True)
+
+
+def _record(
+    session: Session, region: Region, trade_date: date, at: datetime, stocks: list[LeaderDayStock],
+    closed: bool = False,
+) -> None:
     """같은 (시장, 거래일)이 있으면 지우고 새로 쓴다 — 재기동·수동 재실행·두 인스턴스가 한 벌만 남긴다."""
     old = session.scalars(
         select(LeaderDay.id).where(LeaderDay.region == region, LeaderDay.trade_date == trade_date)
@@ -55,14 +64,14 @@ def _record(session: Session, region: Region, trade_date: date, at: datetime, st
         session.execute(delete(LeaderDayStock).where(LeaderDayStock.leader_day_id.in_(old)))
         session.execute(delete(LeaderDay).where(LeaderDay.id.in_(old)))
 
-    day = LeaderDay.taken(region, trade_date, at)
+    day = LeaderDay.taken(region, trade_date, at, closed)
     session.add(day)
     session.flush()
     for s in stocks:
         s.leader_day_id = day.id
     session.add_all(stocks)
     session.commit()
-    log.info("주도주 캘린더 %s %s — %d종목", region.value, trade_date, len(stocks))
+    log.info("주도주 캘린더 %s %s — %s", region.value, trade_date, "휴장" if closed else f"{len(stocks)}종목")
 
 
 def find_month(session: Session, year: int, month: int) -> tuple[list[RecordedDay], list[RecordedDay]]:
@@ -91,4 +100,4 @@ def _days(session: Session, region: Region, start: date, end: date) -> list[Reco
     by_day: dict[int, list[LeaderDayStock]] = {d.id: [] for d in days}
     for s in stocks:
         by_day[s.leader_day_id].append(s)
-    return [RecordedDay(d.trade_date, by_day[d.id]) for d in days]
+    return [RecordedDay(d.trade_date, by_day[d.id], d.closed) for d in days]

@@ -8,6 +8,7 @@ from backend.leadercalendar import application
 from backend.leadercalendar.entities import LeaderDay, LeaderDayStock
 from backend.leadingstock.domain import LeadingStockSnapshot
 from backend.library import db
+from backend.market.calendar import Region
 from backend.overseasleadingstock.domain import OverseasStockRank
 
 AT = datetime(2026, 9, 23, 20, 1)
@@ -93,6 +94,14 @@ class Test국내_마감_스냅샷:
 
         assert len(국내들) == 1
         assert [x.name for x in 국내들[0].stocks] == ["한미반도체"]
+
+    def test_휴장일은_종목_없이_휴장으로_남는다(self, 빈_캘린더):
+        with 세션() as s:
+            application.record_closed(s, Region.KR, date(2026, 9, 24), AT)
+        with 세션() as s:
+            국내들, _ = application.find_month(s, 2026, 9)
+
+        assert [(d.trade_date, d.stocks, d.closed) for d in 국내들] == [(date(2026, 9, 24), [], True)]
 
     def test_주도주를_못_받으면_아무것도_남기지_않는다(self, 빈_캘린더, mocker):
         """0개로 남기면 브로커 오류가 "주도주 없음"으로 굳는다."""

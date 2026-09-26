@@ -13,6 +13,12 @@ def 찍기_대역(monkeypatch, 이름: str) -> list:
     return 찍힘
 
 
+def 휴장_대역(monkeypatch) -> list:
+    남김: list = []
+    monkeypatch.setattr(application, "record_closed", lambda _s, 시장, 거래일, _at: 남김.append((시장, 거래일)))
+    return 남김
+
+
 class _가짜_세션:
     def __enter__(self):
         return None
@@ -22,13 +28,16 @@ class _가짜_세션:
 
 
 class Test국내_스냅샷_작업:
-    def test_국내_휴장일에는_찍지_않는다(self, monkeypatch):
+    def test_국내_휴장일에는_주도주_대신_휴장으로_남긴다(self, monkeypatch):
         찍힘 = 찍기_대역(monkeypatch, "snapshot_domestic")
+        남김 = 휴장_대역(monkeypatch)
         monkeypatch.setattr("backend.market.calendar.is_holiday", lambda region: region is Region.KR)
+        monkeypatch.setattr(Region, "today", lambda self: date(2026, 9, 24))
 
         scheduler.snapshot_domestic()
 
         assert 찍힘 == []
+        assert 남김 == [(Region.KR, date(2026, 9, 24))]
 
     def test_실패해도_작업이_죽지_않는다(self, monkeypatch):
         monkeypatch.setattr("backend.market.calendar.is_holiday", lambda _r: False)
@@ -53,10 +62,13 @@ class Test해외_스냅샷_작업:
 
         assert 찍힘 == [date(2026, 9, 25)]
 
-    def test_미국_휴장일에는_찍지_않는다(self, monkeypatch):
+    def test_미국_휴장일에는_주도주_대신_휴장으로_남긴다(self, monkeypatch):
         찍힘 = 찍기_대역(monkeypatch, "snapshot_overseas")
+        남김 = 휴장_대역(monkeypatch)
         monkeypatch.setattr("backend.market.calendar.is_holiday", lambda region: region is Region.US)
+        monkeypatch.setattr(Region, "today", lambda self: date(2026, 9, 7))
 
         scheduler.snapshot_overseas()
 
         assert 찍힘 == []
+        assert 남김 == [(Region.US, date(2026, 9, 7))]
