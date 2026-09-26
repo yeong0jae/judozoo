@@ -220,7 +220,7 @@ export default function LeaderCalendarPage() {
             overseas={current ? overseas.get(previousWeekday(current)) : undefined}
           />
           <section className="rounded-2xl border border-zinc-800 p-4">
-            <h3 className="text-[15px] font-bold">자주 뽑힌 종목</h3>
+            <h3 className="text-[0.9375rem] font-bold">자주 뽑힌 종목</h3>
             <p className="mt-0.5 mb-3 text-xs text-zinc-500">
               {frequent.length ? "이달 두 번 이상 뽑힌 종목" : "두 번 이상 뽑힌 종목이 없습니다"}
             </p>
@@ -236,7 +236,7 @@ export default function LeaderCalendarPage() {
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold">
+                    <div className="mb-1 flex items-center gap-1.5 text-[0.8125rem] font-semibold">
                       {mode === "both" && <MarketTag overseas={c.overseas} />}
                       <span className="truncate">{c.name}</span>
                     </div>
@@ -252,7 +252,7 @@ export default function LeaderCalendarPage() {
               ))}
             </div>
             {frequent.length > 0 && (
-              <p className="mt-2.5 text-[11px] text-zinc-500">종목을 누르면 그 종목이 뽑힌 날만 달력에 남습니다.</p>
+              <p className="mt-2.5 text-[0.6875rem] text-zinc-500">종목을 누르면 그 종목이 뽑힌 날만 달력에 남습니다.</p>
             )}
           </section>
         </aside>
@@ -294,7 +294,7 @@ function NavButton({ label, onClick, d }: { label: string; onClick: () => void; 
 function MarketTag({ overseas }: { overseas: boolean }) {
   return (
     <span
-      className={`shrink-0 rounded px-1.5 py-px text-[10px] font-bold ${
+      className={`shrink-0 rounded px-1.5 py-px text-[0.625rem] font-bold ${
         overseas ? "bg-(--leader-overseas-tint) text-(--leader-overseas)" : "bg-zinc-900 text-zinc-500"
       }`}
     >
@@ -321,14 +321,14 @@ function Rows({ stocks, limit, focus }: { stocks: LeaderStockItem[]; limit: numb
         <div
           key={stockKey(s)}
           className={`flex items-baseline justify-between gap-1.5 rounded ${
-            i === 0 ? "text-sm font-bold text-zinc-100" : "text-[13px] text-zinc-300"
+            i === 0 ? "text-sm font-bold text-zinc-100" : "text-[0.8125rem] text-zinc-300"
           } ${focus === stockKey(s) ? "-mx-1 px-1 bg-emerald-700/10 text-emerald-700" : ""}`}
         >
           <span className="truncate">{s.name}</span>
-          <span className="shrink-0 text-[11px] font-semibold text-red-600 num">{pct(s.changeRate)}</span>
+          <span className="shrink-0 text-[0.6875rem] font-semibold text-red-600 num">{pct(s.changeRate)}</span>
         </div>
       ))}
-      {stocks.length > limit && <span className="text-[11px] text-zinc-500">외 {stocks.length - limit}종목</span>}
+      {stocks.length > limit && <span className="text-[0.6875rem] text-zinc-500">외 {stocks.length - limit}종목</span>}
     </>
   );
 }
@@ -367,9 +367,9 @@ function DayCell({
 
   const tag =
     date === today ? (
-      <span className="text-[11px] font-semibold text-zinc-500">오늘</span>
+      <span className="text-[0.6875rem] font-semibold text-zinc-500">오늘</span>
     ) : future && showUs ? (
-      <span className="text-[11px] font-semibold text-zinc-500">국내 장 전</span>
+      <span className="text-[0.6875rem] font-semibold text-zinc-500">국내 장 전</span>
     ) : mode === "domestic" && domestic ? (
       <span className="text-zinc-300">
         <CountDots n={domestic.length} />
@@ -382,7 +382,7 @@ function DayCell({
     <>
       {showUs && (
         <div className="-mx-1 flex flex-col gap-0.5 rounded-lg bg-(--leader-overseas-tint) px-2 py-1.5">
-          <div className="flex items-center justify-between text-[10.5px] font-bold text-(--leader-overseas)">
+          <div className="flex items-center justify-between text-[0.65625rem] font-bold text-(--leader-overseas)">
             <span>해외 · {short(overseasDate)}</span>
             {overseas!.length > 0 && <CountDots n={overseas!.length} />}
           </div>
@@ -396,7 +396,7 @@ function DayCell({
       {showKr && (
         <div className="flex flex-col gap-0.5">
           {mode === "both" && (
-            <div className="flex items-center justify-between text-[10.5px] font-bold text-zinc-500">
+            <div className="flex items-center justify-between text-[0.65625rem] font-bold text-zinc-500">
               <span>국내</span>
               {domestic!.length > 0 && <CountDots n={domestic!.length} />}
             </div>
@@ -415,13 +415,13 @@ function DayCell({
     <div className="flex items-center justify-between gap-1.5">
       <span className="flex items-baseline gap-1.5">
         <span
-          className={`num text-[13px] font-semibold ${
+          className={`num text-[0.8125rem] font-semibold ${
             date === today ? "-ml-1 rounded-full bg-zinc-100 px-1.5 text-zinc-950" : future ? "text-zinc-500" : "text-zinc-300"
           }`}
         >
           {d.getDate()}
         </span>
-        <span className="text-[11px] text-zinc-500 sm:hidden">{WEEKDAYS[d.getDay()]}</span>
+        <span className="text-[0.6875rem] text-zinc-500 sm:hidden">{WEEKDAYS[d.getDay()]}</span>
       </span>
       {tag}
     </div>
@@ -464,7 +464,7 @@ function DayDetail({
   if (!date) {
     return (
       <section className="rounded-2xl border border-zinc-800 p-4">
-        <h3 className="text-[15px] font-bold">기록이 없습니다</h3>
+        <h3 className="text-[0.9375rem] font-bold">기록이 없습니다</h3>
         <p className="mt-1 text-xs text-zinc-500">이 달에는 아직 남은 주도주가 없습니다.</p>
       </section>
     );
@@ -475,7 +475,7 @@ function DayDetail({
 
   return (
     <section className="rounded-2xl border border-zinc-800 p-4">
-      <h3 className="text-[15px] font-bold">
+      <h3 className="text-[0.9375rem] font-bold">
         {d.getMonth() + 1}월 {d.getDate()}일 ({WEEKDAYS[d.getDay()]})
       </h3>
       {mode !== "domestic" && overseasDate && (
@@ -513,14 +513,14 @@ function DetailList({
               <span className="text-xs font-semibold text-zinc-500 num">{s.rank}</span>
               <span className="truncate font-bold">{s.name}</span>
               <span className="text-right text-xs font-semibold text-red-600 num">{pct(s.changeRate)}</span>
-              <span className="col-start-2 col-span-2 text-[11px] text-zinc-500 num">
+              <span className="col-start-2 col-span-2 text-[0.6875rem] text-zinc-500 num">
                 거래대금 {usd ? compactUsd(s.tradingValue) : formatKoreanMoney(s.tradingValue)}
               </span>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="py-1.5 text-[13px] text-zinc-500">{empty}</p>
+        <p className="py-1.5 text-[0.8125rem] text-zinc-500">{empty}</p>
       )}
     </div>
   );
