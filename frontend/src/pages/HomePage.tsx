@@ -63,6 +63,7 @@ export default function HomePage() {
   const domestic = (
     <DomesticLeaders
       live={domesticLive}
+      first={domesticFirst}
       date={formatTradingDay(krTradingDay(now, !!krHoliday, krCalendar?.previousOpenDay))}
       clock={clock}
     />
@@ -70,6 +71,7 @@ export default function HomePage() {
   const overseas = (
     <OverseasLeaders
       live={overseasLive}
+      first={!domesticFirst}
       date={formatTradingDay(usTradingDay(now, !!usHoliday))}
       clock={clock}
     />
@@ -273,9 +275,9 @@ const shortCode = (code: string) => (code.includes("_") ? code.slice(0, code.ind
  * 자리라, 보는 사람이 어떤 기준을 걸어뒀는지에 따라 답이 달라지면 안 된다. 순서와
  * 종목 선정은 서버가 정한다(거래대금·등락률 두 축의 백분위 기하평균).
  */
-type LeadersProps = { live: boolean; date: string; clock: string };
+type LeadersProps = { live: boolean; first: boolean; date: string; clock: string };
 
-function DomesticLeaders({ live, date, clock }: LeadersProps) {
+function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
   const { data, isLoading } = useLeadingStockLeaders();
   const items: Item[] = (data?.leaders ?? []).map((s) => ({
     key: s.stockCode,
@@ -294,6 +296,7 @@ function DomesticLeaders({ live, date, clock }: LeadersProps) {
       clock={clock}
       market="domestic"
       live={live}
+      first={first}
       loading={isLoading}
       items={items}
       limitUps={data?.limitUps ?? []}
@@ -301,7 +304,7 @@ function DomesticLeaders({ live, date, clock }: LeadersProps) {
   );
 }
 
-function OverseasLeaders({ live, date, clock }: LeadersProps) {
+function OverseasLeaders({ live, first, date, clock }: LeadersProps) {
   const { data, isLoading } = useOverseasLeaders();
   const items: Item[] = (data ?? []).map((s) => ({
     key: `${s.exchange}:${s.symbol}`,
@@ -320,6 +323,7 @@ function OverseasLeaders({ live, date, clock }: LeadersProps) {
       clock={clock}
       market="overseas"
       live={live}
+      first={first}
       loading={isLoading}
       items={items}
     />
@@ -355,7 +359,7 @@ const LEADER_COLS = "sm:grid-cols-[1rem_minmax(0,1fr)_7rem_6rem_4.5rem]";
  * 누르면 주도주 필터 화면으로 — 해당 쪽(국내/해외)이 열린 채로.
  *
  * 종목 상세로 바로 보내지 않는다. 상세는 로그인 뒤라, 첫 화면에서 누르자마자
- * 벽을 만나게 된다. 어느 쪽이 먼저 오는지는 순서로만 가린다 — 뒤쪽을 흐리게 하면 읽기만 나빠진다.
+ * 벽을 만나게 된다. 지금 시간대의 주인공(먼저 오는 쪽)은 테두리를 두르고, 다른 쪽은 흐리게 내린다.
  */
 function LeaderCard({
   title,
@@ -363,6 +367,7 @@ function LeaderCard({
   clock,
   market,
   live,
+  first,
   loading,
   items,
   limitUps = [],
@@ -372,6 +377,7 @@ function LeaderCard({
   clock: string;
   market: StockMarket;
   live: boolean;
+  first: boolean;
   loading: boolean;
   items: Item[];
   /** 후보 풀 안의 상한가. 해외는 제한폭 자체가 없어 늘 비어 있다. */
@@ -379,7 +385,11 @@ function LeaderCard({
 }) {
   const max = Math.max(1, ...items.map((s) => s.value));
   return (
-    <Link to="/leading-stocks" onClick={() => rememberMarket(market)} className={cardCls}>
+    <Link
+      to="/leading-stocks"
+      onClick={() => rememberMarket(market)}
+      className={`${cardCls} ${first ? "outline outline-1 outline-emerald-700/40" : "opacity-70"}`}
+    >
       <CardHead
         title={title}
         more="전체 보기"
