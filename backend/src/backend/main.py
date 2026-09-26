@@ -28,6 +28,7 @@ from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.leadingstock.presentation import router as leading_router
 from backend.leadercalendar.presentation import router as leader_calendar_router
+from backend.leadertimeline.presentation import router as leader_timeline_router
 from backend.market.presentation import router as market_router
 from backend.stock.presentation import router as stock_router
 from backend.settings import get_settings
@@ -58,14 +59,17 @@ async def lifespan(app: FastAPI):
     from backend.auth.domain import AppUser
     from backend.feedback.domain import Feedback
     from backend.leadercalendar.entities import LeaderDay, LeaderDayStock
+    from backend.leadertimeline.entities import LeaderTick, LeaderTickStock
 
     try:
         AppUser.__table__.create(get_engine(), checkfirst=True)
         Feedback.__table__.create(get_engine(), checkfirst=True)
         LeaderDay.__table__.create(get_engine(), checkfirst=True)
         LeaderDayStock.__table__.create(get_engine(), checkfirst=True)
+        LeaderTick.__table__.create(get_engine(), checkfirst=True)
+        LeaderTickStock.__table__.create(get_engine(), checkfirst=True)
     except Exception:
-        log.warning("가입자·의견·주도주 캘린더 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
+        log.warning("가입자·의견·주도주 캘린더·타임라인 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
     load_stock_catalog()
     start_scheduler()
     # 스레드풀 계측. **여기여야 한다** — anyio 스레드풀은 실행 중인 이벤트 루프에 매여 있어
@@ -145,6 +149,7 @@ app.include_router(stock_router)
 app.include_router(market_router)
 app.include_router(leading_router)
 app.include_router(leader_calendar_router)
+app.include_router(leader_timeline_router)
 
 
 def _error(code: str, status: int) -> JSONResponse:
