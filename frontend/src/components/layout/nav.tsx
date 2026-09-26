@@ -30,6 +30,19 @@ export const NAV: NavItem[] = [
     ),
   },
   {
+    to: "/leader-timeline",
+    label: "타임라인",
+    full: "주도주 타임라인",
+    icon: (
+      <Icon>
+        <path d="M3 7h9M3 12h14M3 17h6" />
+        <circle cx="16" cy="7" r="2" />
+        <circle cx="20" cy="12" r="2" />
+        <circle cx="12" cy="17" r="2" />
+      </Icon>
+    ),
+  },
+  {
     to: "/leader-calendar",
     label: "캘린더",
     full: "주도주 캘린더",

@@ -105,6 +105,13 @@ html {
   --leader-overseas: #6d5bd0;
   --leader-overseas-tint: #f5f3fd;
   --leader-closed-line: rgba(0, 0, 0, 0.03);
+
+  /* 주도주 타임라인 순위 — 파랑 한 색 5단계. 흰 바탕에선 1위가 가장 진하다(더 큰 값 = 더 진하게) */
+  --tl-r1: #184f95; --tl-r2: #256abf; --tl-r3: #3987e5; --tl-r4: #6da7ec; --tl-r5: #9ec5f4;
+  --tl-r1-fg: #fff; --tl-r2-fg: #fff; --tl-r3-fg: #fff; --tl-r4-fg: #0b1220; --tl-r5-fg: #0b1220;
+  /* 새로 들어옴 — 민트. 등락(빨강·파랑)·반등·꺾임(주황·하늘)·승격(보라)과 겹치지 않는다 */
+  --tl-new: #0d9488; --tl-new-bg: rgba(13, 148, 136, 0.1);
+  --tl-hatch: rgba(0, 0, 0, 0.05);
 }
 
 body {
@@ -336,6 +343,12 @@ body {
   --leader-overseas-tint: #1e1c2b;
   --leader-closed-line: rgba(255, 255, 255, 0.035);
 
+  /* 다크 바탕에선 1위가 가장 밝다 — 서열 램프 검증 통과(가장 어두운 5위도 바탕 대비 2:1 이상) */
+  --tl-r1: #9ec5f4; --tl-r2: #6da7ec; --tl-r3: #3987e5; --tl-r4: #256abf; --tl-r5: #184f95;
+  --tl-r1-fg: #0b1220; --tl-r2-fg: #0b1220; --tl-r3-fg: #0b1220; --tl-r4-fg: #fff; --tl-r5-fg: #fff;
+  --tl-new: #5eead4; --tl-new-bg: rgba(94, 234, 212, 0.12);
+  --tl-hatch: rgba(255, 255, 255, 0.05);
+
   /* zinc 스케일 — 라이트의 명도 역전을 다시 역전 */
   --color-zinc-50: #0e0e10;
   --color-zinc-100: #f1f3f5; /* 본문 */
@@ -428,3 +441,11 @@ body {
 .leader-closed {
   background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--leader-closed-line) 6px 7px);
 }
+
+/* 주도주 타임라인 — 종목 줄은 절대 위치로 두고 순서가 바뀌면 위아래로 미끄러진다 */
+.tl-chart { --tl-label: 248px; }
+@media (max-width: 640px) { .tl-chart { --tl-label: 170px; } }
+.tl-row { transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .3s ease; will-change: transform; }
+.tl-rows.instant .tl-row { transition: none; }
+@media (prefers-reduced-motion: reduce) { .tl-row { transition: none; } }
+.tl-hatch { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--tl-hatch) 4px 5px); }

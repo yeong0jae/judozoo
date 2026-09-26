@@ -7,6 +7,7 @@ import type {
   DailyCandleItem,
   LeadersResponse,
   LeaderCalendarResponse,
+  LeaderTimelineResponse,
   CandidateStocksResponse,
   KospiIndex,
   FuturesQuote,
@@ -45,6 +46,7 @@ export const QK = {
     ["leading-stocks", "candidates", minChangeRate] as const,
   leadingStockLeaders: ["leading-stocks", "leaders"] as const,
   leaderCalendar: (month: string) => ["leader-calendar", month] as const,
+  leaderTimeline: (market: string, date: string) => ["leader-timeline", market, date] as const,
   breakoutRadar: ["leading-stocks", "breakout-radar"] as const,
   signalEvents: (date: string) =>
     ["leading-stocks", "signal-events", date] as const,
@@ -166,6 +168,16 @@ export function useLeaderCalendar(month: string) {
   return useQuery({
     queryKey: QK.leaderCalendar(month),
     queryFn: () => apiFetch<LeaderCalendarResponse>(`/api/leader-calendar?month=${month}`),
+  });
+}
+
+/** 주도주 타임라인 하루치. `date`는 그 시장의 현지 거래일(해외는 뉴욕).
+ *  장중이면 1분마다 다시 받는다 — 하루 전체라도 수십 KB라 `since`로 잘라 붙이지 않는다. */
+export function useLeaderTimeline(market: "kr" | "us", date: string, live: boolean) {
+  return useQuery({
+    queryKey: QK.leaderTimeline(market, date),
+    queryFn: () => apiFetch<LeaderTimelineResponse>(`/api/leader-timeline?market=${market}&date=${date}`),
+    refetchInterval: live ? 60_000 : false,
   });
 }
 

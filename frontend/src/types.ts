@@ -485,3 +485,25 @@ export interface LeaderCalendarResponse {
   /** 요청한 달 1일의 직전 평일부터 — 1일 칸에 붙는 해외장이 전달에 있다. */
   overseas: LeaderDayItem[];
 }
+
+/** 주도주 타임라인 — 1분마다 찍은 홈 주도주. 종목은 사전으로 한 번만 오고 분마다 번호로 온다. */
+export interface LeaderTimelineStock {
+  exchange: string | null;
+  code: string;
+  name: string;
+}
+
+/** 한 분. `stocks`는 사전 번호(순위 순) — 비면 그 분엔 주도주가 없었다. `at`은 현지 HH:MM(해외는 뉴욕). */
+export interface LeaderTimelineTick {
+  at: string;
+  stocks: number[];
+  rates: number[]; // %
+  values: number[]; // 국내 원, 해외 달러
+}
+
+export interface LeaderTimelineResponse {
+  stocks: LeaderTimelineStock[];
+  ticks: LeaderTimelineTick[];
+  /** 마지막으로 찍은 실제 시각(KST, 시간대 없는 ISO) */
+  lastTakenAt: string | null;
+}
