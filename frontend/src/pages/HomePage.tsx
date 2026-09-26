@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "../api/client";
 import {
-  useBreakoutRadar,
   useKospiIndex,
   useKosdaqIndex,
   useLeadingStockLeaders,
@@ -23,15 +20,14 @@ import {
   useMarketSessions,
 } from "../lib/marketSession";
 import { rememberMarket, type StockMarket } from "../lib/stockMarket";
-import { formatKoreanMoney, formatPct, formatPrice } from "../lib/format";
+import { formatKoreanMoney, formatPct } from "../lib/format";
 import SessionStrip from "../components/layout/SessionStrip";
 import ProfitText from "../components/common/ProfitText";
 import NumWon from "../components/common/NumWon";
 import NumUsd from "../components/common/NumUsd";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
-import type { LimitUpItem, SignalEventsResponse, TodayNetItem } from "../types";
-import { EVENT_META, clockOf, detailOf } from "../components/common/signalParts";
+import type { LimitUpItem, TodayNetItem } from "../types";
 
 /** 카드 한 장에 올리는 주도주 줄 수. 서버가 이미 그만큼만 내려준다 — 뼈대 높이에 쓴다. */
 const LEADERS_COUNT = 5;
@@ -99,12 +95,6 @@ export default function HomePage() {
             {domestic}
           </>
         )}
-      </div>
-
-      {/* 목록 화면들로 들어가는 문 — 둘 다 비로그인에게도 열린 미리보기(최신 3건)를 그대로 쓴다 */}
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 lg:gap-4">
-        <RecentSignals />
-        <NearBreakout />
       </div>
 
       <TodayNets live={domesticOpen} clock={clock} />
@@ -336,7 +326,7 @@ function OverseasLeaders({ live, date, clock }: LeadersProps) {
   );
 }
 
-/** 카드 머리 — 제목·기준 / 오른쪽 "전체 보기". 홈의 카드 넷이 같이 쓴다. */
+/** 카드 머리 — 제목·기준 / 오른쪽 "전체 보기". */
 function CardHead({ title, sub, more }: { title: string; sub?: ReactNode; more?: string }) {
   return (
     <div className="flex items-center justify-between gap-2.5 px-3.5 pb-2 pt-3.5 sm:px-[18px] sm:pb-3 sm:pt-4">
@@ -477,130 +467,6 @@ function LeaderRow({ rank, item, ratio }: { rank: number; item: Item; ratio: num
       </span>
     </div>
   );
-}
-
-// ============================================================
-// 지금 움직임 — 최근 시그널 · 돌파 임박
-// ============================================================
-
-/** 최근 거래일을 거꾸로 짚어 가며 시그널이 있는 첫 날을 찾는다 — 주말·연휴에 빈 카드가 뜨지 않게. */
-const SIGNAL_LOOKBACK = 7;
-
-function useLatestSignals() {
-  return useQuery({
-    queryKey: ["home", "latest-signals"],
-    queryFn: async () => {
-      const day = new Date();
-      for (let i = 0; i < SIGNAL_LOOKBACK; i++) {
-        if (day.getDay() !== 0 && day.getDay() !== 6) {
-          const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
-          const res = await apiFetch<SignalEventsResponse>(`/api/leading-stocks/signal-events?date=${iso}`);
-          if (res.events.length > 0) return res;
-        }
-        day.setDate(day.getDate() - 1);
-      }
-      return null;
-    },
-    refetchInterval: 10_000,
-  });
-}
-
-/** 시그널 화면의 줄과 같은 두 줄 — 위 시각·유형·종목·현재가·등락률, 아래 무엇이 일어났는지. */
-function RecentSignals() {
-  const { data, isLoading } = useLatestSignals();
-  const events = (data?.events ?? []).slice(0, PREVIEW_ROWS);
-  return (
-    <Link to="/signal-log" className={cardCls}>
-      <CardHead
-        title="최근 시그널"
-        more="전체 보기"
-        sub={
-          data && (
-            <span className="num text-xs text-zinc-500">
-              {dayLabel(data.date)} · {data.totalCount}건
-            </span>
-          )
-        }
-      />
-      {isLoading ? (
-        <div className="space-y-2 px-4 pb-3">
-          {Array.from({ length: PREVIEW_ROWS }).map((_, i) => (
-            <Skeleton key={i} className="h-9 w-full" />
-          ))}
-        </div>
-      ) : events.length === 0 ? (
-        <p className="px-3.5 py-7 text-center text-xs text-zinc-500">최근 시그널이 없습니다</p>
-      ) : (
-        events.map((e, i) => {
-          const meta = EVENT_META[e.eventType];
-          return (
-            <div key={`${e.stockCode}-${e.occurredAt}-${i}`} className="flex flex-col gap-1 border-t border-zinc-800 px-3.5 py-2.5 sm:px-[18px]">
-              <span className="flex items-center gap-2">
-                <span className="num w-[3.75rem] shrink-0 text-xs text-zinc-500">{clockOf(e.occurredAt)}</span>
-                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${meta.chip}`}>{meta.label}</span>
-                <span className="min-w-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
-                <span className="ml-auto flex shrink-0 items-baseline gap-2.5">
-                  <span className="num text-[13.5px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
-                  <ProfitText value={e.priceChangeRate / 100} format={formatPct} className="num min-w-14 whitespace-nowrap text-right text-xs" />
-                </span>
-              </span>
-              <span className="num truncate pl-[4.25rem] text-xs text-zinc-300">{detailOf(e)}</span>
-            </div>
-          );
-        })
-      )}
-    </Link>
-  );
-}
-
-/** 돌파선 3% 안에 든 종목 — 가까운 순. 눌림·돌파 화면의 "돌파" 모드와 같은 목록의 앞 세 줄이다. */
-function NearBreakout() {
-  const { data, isLoading } = useBreakoutRadar("resistance");
-  const stocks = (data?.stocks ?? []).slice(0, PREVIEW_ROWS);
-  return (
-    <Link to="/breakout-radar" className={cardCls}>
-      <CardHead title="돌파 임박" more="전체 보기" sub={<span className="text-xs text-zinc-500">돌파선 3% 이내 · 가까운 순</span>} />
-      {isLoading ? (
-        <div className="space-y-2 px-4 pb-3">
-          {Array.from({ length: PREVIEW_ROWS }).map((_, i) => (
-            <Skeleton key={i} className="h-9 w-full" />
-          ))}
-        </div>
-      ) : stocks.length === 0 ? (
-        <p className="px-3.5 py-7 text-center text-xs text-zinc-500">돌파선 가까이 온 종목이 없습니다</p>
-      ) : (
-        stocks.map((s) => {
-          // 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링돼 고점은 +1분 보정한다(눌림·돌파 화면과 같다)
-          const peak = new Date(s.peakAt);
-          peak.setMinutes(peak.getMinutes() + 1);
-          const at = `${peak.getDate()}일 ${String(peak.getHours()).padStart(2, "0")}:${String(peak.getMinutes()).padStart(2, "0")}`;
-          return (
-            <div key={s.stockCode} className="flex items-center gap-3 border-t border-zinc-800 px-3.5 py-2.5 sm:px-[18px]">
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[13.5px] text-zinc-100">{s.stockName}</span>
-                <span className="num text-[11px] text-zinc-500">
-                  돌파선 {formatPrice(s.peakPrice)} · {at}
-                </span>
-              </span>
-              <span className="num shrink-0 text-[13.5px] text-orange-400">
-                {s.gapRate <= 0 ? "돌파" : `${s.gapRate.toFixed(2)}% 남음`}
-              </span>
-              <ProfitText value={s.priceChangeRate / 100} format={formatPct} className="num w-14 shrink-0 text-right text-xs" />
-            </div>
-          );
-        })
-      )}
-    </Link>
-  );
-}
-
-/** 카드 한 장에 올리는 미리보기 줄 수 — 비로그인이 서버에서 받는 수와 같다. */
-const PREVIEW_ROWS = 3;
-
-/** yyyy-MM-dd → "09-23(수)" */
-function dayLabel(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}(${"일월화수목금토"[new Date(y, m - 1, d).getDay()]})`;
 }
 
 // ============================================================
