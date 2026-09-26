@@ -157,12 +157,6 @@ function IndexTiles({
         slug="night-futures"
         value={night.data?.price}
         rate={night.data?.changeRate}
-        sub={
-          night.data
-            ? // 선물은 소수 둘째 자리까지 호가된다 — 주가용 정수 반올림을 쓰면 1,127.75가 1,128로 뭉개진다
-              `전일 종가 ${night.data.dayClose.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · 갭 ${night.data.gap.toFixed(2)}`
-            : undefined
-        }
       />
     ),
     nasdaq: (
@@ -197,21 +191,19 @@ function Tile({
   tag,
   value,
   rate,
-  sub,
 }: {
   label: string;
   slug: string;
   tag?: string;
   value: number | undefined;
   rate: number | undefined;
-  sub?: string;
 }) {
   return (
     <Link
       to={`/market-analysis/${slug}`}
       className="flex min-w-0 flex-col gap-1.5 rounded-2xl bg-zinc-900 px-3.5 py-3 transition-colors hover:bg-zinc-850 sm:gap-2 sm:px-[18px] sm:py-4"
     >
-      <div className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-zinc-300 sm:text-[13px]">
+      <div className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-zinc-300 sm:text-[13.5px]">
         {label}
         {/* 장중 칩은 주도주 카드의 "장중 14:07"과 같은 색이다 — 한 화면에서 같은 뜻이
             다른 색으로 보이면, 둘이 다른 상태를 가리키는 줄 읽는다 */}
@@ -232,13 +224,12 @@ function Tile({
       ) : (
         // 값은 흰색, 색은 등락률에만 — 지수·수급 목록과 같은 규칙이다
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-          <span className="num text-[19px] font-bold tracking-tight text-zinc-100 sm:text-2xl">
+          <span className="num text-[19px] font-bold tracking-tight text-zinc-100 sm:text-[22px]">
             {value.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <ProfitText value={rate} format={(v) => formatPct(v / 100)} className="num text-[13px]" />
+          <ProfitText value={rate} format={(v) => formatPct(v / 100)} className="num text-[13.5px]" />
         </div>
       )}
-      {sub && <div className="num text-[11px] text-zinc-500">{sub}</div>}
     </Link>
   );
 }
