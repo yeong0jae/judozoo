@@ -1151,7 +1151,8 @@ function SupplyView({
         <EmptyState message={isSession ? "시간대별 수급 데이터가 없습니다" : "일별 수급 데이터가 없습니다"} />
       ) : (
         <>
-          <FlowTiles nets={total} caption={isSession ? dayLabel(sessionDate) : "5일 누적"} />
+          {/* 시간대별은 날짜를 적지 않는다 — 섹션 머리에 이미 있다 */}
+          <FlowTiles nets={total} caption={isSession ? undefined : "5일 누적"} />
           <p className="-mb-1 text-[11px] text-zinc-500 xl:hidden">옆으로 밀어 기관 상세 보기 ›</p>
           <FlowTable
             firstLabel={isSession ? "시간대" : "일자"}
@@ -1191,7 +1192,7 @@ function SupplyGateSection({ what }: { what: string }) {
 }
 
 /** 개인·외국인·기관 요약 — 가운데 0에서 좌우로 뻗는 막대. 셋 중 가장 큰 값이 반 폭이다. */
-function FlowTiles({ nets, caption }: { nets: Nets | null; caption: string }) {
+function FlowTiles({ nets, caption }: { nets: Nets | null; caption?: string }) {
   const items: [string, number | undefined][] = [
     ["개인", nets?.individual],
     ["외국인", nets?.foreign],
@@ -1204,7 +1205,8 @@ function FlowTiles({ nets, caption }: { nets: Nets | null; caption: string }) {
         <div key={label} className="flex flex-col gap-2.5 rounded-xl bg-zinc-900 px-3 py-2.5 sm:px-4 sm:py-3.5">
           <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between">
             <span className="text-xs text-zinc-400 sm:text-[13px]">
-              {label} <span className="text-[10px] text-zinc-500 sm:text-[11px]">{caption}</span>
+              {label}
+              {caption && <span className="text-[10px] text-zinc-500 sm:text-[11px]"> {caption}</span>}
             </span>
             <span className="text-[15px] font-bold sm:text-lg">
               {v === undefined ? <span className="text-zinc-700">—</span> : <NetNum eok={v} />}
