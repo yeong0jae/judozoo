@@ -30,8 +30,8 @@ const label = (s: string) => {
 function Chevron({ dir }: { dir: "prev" | "next" }) {
   return (
     <svg
-      width="16"
-      height="16"
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -49,7 +49,9 @@ function Chevron({ dir }: { dir: "prev" | "next" }) {
  *
  * 세 조각(이전·날짜·다음)을 트랙 하나에 담는다 — 같은 일을 하는 버튼들이라
  * 앱의 다른 세그먼트(`ChangeRateSelector`·`MarketToggle`)와 같은 모양으로 묶는다.
- * "오늘"만 트랙 밖에 둔다. 이동이 아니라 되돌리기라서다. */
+ * "오늘"만 트랙 밖에 둔다. 이동이 아니라 되돌리기라서다.
+ *
+ * 크기는 px로 고정한다 — rem이면 넓은 화면에서 머리줄 제목보다 커 보인다. */
 export default function DateNavigator({
   date,
   onChange,
@@ -73,11 +75,11 @@ export default function DateNavigator({
   // 화살표 칸. inline-flex라야 SVG 아래 기준선 여백이 안 생긴다.
   // 비활성일 때 호버로 밝아지면 누를 수 있는 것처럼 보여, 글자색도 함께 묶어 둔다.
   const stepCls =
-    "inline-flex rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-elevated hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400";
+    "inline-flex rounded-[7px] p-[5px] text-zinc-400 transition-colors hover:bg-elevated hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400";
 
   return (
-    <div className="flex items-center gap-1.5 text-sm">
-      <div className="flex items-center rounded-xl bg-zinc-800 p-1">
+    <div className="flex items-center gap-[6px] text-[13px]">
+      <div className="flex items-center rounded-[10px] bg-zinc-800 p-[3px]">
         <button onClick={() => shift(-1)} className={stepCls} aria-label="이전 거래일">
           <Chevron dir="prev" />
         </button>
@@ -86,7 +88,7 @@ export default function DateNavigator({
         <div className="relative">
           <button
             onClick={() => setOpen((o) => !o)}
-            className="min-w-[7.25rem] rounded-lg px-2.5 py-1 font-medium text-zinc-100 transition-colors hover:bg-elevated"
+            className="min-w-[96px] rounded-[7px] px-[8px] py-[3px] font-medium text-zinc-100 transition-colors hover:bg-elevated"
             aria-haspopup="dialog"
             aria-expanded={open}
           >
@@ -115,7 +117,7 @@ export default function DateNavigator({
       <button
         onClick={() => onChange(todayStr())}
         disabled={isToday}
-        className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-850 hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400"
+        className="rounded-[7px] px-[8px] py-[4px] text-[12px] text-zinc-400 transition-colors hover:bg-zinc-850 hover:text-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-zinc-400"
       >
         오늘
       </button>
