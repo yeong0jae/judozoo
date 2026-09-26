@@ -17,6 +17,7 @@ export default function PageHeader({
   count,
   fetchedAt,
   refreshMs,
+  closedLabel,
   loading,
   trailing,
 }: {
@@ -28,6 +29,9 @@ export default function PageHeader({
   /** 자동 갱신 주기(ms). 주면 고리가 받은 순간부터 이 시간에 걸쳐 차오른다 — 다 차면 다음 갱신이다.
    *  없으면(지난 날짜처럼 다시 부르지 않는 화면) 고리를 흐린 채 채워 둔다. */
   refreshMs?: number;
+  /** 다시 부르지 않는 화면(지난 날짜)에서 상대시각 대신 적을 말 — 예: "09-23(수) 마감".
+   *  "3분 전"이 계속 늘기만 하면 멈춘 것처럼 읽힌다. */
+  closedLabel?: string;
   loading: boolean;
   /** 우측 상단에 건수와 나란히 놓을 컨트롤 (날짜 이동 등). */
   trailing?: ReactNode;
@@ -61,7 +65,7 @@ export default function PageHeader({
 
         <span className="flex items-center gap-1.5 text-xs text-zinc-500 whitespace-nowrap">
           <RefreshRing fetchedAt={fetchedAt ?? 0} refreshMs={refreshMs} loading={loading} />
-          {ago}
+          {closedLabel ?? ago}
         </span>
       </div>
     </div>
