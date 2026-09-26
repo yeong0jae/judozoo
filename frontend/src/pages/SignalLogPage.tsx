@@ -408,13 +408,19 @@ function ShowDetailButton({ label, onClick }: { label: string; onClick: () => vo
   );
 }
 
+/** YYYY-MM-DD → "9월 23일" */
+function dayLabel(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${m}월 ${d}일`;
+}
+
 /**
  * 미리보기 끝 — 아래로 더 있다는 걸 보이고 로그인으로 잇는다.
  *
  * 가짜 행이다. 진짜 행을 흐리게 깔면 그 데이터가 브라우저까지 내려와야 하므로
  * 차단이 아니라 가리기가 된다(개발자도구로 읽힌다). 서버가 자른 뒤라 여기엔 채울 내용이 없다.
  */
-function PreviewGate({ shown, total }: { shown: number; total: number }) {
+function PreviewGate({ shown, total, date }: { shown: number; total: number; date: string }) {
   return (
     <li className="relative">
       {/* 아래로 갈수록 지워진다 — 줄마다 농도를 주면 계단이 생겨 "이어진다"가 덜 읽힌다.
@@ -437,10 +443,10 @@ function PreviewGate({ shown, total }: { shown: number; total: number }) {
         ))}
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
-        {/* 미로그인은 날짜가 오늘로 고정이라 "오늘"이라 말할 수 있다.
+        {/* 날짜를 옮겨 볼 수 있어 "오늘"로 못 박지 않는다.
             숫자에만 mono를 건다 — 한글까지 걸면 한 줄 안에서 글꼴이 갈린다 */}
         <p className="text-xs text-zinc-400">
-          오늘 <span className="num">{total}</span>건 중 <span className="num">{shown}</span>건을 보고 있습니다
+          {date === todayStr() ? "오늘" : dayLabel(date)} <span className="num">{total}</span>건 중 <span className="num">{shown}</span>건을 보고 있습니다
         </p>
         <GoogleLoginButton />
       </div>
@@ -534,16 +540,14 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
           queriedAt={formatFetchedAt(eventsQ.dataUpdatedAt)}
           loading={eventsQ.isFetching}
           trailing={
-            authenticated ? (
-              <DateNavigator
-                date={date}
-                onChange={(d) => {
-                  setDate(d);
-                  setSelectedCode(null);
-                  setSelectedMarket(null);
-                }}
-              />
-            ) : undefined
+            <DateNavigator
+              date={date}
+              onChange={(d) => {
+                setDate(d);
+                setSelectedCode(null);
+                setSelectedMarket(null);
+              }}
+            />
           }
         />
         {/* 유형 필터와 등락률 — 미로그인은 조작이 잠겨 아예 감춘다 */}
@@ -657,7 +661,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
           </AnimatePresence>
           {/* totalCount는 서버가 자르기 전 전체 건수다 — 그린 행 수보다 크면 잘린 것이다 */}
           {!authenticated && (data?.totalCount ?? 0) > feed.length && (
-            <PreviewGate shown={feed.length} total={data?.totalCount ?? 0} />
+            <PreviewGate shown={feed.length} total={data?.totalCount ?? 0} date={date} />
           )}
         </ul>
       )}
@@ -703,7 +707,7 @@ function BackToList({ onBack }: { onBack: () => void }) {
 
 
 /** 미로그인도 최신 몇 건은 본다 — 서버가 잘라서 내려준다(`PREVIEW_COUNT`).
- *  대신 날짜 이동·필터·지수 시그널·종목 상세는 로그인 뒤다. */
+ *  날짜 이동은 열려 있다(어느 날이든 서버가 같은 규칙으로 자른다). 필터·지수 시그널·종목 상세는 로그인 뒤다. */
 export default function SignalLogPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
