@@ -7,7 +7,8 @@ from datetime import time
 
 from backend.market.calendar import Region
 
-#: 찍는 시간 — 홈 풀이 도는 세션과 같다. 끝 시각은 찍지 않는다(국내 19:59, 해외 15:59가 마지막 분)
+#: 찍는 시간 — 홈 풀이 도는 세션과 같다. **끝 시각(마감 분)도 찍는다** — 국내 20:00, 해외 16:00이 마지막 분.
+#: 마감 순간의 값이라 캘린더의 마감 기록과 맞고, 화면 끝 눈금(20시·05시)과도 맞는다
 _WINDOWS = {
     Region.KR: (time(8, 0), time(20, 0)),
     Region.US: (time(4, 0), time(16, 0)),
@@ -24,6 +25,6 @@ _GAPS = {
 def captures(region: Region, at: time) -> bool:
     """현지 시각 `at`의 분을 찍는가 — 세션 안이고 쉬는 구간이 아니면."""
     start, end = _WINDOWS[region]
-    if not (start <= at < end):
+    if not (start <= at <= end):
         return False
     return not any(a <= at < b for a, b in _GAPS[region])

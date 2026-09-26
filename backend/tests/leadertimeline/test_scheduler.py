@@ -31,6 +31,14 @@ class Test국내_1분_작업:
 
         assert 찍힘 == [(Region.KR, datetime(2026, 9, 23, 10, 15))]
 
+    def test_마감_분인_20시는_찍고_그_뒤는_찍지_않는다(self, monkeypatch):
+        찍힘 = 찍기_대역(monkeypatch, datetime(2026, 9, 23, 20, 0))
+        scheduler.snapshot_domestic()
+        monkeypatch.setattr(scheduler, "now", lambda: datetime(2026, 9, 23, 20, 1))
+        scheduler.snapshot_domestic()
+
+        assert 찍힘 == [(Region.KR, datetime(2026, 9, 23, 20, 0))]
+
     def test_장_사이_쉬는_구간은_찍지_않는다(self, monkeypatch):
         찍힘 = 찍기_대역(monkeypatch, datetime(2026, 9, 23, 15, 33))
 

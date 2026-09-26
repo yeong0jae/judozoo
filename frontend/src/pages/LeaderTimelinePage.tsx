@@ -292,7 +292,7 @@ function Chart({
   const topLabel = shown === last ? (live ? "지금 주도주 순위" : "마감 주도주 순위") : `${hhmm(spec.start + shown + offset)} 주도주 순위`;
   const sessions = sessionsOf(market, offset);
   const hours: number[] = [];
-  for (let i = 0; i <= SLOTS; i += 60) hours.push(i);
+  for (let i = 0; i < SLOTS; i += 60) hours.push(i); // 0, 60, …, 720(마감 분)
   const gapCols = [...Array(SLOTS).keys()].filter((i) => isGap(spec, i));
 
   return (
@@ -314,7 +314,7 @@ function Chart({
               <span
                 key={i}
                 className="num absolute top-1/2 text-[13px] text-zinc-500"
-                style={{ left: pctOf(i), transform: i === 0 ? "translate(0,-50%)" : i >= SLOTS ? "translate(-100%,-50%)" : "translate(-50%,-50%)" }}
+                style={{ left: i === 0 ? 0 : pctOf(i + 0.5), transform: i === 0 ? "translate(2px,-50%)" : i >= SLOTS - 1 ? "translate(-100%,-50%)" : "translate(-50%,-50%)" }}
               >
                 {hhmm(spec.start + i + offset).slice(0, 2)}
               </span>
@@ -374,7 +374,7 @@ function Chart({
             <div key={a} className="tl-hatch absolute inset-y-0" style={{ left: pctOf(a), width: `${((b - a) / SLOTS) * 100}%` }} />
           ))}
           {[...Array(11).keys()].map((h) => (
-            <span key={h} className="absolute inset-y-0 w-px bg-zinc-800/40" style={{ left: pctOf((h + 1) * 60) }} />
+            <span key={h} className="absolute inset-y-0 w-px bg-zinc-800/40" style={{ left: pctOf((h + 1) * 60 + 0.5) }} />
           ))}
         </div>
         <div

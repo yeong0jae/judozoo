@@ -36,7 +36,8 @@ export const MARKET_SPECS: Record<TimelineMarket, MarketSpec> = {
   },
 };
 
-export const SLOTS = 720;
+/** 08:00부터 20:00까지(해외 04:00~16:00) — 마감 분도 한 칸이라 721칸 */
+export const SLOTS = 721;
 /** 흔들림으로 보지 않는 최소 지속 — 이만큼 이어져야 바뀐 것으로 친다 */
 const HOLD = 3;
 
