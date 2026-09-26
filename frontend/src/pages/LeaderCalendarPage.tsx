@@ -12,7 +12,7 @@ const MAX = 5;
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 const MODES: { key: Mode; label: string; caption: string }[] = [
-  { key: "both", label: "함께", caption: "직전 해외장과 당일 국내장 마감 기준 주도주" },
+  { key: "both", label: "모두", caption: "직전 해외장과 당일 국내장 마감 기준 주도주" },
   { key: "domestic", label: "국내", caption: "당일 국내장 마감 기준 주도주" },
   { key: "overseas", label: "해외", caption: "직전 해외장 마감 기준 주도주" },
 ];
