@@ -22,8 +22,13 @@ class Test미국_장중_판정:
 
         assert calendar.us_market_status() == (False, True)
 
-    def test_서머타임엔_한국_새벽_5시에_정규장이_끝난다(self, monkeypatch, 평일):
-        지금(monkeypatch, datetime(2026, 9, 26, 5, 0))
+    def test_정규장이_끝나도_애프터마켓_동안은_열려_있다(self, monkeypatch, 평일):
+        지금(monkeypatch, datetime(2026, 9, 26, 5, 0))   # 미 동부 16:00
+
+        assert calendar.us_market_status() == (False, True)
+
+    def test_서머타임엔_한국_아침_9시에_애프터마켓이_끝난다(self, monkeypatch, 평일):
+        지금(monkeypatch, datetime(2026, 9, 26, 9, 0))   # 미 동부 20:00
 
         assert calendar.us_market_status() == (False, False)
 
@@ -44,10 +49,10 @@ class Test다음_미국장까지_남은_시간:
 
         assert calendar.seconds_until_us_session() == 7 * 3600
 
-    def test_정규장이_끝난_새벽이면_그날_저녁까지다(self, monkeypatch):
-        지금(monkeypatch, datetime(2026, 9, 26, 5, 30))
+    def test_애프터마켓이_끝난_아침이면_그날_저녁까지다(self, monkeypatch):
+        지금(monkeypatch, datetime(2026, 9, 26, 9, 30))
 
-        assert calendar.seconds_until_us_session() == 11.5 * 3600
+        assert calendar.seconds_until_us_session() == 7.5 * 3600
 
     def test_서머타임이_끝나는_밤을_넘기면_한_시간_더_기다린다(self, monkeypatch):
         """2026-11-01 새벽에 서머타임이 끝난다 — 벽시계로 빼면 한 시간이 사라진다."""

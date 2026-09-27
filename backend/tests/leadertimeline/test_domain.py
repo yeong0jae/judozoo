@@ -23,10 +23,10 @@ class Test국내_찍는_분:
 
 
 class Test해외_찍는_분:
-    def test_프리마켓에서_정규장으로_쉬지_않고_마감_분까지_이어진다(self):
-        assert all(captures(Region.US, time(h, m)) for h in range(4, 16) for m in range(60))
-        assert captures(Region.US, time(16, 0))
+    def test_프리마켓부터_애프터마켓까지_쉬지_않고_마감_분까지_이어진다(self):
+        assert all(captures(Region.US, time(h, m)) for h in range(4, 20) for m in range(60))
+        assert captures(Region.US, time(20, 0))
 
-    @pytest.mark.parametrize("at", [time(3, 59), time(16, 1)])
+    @pytest.mark.parametrize("at", [time(3, 59), time(20, 1)])
     def test_세션_밖은_찍지_않는다(self, at):
         assert not captures(Region.US, at)

@@ -45,8 +45,8 @@ export default function HomePage() {
   const krHoliday = krCalendar?.isHoliday;
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
-  // 세션 중인가 — 국내는 프리·애프터마켓까지(08:00~20:00), 해외는 프리마켓~정규장이다
-  // (해외 세션 정의에 애프터마켓이 없다). 주도주 카드의 "장중" 칩이 이 값을 쓴다.
+  // 세션 중인가 — 국내·해외 모두 프리마켓부터 애프터마켓까지다(국내 08:00~20:00 KST,
+  // 해외 04:00~20:00 뉴욕). 주도주 카드의 "장중" 칩이 이 값을 쓴다.
   // 어느 쪽을 앞에 둘지는 이 값이 아니라 아래 `overseasIsMain`이 정한다.
   const domesticLive = kr !== null && !krHoliday;
   const overseasLive = us !== null && !usHoliday;
