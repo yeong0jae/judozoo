@@ -3,7 +3,11 @@ import pytest
 import respx
 
 from backend.platform.kis import client as kis_client
+from datetime import datetime
+
+from backend.platform.kis import overseas_chart
 from backend.platform.kis.overseas_chart import (
+    MinutePagesInterrupted,
     fetch_daily_candles,
     fetch_minute_candles,
 )
@@ -175,6 +179,76 @@ class Test분봉_실패:
 
         with pytest.raises(RuntimeError, match="해외 분봉 오류"):
             fetch_minute_candles("NAS", "AAPL")
+
+
+class Test분봉_이어_받기:
+    @respx.mock
+    def test_기준_시각_이후_봉만_주고_그보다_이른_봉이_보이면_멈춘다(self, respx_mock, 토큰_발급):
+        route = respx_mock.get(MINUTE_URL).mock(side_effect=[
+            분봉응답([
+                분봉("20260825", "20260825", "093200", "20260825", "223200"),
+                분봉("20260825", "20260825", "093100", "20260825", "223100"),
+                분봉("20260825", "20260825", "093000", "20260825", "223000"),
+            ]),
+            분봉응답([분봉("20260825", "20260825", "092900", "20260825", "222900")]),
+        ])
+
+        candles = fetch_minute_candles("NAS", "AAPL", since=datetime(2026, 8, 25, 22, 31))
+
+        assert route.call_count == 1
+        assert sorted(c.date_time.minute for c in candles) == [31, 32]
+
+
+class Test분봉_중간에_끊기면:
+    @respx.mock
+    def test_뒷페이지가_실패하면_받은_데까지를_담아_알린다(self, respx_mock, 토큰_발급, monkeypatch):
+        monkeypatch.setattr(overseas_chart, "sleep", lambda s: None)
+        respx_mock.get(MINUTE_URL).mock(side_effect=[
+            분봉응답([분봉("20260825", "20260825", "093000", "20260825", "223000")]),
+            httpx.Response(500, json={"rt_cd": "1", "msg_cd": "EGW00123", "msg1": "서버 오류"}),
+        ])
+
+        with pytest.raises(MinutePagesInterrupted) as 끊김:
+            fetch_minute_candles("NAS", "AAPL")
+
+        assert [c.date_time.minute for c in 끊김.value.candles] == [30]
+
+    @respx.mock
+    def test_오류_본문의_코드와_메시지를_싣는다(self, respx_mock, 토큰_발급):
+        """KIS는 한도 초과도 HTTP 500으로 준다 — 상태 코드만으로는 무엇인지 모른다."""
+        respx_mock.get(MINUTE_URL).mock(
+            return_value=httpx.Response(500, json={"rt_cd": "1", "msg_cd": "EGW00123", "msg1": "서버 오류"})
+        )
+
+        with pytest.raises(RuntimeError, match="HTTP 500 EGW00123 서버 오류"):
+            fetch_minute_candles("NAS", "AAPL")
+
+    @respx.mock
+    def test_한도_초과면_잠깐_쉬고_한_번_더_부른다(self, respx_mock, 토큰_발급, monkeypatch):
+        쉼 = []
+        monkeypatch.setattr(overseas_chart, "sleep", 쉼.append)
+        route = respx_mock.get(MINUTE_URL).mock(side_effect=[
+            httpx.Response(500, json={"rt_cd": "1", "msg_cd": "EGW00201", "msg1": "초당 거래건수를 초과하였습니다."}),
+            분봉응답([분봉("20260825", "20260825", "093000", "20260825", "223000")]),
+            분봉응답([]),
+        ])
+
+        candles = fetch_minute_candles("NAS", "AAPL")
+
+        assert 쉼 == [1.0]
+        assert route.call_count == 3
+        assert len(candles) == 1
+
+    @respx.mock
+    def test_재시도도_한도_초과면_포기한다(self, respx_mock, 토큰_발급, monkeypatch):
+        monkeypatch.setattr(overseas_chart, "sleep", lambda s: None)
+        route = respx_mock.get(MINUTE_URL).mock(
+            return_value=httpx.Response(500, json={"rt_cd": "1", "msg_cd": "EGW00201", "msg1": "초과"})
+        )
+
+        with pytest.raises(RuntimeError, match="EGW00201"):
+            fetch_minute_candles("NAS", "AAPL")
+        assert route.call_count == 2
 
 
 class Test일봉_페이징:

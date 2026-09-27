@@ -6,6 +6,7 @@
 
 from backend.library.cache import ttl_cache
 from backend.market import calendar
+from backend.overseasleadingstock import minutes
 from backend.overseasleadingstock.domain import (
     FilterResult,
     OverseasStockRank,
@@ -119,8 +120,8 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
 
 
 def minute_candles(exchange: str, symbol: str) -> list[overseas_chart.OverseasMinuteCandle]:
-    """종목 1분봉 (한국 시각순 오름차순)."""
-    return sorted(overseas_chart.fetch_minute_candles(exchange, symbol), key=lambda c: c.date_time)
+    """종목 1분봉 (한국 시각순 오름차순). 종목별로 들고 있다가 새 봉만 이어 받는다."""
+    return sorted(minutes.minute_candles(exchange, symbol), key=lambda c: c.date_time)
 
 
 def daily_candles(exchange: str, symbol: str) -> list[overseas_chart.OverseasDailyCandle]:

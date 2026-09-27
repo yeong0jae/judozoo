@@ -7,9 +7,12 @@
 - 일봉(HHDFS76240000): 1회 100건. 커서 `BYMD`는 이전 페이지 마지막 일자 −1일.
 
 캔들의 시각 자체는 **한국기준(kymd+khms)**을 쓴다. 커서용 현지시각과 혼동하지 않는다.
+
+분봉은 캐시하지 않는다 — `overseasleadingstock.minutes`가 종목별로 들고 있다가 새 봉만 이어 받는다.
 """
 
 import logging
+from time import sleep
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -24,13 +27,17 @@ MAX_MINUTE_PAGES = 20  # 2거래일(~1,350분/120) ≈ 12페이지에 여유
 DAILY_COUNT = 200      # 일봉 표시 거래일 수 (국내와 동일)
 MAX_DAILY_PAGES = 3    # 1회 100건 한도라 200건 = 2페이지에 여유
 
+#: KIS 초당 거래건수 초과. HTTP 500에 실려 온다 — 잠깐 쉬었다 한 번 더 부르면 대개 지나간다.
+_RATE_LIMITED = "EGW00201"
+
 _MINUTE_FMT = "%Y%m%d%H%M%S"
 _DAILY_FMT = "%Y%m%d"
 
 
 @dataclass(frozen=True)
 class OverseasMinuteCandle:
-    date_time: datetime
+    date_time: datetime   # 한국시각
+    trading_day: date     # 현지 영업일(tymd) — 미국 장은 한국 자정을 넘나들어 한국 날짜로는 하루가 쪼개진다
     open: float
     high: float
     low: float
@@ -49,20 +56,37 @@ class OverseasDailyCandle:
     volume: int
 
 
-@ttl_cache("kisOverseasMinuteCandles", ttl_seconds=60, maxsize=60)
-def fetch_minute_candles(excd: str, symb: str) -> list[OverseasMinuteCandle]:
-    """최근 [SESSION_DAYS]거래일 1분봉.
+class MinutePagesInterrupted(RuntimeError):
+    """뒷페이지에서 끊겼다. 그때까지 받은 봉은 `candles`에 있다 — 없는 것보다 낫지만 온전하지 않다."""
 
-    현지영업일(tymd)이 SESSION_DAYS를 넘기 시작하면(다음 거래일 데이터가 보이면) 중단한 뒤
-    최신 거래일만 남긴다.
+    def __init__(self, message: str, candles: list["OverseasMinuteCandle"]) -> None:
+        super().__init__(message)
+        self.candles = candles
+
+
+def fetch_minute_candles(excd: str, symb: str, since: datetime | None = None) -> list[OverseasMinuteCandle]:
+    """최신부터 거꾸로 받은 1분봉.
+
+    - `since`가 없으면 최근 [SESSION_DAYS]거래일. 현지영업일(tymd)이 그보다 많이 보이면 멈추고
+      최신 거래일만 남긴다.
+    - `since`(한국시각)가 있으면 그 시각 이후 봉만 — 그보다 이른 봉이 보이면 멈춘다. 이어 받기용이라
+      대개 첫 페이지에서 끝난다.
+
+    첫 페이지가 실패하면 예외를 올린다. 뒷페이지가 실패하면 받은 데까지를 `MinutePagesInterrupted`에 담아 올린다.
     """
     collected: list[dict[str, Any]] = []
     trading_days: list[str] = []  # 등장 순서를 보존하되 중복은 제외
     keyb = ""
     next_ = ""
 
-    for _ in range(MAX_MINUTE_PAGES):
-        items = _fetch_minute_page(excd, symb, next_, keyb)
+    for page in range(MAX_MINUTE_PAGES):
+        try:
+            items = _fetch_minute_page(excd, symb, next_, keyb)
+        except Exception as e:
+            if page == 0:
+                raise
+            log.warning("KIS 해외 분봉 뒷페이지 실패 — 받은 데까지만 (%s:%s, %d페이지)", excd, symb, page + 1)
+            raise MinutePagesInterrupted(str(e), _finish(collected, trading_days, since)) from e
         if not items:
             break
         collected += items
@@ -70,8 +94,12 @@ def fetch_minute_candles(excd: str, symb: str) -> list[OverseasMinuteCandle]:
             tymd = str(item.get("tymd", "")).strip()
             if tymd and tymd not in trading_days:
                 trading_days.append(tymd)
-        if len(trading_days) > SESSION_DAYS:
+        if since is None and len(trading_days) > SESSION_DAYS:
             break  # 다음 거래일까지 받았으니 충분
+        if since is not None and any(
+            (c := _to_minute_candle(i)) is not None and c.date_time < since for i in items
+        ):
+            break  # 이미 가진 구간에 닿았다
 
         last = items[-1]  # 페이지는 최신→과거라 마지막이 가장 이른 봉
         cursor = _parse_local_cursor(last)
@@ -80,13 +108,15 @@ def fetch_minute_candles(excd: str, symb: str) -> list[OverseasMinuteCandle]:
         keyb = (cursor - timedelta(minutes=1)).strftime(_MINUTE_FMT)
         next_ = "1"
 
+    return _finish(collected, trading_days, since)
+
+
+def _finish(collected: list[dict[str, Any]], trading_days: list[str], since: datetime | None) -> list[OverseasMinuteCandle]:
+    candles = [c for c in (_to_minute_candle(item) for item in collected) if c is not None]
+    if since is not None:
+        return [c for c in candles if c.date_time >= since]
     keep_days = set(sorted(trading_days, reverse=True)[:SESSION_DAYS])
-    candles = (
-        _to_minute_candle(item)
-        for item in collected
-        if str(item.get("tymd", "")).strip() in keep_days
-    )
-    return [c for c in candles if c is not None]
+    return [c for c in candles if c.trading_day.strftime(_DAILY_FMT) in keep_days]
 
 
 @ttl_cache("kisOverseasDailyCandles", ttl_seconds=30, maxsize=60)
@@ -113,8 +143,37 @@ def fetch_daily_candles(excd: str, symb: str) -> list[OverseasDailyCandle]:
 
 
 def _fetch_minute_page(excd: str, symb: str, next_: str, keyb: str) -> list[dict[str, Any]]:
-    """실패 시 예외를 올린다 — 페이징 도중 조용히 잘리면 봉이 비는 걸 눈치채기 어렵다."""
-    response = get_client().get(
+    """실패 시 예외를 올린다 — 페이징 도중 조용히 잘리면 봉이 비는 걸 눈치채기 어렵다.
+
+    **오류 본문을 메시지에 싣는다.** KIS는 한도 초과도 HTTP 500으로 준다 — 상태 코드만으로는
+    무엇이 문제인지 알 수 없다. 한도 초과(`EGW00201`)면 1초 쉬고 한 번만 다시 부른다.
+    """
+    for attempt in (1, 2):
+        response = _get_minute_page(excd, symb, next_, keyb)
+        body = _json_or_empty(response)
+        if response.status_code == 200 and body.get("rt_cd") == "0":
+            return body.get("output2") or []
+        msg_cd, msg1 = body.get("msg_cd"), body.get("msg1")
+        if msg_cd == _RATE_LIMITED and attempt == 1:
+            log.warning("KIS 해외 분봉 한도 초과 — 1초 뒤 다시 (%s:%s)", excd, symb)
+            sleep(1.0)
+            continue
+        raise RuntimeError(
+            f"KIS 해외 분봉 오류: HTTP {response.status_code} {msg_cd} {msg1} ({excd}:{symb}, KEYB={keyb or '-'})"
+        )
+    return []  # 닿지 않는다 — 두 번째 시도는 반환하거나 올린다
+
+
+def _json_or_empty(response) -> dict[str, Any]:
+    try:
+        body = response.json()
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _get_minute_page(excd: str, symb: str, next_: str, keyb: str):
+    return get_client().get(
         "/uapi/overseas-price/v1/quotations/inquire-time-itemchartprice",
         params={
             "AUTH": "",
@@ -129,11 +188,6 @@ def _fetch_minute_page(excd: str, symb: str, next_: str, keyb: str) -> list[dict
         },
         headers=auth_headers("HHDFS76950200"),
     )
-    response.raise_for_status()
-    body = response.json()
-    if body.get("rt_cd") != "0":
-        raise RuntimeError(f"KIS 해외 분봉 오류: {body.get('msg1')} ({excd}:{symb})")
-    return body.get("output2") or []
 
 
 def _fetch_daily_page(excd: str, symb: str, bymd: str) -> list[dict[str, Any]]:
@@ -172,10 +226,12 @@ def _parse_local_cursor(item: dict[str, Any]) -> datetime | None:
 def _to_minute_candle(item: dict[str, Any]) -> OverseasMinuteCandle | None:
     # 봉의 시각은 한국기준(kymd+khms). 커서용 현지시각과 다르다.
     at = _parse_datetime(item.get("kymd"), item.get("khms"))
-    if at is None:
+    day = _parse_date(item.get("tymd"))
+    if at is None or day is None:
         return None
     return OverseasMinuteCandle(
         date_time=at,
+        trading_day=day,
         open=_to_float(item.get("open")),
         high=_to_float(item.get("high")),
         low=_to_float(item.get("low")),
