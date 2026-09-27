@@ -77,6 +77,8 @@ class Test최근_3거래일_분봉:
 
         intraday.reset()
         monkeypatch.setattr(application, "today", lambda: self.오늘)
+        monkeypatch.setattr(application, "now", lambda: datetime(2026, 9, 28, 10, 0))
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
         기준일들 = []
         지난날 = {
             date(2026, 9, 27): [분봉(date(2026, 9, 25), 9), 분봉(date(2026, 9, 24), 19)],
@@ -132,3 +134,56 @@ class Test최근_3거래일_분봉:
 
         assert 불림 == []
         intraday.reset()
+
+
+class Test장_밖의_당일_분봉:
+    """장 밖엔 저장소가 비어 요청이 토스로 간다 — 값이 안 바뀌는 동안은 다시 부르지 않는다."""
+
+    def 준비(self, monkeypatch, 지금: datetime, 휴장: bool = False) -> list:
+        from backend.leadingstock import intraday
+
+        intraday.reset()
+        monkeypatch.setattr(application, "now", lambda: 지금)
+        monkeypatch.setattr(application, "today", lambda: 지금.date())
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (휴장, 8 <= 지금.hour < 20))
+        불림 = []
+        monkeypatch.setattr(
+            application.toss_candles, "fetch_today_minute_candles",
+            lambda code, since=None: 불림.append(code) or [분봉(지금.date(), 9)],
+        )
+        return 불림
+
+    def test_마감_뒤에_받은_값은_다음날_장_시작까지_간다(self, monkeypatch):
+        self.준비(monkeypatch, datetime(2026, 9, 28, 21, 0))
+
+        assert application._today_minutes_ttl() == 11 * 3600
+
+    def test_마감_직후_몇_분은_마지막_봉이_굳을_때까지_짧게_둔다(self, monkeypatch):
+        self.준비(monkeypatch, datetime(2026, 9, 28, 20, 2))
+
+        assert application._today_minutes_ttl() == 30
+
+    def test_장중에는_30초만_들고_있는다(self, monkeypatch):
+        self.준비(monkeypatch, datetime(2026, 9, 28, 14, 0))
+
+        assert application._today_minutes_ttl() == 30
+
+    def test_마감_뒤_두_번째_조회는_토스를_부르지_않는다(self, monkeypatch):
+        불림 = self.준비(monkeypatch, datetime(2026, 9, 28, 21, 0))
+
+        application._today_minute_candles("005930")
+        application._today_minute_candles("005930")
+
+        assert 불림 == ["005930"]
+
+    def test_휴장일에는_토스를_부르지_않는다(self, monkeypatch):
+        불림 = self.준비(monkeypatch, datetime(2026, 9, 27, 14, 0), 휴장=True)
+
+        assert application._today_minute_candles("005930") == []
+        assert 불림 == []
+
+    def test_장_시작_전에는_토스를_부르지_않는다(self, monkeypatch):
+        불림 = self.준비(monkeypatch, datetime(2026, 9, 28, 7, 30))
+
+        assert application._today_minute_candles("005930") == []
+        assert 불림 == []

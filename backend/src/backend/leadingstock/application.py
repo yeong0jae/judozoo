@@ -115,6 +115,11 @@ def _pool_ttl() -> float:
     holiday, trading_hours = calendar.market_status()
     if not holiday and trading_hours:
         return _POOL_TTL_SECONDS
+    return _seconds_until_session()
+
+
+def _seconds_until_session() -> float:
+    """다음 08:00까지 남은 초. 장이 멈춘 동안 받은 값을 들고 있을 기한이다."""
     at = now()
     reopen = datetime.combine(at.date(), _SESSION_START)
     if at >= reopen:
@@ -373,18 +378,41 @@ def _latest_session_minute_candles(stock_code: str) -> list[MinuteCandle]:
     return _today_minute_candles(stock_code)
 
 
+#: 장중에 직접 받은 오늘 분봉의 수명.
+_TODAY_MINUTES_TTL_SECONDS = 30
+#: 마감(20:00) 뒤 이 시각부터 받은 값만 다음 장까지 들고 있는다 — 마지막 봉이 확정될 틈을 둔다.
+_SETTLED_AFTER_CLOSE = time(20, 5)
+
+
 def _today_minute_candles(stock_code: str) -> list[MinuteCandle]:
     """오늘 1분봉. 감시 풀이면 20초마다 이어 받은 저장소에서, 아니면 직접 받아 온다.
 
-    상세 화면으로 연 비후보 종목이나 저장소 갱신이 끊긴 종목이 직접 받는 쪽으로 간다.
+    상세 화면으로 연 비후보 종목, 저장소 갱신이 끊긴 종목, **장 밖의 모든 요청**이 직접 받는 쪽으로 간다
+    (저장소는 장중에만 채운다). 휴장일이나 08:00 전에는 오늘 봉이 있을 수 없어 부르지 않는다.
     """
     stored = intraday.get(stock_code)
-    return stored if stored is not None else _fetch_today_minute_candles(stock_code)
+    if stored is not None:
+        return stored
+    holiday, _ = calendar.market_status()
+    if holiday or now().time() < _SESSION_START:
+        return []
+    return _fetch_today_minute_candles(stock_code)
 
 
-@ttl_cache("todayMinuteCandles", ttl_seconds=30, maxsize=60, skip_if=is_empty)
+def _today_minutes_ttl() -> float:
+    """장중엔 30초, 마감이 굳은 뒤(20:05~)는 다음 08:00까지.
+
+    장 밖엔 저장소가 비어 모든 요청이 여기로 온다. 30초로 두면 마감 뒤에도 종목마다 하루치(720봉,
+    토스 4번)를 30초마다 다시 받았다 — 눌림·돌파 한 번에 백 번 넘게.
+    """
+    if now().time() >= _SETTLED_AFTER_CLOSE:
+        return _seconds_until_session()
+    return _TODAY_MINUTES_TTL_SECONDS
+
+
+@ttl_cache("todayMinuteCandles", ttl_seconds=_today_minutes_ttl, maxsize=100, skip_if=is_empty)
 def _fetch_today_minute_candles(stock_code: str) -> list[MinuteCandle]:
-    """저장소에 없는 종목의 오늘 분봉 — 30초 캐시. 실패하면 빈 목록(캐시하지 않는다)."""
+    """저장소에 없는 종목의 오늘 분봉. 실패하면 빈 목록(캐시하지 않는다)."""
     try:
         return toss_candles.fetch_today_minute_candles(stock_code)
     except Exception:
