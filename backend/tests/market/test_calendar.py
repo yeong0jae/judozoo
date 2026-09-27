@@ -1,5 +1,8 @@
 """미국 장 상태 — 한국 시간으로 도는 서버가 미 동부 기준으로 판정한다. 서머타임이 함정이다."""
 
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 
 import pytest
@@ -86,3 +89,55 @@ class Test직전_개장일:
         self.개장일(monkeypatch)
 
         assert calendar.previous_open_day(date(2026, 9, 26)) is None
+
+
+class Test휴장_조회:
+    """토스 장 운영 정보는 초당 3건 — 몰려도 한 번만 묻고, 실패는 오래 들고 있지 않는다."""
+
+    @pytest.fixture
+    def 토스(self, monkeypatch):
+        calendar.reset()
+        monkeypatch.setattr(calendar.Region, "today", lambda self: date(2026, 9, 24))   # 목요일, 추석
+        상태 = {"응답": False, "호출": 0}
+
+        def 조회(region, on):
+            상태["호출"] += 1
+            time.sleep(0.05)   # 뒤따라온 스레드가 진행 중인 조회를 보게 한다
+            return 상태["응답"]
+
+        monkeypatch.setattr(calendar.toss_calendar, "is_trading_day", 조회)
+        yield 상태
+        calendar.reset()
+
+    def test_동시에_몰려도_토스에는_한_번만_묻는다(self, 토스):
+        출발선 = threading.Barrier(5)
+
+        def 묻기():
+            출발선.wait()
+            return calendar.is_holiday(calendar.Region.KR)
+
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            결과들 = [f.result() for f in [pool.submit(묻기) for _ in range(5)]]
+
+        assert 토스["호출"] == 1
+        assert 결과들 == [True] * 5
+
+    def test_성공한_답은_그날_내내_다시_묻지_않는다(self, 토스):
+        calendar.is_holiday(calendar.Region.KR)
+        calendar.is_holiday(calendar.Region.KR)
+
+        assert 토스["호출"] == 1
+
+    def test_실패하면_주말로만_판정하고_잠시_뒤_다시_묻는다(self, 토스, monkeypatch):
+        """평일 휴장(추석)을 하루 종일 개장으로 보면 안 된다."""
+        토스["응답"] = None
+        assert calendar.is_holiday(calendar.Region.KR) is False       # 목요일이라 주말 폴백은 개장
+        assert calendar.is_holiday(calendar.Region.KR) is False
+        assert 토스["호출"] == 1                                       # 재시도 전에는 다시 묻지 않는다
+
+        지금 = calendar.monotonic()
+        monkeypatch.setattr(calendar, "monotonic", lambda: 지금 + calendar._RETRY_AFTER_FAILURE_SECONDS + 1)
+        토스["응답"] = False
+
+        assert calendar.is_holiday(calendar.Region.KR) is True
+        assert 토스["호출"] == 2

@@ -74,10 +74,12 @@ Backend (Python + FastAPI, package by feature)
 
 브로커별 한도를 **공유 토큰 버킷 하나**로 통제한다 (`library/rate_limiter.py`). 폴러·상세조회·화면 요청이 각자 리미터를 가지면 합산이 한도를 넘는다.
 
-- 브로커 한도: 키움 초당 5건(**09:00~10:00은 3건**), KIS 초당 18건, 토스는 그룹별 — `MARKET_DATA` 초당 15건, `MARKET_DATA_CHART`(캔들) 초당 20건
+- 브로커 한도: 키움 초당 5건(**09:00~10:00은 3건**), KIS 초당 18건, 토스는 API 그룹별 — 종목 캔들 `MARKET_DATA_CHART` 20건, 지수 캔들 `MARKET_INDICATOR_CHART` 5건, 장 운영 캘린더 `MARKET_INFO` 3건, 투자자별 매매대금 `MARKET_INDICATOR` 10건(안 씀), `MARKET_DATA` 15건(해당 API 안 씀)
 - 키움 조회: 초당 5건, 09:00~10:00 초당 3건 (`KIWOOM_QUERY_PERMITS_PER_SECOND`, `KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND`). 피크타임은 장 시작 직후라 분봉 캐시를 처음 채우는 때와 겹친다
 - KIS 조회: 초당 15건 (`KIS_QUERY_PERMITS_PER_SECOND`). 한도 18건에서 3건 여유
-- 토스 캔들: 초당 16건 (`TOSS_CHART_PERMITS_PER_SECOND`). 한도 20건에서 4건 여유. 그 밖의 토스 조회는 리미터 없음 — 휴장 판정은 지역별 하루 한 번이다
+- 토스 종목 캔들: 초당 16건 (`TOSS_CHART_PERMITS_PER_SECOND`). 한도 20건에서 4건 여유
+- 토스 지수 캔들: 초당 4건 (`TOSS_INDICATOR_CHART_PERMITS_PER_SECOND`). 1분봉 차트 한 번이 200봉 페이지를 최대 6번 연달아 받아, 리미터 없이는 요청 하나가 한도를 넘는다. 결과는 30초 캐시
+- 토스 장 운영 캘린더: 리미터 없음. 지역별 하루 한 번이고, 몰려도 한 번만 묻는다(잠금). 실패한 폴백은 5분 뒤 다시 묻는다
 - 1초에 몰아 충전하지 않고 균등 발급한다
 - 한도에 닿으면 **거부가 아니라 대기**, timeout 키움 20초 · KIS 30초
 

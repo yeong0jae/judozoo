@@ -6,6 +6,7 @@
 import threading
 from datetime import UTC, date, datetime, time, timedelta
 from enum import Enum
+from time import monotonic
 from zoneinfo import ZoneInfo
 
 from backend.library.time import KST, now, today
@@ -84,21 +85,49 @@ class Region(str, Enum):
 _ZONES = {Region.KR: ZoneInfo("Asia/Seoul"), Region.US: ZoneInfo("America/New_York")}
 
 
+#: 조회에 실패해 주말로만 판정한 값은 이만큼만 믿고 다시 묻는다.
+_RETRY_AFTER_FAILURE_SECONDS = 300.0
+
 _calendar_lock = threading.Lock()
-_calendar_cache: dict[Region, tuple[date, bool]] = {}
+# 지역 → (현지 날짜, 휴장 여부, 다시 물을 시각). 다시 물을 시각은 폴백일 때만 있다.
+_calendar_cache: dict[Region, tuple[date, bool, float | None]] = {}
 
 
 def is_holiday(region: Region) -> bool:
-    """`region` 시장의 오늘이 휴장(주말·공휴일)인지. 조회 실패면 주말 폴백."""
-    current = region.today()
-    cached = _calendar_cache.get(region)
-    if cached is not None and cached[0] == current:
-        return cached[1]
+    """`region` 시장의 오늘이 휴장(주말·공휴일)인지. 조회 실패면 주말 폴백.
 
-    open_ = toss_calendar.is_trading_day(region.code, current)
-    holiday = (not open_) if open_ is not None else current.weekday() >= 5
+    **한 번만 묻는다.** 날짜가 바뀌거나 재시작한 직후엔 폴러·화면 요청이 한꺼번에 여기로 온다.
+    토스 장 운영 정보는 초당 3건(MARKET_INFO)이라, 각자 부르면 한도에 걸려 전부 실패한다.
+    **실패는 하루 내내 들고 있지 않는다.** 주말 폴백을 그날 치로 캐시하면 추석 같은 평일 휴장을
+    하루 종일 개장으로 본다 — 몇 분 뒤 다시 묻는다.
+    """
+    current = region.today()
+    hit = _cached_holiday(region, current)
+    if hit is not None:
+        return hit
+    # 락을 쥔 채 부른다 — 뒤따라온 스레드는 기다렸다가 캐시된 답을 받는다. 하루 한두 번이라 짧다.
     with _calendar_lock:
-        _calendar_cache[region] = (current, holiday)
+        hit = _cached_holiday(region, current)
+        if hit is not None:
+            return hit
+        open_ = toss_calendar.is_trading_day(region.code, current)
+        if open_ is None:
+            holiday = current.weekday() >= 5
+            _calendar_cache[region] = (current, holiday, monotonic() + _RETRY_AFTER_FAILURE_SECONDS)
+        else:
+            holiday = not open_
+            _calendar_cache[region] = (current, holiday, None)
+        return holiday
+
+
+def _cached_holiday(region: Region, current: date) -> bool | None:
+    """오늘 치 답이 있으면 그 값, 없거나 폴백의 재시도 시각이 지났으면 None."""
+    cached = _calendar_cache.get(region)
+    if cached is None or cached[0] != current:
+        return None
+    _, holiday, retry_at = cached
+    if retry_at is not None and monotonic() >= retry_at:
+        return None
     return holiday
 
 
