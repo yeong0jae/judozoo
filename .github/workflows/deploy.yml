@@ -117,16 +117,45 @@ jobs:
     name: deploy ops
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 이번 푸시 직전 커밋과 비교하려면 이력이 필요하다
+
+      # 관측 스택이 안 바뀌었으면 나머지 단계를 건너뛴다.
+      #
+      # **Actions 분을 아끼려는 것이다.** 바뀐 게 없어도 매 배포 3분 넘게 돌았고, 2026-09에
+      # 배포 238번으로 무료 2,000분을 다 썼다. alloy는 앱 VM에서 돌아 여기서 뺀다.
+      # 푸시가 아니거나(수동 실행) 직전 커밋을 모르면(새 브랜치·강제 푸시) 항상 배포한다.
+      # 주의: 관측 스택 배포가 실패한 뒤 관련 없는 푸시만 오면 다시 시도하지 않는다 — 수동 실행으로 돌린다.
+      - name: Detect ops changes
+        id: changes
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" != "push" ] || [ -z "$BEFORE" ] \
+             || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "ops=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BEFORE" "$GITHUB_SHA" -- \
+                 observability ':(exclude)observability/alloy' \
+                 docker-compose.ops.yml docker-compose.ops.prod.yml \
+                 infra/deploy/remote_deploy_ops.sh .github/workflows/deploy.yml; then
+            echo "ops=false" >> "$GITHUB_OUTPUT"
+            echo "관측 스택 변경 없음 — 배포 건너뜀"
+          else
+            echo "ops=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - id: auth
+        if: steps.changes.outputs.ops == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.DEPLOY_SA }}
 
       - uses: google-github-actions/setup-gcloud@v2
+        if: steps.changes.outputs.ops == 'true'
 
       - name: Sync compose + deploy script to ops VM
+        if: steps.changes.outputs.ops == 'true'
         run: |
           # **rm 하지 않는다.** 디렉터리·파일 inode가 바뀌면 재사용된 컨테이너의 bind mount가
           # 끊긴다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽은 원인). scp는 기존
@@ -142,6 +171,7 @@ jobs:
       # 매 배포마다 loki·prometheus·tempo가 재시작해 수집에 공백이 생겼다.
       - name: Resolve config hashes
         id: cfg
+        if: steps.changes.outputs.ops == 'true'
         run: |
           {
             echo "loki=$(git rev-parse HEAD:observability/loki)"
@@ -151,6 +181,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Deploy on ops VM
+        if: steps.changes.outputs.ops == 'true'
         run: |
           gcloud compute ssh "${{ vars.VM_NAME_OPS }}" --tunnel-through-iap --zone "${VM_ZONE}" \
             --command "bash ~/remote_deploy_ops.sh \
