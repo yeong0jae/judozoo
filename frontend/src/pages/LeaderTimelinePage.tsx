@@ -104,6 +104,8 @@ export default function LeaderTimelinePage() {
 
   const last = model?.last ?? -1;
   const cursor = pinned === null ? last : Math.min(pinned, last);
+  /** 커서를 옮긴다. 마지막 분이면 고정하지 않고 최신을 따라가게 둔다 — 고정하면 새 분이 들어와도 그 분에 멈춘다 */
+  const pin = (i: number) => setPinned(i >= last ? null : i);
   const shown = hover ?? cursor;
 
   // 재생 — 찍힌 분만 밟아 간다. 끝에 닿으면 멈춘다
@@ -115,7 +117,7 @@ export default function LeaderTimelinePage() {
         const next = model.live.find((i) => i > from);
         if (next === undefined) {
           setPlaying(false);
-          return from;
+          return null;
         }
         return next;
       });
@@ -140,7 +142,7 @@ export default function LeaderTimelinePage() {
     if (!model) return;
     const list = dir > 0 ? model.live : [...model.live].reverse();
     const next = list.find((i) => (dir > 0 ? i > cursor : i < cursor));
-    if (next !== undefined) setPinned(next);
+    if (next !== undefined) pin(next);
   };
   const play = () => {
     if (!model) return;
@@ -239,7 +241,7 @@ export default function LeaderTimelinePage() {
               offset={offset}
               live={live}
               cursor={cursor}
-              onCursor={setPinned}
+              onCursor={pin}
               onTouch={() => setPlaying(false)}
             />
           ) : (
@@ -250,13 +252,13 @@ export default function LeaderTimelinePage() {
               live={live}
               shown={shown}
               onHover={setHover}
-              onPick={(i) => setPinned(i)}
+              onPick={pin}
               onStep={step}
             />
           )}
         </section>
 
-        <ChangeLog model={model} offset={offset} cursor={cursor} collapsible={narrow} onPick={(i) => { setPlaying(false); setPinned(i); }} />
+        <ChangeLog model={model} offset={offset} cursor={cursor} collapsible={narrow} onPick={(i) => { setPlaying(false); pin(i); }} />
       </div>
     </div>
   );
