@@ -116,9 +116,10 @@ def market_status() -> tuple[bool, bool]:
 
 # --- 미국 장 상태 --------------------------------------------------------
 
-# 미 동부 기준. 프리마켓부터 정규장 마감까지 — 화면 세션(`lib/marketSession.ts`)과 같다.
+# 미 동부 기준. 프리마켓부터 애프터마켓 마감까지 — 화면 세션(`lib/marketSession.ts`)과 같다.
+# 실적 발표가 대개 정규장 마감 직후라 애프터마켓까지 본다. 20:00 뒤 데이마켓은 대체거래소라 KIS 순위에 없다
 _US_TRADING_START = time(4, 0)
-_US_TRADING_END = time(16, 0)
+_US_TRADING_END = time(20, 0)
 
 
 def _us_now() -> datetime:
@@ -126,7 +127,7 @@ def _us_now() -> datetime:
 
 
 def us_market_status() -> tuple[bool, bool]:
-    """(미국 휴장 여부, 미 동부 04:00~16:00 안인지). 서머타임은 시간대가 알아서 반영한다."""
+    """(미국 휴장 여부, 미 동부 04:00~20:00 안인지). 서머타임은 시간대가 알아서 반영한다."""
     return is_holiday(Region.US), _US_TRADING_START <= _us_now().time() < _US_TRADING_END
 
 

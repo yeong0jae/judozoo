@@ -4,7 +4,7 @@ import type { LeaderTimelineResponse } from "../types";
  * 주도주 타임라인 계산 — 화면은 이 결과만 그린다.
  *
  * 슬롯 = 세션 시작부터 1분 칸. 분은 **현지 시각**(국내 KST, 해외 뉴욕)이고, 화면 표시는 한국 시간이다.
- * 1분 원본은 5위 경계에서 들락날락이 심해서, 줄 순서·배지·변화 기록은 **3분 넘게 이어진 값**으로 다듬는다.
+ * 1분 원본은 5위 경계에서 들락날락이 심해서, 줄 순서·배지·순위 변동은 **3분 넘게 이어진 값**으로 다듬는다.
  * 띠(타임라인)만 원본을 쓴다.
  */
 
@@ -15,6 +15,8 @@ type Session = [start: number, end: number, label: string, regular?: boolean];
 export interface MarketSpec {
   start: number; // 현지 분
   end: number;
+  /** 시작부터 마감 분까지 1분 칸 수 — 마감 분도 한 칸이라 end − start + 1 */
+  slots: number;
   gaps: [number, number][];
   sessionName: (localMin: number) => string;
 }
@@ -23,21 +25,22 @@ export const MARKET_SPECS: Record<TimelineMarket, MarketSpec> = {
   kr: {
     start: 480,
     end: 1200,
+    slots: 721,
     // 단일가·장 전환 구간 — 찍지 않는다(백엔드 `leadertimeline.domain`과 같다)
     gaps: [[530, 540], [930, 940]],
     sessionName: (m) =>
       m < 530 ? "NXT 프리마켓" : m < 540 ? "쉬는 구간" : m < 930 ? "정규장" : m < 940 ? "쉬는 구간" : "NXT 애프터마켓",
   },
+  // 애프터마켓까지 — 실적 발표가 대개 정규장 마감 직후다(백엔드 `market.calendar`와 같다)
   us: {
     start: 240,
-    end: 960,
+    end: 1200,
+    slots: 961,
     gaps: [],
-    sessionName: (m) => (m < 570 ? "프리마켓" : "정규장"),
+    sessionName: (m) => (m < 570 ? "프리마켓" : m < 960 ? "정규장" : "애프터마켓"),
   },
 };
 
-/** 08:00부터 20:00까지(해외 04:00~16:00) — 마감 분도 한 칸이라 721칸 */
-export const SLOTS = 721;
 /** 흔들림으로 보지 않는 최소 지속 — 이만큼 이어져야 바뀐 것으로 친다 */
 const HOLD = 3;
 
@@ -67,6 +70,7 @@ export function sessionsOf(market: TimelineMarket, offset: number): Session[] {
   return [
     [240, 570, `프리 ${hhmm(240 + offset)}–${hhmm(570 + offset)}`],
     [570, 960, `정규장 ${hhmm(570 + offset)}–${hhmm(960 + offset)}`, true],
+    [960, 1200, `애프터 ${hhmm(960 + offset)}–${hhmm(1200 + offset)}`],
   ];
 }
 
@@ -132,18 +136,18 @@ function smooth<T>(live: number[], raw: (i: number) => T): Map<number, T> {
 
 export function buildModel(market: TimelineMarket, data: LeaderTimelineResponse): TimelineModel {
   const spec = MARKET_SPECS[market];
-  const snap: (Entry[] | undefined)[] = new Array(SLOTS).fill(undefined);
+  const snap: (Entry[] | undefined)[] = new Array(spec.slots).fill(undefined);
   for (const t of data.ticks) {
     const [h, m] = t.at.split(":").map(Number);
     const i = h * 60 + m - spec.start;
-    if (i < 0 || i >= SLOTS) continue;
+    if (i < 0 || i >= spec.slots) continue;
     snap[i] = t.stocks.map((k, n) => ({ k, rank: n + 1, rate: t.rates[n], value: t.values[n] }));
   }
   const live = snap.flatMap((s, i) => (s ? [i] : []));
   const last = live.length ? live[live.length - 1] : -1;
   const count = data.stocks.length;
 
-  const rankAt = Array.from({ length: count }, () => new Array<number>(SLOTS).fill(0));
+  const rankAt = Array.from({ length: count }, () => new Array<number>(spec.slots).fill(0));
   snap.forEach((s, i) => s?.forEach((e) => (rankAt[e.k][i] = e.rank)));
   const firstIn = rankAt.map((r) => r.findIndex((x) => x > 0));
   const lead = rankAt.map((r) => r.reduce((sum, v) => sum + (v ? 6 - v : 0), 0));
@@ -157,7 +161,7 @@ export function buildModel(market: TimelineMarket, data: LeaderTimelineResponse)
   lineupRaw.forEach((v, i) => lineup.set(i, v ? v.split(",").map(Number) : []));
   const inSlots = [...Array(count).keys()].map((k) => live.filter((i) => lineup.get(i)!.includes(k)));
 
-  // 변화 기록 — 종목마다 "5종목 안에 있음"을 다듬고, 그 상태가 바뀐 순간만 남긴다(들어옴·빠짐이 짝을 이룬다)
+  // 순위 변동 — 종목마다 "5종목 안에 있음"을 다듬고, 그 상태가 바뀐 순간만 남긴다(들어옴·빠짐이 짝을 이룬다)
   const member = [...Array(count).keys()].map((k) => smooth(live, (i) => snap[i]!.some((e) => e.k === k)));
   const leader = smooth(live, (i) => (snap[i]!.length ? snap[i]![0].k : -1));
   const events: TimelineEvent[] = [];
@@ -222,10 +226,10 @@ export function segmentsOf(model: Pick<TimelineModel, "rankAt">, k: number): Seg
   const r = model.rankAt[k];
   const out: Segment[] = [];
   let i = 0;
-  while (i < SLOTS) {
+  while (i < r.length) {
     if (!r[i]) { i++; continue; }
     let j = i;
-    while (j + 1 < SLOTS && r[j + 1] === r[i]) j++;
+    while (j + 1 < r.length && r[j + 1] === r[i]) j++;
     out.push({ start: i, end: j + 1, rank: r[i], roundStart: !r[i - 1], roundEnd: !r[j + 1] });
     i = j + 1;
   }

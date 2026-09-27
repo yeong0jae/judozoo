@@ -41,11 +41,11 @@ const etOffsetHours = (now: Date) =>
   etFormat(now, { timeZoneName: "short" }).includes("EDT") ? 13 : 14;
 
 /**
- * 해외 — 프리마켓과 정규장만 둔다.
+ * 해외 — 프리마켓·정규장·애프터마켓(백엔드 `market.calendar`와 같다).
  *
- * 애프터마켓·데이마켓은 빼는 게 맞다. 앱이 받는 건 나스닥·뉴욕·아멕스
- * 정규장 거래대금 순위뿐이라, 그 밖의 시간에 "열림"이라 써 봐야
- * 화면은 전날 종가에 멈춰 있다.
+ * 애프터마켓까지 두는 건 실적 발표가 대개 정규장 마감 직후라서다.
+ * 데이마켓은 뺀다 — 체결이 대체거래소라 앱이 받는 나스닥·뉴욕·아멕스
+ * 거래대금 순위에 없고, 그 시간에 "열림"이라 써 봐야 화면은 애프터마켓 마감에 멈춰 있다.
  */
 function usSessions(now: Date): MarketSession[] {
   const offset = etOffsetHours(now) * 60;
@@ -53,6 +53,7 @@ function usSessions(now: Date): MarketSession[] {
   return [
     { name: "해외 프리마켓", tone: "pre", from: kst(4, 0), to: kst(9, 30) },
     { name: "해외 정규장", tone: "open", from: kst(9, 30), to: kst(16, 0) },
+    { name: "해외 애프터마켓", tone: "post", from: kst(16, 0), to: kst(20, 0) },
   ];
 }
 

@@ -1,4 +1,4 @@
-"""주도주 타임라인 스냅샷 — 매분 0초. 국내 08:00~20:00 KST, 해외 04:00~16:00 뉴욕(마감 분 포함).
+"""주도주 타임라인 스냅샷 — 매분 0초. 국내 08:00~20:00 KST, 해외 04:00~20:00 뉴욕(마감 분 포함).
 
 풀은 장중 10초마다 갈아 끼워지는 캐시라, 여기서 읽는다고 브로커 호출이 늘지 않는다.
 해외를 KST로 걸지 않는다 — 서머타임이 끝나면(11월) 한 시간 어긋난다.
@@ -64,6 +64,7 @@ def register(scheduler: BaseScheduler) -> None:
     )
     scheduler.add_job(
         snapshot_overseas,
-        CronTrigger(day_of_week="mon-fri", hour="4-16", minute="*", second=0, timezone=Region.US.zone),
+        # 해외도 20시대는 20:00만 찍힌다
+        CronTrigger(day_of_week="mon-fri", hour="4-20", minute="*", second=0, timezone=Region.US.zone),
         id=_OVERSEAS_JOB, replace_existing=True,
     )

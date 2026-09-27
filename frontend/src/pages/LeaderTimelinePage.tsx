@@ -3,7 +3,7 @@ import { useLeaderTimeline, useMarketCalendarStatus } from "../api/queries";
 import DateNavigator, { latestTradingDayStr, todayStr } from "../components/common/DateNavigator";
 import Skeleton from "../components/common/Skeleton";
 import {
-  SLOTS,
+  MARKET_SPECS,
   arrangement,
   buildModel,
   displayOffset,
@@ -22,8 +22,8 @@ const ROW_H = 48;
 const DIV_H = 24;
 const RANKS = [1, 2, 3, 4, 5];
 const SPEEDS = [0.5, 1, 2];
-/** 1× = 하루(약 12시간)를 30초 */
-const tickMs = (speed: number) => 30000 / SLOTS / speed;
+/** 1× = 하루(국내 12시간, 해외 16시간)를 30초 */
+const tickMs = (slots: number, speed: number) => 30000 / slots / speed;
 
 /** 좁은 화면 — 마우스가 없으니 세로선을 가운데 고정하고 띠를 밀어 시각을 옮긴다(`ScrubChart`) */
 const NARROW = "(max-width: 767px)";
@@ -72,7 +72,7 @@ const fmtDur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? 
 /**
  * 주도주 타임라인 — 1분마다 찍은 홈 주도주 5의 하루 흐름.
  *
- * 줄 순서·배지·변화 기록은 3분 넘게 이어진 값(`lib/leaderTimeline`)을, 띠는 1분 원본을 쓴다.
+ * 줄 순서·배지·순위 변동은 3분 넘게 이어진 값(`lib/leaderTimeline`)을, 띠는 1분 원본을 쓴다.
  * 줄은 보고 있는 시각의 순위로 위아래로 미끄러진다 — 재생·클릭·← →·마우스로 훑을 때 모두.
  * 치수는 시안 px 값을 그대로 쓴다(024 캘린더와 같은 이유 — rem이면 넓은 화면에서 성겨진다).
  */
@@ -95,7 +95,7 @@ export default function LeaderTimelinePage() {
   }, [market, krCalendar]);
 
   const now = marketNow(market);
-  const spec0 = market === "kr" ? { start: 480, end: 1200 } : { start: 240, end: 960 };
+  const spec0 = MARKET_SPECS[market];
   const live = date === now.date && now.min >= spec0.start && now.min < spec0.end;
   const { data, isLoading, isError } = useLeaderTimeline(market, date, live);
   const model = useMemo(() => (data ? buildModel(market, data) : null), [market, data]);
@@ -118,7 +118,7 @@ export default function LeaderTimelinePage() {
         }
         return next;
       });
-    }, tickMs(speed));
+    }, tickMs(model.spec.slots, speed));
     return () => clearInterval(id);
   }, [playing, speed, model]);
 
@@ -299,10 +299,10 @@ function Chart({
   }, [model]);
 
   const { spec, last } = model;
-  const pctOf = (i: number) => `${(i / SLOTS) * 100}%`;
+  const pctOf = (i: number) => `${(i / spec.slots) * 100}%`;
   const slotAt = (clientX: number) => {
     const r = hot.current!.getBoundingClientRect();
-    const i = Math.floor(((clientX - r.left) / r.width) * SLOTS);
+    const i = Math.floor(((clientX - r.left) / r.width) * spec.slots);
     let j = Math.max(0, Math.min(last, i));
     while (j > 0 && !model.snap[j]) j--; // 안 찍힌 분이면 그 앞 찍힌 분
     return j;
@@ -326,11 +326,13 @@ function Chart({
   const topLabel = shown === last ? (live ? "지금 주도주 순위" : "마감 주도주 순위") : `${hhmm(spec.start + shown + offset)} 주도주 순위`;
   const sessions = sessionsOf(market, offset);
   const hours: number[] = [];
-  for (let i = 0; i < SLOTS; i += 60) hours.push(i); // 0, 60, …, 720(마감 분)
-  const gapCols = [...Array(SLOTS).keys()].filter((i) => isGap(spec, i));
+  for (let i = 0; i < spec.slots; i += 60) hours.push(i); // 0, 60, …, 마감 분
+  const gapCols = [...Array(spec.slots).keys()].filter((i) => isGap(spec, i));
 
   return (
-    <div className="overflow-x-auto">
+    // 세로는 자른다 — 숨긴 줄이 박스 바로 아래(`boxH`)에 한 줄 높이로 걸쳐 있어, 가로 스크롤만 열면
+    // 브라우저가 세로도 auto로 바꿔 스크롤이 생긴다
+    <div className="overflow-x-auto overflow-y-hidden">
       <div
         className="tl-chart relative min-w-[980px] outline-none"
         tabIndex={0}
@@ -348,7 +350,7 @@ function Chart({
               <span
                 key={i}
                 className="num absolute top-1/2 text-[12px] text-zinc-500"
-                style={{ left: i === 0 ? 0 : pctOf(i + 0.5), transform: i === 0 ? "translate(2px,-50%)" : i >= SLOTS - 1 ? "translate(-100%,-50%)" : "translate(-50%,-50%)" }}
+                style={{ left: i === 0 ? 0 : pctOf(i + 0.5), transform: i === 0 ? "translate(2px,-50%)" : i >= spec.slots - 1 ? "translate(-100%,-50%)" : "translate(-50%,-50%)" }}
               >
                 {hhmm(spec.start + i + offset).slice(0, 2)}
               </span>
@@ -364,7 +366,7 @@ function Chart({
                 className={`absolute inset-y-[4px] flex items-center justify-center overflow-hidden whitespace-nowrap rounded-[5px] text-[11.5px] font-bold ${
                   regular ? "bg-zinc-850 text-zinc-300" : "bg-zinc-900 text-zinc-500"
                 }`}
-                style={{ left: `calc(${pctOf(a - spec.start)} + 1px)`, width: `calc(${((b - a) / SLOTS) * 100}% - 2px)` }}
+                style={{ left: `calc(${pctOf(a - spec.start)} + 1px)`, width: `calc(${((b - a) / spec.slots) * 100}% - 2px)` }}
               >
                 {label}
               </span>
@@ -397,6 +399,7 @@ function Chart({
                 value={e ? (market === "kr" ? krw(e.value) : usd(e.value)) : null}
                 gapLabel={model.snap[shown] ? "5위 밖" : "쉬는 구간"}
                 segments={model.segs[k]}
+                slots={spec.slots}
               />
             );
           })}
@@ -405,7 +408,7 @@ function Chart({
         {/* 겹쳐 그리는 것들 — 쉬는 구간 빗금, 장 진행 중, 세로선, 마우스 영역 */}
         <div className="pointer-events-none absolute bottom-0 right-0 top-[60px] left-[var(--tl-label)]">
           {gapCols.length > 0 && gapRuns(gapCols).map(([a, b]) => (
-            <div key={a} className="tl-hatch absolute inset-y-0" style={{ left: pctOf(a), width: `${((b - a) / SLOTS) * 100}%` }} />
+            <div key={a} className="tl-hatch absolute inset-y-0" style={{ left: pctOf(a), width: `${((b - a) / spec.slots) * 100}%` }} />
           ))}
           {[...Array(11).keys()].map((h) => (
             <span key={h} className="absolute inset-y-0 w-px bg-zinc-800/40" style={{ left: pctOf((h + 1) * 60 + 0.5) }} />
@@ -418,7 +421,7 @@ function Chart({
           onMouseLeave={() => onHover(null)}
           onClick={(e) => onPick(slotAt(e.clientX))}
         >
-          {live && last < SLOTS - 1 && (
+          {live && last < spec.slots - 1 && (
             <div className="tl-hatch absolute inset-y-0 right-0 border-l border-dashed border-zinc-600" style={{ left: pctOf(last + 1) }}>
               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-[14px] font-semibold text-zinc-500">
                 장 진행 중
@@ -428,7 +431,7 @@ function Chart({
           <div className="pointer-events-none absolute inset-y-0 w-[2px] -ml-px bg-zinc-100/90" style={{ left: pctOf(shown + 0.5) }}>
             <b
               className="num absolute top-[2px] whitespace-nowrap rounded-[5px] bg-zinc-100 px-[6px] py-[2px] text-[12px] font-bold text-zinc-950"
-              style={{ left: "50%", transform: shown > SLOTS - 40 ? "translateX(-100%)" : shown < 40 ? "none" : "translateX(-50%)" }}
+              style={{ left: "50%", transform: shown > spec.slots - 40 ? "translateX(-100%)" : shown < 40 ? "none" : "translateX(-50%)" }}
             >
               {hhmm(spec.start + shown + offset)}
             </b>
@@ -456,7 +459,7 @@ const M_AXIS = 30;
 
 /**
  * 모바일 타임라인 — 세로선은 띠 영역 가운데에 고정하고, 띠를 옆으로 밀면 그 아래 시각이 커서가 된다.
- * 가로 스크롤을 그대로 쓰므로 관성도 따라온다. 재생·변화 기록·전체 막대가 커서를 옮기면 스크롤이 따라간다.
+ * 가로 스크롤을 그대로 쓰므로 관성도 따라온다. 재생·순위 변동·전체 막대가 커서를 옮기면 스크롤이 따라간다.
  */
 function ScrubChart({
   model, market, offset, live, cursor, onCursor, onTouch,
@@ -516,7 +519,7 @@ function ScrubChart({
   rest.forEach((k) => { y.set(`k${k}`, acc); acc += M_ROW; });
   hidden.forEach((k) => y.set(`k${k}`, acc));
   const height = acc;
-  const gapCols = [...Array(SLOTS).keys()].filter((i) => isGap(spec, i));
+  const gapCols = [...Array(spec.slots).keys()].filter((i) => isGap(spec, i));
   const move = (key: string) => ({ transform: `translateY(${y.get(key)}px)` });
 
   return (
@@ -576,8 +579,8 @@ function ScrubChart({
           onTouchStart={hold}
           onWheel={hold}
         >
-          <div className="relative h-full" style={{ width: pad * 2 + (SLOTS - 1) * PX }}>
-            {[...Array(13).keys()].map((h) => (
+          <div className="relative h-full" style={{ width: pad * 2 + (spec.slots - 1) * PX }}>
+            {[...Array((spec.slots - 1) / 60 + 1).keys()].map((h) => (
               <span key={h}>
                 <span className="num absolute top-[8px] -translate-x-1/2 text-[11px] text-zinc-500" style={{ left: x(h * 60) }}>
                   {hhmm(spec.start + h * 60 + offset).slice(0, 2)}
@@ -588,8 +591,8 @@ function ScrubChart({
             {gapRuns(gapCols).map(([a, b]) => (
               <div key={a} className="tl-hatch absolute bottom-0" style={{ top: M_AXIS, left: x(a), width: (b - a) * PX }} />
             ))}
-            {live && last < SLOTS - 1 && (
-              <div className="tl-hatch absolute bottom-0 grid place-items-center border-l border-dashed border-zinc-600" style={{ top: M_AXIS, left: x(last + 1), width: (SLOTS - 1 - last) * PX }}>
+            {live && last < spec.slots - 1 && (
+              <div className="tl-hatch absolute bottom-0 grid place-items-center border-l border-dashed border-zinc-600" style={{ top: M_AXIS, left: x(last + 1), width: (spec.slots - 1 - last) * PX }}>
                 <span className="whitespace-nowrap text-[12px] font-semibold text-zinc-500">장 진행 중</span>
               </div>
             )}
@@ -642,7 +645,7 @@ const PxLane = memo(function PxLane({ segments, pad }: { segments: Segment[]; pa
   );
 });
 
-/** 지금 분(또는 그 앞 가장 가까운 분)의 변화 — 모바일에선 변화 기록이 접혀 있어 커서 옆에 한 줄로 보여 준다 */
+/** 지금 분(또는 그 앞 가장 가까운 분)의 변화 — 모바일에선 순위 변동이 접혀 있어 커서 옆에 한 줄로 보여 준다 */
 function NowChanges({ model, offset, cursor }: { model: TimelineModel; offset: number; cursor: number }) {
   const groups = useMemo(() => eventGroups(model), [model]);
   const group = groups.find(([i]) => i <= cursor);
@@ -675,12 +678,12 @@ function MiniMap({
   onCursor: (i: number) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  const { spec, last } = model;
   const jump = (clientX: number) => {
     const r = box.current!.getBoundingClientRect();
-    onCursor(Math.round(((clientX - r.left) / r.width) * SLOTS));
+    onCursor(Math.round(((clientX - r.left) / r.width) * spec.slots));
   };
-  const pctOf = (i: number) => `${(i / SLOTS) * 100}%`;
-  const { spec, last } = model;
+  const pctOf = (i: number) => `${(i / spec.slots) * 100}%`;
   return (
     <div className="px-[14px] pb-[8px] pt-[10px]">
       <div
@@ -693,15 +696,15 @@ function MiniMap({
           {sessionsOf(market, offset).map(([a, b]) => (
             <span key={a} className="absolute inset-y-0 bg-zinc-800" style={{ left: pctOf(a - spec.start), width: pctOf(b - a) }} />
           ))}
-          {last < SLOTS - 1 && <span className="tl-hatch absolute inset-y-0 right-0" style={{ left: pctOf(last + 1) }} />}
+          {last < spec.slots - 1 && <span className="tl-hatch absolute inset-y-0 right-0" style={{ left: pctOf(last + 1) }} />}
         </div>
         <span
           className="pointer-events-none absolute inset-y-[3px] rounded-[6px] border-[1.5px] border-zinc-100/60"
-          style={{ left: pctOf(Math.max(0, Math.min(SLOTS - visible, cursor - visible / 2))), width: pctOf(Math.min(SLOTS, visible)) }}
+          style={{ left: pctOf(Math.max(0, Math.min(spec.slots - visible, cursor - visible / 2))), width: pctOf(Math.min(spec.slots, visible)) }}
         />
       </div>
       <div className="num flex justify-between text-[10.5px] text-zinc-500">
-        {[0, 240, 480, 720].map((i) => <span key={i}>{hhmm(spec.start + i + offset).slice(0, 2)}</span>)}
+        {[0, 1, 2, 3].map((n) => Math.round(((spec.slots - 1) * n) / 3)).map((i) => <span key={i}>{hhmm(spec.start + i + offset).slice(0, 2)}</span>)}
       </div>
     </div>
   );
@@ -759,7 +762,7 @@ function Placeholder({ n, y, none }: { n: number; y: number; none: boolean }) {
 }
 
 /** 띠는 종목별로 한 번만 그린다 — 마우스를 움직일 때마다 700칸을 다시 그리지 않게 */
-const Lane = memo(function Lane({ segments }: { segments: Segment[] }) {
+const Lane = memo(function Lane({ segments, slots }: { segments: Segment[]; slots: number }) {
   return (
     <div className="relative h-full">
       {segments.map((s) => (
@@ -767,8 +770,8 @@ const Lane = memo(function Lane({ segments }: { segments: Segment[] }) {
           key={s.start}
           className="absolute top-1/2 h-[22px] -translate-y-1/2"
           style={{
-            left: `${(s.start / SLOTS) * 100}%`,
-            width: `${((s.end - s.start) / SLOTS) * 100}%`,
+            left: `${(s.start / slots) * 100}%`,
+            width: `${((s.end - s.start) / slots) * 100}%`,
             background: `var(--tl-r${s.rank})`,
             borderTopLeftRadius: s.roundStart ? 4 : 0,
             borderBottomLeftRadius: s.roundStart ? 4 : 0,
@@ -782,7 +785,7 @@ const Lane = memo(function Lane({ segments }: { segments: Segment[] }) {
 });
 
 function StockRow({
-  y, hidden, name, meta, rank, move, rate, value, gapLabel, segments,
+  y, hidden, name, meta, rank, move, rate, value, gapLabel, segments, slots,
 }: {
   y: number;
   hidden: boolean;
@@ -794,6 +797,7 @@ function StockRow({
   value: string | null;
   gapLabel: string;
   segments: Segment[];
+  slots: number;
 }) {
   const out = rank === null;
   return (
@@ -837,7 +841,7 @@ function StockRow({
           )}
         </div>
       </div>
-      <Lane segments={segments} />
+      <Lane segments={segments} slots={slots} />
     </div>
   );
 }
@@ -899,11 +903,11 @@ function ChangeLog({
     <section className="flex max-h-[680px] flex-col rounded-[14px] border border-zinc-800 px-[16px] py-[14px] text-[14px] leading-[normal]">
       {collapsible ? (
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={`flex items-center justify-between text-left ${open ? "mb-[10px]" : ""}`}>
-          <h3 className="text-[16px] font-bold">변화 기록</h3>
+          <h3 className="text-[16px] font-bold">순위 변동</h3>
           <span className="text-[13px] text-zinc-500">{open ? "접기" : "펼치기"}</span>
         </button>
       ) : (
-        <h3 className="mb-[10px] text-[16px] font-bold">변화 기록</h3>
+        <h3 className="mb-[10px] text-[16px] font-bold">순위 변동</h3>
       )}
       {model && shown && (
         <ol ref={listRef} className={`relative flex flex-col overflow-y-auto overflow-x-hidden ${collapsible ? "max-h-[360px]" : ""}`}>
