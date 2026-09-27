@@ -135,6 +135,7 @@ Backend (Python + FastAPI, package by feature)
 | `market_investor_snapshot` | 시장 투자자 순매수 당일 누적 |
 | `futures_investor_snapshot` | 선물 투자자 순매수 당일 누적 |
 | `index_minute_candle` | 지수 1분봉 — 5분봉 20이평 판정용 |
+| `stock_minute_candle` | 지난 거래일 종목 1분봉 — **완성된 날만**, 하루치를 통째로 갈아 끼운다. 지난 날 분봉 보관소의 영속 층(메모리 앞, DB 뒤). 수정주가 소급이 반영되지 않아 2주만 두고 매일 20:01에 지운다 |
 
 > **세션별 수급은 저장하지 않는다.** 당일 누적 스냅샷의 **경계 diff**로 계산한다. 폴러가 돌지 않은 과거는 소급할 수 없다.
 
@@ -161,7 +162,7 @@ Backend (Python + FastAPI, package by feature)
 
 ### 4.6 스키마 관리
 
-- 017 이후 추가된 테이블(`app_user`, `feedback`, `broker_token`, `leader_*`)은 기동 시 `create(checkfirst=True)`로 만든다. 실패해도 기동은 막지 않는다 — 그 기능만 실패하고 공개 화면은 뜬다
+- 017 이후 추가된 테이블(`app_user`, `feedback`, `broker_token`, `leader_*`, `stock_minute_candle`)은 기동 시 `create(checkfirst=True)`로 만든다. 실패해도 기동은 막지 않는다 — 그 기능만 실패하고 공개 화면은 뜬다
 - 그 밖의 테이블은 이미 존재하고 앱이 DDL을 만들지 않는다
 - 컬럼 변경·DROP은 `backend/migration/VNNN__*.sql`로 두고 각 환경에 수동 적용한다 (현재 `V008`까지)
 
@@ -222,7 +223,7 @@ APScheduler `BackgroundScheduler`, 시각 기준 KST 고정(해외 잡은 `Ameri
 | `trading-value-pool-refresher` | 10초 | 08:00~20:00 KST | 국내 후보 풀 갱신 |
 | `overseas-ranking-pool-refresher` | 10초 | 04:00~20:00 뉴욕 | 해외 후보 풀 갱신 |
 | `today-minute-syncer` | 20초 | 08:00~20:00 KST | 감시 풀 당일 1분봉 이어 받기(토스) |
-| `today-minute-settler` | 20:01 | 평일 KST | 감시 풀 당일 1분봉을 마감 확정해 지난 날 보관소(4일)에 넘기기 — 다음 날 아침 어제 봉을 키움에서 다시 받지 않게 |
+| `today-minute-settler` | 20:01 | 평일 KST | 감시 풀 당일 1분봉을 마감 확정해 지난 날 보관소(메모리·`stock_minute_candle`)에 넘기기 — 다음 날 아침 어제 봉을 키움에서 다시 받지 않게. 2주 지난 봉도 여기서 지운다 |
 | `signal-event-poller` | 10초 | 08:00~20:00 KST | 종목 시그널 전이 |
 | `market-signal-event-poller` | 60초 | 08:00~20:00 KST | 시장 순매수 단계·흐름 전환, 투자자 스냅샷 |
 | `index-rebound-poller` | 30초 | 09:00~15:30 KST | 지수 5분봉 20이평 |

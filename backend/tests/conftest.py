@@ -61,6 +61,20 @@ def 캐시_격리():
     cache.clear_all()
 
 
+@pytest.fixture(autouse=True)
+def 지난_날_분봉_DB_격리(monkeypatch):
+    """지난 날 분봉 보관소가 로컬 MySQL(docker compose)에 실제로 쓰지 않게 한다.
+
+    DB 층까지 보는 테스트는 `통합_db`와 함께 `minute_archive.get_session_factory`를 되돌린다.
+    """
+    from backend.leadingstock import minute_archive
+
+    def 없는_DB():
+        raise RuntimeError("테스트에서는 DB를 쓰지 않는다")
+
+    monkeypatch.setattr(minute_archive, "get_session_factory", 없는_DB)
+
+
 @pytest.fixture(scope="session")
 def mysql_container():
     """Kotlin의 `IntegrationTestBase`에 대응한다. Docker가 필요하다."""

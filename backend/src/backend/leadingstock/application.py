@@ -154,7 +154,16 @@ def settle_today_minutes() -> int:
     day = today()
     for code, bars in settled.items():
         minute_archive.put(code, day, bars)
+    # 수정주가 소급이 반영되지 않는 봉을 오래 두지 않는다. 하루 한 번 여기서 지운다.
+    try:
+        minute_archive.purge(day - _MINUTE_ARCHIVE_RETENTION)
+    except Exception:
+        log.warning("지난 날 분봉 정리 실패", exc_info=True)
     return failures
+
+
+#: 지난 날 분봉 보관 기간. 거래일로 열흘 남짓 — 3거래일 차트와 달력 20일에 넉넉하다.
+_MINUTE_ARCHIVE_RETENTION = timedelta(days=14)
 
 
 @ttl_cache("candidateStocks", ttl_seconds=5, maxsize=15)
