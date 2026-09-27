@@ -12,9 +12,9 @@ const MAX = 5;
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 const MODES: { key: Mode; label: string; caption: string }[] = [
-  { key: "both", label: "모두", caption: "직전 해외장과 당일 국내장 마감 기준 주도주" },
-  { key: "domestic", label: "국내", caption: "당일 국내장 마감 기준 주도주" },
-  { key: "overseas", label: "해외", caption: "직전 해외장 마감 기준 주도주" },
+  { key: "both", label: "모두", caption: "국내장과 해외장(뉴욕 날짜) 마감 기준 주도주" },
+  { key: "domestic", label: "국내", caption: "국내장 마감 기준 주도주" },
+  { key: "overseas", label: "해외", caption: "해외장(뉴욕 날짜) 마감 기준 주도주" },
 ];
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -23,18 +23,6 @@ const parse = (s: string) => {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);
 };
-const short = (s: string) => {
-  const d = parse(s);
-  return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`;
-};
-
-/** 국내 날짜 칸에 붙는 해외장 — 직전 평일. 월요일이면 금요일 장. 백엔드 `previous_weekday`와 같은 규칙. */
-function previousWeekday(s: string): string {
-  const d = parse(s);
-  do d.setDate(d.getDate() - 1);
-  while (d.getDay() === 0 || d.getDay() === 6);
-  return iso(d);
-}
 
 const pct = (rate: number) => `${rate > 0 ? "+" : ""}${rate.toFixed(1)}%`;
 
@@ -60,8 +48,8 @@ function readMode(): Mode {
 /**
  * 주도주 캘린더 — 홈 주도주 카드가 마감 때 고른 종목을 날짜별로 본다.
  *
- * 한 칸 = 직전 해외장(위) + 당일 국내장(아래). 짝짓기는 여기서 한다 — 서버는 각 시장의
- * 현지 거래일로만 준다. 날 기록이 있는데 종목이 없으면 "주도주 없음", 날 기록이 없으면 비워 둔다.
+ * 한 칸 = 그날 국내장(위) + 그날 해외장(아래). 해외는 뉴욕 날짜라 한국 시간으로는 그날 저녁부터
+ * 다음 날 새벽까지의 장이다. 서버가 각 시장의 현지 거래일로 주는 것을 그대로 같은 칸에 둔다. 날 기록이 있는데 종목이 없으면 "주도주 없음", 날 기록이 없으면 비워 둔다.
  */
 export default function LeaderCalendarPage() {
   const today = todayStr();
@@ -109,7 +97,7 @@ export default function LeaderCalendarPage() {
   // 고른 날이 없으면 이달의 마지막 기록일(없으면 오늘)을 연다
   const current =
     selected ??
-    [...days].reverse().find((d) => d <= today && (domestic.has(d) || overseas.has(previousWeekday(d)))) ??
+    [...days].reverse().find((d) => d <= today && (domestic.has(d) || overseas.has(d))) ??
     null;
 
   const frequent = useMemo(() => {
@@ -124,9 +112,8 @@ export default function LeaderCalendarPage() {
         }
     };
     const inMonth = (d: LeaderDayItem) => days.includes(d.date);
-    const pairedUs = new Set(days.map(previousWeekday));
     if (mode !== "overseas") tally(data?.domestic.filter(inMonth), false);
-    if (mode !== "domestic") tally(data?.overseas.filter((d) => pairedUs.has(d.date)), true);
+    if (mode !== "domestic") tally(data?.overseas.filter(inMonth), true);
     return [...count.entries()].filter(([, c]) => c.n >= 2).sort((a, b) => b[1].n - a[1].n);
   }, [data, days, mode]);
 
@@ -200,9 +187,8 @@ export default function LeaderCalendarPage() {
                   loading={isLoading}
                   domestic={domestic.get(d)}
                   krClosed={krClosed.has(d)}
-                  usClosed={usClosed.has(previousWeekday(d))}
-                  overseasDate={previousWeekday(d)}
-                  overseas={overseas.get(previousWeekday(d))}
+                  usClosed={usClosed.has(d)}
+                  overseas={overseas.get(d)}
                   selected={d === current}
                   focus={focus}
                   onSelect={() => setSelected(d)}
@@ -222,9 +208,8 @@ export default function LeaderCalendarPage() {
             mode={mode}
             domestic={current ? domestic.get(current) : undefined}
             krClosed={current ? krClosed.has(current) : false}
-            usClosed={current ? usClosed.has(previousWeekday(current)) : false}
-            overseasDate={current ? previousWeekday(current) : null}
-            overseas={current ? overseas.get(previousWeekday(current)) : undefined}
+            usClosed={current ? usClosed.has(current) : false}
+            overseas={current ? overseas.get(current) : undefined}
           />
           <section className="rounded-[14px] border border-zinc-800 p-[16px]">
             <h3 className="text-[15px] font-bold">자주 뽑힌 종목</h3>
@@ -360,7 +345,6 @@ function DayCell({
   domestic,
   krClosed,
   usClosed,
-  overseasDate,
   overseas,
   selected,
   focus,
@@ -375,7 +359,6 @@ function DayCell({
   domestic: LeaderStockItem[] | undefined;
   krClosed: boolean;
   usClosed: boolean;
-  overseasDate: string;
   overseas: LeaderStockItem[] | undefined;
   selected: boolean;
   focus: string | null;
@@ -396,8 +379,6 @@ function DayCell({
       <span className="text-[11px] font-semibold text-zinc-500">휴장</span>
     ) : date === today ? (
       <span className="text-[11px] font-semibold text-zinc-500">오늘</span>
-    ) : future && showUs ? (
-      <span className="text-[11px] font-semibold text-zinc-500">국내 장 전</span>
     ) : mode === "domestic" && domestic ? (
       <span className="text-zinc-300">
         <CountDots n={domestic.length} />
@@ -408,21 +389,6 @@ function DayCell({
     <Skeleton className="h-[64px] w-full" />
   ) : (
     <>
-      {showUs && (
-        <div className="-mx-[4px] flex flex-col gap-[3px] rounded-[8px] bg-(--leader-overseas-tint) px-[8px] py-[6px]">
-          <div className="flex items-center justify-between text-[10.5px] font-bold text-(--leader-overseas)">
-            <span>해외 · {short(overseasDate)}</span>
-            {overseas && overseas.length > 0 && <CountDots n={overseas.length} />}
-          </div>
-          {usClosed ? (
-            <span className="text-[12px] text-zinc-500">휴장</span>
-          ) : overseas!.length ? (
-            <Rows stocks={overseas!} limit={mode === "both" ? 2 : MAX} focus={focus} />
-          ) : (
-            <span className="text-[12px] text-zinc-500">주도주 없음</span>
-          )}
-        </div>
-      )}
       {showKr && (
         <div className="flex flex-col gap-[3px]">
           {mode === "both" && (
@@ -433,6 +399,21 @@ function DayCell({
           )}
           {domestic!.length ? (
             <Rows stocks={domestic!} limit={mode === "both" ? 3 : MAX} focus={focus} />
+          ) : (
+            <span className="text-[12px] text-zinc-500">주도주 없음</span>
+          )}
+        </div>
+      )}
+      {showUs && (
+        <div className="-mx-[4px] flex flex-col gap-[3px] rounded-[8px] bg-(--leader-overseas-tint) px-[8px] py-[6px]">
+          <div className="flex items-center justify-between text-[10.5px] font-bold text-(--leader-overseas)">
+            <span>해외</span>
+            {overseas && overseas.length > 0 && <CountDots n={overseas.length} />}
+          </div>
+          {usClosed ? (
+            <span className="text-[12px] text-zinc-500">휴장</span>
+          ) : overseas!.length ? (
+            <Rows stocks={overseas!} limit={mode === "both" ? 2 : MAX} focus={focus} />
           ) : (
             <span className="text-[12px] text-zinc-500">주도주 없음</span>
           )}
@@ -483,7 +464,6 @@ function DayDetail({
   domestic,
   krClosed,
   usClosed,
-  overseasDate,
   overseas,
 }: {
   date: string | null;
@@ -492,7 +472,6 @@ function DayDetail({
   domestic: LeaderStockItem[] | undefined;
   krClosed: boolean;
   usClosed: boolean;
-  overseasDate: string | null;
   overseas: LeaderStockItem[] | undefined;
 }) {
   if (!date) {
@@ -518,10 +497,8 @@ function DayDetail({
       <h3 className="text-[15px] font-bold">
         {d.getMonth() + 1}월 {d.getDate()}일 ({WEEKDAYS[d.getDay()]})
       </h3>
-      {mode !== "domestic" && overseasDate && (
-        <DetailList title={`해외 · ${short(overseasDate)} 장`} stocks={overseas} empty={usEmpty} usd />
-      )}
       {mode !== "overseas" && <DetailList title="국내" stocks={domestic} empty={krEmpty} />}
+      {mode !== "domestic" && <DetailList title="해외" stocks={overseas} empty={usEmpty} usd />}
     </section>
   );
 }
