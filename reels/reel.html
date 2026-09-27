@@ -115,7 +115,8 @@ canvas { position: absolute; inset: 0; width: 1080px; height: 1920px; }
 
 /**
  * 시장 — 분은 **현지 시각**(국내 KST, 해외 뉴욕)이고 화면 표시는 한국 시간이다.
- * 앱 타임라인(`frontend/src/lib/leaderTimeline.ts`)과 같은 구간이다.
+ * 국내는 앱 타임라인(`frontend/src/lib/leaderTimeline.ts`)과 같은 구간이다. 해외는 **정규장 마감(16:00)까지만** —
+ * 앱은 애프터마켓(~20:00)까지 찍지만, 영상의 "마감 주도주"는 캘린더와 같은 정규장 마감 순위로 맞춘다.
  */
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -135,9 +136,10 @@ function marketOf({ market, date, data }) {
     tone: (m) => m < 540 ? 0 : m < 930 ? 1 : 2,
   };
   return {
-    data, start: 240, slots: 961, off: kstOffsetFromNewYork(date), date: [y, mo, d], dateLbl: `${dateLbl} 뉴욕`, name: "해외",
-    sess: (m) => m < 570 ? "프리마켓" : m < 960 ? "정규장" : "애프터마켓",
-    tone: (m) => m < 570 ? 0 : m < 960 ? 1 : 2,
+    data: { ...data, ticks: data.ticks.filter(([at]) => at <= "16:00") },
+    start: 240, slots: 721, off: kstOffsetFromNewYork(date), date: [y, mo, d], dateLbl: `${dateLbl} 뉴욕`, name: "해외",
+    sess: (m) => (m < 570 ? "프리마켓" : "정규장"),
+    tone: (m) => (m < 570 ? 0 : 1),
   };
 }
 
