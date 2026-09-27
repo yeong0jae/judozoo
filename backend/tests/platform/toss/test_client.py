@@ -245,3 +245,24 @@ class Test캔들:
         page = mi.fetch_candles("KOSPI", "1m", 10)
 
         assert (page.candles, page.next_before) == ([], None)
+
+
+class Test지수_캔들_리미터:
+    @respx.mock
+    def test_페이지마다_지수_캔들_한도를_얻는다(self, respx_mock, 토큰_발급, monkeypatch):
+        """1분봉 차트 하나가 페이지를 연달아 받는다 — 리미터 없이는 요청 하나가 한도를 넘는다."""
+        respx_mock.get(CANDLES_URL).mock(
+            return_value=httpx.Response(200, json={"result": {"candles": [], "nextBefore": None}})
+        )
+        허가 = []
+
+        class 가짜_리미터:
+            def acquire(self):
+                허가.append(1)
+
+        monkeypatch.setattr(mi, "_get_chart_limiter", lambda: 가짜_리미터())
+
+        mi.fetch_candles("KOSPI", "1m", 200)
+        mi.fetch_candles("KOSPI", "1m", 200, before="2026-09-28T09:00:00+09:00")
+
+        assert 허가 == [1, 1]

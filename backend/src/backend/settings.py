@@ -70,6 +70,8 @@ class TossSettings(BaseSettings):
     # 캔들(MARKET_DATA_CHART 그룹) 리미터 허용량. 한도는 초당 20건 — 4건 여유를 둔다.
     # 휴장 조회가 속한 MARKET_DATA 그룹(초당 15건)과는 따로 센다.
     chart_permits_per_second: int = Field(16, validation_alias="TOSS_CHART_PERMITS_PER_SECOND")
+    # 지수 캔들(MARKET_INDICATOR_CHART 그룹) 리미터 허용량. 한도는 초당 5건 — 1건 여유를 둔다.
+    indicator_chart_permits_per_second: int = Field(4, validation_alias="TOSS_INDICATOR_CHART_PERMITS_PER_SECOND")
 
 
 class StockMasterSettings(BaseSettings):

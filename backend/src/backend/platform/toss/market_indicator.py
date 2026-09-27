@@ -10,7 +10,9 @@ import math
 from dataclasses import dataclass
 from datetime import date, datetime
 
+from backend.library.rate_limiter import RateLimiter
 from backend.platform.toss import client
+from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
 
@@ -125,6 +127,24 @@ def _to_record(item: dict) -> MarketInvestorRecord | None:
     )
 
 
+_chart_limiter: RateLimiter | None = None
+
+
+def _get_chart_limiter() -> RateLimiter:
+    """지수 캔들(MARKET_INDICATOR_CHART 그룹, 초당 5건) 전용.
+
+    1분봉 차트 한 번이 200봉 페이지를 여러 번 연달아 받는다 — 리미터 없이는 요청 하나가
+    1초 안에 한도를 넘는다.
+    """
+    global _chart_limiter
+    if _chart_limiter is None:
+        permits = get_settings().toss.indicator_chart_permits_per_second
+        _chart_limiter = RateLimiter(
+            "toss-indicator-chart", permits_per_period=1, period_seconds=1.0 / permits, timeout_seconds=20.0
+        )
+    return _chart_limiter
+
+
 def fetch_candles(symbol: str, interval: str, count: int, before: str | None = None) -> CandlesPage:
     """캔들(OHLCV). `interval` 1m/1d, `count` 최대 200. 최신순. 실패 시 빈 페이지."""
     try:
@@ -139,6 +159,7 @@ def _fetch_candles(symbol: str, interval: str, count: int, before: str | None) -
     if before is not None:
         params["before"] = before
 
+    _get_chart_limiter().acquire()
     response = client.get_client().get(
         f"/api/v1/market-indicators/{symbol}/candles",
         params=params,
