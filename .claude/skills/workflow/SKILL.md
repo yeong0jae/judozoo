@@ -29,7 +29,7 @@ Map the collected signals using the table below:
 
 | State | Signals | Next step |
 |-------|---------|-----------|
-| **A. No tasks** | All items in the latest `NNN-<title>.md` are checked | → Write the next phase's `NNN-<title>.md` referencing plan.md |
+| **A. No tasks** | All items in the latest `NNN-<title>.md` are checked | → Write the next phase's `NNN-<title>.md` referencing prd.md / spec.md |
 | **B. No issue** | Unchecked tasks exist but no open issue for them, current branch is main | → Draft issue → user approval → `gh issue create` |
 | **C. No branch** | Issue exists, current branch is main | → Suggest branch name (`<type>/#<n>-<slug>`) → user approval → `git checkout -b <name>` |
 | **D. In progress** | On a work branch (`<type>/#<n>-...`), ≥ 1 unchecked item | → Work on the *next unchecked item* in the tasks file → on completion, auto-update `[ ]` → `[x]` + commit via `/commit` skill |
@@ -40,7 +40,7 @@ Map the collected signals using the table below:
 
 ## tasks authoring rules
 
-- 1 phase = 1 tasks file (`NNN-<kebab-case-title>.md`, e.g. `015-백엔드-python-마이그레이션.md`). NNN is a zero-padded 0-based serial number, independent of the plan.md phase number. Maps 1:1 to phases in plan.md.
+- 1 phase = 1 tasks file (`NNN-<kebab-case-title>.md`, e.g. `015-백엔드-python-마이그레이션.md`). NNN is a zero-padded 0-based serial number.
 - Every work item is a checkbox (`- [ ]`). One checkbox = one natural unit of work that can be completed in one go (typically 1–3 checkboxes = 1 commit).
 
 ## Issue creation rules
