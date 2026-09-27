@@ -244,12 +244,6 @@ def _fetch_daily_page(stock_code: str, base: date) -> list[DailyCandle]:
         return []
 
 
-@ttl_cache("minuteCandles", ttl_seconds=30, maxsize=60, skip_if=is_empty)
-def fetch_minute_candles(stock_code: str) -> list[MinuteCandle]:
-    """당일 분봉 — 형성 중이라 짧은 캐시."""
-    return _fetch_minute_candles_raw(stock_code, today())
-
-
 @ttl_cache("minuteCandlesHistory", ttl_seconds=4 * 24 * 3600, maxsize=300, skip_if=is_empty)
 def fetch_historical_minute_candles(stock_code: str, base_date: date) -> list[MinuteCandle]:
     """과거 거래일 분봉 — 데이터가 불변이라 당일과 분리해 길게 캐시한다.

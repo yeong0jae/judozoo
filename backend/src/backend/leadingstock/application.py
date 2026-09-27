@@ -21,11 +21,12 @@ from backend.leadingstock.domain import (
     MinuteCandles,
     SpikeDirection,
 )
-from backend.library.cache import ttl_cache
+from backend.library.cache import is_empty, ttl_cache
 from backend.library.time import now, today
 from backend.market import calendar
 from backend.platform.kiwoom import market as kiwoom_market
 from backend.platform.kiwoom import program as kiwoom_program
+from backend.platform.toss import candles as toss_candles
 from backend.settings import get_settings
 from backend.stock import application as stock_app
 from backend.stock.domain import Market
@@ -312,12 +313,19 @@ def signal_readings(min_daily_price_change_rate: float) -> list[CandidateSignalR
 def minute_candles(stock_code: str, on: date) -> list[MinuteCandle]:
     """상세 차트용 — 최근 3거래일 1분봉, 시간 오름차순.
 
+    오늘 봉은 토스(`_today_minute_candles`), 지난 날은 키움 ka10080에서 받는다. 둘은 같은 봉이다.
     ka10080 한 페이지는 직전일 일부까지만 닿으므로, 가진 데이터의 **가장 이른 날**을
     base_dt로 이어 호출하며 거래일을 하나씩 채운다.
+
+    **지난 날 조회의 기준일은 오늘보다 앞이어야 한다.** 과거 분봉은 4일 캐시라, 오늘을 기준일로
+    부르면 형성 중인 오늘 봉이 그대로 굳는다. 토스는 오늘 봉만 주므로 첫 기준일을 어제로 잡는다 —
+    어제가 휴장이면 키움이 그 전 거래일부터 채워 준다.
     """
+    current = today()
+    yesterday = current - timedelta(days=1)
     seed = (
-        kiwoom_market.fetch_minute_candles(stock_code)
-        if on == today()
+        _today_minute_candles(stock_code) + kiwoom_market.fetch_historical_minute_candles(stock_code, yesterday)
+        if on == current
         else kiwoom_market.fetch_historical_minute_candles(stock_code, on)
     )
     all_candles = list(seed)
@@ -328,7 +336,7 @@ def minute_candles(stock_code: str, on: date) -> list[MinuteCandle]:
     while 날짜수(all_candles) <= _CHART_SESSION_DAYS:
         if not all_candles:
             break
-        oldest = min(c.date_time.date() for c in all_candles)
+        oldest = min(min(c.date_time.date() for c in all_candles), yesterday)
         before = 날짜수(all_candles)
         all_candles.extend(kiwoom_market.fetch_historical_minute_candles(stock_code, oldest))
         if 날짜수(all_candles) == before:
@@ -358,16 +366,30 @@ def _breakout_high_candles(stock_code: str) -> MinuteCandles:
 
 
 def _latest_session_minute_candles(stock_code: str) -> list[MinuteCandle]:
-    """가장 최근 거래일의 분봉만 추린다.
+    """오늘 분봉만 — 스파이크는 당일 봉끼리만 비교한다.
 
-    ka10080은 base_dt 기준 과거 여러 날을 함께 내려주므로, 최신 거래일로 걸러야
-    **전고점이 다른 날 봉에서 잡히지 않는다**(장중엔 당일, 마감 후엔 직전 세션).
+    폴러는 장중(08~20시)에만 돌아 오늘 봉이 있다. 그 밖에는 빈 목록이라 스파이크가 없다.
     """
-    candles = kiwoom_market.fetch_minute_candles(stock_code)
-    if not candles:
+    return _today_minute_candles(stock_code)
+
+
+def _today_minute_candles(stock_code: str) -> list[MinuteCandle]:
+    """오늘 1분봉. 감시 풀이면 20초마다 이어 받은 저장소에서, 아니면 직접 받아 온다.
+
+    상세 화면으로 연 비후보 종목이나 저장소 갱신이 끊긴 종목이 직접 받는 쪽으로 간다.
+    """
+    stored = intraday.get(stock_code)
+    return stored if stored is not None else _fetch_today_minute_candles(stock_code)
+
+
+@ttl_cache("todayMinuteCandles", ttl_seconds=30, maxsize=60, skip_if=is_empty)
+def _fetch_today_minute_candles(stock_code: str) -> list[MinuteCandle]:
+    """저장소에 없는 종목의 오늘 분봉 — 30초 캐시. 실패하면 빈 목록(캐시하지 않는다)."""
+    try:
+        return toss_candles.fetch_today_minute_candles(stock_code)
+    except Exception:
+        log.error("토스 당일 분봉 조회 실패 stk_cd=%s", stock_code, exc_info=True)
         return []
-    latest = max(c.date_time.date() for c in candles)
-    return [c for c in candles if c.date_time.date() == latest]
 
 
 def previous_trading_day(on: date) -> date:
