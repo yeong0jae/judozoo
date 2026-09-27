@@ -222,6 +222,7 @@ APScheduler `BackgroundScheduler`, 시각 기준 KST 고정(해외 잡은 `Ameri
 | `trading-value-pool-refresher` | 10초 | 08:00~20:00 KST | 국내 후보 풀 갱신 |
 | `overseas-ranking-pool-refresher` | 10초 | 04:00~20:00 뉴욕 | 해외 후보 풀 갱신 |
 | `today-minute-syncer` | 20초 | 08:00~20:00 KST | 감시 풀 당일 1분봉 이어 받기(토스) |
+| `today-minute-settler` | 20:01 | 평일 KST | 감시 풀 당일 1분봉을 마감 확정해 지난 날 보관소(4일)에 넘기기 — 다음 날 아침 어제 봉을 키움에서 다시 받지 않게 |
 | `signal-event-poller` | 10초 | 08:00~20:00 KST | 종목 시그널 전이 |
 | `market-signal-event-poller` | 60초 | 08:00~20:00 KST | 시장 순매수 단계·흐름 전환, 투자자 스냅샷 |
 | `index-rebound-poller` | 30초 | 09:00~15:30 KST | 지수 5분봉 20이평 |

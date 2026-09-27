@@ -294,3 +294,23 @@ class Test당일_분봉_갱신:
         monkeypatch.setattr(application, "sync_today_minutes", 터진다)
 
         scheduler.sync_today_minutes()
+
+
+class Test당일_분봉_마감_확정:
+    def test_평일이면_확정한다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, False))
+        호출됨 = []
+        monkeypatch.setattr(application, "settle_today_minutes", lambda: 호출됨.append(1) or 0)
+
+        scheduler.settle_today_minutes()
+
+        assert 호출됨 == [1]
+
+    def test_휴장이면_하지_않는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (True, False))
+        호출됨 = []
+        monkeypatch.setattr(application, "settle_today_minutes", lambda: 호출됨.append(1) or 0)
+
+        scheduler.settle_today_minutes()
+
+        assert 호출됨 == []

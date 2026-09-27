@@ -59,6 +59,25 @@ def sync(stock_codes: Iterable[str]) -> int:
     return failures
 
 
+def settle(stock_codes: Iterable[str]) -> tuple[dict[str, list[MinuteCandle]], int]:
+    """마감 뒤 한 번 더 이어 받아 마지막 봉까지 확정한다. (확정된 종목별 오늘 봉, 실패 수)를 돌려준다.
+
+    마지막 정규 갱신은 20:00 전이라 진행 중이던 마지막 봉이 덜 찬 채 남아 있다. 이번 회차에
+    **성공한 종목만** 확정으로 본다 — 실패한 종목은 마지막 봉이 덜 찼을 수 있다.
+    """
+    started = time.monotonic()
+    failures = sync(stock_codes)
+    with _lock:
+        if _day != today():
+            return {}, failures
+        settled = {
+            key: [bars[t] for t in sorted(bars)]
+            for key, bars in _bars.items()
+            if _synced_at.get(key, 0.0) >= started
+        }
+    return settled, failures
+
+
 def _sync_one(key: str, day: date) -> None:
     with _lock:
         have = _bars.get(key)

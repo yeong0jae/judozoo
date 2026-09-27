@@ -67,8 +67,8 @@ def 분봉(날짜: date, 시: int, 분: int = 0):
     )
 
 
-class Test최근_3거래일_분봉:
-    """오늘은 토스, 지난 날은 키움 — 지난 날 조회가 오늘을 기준일로 부르면 오늘 봉이 4일 캐시에 굳는다."""
+class Test최근_3거래일_분봉_달력_없이:
+    """달력이 모를 때의 예전 방식 — 지난 날 조회가 오늘을 기준일로 부르면 오늘 봉이 4일 캐시에 굳는다."""
 
     오늘 = date(2026, 9, 28)   # 월요일 — 어제(일)는 휴장이라 키움이 금요일부터 채운다
 
@@ -79,6 +79,7 @@ class Test최근_3거래일_분봉:
         monkeypatch.setattr(application, "today", lambda: self.오늘)
         monkeypatch.setattr(application, "now", lambda: datetime(2026, 9, 28, 10, 0))
         monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
+        monkeypatch.setattr("backend.market.calendar.previous_open_day", lambda on: None)
         기준일들 = []
         지난날 = {
             date(2026, 9, 27): [분봉(date(2026, 9, 25), 9), 분봉(date(2026, 9, 24), 19)],
@@ -158,8 +159,8 @@ class Test장_밖의_당일_분봉:
 
         assert application._today_minutes_ttl() == 11 * 3600
 
-    def test_마감_직후_몇_분은_마지막_봉이_굳을_때까지_짧게_둔다(self, monkeypatch):
-        self.준비(monkeypatch, datetime(2026, 9, 28, 20, 2))
+    def test_마감_직후_1분은_마지막_봉이_굳을_때까지_짧게_둔다(self, monkeypatch):
+        self.준비(monkeypatch, datetime(2026, 9, 28, 20, 0, 30))
 
         assert application._today_minutes_ttl() == 30
 
@@ -187,3 +188,113 @@ class Test장_밖의_당일_분봉:
 
         assert application._today_minute_candles("005930") == []
         assert 불림 == []
+
+
+class Test최근_3거래일_분봉_달력으로:
+    """거래일은 달력이 짚고, 지난 날은 보관소에서 먼저 찾는다 — 어제 봉을 키움에서 다시 받지 않게."""
+
+    오늘 = date(2026, 9, 28)
+    거래일 = [date(2026, 9, 22), date(2026, 9, 23), date(2026, 9, 25)]   # 9/24는 휴장이라 치자
+
+    def 준비(self, monkeypatch) -> list:
+        from backend.leadingstock import intraday, minute_archive
+
+        intraday.reset()
+        minute_archive.reset()
+        monkeypatch.setattr(application, "today", lambda: self.오늘)
+        monkeypatch.setattr(application, "now", lambda: datetime(2026, 9, 28, 10, 0))
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
+        monkeypatch.setattr(
+            "backend.market.calendar.previous_open_day",
+            lambda on: max((d for d in self.거래일 if d < on), default=None),
+        )
+        monkeypatch.setattr(
+            application.toss_candles, "fetch_today_minute_candles", lambda code, since=None: [분봉(self.오늘, 9)]
+        )
+        기준일들: list = []
+
+        def 키움(code, base):
+            기준일들.append(base)
+            앞 = max((d for d in self.거래일 if d < base), default=None)
+            return [분봉(base, 9)] + ([분봉(앞, 19)] if 앞 else [])   # 그날 전체 + 전날 끝자락
+
+        monkeypatch.setattr(application.kiwoom_market, "fetch_historical_minute_candles", 키움)
+        return 기준일들
+
+    def test_오늘과_달력의_직전_두_거래일을_잇는다(self, monkeypatch):
+        self.준비(monkeypatch)
+
+        봉들 = application.minute_candles("005930", self.오늘)
+
+        assert sorted({c.date_time.date() for c in 봉들}) == [date(2026, 9, 23), date(2026, 9, 25), self.오늘]
+
+    def test_보관소에_있는_날은_키움을_부르지_않는다(self, monkeypatch):
+        from backend.leadingstock import minute_archive
+
+        기준일들 = self.준비(monkeypatch)
+        minute_archive.put("005930", date(2026, 9, 25), [분봉(date(2026, 9, 25), 9)])
+        minute_archive.put("005930", date(2026, 9, 23), [분봉(date(2026, 9, 23), 9)])
+
+        application.minute_candles("005930", self.오늘)
+
+        assert 기준일들 == []
+
+    def test_키움에서_받은_날은_보관소에_넣어_다음엔_부르지_않는다(self, monkeypatch):
+        기준일들 = self.준비(monkeypatch)
+
+        application.minute_candles("005930", self.오늘)
+        첫_호출 = list(기준일들)
+        application.minute_candles("005930", self.오늘)
+
+        assert 첫_호출 == [date(2026, 9, 25), date(2026, 9, 23)]
+        assert 기준일들 == 첫_호출
+
+    def test_페이지_끝에서_잘린_날은_보관하지_않는다(self, monkeypatch):
+        from backend.leadingstock import minute_archive
+
+        self.준비(monkeypatch)
+
+        application.minute_candles("005930", self.오늘)
+
+        assert minute_archive.get("005930", date(2026, 9, 22)) is None   # 9/23 페이지 끝자락뿐이었다
+
+    def test_지난_날짜를_보면_그날부터_세_거래일이다(self, monkeypatch):
+        self.준비(monkeypatch)
+
+        봉들 = application.minute_candles("005930", date(2026, 9, 25))
+
+        assert sorted({c.date_time.date() for c in 봉들}) == self.거래일
+
+
+class Test마감_확정:
+    def test_확정된_오늘_봉을_보관소에_넘겨_마감_뒤엔_토스를_부르지_않는다(self, monkeypatch):
+        from backend.leadingstock import intraday, minute_archive
+
+        intraday.reset()
+        minute_archive.reset()
+        오늘 = date(2026, 9, 28)
+        monkeypatch.setattr(application, "today", lambda: 오늘)
+        monkeypatch.setattr(intraday, "today", lambda: 오늘)
+        monkeypatch.setattr(application, "now", lambda: datetime(2026, 9, 28, 20, 1))
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, False))
+        monkeypatch.setattr(application, "find_candidate_stocks", lambda rate: [종목("005930_AL")])
+        불림 = []
+        monkeypatch.setattr(
+            application.toss_candles, "fetch_today_minute_candles",
+            lambda code, since=None: 불림.append(code) or [분봉(오늘, 19, 59)],
+        )
+
+        assert application.settle_today_minutes() == 0
+        불림.clear()
+
+        assert [c.date_time for c in application._today_minute_candles("005930")] == [datetime(2026, 9, 28, 19, 59)]
+        assert 불림 == []
+        intraday.reset()
+        minute_archive.reset()
+
+
+def 종목(code: str) -> LeadingStockSnapshot:
+    return LeadingStockSnapshot(
+        stock_code=code, stock_name=code, current_price=1, price_change_rate=0.0,
+        trading_value_rank=1, accumulated_trading_value=1,
+    )

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from backend.leadingstock import filters as flt
-from backend.leadingstock import intraday
+from backend.leadingstock import intraday, minute_archive
 from backend.leadingstock.domain import (
     DailyCandle,
     DailyCandles,
@@ -142,6 +142,19 @@ def sync_today_minutes() -> int:
     """감시 풀(시그널·돌파와 같은 풀)의 당일 분봉을 이어 받는다. 실패한 종목 수를 돌려준다."""
     pool = find_candidate_stocks(get_settings().signal_event.min_change_rate)
     return intraday.sync(c.stock_code for c in pool)
+
+
+def settle_today_minutes() -> int:
+    """마감 뒤 감시 풀의 오늘 봉을 확정해 지난 날 보관소에 넘긴다. 실패한 종목 수를 돌려준다.
+
+    내일 아침 이 종목들의 "어제 봉"을 키움에서 다시 받지 않게 하려는 것이다.
+    """
+    pool = find_candidate_stocks(get_settings().signal_event.min_change_rate)
+    settled, failures = intraday.settle(c.stock_code for c in pool)
+    day = today()
+    for code, bars in settled.items():
+        minute_archive.put(code, day, bars)
+    return failures
 
 
 @ttl_cache("candidateStocks", ttl_seconds=5, maxsize=15)
@@ -318,13 +331,49 @@ def signal_readings(min_daily_price_change_rate: float) -> list[CandidateSignalR
 def minute_candles(stock_code: str, on: date) -> list[MinuteCandle]:
     """상세 차트용 — 최근 3거래일 1분봉, 시간 오름차순.
 
-    오늘 봉은 토스(`_today_minute_candles`), 지난 날은 키움 ka10080에서 받는다. 둘은 같은 봉이다.
-    ka10080 한 페이지는 직전일 일부까지만 닿으므로, 가진 데이터의 **가장 이른 날**을
-    base_dt로 이어 호출하며 거래일을 하나씩 채운다.
+    오늘 봉은 토스(`_today_minute_candles`), 지난 날은 **날짜 단위 보관소**에서 먼저 찾고 없으면
+    키움 ka10080에서 받는다. 어느 날이 거래일인지는 개장일 달력이 짚는다 — 보관소에 없는 날이
+    휴장이라서인지 아직 안 받아서인지 가르려면 달력이 있어야 한다.
 
-    **지난 날 조회의 기준일은 오늘보다 앞이어야 한다.** 과거 분봉은 4일 캐시라, 오늘을 기준일로
-    부르면 형성 중인 오늘 봉이 그대로 굳는다. 토스는 오늘 봉만 주므로 첫 기준일을 어제로 잡는다 —
-    어제가 휴장이면 키움이 그 전 거래일부터 채워 준다.
+    달력이 모르는 날(목록은 20일 전부터 온다 — 시그널 로그의 오래된 날짜)은 예전 방식대로
+    키움 페이지를 이어 붙인다.
+    """
+    current = today()
+    days: dict[date, list[MinuteCandle]] = {}
+    if on == current:
+        today_bars = _today_minute_candles(stock_code)
+        if today_bars:
+            days[current] = today_bars
+    # 오늘이면 어제부터, 지난 날이면 그날부터(그날이 거래일이면 포함) 거슬러 간다
+    cursor = on if on == current else on + timedelta(days=1)
+    while len(days) < _CHART_SESSION_DAYS:
+        day = calendar.previous_open_day(cursor)
+        if day is None:
+            return _minute_candles_by_pages(stock_code, on)
+        bars = _past_day_minutes(stock_code, day)
+        if not bars:
+            break  # 그날 봉을 못 받았다 — 있는 만큼만 보여준다
+        days[day] = bars
+        cursor = day
+    return [c for day in sorted(days) for c in days[day]]
+
+
+def _past_day_minutes(stock_code: str, day: date) -> list[MinuteCandle]:
+    """지난 거래일 하루치. 보관소에 없으면 그날을 기준일로 키움 페이지를 받고, 완성된 날들을 넣어 둔다."""
+    archived = minute_archive.get(stock_code, day)
+    if archived is not None:
+        return archived
+    page = kiwoom_market.fetch_historical_minute_candles(stock_code, day)
+    minute_archive.put_page(stock_code, page)
+    return sorted((c for c in page if c.date_time.date() == day), key=lambda c: c.date_time)
+
+
+def _minute_candles_by_pages(stock_code: str, on: date) -> list[MinuteCandle]:
+    """달력이 없을 때 — 키움 페이지의 **가장 이른 날**을 기준일로 이어 호출하며 거래일을 채운다.
+
+    ka10080 한 페이지는 직전일 일부까지만 닿는다. **지난 날 조회의 기준일은 오늘보다 앞이어야
+    한다** — 과거 분봉은 4일 캐시라 오늘을 기준일로 부르면 형성 중인 오늘 봉이 굳는다. 토스는
+    오늘 봉만 주므로 첫 기준일을 어제로 잡고, 어제가 휴장이면 키움이 그 전 거래일부터 채워 준다.
     """
     current = today()
     yesterday = current - timedelta(days=1)
@@ -381,7 +430,7 @@ def _latest_session_minute_candles(stock_code: str) -> list[MinuteCandle]:
 #: 장중에 직접 받은 오늘 분봉의 수명.
 _TODAY_MINUTES_TTL_SECONDS = 30
 #: 마감(20:00) 뒤 이 시각부터 받은 값만 다음 장까지 들고 있는다 — 마지막 봉이 확정될 틈을 둔다.
-_SETTLED_AFTER_CLOSE = time(20, 5)
+_SETTLED_AFTER_CLOSE = time(20, 1)
 
 
 def _today_minute_candles(stock_code: str) -> list[MinuteCandle]:
@@ -393,6 +442,9 @@ def _today_minute_candles(stock_code: str) -> list[MinuteCandle]:
     stored = intraday.get(stock_code)
     if stored is not None:
         return stored
+    settled = minute_archive.get(stock_code, today())  # 마감 확정(20:01) 뒤
+    if settled is not None:
+        return settled
     holiday, _ = calendar.market_status()
     if holiday or now().time() < _SESSION_START:
         return []
@@ -400,7 +452,7 @@ def _today_minute_candles(stock_code: str) -> list[MinuteCandle]:
 
 
 def _today_minutes_ttl() -> float:
-    """장중엔 30초, 마감이 굳은 뒤(20:05~)는 다음 08:00까지.
+    """장중엔 30초, 마감이 굳은 뒤(20:01~)는 다음 08:00까지.
 
     장 밖엔 저장소가 비어 모든 요청이 여기로 온다. 30초로 두면 마감 뒤에도 종목마다 하루치(720봉,
     토스 4번)를 30초마다 다시 받았다 — 눌림·돌파 한 번에 백 번 넘게.

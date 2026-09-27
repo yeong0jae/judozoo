@@ -1,4 +1,4 @@
-"""주도주 폴러 — 거래대금 상위 갱신(10s) / 당일 분봉 갱신(20s) / 종목 시그널(10s) / 시장 시그널(30s) / 지수 반등(30s) / 마감 스냅샷(15:40).
+"""주도주 폴러 — 거래대금 상위 갱신(10s) / 당일 분봉 갱신(20s)·마감 확정(20:01) / 종목 시그널(10s) / 시장 시그널(30s) / 지수 반등(30s) / 마감 스냅샷(15:40).
 
 폴러는 **화면을 아무도 안 보고 있어도** 쌓이게 하려고 서버가 능동적으로 돈다.
 직전 상태는 메모리에 들고 일자가 바뀌면 버린다. 흐름 전환 정점만 DB에 남겨 재시작에도 복원한다.
@@ -49,6 +49,7 @@ _MARKET_SIGNAL_JOB = "market-signal-event-poller"
 _INDEX_REBOUND_JOB = "index-rebound-poller"
 _POOL_REFRESH_JOB = "trading-value-pool-refresher"
 _MINUTE_SYNC_JOB = "today-minute-syncer"
+_MINUTE_SETTLE_JOB = "today-minute-settler"
 
 # 거래대금 상위 캐시(TTL 15초)를 만료 전에 갈아 끼우는 주기
 _POOL_REFRESH_SECONDS = 10
@@ -109,6 +110,26 @@ def sync_today_minutes() -> None:
         return
     if failures:
         metrics.job_failed(_MINUTE_SYNC_JOB)
+
+
+@tracing.traced_job(_MINUTE_SETTLE_JOB)
+def settle_today_minutes() -> None:
+    """마감(20:00) 뒤 감시 풀의 오늘 봉을 확정해 지난 날 보관소에 넘긴다.
+
+    20:01로 둔 건 마지막 봉이 굳을 틈이다. 이게 없으면 다음 날 아침 감시 풀 전체의 "어제 봉"을
+    키움에서 다시 받는다 — 하루 내내 토스로 들고 있던 봉인데도.
+    """
+    holiday, _ = calendar.market_status()
+    if holiday:
+        return
+    try:
+        failures = application.settle_today_minutes()
+    except Exception:
+        metrics.job_failed(_MINUTE_SETTLE_JOB)
+        log.warning("당일 분봉 마감 확정 실패", exc_info=True)
+        return
+    if failures:
+        metrics.job_failed(_MINUTE_SETTLE_JOB)
 
 
 # ── 종목 시그널 폴러 ────────────────────────────────────────────────────
@@ -418,6 +439,11 @@ def register(scheduler: BaseScheduler) -> None:
         sync_today_minutes,
         IntervalTrigger(seconds=_MINUTE_SYNC_SECONDS),
         id=_MINUTE_SYNC_JOB, replace_existing=True,
+    )
+    scheduler.add_job(
+        settle_today_minutes,
+        CronTrigger(day_of_week="mon-fri", hour=20, minute=1, timezone=KST),
+        id=_MINUTE_SETTLE_JOB, replace_existing=True,
     )
     scheduler.add_job(
         poll_signal_events,
