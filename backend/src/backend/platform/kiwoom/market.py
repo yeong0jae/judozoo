@@ -244,9 +244,14 @@ def fetch_minute_candles(stock_code: str) -> list[MinuteCandle]:
     return _fetch_minute_candles_raw(stock_code, today())
 
 
-@ttl_cache("minuteCandlesHistory", ttl_seconds=12 * 3600, maxsize=300, skip_if=is_empty)
+@ttl_cache("minuteCandlesHistory", ttl_seconds=4 * 24 * 3600, maxsize=300, skip_if=is_empty)
 def fetch_historical_minute_candles(stock_code: str, base_date: date) -> list[MinuteCandle]:
-    """과거 거래일 분봉 — 데이터가 불변이라 당일과 분리해 길게 캐시한다."""
+    """과거 거래일 분봉 — 데이터가 불변이라 당일과 분리해 길게 캐시한다.
+
+    4일인 이유 — 오늘 받은 `(종목, 어제)` 페이지를 다음 거래일이 `이틀 전`으로 다시 쓴다.
+    금요일 것을 월요일까지 들고 가려면 사흘이 넘게 필요하다.
+    대가: 수정주가(액면분할 등)가 소급돼도 그동안은 고치기 전 과거 봉을 쓴다.
+    """
     return _fetch_minute_candles_raw(stock_code, base_date)
 
 
