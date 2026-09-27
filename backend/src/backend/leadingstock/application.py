@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from backend.leadingstock import filters as flt
+from backend.leadingstock import intraday
 from backend.leadingstock.domain import (
     DailyCandle,
     DailyCandles,
@@ -129,6 +130,12 @@ def _trading_value_pool() -> list[LeadingStockSnapshot]:
 def refresh_trading_value_pool() -> None:
     """거래대금 상위를 만료 전에 새로 받아 갈아 끼운다 — 장중 갱신 폴러가 부른다."""
     _trading_value_pool.refresh()
+
+
+def sync_today_minutes() -> int:
+    """감시 풀(시그널·돌파와 같은 풀)의 당일 분봉을 이어 받는다. 실패한 종목 수를 돌려준다."""
+    pool = find_candidate_stocks(get_settings().signal_event.min_change_rate)
+    return intraday.sync(c.stock_code for c in pool)
 
 
 @ttl_cache("candidateStocks", ttl_seconds=5, maxsize=15)

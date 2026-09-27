@@ -253,3 +253,44 @@ class Test거래대금_상위_갱신:
         monkeypatch.setattr(application, "refresh_trading_value_pool", 터진다)
 
         scheduler.refresh_trading_value_pool()
+
+
+class Test당일_분봉_갱신:
+    def test_장중이면_감시_풀의_분봉을_이어_받는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
+        호출됨 = []
+        monkeypatch.setattr(application, "sync_today_minutes", lambda: 호출됨.append(1) or 0)
+
+        scheduler.sync_today_minutes()
+
+        assert 호출됨 == [1]
+
+    @pytest.mark.parametrize("휴장, 거래시간", [(True, True), (False, False)])
+    def test_휴장이거나_장_시간이_아니면_받지_않는다(self, monkeypatch, 휴장, 거래시간):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (휴장, 거래시간))
+        호출됨 = []
+        monkeypatch.setattr(application, "sync_today_minutes", lambda: 호출됨.append(1) or 0)
+
+        scheduler.sync_today_minutes()
+
+        assert 호출됨 == []
+
+    def test_일부_종목이_실패하면_실패로_센다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
+        monkeypatch.setattr(application, "sync_today_minutes", lambda: 2)
+        실패 = []
+        monkeypatch.setattr(scheduler.metrics, "job_failed", 실패.append)
+
+        scheduler.sync_today_minutes()
+
+        assert 실패 == [scheduler._MINUTE_SYNC_JOB]
+
+    def test_통째로_실패해도_폴러가_죽지_않는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
+
+        def 터진다():
+            raise RuntimeError("후보 조회 실패")
+
+        monkeypatch.setattr(application, "sync_today_minutes", 터진다)
+
+        scheduler.sync_today_minutes()

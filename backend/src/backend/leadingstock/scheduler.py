@@ -1,4 +1,4 @@
-"""주도주 폴러 — 거래대금 상위 갱신(10s) / 종목 시그널(10s) / 시장 시그널(30s) / 지수 반등(30s) / 마감 스냅샷(15:40).
+"""주도주 폴러 — 거래대금 상위 갱신(10s) / 당일 분봉 갱신(20s) / 종목 시그널(10s) / 시장 시그널(30s) / 지수 반등(30s) / 마감 스냅샷(15:40).
 
 폴러는 **화면을 아무도 안 보고 있어도** 쌓이게 하려고 서버가 능동적으로 돈다.
 직전 상태는 메모리에 들고 일자가 바뀌면 버린다. 흐름 전환 정점만 DB에 남겨 재시작에도 복원한다.
@@ -48,6 +48,7 @@ _SIGNAL_JOB = "signal-event-poller"
 _MARKET_SIGNAL_JOB = "market-signal-event-poller"
 _INDEX_REBOUND_JOB = "index-rebound-poller"
 _POOL_REFRESH_JOB = "trading-value-pool-refresher"
+_MINUTE_SYNC_JOB = "today-minute-syncer"
 
 # 거래대금 상위 캐시(TTL 15초)를 만료 전에 갈아 끼우는 주기
 _POOL_REFRESH_SECONDS = 10
@@ -83,6 +84,31 @@ def refresh_trading_value_pool() -> None:
     except Exception:
         metrics.job_failed(_POOL_REFRESH_JOB)
         log.warning("거래대금 상위 갱신 실패", exc_info=True)
+
+
+# ── 당일 분봉 갱신 ──────────────────────────────────────────────────────
+
+# 감시 풀의 오늘 분봉을 이어 받는 주기. 분봉이 이보다 오래 묵지 않는다.
+_MINUTE_SYNC_SECONDS = 20
+
+
+@tracing.traced_job(_MINUTE_SYNC_JOB)
+def sync_today_minutes() -> None:
+    """장중에는 감시 풀의 오늘 분봉을 늘 들고 있는다 — 시그널·돌파·상세 차트가 토스를 기다리지 않게.
+
+    종목 하나가 실패하면 그 종목만 기존 봉을 쓴다. 실패는 종목 수와 상관없이 회차당 한 번 센다.
+    """
+    holiday, trading_hours = calendar.market_status()
+    if holiday or not trading_hours:
+        return
+    try:
+        failures = application.sync_today_minutes()
+    except Exception:
+        metrics.job_failed(_MINUTE_SYNC_JOB)
+        log.warning("당일 분봉 갱신 실패", exc_info=True)
+        return
+    if failures:
+        metrics.job_failed(_MINUTE_SYNC_JOB)
 
 
 # ── 종목 시그널 폴러 ────────────────────────────────────────────────────
@@ -387,6 +413,11 @@ def register(scheduler: BaseScheduler) -> None:
         refresh_trading_value_pool,
         IntervalTrigger(seconds=_POOL_REFRESH_SECONDS),
         id=_POOL_REFRESH_JOB, replace_existing=True,
+    )
+    scheduler.add_job(
+        sync_today_minutes,
+        IntervalTrigger(seconds=_MINUTE_SYNC_SECONDS),
+        id=_MINUTE_SYNC_JOB, replace_existing=True,
     )
     scheduler.add_job(
         poll_signal_events,
