@@ -216,6 +216,25 @@ class Test일봉:
         assert len(market.fetch_daily_candles("005930", base_date=date(2026, 9, 11))) == 1
 
 
+    @respx.mock
+    def test_개수만_다른_조회는_한_번의_호출을_나눠_쓴다(self, respx_mock, 토큰_발급):
+        """필터용 60개와 차트 200개는 키움에 보내는 요청이 같다 — 개수는 받은 뒤 자른다."""
+        행 = {"cur_prc": "1", "open_pric": "1", "high_pric": "1", "low_pric": "1", "trde_qty": "1", "pred_pre": "0"}
+        route = respx_mock.post(CHART_URL).mock(
+            return_value=httpx.Response(200, json={"stk_dt_pole_chart_qry": [
+                {**행, "dt": f"2026{m:02d}{d:02d}"} for m in (9, 8) for d in range(28, 0, -1)
+            ]})
+        )
+        기준일 = date(2026, 9, 28)
+
+        필터용 = market.fetch_daily_candles("005930", 3, 기준일)
+        차트용 = market.fetch_daily_candles("005930", 5, 기준일)
+
+        assert route.call_count == 1
+        assert len(필터용) == 3 and len(차트용) == 5
+        assert 차트용[:3] == 필터용
+
+
 class Test분봉:
     @respx.mock
     def test_분봉은_SOR_통합_코드로_부른다(self, respx_mock, 토큰_발급):

@@ -189,15 +189,21 @@ def fetch_stock_detail(stock_code: str) -> LeadingStockSnapshot | None:
         return None
 
 
-@ttl_cache("dailyCandles", ttl_seconds=30, maxsize=60, skip_if=is_empty)
 def fetch_daily_candles(stock_code: str, count: int = 60, base_date: date | None = None) -> list[DailyCandle]:
-    """일봉 (ka10081) — base_dt 기준 과거 봉 N개.
+    """일봉 (ka10081) — base_dt 기준 과거 봉 N개."""
+    return _fetch_daily_page(stock_code, base_date or today())[:count]
 
+
+@ttl_cache("dailyCandles", ttl_seconds=30, maxsize=60, skip_if=is_empty)
+def _fetch_daily_page(stock_code: str, base: date) -> list[DailyCandle]:
+    """ka10081 한 페이지(600봉, 최신순)를 통째로.
+
+    **캐시 키는 키움에 보내는 값(종목·기준일)뿐이다.** 개수는 보내지 않고 받은 뒤 자르므로,
+    개수를 키에 넣으면 필터용(60)과 차트(200)가 같은 요청을 두 번 보낸다.
     ka10081은 `_AL`이면 빈 응답이 오는 경우가 있어 **KRX 기본 코드**로 부른다.
     """
-    base = base_date or today()
     try:
-        log.info("키움 일봉 %d건 조회 stk_cd=%s base=%s", count, stock_code, base)
+        log.info("키움 일봉 조회 stk_cd=%s base=%s", stock_code, base)
         response = client.get_client().post(
             _CHART_URL,
             headers=client.query_headers("ka10081"),
@@ -211,7 +217,7 @@ def fetch_daily_candles(stock_code: str, count: int = 60, base_date: date | None
         items = response.json().get("stk_dt_pole_chart_qry") or []
 
         candles = []
-        for item in items[:count]:
+        for item in items:
             # 응답 끝쪽에 빈 패딩 항목이 올 수 있다 — 파싱 실패는 건너뛴다.
             parsed = _parse_date(item.get("dt", ""))
             if parsed is None:
