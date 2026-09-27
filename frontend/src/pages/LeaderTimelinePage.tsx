@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLeaderTimeline, useMarketCalendarStatus } from "../api/queries";
 import DateNavigator, { latestTradingDayStr, todayStr } from "../components/common/DateNavigator";
 import Skeleton from "../components/common/Skeleton";
@@ -24,6 +24,19 @@ const RANKS = [1, 2, 3, 4, 5];
 const SPEEDS = [0.5, 1, 2];
 /** 1× = 하루(약 12시간)를 30초 */
 const tickMs = (speed: number) => 30000 / SLOTS / speed;
+
+/** 좁은 화면 — 마우스가 없으니 세로선을 가운데 고정하고 띠를 밀어 시각을 옮긴다(`ScrubChart`) */
+const NARROW = "(max-width: 767px)";
+function useNarrow() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(NARROW);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(NARROW).matches,
+  );
+}
 
 const MARKETS: { key: TimelineMarket; label: string }[] = [
   { key: "kr", label: "국내" },
@@ -71,6 +84,7 @@ export default function LeaderTimelinePage() {
   const [hover, setHover] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const narrow = useNarrow();
   // 국내는 가장 최근 거래일로 연다 — 주말만 건너뛰면 추석 같은 휴장일이나 08:00 전엔 빈 화면이다(시그널과 같다).
   // 사용자가 날짜를 고른 뒤에는 건드리지 않는다
   const krCalendar = useMarketCalendarStatus("KR").data;
@@ -145,7 +159,7 @@ export default function LeaderTimelinePage() {
           <h2 className="text-[20px] font-bold">주도주 타임라인</h2>
           {live && data?.lastTakenAt && <Ago iso={data.lastTakenAt} />}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:justify-between">
           <div className="inline-flex rounded-[9px] bg-zinc-900 p-[3px]" role="group" aria-label="시장">
             {MARKETS.map((m) => (
               <button
@@ -165,7 +179,7 @@ export default function LeaderTimelinePage() {
         </div>
       </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
         <section className="overflow-hidden rounded-[14px] border border-zinc-800 text-[15px] leading-[normal]" aria-label="타임라인">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-[14px] py-[12px]">
             <div className="flex items-baseline gap-[10px]">
@@ -178,13 +192,13 @@ export default function LeaderTimelinePage() {
                   `${model.spec.sessionName(model.spec.start + shown)}${market === "us" ? ` · 뉴욕 ${hhmm(model.spec.start + shown)}` : ""}${live && shown === last ? " · 최신" : ""}`}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-md:w-full">
               {live && pinned !== null && cursor !== last && (
                 <button type="button" onClick={() => setPinned(null)} className="h-[30px] rounded-[8px] bg-[var(--tl-r4)] px-3 text-[14px] font-semibold text-[var(--tl-r4-fg)]">
                   최신으로 →
                 </button>
               )}
-              <div className="inline-flex rounded-[9px] bg-zinc-900 p-[3px]" role="group" aria-label="재생 속도">
+              <div className="inline-flex rounded-[9px] bg-zinc-900 p-[3px] max-md:mr-auto" role="group" aria-label="재생 속도">
                 {SPEEDS.map((sp) => (
                   <button
                     key={sp}
@@ -217,6 +231,16 @@ export default function LeaderTimelinePage() {
             <p className="py-16 text-center text-[14px] text-zinc-500">타임라인을 불러오지 못했습니다</p>
           ) : !model || !model.live.length ? (
             <p className="py-16 text-center text-[14px] text-zinc-500">이 날은 기록이 없어요. 휴장이거나 기록을 시작하기 전이에요</p>
+          ) : narrow ? (
+            <ScrubChart
+              model={model}
+              market={market}
+              offset={offset}
+              live={live}
+              cursor={cursor}
+              onCursor={setPinned}
+              onTouch={() => setPlaying(false)}
+            />
           ) : (
             <Chart
               model={model}
@@ -231,7 +255,7 @@ export default function LeaderTimelinePage() {
           )}
         </section>
 
-        <ChangeLog model={model} offset={offset} cursor={cursor} onPick={(i) => { setPlaying(false); setPinned(i); }} />
+        <ChangeLog model={model} offset={offset} cursor={cursor} collapsible={narrow} onPick={(i) => { setPlaying(false); setPinned(i); }} />
       </div>
     </div>
   );
@@ -424,6 +448,265 @@ function Chart({
   );
 }
 
+/** 모바일 치수 — 띠 1분 = 2px라 폰 한 화면에 두 시간쯤 보인다 */
+const PX = 2;
+const M_LABEL = 132;
+const M_ROW = 46;
+const M_AXIS = 30;
+
+/**
+ * 모바일 타임라인 — 세로선은 띠 영역 가운데에 고정하고, 띠를 옆으로 밀면 그 아래 시각이 커서가 된다.
+ * 가로 스크롤을 그대로 쓰므로 관성도 따라온다. 재생·변화 기록·전체 막대가 커서를 옮기면 스크롤이 따라간다.
+ */
+function ScrubChart({
+  model, market, offset, live, cursor, onCursor, onTouch,
+}: {
+  model: TimelineModel;
+  market: TimelineMarket;
+  offset: number;
+  live: boolean;
+  cursor: number;
+  onCursor: (i: number) => void;
+  /** 손을 대면 재생을 멈춘다 */
+  onTouch: () => void;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [touched, setTouched] = useState(false);
+  const [instant, setInstant] = useState(true);
+  useLayoutEffect(() => {
+    const el = scroller.current!;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    setWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    setInstant(true);
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setInstant(false)));
+    return () => cancelAnimationFrame(id);
+  }, [model]);
+
+  const { spec, last } = model;
+  // 양 끝에 반 화면씩 비워 둬야 08:00과 20:00도 세로선 아래까지 온다
+  const pad = Math.round(width / 2);
+  const x = (i: number) => pad + i * PX;
+  /** 안 찍힌 분(쉬는 구간·장 진행 중)이면 그 앞 찍힌 분 */
+  const snapTo = (i: number) => {
+    let j = Math.max(0, Math.min(last, i));
+    while (j > 0 && !model.snap[j]) j--;
+    return j;
+  };
+  const scrolledSlot = () => snapTo(Math.round(scroller.current!.scrollLeft / PX));
+
+  // 커서 → 스크롤. 스크롤이 이미 그 분을 가리키면 두지 않는다(쉬는 구간에서 손가락과 다투지 않게)
+  useLayoutEffect(() => {
+    if (!width || scrolledSlot() === cursor) return;
+    scroller.current!.scrollLeft = cursor * PX;
+  }, [cursor, width, model]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hold = () => { onTouch(); setTouched(true); };
+
+  const { top, rest, hidden } = arrangement(model, cursor);
+  const y = new Map<string, number>();
+  let acc = M_AXIS;
+  top.forEach((k) => { y.set(`k${k}`, acc); acc += M_ROW; });
+  for (let n = top.length + 1; n <= 5; n++) { y.set(`ph${n}`, acc); acc += M_ROW; }
+  y.set("divRest", acc); if (rest.length) acc += DIV_H;
+  rest.forEach((k) => { y.set(`k${k}`, acc); acc += M_ROW; });
+  hidden.forEach((k) => y.set(`k${k}`, acc));
+  const height = acc;
+  const gapCols = [...Array(SLOTS).keys()].filter((i) => isGap(spec, i));
+  const move = (key: string) => ({ transform: `translateY(${y.get(key)}px)` });
+
+  return (
+    <>
+      <NowChanges model={model} offset={offset} cursor={cursor} />
+      <MiniMap model={model} market={market} offset={offset} cursor={cursor} visible={width / PX} onCursor={(i) => { hold(); onCursor(snapTo(i)); }} />
+
+      <div className={`tl-rows relative border-t border-zinc-800 ${instant ? "instant" : ""}`} style={{ height }}>
+        {/* 왼쪽 종목 칸 — 띠와 같은 높이로 함께 미끄러진다 */}
+        <div className="absolute inset-y-0 left-0 z-[2] border-r border-zinc-800 bg-zinc-950" style={{ width: M_LABEL }}>
+          <div className="tl-row absolute inset-x-0 top-0 flex items-center px-[10px] text-[11.5px] font-bold text-zinc-500" style={{ ...move("divRest"), height: DIV_H, visibility: rest.length ? undefined : "hidden" }}>
+            주도주였던 종목
+          </div>
+          {RANKS.filter((n) => n > top.length).map((n) => (
+            <div key={`ph${n}`} className="tl-row absolute inset-x-0 top-0 flex items-center gap-[8px] border-t border-zinc-800 px-[10px]" style={{ ...move(`ph${n}`), height: M_ROW }}>
+              <span className="num grid h-[22px] w-[22px] flex-none place-items-center rounded-[6px] text-[12px] font-bold text-zinc-600 shadow-[inset_0_0_0_1px_var(--color-zinc-800)]">{n}</span>
+              <b className="truncate text-[13px] font-medium text-zinc-600">{top.length === 0 && n === 1 ? "주도주 없음" : "비어 있음"}</b>
+            </div>
+          ))}
+          {model.order.map((k) => {
+            const pos = top.indexOf(k);
+            const e = pos >= 0 ? entryAt(model, k, cursor) : null;
+            return (
+              <div
+                key={k}
+                className={`tl-row absolute inset-x-0 top-0 flex min-w-0 items-center gap-[8px] border-t border-zinc-800 px-[10px] ${hidden.includes(k) ? "pointer-events-none opacity-0" : ""}`}
+                style={{ ...move(`k${k}`), height: M_ROW }}
+              >
+                <span
+                  className="num grid h-[22px] w-[22px] flex-none place-items-center rounded-[6px] text-[12px] font-bold"
+                  style={pos < 0
+                    ? { color: "var(--color-zinc-600)", boxShadow: "inset 0 0 0 1px var(--color-zinc-800)" }
+                    : { background: `var(--tl-r${pos + 1})`, color: `var(--tl-r${pos + 1}-fg)` }}
+                >
+                  {pos < 0 ? "–" : pos + 1}
+                </span>
+                <div className="flex min-w-0 flex-col gap-[1px]">
+                  <b className={`truncate text-[13.5px] font-semibold ${pos < 0 ? "text-zinc-600" : ""}`}>{model.names[k]}</b>
+                  {pos >= 0 && e ? (
+                    <small className={`num text-[11.5px] font-semibold ${e.rate >= 0 ? "text-red-600" : "text-blue-600"}`}>{pct(e.rate)}</small>
+                  ) : (
+                    <small className="text-[11.5px] text-zinc-600">{model.snap[cursor] ? "5위 밖" : "쉬는 구간"}</small>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 띠 — 가로 스크롤 */}
+        <div
+          ref={scroller}
+          className="tl-scrub absolute inset-y-0 right-0 overflow-x-auto overflow-y-hidden"
+          style={{ left: M_LABEL }}
+          onScroll={() => { const i = scrolledSlot(); if (i !== cursor) onCursor(i); }}
+          onPointerDown={hold}
+          onTouchStart={hold}
+          onWheel={hold}
+        >
+          <div className="relative h-full" style={{ width: pad * 2 + (SLOTS - 1) * PX }}>
+            {[...Array(13).keys()].map((h) => (
+              <span key={h}>
+                <span className="num absolute top-[8px] -translate-x-1/2 text-[11px] text-zinc-500" style={{ left: x(h * 60) }}>
+                  {hhmm(spec.start + h * 60 + offset).slice(0, 2)}
+                </span>
+                <span className="absolute bottom-0 w-px bg-zinc-800/40" style={{ left: x(h * 60), top: M_AXIS }} />
+              </span>
+            ))}
+            {gapRuns(gapCols).map(([a, b]) => (
+              <div key={a} className="tl-hatch absolute bottom-0" style={{ top: M_AXIS, left: x(a), width: (b - a) * PX }} />
+            ))}
+            {live && last < SLOTS - 1 && (
+              <div className="tl-hatch absolute bottom-0 grid place-items-center border-l border-dashed border-zinc-600" style={{ top: M_AXIS, left: x(last + 1), width: (SLOTS - 1 - last) * PX }}>
+                <span className="whitespace-nowrap text-[12px] font-semibold text-zinc-500">장 진행 중</span>
+              </div>
+            )}
+            {model.order.map((k) => (
+              <div
+                key={k}
+                className={`tl-row absolute inset-x-0 top-0 border-t border-zinc-800 ${hidden.includes(k) ? "opacity-0" : ""}`}
+                style={{ ...move(`k${k}`), height: M_ROW }}
+              >
+                <PxLane segments={model.segs[k]} pad={pad} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 가운데 고정 세로선 */}
+        <div className="pointer-events-none absolute inset-y-0 z-[3]" style={{ left: M_LABEL + pad }}>
+          <span className="absolute bottom-0 top-[24px] -ml-px w-[2px] bg-zinc-100/90" />
+          <b className="num absolute top-[3px] -translate-x-1/2 whitespace-nowrap rounded-[5px] bg-zinc-100 px-[6px] py-[2px] text-[11.5px] font-bold text-zinc-950">
+            {hhmm(spec.start + cursor + offset)}
+          </b>
+        </div>
+        {!touched && (
+          <span className="pointer-events-none absolute bottom-[10px] z-[4] -translate-x-1/2 whitespace-nowrap rounded-full bg-zinc-100 px-[10px] py-[6px] text-[12px] font-semibold text-zinc-950" style={{ left: M_LABEL + pad }}>
+            옆으로 밀어 시각을 옮겨요
+          </span>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** 띠 한 줄(px) — 종목별로 한 번만 그린다 */
+const PxLane = memo(function PxLane({ segments, pad }: { segments: Segment[]; pad: number }) {
+  return (
+    <>
+      {segments.map((s) => (
+        <i
+          key={s.start}
+          className="absolute top-1/2 h-[20px] -translate-y-1/2"
+          style={{
+            left: pad + s.start * PX,
+            width: (s.end - s.start) * PX,
+            background: `var(--tl-r${s.rank})`,
+            borderRadius: `${s.roundStart ? 4 : 0}px ${s.roundEnd ? 4 : 0}px ${s.roundEnd ? 4 : 0}px ${s.roundStart ? 4 : 0}px`,
+          }}
+        />
+      ))}
+    </>
+  );
+});
+
+/** 지금 분(또는 그 앞 가장 가까운 분)의 변화 — 모바일에선 변화 기록이 접혀 있어 커서 옆에 한 줄로 보여 준다 */
+function NowChanges({ model, offset, cursor }: { model: TimelineModel; offset: number; cursor: number }) {
+  const groups = useMemo(() => eventGroups(model), [model]);
+  const group = groups.find(([i]) => i <= cursor);
+  return (
+    <div className="mx-[14px] mt-[12px] flex min-h-[40px] items-center gap-[8px] overflow-hidden rounded-[10px] bg-zinc-900 px-[10px] py-[6px]">
+      {group ? (
+        <>
+          <span className="num flex-none text-[12px] text-zinc-500">{hhmm(model.spec.start + group[0] + offset)}</span>
+          <div className="tl-scrub flex gap-[5px] overflow-x-auto">
+            {group[1].map((e, n) => <EventChip key={n} e={e} names={model.names} />)}
+          </div>
+        </>
+      ) : (
+        <span className="text-[12.5px] text-zinc-500">아직 변화 없음</span>
+      )}
+    </div>
+  );
+}
+
+/** 하루 전체 막대 — 지금 보이는 구간을 네모로. 누르거나 끌면 그 시각으로 간다 */
+function MiniMap({
+  model, market, offset, cursor, visible, onCursor,
+}: {
+  model: TimelineModel;
+  market: TimelineMarket;
+  offset: number;
+  cursor: number;
+  /** 띠 영역에 보이는 분 수 */
+  visible: number;
+  onCursor: (i: number) => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const jump = (clientX: number) => {
+    const r = box.current!.getBoundingClientRect();
+    onCursor(Math.round(((clientX - r.left) / r.width) * SLOTS));
+  };
+  const pctOf = (i: number) => `${(i / SLOTS) * 100}%`;
+  const { spec, last } = model;
+  return (
+    <div className="px-[14px] pb-[8px] pt-[10px]">
+      <div
+        ref={box}
+        className="relative h-[26px] cursor-pointer touch-none"
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); jump(e.clientX); }}
+        onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) jump(e.clientX); }}
+      >
+        <div className="absolute inset-x-0 inset-y-[8px] overflow-hidden rounded-[5px] bg-zinc-900">
+          {sessionsOf(market, offset).map(([a, b]) => (
+            <span key={a} className="absolute inset-y-0 bg-zinc-800" style={{ left: pctOf(a - spec.start), width: pctOf(b - a) }} />
+          ))}
+          {last < SLOTS - 1 && <span className="tl-hatch absolute inset-y-0 right-0" style={{ left: pctOf(last + 1) }} />}
+        </div>
+        <span
+          className="pointer-events-none absolute inset-y-[3px] rounded-[6px] border-[1.5px] border-zinc-100/60"
+          style={{ left: pctOf(Math.max(0, Math.min(SLOTS - visible, cursor - visible / 2))), width: pctOf(Math.min(SLOTS, visible)) }}
+        />
+      </div>
+      <div className="num flex justify-between text-[10.5px] text-zinc-500">
+        {[0, 240, 480, 720].map((i) => <span key={i}>{hhmm(spec.start + i + offset).slice(0, 2)}</span>)}
+      </div>
+    </div>
+  );
+}
+
 function gapRuns(cols: number[]): [number, number][] {
   const out: [number, number][] = [];
   cols.forEach((i) => {
@@ -559,53 +842,71 @@ function StockRow({
   );
 }
 
+/** 같은 분에 일어난 변화는 한 묶음으로 — 14:35에 여섯 줄이 흩어지면 무슨 일이 한꺼번에 있었는지 안 보인다. 최신이 위 */
+function eventGroups(model: TimelineModel | null): [number, TimelineEvent[]][] {
+  const byMin = new Map<number, TimelineEvent[]>();
+  (model?.events ?? []).forEach((e) => byMin.set(e.i, [...(byMin.get(e.i) ?? []), e]));
+  return [...byMin.entries()].sort((a, b) => b[0] - a[0]);
+}
+
+function EventChip({ e, names }: { e: TimelineEvent; names: string[] }) {
+  const name = (k: number) => names[k] ?? "";
+  if (e.type === "in")
+    return (
+      <span className="inline-flex flex-none items-center gap-[5px] whitespace-nowrap rounded-[6px] px-[7px] py-[3px] text-[12.5px] font-semibold" style={{ color: "var(--tl-new)", background: "var(--tl-new-bg)" }}>
+        ＋ {name(e.k)}
+        <i className="num grid h-[16px] min-w-[16px] place-items-center rounded-[4px] px-[3px] text-[11px] font-bold not-italic" style={{ background: `var(--tl-r${e.r})`, color: `var(--tl-r${e.r}-fg)` }}>{e.r}</i>
+      </span>
+    );
+  if (e.type === "out")
+    return <span className="inline-flex flex-none items-center whitespace-nowrap rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] text-zinc-500">－ {name(e.k)}</span>;
+  if (e.type === "top")
+    return (
+      <span className="inline-flex flex-none items-center gap-[5px] whitespace-nowrap rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] font-bold">
+        <i className="num grid h-[16px] w-[16px] place-items-center rounded-[4px] text-[11px] not-italic" style={{ background: "var(--tl-r1)", color: "var(--tl-r1-fg)" }}>1</i>
+        {name(e.k)} 1위로
+      </span>
+    );
+  return <span className="inline-flex flex-none items-center whitespace-nowrap rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] text-zinc-500">주도주 없음</span>;
+}
+
 function ChangeLog({
-  model, offset, cursor, onPick,
+  model, offset, cursor, onPick, collapsible = false,
 }: {
   model: TimelineModel | null;
   offset: number;
   cursor: number;
   onPick: (i: number) => void;
+  /** 좁은 화면 — 타임라인 아래로 밀려 길게 늘어지지 않게 접어 둔다 */
+  collapsible?: boolean;
 }) {
-  // 같은 분에 일어난 변화는 한 묶음으로 — 14:35에 여섯 줄이 흩어지면 무슨 일이 한꺼번에 있었는지 안 보인다
-  const groups = useMemo(() => {
-    const byMin = new Map<number, TimelineEvent[]>();
-    (model?.events ?? []).forEach((e) => byMin.set(e.i, [...(byMin.get(e.i) ?? []), e]));
-    return [...byMin.entries()].sort((a, b) => b[0] - a[0]); // 최신이 위
-  }, [model]);
-  // 보고 있는 시각의 직전(또는 그 시각) 묶음을 강조하고, 목록을 그리로 스크롤한다
+  const groups = useMemo(() => eventGroups(model), [model]);
+  // 보고 있는 시각의 직전(또는 그 시각) 묶음을 강조하고, 목록을 그리로 스크롤한다.
+  // scrollIntoView는 페이지까지 끌고 가서(모바일에서 화면이 튄다) 목록의 scrollTop만 옮긴다
   const active = groups.find(([i]) => i <= cursor)?.[0];
   const listRef = useRef<HTMLOListElement>(null);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
-    listRef.current?.querySelector<HTMLElement>(`[data-i="${active}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [active]);
-
-  const name = (k: number) => model?.names[k] ?? "";
-  const chip = (e: TimelineEvent, n: number) => {
-    if (e.type === "in")
-      return (
-        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] px-[7px] py-[3px] text-[12.5px] font-semibold" style={{ color: "var(--tl-new)", background: "var(--tl-new-bg)" }}>
-          ＋ {name(e.k)}
-          <i className="num grid h-[16px] min-w-[16px] place-items-center rounded-[4px] px-[3px] text-[11px] font-bold not-italic" style={{ background: `var(--tl-r${e.r})`, color: `var(--tl-r${e.r}-fg)` }}>{e.r}</i>
-        </span>
-      );
-    if (e.type === "out")
-      return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] text-zinc-500">－ {name(e.k)}</span>;
-    if (e.type === "top")
-      return (
-        <span key={n} className="inline-flex items-center gap-[5px] rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] font-bold">
-          <i className="num grid h-[16px] w-[16px] place-items-center rounded-[4px] text-[11px] not-italic" style={{ background: "var(--tl-r1)", color: "var(--tl-r1-fg)" }}>1</i>
-          {name(e.k)} 1위로
-        </span>
-      );
-    return <span key={n} className="inline-flex items-center rounded-[6px] bg-zinc-900 px-[7px] py-[3px] text-[12.5px] text-zinc-500">주도주 없음</span>;
-  };
+    const list = listRef.current;
+    const item = list?.querySelector<HTMLElement>(`[data-i="${active}"]`);
+    if (!list || !item) return;
+    if (item.offsetTop < list.scrollTop) list.scrollTop = item.offsetTop;
+    else if (item.offsetTop + item.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = item.offsetTop + item.offsetHeight - list.clientHeight;
+  }, [active, open]);
+  const shown = !collapsible || open;
 
   return (
     <section className="flex max-h-[680px] flex-col rounded-[14px] border border-zinc-800 px-[16px] py-[14px] text-[14px] leading-[normal]">
-      <h3 className="mb-[10px] text-[16px] font-bold">변화 기록</h3>
-      {model && (
-        <ol ref={listRef} className="relative flex flex-col overflow-y-auto overflow-x-hidden">
+      {collapsible ? (
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={`flex items-center justify-between text-left ${open ? "mb-[10px]" : ""}`}>
+          <h3 className="text-[16px] font-bold">변화 기록</h3>
+          <span className="text-[13px] text-zinc-500">{open ? "접기" : "펼치기"}</span>
+        </button>
+      ) : (
+        <h3 className="mb-[10px] text-[16px] font-bold">변화 기록</h3>
+      )}
+      {model && shown && (
+        <ol ref={listRef} className={`relative flex flex-col overflow-y-auto overflow-x-hidden ${collapsible ? "max-h-[360px]" : ""}`}>
           {groups.map(([i, evs], n) => (
             <li key={i} data-i={i} className="relative grid grid-cols-[48px_14px_minmax(0,1fr)] gap-x-[8px]">
               {/* 세로 선 — 묶음이 시간 흐름으로 이어져 보이게 */}
@@ -619,7 +920,7 @@ function ChangeLog({
                 onClick={() => onPick(i)}
                 className={`mb-[4px] flex flex-wrap content-start gap-[5px] rounded-[8px] px-[6px] py-[5px] text-left hover:bg-zinc-850 ${i === active ? "bg-zinc-850" : ""}`}
               >
-                {evs.map(chip)}
+                {evs.map((e, n) => <EventChip key={n} e={e} names={model.names} />)}
               </button>
             </li>
           ))}

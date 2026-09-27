@@ -449,3 +449,6 @@ body {
 .tl-rows.instant .tl-row { transition: none; }
 @media (prefers-reduced-motion: reduce) { .tl-row { transition: none; } }
 .tl-hatch { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--tl-hatch) 4px 5px); }
+/* 모바일 타임라인 — 띠를 손가락으로 미는 가로 스크롤. 스크롤바 대신 가운데 세로선이 위치를 알린다 */
+.tl-scrub { scrollbar-width: none; overscroll-behavior-x: contain; }
+.tl-scrub::-webkit-scrollbar { display: none; }
