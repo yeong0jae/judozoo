@@ -11,6 +11,7 @@ import {
   hhmm,
   isGap,
   lineupAt,
+  nearestLive,
   sessionsOf,
   type Segment,
   type TimelineEvent,
@@ -303,9 +304,7 @@ function Chart({
   const slotAt = (clientX: number) => {
     const r = hot.current!.getBoundingClientRect();
     const i = Math.floor(((clientX - r.left) / r.width) * spec.slots);
-    let j = Math.max(0, Math.min(last, i));
-    while (j > 0 && !model.snap[j]) j--; // 안 찍힌 분이면 그 앞 찍힌 분
-    return j;
+    return nearestLive(model, i); // 안 찍힌 분이면 그 앞 찍힌 분
   };
 
   const { top, rest, hidden } = arrangement(model, shown);
@@ -496,9 +495,7 @@ function ScrubChart({
   const x = (i: number) => pad + i * PX;
   /** 안 찍힌 분(쉬는 구간·장 진행 중)이면 그 앞 찍힌 분 */
   const snapTo = (i: number) => {
-    let j = Math.max(0, Math.min(last, i));
-    while (j > 0 && !model.snap[j]) j--;
-    return j;
+    return nearestLive(model, i);
   };
   const scrolledSlot = () => snapTo(Math.round(scroller.current!.scrollLeft / PX));
 
