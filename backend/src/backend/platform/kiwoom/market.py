@@ -244,13 +244,11 @@ def _fetch_daily_page(stock_code: str, base: date) -> list[DailyCandle]:
         return []
 
 
-@ttl_cache("minuteCandlesHistory", ttl_seconds=4 * 24 * 3600, maxsize=300, skip_if=is_empty)
 def fetch_historical_minute_candles(stock_code: str, base_date: date) -> list[MinuteCandle]:
-    """과거 거래일 분봉 — 데이터가 불변이라 당일과 분리해 길게 캐시한다.
+    """과거 거래일 분봉 — 기준일부터 거꾸로 900봉 한 페이지.
 
-    4일인 이유 — 오늘 받은 `(종목, 어제)` 페이지를 다음 거래일이 `이틀 전`으로 다시 쓴다.
-    금요일 것을 월요일까지 들고 가려면 사흘이 넘게 필요하다.
-    대가: 수정주가(액면분할 등)가 소급돼도 그동안은 고치기 전 과거 봉을 쓴다.
+    **캐시하지 않는다.** 받은 페이지의 완성된 날은 `leadingstock.minute_archive`가 날짜 단위로
+    4일 보관한다 — 페이지까지 들고 있으면 같은 과거 봉을 두 벌 쥔다.
     """
     return _fetch_minute_candles_raw(stock_code, base_date)
 

@@ -21,7 +21,7 @@ from backend.leadingstock.domain import (
     MinuteCandles,
     SpikeDirection,
 )
-from backend.library.cache import is_empty, ttl_cache
+from backend.library.cache import ttl_cache
 from backend.library.time import now, today
 from backend.market import calendar
 from backend.platform.kiwoom import market as kiwoom_market
@@ -427,49 +427,34 @@ def _latest_session_minute_candles(stock_code: str) -> list[MinuteCandle]:
     return _today_minute_candles(stock_code)
 
 
-#: 장중에 직접 받은 오늘 분봉의 수명.
-_TODAY_MINUTES_TTL_SECONDS = 30
-#: 마감(20:00) 뒤 이 시각부터 받은 값만 다음 장까지 들고 있는다 — 마지막 봉이 확정될 틈을 둔다.
+#: 장중에 읽는 오늘 분봉은 이보다 오래되지 않아야 한다. 감시 풀은 20초마다 채워져 대개 걸리지 않는다.
+_FRESH_DURING_SESSION = timedelta(seconds=30)
+#: 마감(20:00) 뒤 이 시각부터 받은 오늘 봉은 확정본이다 — 마지막 봉이 굳을 1분을 둔다.
 _SETTLED_AFTER_CLOSE = time(20, 1)
 
 
 def _today_minute_candles(stock_code: str) -> list[MinuteCandle]:
-    """오늘 1분봉. 감시 풀이면 20초마다 이어 받은 저장소에서, 아니면 직접 받아 온다.
+    """오늘 1분봉. 당일 저장소에서 꺼내고, 낡았으면 그 자리에서 새 봉만 이어 받는다.
 
-    상세 화면으로 연 비후보 종목, 저장소 갱신이 끊긴 종목, **장 밖의 모든 요청**이 직접 받는 쪽으로 간다
-    (저장소는 장중에만 채운다). 휴장일이나 08:00 전에는 오늘 봉이 있을 수 없어 부르지 않는다.
+    - 휴장일·08:00 전: 오늘 봉이 있을 수 없다 — 부르지 않는다.
+    - 마감 확정 뒤: 지난 날 보관소에 넘어간 확정본을 쓴다. 없으면 한 번 받아 확정본으로 넘긴다.
+    - 장중: 30초 안에 받은 값이면 그대로, 아니면 이어 받는다.
     """
-    stored = intraday.get(stock_code)
-    if stored is not None:
-        return stored
-    settled = minute_archive.get(stock_code, today())  # 마감 확정(20:01) 뒤
+    holiday, _ = calendar.market_status()
+    at = now()
+    if holiday or at.time() < _SESSION_START:
+        return []
+    settled = minute_archive.get(stock_code, today())
     if settled is not None:
         return settled
-    holiday, _ = calendar.market_status()
-    if holiday or now().time() < _SESSION_START:
-        return []
-    return _fetch_today_minute_candles(stock_code)
-
-
-def _today_minutes_ttl() -> float:
-    """장중엔 30초, 마감이 굳은 뒤(20:01~)는 다음 08:00까지.
-
-    장 밖엔 저장소가 비어 모든 요청이 여기로 온다. 30초로 두면 마감 뒤에도 종목마다 하루치(720봉,
-    토스 4번)를 30초마다 다시 받았다 — 눌림·돌파 한 번에 백 번 넘게.
-    """
-    if now().time() >= _SETTLED_AFTER_CLOSE:
-        return _seconds_until_session()
-    return _TODAY_MINUTES_TTL_SECONDS
-
-
-@ttl_cache("todayMinuteCandles", ttl_seconds=_today_minutes_ttl, maxsize=100, skip_if=is_empty)
-def _fetch_today_minute_candles(stock_code: str) -> list[MinuteCandle]:
-    """저장소에 없는 종목의 오늘 분봉. 실패하면 빈 목록(캐시하지 않는다)."""
-    try:
-        return toss_candles.fetch_today_minute_candles(stock_code)
-    except Exception:
-        log.error("토스 당일 분봉 조회 실패 stk_cd=%s", stock_code, exc_info=True)
-        return []
+    if at.time() < _SETTLED_AFTER_CLOSE:
+        return intraday.ensure(stock_code, at - _FRESH_DURING_SESSION)
+    closed_at = datetime.combine(at.date(), _SETTLED_AFTER_CLOSE)
+    bars = intraday.ensure(stock_code, closed_at)
+    # 마감이 굳은 뒤에 받는 데 **성공했을 때만** 확정본이다 — 실패해 돌려받은 옛 봉은 넘기지 않는다
+    if intraday.synced_since(stock_code, closed_at):
+        minute_archive.put(stock_code, today(), bars)
+    return bars
 
 
 def previous_trading_day(on: date) -> date:

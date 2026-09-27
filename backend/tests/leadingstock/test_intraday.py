@@ -19,10 +19,11 @@ def 봉(시: int, 분: int, 종가: int = 100, 날짜: date = 오늘) -> MinuteC
 
 @pytest.fixture
 def 토스(monkeypatch):
-    """종목별로 돌려줄 봉과, 불린 기록(종목, since)을 쥔다."""
+    """종목별로 돌려줄 봉과 불린 기록(종목, since)을 쥔다. 시계는 `상태["지금"]`으로 움직인다."""
     intraday.reset()
-    monkeypatch.setattr(intraday, "today", lambda: 오늘)
-    상태 = {"봉": {}, "호출": [], "실패": set()}
+    상태 = {"봉": {}, "호출": [], "실패": set(), "지금": datetime(2026, 9, 28, 10, 0), "오늘": 오늘}
+    monkeypatch.setattr(intraday, "today", lambda: 상태["오늘"])
+    monkeypatch.setattr(intraday, "now", lambda: 상태["지금"])
 
     def 받기(code, since=None):
         상태["호출"].append((code, since))
@@ -35,17 +36,18 @@ def 토스(monkeypatch):
     intraday.reset()
 
 
-class Test처음_채우기:
+def 분(c) -> list[int]:
+    return [x.date_time.minute for x in c]
+
+
+class Test감시_풀_갱신:
     def test_처음엔_오늘치를_통째로_받는다(self, 토스):
         토스["봉"]["005930"] = [봉(9, 0), 봉(9, 1)]
 
         intraday.sync(["005930"])
 
         assert 토스["호출"] == [("005930", None)]
-        assert [c.date_time.minute for c in intraday.get("005930")] == [0, 1]
 
-
-class Test이어_받기:
     def test_두_번째부터는_마지막_봉_조금_앞부터만_받는다(self, 토스):
         토스["봉"]["005930"] = [봉(9, 0), 봉(9, 1), 봉(9, 2)]
         intraday.sync(["005930"])
@@ -61,63 +63,107 @@ class Test이어_받기:
 
         intraday.sync(["005930"])
 
-        assert [c.close_price for c in intraday.get("005930")] == [100, 105, 110]
+        assert [c.close_price for c in intraday.ensure("005930", 토스["지금"])] == [100, 105, 110]
 
-    def test_랭킹_코드와_맨_코드는_같은_종목이다(self, 토스):
-        토스["봉"]["005930"] = [봉(9, 0)]
-
-        intraday.sync(["005930_AL"])
-
-        assert intraday.get("005930") is not None
-
-
-class Test실패와_끊김:
     def test_한_종목이_실패해도_나머지는_받고_실패_수를_돌려준다(self, 토스):
         토스["봉"]["000660"] = [봉(9, 0)]
         토스["실패"].add("005930")
 
         assert intraday.sync(["005930", "000660"]) == 1
-        assert intraday.get("000660") is not None
+        assert intraday.synced_since("000660", 토스["지금"])
 
-    def test_실패한_종목은_갖고_있던_봉을_그대로_둔다(self, 토스):
+
+class Test읽을_때_이어_받기:
+    def test_기준_이후에_받은_값이면_부르지_않는다(self, 토스):
+        토스["봉"]["005930"] = [봉(9, 0)]
+        intraday.sync(["005930"])
+
+        intraday.ensure("005930", 토스["지금"] - timedelta(seconds=30))
+
+        assert len(토스["호출"]) == 1
+
+    def test_낡았으면_새_봉만_받는다(self, 토스):
+        토스["봉"]["005930"] = [봉(9, 0), 봉(9, 5)]
+        intraday.sync(["005930"])
+        토스["지금"] += timedelta(minutes=1)
+
+        intraday.ensure("005930", 토스["지금"] - timedelta(seconds=30))
+
+        assert 토스["호출"][-1] == ("005930", datetime(2026, 9, 28, 9, 3))
+
+    def test_감시_풀_밖의_종목도_처음_읽을_때_통째로_받는다(self, 토스):
+        토스["봉"]["035720"] = [봉(9, 0), 봉(9, 1)]
+
+        assert 분(intraday.ensure("035720", 토스["지금"])) == [0, 1]
+        assert 토스["호출"] == [("035720", None)]
+
+    def test_받다가_실패하면_들고_있던_봉을_준다(self, 토스):
         토스["봉"]["005930"] = [봉(9, 0)]
         intraday.sync(["005930"])
         토스["실패"].add("005930")
+        토스["지금"] += timedelta(minutes=1)
 
-        intraday.sync(["005930"])
+        assert 분(intraday.ensure("005930", 토스["지금"])) == [0]
+        assert not intraday.synced_since("005930", 토스["지금"])
 
-        assert [c.date_time.minute for c in intraday.get("005930")] == [0]
+    def test_랭킹_코드와_맨_코드는_같은_종목이다(self, 토스):
+        토스["봉"]["005930"] = [봉(9, 0)]
+        intraday.sync(["005930_AL"])
 
-    def test_갱신이_끊긴_지_오래면_내주지_않는다(self, 토스, monkeypatch):
-        """읽는 쪽이 낡은 봉을 최신으로 믿지 않게 — 그때는 직접 받아 간다."""
+        intraday.ensure("005930", 토스["지금"])
+
+        assert len(토스["호출"]) == 1
+
+
+class Test정리:
+    def test_감시_풀에서_빠지고_한동안_안_읽힌_종목은_버린다(self, 토스):
         토스["봉"]["005930"] = [봉(9, 0)]
         intraday.sync(["005930"])
-        지금 = intraday.time.monotonic()
-        monkeypatch.setattr(intraday.time, "monotonic", lambda: 지금 + intraday.STALE_SECONDS + 1)
-
-        assert intraday.get("005930") is None
-
-    def test_받은_적_없는_종목은_없다고_답한다(self, 토스):
-        assert intraday.get("005930") is None
-
-
-class Test목록과_날짜:
-    def test_감시_풀에서_빠진_종목은_버린다(self, 토스):
-        토스["봉"]["005930"] = [봉(9, 0)]
-        intraday.sync(["005930"])
+        토스["지금"] += timedelta(minutes=11)
 
         intraday.sync([])
 
-        assert intraday.get("005930") is None
+        assert not intraday.synced_since("005930", datetime.min + timedelta(days=1))
 
-    def test_날짜가_바뀌면_어제_봉을_버리고_새로_받는다(self, 토스, monkeypatch):
+    def test_상세_화면이_보고_있는_종목은_풀_밖이어도_남긴다(self, 토스):
+        토스["봉"]["035720"] = [봉(9, 0)]
+        intraday.ensure("035720", 토스["지금"])
+        토스["지금"] += timedelta(minutes=5)
+
+        intraday.sync([])
+
+        assert intraday.synced_since("035720", datetime.min + timedelta(days=1))
+
+    def test_상한을_넘으면_가장_오래_안_읽힌_종목부터_버린다(self, 토스, monkeypatch):
+        monkeypatch.setattr(intraday, "_MAX_STOCKS", 1)
+        intraday.ensure("000660", 토스["지금"])
+        토스["지금"] += timedelta(seconds=10)
+
+        intraday.ensure("035720", 토스["지금"])
+
+        assert not intraday.synced_since("000660", datetime.min + timedelta(days=1))
+
+    def test_날짜가_바뀌면_어제_봉을_버리고_새로_받는다(self, 토스):
         토스["봉"]["005930"] = [봉(9, 0)]
         intraday.sync(["005930"])
         다음날 = 오늘 + timedelta(days=1)
-        monkeypatch.setattr(intraday, "today", lambda: 다음날)
+        토스["오늘"] = 다음날
         토스["봉"]["005930"] = [봉(9, 0, 날짜=다음날)]
 
         intraday.sync(["005930"])
 
         assert 토스["호출"][-1] == ("005930", None)
-        assert [c.date_time.date() for c in intraday.get("005930")] == [다음날]
+
+
+class Test마감_확정:
+    def test_이번_회차에_받는_데_성공한_종목만_확정한다(self, 토스):
+        토스["봉"]["005930"] = [봉(19, 59)]
+        토스["봉"]["000660"] = [봉(19, 59)]
+        intraday.sync(["005930", "000660"])
+        토스["지금"] = datetime(2026, 9, 28, 20, 1)
+        토스["실패"].add("000660")
+
+        확정, 실패 = intraday.settle(["005930", "000660"])
+
+        assert set(확정) == {"005930"}
+        assert 실패 == 1

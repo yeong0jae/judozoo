@@ -1,6 +1,6 @@
 """거래대금 상위를 언제까지 들고 있는가 — 장이 멈춘 동안은 다시 물을 이유가 없다."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from backend.leadingstock import application
 from backend.leadingstock.domain import LeadingStockSnapshot
@@ -73,9 +73,10 @@ class Test최근_3거래일_분봉_달력_없이:
     오늘 = date(2026, 9, 28)   # 월요일 — 어제(일)는 휴장이라 키움이 금요일부터 채운다
 
     def 준비(self, monkeypatch, 키움_실패=False):
-        from backend.leadingstock import intraday
+        from backend.leadingstock import intraday, minute_archive
 
         intraday.reset()
+        minute_archive.reset()
         monkeypatch.setattr(application, "today", lambda: self.오늘)
         monkeypatch.setattr(application, "now", lambda: datetime(2026, 9, 28, 10, 0))
         monkeypatch.setattr("backend.market.calendar.market_status", lambda: (False, True))
@@ -124,6 +125,7 @@ class Test최근_3거래일_분봉_달력_없이:
 
         self.준비(monkeypatch)
         monkeypatch.setattr(intraday, "today", lambda: self.오늘)
+        monkeypatch.setattr(intraday, "now", lambda: datetime(2026, 9, 28, 10, 0))
         intraday.sync(["005930"])      # 저장소를 한 번 채운다 — 토스 한 번
         불림 = []
         monkeypatch.setattr(
@@ -137,57 +139,89 @@ class Test최근_3거래일_분봉_달력_없이:
         intraday.reset()
 
 
-class Test장_밖의_당일_분봉:
-    """장 밖엔 저장소가 비어 요청이 토스로 간다 — 값이 안 바뀌는 동안은 다시 부르지 않는다."""
+class Test당일_분봉_읽기:
+    """저장소에서 꺼내고 낡았으면 새 봉만 받는다. 마감이 굳은 뒤엔 확정본을 다음 장까지 쓴다."""
 
-    def 준비(self, monkeypatch, 지금: datetime, 휴장: bool = False) -> list:
-        from backend.leadingstock import intraday
+    def 준비(self, monkeypatch, 지금: datetime, 휴장: bool = False) -> dict:
+        from backend.leadingstock import intraday, minute_archive
 
         intraday.reset()
-        monkeypatch.setattr(application, "now", lambda: 지금)
-        monkeypatch.setattr(application, "today", lambda: 지금.date())
-        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (휴장, 8 <= 지금.hour < 20))
-        불림 = []
-        monkeypatch.setattr(
-            application.toss_candles, "fetch_today_minute_candles",
-            lambda code, since=None: 불림.append(code) or [분봉(지금.date(), 9)],
-        )
-        return 불림
+        minute_archive.reset()
+        상태 = {"지금": 지금, "불림": [], "실패": False}
+        for 모듈 in (application, intraday):
+            monkeypatch.setattr(모듈, "now", lambda: 상태["지금"])
+            monkeypatch.setattr(모듈, "today", lambda: 상태["지금"].date())
+        monkeypatch.setattr("backend.market.calendar.market_status", lambda: (휴장, 8 <= 상태["지금"].hour < 20))
 
-    def test_마감_뒤에_받은_값은_다음날_장_시작까지_간다(self, monkeypatch):
-        self.준비(monkeypatch, datetime(2026, 9, 28, 21, 0))
+        def 토스(code, since=None):
+            상태["불림"].append(since)
+            if 상태["실패"]:
+                raise RuntimeError("토스 오류")
+            return [분봉(상태["지금"].date(), 9)]
 
-        assert application._today_minutes_ttl() == 11 * 3600
+        monkeypatch.setattr(intraday.toss_candles, "fetch_today_minute_candles", 토스)
+        return 상태
 
-    def test_마감_직후_1분은_마지막_봉이_굳을_때까지_짧게_둔다(self, monkeypatch):
-        self.준비(monkeypatch, datetime(2026, 9, 28, 20, 0, 30))
+    def test_장중_30초_안에_받은_값이면_다시_부르지_않는다(self, monkeypatch):
+        상태 = self.준비(monkeypatch, datetime(2026, 9, 28, 14, 0))
+        application._today_minute_candles("035720")
+        상태["지금"] += timedelta(seconds=20)
 
-        assert application._today_minutes_ttl() == 30
+        application._today_minute_candles("035720")
 
-    def test_장중에는_30초만_들고_있는다(self, monkeypatch):
-        self.준비(monkeypatch, datetime(2026, 9, 28, 14, 0))
+        assert len(상태["불림"]) == 1
 
-        assert application._today_minutes_ttl() == 30
+    def test_장중_30초가_지나면_새_봉만_받는다(self, monkeypatch):
+        상태 = self.준비(monkeypatch, datetime(2026, 9, 28, 14, 0))
+        application._today_minute_candles("035720")
+        상태["지금"] += timedelta(seconds=40)
 
-    def test_마감_뒤_두_번째_조회는_토스를_부르지_않는다(self, monkeypatch):
-        불림 = self.준비(monkeypatch, datetime(2026, 9, 28, 21, 0))
+        application._today_minute_candles("035720")
 
-        application._today_minute_candles("005930")
-        application._today_minute_candles("005930")
+        assert 상태["불림"][0] is None                # 처음엔 통째로
+        assert 상태["불림"][1] is not None            # 그다음엔 마지막 봉 근처부터
 
-        assert 불림 == ["005930"]
+    def test_마감이_굳은_뒤_한_번_받으면_다음_장까지_다시_부르지_않는다(self, monkeypatch):
+        상태 = self.준비(monkeypatch, datetime(2026, 9, 28, 21, 0))
+        application._today_minute_candles("035720")
+        상태["지금"] = datetime(2026, 9, 28, 23, 59)
+
+        application._today_minute_candles("035720")
+
+        assert len(상태["불림"]) == 1
+
+    def test_마감_전에_받은_값은_마감이_굳은_뒤_다시_받는다(self, monkeypatch):
+        """20:00 직전 값은 마지막 봉이 덜 찼을 수 있다."""
+        상태 = self.준비(monkeypatch, datetime(2026, 9, 28, 20, 0, 30))
+        application._today_minute_candles("035720")
+        상태["지금"] = datetime(2026, 9, 28, 20, 2)
+
+        application._today_minute_candles("035720")
+
+        assert len(상태["불림"]) == 2
+
+    def test_마감_뒤_받다가_실패한_옛_봉은_확정본으로_넘기지_않는다(self, monkeypatch):
+        from backend.leadingstock import minute_archive
+
+        상태 = self.준비(monkeypatch, datetime(2026, 9, 28, 19, 0))
+        application._today_minute_candles("035720")
+        상태["지금"] = datetime(2026, 9, 28, 21, 0)
+        상태["실패"] = True
+
+        assert application._today_minute_candles("035720") != []       # 옛 봉이라도 보여준다
+        assert minute_archive.get("035720", date(2026, 9, 28)) is None
 
     def test_휴장일에는_토스를_부르지_않는다(self, monkeypatch):
-        불림 = self.준비(monkeypatch, datetime(2026, 9, 27, 14, 0), 휴장=True)
+        상태 = self.준비(monkeypatch, datetime(2026, 9, 27, 14, 0), 휴장=True)
 
         assert application._today_minute_candles("005930") == []
-        assert 불림 == []
+        assert 상태["불림"] == []
 
     def test_장_시작_전에는_토스를_부르지_않는다(self, monkeypatch):
-        불림 = self.준비(monkeypatch, datetime(2026, 9, 28, 7, 30))
+        상태 = self.준비(monkeypatch, datetime(2026, 9, 28, 7, 30))
 
         assert application._today_minute_candles("005930") == []
-        assert 불림 == []
+        assert 상태["불림"] == []
 
 
 class Test최근_3거래일_분봉_달력으로:
