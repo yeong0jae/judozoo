@@ -44,7 +44,8 @@ class KisSettings(BaseSettings):
     app_key: str = Field("", validation_alias="REAL_KIS_APP_KEY")
     app_secret: str = Field("", validation_alias="REAL_KIS_APP_SECRET")
     # 공유 리미터 허용량. 1초에 N개를 한꺼번에 충전하지 않고 (1000/N)ms마다 1개씩 균등 발급한다.
-    query_permits_per_second: int = Field(5, validation_alias="KIS_QUERY_PERMITS_PER_SECOND")
+    # KIS 한도는 초당 18건이다. 꽉 채우지 않고 3건 여유를 둔다.
+    query_permits_per_second: int = Field(15, validation_alias="KIS_QUERY_PERMITS_PER_SECOND")
 
 
 class KiwoomSettings(BaseSettings):
@@ -56,6 +57,8 @@ class KiwoomSettings(BaseSettings):
     # 조회(ka*) 공유 리미터 허용량. 한도가 초당 5건이라 기본값은 여유를 두지 않았다.
     # 여유가 필요하면 4 등으로 낮춘다.
     query_permits_per_second: int = Field(5, validation_alias="KIWOOM_QUERY_PERMITS_PER_SECOND")
+    # 피크타임(09:00~10:00 KST)에는 키움 한도가 초당 3건으로 내려간다.
+    peak_query_permits_per_second: int = Field(3, validation_alias="KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND")
 
 
 class TossSettings(BaseSettings):

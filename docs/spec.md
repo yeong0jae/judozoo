@@ -74,8 +74,12 @@ Backend (Python + FastAPI, package by feature)
 
 브로커별 한도를 **공유 토큰 버킷 하나**로 통제한다 (`library/rate_limiter.py`). 폴러·상세조회·화면 요청이 각자 리미터를 가지면 합산이 한도를 넘는다.
 
-- 키움·KIS 조회: 초당 5건 (`KIWOOM_QUERY_PERMITS_PER_SECOND`, `KIS_QUERY_PERMITS_PER_SECOND`). 1초에 몰아 충전하지 않고 균등 발급한다
-- 한도에 닿으면 **거부가 아니라 대기**, timeout 20초
+- 브로커 한도: 키움 초당 5건(**09:00~10:00은 3건**), KIS 초당 18건, 토스 초당 15건
+- 키움 조회: 초당 5건, 09:00~10:00 초당 3건 (`KIWOOM_QUERY_PERMITS_PER_SECOND`, `KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND`). 피크타임은 장 시작 직후라 분봉 캐시를 처음 채우는 때와 겹친다
+- KIS 조회: 초당 15건 (`KIS_QUERY_PERMITS_PER_SECOND`). 한도 18건에서 3건 여유
+- 토스: 리미터 없음. 휴장 판정에 지역별 하루 한 번만 부른다
+- 1초에 몰아 충전하지 않고 균등 발급한다
+- 한도에 닿으면 **거부가 아니라 대기**, timeout 키움 20초 · KIS 30초
 
 ### 3.3 캐시
 

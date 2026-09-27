@@ -1,5 +1,7 @@
 """키움 공통 인프라 — 토큰 발급·캐시·무효화, 조회 전용 리미터, 부호 파서."""
 
+from datetime import datetime
+
 import httpx
 import pytest
 import respx
@@ -118,6 +120,24 @@ class Test조회_리미터:
 
         transport.handle_request(httpx.Request("POST", BASE))
         assert len(받은_요청) == 1  # 헤더 없으면 통과
+
+
+class Test피크타임_한도:
+    """09:00~10:00에는 키움 조회 한도가 초당 5건에서 3건으로 내려간다."""
+
+    @pytest.mark.parametrize(
+        "시각, 초당",
+        [
+            (datetime(2026, 9, 28, 8, 59, 59), 5),
+            (datetime(2026, 9, 28, 9, 0), 3),
+            (datetime(2026, 9, 28, 9, 59, 59), 3),
+            (datetime(2026, 9, 28, 10, 0), 5),
+        ],
+    )
+    def test_시간대에_맞는_간격으로_허가를_낸다(self, monkeypatch, 시각, 초당):
+        monkeypatch.setattr(client, "now", lambda: 시각)
+
+        assert client._query_period() == pytest.approx(1 / 초당)
 
 
 class Test부호_파서:

@@ -6,10 +6,14 @@ Kotlin의 Resilience4j `RateLimiter`에 대응한다. 핵심 시맨틱 두 가�
    합산이 브로커 한도를 넘는다. 클라이언트당 인스턴스 하나를 공유해야 한다.
 2. **한도 도달 시 거부가 아니라 대기한다** — 폴러가 죽는 것보다 늦는 게 낫다.
    다만 무한정 기다리지는 않고 timeout을 넘기면 예외를 던진다.
+
+**주기를 함수로 주면 시간대마다 속도가 바뀐다.** 키움은 09~10시에만 한도가 낮아진다.
+채울 때마다 그 순간의 주기로 계산하므로, 경계를 넘는 즉시 새 속도가 적용된다.
 """
 
 import threading
 import time
+from collections.abc import Callable
 
 from backend.library import metrics
 
@@ -23,14 +27,14 @@ class RateLimiter:
         self,
         name: str,
         permits_per_period: int,
-        period_seconds: float = 1.0,
+        period_seconds: float | Callable[[], float] = 1.0,
         timeout_seconds: float = 20.0,
     ) -> None:
         if permits_per_period <= 0:
             raise ValueError("permits_per_period는 1 이상이어야 한다")
         self.name = name
         self._capacity = float(permits_per_period)
-        self._period = period_seconds
+        self._period_of = period_seconds if callable(period_seconds) else (lambda: period_seconds)
         self._timeout = timeout_seconds
         self._tokens = float(permits_per_period)
         self._updated_at = time.monotonic()
@@ -66,7 +70,7 @@ class RateLimiter:
                         )
                         return
                     shortfall = permits - self._tokens
-                    wait = shortfall * self._period / self._capacity
+                    wait = shortfall * self._period_of() / self._capacity
 
                 if time.monotonic() + wait > deadline:
                     metrics.RATE_LIMITER_TIMEOUTS.labels(limiter=self.name).inc()
@@ -81,5 +85,5 @@ class RateLimiter:
         elapsed = now - self._updated_at
         if elapsed <= 0:
             return
-        self._tokens = min(self._capacity, self._tokens + elapsed * self._capacity / self._period)
+        self._tokens = min(self._capacity, self._tokens + elapsed * self._capacity / self._period_of())
         self._updated_at = now

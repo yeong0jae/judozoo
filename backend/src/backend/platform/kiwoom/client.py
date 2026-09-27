@@ -5,13 +5,14 @@ Kotlin `KiwoomRestClientConfig` + `KiwoomQueryRateLimitInterceptor` + `KiwoomAut
 
 import logging
 import threading
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 import httpx
 
 from backend.library import metrics, token_store
 from backend.library.exception import BrokerTokenUnavailable
 from backend.library.rate_limiter import RateLimiter
+from backend.library.time import now
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
@@ -55,19 +56,31 @@ class QueryRateLimitedTransport(httpx.BaseTransport):
         self._inner.close()
 
 
+#: 키움 조회 한도가 내려가는 시간대(KST). 장 시작 직후 한 시간이다.
+_PEAK_START = time(9, 0)
+_PEAK_END = time(10, 0)
+
+
+def _query_period() -> float:
+    """지금 허가 하나를 내주는 간격(초). 피크타임엔 한도가 낮아 간격이 길다."""
+    s = get_settings().kiwoom
+    peak = _PEAK_START <= now().time() < _PEAK_END
+    return 1.0 / (s.peak_query_permits_per_second if peak else s.query_permits_per_second)
+
+
 def get_limiter() -> RateLimiter:
-    """조회 "초당 5건"을 모든 조회 호출에 한 버킷으로 적용.
+    """조회 "초당 5건(09~10시 3건)"을 모든 조회 호출에 한 버킷으로 적용.
 
     KIS와 같은 이유로 1초에 N개를 한꺼번에 충전하지 않고 (1000/N)ms마다 1개씩 균등 발급한다.
     폴러·돌파·스파이크가 같은 종목 분봉을 몰아 부를 때의 버스트를 여기서 평탄화한다.
+    **피크타임은 장 시작 직후라 분봉 캐시를 처음 채우는 때와 겹친다** — 한도를 넘기 가장 쉬운 시간이다.
     """
     global _limiter
     if _limiter is None:
-        permits = get_settings().kiwoom.query_permits_per_second
         _limiter = RateLimiter(
             "kiwoom-query",
             permits_per_period=1,
-            period_seconds=1.0 / permits,
+            period_seconds=_query_period,
             timeout_seconds=20.0,  # 버스트 시 거부 대신 대기
         )
     return _limiter

@@ -41,6 +41,26 @@ class Test허용량을_넘으면:
             limiter.acquire()
 
 
+class Test주기가_시간대마다_바뀌면:
+    def test_그_순간의_주기로_허가를_낸다(self):
+        주기 = [0.05]
+        limiter = RateLimiter("테스트_가변", permits_per_period=1, period_seconds=lambda: 주기[0])
+
+        limiter.acquire()
+        started = time.monotonic()
+        limiter.acquire()
+        빠를_때 = time.monotonic() - started
+
+        주기[0] = 0.3                 # 피크타임에 들어섰다
+        limiter.acquire()             # 남은 토큰을 비운다
+        started = time.monotonic()
+        limiter.acquire()
+        느릴_때 = time.monotonic() - started
+
+        assert 빠를_때 < 0.1
+        assert 느릴_때 > 0.2
+
+
 class Test잘못된_사용:
     def test_버킷_용량보다_큰_허가는_거부한다(self):
         limiter = RateLimiter("테스트", permits_per_period=3)
