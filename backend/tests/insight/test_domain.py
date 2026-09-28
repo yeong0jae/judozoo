@@ -184,6 +184,10 @@ class Test답_검사:
         assert [s.url for s in v.evidence] == ["https://1", "https://2"]
         assert [s.url for s in v.related] == ["https://3"]
 
+    def test_사유_끝의_마침표는_뗀다(self):
+        v = judge(draft(reason="자사주 매입 추가 승인에 매수세 유입."), SOURCES)
+        assert v.reason == "자사주 매입 추가 승인에 매수세 유입"
+
     def test_목록에_없는_번호를_대면_거절한다(self):
         v = judge(draft(evidence=[1, 9]), SOURCES)
         assert not v.published

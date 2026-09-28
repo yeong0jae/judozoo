@@ -279,7 +279,8 @@ def judge(draft: Draft, sources: Sources, stock_name: str = "") -> Verdict:
     related = [i for i in _unique(draft.related) if i not in evidence][:MAX_ARTICLES]
     to_sources = lambda ids: [s for i in ids if (s := sources.get(i)) is not None]  # noqa: E731
 
-    reason = draft.reason.strip()
+    # 목록 한 줄은 명사형으로 끊는다("~ 매수세 유입"). 끝 마침표는 코드로 떼고, "~다" 말투는 프롬프트가 막는다
+    reason = draft.reason.strip().rstrip(".。").strip()
     # 근거 없는 사유는 믿지 않는다 — 모델은 설명 없음을 잘 쓰지 않는다(026 §알려진 함정)
     if not draft.explained or not evidence or not reason:
         return Verdict(published=True, explained=False, related=to_sources(related))
