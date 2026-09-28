@@ -22,6 +22,7 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.51b0",
     "opentelemetry-instrumentation-httpx>=0.51b0",
     "opentelemetry-instrumentation-sqlalchemy>=0.51b0",
+    "google-auth[requests]>=2.30",
 ]
 
 [dependency-groups]

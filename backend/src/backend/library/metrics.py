@@ -77,6 +77,19 @@ RATE_LIMITER_TIMEOUTS = Counter(
     ["limiter"],
 )
 
+# LLM 사용량(026). 요청 수·지연은 MeteredTransport가 이미 잰다 — 여기는 청구서가 세는 단위다.
+# 검색은 월 5,000회 무료라 한도에 얼마나 붙었는지 본다.
+LLM_TOKENS = Counter(
+    "llm_tokens_total",
+    "LLM이 과금 기준으로 센 토큰",
+    ["model", "kind"],  # kind: input | output | thoughts
+)
+LLM_SEARCH_QUERIES = Counter(
+    "llm_search_queries_total",
+    "그라운딩 검색이 실행한 검색어 수",
+    ["model"],
+)
+
 # ── 스레드가 지금 무엇을 하고 있는가 ────────────────────────────────────
 #
 # `thread_pool_borrowed_threads`는 **몇 개가 쓰이는지**만 알려준다. 40개가 잡혀 있어도

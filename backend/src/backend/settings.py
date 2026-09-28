@@ -135,6 +135,19 @@ class GoogleOAuthSettings(BaseSettings):
     redirect_uri: str = Field("https://judozoo.com/api/auth/callback", validation_alias="GOOGLE_REDIRECT_URI")
 
 
+class VertexSettings(BaseSettings):
+    """Gemini on Vertex AI(026). 인증은 ADC — VM 서비스 계정이라 키가 없다. 전부 비밀값이 아니다."""
+
+    model_config = SettingsConfigDict(env_prefix="VERTEX_", **_BASE)
+
+    project: str = "trading-496508"
+    #: global이 리전 고정보다 10% 싸다. 데이터 위치 요건이 없다
+    location: str = "global"
+    model: str = "gemini-3.8-flash"
+    #: 하루 전체 생성 상한(국내·해외 합). 넘으면 그날은 멈춘다
+    daily_limit: int = 150
+
+
 class Settings(BaseSettings):
     model_config = _BASE
 
@@ -152,6 +165,7 @@ class Settings(BaseSettings):
     signal_event: SignalEventSettings = Field(default_factory=SignalEventSettings)
     market_signal: MarketSignalSettings = Field(default_factory=MarketSignalSettings)
     google: GoogleOAuthSettings = Field(default_factory=GoogleOAuthSettings)
+    vertex: VertexSettings = Field(default_factory=VertexSettings)
 
     # 세션 쿠키 서명 키. 바뀌면 기존 세션이 전부 무효화된다(데이터는 무사).
     session_secret: str = Field("dev-only-insecure", validation_alias="SESSION_SECRET")
