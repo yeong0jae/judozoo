@@ -9,7 +9,7 @@ import { colorByPnL, formatPct, formatUsd } from "../../lib/format";
 import Skeleton from "./Skeleton";
 import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
 import NumUsd from "./NumUsd";
-import { CHART_H, ChartEmpty, Chevron, LeadingConditions, Segmented } from "./detailParts";
+import { CHART_H, ChartCard, ChartEmpty, Chevron, LeadingConditions, Segmented } from "./detailParts";
 
 const EXCHANGE_LABEL: Record<string, string> = {
   NAS: "나스닥",
@@ -74,11 +74,9 @@ export default function OverseasStockDetailPanel({
 
       {insight}
 
-      <section className="rounded-2xl bg-zinc-900 p-3 sm:p-4">
-        <div className="mb-2 flex items-center justify-between gap-2 px-1">
-          <h3 className="text-sm font-semibold text-zinc-400">
-            {interval === "1m" ? "1분봉" : "일봉"}
-          </h3>
+      <ChartCard
+        title={interval === "1m" ? "1분봉" : "일봉"}
+        action={
           <Segmented
             label="차트 주기"
             items={[
@@ -88,7 +86,8 @@ export default function OverseasStockDetailPanel({
             value={interval}
             onChange={setChartInterval}
           />
-        </div>
+        }
+      >
         {interval === "1m" ? (
           minuteQ.isLoading ? (
             <Skeleton className={`${CHART_H} w-full`} />
@@ -119,7 +118,7 @@ export default function OverseasStockDetailPanel({
             className={`w-full ${CHART_H}`}
           />
         )}
-      </section>
+      </ChartCard>
 
       {!chartOnly && d && <LeadingConditions results={d.filterResults} />}
     </div>

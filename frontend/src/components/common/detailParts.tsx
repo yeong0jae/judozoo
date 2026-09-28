@@ -2,6 +2,22 @@ import type { ReactNode } from "react";
 
 /** 상세 패널 조각 — 국내(`StockDetailPanel`)와 해외(`OverseasStockDetailPanel`)가 같이 쓴다. */
 
+/**
+ * 차트 카드 — 테두리만 있는 카드 + 맨 위 라벨 줄(왼쪽 제목, 오른쪽 1분봉·일봉 토글).
+ * "왜 오르나요?" 카드와 같은 모양이다. 국내·해외 상세가 같이 쓴다.
+ */
+export function ChartCard({ title, action, children }: { title: ReactNode; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border border-zinc-800 p-4 sm:p-5">
+      <div className="flex min-h-7 items-center justify-between gap-2 text-xs font-bold text-zinc-500">
+        <span>{title}</span>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 /** 차트 높이 — 지수·수급 상세와 같다. 차트가 autoSize라 컨테이너 높이만 바꾸면 된다. */
 export const CHART_H = "h-[21.25rem] 2xl:h-[26rem]";
 

@@ -17,7 +17,7 @@ import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
 import { todayStr } from "./DateNavigator";
 import NumWon from "./NumWon";
 import Skeleton from "./Skeleton";
-import { CHART_H, ChartEmpty, Chevron, LeadingConditions, Segmented } from "./detailParts";
+import { CHART_H, ChartCard, ChartEmpty, Chevron, LeadingConditions, Segmented } from "./detailParts";
 
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
@@ -85,11 +85,9 @@ export default function StockDetailPanel({
 
       {insight}
 
-      <section className="rounded-2xl bg-zinc-900 p-3 sm:p-4">
-        <div className="mb-2 flex items-center justify-between gap-2 px-1">
-          <h3 className="text-sm font-semibold text-zinc-400">
-            {interval === "1m" ? "1분봉" : "일봉"}
-          </h3>
+      <ChartCard
+        title={interval === "1m" ? "1분봉" : "일봉"}
+        action={
           <Segmented
             label="차트 주기"
             items={[
@@ -99,7 +97,8 @@ export default function StockDetailPanel({
             value={interval}
             onChange={setChartInterval}
           />
-        </div>
+        }
+      >
         {interval === "1m" ? (
           minuteQ.isLoading ? (
             <Skeleton className={`${CHART_H} w-full`} />
@@ -128,7 +127,7 @@ export default function StockDetailPanel({
             className={`w-full ${CHART_H}`}
           />
         )}
-      </section>
+      </ChartCard>
 
       {/* 넓을 때만 두 열 — 목록 옆에 붙는 상세는 폭이 좁아, 둘로 나누면 조건 칸이 한 글자씩 접힌다 */}
       <div className="grid grid-cols-1 items-start gap-7 2xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
