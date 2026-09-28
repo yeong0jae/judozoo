@@ -200,8 +200,9 @@ export default function LeaderTimelinePage() {
             </div>
             <div className="flex items-center gap-2 max-md:w-full">
               {live && pinned !== null && cursor !== last && (
-                <button type="button" onClick={() => setPinned(null)} className="h-[30px] rounded-[8px] bg-[var(--tl-r4)] px-3 text-[14px] font-semibold text-[var(--tl-r4-fg)]">
-                  최신으로 →
+                // 폰은 재생 버튼들과 한 줄이라 "최신 →"으로 줄인다 — 꺾이면 버튼 안에서 화살표가 아래로 떨어진다
+                <button type="button" onClick={() => setPinned(null)} className="h-[30px] shrink-0 whitespace-nowrap rounded-[8px] bg-[var(--tl-r4)] px-3 text-[14px] font-semibold text-[var(--tl-r4-fg)]">
+                  최신<span className="max-md:hidden">으로</span> →
                 </button>
               )}
               <div className="inline-flex rounded-[9px] bg-zinc-900 p-[3px] max-md:mr-auto" role="group" aria-label="재생 속도">
