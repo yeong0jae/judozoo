@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 #: 제목은 문서 앞쪽에 있다 — 본문 전체를 받지 않는다
 _HEAD_BYTES = 200_000
 _OG_TITLE = re.compile(rb"""<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)""", re.I)
+_OG_SITE = re.compile(rb"""<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)""", re.I)
 _TITLE = re.compile(rb"<title[^>]*>(.*?)</title>", re.I | re.S)
 _META_CHARSET = re.compile(rb"""<meta[^>]+charset=["']?([\w-]+)""", re.I)
 
@@ -28,6 +29,8 @@ _client: httpx.Client | None = None
 class Article:
     url: str
     title: str
+    #: 매체명(`og:site_name`). 없으면 None — 부르는 쪽이 도메인으로 대신한다
+    site: str | None = None
 
 
 def get_client() -> httpx.Client:
@@ -61,16 +64,17 @@ def resolve(redirect_uri: str) -> Article | None:
     except httpx.HTTPError:
         log.info("출처를 따라가지 못함 %s", redirect_uri[:80], exc_info=True)
         return None
-    title = _title(head, charset)
-    return Article(final_url, title) if title else None
+    encoding = charset or ((m := _META_CHARSET.search(head)) and m.group(1).decode("ascii", "ignore")) or "utf-8"
+    # og:title이 먼저다 — <title>보다 매체명이 덜 붙어 있다
+    title = _decode((m := _OG_TITLE.search(head)) and m.group(1) or (m := _TITLE.search(head)) and m.group(1), encoding)
+    site = _decode((m := _OG_SITE.search(head)) and m.group(1), encoding)
+    return Article(final_url, title, site or None) if title else None
 
 
-def _title(head: bytes, charset: str | None) -> str:
-    """og:title이 있으면 그것 — 매체명이 덜 붙어 있다. 없으면 <title>."""
-    raw = (m := _OG_TITLE.search(head)) and m.group(1) or (m := _TITLE.search(head)) and m.group(1)
+def _decode(raw: bytes | None, encoding: str) -> str:
+    """페이지 인코딩으로 푼다. 모르는 인코딩 이름이면 UTF-8로."""
     if not raw:
         return ""
-    encoding = charset or ((m := _META_CHARSET.search(head)) and m.group(1).decode("ascii", "ignore")) or "utf-8"
     try:
         return raw.decode(encoding, errors="replace").strip()
     except LookupError:

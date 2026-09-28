@@ -33,6 +33,7 @@ class Test출처_따라가기:
 
         assert a.url == ARTICLE
         assert a.title == "LG이노텍, 장 초반 10% 강세 - 파이낸셜뉴스"
+        assert a.site is None
 
     @respx.mock
     def test_og_title이_있으면_그것을_쓴다(self, respx_mock):
@@ -43,6 +44,15 @@ class Test출처_따라가기:
         ))
 
         assert resolve(REDIRECT).title == "LG이노텍, 장 초반 10% 강세"
+
+    @respx.mock
+    def test_매체명은_og_site_name에서_읽는다(self, respx_mock):
+        respx_mock.get(REDIRECT).mock(return_value=httpx.Response(302, headers={"location": ARTICLE}))
+        respx_mock.get(ARTICLE).mock(return_value=페이지(
+            '<head><meta property="og:site_name" content="파이낸셜뉴스"><title>LG이노텍, 장 초반 10% 강세</title></head>'
+        ))
+
+        assert resolve(REDIRECT).site == "파이낸셜뉴스"
 
     @respx.mock
     def test_헤더에_없어도_meta_charset으로_EUC_KR을_읽는다(self, respx_mock):

@@ -27,12 +27,21 @@ class Schedule:
     window: tuple[time, time]
     #: 그 시각의 주도주를 다시 만드는 시각들
     slots: tuple[time, ...]
+    #: 정규장 마감 — 기사 범위의 시작("직전 거래일 장 마감 이후")
+    close: time
 
     def in_window(self, t: time) -> bool:
         return self.window[0] <= _minute(t) <= self.window[1]
 
     def is_slot(self, t: time) -> bool:
-        return _minute(t) in self.slots
+        """정해진 시각부터 5분 동안. 한 번 실행이 1분을 넘기면 스케줄러가 겹친 실행을 건너뛰어
+        정각을 놓친다 — 폭을 두고, 겹쳐 만드는 건 30분 규칙(`RECENT`)이 막는다."""
+        m = datetime.combine(date.min, _minute(t))
+        return any(timedelta(0) <= m - datetime.combine(date.min, s) < SLOT_GRACE for s in self.slots)
+
+    def articles_since(self, previous_open_day: date) -> datetime:
+        """기사 범위의 시작 — 직전 거래일 정규장 마감. 그보다 오래된 기사는 오늘 사유로 보기 어렵다."""
+        return datetime.combine(previous_open_day, self.close)
 
     def session_day(self, local_now: datetime, today_open: bool, previous_open_day: date) -> date:
         """지금 보여줄 거래일. 초기화 작업 없이 조회 조건만으로 "프리마켓 시작에 초기화"가 된다."""
@@ -45,17 +54,30 @@ def _minute(t: time) -> time:
     return time(t.hour, t.minute)
 
 
+SLOT_GRACE = timedelta(minutes=5)
+
+
+def previous_weekday(on: date) -> date:
+    """`on` 직전 평일. 휴장일 목록이 없을 때(해외, 국내 조회 실패)의 직전 거래일 대용."""
+    day = on - timedelta(days=1)
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day
+
+
 SCHEDULES: dict[Region, Schedule] = {
     Region.KR: Schedule(
         reset=time(8, 0),
         window=(time(8, 30), time(20, 0)),
         slots=(time(8, 30), time(9, 30), time(11, 0), time(14, 0), time(16, 0), time(18, 0), time(20, 0)),
+        close=time(15, 30),
     ),
     # KST(서머타임 중) 23:00 · 01:00 · 03:00 · 05:30 · 07:00
     Region.US: Schedule(
         reset=time(4, 0),
         window=(time(10, 0), time(18, 0)),
         slots=(time(10, 0), time(12, 0), time(14, 0), time(16, 30), time(18, 0)),
+        close=time(16, 0),
     ),
 }
 
@@ -154,6 +176,11 @@ def clean_title(raw: str) -> str:
     return _OUTLET.sub("", title).strip()
 
 
+def _outlet(label: str) -> str:
+    """포털을 거친 기사는 매체명이 "Daum | 서울경제"로 온다 — 원래 매체만 남긴다."""
+    return html.unescape(label).split(" | ")[-1].strip()
+
+
 @dataclass(frozen=True)
 class Source:
     id: int
@@ -176,7 +203,7 @@ class Sources:
             title = clean_title(raw_title)
             if len(title) < MIN_TITLE_LEN or _PRICE_NOISE.search(title) or any(s.url == url for s in kept):
                 continue
-            kept.append(Source(len(kept) + 1, domain, title, url))
+            kept.append(Source(len(kept) + 1, _outlet(domain), title, url))
         return cls(kept)
 
     def __iter__(self) -> Iterator[Source]:

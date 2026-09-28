@@ -41,8 +41,10 @@ class Test국내_생성_시간:
     def test_정해진_시각은_일곱_번이다(self, t):
         assert KR.is_slot(t)
 
-    def test_정해진_시각이_아닌_분은_다시_만들지_않는다(self):
-        assert not KR.is_slot(time(9, 31))
+    def test_정해진_시각은_5분_폭으로_본다(self):
+        """앞 실행이 1분을 넘겨 정각 실행이 건너뛰어져도 그 시각을 놓치지 않는다. 겹쳐 만드는 건 30분 규칙이 막는다."""
+        assert KR.is_slot(time(9, 34))
+        assert not KR.is_slot(time(9, 35))
 
 
 class Test해외_생성_시간:
@@ -55,6 +57,20 @@ class Test해외_생성_시간:
     @pytest.mark.parametrize("t", [time(4, 0), time(9, 59), time(18, 1)])
     def test_프리마켓_초반과_1800_뒤에는_만들지_않는다(self, t):
         assert not US.in_window(t)
+
+
+class Test기사_범위:
+    def test_국내는_직전_거래일_1530_이후다(self):
+        assert KR.articles_since(date(2026, 9, 25)) == datetime(2026, 9, 25, 15, 30)
+
+    def test_해외는_직전_거래일_뉴욕_1600_이후다(self):
+        assert US.articles_since(date(2026, 9, 24)) == datetime(2026, 9, 24, 16, 0)
+
+
+class Test직전_평일:
+    def test_월요일의_직전_평일은_금요일이다(self):
+        from backend.insight.domain import previous_weekday
+        assert previous_weekday(date(2026, 9, 28)) == date(2026, 9, 25)
 
 
 class Test보여줄_세션_날짜:
@@ -139,6 +155,10 @@ class Test출처_목록:
     def test_기사가_아닌_사이트_제목은_뺀다(self):
         sources = Sources.of([("alphasquare.co.kr", "알파스퀘어", "https://home"), ("daum.net", "대우건설, 용인 반도체 국가산단 1공구 공사 따냈다", "https://a")])
         assert [s.url for s in sources] == ["https://a"]
+
+    def test_포털을_거친_매체명은_원래_매체만_남긴다(self):
+        sources = Sources.of([("Daum | 서울경제", "대우건설, 용인 반도체 국가산단 1공구 공사 따냈다", "https://a")])
+        assert sources.items[0].domain == "서울경제"
 
     def test_번호는_1부터_차례로_붙는다(self):
         sources = Sources.of([("a.com", "첫 번째 기사 제목입니다", "https://1"), ("b.com", "두 번째 기사 제목입니다", "https://2")])
