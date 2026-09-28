@@ -10,6 +10,7 @@ import {
   useNightFuturesQuote,
   useOverseasLeaders,
   useTodayNets,
+  useInsightReasons,
 } from "../api/queries";
 import { useMe } from "../api/auth";
 import {
@@ -29,6 +30,7 @@ import NumWon from "../components/common/NumWon";
 import NumUsd from "../components/common/NumUsd";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
+import { ReasonLine } from "../components/common/InsightReason";
 import type { LimitUpItem, TodayNetItem } from "../types";
 
 /** 카드 한 장에 올리는 주도주 줄 수. 서버가 이미 그만큼만 내려준다 — 뼈대 높이에 쓴다. */
@@ -258,6 +260,8 @@ type Item = {
   rate: number;
   value: number; // 막대 길이용 원값
   valueLabel: string;
+  /** 왜 오르나 한 줄(026) — 설명 없음이면 비어 있다 */
+  reason?: ReactNode;
 };
 
 /** 달러 거래대금 → "$1.23B" / "$456M". 칸 폭에 전체 자릿수가 안 들어간다. */
@@ -295,6 +299,7 @@ function useRelay(market: "kr" | "us", tradingDay: string, live: boolean): Relay
 function DomesticLeaders({ live, first, date, tradingDay, clock }: LeadersProps) {
   const { data, isLoading } = useLeadingStockLeaders();
   const relay = useRelay("kr", tradingDay, live);
+  const reasons = useInsightReasons("kr").data;
   const items: Item[] = (data?.leaders ?? []).map((s) => ({
     key: s.stockCode,
     name: s.stockName,
@@ -303,6 +308,7 @@ function DomesticLeaders({ live, first, date, tradingDay, clock }: LeadersProps)
     rate: s.priceChangeRate,
     value: s.accumulatedTradingValue,
     valueLabel: formatKoreanMoney(s.accumulatedTradingValue),
+    reason: <ReasonLine item={reasons?.get(shortCode(s.stockCode))} />,
   }));
 
   return (
@@ -324,6 +330,7 @@ function DomesticLeaders({ live, first, date, tradingDay, clock }: LeadersProps)
 function OverseasLeaders({ live, first, date, tradingDay, clock }: LeadersProps) {
   const { data, isLoading } = useOverseasLeaders();
   const relay = useRelay("us", tradingDay, live);
+  const reasons = useInsightReasons("us").data;
   const items: Item[] = (data ?? []).map((s) => ({
     key: `${s.exchange}:${s.symbol}`,
     name: s.name,
@@ -332,6 +339,7 @@ function OverseasLeaders({ live, first, date, tradingDay, clock }: LeadersProps)
     rate: s.rate,
     value: s.tradingValue,
     valueLabel: compactUsd(s.tradingValue),
+    reason: <ReasonLine item={reasons?.get(s.symbol)} />,
   }));
 
   return (
@@ -566,6 +574,7 @@ function LeaderRow({ rank, item, ratio }: { rank: number; item: Item; ratio: num
           {item.code}
           <span className="sm:hidden"> · {item.valueLabel}</span>
         </span>
+        {item.reason}
       </span>
       <span className="hidden flex-col items-end gap-1.5 sm:flex">
         <span className="num text-xs text-zinc-400">{item.valueLabel}</span>

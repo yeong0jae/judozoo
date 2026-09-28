@@ -32,11 +32,14 @@ export default function OverseasStockDetailPanel({
   symbol,
   chartOnly = false,
   onBack,
+  insight,
 }: {
   exchange: string | null;
   symbol: string | null;
   chartOnly?: boolean;
   onBack?: () => void;
+  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 오르나요?" 카드(026) */
+  insight?: ReactNode;
 }) {
   const [interval, setChartInterval] = useState<ChartInterval>("1m");
   const detailQ = useOverseasStockDetail(exchange, symbol);
@@ -68,6 +71,8 @@ export default function OverseasStockDetailPanel({
       )}
 
       {!d ? <Skeleton className="h-28 w-full" /> : <DetailHeader detail={d} />}
+
+      {insight}
 
       <section className="rounded-2xl bg-zinc-900 p-3 sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">

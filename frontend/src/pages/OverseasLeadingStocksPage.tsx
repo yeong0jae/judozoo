@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { POOL_REFRESH_MS, useOverseasLeaders, useOverseasCandidates } from "../api/queries";
-import type { OverseasStockRankItem } from "../types";
+import { POOL_REFRESH_MS, useInsightReasons, useOverseasLeaders, useOverseasCandidates } from "../api/queries";
+import type { InsightReasonItem, OverseasStockRankItem } from "../types";
 import { formatPct } from "../lib/format";
 import NumUsd from "../components/common/NumUsd";
 import ProfitText from "../components/common/ProfitText";
@@ -13,6 +13,7 @@ import { useOverseasMinChangeRate } from "../lib/changeRate";
 import MarketToggle, { type StockMarket } from "../components/common/MarketToggle";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 import LoginGate from "../components/common/LoginGate";
+import { ReasonCard, ReasonHead, ReasonLine } from "../components/common/InsightReason";
 import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 import { useMe } from "../api/auth";
 import { isEtWeekend, useMarketSessions, usOpenClock } from "../lib/marketSession";
@@ -40,6 +41,7 @@ export default function OverseasLeadingStocks({
   const { data: me } = useMe();
   const { us, now } = useMarketSessions();
   const mobile = useMobileDetail();
+  const reasons = useInsightReasons("us").data;
 
   // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(
@@ -94,18 +96,41 @@ export default function OverseasLeadingStocks({
           minChangeRate={minChangeRate}
           selectedSymbol={openSymbol}
           onOpen={open}
+          reasons={reasons}
         />
       )}
     </div>
   );
 
+  // 왜 오르나 카드(026) — 국내와 같다. 방문자는 카드에 종목 머리를 얹는다
+  const reason = openSymbol ? reasons?.get(openSymbol) : undefined;
   const detail = me?.authenticated ? (
-    <OverseasStockDetailPanel exchange={selected?.exchange ?? null} symbol={openSymbol} onBack={mobile.hide} />
-  ) : (
-    <LoginGate
-      title="종목 상세"
-      description="주도주 조건과 분봉, 일봉을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+    <OverseasStockDetailPanel
+      exchange={selected?.exchange ?? null}
+      symbol={openSymbol}
+      onBack={mobile.hide}
+      insight={<ReasonCard item={reason} member />}
     />
+  ) : (
+    <div className="flex flex-col gap-6">
+      {selected && (
+        <ReasonCard
+          item={reason}
+          member={false}
+          head={
+            <ReasonHead
+              name={selected.name}
+              code={selected.symbol}
+              rate={<ProfitText value={selected.rate / 100} format={formatPct} />}
+            />
+          }
+        />
+      )}
+      <LoginGate
+        title="종목 상세"
+        description="주도주 조건과 분봉, 일봉을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+      />
+    </div>
   );
 
   return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
@@ -171,12 +196,14 @@ function RankingList({
   minChangeRate,
   selectedSymbol,
   onOpen,
+  reasons,
 }: {
   leaders: OverseasStockRankItem[];
   rest: OverseasStockRankItem[];
   minChangeRate: number;
   selectedSymbol: string | null;
   onOpen: (symbol: string) => void;
+  reasons?: Map<string, InsightReasonItem>;
 }) {
   // 막대는 목록 안에서 가장 큰 거래대금이 꽉 찬 폭이다
   const maxValue = Math.max(1, ...[...leaders, ...rest].map((s) => s.tradingValue));
@@ -189,6 +216,7 @@ function RankingList({
         valueRatio={s.tradingValue / maxValue}
         isSelected={selectedSymbol === s.symbol}
         onOpen={onOpen}
+        reason={reasons?.get(s.symbol)}
       />
     ));
   const restHint = `거래대금 순 · 등락률 ${minChangeRate > 0 ? "+" : ""}${minChangeRate}% 이상`;
@@ -227,10 +255,11 @@ type ItemProps = {
   valueRatio: number;
   isSelected: boolean;
   onOpen: (symbol: string) => void;
+  reason?: InsightReasonItem;
 };
 
-/** 데스크톱 한 줄 — 심볼은 이름 아래. */
-function Row({ stock, rank, valueRatio, isSelected, onOpen }: ItemProps) {
+/** 데스크톱 한 줄 — 심볼은 이름 아래. 왜 오르나 한 줄은 줄 전체 폭을 쓰는 둘째 줄이다. */
+function Row({ stock, rank, valueRatio, isSelected, onOpen, reason }: ItemProps) {
   return (
     <button
       type="button"
@@ -255,12 +284,13 @@ function Row({ stock, rank, valueRatio, isSelected, onOpen }: ItemProps) {
       <span className="num text-right text-xs">
         <ProfitText value={stock.rate / 100} format={formatPct} />
       </span>
+      <ReasonLine item={reason} className="col-span-4 col-start-2 mt-1" />
     </button>
   );
 }
 
 /** 모바일 한 줄 — 왼쪽 이름·거래대금, 오른쪽 현재가·등락률. */
-function Card({ stock, rank, isSelected, onOpen }: ItemProps) {
+function Card({ stock, rank, isSelected, onOpen, reason }: ItemProps) {
   return (
     <button
       type="button"
@@ -274,6 +304,7 @@ function Card({ stock, rank, isSelected, onOpen }: ItemProps) {
         <span className="num text-[11px] text-zinc-500">
           {stock.symbol} · {compactUsd(stock.tradingValue)}
         </span>
+        <ReasonLine item={reason} />
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5">
         <NumUsd value={stock.price} prefix="" className="num text-[13.5px] text-zinc-100" />

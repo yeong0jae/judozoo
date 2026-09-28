@@ -37,10 +37,13 @@ export default function StockDetailPanel({
   stockCode,
   date = todayStr(),
   onBack,
+  insight,
 }: {
   stockCode: string | null;
   date?: string; // 차트 기준 날짜 — 미지정 시 오늘
   onBack?: () => void;
+  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 오르나요?" 카드(026). 다른 화면은 비워 둔다 */
+  insight?: ReactNode;
 }) {
   const detailQ = useLeadingStockDetail(stockCode);
   const detail = detailQ.data;
@@ -79,6 +82,8 @@ export default function StockDetailPanel({
       ) : (
         <DetailHeader stockCode={stockCode} detail={detail} lastMinute={minutes[minutes.length - 1]} />
       )}
+
+      {insight}
 
       <section className="rounded-2xl bg-zinc-900 p-3 sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-2 px-1">

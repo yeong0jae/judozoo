@@ -36,6 +36,7 @@ import type {
   OverseasStockRankItem,
   SignalEventsResponse,
   StockSearchResult,
+  InsightReasonItem,
 } from "../types";
 
 export const QK = {
@@ -93,6 +94,7 @@ export const QK = {
   nasdaqFuturesCandles: (interval: string) =>
     ["market", "futures", "nasdaq", "candles", interval] as const,
   overseasLeaders: ["overseas-leading-stocks", "leaders"] as const,
+  insightReasons: (market: "kr" | "us") => ["insight", "reasons", market] as const,
   overseasCandidates: (minChangeRate: number) =>
     ["overseas-leading-stocks", "candidates", minChangeRate] as const,
   overseasDetail: (exchange: string, symbol: string) =>
@@ -562,5 +564,18 @@ export function useOverseasDailyCandles(
       ),
     enabled,
     staleTime: 30_000,
+  });
+}
+
+/**
+ * 왜 오르나 — 지금 세션의 종목별 사유를 코드로 찾게 묶어 준다(국내 6자리 단축코드 / 해외 심볼).
+ * 사유는 분 단위로 새로 만들어져 1분마다 다시 받는다. 근거·관련 기사는 로그인일 때만 실려 온다.
+ */
+export function useInsightReasons(market: "kr" | "us") {
+  return useQuery({
+    queryKey: QK.insightReasons(market),
+    queryFn: () => apiFetch<InsightReasonItem[]>(`/api/insight/reasons?market=${market}`),
+    select: (items) => new Map(items.map((r) => [r.code, r])),
+    refetchInterval: 60_000,
   });
 }

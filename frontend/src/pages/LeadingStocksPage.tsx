@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { POOL_REFRESH_MS, useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
-import type { CandidateStockItem } from "../types";
+import { POOL_REFRESH_MS, useInsightReasons, useLeadingStockCandidates, useLeadingStockLeaders } from "../api/queries";
+import type { CandidateStockItem, InsightReasonItem } from "../types";
 import { formatKoreanMoney, formatPct } from "../lib/format";
 import ProfitText from "../components/common/ProfitText";
 import { useMinChangeRate } from "../lib/changeRate";
@@ -11,6 +11,7 @@ import FlashOnChange from "../components/common/FlashOnChange";
 import NumWon from "../components/common/NumWon";
 import StockDetailPanel from "../components/common/StockDetailPanel";
 import LoginGate from "../components/common/LoginGate";
+import { ReasonCard, ReasonHead, ReasonLine } from "../components/common/InsightReason";
 import { useMe } from "../api/auth";
 import ChangeRateSelector from "../components/common/ChangeRateSelector";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
@@ -161,6 +162,7 @@ function DomesticLeadingStocks({
   const candidatesQ = useLeadingStockCandidates(minChangeRate);
   const [openCode, setOpenCode] = useState<string | null>(null);
   const mobile = useMobileDetail();
+  const reasons = useInsightReasons("kr").data;
 
   const data = candidatesQ.data;
   // 위는 첫 화면과 같은 규칙으로 서버가 고른 주도주, 아래는 나머지 후보를 거래대금 순으로.
@@ -248,18 +250,41 @@ function DomesticLeadingStocks({
           flashOf={flashOf}
           selectedCode={openCode}
           onOpen={open}
+          reasons={reasons}
         />
       )}
     </div>
   );
 
+  // 왜 오르나 카드(026) — 방문자에게도 보인다. 방문자는 종목 상세가 로그인 뒤라 카드에 종목 머리를 얹는다
+  const opened = stocks.find((s) => s.stockCode === openCode);
+  const reason = openCode ? reasons?.get(shortCode(openCode)) : undefined;
   const detail = me?.authenticated ? (
-    <StockDetailPanel stockCode={openCode} onBack={mobile.hide} />
-  ) : (
-    <LoginGate
-      title="종목 상세"
-      description="주도주 조건, 분봉, 일봉, 투자자 수급을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+    <StockDetailPanel
+      stockCode={openCode}
+      onBack={mobile.hide}
+      insight={<ReasonCard item={reason} member />}
     />
+  ) : (
+    <div className="flex flex-col gap-6">
+      {opened && (
+        <ReasonCard
+          item={reason}
+          member={false}
+          head={
+            <ReasonHead
+              name={opened.stockName}
+              code={shortCode(opened.stockCode)}
+              rate={<ProfitText value={opened.priceChangeRate / 100} format={formatPct} />}
+            />
+          }
+        />
+      )}
+      <LoginGate
+        title="종목 상세"
+        description="주도주 조건, 분봉, 일봉, 투자자 수급을 종목별로 봅니다. 로그인 후 확인할 수 있습니다."
+      />
+    </div>
   );
 
   return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
@@ -307,6 +332,7 @@ function CandidatesList({
   flashOf,
   selectedCode,
   onOpen,
+  reasons,
 }: {
   rowsRef: RefObject<HTMLDivElement>;
   cardsRef: RefObject<HTMLDivElement>;
@@ -316,6 +342,8 @@ function CandidatesList({
   flashOf: (code: string) => Flash;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
+  /** 왜 오르나 — 단축코드로 찾는다. 주도주에서 빠진 종목도 그날 사유가 있으면 후보 줄에 붙는다 */
+  reasons?: Map<string, InsightReasonItem>;
 }) {
   // 막대는 목록 안에서 가장 큰 거래대금이 꽉 찬 폭이다
   const maxValue = Math.max(1, ...[...leaders, ...rest].map((s) => s.accumulatedTradingValue));
@@ -329,6 +357,7 @@ function CandidatesList({
         flash={flashOf(s.stockCode)}
         isSelected={selectedCode === s.stockCode}
         onOpen={onOpen}
+        reason={reasons?.get(shortCode(s.stockCode))}
       />
     ));
   const restHint = `거래대금 순 · 등락률 ${minChangeRate > 0 ? "+" : ""}${minChangeRate}% 이상`;
@@ -368,10 +397,11 @@ type ItemProps = {
   flash: Flash;
   isSelected: boolean;
   onOpen: (stockCode: string) => void;
+  reason?: InsightReasonItem;
 };
 
-/** 데스크톱 한 줄 — 코드는 이름 아래. */
-function Row({ stock, rank, valueRatio, flash, isSelected, onOpen }: ItemProps) {
+/** 데스크톱 한 줄 — 코드는 이름 아래. 왜 오르나 한 줄은 줄 전체 폭을 쓰는 둘째 줄이다. */
+function Row({ stock, rank, valueRatio, flash, isSelected, onOpen, reason }: ItemProps) {
   return (
     <button
       type="button"
@@ -404,12 +434,13 @@ function Row({ stock, rank, valueRatio, flash, isSelected, onOpen }: ItemProps) 
           <ProfitText value={stock.priceChangeRate / 100} format={formatPct} />
         </FlashOnChange>
       </span>
+      <ReasonLine item={reason} className="col-span-4 col-start-2 mt-1" />
     </button>
   );
 }
 
 /** 모바일 한 줄 — 왼쪽 이름·거래대금, 오른쪽 현재가·등락률. */
-function Card({ stock, rank, flash, isSelected, onOpen }: ItemProps) {
+function Card({ stock, rank, flash, isSelected, onOpen, reason }: ItemProps) {
   return (
     <button
       type="button"
@@ -423,6 +454,7 @@ function Card({ stock, rank, flash, isSelected, onOpen }: ItemProps) {
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13.5px] text-zinc-100">{stock.stockName}</span>
         <span className="num text-[11px] text-zinc-500">{formatKoreanMoney(stock.accumulatedTradingValue)}</span>
+        <ReasonLine item={reason} />
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5">
         <FlashOnChange value={stock.currentPrice} duration={1000}>

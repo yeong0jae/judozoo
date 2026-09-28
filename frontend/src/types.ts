@@ -499,3 +499,29 @@ export interface LeaderTimelineResponse {
   /** 마지막으로 찍은 실제 시각(KST, 시간대 없는 ISO) */
   lastTakenAt: string | null;
 }
+
+// ============================================================
+// 왜 오르나 (026)
+// ============================================================
+
+export interface InsightArticle {
+  source: string;
+  title: string;
+  url: string;
+}
+
+/** 종목 하나의 "왜 오르나". 설명 없음이면 `explained`가 false이고 사유·키워드·근거가 비어 있다. */
+export interface InsightReasonItem {
+  /** 국내 6자리 단축코드 / 해외 심볼 */
+  code: string;
+  explained: boolean;
+  keywords: string[];
+  reason: string;
+  /** KST, 시간대 없는 ISO — 화면의 "기준" 시각 */
+  generatedAt: string;
+  evidenceCount: number;
+  relatedCount: number;
+  /** 로그인일 때만 온다 */
+  evidence: InsightArticle[] | null;
+  related: InsightArticle[] | null;
+}
