@@ -252,21 +252,6 @@ const ORG_DETAIL: { key: keyof StockOrgBreakdown; label: string }[] = [
   { key: "bankMillion", label: "은행" },
 ];
 
-/** API는 백만원을 준다 — 이 패널은 억으로 반올림해 보인다(지수·수급 화면과 같은 단위). */
-const toEok = (million: number) => Math.round(million / 100);
-
-function Eok({ million, className = "" }: { million: number; className?: string }) {
-  const eok = toEok(million);
-  const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
-  const sign = eok > 0 ? "+" : eok < 0 ? "−" : "";
-  return (
-    <span className={`num ${tone} ${className}`}>
-      {sign}
-      {Math.abs(eok).toLocaleString("ko-KR")}
-    </span>
-  );
-}
-
 /** 키움 ka10059(전체·SOR통합). 한 번에 10일을 받아 오늘은 첫 줄을 쓴다 — 모달을 열어도 다시 부르지 않는다. */
 function InvestorSection({ stockCode }: { stockCode: string }) {
   const { data, isLoading, isError } = useStockInvestorDaily(stockCode, 10);
@@ -278,7 +263,7 @@ function InvestorSection({ stockCode }: { stockCode: string }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <h3 className="text-[15px] font-bold text-zinc-100">투자자별 순매수</h3>
-          {days.length > 0 && <span className="num text-xs text-zinc-500">{dayLabel(days[0].date)} · 억원</span>}
+          {days.length > 0 && <span className="num text-xs text-zinc-500">{dayLabel(days[0].date)} · 백만원</span>}
         </div>
         {days.length > 0 && (
           <button
@@ -319,7 +304,7 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
             {/* 라벨과 값을 한 줄에 두는 건 칸이 넓을 때만 — 좁으면 "개인 -21,676"처럼 붙어 읽힌다 */}
             <div className="flex flex-col gap-0.5 @[11rem]:flex-row @[11rem]:items-baseline @[11rem]:justify-between">
               <span className="text-xs text-zinc-300">{label}</span>
-              <Eok million={v} className="text-[15px] font-bold sm:text-[17px]" />
+              <NetMillion million={v} className="text-[15px] font-bold sm:text-[17px]" />
             </div>
             <div className="relative h-1 overflow-hidden rounded-full bg-zinc-850">
               <div
@@ -336,14 +321,14 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
         {ORG_DETAIL.map((o) => (
           <div key={o.key} className="flex justify-between border-t border-zinc-800 py-1.5">
             <span className="text-zinc-400">{o.label}</span>
-            <Eok million={day.breakdown[o.key]} className="font-semibold" />
+            <NetMillion million={day.breakdown[o.key]} className="font-semibold" />
           </div>
         ))}
       </div>
       {/* 기타법인은 기관이 아니다 — 기관 상세 안에 두면 그 일부로 읽힌다 */}
       <div className="flex justify-between rounded-xl bg-zinc-900 px-3.5 py-2.5 text-xs">
         <span className="font-semibold text-zinc-300">기타법인</span>
-        <Eok million={day.otherCorpMillion} className="font-semibold" />
+        <NetMillion million={day.otherCorpMillion} className="font-semibold" />
       </div>
     </>
   );
@@ -354,12 +339,12 @@ const ORG_EDGE = "border-l border-zinc-800";
 const orgPad = (i: number, len: number) =>
   `${i === 0 ? "pl-5" : "pl-2.5"} ${i === len - 1 ? "pr-5" : "pr-2.5"}`;
 
-/** 순매수 백만원 그대로 — 모달은 기관 세부까지 펼쳐 보여서, 억으로 반올림하면 작은 칸이 0으로 뭉개진다. */
-function NetMillion({ million }: { million: number }) {
+/** 순매수 백만원 그대로 — 기관 세부까지 펼쳐 보여서, 억으로 반올림하면 작은 칸이 0으로 뭉개진다. 오늘과 최근 10일이 같은 단위를 쓴다. */
+function NetMillion({ million, className = "" }: { million: number; className?: string }) {
   const tone = million > 0 ? "text-red-400" : million < 0 ? "text-blue-400" : "text-zinc-600";
   const sign = million > 0 ? "+" : million < 0 ? "−" : "";
   return (
-    <span className={`num ${tone}`}>
+    <span className={`num ${tone} ${className}`}>
       {sign}
       {Math.abs(million).toLocaleString("ko-KR")}
     </span>
