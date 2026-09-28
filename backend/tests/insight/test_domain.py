@@ -133,11 +133,15 @@ class Test출처_목록:
         assert [s.url for s in sources] == ["https://a"]
 
     def test_같은_기사는_한_번만_싣는다(self):
-        sources = Sources.of([("a.com", "제목", "https://x"), ("a.com", "제목", "https://x")])
+        sources = Sources.of([("a.com", "같은 기사의 제목입니다", "https://x"), ("a.com", "같은 기사의 제목입니다", "https://x")])
         assert len(sources) == 1
 
+    def test_기사가_아닌_사이트_제목은_뺀다(self):
+        sources = Sources.of([("alphasquare.co.kr", "알파스퀘어", "https://home"), ("daum.net", "대우건설, 용인 반도체 국가산단 1공구 공사 따냈다", "https://a")])
+        assert [s.url for s in sources] == ["https://a"]
+
     def test_번호는_1부터_차례로_붙는다(self):
-        sources = Sources.of([("a.com", "하나", "https://1"), ("b.com", "둘", "https://2")])
+        sources = Sources.of([("a.com", "첫 번째 기사 제목입니다", "https://1"), ("b.com", "두 번째 기사 제목입니다", "https://2")])
         assert [s.id for s in sources] == [1, 2]
 
 
@@ -172,6 +176,10 @@ class Test답_검사:
     def test_일반어_키워드는_그_칩만_뺀다(self):
         v = judge(draft(keywords=["상승", "라이다"]), SOURCES)
         assert v.published and v.keywords == ["라이다"]
+
+    def test_종목_자신의_이름은_키워드가_아니다(self):
+        v = judge(draft(keywords=["LG이노텍", "라이다"]), SOURCES, stock_name="LG이노텍")
+        assert v.keywords == ["라이다"]
 
     def test_너무_긴_키워드는_뺀다(self):
         v = judge(draft(keywords=["미국 라이다 업체 지분가치", "Aeva"]), SOURCES)

@@ -126,6 +126,9 @@ _BREADCRUMB = re.compile(r"\s+<\s+.*$")
 #: 뒤에 붙는 매체명(" - 파이낸셜뉴스", " | 한국경제"). 20자 넘는 꼬리는 제목의 일부로 본다
 _OUTLET = re.compile(r"\s+[-|]\s+[^-|]{1,20}$")
 
+#: 이보다 짧은 제목은 기사가 아니라 사이트 이름이다("알파스퀘어")
+MIN_TITLE_LEN = 10
+
 #: 시세 중계 기사 — 오른 이유를 말하지 않고 가격만 전한다
 _PRICE_NOISE = re.compile(
     "|".join([
@@ -171,7 +174,7 @@ class Sources:
         kept: list[Source] = []
         for domain, raw_title, url in raw:
             title = clean_title(raw_title)
-            if not title or _PRICE_NOISE.search(title) or any(s.url == url for s in kept):
+            if len(title) < MIN_TITLE_LEN or _PRICE_NOISE.search(title) or any(s.url == url for s in kept):
                 continue
             kept.append(Source(len(kept) + 1, domain, title, url))
         return cls(kept)
@@ -237,7 +240,7 @@ class Verdict:
     error: str | None = None
 
 
-def judge(draft: Draft, sources: Sources) -> Verdict:
+def judge(draft: Draft, sources: Sources, stock_name: str = "") -> Verdict:
     """게시할지, 무엇을 게시할지. 거절은 행으로 남되 화면에는 이전 사유가 그대로 보인다."""
     unknown = [i for i in [*draft.evidence, *draft.related] if sources.get(i) is None]
     if unknown:
@@ -254,15 +257,19 @@ def judge(draft: Draft, sources: Sources) -> Verdict:
     if not draft.explained or not evidence or not reason:
         return Verdict(published=True, explained=False, related=to_sources(related))
     return Verdict(
-        published=True, explained=True, keywords=_keywords(draft.keywords), reason=reason,
+        published=True, explained=True, keywords=_keywords(draft.keywords, stock_name), reason=reason,
         evidence=to_sources(evidence), related=to_sources(related),
     )
 
 
-def _keywords(raw: Sequence[str]) -> list[str]:
+def _keywords(raw: Sequence[str], stock_name: str) -> list[str]:
+    """종목 자신의 이름은 칩이 아니다 — 목록 줄에 이미 적혀 있다."""
     kept: list[str] = []
     for k in (w.strip() for w in raw):
-        if k and len(k) <= MAX_KEYWORD_LEN and k.lower() not in _GENERIC_KEYWORDS and k not in kept:
+        if (
+            k and len(k) <= MAX_KEYWORD_LEN and k.lower() not in _GENERIC_KEYWORDS
+            and k != stock_name and k not in kept
+        ):
             kept.append(k)
     return kept[:MAX_KEYWORDS]
 
