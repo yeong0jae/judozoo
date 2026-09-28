@@ -5,6 +5,7 @@ import DateNavigator, { latestTradingDayStr, todayStr } from "../components/comm
 import Skeleton from "../components/common/Skeleton";
 import InstagramIcon from "../components/common/InstagramIcon";
 import { INSTAGRAM_URL } from "../lib/instagram";
+import { overseasIsMain } from "../lib/marketSession";
 import {
   MARKET_SPECS,
   arrangement,
@@ -81,9 +82,14 @@ const fmtDur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? 
  * 치수는 시안 px 값을 그대로 쓴다(024 캘린더와 같은 이유 — rem이면 넓은 화면에서 성겨진다).
  */
 export default function LeaderTimelinePage() {
-  // 홈 해외 카드의 "타임라인"은 `?market=us`로 들어온다 — 처음 여는 탭만 정하고, 그 뒤 탭 전환은 주소를 건드리지 않는다
+  // 홈 해외 카드의 "타임라인"은 `?market=us`로 들어온다 — 처음 여는 탭만 정하고, 그 뒤 탭 전환은 주소를 건드리지 않는다.
+  // 주소에 없으면 홈이 주인공을 고르는 규칙(`overseasIsMain`)을 따른다
   const [params] = useSearchParams();
-  const [market, setMarket] = useState<TimelineMarket>(() => (params.get("market") === "us" ? "us" : "kr"));
+  const [market, setMarket] = useState<TimelineMarket>(() =>
+    params.get("market") === "us" || overseasIsMain(new Date()) ? "us" : "kr",
+  );
+  /** 탭을 주소나 클릭으로 정했는가 — 정했으면 휴장일이라도 해외로 돌리지 않는다 */
+  const marketPicked = useRef(params.get("market") === "us");
   const [date, setDate] = useState(() => latestTradingDayStr(marketNow(market).date));
   /** 고정해 둔 슬롯. null = 최신을 따라간다 */
   const [pinned, setPinned] = useState<number | null>(null);
@@ -99,6 +105,15 @@ export default function LeaderTimelinePage() {
     if (market !== "kr" || datePicked.current || !krCalendar?.previousOpenDay) return;
     if (krCalendar.isHoliday || marketNow("kr").min < 480) setDate(krCalendar.previousOpenDay);
   }, [market, krCalendar]);
+  // 추석 같은 국내 휴장일은 뒤늦게 알게 된다 — 시각만 보고 국내로 열었으면 해외로 돌린다(홈도 휴장을 받으면 순서를 바꾼다).
+  // 처음 받았을 때 한 번만 본다 — 다시 받을 때마다 보면 보던 도중 20시를 넘길 때 탭이 저절로 바뀐다
+  useEffect(() => {
+    if (marketPicked.current || !krCalendar) return;
+    marketPicked.current = true;
+    if (!krCalendar.isHoliday) return;
+    setMarket("us");
+    setDate(latestTradingDayStr(marketNow("us").date));
+  }, [krCalendar]);
 
   const now = marketNow(market);
   const spec0 = MARKET_SPECS[market];
@@ -131,6 +146,7 @@ export default function LeaderTimelinePage() {
   }, [playing, speed, model]);
 
   const changeMarket = (m: TimelineMarket) => {
+    marketPicked.current = true;
     setMarket(m);
     setDate(latestTradingDayStr(marketNow(m).date));
     datePicked.current = false;
