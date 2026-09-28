@@ -82,6 +82,13 @@ class Test사유_만들기:
         assert r.evidence == [{"source": "파이낸셜뉴스", "title": "LG이노텍, 美라이다 기업 지분가치 상승 영향", "url": "https://fnnews.com/1"}]
         assert r.related == [{"source": "jkn.co.kr", "title": "LG이노텍, 호재성 뉴스 부재 속 급등", "url": "https://jkn.co.kr/2"}]
 
+    def test_기준_시각은_실행_시작이_아니라_그_종목을_다_만든_때다(self, 빈_테이블, 바깥, mocker):
+        mocker.patch.object(application, "monotonic", side_effect=[0.0, 15.0])
+        with 세션() as s:
+            application.run(s, Region.KR, kst(10, 15))
+
+        assert 행들()[0].generated_at == datetime(2026, 9, 28, 10, 15, 15)
+
     def test_검색_프롬프트에_직전_거래일_장_마감_이후라고_적는다(self, 빈_테이블, 바깥):
         ground, _ = 바깥
         with 세션() as s:

@@ -7,7 +7,8 @@ Gemini는 두 번 부른다 — 검색 켠 문장 → 서버가 출처를 실제
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
+from time import monotonic
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -87,12 +88,17 @@ def run(session: Session, region: Region, now_kst: datetime) -> int:
         history[r.code].append(r.attempt(local(region, r.generated_at)))
     picks = pick(schedule, list(leaders), {c: Attempts(a) for c, a in history.items()}, now)
 
+    started = monotonic()
     made = 0
     for code, trigger in picks:
         if _used_today(session, now_kst) >= get_settings().vertex.daily_limit:
             log.warning("왜 오르나 — 하루 상한에 닿아 오늘은 멈춘다 (%s개 남김)", len(picks) - made)
             break
-        session.add(make(region, schedule, leaders[code], trigger, now.date(), now_kst))
+        row = make(region, schedule, leaders[code], trigger, now.date(), now_kst)
+        # 한 종목에 10~15초 — 실행 시작 시각을 그대로 찍으면 뒤 종목일수록 "기준" 시각이 실제보다 이르다.
+        # 벽시계를 다시 읽지 않고 경과만 더한다: 30분·3분 규칙이 같은 시계로 계산된다
+        row.generated_at = now_kst + timedelta(seconds=monotonic() - started)
+        session.add(row)
         session.commit()  # 한 종목씩 — 뒤 종목이 실패해도 앞 종목은 남는다
         made += 1
     return made
