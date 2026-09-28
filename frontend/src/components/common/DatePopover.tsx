@@ -29,11 +29,14 @@ export default function DatePopover({
   today,
   onChange,
   onClose,
+  align = "right",
 }: {
   value: string;
   today: string;
   onChange: (v: string) => void;
   onClose: () => void;
+  /** 어느 쪽 끝을 트리거에 맞출지. 달력이 트리거보다 넓어, 맞춘 반대쪽으로 펼쳐진다 */
+  align?: "left" | "right";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [vy, vm] = value.split("-").map(Number);
@@ -64,7 +67,7 @@ export default function DatePopover({
   return (
     <div
       ref={ref}
-      className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl"
+      className={`absolute ${align === "left" ? "left-0" : "right-0"} z-20 mt-1 w-60 rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl`}
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-semibold text-zinc-100">

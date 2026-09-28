@@ -55,9 +55,12 @@ function Chevron({ dir }: { dir: "prev" | "next" }) {
 export default function DateNavigator({
   date,
   onChange,
+  popoverAlign,
 }: {
   date: string;
   onChange: (v: string) => void;
+  /** 달력을 펼칠 방향. 기본은 왼쪽으로(화면 오른쪽 끝에 놓일 때). 왼쪽 끝에 놓이면 "left" */
+  popoverAlign?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const shift = (days: number) => {
@@ -100,6 +103,7 @@ export default function DateNavigator({
               today={todayStr()}
               onChange={onChange}
               onClose={() => setOpen(false)}
+              align={popoverAlign}
             />
           )}
         </div>

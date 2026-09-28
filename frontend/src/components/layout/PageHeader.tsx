@@ -9,6 +9,9 @@ import SessionStrip from "./SessionStrip";
  * 각 묶음 안에서 위아래가 짝지어 있어, 좁은 폭에서 오른쪽이 아래로 내려가도 어긋나지 않는다.
  * 격자로 열을 나누면 제목 열이 0까지 눌려 폰에서 제목이 글자 단위로 쪼개진다.
  *
+ * 좁은 칸(48rem 미만 — 목록·상세로 나뉜 화면의 목록 칸, 폰)에선 오른쪽 묶음이 제목 아래로 접히므로
+ * 위아래로 쌓지 않고 한 줄로 편다. 왼쪽에 붙은 채 위아래로 쌓으면 상대시각이 건수 밑에 떠 보인다.
+ *
  * 갱신 주기는 문구로 적지 않는다 — 점과 상대시각이 이미 말하고 있다.
  * 상대시각은 1초마다 다시 센다 — 폴링이 올 때만 다시 그리면 "방금"에 멈춰 있어 흐르는 게 안 보인다.
  */
@@ -46,13 +49,13 @@ export default function PageHeader({
   const ago = fetchedAt ? formatRelative(new Date(fetchedAt).toISOString(), new Date(now)) : undefined;
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+    <div className="@container flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div className="min-w-0">
         <h2 className="text-[20px] font-bold">{title}</h2>
         <SessionStrip />
       </div>
 
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-col items-end gap-1 @max-3xl:flex-row @max-3xl:flex-wrap @max-3xl:items-center @max-3xl:gap-3">
         <div className="flex items-center gap-3">
           {trailing}
           {typeof count === "number" && (

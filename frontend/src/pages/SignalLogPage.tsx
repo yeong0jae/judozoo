@@ -541,7 +541,9 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
           closedLabel={date === todayStr() ? undefined : "마감"}
           loading={eventsQ.isFetching}
           trailing={
+            // 목록 칸이 좁아 머리줄이 제목 아래로 접힌다 — 날짜가 왼쪽 끝에 서므로 달력은 오른쪽으로 편다
             <DateNavigator
+              popoverAlign="left"
               date={date}
               onChange={(d) => {
                 datePicked.current = true;
