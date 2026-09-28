@@ -658,7 +658,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       {/* 좁으면 상세가 준다. 종목명은 줄지 않는다 — "SK하…"로 잘리면 무슨 행인지 모른다.
                           아주 긴 이름만 줄 폭의 45%에서 자른다 */}
                       <span className="max-w-[45%] shrink-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
-                      <span className="num min-w-0 truncate text-xs text-zinc-300">{detailOf(e, false)}</span>
+                      <span className="num min-w-0 truncate text-[13px] text-zinc-300">{detailOf(e, false)}</span>
                       <span className="ml-auto flex shrink-0 items-baseline gap-2.5 pl-2">
                         <span className="num text-[13.5px] text-zinc-100">{formatPrice(e.currentPrice)}</span>
                         <span className="min-w-14 whitespace-nowrap text-right">
