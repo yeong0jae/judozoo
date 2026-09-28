@@ -1,14 +1,15 @@
 /**
- * 주도주 릴스 mp4 굽기 — 운영 타임라인 API에서 그날 데이터를 받아 `reel.html`을 한 프레임씩 찍는다.
+ * 주도주 릴스 mp4 굽기 — 운영 타임라인 API에서 그날 데이터를 받아 `reel.vN.html`을 한 프레임씩 찍는다.
  *
- *   node render.mjs us 2026-09-25            # → out/주도주-해외-0925.mp4
+ *   node render.mjs us 2026-09-25            # 최신 버전 → out/주도주-해외-0925-v2.mp4
+ *   node render.mjs kr 2026-09-23 --v 1      # 예전 버전으로
  *   node render.mjs kr 2026-09-23 --secs 8   # 앞 8초만 (확인용)
  *
  * 화면 녹화가 아니라 가짜 시계로 프레임을 넘기며 찍는다 — 1080×1920 원본 크기 그대로이고,
  * 캡처가 느려도 프레임이 빠지지 않는다. CSS 전환(자막·장면 페이드)도 같은 시계에 맞춘다.
  */
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ffmpegPath from "ffmpeg-static";
@@ -24,13 +25,15 @@ const flag = (name) => {
 };
 const secs = Number(flag("--secs")) || null;
 const api = flag("--api") ?? "https://judozoo.com";
+const versions = readdirSync(here).map((f) => f.match(/^reel\.v(\d+)\.html$/)?.[1]).filter(Boolean).map(Number);
+const version = Number(flag("--v") ?? Math.max(...versions));
 let out = flag("--out");
 const [market, date] = args;
-if (!["kr", "us"].includes(market) || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "")) {
-  console.error("사용법: node render.mjs <kr|us> <YYYY-MM-DD> [--secs N] [--out 파일] [--api 주소]");
+if (!["kr", "us"].includes(market) || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") || !versions.includes(version)) {
+  console.error(`사용법: node render.mjs <kr|us> <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--out 파일] [--api 주소]`);
   process.exit(1);
 }
-out ??= resolve(here, "out", `주도주-${market === "kr" ? "국내" : "해외"}-${date.slice(5).replace("-", "")}.mp4`);
+out ??= resolve(here, "out", `주도주-${market === "kr" ? "국내" : "해외"}-${date.slice(5).replace("-", "")}-v${version}.mp4`);
 
 /** API 응답(종목 사전 + 분마다 번호)을 화면이 쓰는 모양으로 — 이름 목록과 [시각, 번호들, 등락률들] */
 async function fetchDay() {
@@ -45,13 +48,13 @@ async function fetchDay() {
 }
 
 const data = await fetchDay();
-console.log(`${market} ${date} — ${data.ticks.length}분, 종목 ${data.stocks.length}개`);
+console.log(`${market} ${date} v${version} — ${data.ticks.length}분, 종목 ${data.stocks.length}개`);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
 await page.addInitScript((reel) => { window.__REEL__ = reel; }, { market, date, data });
 await page.clock.install();
-await page.goto(pathToFileURL(resolve(here, "reel.html")).href);
+await page.goto(pathToFileURL(resolve(here, `reel.v${version}.html`)).href);
 // 캔버스 글자는 DOM에 안 쓰인 굵기를 스스로 불러오지 않는다 — 쓰는 굵기를 미리 다 받아 둔다
 await page.evaluate(async () => {
   const faces = [["Noto Sans KR", [300, 400, 500, 600, 700]], ["JetBrains Mono", [200, 300, 400, 500]]];
