@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   useKospiIndex,
+  useLeaderTimeline,
   useKosdaqIndex,
   useLeadingStockLeaders,
   useMarketCalendarStatus,
@@ -20,6 +21,7 @@ import {
   useMarketSessions,
 } from "../lib/marketSession";
 import { rememberMarket, type StockMarket } from "../lib/stockMarket";
+import { foldRelay, leaderRelay, type RelayLeg } from "../lib/leaderTimeline";
 import { formatKoreanMoney, formatPct } from "../lib/format";
 import SessionStrip from "../components/layout/SessionStrip";
 import ProfitText from "../components/common/ProfitText";
@@ -60,11 +62,14 @@ export default function HomePage() {
 
   // 두 쪽 날짜가 다를 수 있다 — 해외는 미국 현지 거래일이라 한국 오전에는 하루 뒤처진다
   const clock = formatClock(now);
+  const krDay = krTradingDay(now, !!krHoliday, krCalendar?.previousOpenDay);
+  const usDay = usTradingDay(now, !!usHoliday);
   const domestic = (
     <DomesticLeaders
       live={domesticLive}
       first={domesticFirst}
-      date={formatTradingDay(krTradingDay(now, !!krHoliday, krCalendar?.previousOpenDay))}
+      date={formatTradingDay(krDay)}
+      tradingDay={isoDay(krDay)}
       clock={clock}
     />
   );
@@ -72,7 +77,8 @@ export default function HomePage() {
     <OverseasLeaders
       live={overseasLive}
       first={!domesticFirst}
-      date={formatTradingDay(usTradingDay(now, !!usHoliday))}
+      date={formatTradingDay(usDay)}
+      tradingDay={isoDay(usDay)}
       clock={clock}
     />
   );
@@ -102,6 +108,11 @@ export default function HomePage() {
       <TodayNets live={domesticOpen} clock={clock} />
     </div>
   );
+}
+
+/** 로컬 Date → "yyyy-MM-dd" (시간대 변환 없이 연·월·일만) */
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /** "9월 26일 토요일" */
@@ -266,10 +277,24 @@ const shortCode = (code: string) => (code.includes("_") ? code.slice(0, code.ind
  * 자리라, 보는 사람이 어떤 기준을 걸어뒀는지에 따라 답이 달라지면 안 된다. 순서와
  * 종목 선정은 서버가 정한다(거래대금·등락률 두 축의 백분위 기하평균).
  */
-type LeadersProps = { live: boolean; first: boolean; date: string; clock: string };
+type LeadersProps = {
+  live: boolean;
+  first: boolean;
+  date: string;
+  /** 타임라인을 물을 현지 거래일 "yyyy-MM-dd" — 해외는 뉴욕 날짜 */
+  tradingDay: string;
+  clock: string;
+};
 
-function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
+/** 오늘 1위 바통 — 타임라인에서 계산한다. 장중이면 1분마다 새로 받는다 */
+function useRelay(market: "kr" | "us", tradingDay: string, live: boolean): RelayLeg[] {
+  const { data } = useLeaderTimeline(market, tradingDay, live);
+  return useMemo(() => (data ? leaderRelay(market, tradingDay, data) : []), [market, tradingDay, data]);
+}
+
+function DomesticLeaders({ live, first, date, tradingDay, clock }: LeadersProps) {
   const { data, isLoading } = useLeadingStockLeaders();
+  const relay = useRelay("kr", tradingDay, live);
   const items: Item[] = (data?.leaders ?? []).map((s) => ({
     key: s.stockCode,
     name: s.stockName,
@@ -291,12 +316,14 @@ function DomesticLeaders({ live, first, date, clock }: LeadersProps) {
       loading={isLoading}
       items={items}
       limitUps={data?.limitUps ?? []}
+      relay={relay}
     />
   );
 }
 
-function OverseasLeaders({ live, first, date, clock }: LeadersProps) {
+function OverseasLeaders({ live, first, date, tradingDay, clock }: LeadersProps) {
   const { data, isLoading } = useOverseasLeaders();
+  const relay = useRelay("us", tradingDay, live);
   const items: Item[] = (data ?? []).map((s) => ({
     key: `${s.exchange}:${s.symbol}`,
     name: s.name,
@@ -317,6 +344,7 @@ function OverseasLeaders({ live, first, date, clock }: LeadersProps) {
       first={first}
       loading={isLoading}
       items={items}
+      relay={relay}
     />
   );
 }
@@ -351,6 +379,9 @@ const LEADER_COLS = "sm:grid-cols-[1rem_minmax(0,1fr)_7rem_6rem_4.5rem]";
  *
  * 종목 상세로 바로 보내지 않는다. 상세는 로그인 뒤라, 첫 화면에서 누르자마자
  * 벽을 만나게 된다. 지금 시간대의 주인공(먼저 오는 쪽)은 테두리를 두르고, 다른 쪽은 흐리게 내린다.
+ *
+ * 맨 아래 "오늘 1위" 줄만 따로 타임라인으로 간다. 링크 안에 링크를 둘 수 없어서, 카드 전체를 덮는
+ * 링크를 바닥에 깔고 그 줄만 위로 올린다.
  */
 function LeaderCard({
   title,
@@ -362,6 +393,7 @@ function LeaderCard({
   loading,
   items,
   limitUps = [],
+  relay,
 }: {
   title: string;
   date: string;
@@ -373,14 +405,18 @@ function LeaderCard({
   items: Item[];
   /** 후보 풀 안의 상한가. 해외는 제한폭 자체가 없어 늘 비어 있다. */
   limitUps?: LimitUpItem[];
+  /** 오늘 1위가 넘어간 순서(타임라인). 비면 줄째 사라진다 */
+  relay: RelayLeg[];
 }) {
   const max = Math.max(1, ...items.map((s) => s.value));
   return (
-    <Link
-      to="/leading-stocks"
-      onClick={() => rememberMarket(market)}
-      className={`${cardCls} ${first ? "outline outline-1 outline-emerald-700/40" : "opacity-70"}`}
-    >
+    <div className={`relative ${cardCls} ${first ? "outline outline-1 outline-emerald-700/40" : "opacity-70"}`}>
+      <Link
+        to="/leading-stocks"
+        onClick={() => rememberMarket(market)}
+        aria-label={`${title} 전체 보기`}
+        className="absolute inset-0 z-[1] rounded-2xl"
+      />
       <CardHead
         title={title}
         more="전체 보기"
@@ -438,7 +474,84 @@ function LeaderCard({
           ))}
         </div>
       )}
+
+      {relay.length > 0 && <LeaderRelay market={market} legs={relay} />}
+    </div>
+  );
+}
+
+/**
+ * 카드 맨 아래 "오늘 1위 A 09:02 → B 10:40 …" — 누르면 그 시장 타임라인으로.
+ * 넓으면 3개, 좁으면 2개까지. 넘치면 첫 1위와 지금 1위를 남기고 가운데를 "외 N"으로 접는다.
+ * 좁은 줄에 그것도 안 들어가면 "첫 1위 → 외 N"까지 줄인다 — 폭이 아니라 실제로 재서 정한다(이름 길이가 날마다 다르다).
+ */
+function LeaderRelay({ market, legs }: { market: StockMarket; legs: RelayLeg[] }) {
+  const box = useRef<HTMLSpanElement>(null);
+  const probe = useRef<HTMLSpanElement>(null);
+  const [compact, setCompact] = useState(false);
+  useLayoutEffect(() => {
+    const fit = () => setCompact(!!box.current && !!probe.current && probe.current.offsetWidth > box.current.clientWidth);
+    fit();
+    const ro = new ResizeObserver(fit);
+    if (box.current) ro.observe(box.current);
+    return () => ro.disconnect();
+  }, [legs]);
+
+  return (
+    <Link
+      to={`/leader-timeline?market=${market === "overseas" ? "us" : "kr"}`}
+      className="relative z-[2] mx-2.5 mt-1 flex items-center gap-2.5 rounded-b-xl border-t border-zinc-800 px-2 py-2.5 hover:bg-zinc-850 sm:mx-3"
+    >
+      <span className="shrink-0 whitespace-nowrap text-[11.5px] font-medium text-zinc-400">
+        <span className="hidden sm:inline">오늘 </span>1위
+      </span>
+      <span ref={box} className="relative flex min-w-0 flex-1 overflow-hidden sm:hidden">
+        {/* 두 개짜리가 한 줄에 다 들어가는지 재는 보이지 않는 사본 */}
+        <span ref={probe} aria-hidden className="invisible absolute left-0 top-0 w-max">
+          <RelayLine legs={legs} max={2} />
+        </span>
+        <RelayLine legs={legs} max={compact ? 1 : 2} />
+      </span>
+      <span className="hidden min-w-0 flex-1 sm:flex">
+        <RelayLine legs={legs} max={3} wrap />
+      </span>
+      {/* 좁으면 글자를 빼고 화살표만 */}
+      <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-xs text-zinc-400">
+        <span className="hidden sm:inline">타임라인</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-zinc-500">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </span>
     </Link>
+  );
+}
+
+/** `max`개까지 접어 한 줄로. 꺾지 않는 줄은 모자라면 이름이 말줄임으로 준다(시각은 남긴다) */
+function RelayLine({ legs, max, wrap = false }: { legs: RelayLeg[]; max: number; wrap?: boolean }) {
+  const { head, folded, tail } = foldRelay(legs, max);
+  const parts: ReactNode[] = [
+    ...head.map((l) => <RelayItem key={`h${l.at}`} leg={l} />),
+    ...(folded ? [<span key="fold" className="shrink-0 whitespace-nowrap rounded-full bg-zinc-850 px-1.5 py-px text-[11px] text-zinc-400">외 {folded}</span>] : []),
+    ...tail.map((l) => <RelayItem key={`t${l.at}`} leg={l} />),
+  ];
+  return (
+    <span className={`flex min-w-0 items-center gap-x-1.5 gap-y-1 ${wrap ? "flex-wrap" : "flex-nowrap"}`}>
+      {parts.map((p, i) => (
+        <span key={i} className="flex min-w-0 items-center gap-1.5">
+          {i > 0 && <span className="text-zinc-500">→</span>}
+          {p}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function RelayItem({ leg }: { leg: RelayLeg }) {
+  return (
+    <span className="flex min-w-0 items-baseline gap-1 whitespace-nowrap text-[12.5px] text-zinc-100">
+      <span className="truncate">{leg.name}</span>
+      <span className="num shrink-0 text-[11px] text-zinc-500">{leg.at}</span>
+    </span>
   );
 }
 

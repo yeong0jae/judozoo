@@ -1,4 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useLeaderTimeline, useMarketCalendarStatus } from "../api/queries";
 import DateNavigator, { latestTradingDayStr, todayStr } from "../components/common/DateNavigator";
 import Skeleton from "../components/common/Skeleton";
@@ -78,8 +79,10 @@ const fmtDur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? 
  * 치수는 시안 px 값을 그대로 쓴다(024 캘린더와 같은 이유 — rem이면 넓은 화면에서 성겨진다).
  */
 export default function LeaderTimelinePage() {
-  const [market, setMarket] = useState<TimelineMarket>("kr");
-  const [date, setDate] = useState(() => latestTradingDayStr(marketNow("kr").date));
+  // 홈 해외 카드의 "타임라인"은 `?market=us`로 들어온다 — 처음 여는 탭만 정하고, 그 뒤 탭 전환은 주소를 건드리지 않는다
+  const [params] = useSearchParams();
+  const [market, setMarket] = useState<TimelineMarket>(() => (params.get("market") === "us" ? "us" : "kr"));
+  const [date, setDate] = useState(() => latestTradingDayStr(marketNow(market).date));
   /** 고정해 둔 슬롯. null = 최신을 따라간다 */
   const [pinned, setPinned] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);

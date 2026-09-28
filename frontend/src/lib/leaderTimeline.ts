@@ -251,3 +251,36 @@ export function segmentsOf(model: Pick<TimelineModel, "rankAt">, k: number): Seg
   }
   return out;
 }
+
+export interface RelayLeg {
+  name: string;
+  /** 1위를 넘겨받은 시각 — 한국 시간 "HH:MM" */
+  at: string;
+}
+
+/**
+ * 그날 1위가 넘어간 순서 — 타임라인 '순위 변동'의 "1위로"와 같은 기준(3분 넘게 이어져야 바뀐 것으로 친다).
+ * 1위가 비었다가 같은 종목이 다시 잡으면 하나로 본다. 홈 주도주 카드 아래 한 줄이 쓴다.
+ */
+export function leaderRelay(market: TimelineMarket, date: string, data: LeaderTimelineResponse): RelayLeg[] {
+  const idx = data.ticks.map((_, n) => n);
+  const leader = smooth(idx, (n) => data.ticks[n].stocks[0] ?? -1);
+  const offset = displayOffset(market, date);
+  const legs: RelayLeg[] = [];
+  let prev = -1;
+  for (const n of idx) {
+    const k = leader.get(n)!;
+    if (k < 0 || k === prev) continue;
+    prev = k;
+    const [h, m] = data.ticks[n].at.split(":").map(Number);
+    legs.push({ name: data.stocks[k].name, at: hhmm(h * 60 + m + offset) });
+  }
+  return legs;
+}
+
+/** `max`개까지 — 넘치면 첫 1위와 최근 것들을 남기고 가운데 개수를 `folded`로 돌려준다 */
+export function foldRelay(legs: RelayLeg[], max: number): { head: RelayLeg[]; folded: number; tail: RelayLeg[] } {
+  if (legs.length <= max) return { head: legs, folded: 0, tail: [] };
+  const folded = legs.length - max;
+  return { head: legs.slice(0, 1), folded, tail: legs.slice(folded + 1) };
+}
