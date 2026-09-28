@@ -22,6 +22,7 @@ export default function Sidebar() {
           <NavLink
             key={n.to}
             to={n.to}
+            end={n.end}
             title={n.full}
             className={({ isActive }) =>
               `flex w-[4.5rem] flex-col items-center gap-1 rounded-lg py-2 text-[13px] transition-colors ${
