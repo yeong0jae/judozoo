@@ -14,7 +14,6 @@ import type {
   FuturesSession,
   FuturesInvestorDay,
   StockInvestorDay,
-  StockNewsItem,
   MacroQuotes,
   MacroTarget,
   NasdaqFuturesQuote,
@@ -79,8 +78,6 @@ export const QK = {
     ["market", "futures", market, "investor", "sessions", date] as const,
   futuresInvestorDaily: (market: MarketType, count: number) =>
     ["market", "futures", market, "investor", "daily", count] as const,
-  stockNews: (stockCode: string, exchange: string | null) =>
-    ["news", "stock", stockCode, exchange] as const,
   stockInvestorDaily: (stockCode: string, count: number) =>
     ["stocks", stockCode, "investor", "daily", count] as const,
   nightFuturesQuote: ["market", "futures", "night", "quote"] as const,
@@ -418,20 +415,6 @@ export function useStockInvestorDaily(stockCode: string, count = 10) {
     queryFn: () =>
       apiFetch<StockInvestorDay[]>(`/api/stocks/${stockCode}/investor/daily?count=${count}`),
     staleTime: 60_000,
-  });
-}
-
-/** 종목 관련 뉴스·공시 — KIS. [exchange]가 null이면 국내, 아니면 해외(NAS/NYS/AMS). */
-export function useStockNews(stockCode: string, exchange: string | null) {
-  return useQuery({
-    queryKey: QK.stockNews(stockCode, exchange),
-    queryFn: () =>
-      apiFetch<StockNewsItem[]>(
-        exchange
-          ? `/api/news/stock/${stockCode}?exchange=${exchange}`
-          : `/api/news/stock/${stockCode}`,
-      ),
-    refetchInterval: 60_000,
   });
 }
 

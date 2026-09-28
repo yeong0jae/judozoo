@@ -24,7 +24,6 @@ from backend.auth.domain import SESSION_KEY, CurrentUser
 from backend.auth.gate import is_public
 from backend.auth.presentation import router as auth_router
 from backend.feedback.presentation import router as feedback_router
-from backend.news.presentation import router as news_router
 from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.leadingstock.presentation import router as leading_router
 from backend.leadercalendar.presentation import router as leader_calendar_router
@@ -145,7 +144,6 @@ tracing.instrument_app(app)
 
 app.include_router(auth_router)
 app.include_router(feedback_router)
-app.include_router(news_router)
 app.include_router(overseas_router)
 app.include_router(stock_router)
 app.include_router(market_router)

@@ -88,7 +88,7 @@ sudo docker image prune -af
 
 # 헬스체크 — IAP SSH 터널을 별도로 한 번 더 열지 않도록 배포와 같은 세션에서 검사.
 
-# 1) Python 백엔드. 죽어 있으면 nginx가 이관된 경로(/api/news/)에 502를 준다.
+# 1) Python 백엔드. 죽어 있으면 nginx가 /api/ 요청에 502를 준다.
 #    프론트만 검사하면 이 실패가 배포 성공으로 묻힌다.
 for i in $(seq 1 18); do
   status="$(sudo docker inspect --format '{{.State.Health.Status}}' \

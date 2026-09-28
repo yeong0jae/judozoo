@@ -20,7 +20,6 @@ Backend (Python + FastAPI, package by feature)
   - leadercalendar       : 첫 화면 주도주 마감 스냅샷
   - market               : 지수·선물·매크로·투자자 수급·휴장 캘린더
   - stock                : 종목 마스터 카탈로그·검색·종목 수급
-  - news                 : 종목 뉴스·공시 (국내·해외)
   - auth                 : 구글 OAuth·세션·공개 허용목록
   - feedback             : 의견 접수
   - platform/{kis,kiwoom,toss,yahoo} : 외부 API 어댑터
@@ -56,7 +55,7 @@ Backend (Python + FastAPI, package by feature)
 | 소스 | 용도 |
 |------|------|
 | **키움** | 국내 거래대금 상위·종목 시세·지난 날 분봉·일봉, 프로그램 순매수, 지수, 업종·종목 투자자 수급 |
-| **KIS** | 국내 휴장일, 국내 선물(주간·야간), 해외 거래대금 순위·종목정보·차트, 종목 뉴스·공시, 종목 마스터 파일 |
+| **KIS** | 국내 휴장일, 국내 선물(주간·야간), 해외 거래대금 순위·종목정보·차트, 종목 마스터 파일 |
 | **토스** | 국내·미국 장 운영 캘린더, 시장 지표(투자자별 매매대금·캔들), 국내 종목 **당일** 1분봉 |
 | **야후** | 나스닥 지수·나스닥 선물·매크로(원달러, WTI, VIX, 미 10년물) 시세와 캔들 |
 
@@ -298,10 +297,9 @@ GET /api/market/investor/today                           # 첫 화면 "오늘의
 GET /api/market/{market}/investor/daily | /investor/sessions
 GET /api/market/futures/{market}/investor/daily | /investor/sessions
 
-# 종목·뉴스
+# 종목
 GET /api/stocks/search?q=
 GET /api/stocks/{code}/investor/daily
-GET /api/news/stock/{code}?exchange=             # exchange 있으면 해외
 
 # 인증·의견
 GET  /api/auth/login | /callback | /me           공개
@@ -334,7 +332,7 @@ POST /api/feedback                                       # 500자
 | 시그널 로그, 눌림·돌파 | 5초 (`LIVE_REFRESH_MS`) |
 | 후보 목록, 첫 화면 주도주 | 10초 (`POOL_REFRESH_MS`, 서버 풀 갱신 주기와 같다) |
 | 지수·선물 시세, 1분 차트 | 30초 |
-| 타임라인(당일), 수급, 뉴스 | 60초 |
+| 타임라인(당일), 수급 | 60초 |
 | 과거 일자, 일봉 | 폴링 안 함 |
 
 - 기본 `staleTime` 5초, 창 복귀 시 재조회

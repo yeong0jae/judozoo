@@ -23,7 +23,7 @@ presentation ──▶ application ──▶ domain ◀── infrastructure
 
 ```
 backend/src/backend
-├── <feature>/        # feature packages: leadingstock, market, stock, theme, news, ...
+├── <feature>/        # feature packages: leadingstock, market, stock, ...
 │   ├── presentation.py
 │   ├── application.py
 │   ├── domain.py
