@@ -125,7 +125,7 @@ Backend (Python + FastAPI, package by feature)
 
 | 테이블 | 내용 |
 |--------|------|
-| `signal_event` | 종목 전이 — `VOLUME_SPIKE` / `MA_REBOUND` / `MA_BREAKDOWN`. 돌파·임박 타입은 2026-09-13 제거, 옛 행은 이력 |
+| `signal_event` | 종목 전이 — `VOLUME_SPIKE`. 돌파·임박은 2026-09-13, 반등·꺾임(`MA_REBOUND` / `MA_BREAKDOWN`)은 2026-09-28 제거, 옛 행은 이력 |
 | `market_signal_event` | 시장 전이 — `NET_BUY_LEVEL` / `NET_FLOW_TURN` / `MA_REBOUND` / `MA_BREAKDOWN` |
 | `market_flow_state` | (시장, 투자자)별 순매수 흐름 정점. 재시작 후 흐름 전환 판정을 이어가기 위한 것 |
 

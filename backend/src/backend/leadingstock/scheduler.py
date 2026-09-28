@@ -168,12 +168,7 @@ def _detect_signal_events() -> None:
     recorded: list[SignalEvent] = []
     for r in application.signal_readings(settings.min_change_rate):
         prev = _signal_states.get(r.stock_code, SignalState())
-        fired, next_state = prev.advance(
-            SignalReading(
-                r.spike_ratio,
-                r.ma_crossed_up, r.ma_crossed_down, r.ma_below_band, r.ma_above_band,
-            )
-        )
+        fired, next_state = prev.advance(SignalReading(r.spike_ratio))
         _signal_states[r.stock_code] = next_state
         if not fired:
             continue
@@ -204,12 +199,9 @@ def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date) -> 
         spike_ratio=r.spike_ratio if spike else None,
         minute_trading_value=r.minute_trading_value if spike else None,
         spike_direction=r.spike_direction if spike else None,
-        ma=r.ma if event_type in _MA_EVENTS else None,
+        ma=None,  # 종목 반등·꺾임이 사라져 항상 비어 있다(컬럼은 이력 때문에 남김)
         created_at=at, updated_at=at,
     )
-
-
-_MA_EVENTS = (SignalEventType.MA_REBOUND, SignalEventType.MA_BREAKDOWN)
 
 
 # ── 시장 시그널 폴러 ────────────────────────────────────────────────────

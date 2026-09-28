@@ -68,7 +68,6 @@ class IndexTick:
 
 # ── 캔들 컬렉션 ─────────────────────────────────────────────────────────
 
-import math  # noqa: E402
 from enum import Enum  # noqa: E402
 
 
@@ -119,21 +118,6 @@ class SwingLowSignal:
     trough_price: int
     trough_at: datetime
     gap_rate: float
-
-
-@dataclass(frozen=True)
-class MovingAverageReading:
-    """분봉 이평 교차 판정. `ma`는 최신 확정봉 시점 이평값(원, 반올림).
-
-    `*_band`는 히스테리시스 재무장용이다 — 한 번 발화한 뒤 반대편으로 마진만큼
-    벗어나야 다시 무장한다. 이평 근처에서 흔들릴 때 같은 사건이 반복 적재되는 걸 막는다.
-    """
-
-    crossed_up: bool
-    crossed_down: bool
-    below_band: bool
-    above_band: bool
-    ma: int
 
 
 #: 주도주 점수에서 거래대금 축에 주는 무게(나머지 0.3은 등락률). 0.5면 두 축이 대등하다.
@@ -237,52 +221,6 @@ class MinuteCandles:
             direction=_spike_direction(latest),
         )
 
-    def moving_average(
-        self, interval_minutes: int, period: int, rearm_margin: float
-    ) -> MovingAverageReading | None:
-        """확정 봉 이력에서 최신 확정봉이 이평을 아래→위로 돌파한 봉인지 직접 판정한다.
-
-        마지막 봉은 진행 중이라 뺀다. 직전 확정봉의 이평까지 필요해 확정 봉이
-        `period`+1개 미만이면 None. 폴러 관측 이력이 아니라 **봉 데이터 자체**로 크로스를
-        잡으므로, 방금 후보에 든 종목도 최신 확정봉이 크로스면 잡힌다.
-        """
-        bars = self._aggregate(interval_minutes)[:-1]
-        if len(bars) < period + 1:
-            return None
-        latest, prev = bars[-1], bars[-2]
-        ma_latest = sum(b.close_price for b in bars[-period:]) / period
-        ma_prev = sum(b.close_price for b in bars[-period - 1 : -1]) / period
-        return MovingAverageReading(
-            crossed_up=prev.close_price <= ma_prev and latest.close_price > ma_latest,
-            crossed_down=prev.close_price >= ma_prev and latest.close_price < ma_latest,
-            below_band=latest.close_price < ma_latest * (1 - rearm_margin),
-            above_band=latest.close_price > ma_latest * (1 + rearm_margin),
-            # Java `Math.round`는 floor(x+0.5) — Python 기본 round()의 은행가 반올림과 갈린다.
-            ma=math.floor(ma_latest + 0.5),
-        )
-
-    def _aggregate(self, interval_minutes: int) -> list[MinuteCandle]:
-        """구간 경계로 묶어 시가=첫봉, 종가=끝봉, 고저=구간 극값, 거래량·대금=합으로 합성."""
-        groups: dict[datetime, list[MinuteCandle]] = {}
-        for c in self._ordered:
-            start = c.date_time.replace(
-                minute=c.date_time.minute // interval_minutes * interval_minutes,
-                second=0, microsecond=0,
-            )
-            groups.setdefault(start, []).append(c)
-        return [
-            MinuteCandle(
-                date_time=start,
-                open_price=group[0].open_price,
-                high_price=max(g.high_price for g in group),
-                low_price=min(g.low_price for g in group),
-                close_price=group[-1].close_price,
-                volume=sum(g.volume for g in group),
-                trading_value=sum(g.trading_value for g in group),
-            )
-            for start, group in sorted(groups.items())
-        ]
-
 
 # 종가가 봉 레인지의 어디서 끝났는지 — 매수는 상위 절반, 매도는 하위 30%.
 # 일부러 비대칭이다. 여기 오르는 종목(주도주)만 들어오므로 매수 쪽을 넓게 잡는다.
@@ -385,7 +323,7 @@ class IndexMinuteCandles:
     def moving_average(
         self, interval_minutes: int, period: int, rearm_margin: float
     ) -> IndexMaSignal | None:
-        """종목 돌림(`MinuteCandles.moving_average`)과 동일 규칙 — 진행 중인 마지막 봉은 뺀다."""
+        """진행 중인 마지막 봉은 뺀다."""
         bars = self._aggregate(interval_minutes)[:-1]
         if len(bars) < period + 1:
             return None

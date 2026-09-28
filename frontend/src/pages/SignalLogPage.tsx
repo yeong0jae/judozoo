@@ -44,31 +44,21 @@ function clockClass(iso: string): string {
 
 const EVENT_META: Record<SignalEventType, { label: string; chip: string }> = {
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300" },
-  // 지지·저항 화면과 같은 색을 쓴다 — 주황=위(저항 방향), 하늘=아래(지지 방향).
-  // 색이 화면마다 다른 방향을 뜻하면 읽는 사람이 매번 다시 배워야 한다.
-  MA_REBOUND: { label: "반등", chip: "bg-orange-500/15 text-orange-400" },
-  MA_BREAKDOWN: { label: "꺾임", chip: "bg-sky-500/15 text-sky-400" },
-  // 생성 중단(2026-09-13). 과거 날짜 조회용으로만 남는다 — 흐린 톤으로 구분한다.
+  // 생성 중단(반등·꺾임 2026-09-28, 돌파·임박 2026-09-13). 과거 날짜 조회용으로만 남는다 — 흐린 톤으로 구분한다.
+  MA_REBOUND: { label: "반등", chip: "bg-zinc-700/40 text-zinc-400" },
+  MA_BREAKDOWN: { label: "꺾임", chip: "bg-zinc-700/40 text-zinc-400" },
   BREAKOUT: { label: "돌파", chip: "bg-zinc-700/40 text-zinc-400" },
   BREAKOUT_IMMINENT: { label: "임박", chip: "bg-zinc-700/40 text-zinc-500" },
 };
 
-// 방향이 짝인 것끼리 한 탭으로 묶는다.
-type TypeFilter = "ALL" | "MARKET" | "MA_GROUP" | SignalEventType;
+type TypeFilter = "ALL" | "MARKET" | SignalEventType;
 
 /** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
-  { key: "MA_GROUP", label: "반등 / 꺾임" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
   { key: "MARKET", label: "지수" },
 ];
-
-/** 유형 필터 매칭 — 묶음 탭은 짝을 이루는 두 유형을 함께 통과시킨다. */
-function matchesType(eventType: SignalEventType, filter: TypeFilter): boolean {
-  if (filter === "MA_GROUP") return eventType === "MA_REBOUND" || eventType === "MA_BREAKDOWN";
-  return eventType === filter;
-}
 
 const MARKET_LABEL: Record<MarketType, string> = {
   KOSPI: "코스피",
@@ -260,10 +250,10 @@ function detailOf(e: SignalEventItem, accumulated = true) {
     );
   }
   if (e.eventType === "MA_REBOUND" || e.eventType === "MA_BREAKDOWN") {
-    // 칩·점과 같은 색을 쓴다 — 주황=반등(위), 하늘=꺾임(아래)
+    // 과거 날짜에만 나온다 — 칩처럼 흐린 톤
     const up = e.eventType === "MA_REBOUND";
     return (
-      <span className={up ? "text-orange-400" : "text-sky-300"}>
+      <span className="text-zinc-500">
         5분 20이평{e.ma != null && ` ${formatPrice(e.ma)}원`}{" "}
         {up ? "상향돌파" : "하향이탈"}
       </span>
@@ -481,7 +471,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
   // 미로그인은 필터 조작이 막혀 있다 — 저장돼 있던 값이 미리보기를 조용히 깎지 않게 무시한다
   const events = authenticated
     ? allEvents.filter(
-        (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || matchesType(e.eventType, typeFilter)),
+        (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter),
       )
     : allEvents;
   const allMarketEvents = marketQ.data?.events ?? []; // 여정용 — 필터 무관 전체

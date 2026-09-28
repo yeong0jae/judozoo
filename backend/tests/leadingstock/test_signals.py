@@ -14,14 +14,8 @@ from backend.leadingstock.signals import (
 )
 
 
-def 측정(
-    스파이크=None, 이평상향=None, 이평하향=None, 이평아래=None, 이평위=None,
-) -> SignalReading:
-    return SignalReading(
-        spike_ratio=스파이크,
-        ma_crossed_up=이평상향, ma_crossed_down=이평하향,
-        ma_below_band=이평아래, ma_above_band=이평위,
-    )
+def 측정(스파이크=None) -> SignalReading:
+    return SignalReading(spike_ratio=스파이크)
 
 
 def 흘려보내기(*측정들) -> tuple[list[SignalEventType], SignalState]:
@@ -52,26 +46,6 @@ class Test거래대금_스파이크:
         events, _ = 흘려보내기(측정(스파이크=4.0), 측정(스파이크=1.5), 측정(스파이크=3.2))
 
         assert events == [SignalEventType.VOLUME_SPIKE]
-
-
-class Test동시_전이:
-    def test_반등과_스파이크가_한_시점에_켜지면_둘_다_낸다(self):
-        events, _ = SignalState().advance(측정(스파이크=5.0, 이평상향=True))
-
-        assert set(events) == {SignalEventType.VOLUME_SPIKE, SignalEventType.MA_REBOUND}
-
-    def test_측정값이_없으면_전이도_없고_무장_상태가_보존된다(self):
-        """분봉이 없는 순간 — 상태를 리셋하면 다음 폴에서 헛발화한다.
-
-        스파이크는 배율이 사라지면 **의도적으로** 해제된다(식은 것으로 본다).
-        보존돼야 하는 건 20이평 무장 상태다.
-        """
-        _, 발화후 = SignalState().advance(측정(이평상향=True))
-
-        events, next_state = 발화후.advance(측정())
-
-        assert events == []
-        assert next_state.ma_rebound_armed is False
 
 
 class Test순매수_흐름_전환:
@@ -166,55 +140,3 @@ class Test순매수_단계:
         전이, _ = self.흘리기(InvestorNetBuyState(), -10_000)
 
         assert 전이 == NetBuyTransition(NetTradeSide.SELL, 1)
-
-
-class Test20이평_반등과_꺾임:
-    """시장 시그널과 같은 개념 — 아래→위는 반등, 위→아래는 꺾임.
-
-    이 배선이 한 번 끊겨 두 달간 한 건도 적재되지 않은 적이 있다(2026-07-15~09-13).
-    측정값은 흘러들어오는데 상태기가 쓰지 않는 형태였다.
-    """
-
-    def test_아래에서_위로_뚫으면_반등이다(self):
-        전이, _ = 흘려보내기(측정(이평상향=True))
-
-        assert 전이 == [SignalEventType.MA_REBOUND]
-
-    def test_위에서_아래로_뚫으면_꺾임이다(self):
-        전이, _ = 흘려보내기(측정(이평하향=True))
-
-        assert 전이 == [SignalEventType.MA_BREAKDOWN]
-
-    def test_같은_반등은_다시_울리지_않는다(self):
-        전이, _ = 흘려보내기(측정(이평상향=True), 측정(이평상향=True))
-
-        assert 전이 == []
-
-    def test_이평_아래로_내려갔다_다시_뚫으면_재발화한다(self):
-        전이, _ = 흘려보내기(
-            측정(이평상향=True),   # 1차 반등
-            측정(이평아래=True),   # 마진만큼 내려와 재무장
-            측정(이평상향=True),   # 2차 반등
-        )
-
-        assert 전이 == [SignalEventType.MA_REBOUND]
-
-    def test_이평_위로_올라갔다_다시_깨면_꺾임이_재발화한다(self):
-        전이, _ = 흘려보내기(
-            측정(이평하향=True),
-            측정(이평위=True),
-            측정(이평하향=True),
-        )
-
-        assert 전이 == [SignalEventType.MA_BREAKDOWN]
-
-    def test_재무장_없이는_꺾임도_한_번만(self):
-        전이, _ = 흘려보내기(측정(이평하향=True), 측정(이평하향=True))
-
-        assert 전이 == []
-
-    def test_측정값이_없으면_상태를_건드리지_않는다(self):
-        _, 상태 = 흘려보내기(측정(이평상향=True), 측정())
-
-        assert 상태.ma_rebound_armed is False
-

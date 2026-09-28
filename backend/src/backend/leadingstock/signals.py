@@ -12,12 +12,11 @@ class SignalEventType(Enum):
     """적재 대상 시그널 전이 종류.
 
     돌파·임박은 2026-09-13에 제거했다 — 지지·저항 화면이 근접도를 실시간으로 보여주므로
-    "가까워졌다"를 사건으로 또 적재할 이유가 없어졌다. DB의 옛 행은 이력으로 남아 있다.
+    "가까워졌다"를 사건으로 또 적재할 이유가 없어졌다. 종목 반등·꺾임(20이평 돌파)은
+    2026-09-28에 제거했다. DB의 옛 행은 이력으로 남아 있다.
     """
 
     VOLUME_SPIKE = "VOLUME_SPIKE"              # 1분 거래대금 배율이 임계를 처음 넘긴 순간
-    MA_REBOUND = "MA_REBOUND"                  # 5분봉 종가가 20이평을 아래→위로 뚫은 반등
-    MA_BREAKDOWN = "MA_BREAKDOWN"              # 5분봉 종가가 20이평을 위→아래로 뚫은 꺾임
 
 
 class MarketSignalType(Enum):
@@ -52,10 +51,6 @@ class SignalReading:
     """한 종목의 현재 시그널 측정값(한 폴링 시점). 값이 없으면 None."""
 
     spike_ratio: float | None    # 최신 1분봉 거래대금 배율 — 임계 미달이면 None
-    ma_crossed_up: bool | None    # 최신 확정봉이 이평을 아래→위로 돌파한 봉인지
-    ma_crossed_down: bool | None  # 위→아래로 돌파한 봉인지
-    ma_below_band: bool | None    # 이평보다 마진 이상 아래인지(반등 재무장)
-    ma_above_band: bool | None    # 이평보다 마진 이상 위인지(꺾임 재무장)
 
 
 _SPIKE_FIRE_RATIO = 2.5
@@ -70,9 +65,6 @@ class SignalState:
     """
 
     spiking: bool = False
-    # 이평 히스테리시스 — 한 번 발화하면 반대편 밴드를 벗어나야 다시 무장한다.
-    ma_rebound_armed: bool = True
-    ma_breakdown_armed: bool = True
 
     def advance(self, reading: SignalReading) -> tuple[list[SignalEventType], "SignalState"]:
         events: list[SignalEventType] = []
@@ -86,21 +78,7 @@ class SignalState:
         elif spiking and (ratio is None or ratio < _SPIKE_RESET_RATIO):
             spiking = False
 
-        # 이평 반등·꺾임. 시장 시그널(MA_REBOUND/BREAKDOWN)과 같은 개념이다.
-        rebound_armed, breakdown_armed = self.ma_rebound_armed, self.ma_breakdown_armed
-        if reading.ma_crossed_up and rebound_armed:
-            events.append(SignalEventType.MA_REBOUND)
-            rebound_armed = False
-        elif reading.ma_below_band:
-            rebound_armed = True  # 이평 아래로 충분히 내려옴 — 다음 반등을 받을 준비
-
-        if reading.ma_crossed_down and breakdown_armed:
-            events.append(SignalEventType.MA_BREAKDOWN)
-            breakdown_armed = False
-        elif reading.ma_above_band:
-            breakdown_armed = True
-
-        return events, SignalState(spiking, rebound_armed, breakdown_armed)
+        return events, SignalState(spiking)
 
 
 @dataclass(frozen=True)

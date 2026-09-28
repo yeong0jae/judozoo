@@ -31,14 +31,6 @@ def 봉(분: int, *, 시가: int, 고가: int, 저가: int, 종가: int, 대금:
 평탄봉 = [봉(분, 시가=100, 고가=100, 저가=100, 종가=100, 대금=100) for 분 in range(3)]
 
 
-def 오분봉(구간: int, 종가: int) -> list[MinuteCandle]:
-    """1분봉 5개 = 5분봉 한 구간. 끝 봉 종가가 구간 종가가 된다."""
-    return [
-        MinuteCandle(기준 + timedelta(minutes=구간 * 5 + m), 종가, 종가, 종가, 종가, 0, 0)
-        for m in range(5)
-    ]
-
-
 class Test당일_고가_돌파:
     def test_최고가를_전고점으로_잡고_잔여_상승률을_낸다(self):
         캔들 = MinuteCandles([고가봉(0, 100), 고가봉(1, 105), 고가봉(2, 108), 고가봉(3, 106), 고가봉(4, 102)])
@@ -139,41 +131,6 @@ class Test거래대금_스파이크:
         한가격 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=100, 저가=100, 종가=100, 대금=500)])
 
         assert 한가격.volume_spike(baseline_bars=3).direction is SpikeDirection.FLAT
-
-
-class Test이평_돌림:
-    옵션 = dict(interval_minutes=5, period=3, rearm_margin=0.005)
-
-    def test_직전봉은_이평_이하고_최신봉이_위로_올라서면_돌림봉이다(self):
-        # 확정 [10,10,10,40] → 최신 이평 20, 끝봉 40>20 / 직전 이평 10, 직전봉 10<=10
-        캔들 = MinuteCandles(오분봉(0, 10) + 오분봉(1, 10) + 오분봉(2, 10) + 오분봉(3, 40) + 오분봉(4, 999))
-
-        ma = 캔들.moving_average(**self.옵션)
-
-        assert (ma.crossed_up, ma.below_band, ma.ma) == (True, False, 20)
-
-    def test_이미_이평_위에_쭉_있던_봉은_돌림봉이_아니다(self):
-        캔들 = MinuteCandles(오분봉(0, 10) + 오분봉(1, 10) + 오분봉(2, 40) + 오분봉(3, 50) + 오분봉(4, 999))
-
-        assert 캔들.moving_average(**self.옵션).crossed_up is False
-
-    def test_이평보다_마진_이상_아래면_재무장_신호를_켠다(self):
-        캔들 = MinuteCandles(오분봉(0, 40) + 오분봉(1, 40) + 오분봉(2, 40) + 오분봉(3, 10) + 오분봉(4, 999))
-
-        ma = 캔들.moving_average(**self.옵션)
-
-        assert (ma.crossed_up, ma.below_band) == (False, True)
-
-    def test_진행_중인_마지막_봉은_판정에서_뺀다(self):
-        """마지막 봉이 아무리 낮아도 확정 봉 기준으로만 판정한다."""
-        캔들 = MinuteCandles(오분봉(0, 10) + 오분봉(1, 10) + 오분봉(2, 10) + 오분봉(3, 40) + 오분봉(4, 1))
-
-        assert 캔들.moving_average(**self.옵션).crossed_up is True
-
-    def test_확정봉이_기간_더하기_1보다_적으면_None(self):
-        캔들 = MinuteCandles(오분봉(0, 10) + 오분봉(1, 20) + 오분봉(2, 30) + 오분봉(3, 40))
-
-        assert 캔들.moving_average(**self.옵션) is None
 
 
 오늘 = date(2026, 6, 9)

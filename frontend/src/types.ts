@@ -281,10 +281,10 @@ export interface BreakoutRadarResponse {
 // === 시그널 전이 로그 ===
 export type SignalEventType =
   | "VOLUME_SPIKE"
+  // 돌파·임박은 2026-09-13, 반등·꺾임은 2026-09-28에 생성을 중단했다. 과거 날짜를 보면
+  // DB에 남은 행이 조회되므로 표시 경로는 계속 살려 둔다.
   | "MA_REBOUND"
   | "MA_BREAKDOWN"
-  // 2026-09-13에 생성을 중단했다. 과거 날짜를 보면 DB에 남은 행이 조회되므로
-  // 표시 경로는 계속 살려 둔다.
   | "BREAKOUT"
   | "BREAKOUT_IMMINENT";
 
