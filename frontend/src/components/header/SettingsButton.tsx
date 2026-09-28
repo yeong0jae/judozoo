@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useTheme, type ThemeMode } from "../../theme/theme";
+import FeedbackModal from "./FeedbackModal";
 
 export default function SettingsButton() {
   const [open, setOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // 쓰던 의견은 버튼 쪽에 둔다 — 모달은 바깥을 누르면 닫히는데, 그때 초안까지 사라지면
+  // 잘못 눌렀다가 처음부터 다시 써야 한다.
+  const [feedback, setFeedback] = useState("");
 
   return (
     <>
@@ -11,7 +16,7 @@ export default function SettingsButton() {
         type="button"
         onClick={() => setOpen(true)}
         className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-          open ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
+          open || feedbackOpen ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
         }`}
         aria-label="설정"
       >
@@ -21,7 +26,26 @@ export default function SettingsButton() {
           <path d="M19.1 14.4a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.11a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.11a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08A1.7 1.7 0 0 0 10.14 3.1V3a2 2 0 1 1 4 0v.11a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.11a1.7 1.7 0 0 0-1.56 1.03z" />
         </svg>
       </button>
-      {open && <SettingsModal onClose={() => setOpen(false)} />}
+      {open && (
+        <SettingsModal
+          onClose={() => setOpen(false)}
+          onFeedback={() => {
+            setOpen(false);
+            setFeedbackOpen(true);
+          }}
+        />
+      )}
+      {feedbackOpen && (
+        <FeedbackModal
+          content={feedback}
+          onChange={setFeedback}
+          onClose={() => setFeedbackOpen(false)}
+          onSent={() => {
+            setFeedback("");
+            setFeedbackOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -32,7 +56,7 @@ export default function SettingsButton() {
  * body로 포털한다 — 트리거가 좌측 레일 안에 있어서, 그대로 두면 `fixed`가
  * 레일 폭에 갇혀 모달이 찌그러진다.
  */
-function SettingsModal({ onClose }: { onClose: () => void }) {
+function SettingsModal({ onClose, onFeedback }: { onClose: () => void; onFeedback: () => void }) {
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -56,6 +80,13 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <ThemeRow />
+        <button
+          type="button"
+          onClick={onFeedback}
+          className="mt-5 w-full rounded-xl bg-zinc-800 px-3 py-2.5 text-sm text-zinc-300 transition-colors hover:text-zinc-100"
+        >
+          의견 보내기
+        </button>
       </div>
     </div>,
     document.body,

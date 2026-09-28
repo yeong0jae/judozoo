@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useMe } from "../../api/auth";
 import { FEEDBACK_MAX_LENGTH, useSendFeedback } from "../../api/feedback";
@@ -14,102 +14,10 @@ const EXAMPLES = [
 ].join("\n");
 
 /**
- * 의견 보내기 — 설정·계정과 같은 자리(좌측 레일 하단, 모바일은 상단바)에 선다.
- *
- * 계정 버튼과 같은 규칙을 따른다 — 아이콘은 팝오버만 열고, 모달은 그 안의 항목을
- * 눌러야 뜬다. 아이콘 하나만 보고 무슨 버튼인지 알 길이 없어서, 글자가 한 번은
- * 나와야 한다. 레일이든 상단바든 마찬가지라, 열리는 방향만 다르게 받는다.
+ * 의견 모달 — 설정 모달의 "의견 보내기"로 연다. 설정 모달과 같은 이유로 body에 포털한다 —
+ * 트리거가 좌측 레일 안이라 그대로 두면 `fixed`가 레일 폭에 갇힌다.
  */
-export default function FeedbackButton({
-  placement = "right",
-}: {
-  /** right = 좌측 레일에서 오른쪽으로, bottom = 헤더에서 아래로 */
-  placement?: "right" | "bottom";
-}) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  // 쓰던 글은 버튼 쪽에 둔다 — 모달은 바깥을 누르면 닫히는데, 그때 초안까지 사라지면
-  // 잘못 눌렀다가 처음부터 다시 써야 한다.
-  const [content, setContent] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-
-  // 바깥 클릭·Esc로 닫기 — 계정 버튼과 같은 규칙
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
-
-  const panel =
-    placement === "right"
-      ? "left-full bottom-0 ml-2 origin-bottom-left"
-      : "right-0 top-full mt-2 origin-top-right";
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setMenuOpen((v) => !v)}
-        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-          menuOpen ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
-        }`}
-        aria-label="의견 보내기"
-        aria-expanded={menuOpen}
-        title="의견 보내기"
-      >
-        {/* nav 아이콘과 같은 24 그리드·1.8 획 */}
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2.8" y="5" width="18.4" height="14" rx="2.4" />
-          <path d="M3.4 7.2 12 13.2l8.6-6" />
-        </svg>
-      </button>
-
-      {/* 항목이 하나뿐이라 계정 패널(w-52)처럼 넓힐 이유가 없다 — 글자 폭에 맞춘다 */}
-      {menuOpen && (
-        <div
-          className={`absolute z-40 w-max rounded-xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-xl ${panel}`}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setMenuOpen(false);
-              setModalOpen(true);
-            }}
-            className="w-full whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-850"
-          >
-            의견 보내기
-          </button>
-        </div>
-      )}
-
-      {modalOpen && (
-        <FeedbackModal
-          content={content}
-          onChange={setContent}
-          onClose={() => setModalOpen(false)}
-          onSent={() => {
-            setContent("");
-            setModalOpen(false);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * 의견 모달. 설정 모달과 같은 이유로 body에 포털한다 — 트리거가 좌측 레일 안이라
- * 그대로 두면 `fixed`가 레일 폭에 갇힌다.
- */
-function FeedbackModal({
+export default function FeedbackModal({
   content,
   onChange,
   onClose,

@@ -2,7 +2,6 @@ import { NavLink } from "react-router-dom";
 import { NAV } from "./nav";
 import Logo from "./Logo";
 import AccountButton from "../header/AccountButton";
-import FeedbackButton from "../header/FeedbackButton";
 import SettingsButton from "../header/SettingsButton";
 
 /** 좌측 고정 레일. 모바일에서는 숨기고 Header의 드로어가 대신한다. */
@@ -38,10 +37,9 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* 하단 고정 — 위가 계정, 가운데가 의견, 맨 아래가 설정 */}
+      {/* 하단 고정 — 위가 계정, 아래가 설정(의견 보내기는 설정 안에) */}
       <div className="mt-auto flex w-full flex-col items-center gap-1 pb-3">
         <AccountButton placement="right" />
-        <FeedbackButton />
         <SettingsButton />
       </div>
     </aside>
