@@ -2,6 +2,8 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import SettingsButton from "../header/SettingsButton";
 import AccountButton from "../header/AccountButton";
+import InstagramIcon from "../common/InstagramIcon";
+import { INSTAGRAM_URL } from "../../lib/instagram";
 import { NAV } from "./nav";
 import HeaderTicker from "./HeaderTicker";
 import Wordmark from "./Wordmark";
@@ -37,7 +39,7 @@ export default function Header() {
           <Wordmark size={22} />
         </NavLink>
 
-        {/* 모바일은 햄버거·워드마크·계정·설정이 이미 차지해 자리가 없다 */}
+        {/* 모바일은 햄버거·워드마크·인스타·계정·설정이 이미 차지해 자리가 없다 */}
         <div className="hidden min-w-0 flex-1 md:flex">
           <HeaderTicker />
         </div>
@@ -45,6 +47,16 @@ export default function Header() {
 
         {/* 데스크톱은 좌측 레일 하단이 맡는다 — 레일이 숨는 모바일에서만 보여준다 */}
         <div className="flex items-center gap-1 md:hidden">
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-850 hover:text-zinc-200"
+            aria-label="인스타그램"
+            title="인스타그램"
+          >
+            <InstagramIcon />
+          </a>
           <AccountButton placement="bottom" />
           <SettingsButton />
         </div>

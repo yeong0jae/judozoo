@@ -3,6 +3,8 @@ import { NAV } from "./nav";
 import Logo from "./Logo";
 import AccountButton from "../header/AccountButton";
 import SettingsButton from "../header/SettingsButton";
+import { INSTAGRAM_URL } from "../../lib/instagram";
+import InstagramIcon from "../common/InstagramIcon";
 
 /** 좌측 고정 레일. 모바일에서는 숨기고 Header의 드로어가 대신한다. */
 export default function Sidebar() {
@@ -37,8 +39,18 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* 하단 고정 — 위가 계정, 아래가 설정(의견 보내기는 설정 안에) */}
+      {/* 하단 고정 — 위부터 인스타, 계정, 설정(의견 보내기는 설정 안에) */}
       <div className="mt-auto flex w-full flex-col items-center gap-1 pb-3">
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-850 hover:text-zinc-200"
+          aria-label="인스타그램"
+          title="인스타그램"
+        >
+          <InstagramIcon />
+        </a>
         <AccountButton placement="right" />
         <SettingsButton />
       </div>
