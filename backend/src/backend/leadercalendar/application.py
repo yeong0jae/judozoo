@@ -1,9 +1,11 @@
 """주도주 캘린더 — 마감 스냅샷과 월 조회.
 
 무엇이 주도주인지는 홈 카드가 정한다. 여기서는 그 답을 마감 때 한 번 받아 남긴다.
+마감 기록 전의 오늘은 타임라인이 매분 남긴 마지막 분으로 채워 보인다 — 같은 답을 같은 풀에서 받은 것이다.
 """
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -12,6 +14,8 @@ from sqlalchemy.orm import Session
 
 from backend.leadercalendar.domain import previous_weekday
 from backend.leadercalendar.entities import LeaderDay, LeaderDayStock
+from backend.leadertimeline import application as leadertimeline
+from backend.leadertimeline.entities import LeaderTickStock
 from backend.leadingstock import application as leadingstock
 from backend.market.calendar import Region
 from backend.overseasleadingstock import application as overseasleadingstock
@@ -26,8 +30,10 @@ LEADERS_COUNT = 5
 @dataclass(frozen=True)
 class RecordedDay:
     trade_date: date
-    stocks: list[LeaderDayStock]
+    stocks: Sequence[LeaderDayStock | LeaderTickStock]
     closed: bool = False
+    #: 마감 기록 전의 오늘 — 타임라인의 마지막 분이라 순위가 아직 바뀐다
+    live: bool = False
 
 
 def snapshot_domestic(session: Session, trade_date: date, at: datetime) -> int:
@@ -78,10 +84,23 @@ def find_month(session: Session, year: int, month: int) -> tuple[list[RecordedDa
     """(국내 날들, 해외 날들). 해외는 **그달 1일 직전 평일부터** — 1일 칸에 붙는 해외장이 전달에 있다."""
     first = date(year, month, 1)
     after = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    us_start = previous_weekday(first)
     return (
-        _days(session, Region.KR, first, after),
-        _days(session, Region.US, previous_weekday(first), after),
+        _with_today(session, Region.KR, _days(session, Region.KR, first, after), first, after),
+        _with_today(session, Region.US, _days(session, Region.US, us_start, after), us_start, after),
     )
+
+
+def _with_today(session: Session, region: Region, days: list[RecordedDay], start: date, end: date) -> list[RecordedDay]:
+    """마감 기록이 아직 없는 오늘을 타임라인의 마지막 분으로 채운다. 타임라인은 장 시간·휴장일을 이미 걸러
+    찍으므로, 장 전에 풀이 들고 있는 어제 값이 오늘 칸에 들어오지 않는다."""
+    today = region.today()
+    if not (start <= today < end) or any(d.trade_date == today for d in days):
+        return days
+    tick = leadertimeline.latest(session, region, today)
+    if tick is None:
+        return days
+    return [*days, RecordedDay(today, tick.stocks, live=True)]
 
 
 def _days(session: Session, region: Region, start: date, end: date) -> list[RecordedDay]:

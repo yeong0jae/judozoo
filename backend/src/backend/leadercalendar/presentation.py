@@ -25,10 +25,12 @@ class LeaderStockItem(BaseModel):
 
 
 class LeaderDayItem(BaseModel):
-    """`closed`면 휴장. 아니고 `stocks`가 비어 있으면 그날은 주도주가 없었다. 날 자체가 없으면 기록이 없다."""
+    """`closed`면 휴장. 아니고 `stocks`가 비어 있으면 그날은 주도주가 없었다. 날 자체가 없으면 기록이 없다.
+    `live`면 마감 기록 전의 오늘이라 순위가 아직 바뀐다."""
 
     date: date
     closed: bool
+    live: bool
     stocks: list[LeaderStockItem]
 
 
@@ -55,6 +57,7 @@ def _items(days: list[RecordedDay]) -> list[LeaderDayItem]:
         LeaderDayItem(
             date=d.trade_date,
             closed=d.closed,
+            live=d.live,
             stocks=[
                 LeaderStockItem(
                     rank=s.rank, exchange=s.exchange, code=s.code, name=s.name,

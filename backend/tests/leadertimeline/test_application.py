@@ -126,3 +126,24 @@ class Test하루_조회:
             application.snapshot(s, Region.KR, 분(10, 15), TAKEN)
         with 세션() as s:
             assert application.find_day(s, Region.US, 그날) == []
+
+
+@pytest.mark.integration
+class Test마지막_분:
+    def test_그날_가장_늦은_분을_순위_순으로_준다(self, 빈_타임라인, mocker):
+        국내_주도주(mocker, [국내("005930", "삼성전자")])
+        with 세션() as s:
+            application.snapshot(s, Region.KR, 분(10, 15), TAKEN)
+        국내_주도주(mocker, [국내("000660", "SK하이닉스"), 국내("005930", "삼성전자")])
+        with 세션() as s:
+            application.snapshot(s, Region.KR, 분(10, 16), TAKEN)
+
+        with 세션() as s:
+            tick = application.latest(s, Region.KR, 그날)
+
+        assert tick.at == 분(10, 16)
+        assert [(x.rank, x.name) for x in tick.stocks] == [(1, "SK하이닉스"), (2, "삼성전자")]
+
+    def test_찍힌_분이_없으면_없다(self, 빈_타임라인):
+        with 세션() as s:
+            assert application.latest(s, Region.KR, 그날) is None

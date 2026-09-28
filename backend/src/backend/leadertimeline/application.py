@@ -73,6 +73,22 @@ def find_day(session: Session, region: Region, trade_date: date, since: datetime
     return [RecordedTick(t.at, by_tick[t.id]) for t in ticks]
 
 
+def latest(session: Session, region: Region, trade_date: date) -> RecordedTick | None:
+    """그날 마지막 분. 캘린더가 마감 기록 전의 오늘 칸을 채울 때 쓴다."""
+    tick = session.scalars(
+        select(LeaderTick)
+        .where(LeaderTick.region == region, LeaderTick.trade_date == trade_date)
+        .order_by(LeaderTick.at.desc())
+        .limit(1)
+    ).first()
+    if tick is None:
+        return None
+    stocks = session.scalars(
+        select(LeaderTickStock).where(LeaderTickStock.leader_tick_id == tick.id).order_by(LeaderTickStock.rank)
+    ).all()
+    return RecordedTick(tick.at, list(stocks))
+
+
 def last_taken_at(session: Session, region: Region, trade_date: date) -> datetime | None:
     """그날 마지막으로 찍은 실제 시각(KST). 화면의 "47초 전"이 여기서 나온다."""
     return session.scalars(

@@ -55,10 +55,18 @@ class Test주도주_캘린더_API:
         assert 데이터["domestic"][0] == {
             "date": "2026-09-23",
             "closed": False,
+            "live": False,
             "stocks": [{
                 "rank": 1, "exchange": None, "code": "000660", "name": "SK하이닉스",
                 "price": 250000.0, "changeRate": 2.2, "tradingValue": 971000000000.0,
             }],
         }
-        assert 데이터["domestic"][1] == {"date": "2026-09-14", "closed": False, "stocks": []}
-        assert 데이터["domestic"][2] == {"date": "2026-09-24", "closed": True, "stocks": []}
+        assert 데이터["domestic"][1] == {"date": "2026-09-14", "closed": False, "live": False, "stocks": []}
+        assert 데이터["domestic"][2] == {"date": "2026-09-24", "closed": True, "live": False, "stocks": []}
+
+    def test_마감_기록_전의_오늘은_진행_중으로_준다(self, client, mocker):
+        한_달(mocker, 국내=[RecordedDay(date(2026, 9, 23), [], live=True)])
+
+        데이터 = client.get("/api/leader-calendar", params={"month": "2026-09"}).json()["data"]
+
+        assert 데이터["domestic"][0]["live"] is True

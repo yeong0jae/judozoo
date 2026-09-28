@@ -62,12 +62,15 @@ export default function LeaderCalendarPage() {
   const [focus, setFocus] = useState<string | null>(null);
 
   const month = `${view.y}-${pad(view.m + 1)}`;
-  const { data, isLoading, isError } = useLeaderCalendar(month);
+  // 해외 오늘(뉴욕 날짜)이 전달 끝이어도 이번 달 응답에 딸려 온다 — 이번 달만 다시 받으면 된다
+  const { data, isLoading, isError } = useLeaderCalendar(month, month === today.slice(0, 7));
 
   const domestic = useMemo(() => byDate(data?.domestic), [data]);
   const overseas = useMemo(() => byDate(data?.overseas), [data]);
   const krClosed = useMemo(() => closedDates(data?.domestic), [data]);
   const usClosed = useMemo(() => closedDates(data?.overseas), [data]);
+  const krLive = useMemo(() => liveDates(data?.domestic), [data]);
+  const usLive = useMemo(() => liveDates(data?.overseas), [data]);
   const days = useMemo(() => weekdaysOf(view.y, view.m), [view]);
 
   const setMode = (m: Mode) => {
@@ -188,6 +191,8 @@ export default function LeaderCalendarPage() {
                   domestic={domestic.get(d)}
                   krClosed={krClosed.has(d)}
                   usClosed={usClosed.has(d)}
+                  krLive={krLive.has(d)}
+                  usLive={usLive.has(d)}
                   overseas={overseas.get(d)}
                   selected={d === current}
                   focus={focus}
@@ -209,6 +214,8 @@ export default function LeaderCalendarPage() {
             domestic={current ? domestic.get(current) : undefined}
             krClosed={current ? krClosed.has(current) : false}
             usClosed={current ? usClosed.has(current) : false}
+            krLive={current ? krLive.has(current) : false}
+            usLive={current ? usLive.has(current) : false}
             overseas={current ? overseas.get(current) : undefined}
           />
           <section className="rounded-[14px] border border-zinc-800 p-[16px]">
@@ -269,6 +276,10 @@ function closedDates(items: LeaderDayItem[] | undefined): Set<string> {
   return new Set((items ?? []).filter((d) => d.closed).map((d) => d.date));
 }
 
+function liveDates(items: LeaderDayItem[] | undefined): Set<string> {
+  return new Set((items ?? []).filter((d) => d.live).map((d) => d.date));
+}
+
 /** 그달의 평일 — 주말 칸은 두지 않는다. */
 function weekdaysOf(y: number, m: number): string[] {
   const out: string[] = [];
@@ -303,6 +314,16 @@ function MarketTag({ overseas }: { overseas: boolean }) {
       }`}
     >
       {overseas ? "해외" : "국내"}
+    </span>
+  );
+}
+
+/** 마감 기록 전의 오늘 — 순위가 아직 바뀐다. */
+function LiveBadge() {
+  return (
+    <span className="flex items-center gap-[4px] text-[10.5px] font-semibold text-emerald-600">
+      <i className="h-[5px] w-[5px] animate-pulse rounded-full bg-current" />
+      진행 중
     </span>
   );
 }
@@ -345,6 +366,8 @@ function DayCell({
   domestic,
   krClosed,
   usClosed,
+  krLive,
+  usLive,
   overseas,
   selected,
   focus,
@@ -359,6 +382,8 @@ function DayCell({
   domestic: LeaderStockItem[] | undefined;
   krClosed: boolean;
   usClosed: boolean;
+  krLive: boolean;
+  usLive: boolean;
   overseas: LeaderStockItem[] | undefined;
   selected: boolean;
   focus: string | null;
@@ -377,6 +402,8 @@ function DayCell({
   const tag =
     closed ? (
       <span className="text-[11px] font-semibold text-zinc-500">휴장</span>
+    ) : mode === "domestic" && krLive ? (
+      <LiveBadge />
     ) : date === today ? (
       <span className="text-[11px] font-semibold text-zinc-500">오늘</span>
     ) : mode === "domestic" && domestic ? (
@@ -393,7 +420,10 @@ function DayCell({
         <div className="flex flex-col gap-[3px]">
           {mode === "both" && (
             <div className="flex items-center justify-between text-[10.5px] font-bold text-zinc-500">
-              <span>국내</span>
+              <span className="flex items-center gap-[6px]">
+                국내
+                {krLive && <LiveBadge />}
+              </span>
               {domestic!.length > 0 && <CountDots n={domestic!.length} />}
             </div>
           )}
@@ -407,7 +437,10 @@ function DayCell({
       {showUs && (
         <div className="-mx-[4px] flex flex-col gap-[3px] rounded-[8px] bg-(--leader-overseas-tint) px-[8px] py-[6px]">
           <div className="flex items-center justify-between text-[10.5px] font-bold text-(--leader-overseas)">
-            <span>해외</span>
+            <span className="flex items-center gap-[6px]">
+              해외
+              {usLive && <LiveBadge />}
+            </span>
             {overseas && overseas.length > 0 && <CountDots n={overseas.length} />}
           </div>
           {usClosed ? (
@@ -464,6 +497,8 @@ function DayDetail({
   domestic,
   krClosed,
   usClosed,
+  krLive,
+  usLive,
   overseas,
 }: {
   date: string | null;
@@ -472,6 +507,8 @@ function DayDetail({
   domestic: LeaderStockItem[] | undefined;
   krClosed: boolean;
   usClosed: boolean;
+  krLive: boolean;
+  usLive: boolean;
   overseas: LeaderStockItem[] | undefined;
 }) {
   if (!date) {
@@ -497,8 +534,8 @@ function DayDetail({
       <h3 className="text-[15px] font-bold">
         {d.getMonth() + 1}월 {d.getDate()}일 ({WEEKDAYS[d.getDay()]})
       </h3>
-      {mode !== "overseas" && <DetailList title="국내" stocks={domestic} empty={krEmpty} />}
-      {mode !== "domestic" && <DetailList title="해외" stocks={overseas} empty={usEmpty} usd />}
+      {mode !== "overseas" && <DetailList title="국내" stocks={domestic} empty={krEmpty} live={krLive} />}
+      {mode !== "domestic" && <DetailList title="해외" stocks={overseas} empty={usEmpty} live={usLive} usd />}
     </section>
   );
 }
@@ -507,19 +544,25 @@ function DetailList({
   title,
   stocks,
   empty,
+  live,
   usd = false,
 }: {
   title: string;
   stocks: LeaderStockItem[] | undefined;
   empty: string;
+  live: boolean;
   usd?: boolean;
 }) {
   return (
     <div className="mt-[14px]">
       <div className={`mb-[4px] flex justify-between text-[12px] font-bold ${usd ? "text-(--leader-overseas)" : "text-zinc-500"}`}>
-        <span>{title}</span>
+        <span className="flex items-center gap-[6px]">
+          {title}
+          {live && <LiveBadge />}
+        </span>
         {stocks && stocks.length > 0 && <span>{stocks.length}종목</span>}
       </div>
+      {live && <p className="mb-[4px] text-[11px] text-zinc-500">마감 전이라 순위가 바뀔 수 있습니다.</p>}
       {stocks && stocks.length ? (
         <ol className="flex flex-col">
           {stocks.map((s) => (

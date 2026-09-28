@@ -163,11 +163,12 @@ export function useLeadingStockLeaders() {
   });
 }
 
-/** 주도주 캘린더 한 달치. `month`는 "2026-09". 값은 하루 두 번(국내 20:01, 해외 16:01 ET) 바뀐다. */
-export function useLeaderCalendar(month: string) {
+/** 주도주 캘린더 한 달치. `month`는 "2026-09". 마감 기록 전의 오늘은 매분 바뀌어 이번 달이면 1분마다 다시 받는다. */
+export function useLeaderCalendar(month: string, live: boolean) {
   return useQuery({
     queryKey: QK.leaderCalendar(month),
     queryFn: () => apiFetch<LeaderCalendarResponse>(`/api/leader-calendar?month=${month}`),
+    refetchInterval: live ? 60_000 : false,
   });
 }
 

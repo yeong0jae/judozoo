@@ -6,6 +6,8 @@ import pytest
 
 from backend.leadercalendar import application
 from backend.leadercalendar.entities import LeaderDay, LeaderDayStock
+from backend.leadertimeline import application as leadertimeline
+from backend.leadertimeline.entities import LeaderTick, LeaderTickStock
 from backend.leadingstock.domain import LeadingStockSnapshot
 from backend.library import db
 from backend.market.calendar import Region
@@ -34,9 +36,14 @@ def 빈_캘린더(통합_db):
     engine = db.get_engine()
     LeaderDay.__table__.create(engine, checkfirst=True)
     LeaderDayStock.__table__.create(engine, checkfirst=True)
+    # 월 조회가 마감 기록 전의 오늘을 타임라인에서 채운다
+    LeaderTick.__table__.create(engine, checkfirst=True)
+    LeaderTickStock.__table__.create(engine, checkfirst=True)
     with db.get_session_factory()() as s:
         s.query(LeaderDayStock).delete()
         s.query(LeaderDay).delete()
+        s.query(LeaderTickStock).delete()
+        s.query(LeaderTick).delete()
         s.commit()
 
 
@@ -147,3 +154,59 @@ class Test월_조회:
 
         assert [d.trade_date for d in 국내들] == [date(2026, 9, 1)]
         assert [d.trade_date for d in 해외들] == [date(2026, 8, 31), date(2026, 9, 1)]
+
+
+def 지금은(mocker, kst: datetime):
+    mocker.patch("backend.market.calendar.now", return_value=kst)
+
+
+def 타임라인에_찍는다(mocker, 분: datetime, stocks):
+    국내_주도주(mocker, stocks)
+    with 세션() as s:
+        leadertimeline.snapshot(s, Region.KR, 분, 분)
+
+
+@pytest.mark.integration
+class Test장중_오늘:
+    def test_마감_기록_전에는_타임라인의_마지막_분으로_채우고_진행_중으로_표시한다(self, 빈_캘린더, mocker):
+        타임라인에_찍는다(mocker, datetime(2026, 9, 23, 10, 0), [국내("005930", "삼성전자")])
+        타임라인에_찍는다(mocker, datetime(2026, 9, 23, 10, 1), [국내("000660", "SK하이닉스"), 국내("005930", "삼성전자")])
+        지금은(mocker, datetime(2026, 9, 23, 10, 1, 30))
+
+        with 세션() as s:
+            국내들, _ = application.find_month(s, 2026, 9)
+
+        assert [(d.trade_date, d.live) for d in 국내들] == [(그날, True)]
+        assert [(x.rank, x.name) for x in 국내들[0].stocks] == [(1, "SK하이닉스"), (2, "삼성전자")]
+
+    def test_마감_기록이_생기면_그것을_준다(self, 빈_캘린더, mocker):
+        타임라인에_찍는다(mocker, datetime(2026, 9, 23, 20, 0), [국내("005930", "삼성전자")])
+        국내_주도주(mocker, [국내("042700", "한미반도체")])
+        with 세션() as s:
+            application.snapshot_domestic(s, 그날, AT)
+        지금은(mocker, datetime(2026, 9, 23, 20, 5))
+
+        with 세션() as s:
+            국내들, _ = application.find_month(s, 2026, 9)
+
+        assert [(d.trade_date, d.live) for d in 국내들] == [(그날, False)]
+        assert [x.name for x in 국내들[0].stocks] == ["한미반도체"]
+
+    def test_오늘_찍힌_분이_없으면_비워_둔다(self, 빈_캘린더, mocker):
+        """장 전에는 풀이 어제 값을 들고 있다 — 타임라인이 찍지 않았으니 오늘 칸에 들어오지 않는다."""
+        타임라인에_찍는다(mocker, datetime(2026, 9, 22, 20, 0), [국내("005930", "삼성전자")])
+        지금은(mocker, datetime(2026, 9, 23, 7, 30))
+
+        with 세션() as s:
+            국내들, _ = application.find_month(s, 2026, 9)
+
+        assert 국내들 == []
+
+    def test_다른_달을_보면_오늘을_채우지_않는다(self, 빈_캘린더, mocker):
+        타임라인에_찍는다(mocker, datetime(2026, 9, 23, 10, 0), [국내("005930", "삼성전자")])
+        지금은(mocker, datetime(2026, 9, 23, 10, 0, 30))
+
+        with 세션() as s:
+            국내들, _ = application.find_month(s, 2026, 8)
+
+        assert 국내들 == []
