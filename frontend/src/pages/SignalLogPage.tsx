@@ -533,6 +533,7 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
       <div className="flex flex-col gap-3 lg:px-3.5">
         <PageHeader
           title="주도주 시그널"
+          session={false}
           count={data || marketQ.data ? feed.length : undefined}
           fetchedAt={eventsQ.dataUpdatedAt}
           // 지난 날짜는 다시 부르지 않는다 — 고리도 차오르지 않는다
@@ -540,19 +541,18 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
           // 날짜는 옆의 날짜 이동에 이미 있다
           closedLabel={date === todayStr() ? undefined : "마감"}
           loading={eventsQ.isFetching}
-          trailing={
-            // 목록 칸이 좁아 머리줄이 제목 아래로 접힌다 — 날짜가 왼쪽 끝에 서므로 달력은 오른쪽으로 편다
-            <DateNavigator
-              popoverAlign="left"
-              date={date}
-              onChange={(d) => {
-                datePicked.current = true;
-                setDate(d);
-                setSelectedCode(null);
-                setSelectedMarket(null);
-              }}
-            />
-          }
+        />
+        {/* 날짜는 제목 줄에 끼우지 않고 제 줄에 둔다 — 목록 칸이 좁아 끼우면 폭에 따라 접혔다 말았다 한다.
+            늘 왼쪽 끝이라 달력은 오른쪽으로 편다 */}
+        <DateNavigator
+          popoverAlign="left"
+          date={date}
+          onChange={(d) => {
+            datePicked.current = true;
+            setDate(d);
+            setSelectedCode(null);
+            setSelectedMarket(null);
+          }}
         />
         {/* 유형 필터와 등락률 — 미로그인은 조작이 잠겨 아예 감춘다 */}
         {authenticated && (

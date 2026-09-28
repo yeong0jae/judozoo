@@ -23,6 +23,7 @@ export default function PageHeader({
   closedLabel,
   loading,
   trailing,
+  session = true,
 }: {
   title: string;
   count?: number;
@@ -38,6 +39,8 @@ export default function PageHeader({
   loading: boolean;
   /** 우측 상단에 건수와 나란히 놓을 컨트롤 (날짜 이동 등). */
   trailing?: ReactNode;
+  /** 제목 밑 장 상태 줄(국내 애프터마켓 15:40 ~ 20:00 …). 시각이 행마다 찍히는 화면은 뺀다 */
+  session?: boolean;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -52,7 +55,7 @@ export default function PageHeader({
     <div className="@container flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div className="min-w-0">
         <h2 className="text-[20px] font-bold">{title}</h2>
-        <SessionStrip />
+        {session && <SessionStrip />}
       </div>
 
       <div className="flex flex-col items-end gap-1 @max-3xl:flex-row @max-3xl:flex-wrap @max-3xl:items-center @max-3xl:gap-3">
