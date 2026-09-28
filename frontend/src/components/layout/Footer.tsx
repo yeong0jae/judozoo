@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { INSTAGRAM_URL } from "../../lib/instagram";
 import Wordmark from "./Wordmark";
 
 export default function Footer() {
@@ -12,6 +13,9 @@ export default function Footer() {
         <span className="flex-1" />
         <a href="mailto:judozooweb@gmail.com" className="hover:text-zinc-400">
           문의 judozooweb@gmail.com
+        </a>
+        <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400">
+          인스타그램
         </a>
         <Link to="/terms" className="hover:text-zinc-400">
           이용약관

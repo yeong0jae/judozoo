@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useLeaderTimeline, useMarketCalendarStatus } from "../api/queries";
 import DateNavigator, { latestTradingDayStr, todayStr } from "../components/common/DateNavigator";
 import Skeleton from "../components/common/Skeleton";
+import { INSTAGRAM_URL } from "../lib/instagram";
 import {
   MARKET_SPECS,
   arrangement,
@@ -164,6 +165,10 @@ export default function LeaderTimelinePage() {
         <div className="flex items-center gap-2.5">
           <h2 className="text-[20px] font-bold">주도주 타임라인</h2>
           {live && data?.lastTakenAt && <Ago iso={data.lastTakenAt} />}
+          {/* 릴스가 이 화면으로 만든 영상이라, 여기 머무는 사람이 곧 팔로우할 사람이다 */}
+          <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="text-[13px] text-zinc-500 hover:text-zinc-300">
+            매일 릴스로 보기 ↗
+          </a>
         </div>
         <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:justify-between">
           <div className="inline-flex rounded-[9px] bg-zinc-900 p-[3px]" role="group" aria-label="시장">
