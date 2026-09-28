@@ -17,6 +17,14 @@ resource "google_project_service" "apis" {
   disable_on_destroy = false
 }
 
+# Vertex AI — 주도주 "왜 오르나" 사유 생성(026).
+# **위 apis 목록에 넣지 않는다.** data.google_compute_network.default가 apis에 depends_on으로 묶여 있어서,
+# 목록에 항목이 늘면 네트워크 id가 apply 때까지 미정이 되고 Cloud SQL·피어링·NAT가 통째로 교체 계획에 잡힌다.
+resource "google_project_service" "aiplatform" {
+  service            = "aiplatform.googleapis.com"
+  disable_on_destroy = false
+}
+
 # ---------------------------------------------------------------------------
 # 인스턴스 정의
 # ---------------------------------------------------------------------------
@@ -62,6 +70,13 @@ resource "google_project_iam_member" "vm_ar_reader" {
 resource "google_project_iam_member" "vm_secret_accessor" {
   project = var.project_id
   role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.vm.email}"
+}
+
+# Gemini 호출(026). VM이 이미 cloud-platform 스코프라 이 역할만 있으면 ADC로 부른다 — API 키 없음
+resource "google_project_iam_member" "vm_aiplatform_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
   member  = "serviceAccount:${google_service_account.vm.email}"
 }
 
