@@ -521,6 +521,9 @@ function ScrubChart({
   const { spec, last } = model;
   // 양 끝에 반 화면씩 비워 둬야 08:00과 20:00도 세로선 아래까지 온다
   const pad = Math.round(width / 2);
+  // 장중에는 마지막 찍힌 분까지만 민다 — 하루 끝까지 열어 두면 세로선이 "장 진행 중" 빗금 위로 나간다.
+  // 그 뒤는 오른쪽 반 화면 여백에 보이는 만큼만 그리고 잘라 낸다(잘라야 스크롤 폭이 늘지 않는다)
+  const end = live ? last : spec.slots - 1;
   const x = (i: number) => pad + i * PX;
   /** 안 찍힌 분(쉬는 구간·장 진행 중)이면 그 앞 찍힌 분 */
   const snapTo = (i: number) => {
@@ -605,7 +608,7 @@ function ScrubChart({
           onTouchStart={hold}
           onWheel={hold}
         >
-          <div className="relative h-full" style={{ width: pad * 2 + (spec.slots - 1) * PX }}>
+          <div className="relative h-full overflow-hidden" style={{ width: pad * 2 + end * PX }}>
             {[...Array((spec.slots - 1) / 60 + 1).keys()].map((h) => (
               <span key={h}>
                 <span className="num absolute top-[8px] -translate-x-1/2 text-[11px] text-zinc-500" style={{ left: x(h * 60) }}>
@@ -618,7 +621,7 @@ function ScrubChart({
               <div key={a} className="tl-hatch absolute bottom-0" style={{ top: M_AXIS, left: x(a), width: (b - a) * PX }} />
             ))}
             {live && last < spec.slots - 1 && (
-              <div className="tl-hatch absolute bottom-0 grid place-items-center border-l border-dashed border-zinc-600" style={{ top: M_AXIS, left: x(last + 1), width: (spec.slots - 1 - last) * PX }}>
+              <div className="tl-hatch absolute bottom-0 grid place-items-center border-l border-dashed border-zinc-600" style={{ top: M_AXIS, left: x(last + 1), width: Math.min((spec.slots - 1 - last) * PX, pad - PX) }}>
                 <span className="whitespace-nowrap text-[12px] font-semibold text-zinc-500">장 진행 중</span>
               </div>
             )}
