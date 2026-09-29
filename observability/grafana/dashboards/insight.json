@@ -1,0 +1,849 @@
+{
+  "uid": "judozoo-insight",
+  "title": "왜 오르나 (Vertex)",
+  "tags": [
+    "judozoo",
+    "insight",
+    "vertex"
+  ],
+  "timezone": "Asia/Seoul",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "description": "주도주 왜 오르나(026) — Gemini 사용량·비용과 만든 사유. MySQL 패널은 grafana 계정에 stock_reason SELECT 권한이 있어야 한다.",
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "한눈에",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "오늘 만든 사유",
+      "datasource": {
+        "type": "mysql",
+        "uid": "judozoo-mysql"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "judozoo-mysql"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS 생성 FROM stock_reason WHERE generated_at >= CURDATE();"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "description": "오늘(KST) 국내·해외 합. Cloud SQL 시간대가 +09:00이라 CURDATE()가 KST 자정이다. 대시보드 범위와 무관.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "하루 상한 대비",
+      "datasource": {
+        "type": "mysql",
+        "uid": "judozoo-mysql"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "judozoo-mysql"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) / 150 AS 상한 FROM stock_reason WHERE generated_at >= CURDATE();"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.95
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "VERTEX_DAILY_LIMIT(기본 150) 대비. 100%에 닿으면 그날은 생성을 멈춘다. 상한을 바꿨으면 쿼리의 150도 바꾼다.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "오늘 거절",
+      "datasource": {
+        "type": "mysql",
+        "uid": "judozoo-mysql"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "judozoo-mysql"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS 거절 FROM stock_reason WHERE generated_at >= CURDATE() AND published = 0;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 3
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "description": "Vertex 오류나 검사 탈락. 화면에는 이전 사유가 그대로 남고, 3분 뒤 한 번 다시 만든다.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "오늘 설명 없음 비율",
+      "datasource": {
+        "type": "mysql",
+        "uid": "judozoo-mysql"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "judozoo-mysql"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(SUM(explained = 0) / COUNT(*), 0) AS 비율 FROM stock_reason WHERE generated_at >= CURDATE() AND published = 1;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "게시된 것 중 뉴스로 설명되지 않은 비율. 목록에는 안 보이고 상세에 '뚜렷한 상승 이유를 찾지 못했어요'로 나간다.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "최근 30일 검색",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(increase(llm_search_queries_total[30d]))",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 4000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "그라운딩 검색어 수. Gemini 3 모델 합산 월 5,000회까지 무료, 이후 1,000회당 $14. 결제 월이 아니라 최근 30일이다.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "최근 30일 예상 비용",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum(increase(llm_tokens_total{kind=\"input\"}[30d])) * 0.75 + sum(increase(llm_tokens_total{kind=~\"output|thoughts\"}[30d])) * 3.75) / 1e6 + clamp_min(sum(increase(llm_search_queries_total[30d])) - 5000, 0) * 0.014",
+          "legendFormat": "",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "description": "메트릭으로 계산한 추정치. Gemini 3.8 Flash 입력 $0.75 · 출력(사고 포함) $3.75 / 100만 토큰(2026-12-31까지 할인가) + 검색 5,000회 초과분. 실제 청구는 GCP 결제 보고서가 기준이다.",
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Vertex 사용량",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "토큰",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (kind) (increase(llm_tokens_total[$__interval]))",
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "description": "구간마다 쓴 토큰. input=보낸 프롬프트, output=답, thoughts=사고. 그라운딩으로 들어온 검색 결과는 과금되지 않아 input에 없다."
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "검색어 수",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(increase(llm_search_queries_total[$__interval]))",
+          "legendFormat": "검색"
+        }
+      ],
+      "description": "Gemini가 실행한 Google 검색어 수. 사유 하나에 평균 3회 안팎."
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Vertex 요청 결과",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (status) (increase(http_client_requests_total{vendor=\"vertex\"}[$__interval]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "description": "사유 하나에 요청 2번(검색 켠 호출 + JSON 호출). 200 밖의 값(429·403·ReadTimeout 등)이 보이면 거절로 이어진다."
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Vertex 응답 p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_client_request_duration_seconds_bucket{vendor=\"vertex\"}[$__rate_interval])))",
+          "legendFormat": "p95"
+        }
+      ],
+      "description": "검색까지 도는 호출은 10~20초가 정상이다. 타임아웃은 60초."
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "기사 사이트 호출 실패",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (endpoint) (increase(http_client_requests_total{vendor=\"news\", status!~\"2..|3..\"}[$__interval]))",
+          "legendFormat": "{{endpoint}}"
+        }
+      ],
+      "description": "그라운딩 출처를 실제 기사로 따라갈 때 실패한 호출(사이트별). 실패한 출처는 목록에서 빠질 뿐 사유는 만들어진다."
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "만든 사유 (stock_reason)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "panels": []
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "시간대별 생성",
+      "datasource": {
+        "type": "mysql",
+        "uid": "judozoo-mysql"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "judozoo-mysql"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT DATE_FORMAT(generated_at, '%Y-%m-%d %H:00:00') - INTERVAL 9 HOUR AS time, SUM(published = 1 AND explained = 1) AS '설명', SUM(published = 1 AND explained = 0) AS '설명 없음', SUM(published = 0) AS '거절' FROM stock_reason WHERE $__timeFilter(generated_at) GROUP BY 1 ORDER BY 1;"
+        }
+      ],
+      "description": "한 시간 단위. 국내 08:30~20:00, 해외 23:00~07:00(서머타임 중)에 쌓이고 정해진 시각에 튄다. 반환 time만 9시간 뺀다 — Grafana가 DATETIME을 UTC로 읽는다(usage.json과 같다)."
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "최근 만든 사유 50건",
+      "datasource": {
+        "type": "mysql",
+        "uid": "judozoo-mysql"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 16,
+        "x": 0,
+        "y": 31
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "judozoo-mysql"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT DATE_FORMAT(generated_at, '%m-%d %H:%i') AS 시각, region AS 시장, name AS 종목, `trigger` AS 트리거, CASE WHEN published = 0 THEN '거절' WHEN explained = 0 THEN '설명 없음' ELSE '설명' END AS 결과, reason AS 사유, JSON_LENGTH(evidence) AS 근거, JSON_LENGTH(related) AS 관련, error AS 오류 FROM stock_reason ORDER BY id DESC LIMIT 50;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "대시보드 범위와 무관하게 최근 50건. 기사 제목·링크는 evidence·related 칸(JSON)에 있다."
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "최근 7일 거절 사유",
+      "datasource": {
+        "type": "mysql",
+        "uid": "judozoo-mysql"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 8,
+        "x": 16,
+        "y": 31
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "judozoo-mysql"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(LEFT(error, 60), '(없음)') AS 오류, COUNT(*) AS 건수 FROM stock_reason WHERE published = 0 AND generated_at >= CURDATE() - INTERVAL 7 DAY GROUP BY 1 ORDER BY 2 DESC;"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "HTTP …는 Vertex 호출 실패, '목록에 없는 기사 번호'는 Gemini가 없는 번호를 고른 것, '권유 표현'은 금지어에 걸린 것."
+    }
+  ]
+}
