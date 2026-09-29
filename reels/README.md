@@ -11,6 +11,7 @@ node render.mjs us 2026-09-25        # → out/주도주-해외-0925-v2.mp4 (최
 node render.mjs kr 2026-09-23        # → out/주도주-국내-0923-v2.mp4
 node render.mjs kr 2026-09-23 --v 1  # → out/주도주-국내-0923-v1.mp4 (예전 버전으로)
 node render.mjs kr 2026-09-23 --secs 8   # 앞 8초만 — 화면 확인용
+node render.mjs us 2026-09-28 --fps 60   # 60fps → out/주도주-해외-0928-v2-60fps.mp4 (굽는 시간 두 배)
 ```
 
 - 데이터는 운영 타임라인 API(`/api/leader-timeline`)에서 받는다. 날짜는 각 시장의 현지 날짜 — 해외는 뉴욕 날짜

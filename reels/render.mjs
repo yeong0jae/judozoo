@@ -4,6 +4,7 @@
  *   node render.mjs us 2026-09-25            # 최신 버전 → out/주도주-해외-0925-v2.mp4
  *   node render.mjs kr 2026-09-23 --v 1      # 예전 버전으로
  *   node render.mjs kr 2026-09-23 --secs 8   # 앞 8초만 (확인용)
+ *   node render.mjs us 2026-09-28 --fps 60   # 60fps → out/주도주-해외-0928-v2-60fps.mp4 (굽는 시간 두 배)
  *
  * 화면 녹화가 아니라 가짜 시계로 프레임을 넘기며 찍는다 — 1080×1920 원본 크기 그대로이고,
  * 캡처가 느려도 프레임이 빠지지 않는다. CSS 전환(자막·장면 페이드)도 같은 시계에 맞춘다.
@@ -16,7 +17,6 @@ import ffmpegPath from "ffmpeg-static";
 import { chromium } from "playwright";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const FPS = 30;
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -24,16 +24,17 @@ const flag = (name) => {
   return i < 0 ? undefined : args.splice(i, 2)[1];
 };
 const secs = Number(flag("--secs")) || null;
+const FPS = Number(flag("--fps") ?? 30);
 const api = flag("--api") ?? "https://judozoo.com";
 const versions = readdirSync(here).map((f) => f.match(/^reel\.v(\d+)\.html$/)?.[1]).filter(Boolean).map(Number);
 const version = Number(flag("--v") ?? Math.max(...versions));
 let out = flag("--out");
 const [market, date] = args;
 if (!["kr", "us"].includes(market) || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") || !versions.includes(version)) {
-  console.error(`사용법: node render.mjs <kr|us> <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--out 파일] [--api 주소]`);
+  console.error(`사용법: node render.mjs <kr|us> <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--fps 30|60] [--out 파일] [--api 주소]`);
   process.exit(1);
 }
-out ??= resolve(here, "out", `주도주-${market === "kr" ? "국내" : "해외"}-${date.slice(5).replace("-", "")}-v${version}.mp4`);
+out ??= resolve(here, "out", `주도주-${market === "kr" ? "국내" : "해외"}-${date.slice(5).replace("-", "")}-v${version}${FPS === 30 ? "" : `-${FPS}fps`}.mp4`);
 
 /** API 응답(종목 사전 + 분마다 번호)을 화면이 쓰는 모양으로 — 이름 목록과 [시각, 번호들, 등락률들] */
 async function fetchDay() {
@@ -75,7 +76,8 @@ const done = new Promise((ok, fail) => ff.on("close", (code) => (code ? fail(new
 
 const frames = Math.round(total * FPS);
 for (let n = 0; n < frames; n++) {
-  if (n) await page.clock.runFor(1000 / FPS);
+  // 60fps면 한 프레임이 16.67ms라 매번 반올림하면 시계가 밀린다 — 누적 시각을 기준으로 넘긴다
+  if (n) await page.clock.runFor(Math.round((n * 1000) / FPS) - Math.round(((n - 1) * 1000) / FPS));
   // CSS 전환은 실제 시간으로 흐른다 — 처음 본 순간을 기억해 두고 가짜 시계만큼만 진행시킨다
   await page.evaluate(() => {
     const now = performance.now();
