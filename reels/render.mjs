@@ -1,10 +1,10 @@
 /**
  * 주도주 릴스 mp4 굽기 — 운영 타임라인 API에서 그날 데이터를 받아 `reel.vN.html`을 한 프레임씩 찍는다.
  *
- *   node render.mjs us 2026-09-25            # 최신 버전 → out/주도주-해외-0925-v2.mp4
+ *   node render.mjs us 2026-09-25            # 최신 버전 → out/2026-09-25/주도주-해외-0925-v3.mp4
  *   node render.mjs kr 2026-09-23 --v 1      # 예전 버전으로
  *   node render.mjs kr 2026-09-23 --secs 8   # 앞 8초만 (확인용)
- *   node render.mjs us 2026-09-28 --fps 60   # 60fps → out/주도주-해외-0928-v2-60fps.mp4 (굽는 시간 두 배)
+ *   node render.mjs us 2026-09-28 --fps 60   # 60fps → out/2026-09-28/주도주-해외-0928-v3-60fps.mp4 (굽는 시간 두 배)
  *
  * 화면 녹화가 아니라 가짜 시계로 프레임을 넘기며 찍는다 — 1080×1920 원본 크기 그대로이고,
  * 캡처가 느려도 프레임이 빠지지 않는다. CSS 전환(자막·장면 페이드)도 같은 시계에 맞춘다.
@@ -35,7 +35,10 @@ if (!["kr", "us"].includes(market) || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") ||
   console.error(`사용법: node render.mjs <kr|us> <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--fps 30|60] [--out 파일] [--api 주소]`);
   process.exit(1);
 }
-out ??= resolve(here, "out", `주도주-${market === "kr" ? "국내" : "해외"}-${date.slice(5).replace("-", "")}-v${version}${FPS === 30 ? "" : `-${FPS}fps`}.mp4`);
+// 날짜별 폴더 — 같은 날 국내·해외·버전이 한곳에 모인다. 날짜는 인자 그대로(해외는 뉴욕 날짜)
+out ??= resolve(here, "out", date, `주도주-${market === "kr" ? "국내" : "해외"}-${date.slice(5).replace("-", "")}-v${version}${FPS === 30 ? "" : `-${FPS}fps`}.mp4`);
+// 본문(txt)이 영상보다 먼저 이 폴더에 쓰인다 — 여기서 만든다. 이미 있으면 그대로 쓴다
+mkdirSync(dirname(out), { recursive: true });
 
 /** API 응답(종목 사전 + 분마다 번호)을 화면이 쓰는 모양으로 — 이름 목록과 [시각, 번호들, 등락률들] */
 async function fetchDay() {
@@ -77,7 +80,6 @@ await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
 const total = secs ?? (await page.evaluate(() => window.__REEL_SECONDS)) + 0.3;
 await page.evaluate(() => { window.__start = new WeakMap(); window.__play(); });
 
-mkdirSync(dirname(out), { recursive: true });
 const ff = spawn(ffmpegPath, [
   "-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-i", "-",
   "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-pix_fmt", "yuv420p", "-movflags", "+faststart", out,

@@ -7,17 +7,17 @@ cd reels
 npm install                          # 처음 한 번 — playwright, ffmpeg, 글꼴
 npx playwright install chromium      # 처음 한 번
 
-node render.mjs us 2026-09-25        # → out/주도주-해외-0925-v3.mp4 (최신 버전)
-node render.mjs kr 2026-09-23        # → out/주도주-국내-0923-v3.mp4
-node render.mjs kr 2026-09-23 --v 1  # → out/주도주-국내-0923-v1.mp4 (예전 버전으로)
+node render.mjs us 2026-09-25        # → out/2026-09-25/주도주-해외-0925-v3.mp4 (최신 버전)
+node render.mjs kr 2026-09-23        # → out/2026-09-23/주도주-국내-0923-v3.mp4
+node render.mjs kr 2026-09-23 --v 1  # → out/2026-09-23/주도주-국내-0923-v1.mp4 (예전 버전으로)
 node render.mjs kr 2026-09-23 --secs 8   # 앞 8초만 — 화면 확인용
-node render.mjs us 2026-09-28 --fps 60   # 60fps → out/주도주-해외-0928-v3-60fps.mp4 (굽는 시간 두 배)
+node render.mjs us 2026-09-28 --fps 60   # 60fps → out/2026-09-28/주도주-해외-0928-v3-60fps.mp4 (굽는 시간 두 배)
 ```
 
 - 데이터는 운영 타임라인 API(`/api/leader-timeline`)에서 받는다. 날짜는 각 시장의 현지 날짜 — 해외는 뉴욕 날짜
 - 한 편에 수 분 걸린다. 화면 녹화가 아니라 가짜 시계로 한 프레임씩 넘기며 찍어서, 원본 크기 그대로이고 프레임이 빠지지 않는다
 - 소리는 없다. 음악은 올릴 때 붙인다
-- 영상은 `out/`에 남는다(git에서 뺐다)
+- 영상은 `out/<날짜>/`에 남는다(git에서 뺐다). 날짜는 인자 그대로라 해외는 뉴욕 날짜 폴더다. 폴더가 있으면 거기에 더한다
 - 영상 옆에 본문(`…-v2.txt`)도 남는다. 위는 그대로 붙여 넣을 본문, 아래는 올리기 전에 확인할 근거(키워드·기사)
   - 사유는 운영 "왜 오르나" API에서 받는다. **API가 지금 것만 주므로 장 마감 뒤 그날 안에 구워야** 맞는 사유가 붙는다
   - 근거 기사 제목·링크는 로그인해야 실린다 — 브라우저에서 judozoo.com의 `judozoo_session` 쿠키 값을 복사해
