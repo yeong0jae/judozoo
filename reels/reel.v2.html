@@ -474,6 +474,14 @@ function setup(mk) {
     ? `<span class="lbl">오늘 1위가 ${kor[M.relay.length - 1] ?? M.relay.length - 1} 번 바뀌었어요</span>` + M.relay.map((r, n) =>
         `${n ? '<span class="arr">→</span>' : ""}<span><span class="dot" style="background:${M.col[r.k]}"></span>${names[r.k]}</span>`).join("")
     : "";
+  // 본문(txt)용 — 영상과 같은 계산을 `render.mjs`가 그대로 받아 쓴다. 종목은 데이터의 번호(k)로 넘긴다
+  window.__REEL_FACTS = {
+    boom: M.boom ? M.boom.k : null,
+    relay: M.relay.map((r) => r.k),
+    close: close.map((k) => ({ k, rate: M.rate[k][M.last] })),
+    // 마감 5위 밖으로 밀려난 종목은 마감 등락률이 없다 — 장중 최고로 적는다
+    peak: M.rate.map((r) => Math.max(...r)),
+  };
   $("outroTitle").textContent = `${MK.name} 정규장 마감 주도주 순위`;
   $("final").innerHTML = close.map((k, n) => `<div style="transition-delay:${0.1 + n * 0.1}s;color:${n ? "" : M.col[k]}"><span class="rk num">${n + 1}</span><span class="dot" style="background:${M.col[k]};color:${M.col[k]}"></span><span style="color:var(--text)">${names[k]}</span><span class="rt num">${pct(M.rate[k][M.last])}</span></div>`).join("");
   tone = [...TONES[MK.tone(MK.start + M.s0)]];

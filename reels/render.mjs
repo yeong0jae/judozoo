@@ -15,6 +15,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ffmpegPath from "ffmpeg-static";
 import { chromium } from "playwright";
+import { writeCaption } from "./caption.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -43,12 +44,12 @@ async function fetchDay() {
   const { data } = await res.json();
   if (!data?.ticks?.length) throw new Error(`${market} ${date} — 찍힌 분이 없습니다`);
   return {
-    stocks: data.stocks.map((s) => s.name),
-    ticks: data.ticks.map((t) => [t.at, t.stocks, t.rates]),
+    stocks: data.stocks,
+    data: { stocks: data.stocks.map((s) => s.name), ticks: data.ticks.map((t) => [t.at, t.stocks, t.rates]) },
   };
 }
 
-const data = await fetchDay();
+const { stocks, data } = await fetchDay();
 console.log(`${market} ${date} v${version} — ${data.ticks.length}분, 종목 ${data.stocks.length}개`);
 
 const browser = await chromium.launch();
@@ -56,6 +57,15 @@ const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, de
 await page.addInitScript((reel) => { window.__REEL__ = reel; }, { market, date, data });
 await page.clock.install();
 await page.goto(pathToFileURL(resolve(here, `reel.v${version}.html`)).href);
+// 본문 — 영상보다 먼저 남긴다(굽는 데 수 분 걸린다). 계산을 내주지 않는 옛 버전은 건너뛴다
+const facts = await page.evaluate(() => window.__REEL_FACTS);
+if (facts) {
+  const txt = await writeCaption({ api, market, date, stocks, facts, out: out.replace(/\.mp4$/, ".txt") })
+    .catch((e) => console.warn(`본문을 만들지 못했습니다 — ${e.message}`));
+  if (txt) console.log(`본문 — ${txt}`);
+} else {
+  console.log(`v${version}은 본문을 만들지 않습니다`);
+}
 // 캔버스 글자는 DOM에 안 쓰인 굵기를 스스로 불러오지 않는다 — 쓰는 굵기를 미리 다 받아 둔다
 await page.evaluate(async () => {
   const faces = [["Noto Sans KR", [300, 400, 500, 600, 700]], ["JetBrains Mono", [200, 300, 400, 500]]];
