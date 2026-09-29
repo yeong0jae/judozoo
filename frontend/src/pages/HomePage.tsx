@@ -308,7 +308,7 @@ function DomesticLeaders({ live, first, date, tradingDay, clock }: LeadersProps)
     rate: s.priceChangeRate,
     value: s.accumulatedTradingValue,
     valueLabel: formatKoreanMoney(s.accumulatedTradingValue),
-    reason: <ReasonLine item={reasons?.get(shortCode(s.stockCode))} />,
+    reason: <ReasonLine item={reasons?.get(shortCode(s.stockCode))} className="mt-1.5" />,
   }));
 
   return (
@@ -339,7 +339,7 @@ function OverseasLeaders({ live, first, date, tradingDay, clock }: LeadersProps)
     rate: s.rate,
     value: s.tradingValue,
     valueLabel: compactUsd(s.tradingValue),
-    reason: <ReasonLine item={reasons?.get(s.symbol)} />,
+    reason: <ReasonLine item={reasons?.get(s.symbol)} className="mt-1.5" />,
   }));
 
   return (
