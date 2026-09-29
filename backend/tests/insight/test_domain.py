@@ -90,8 +90,8 @@ class Test보여줄_세션_날짜:
         assert US.session_day(at(4, 0, ny), today_open=True, previous_open_day=date(2026, 9, 24)) == ny
 
 
-def made(hh: int, mm: int, ok: bool = True, retry: bool = False) -> Attempt:
-    return Attempt(at=at(hh, mm), published=ok, retry=retry)
+def made(hh: int, mm: int, ok: bool = True, retry: bool = False, explained: bool = True) -> Attempt:
+    return Attempt(at=at(hh, mm), published=ok, retry=retry, explained=explained)
 
 
 class Test만들_종목_고르기:
@@ -123,10 +123,23 @@ class Test만들_종목_고르기:
     def test_후보는_새로_들어올_때_바로_만든다(self):
         assert pick(KR, ["A"], {}, at(10, 15), candidates=["C"]) == [("A", Trigger.ENTRY), ("C", Trigger.ENTRY)]
 
-    def test_후보는_정해진_시각에_다시_만들지_않는다(self):
+    def test_사유가_있는_후보는_정해진_시각에_다시_만들지_않는다(self):
         """후보는 한 번 만든 사유로 둔다 — 비용 때문. 주도주로 올라오면 그때부터 정해진 시각마다 다시 만든다."""
         history = {"A": Attempts([made(9, 30)]), "C": Attempts([made(9, 30)])}
         assert pick(KR, ["A"], history, at(11, 0), candidates=["C"]) == [("A", Trigger.SCHEDULED)]
+
+    def test_설명_없음인_후보는_정해진_시각에_다시_만든다(self):
+        """급등 직후엔 기사가 아직 없는 경우가 많다 — 사유가 나올 때까지 정해진 시각마다 한 번씩 더 본다."""
+        history = {"C": Attempts([made(9, 30, explained=False)])}
+        assert pick(KR, [], history, at(11, 0), candidates=["C"]) == [("C", Trigger.SCHEDULED)]
+
+    def test_설명_없음이_나중에_나왔어도_앞서_설명된_후보는_다시_만들지_않는다(self):
+        history = {"C": Attempts([made(9, 30), made(10, 0, explained=False)])}
+        assert pick(KR, [], history, at(11, 0), candidates=["C"]) == []
+
+    def test_설명_없음인_후보도_정해진_시각이_아니면_기다린다(self):
+        history = {"C": Attempts([made(9, 30, explained=False)])}
+        assert pick(KR, [], history, at(10, 40), candidates=["C"]) == []
 
     def test_후보도_실패하면_3분_뒤_한_번_다시_시도한다(self):
         history = {"C": Attempts([made(10, 15, ok=False)])}

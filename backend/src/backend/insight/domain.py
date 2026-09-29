@@ -97,11 +97,12 @@ class Trigger(str, Enum):
 
 @dataclass(frozen=True)
 class Attempt:
-    """한 번 만든 기록 — 게시됐는가, 재시도였는가만 판단에 쓴다."""
+    """한 번 만든 기록 — 게시됐는가, 재시도였는가, 설명됐는가만 판단에 쓴다."""
 
     at: datetime
     published: bool
     retry: bool = False
+    explained: bool = False
 
 
 @dataclass(frozen=True)
@@ -117,6 +118,11 @@ class Attempts:
     def made_within(self, now: datetime, span: timedelta) -> bool:
         last = self.last
         return last is not None and now - last.at < span
+
+    @property
+    def explained(self) -> bool:
+        """게시된 사유 중 하나라도 설명됐는가 — 그러면 화면엔 그 사유가 남는다(`shown`)."""
+        return any(a.published and a.explained for a in self.items)
 
     def needs_retry(self, now: datetime) -> bool:
         """마지막이 실패였고, 그게 이미 재시도가 아니고, 3분이 지났으면."""
@@ -134,8 +140,9 @@ def pick(
     """지금 만들 종목과 그 이유. 대상은 **지금 주도주**와 **등락률 기준을 넘은 후보**다 —
     빠진 종목은 사유만 남고 다시 만들지 않는다.
 
-    후보는 새로 들어올 때와 3분 재시도만 한다. 정해진 시각에 다시 만드는 건 주도주뿐이다 —
-    후보까지 매번 다시 만들면 검색이 무료 한도를 넘는다(026 §설계 결정). 주도주로 올라오면 그때부터 다시 만든다.
+    후보는 새로 들어올 때와 3분 재시도, 그리고 **아직 설명 없음일 때만** 정해진 시각에 다시 만든다 —
+    사유가 있는 후보까지 매번 다시 만들면 검색이 무료 한도를 넘는다(026 §설계 결정). 급등 직후엔 기사가
+    없는 경우가 많아 설명 없음은 한 번 더 본다. 주도주로 올라오면 그때부터 매번 다시 만든다.
     """
     if not schedule.in_window(now.time()):
         return []
@@ -148,7 +155,7 @@ def pick(
             picked.append((code, Trigger.ENTRY))
         elif done.needs_retry(now):
             picked.append((code, Trigger.RETRY))
-        elif slot and code in lead and not done.made_within(now, RECENT):
+        elif slot and not done.made_within(now, RECENT) and (code in lead or not done.explained):
             picked.append((code, Trigger.SCHEDULED))
     return picked
 

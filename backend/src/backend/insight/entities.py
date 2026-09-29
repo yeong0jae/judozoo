@@ -57,7 +57,9 @@ class StockReason(Base):
 
     def attempt(self, local_at: datetime) -> Attempt:
         """30분·재시도 판단용. 시각은 부르는 쪽이 시장 현지 시각으로 바꿔 준다."""
-        return Attempt(at=local_at, published=self.published, retry=self.trigger == Trigger.RETRY.value)
+        return Attempt(
+            at=local_at, published=self.published, retry=self.trigger == Trigger.RETRY.value, explained=self.explained,
+        )
 
 
 def _article(s: Source) -> dict:
