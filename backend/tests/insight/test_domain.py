@@ -222,9 +222,29 @@ class Test답_검사:
         assert not v.published
         assert "번호" in v.error
 
-    def test_권유_표현이_있으면_거절한다(self):
-        assert not judge(draft(reason="지분가치 상승, 지금 매수할 때"), SOURCES).published
-        assert not judge(draft(reason="증권가 목표가 상향"), SOURCES).published
+    @pytest.mark.parametrize("reason", [
+        "지분가치 상승, 지금 매수할 때", "지금 매수하세요", "지금 매도하세요",
+        "이 종목 추천", "지금 담아", "지금 사야 한다", "지금 팔아", "Buy now", "Sell now",
+        "증권사 목표가 상향, 지금 매수하세요",
+    ])
+    def test_직접_투자를_권하면_거절한다(self, reason):
+        v = judge(draft(reason=reason), SOURCES)
+        assert not v.published and v.error == "권유 표현"
+
+    @pytest.mark.parametrize("reason", [
+        "증권사 목표가 상향에 상승", "증권가 목표주가 상향",
+        "증권사 투자의견 상향에 매수세 유입", "증권사 매수 의견 유지",
+        "증권사 매도 의견에서 중립으로 상향",
+    ])
+    def test_증권사의_목표가와_투자의견_전달은_게시한다(self, reason):
+        v = judge(draft(reason=reason, keywords=["목표가 상향", "투자의견 상향"]), SOURCES)
+        assert v.published and v.explained
+        assert v.reason == reason
+        assert v.keywords == ["목표가 상향", "투자의견 상향"]
+
+    def test_키워드에서_직접_투자를_권해도_거절한다(self):
+        v = judge(draft(reason="증권사 목표가 상향", keywords=["매수 추천"]), SOURCES)
+        assert not v.published and v.error == "권유 표현"
 
     def test_일반어_키워드는_그_칩만_뺀다(self):
         v = judge(draft(keywords=["상승", "라이다"]), SOURCES)

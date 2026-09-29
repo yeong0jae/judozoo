@@ -250,8 +250,8 @@ _GENERIC_KEYWORDS = frozenset({
     "상승", "급등", "강세", "호재", "기대", "기대감", "주가", "반등", "특징주", "매수세", "신고가", "수급",
     "rally", "surge", "stock", "shares",
 })
-#: 투자 권유. "매수세"(사는 힘)는 사실이라 막지 않는다
-_ADVICE = re.compile(r"목표\s*주?가|추천|매[수도]\s*(의견|하|할|해)|담아|사야|팔아|\bbuy\b|\bsell\b", re.IGNORECASE)
+#: 직접적인 투자 권유. 목표가·투자의견 변경과 "매수세" 같은 사실 전달은 막지 않는다
+_ADVICE = re.compile(r"추천|매[수도]\s*(하|할|해)|담아|사야|팔아|\bbuy\b|\bsell\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
