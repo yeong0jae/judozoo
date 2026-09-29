@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 A phase-by-phase development workflow orchestrator. Infers the current state from git/GitHub and walks through each step together with the user.
 
+Run only when the user explicitly requests this workflow. Run shell commands from the repository root; repository paths below are relative to that root. Claude Code uses `disable-model-invocation` above; Codex uses `agents/openai.yaml` to preserve explicit-only invocation.
+
 ## State inference (run immediately on skill invocation)
 
 ```bash
@@ -32,7 +34,7 @@ Map the collected signals using the table below:
 | **A. No tasks** | All items in the latest `NNN-<title>.md` are checked | → Write the next phase's `NNN-<title>.md` referencing prd.md / spec.md |
 | **B. No issue** | Unchecked tasks exist but no open issue for them, current branch is main | → Draft issue → user approval → `gh issue create` |
 | **C. No branch** | Issue exists, current branch is main | → Suggest branch name (`<type>/#<n>-<slug>`) → user approval → `git checkout -b <name>` |
-| **D. In progress** | On a work branch (`<type>/#<n>-...`), ≥ 1 unchecked item | → Work on the *next unchecked item* in the tasks file → on completion, auto-update `[ ]` → `[x]` + commit via `/commit` skill |
+| **D. In progress** | On a work branch (`<type>/#<n>-...`), ≥ 1 unchecked item | → Work on the *next unchecked item* in the tasks file → on completion, auto-update `[ ]` → `[x]` + commit via the `commit` skill |
 | **E. No PR** | Work branch, all items checked, no open PR | → Draft PR body → user approval → `gh pr create` |
 | **F. Review in progress** | PR is open | → Ask the user if they want a review → if yes, fetch diff and comments, identify improvements, present options with recommendation and reasoning → apply approved items |
 | **G. Awaiting merge** | PR is open | → Ask the user if they want a review → if no, ask for merge approval → merge |
@@ -48,7 +50,7 @@ Map the collected signals using the table below:
 - Only in state B (tasks exist + no open issue). Never create an issue before writing tasks.
 - Choose one template that fits the work: `feature` (new feature / phase work) / `fix` (bug) / `refactor` (structural improvement) / `chore` (environment/tooling).
 - Title uses the template prefix (`feat: ` / `fix: ` / `refactor: ` / `chore: `) + one-line summary.
-- Body follows the section structure of [.github/ISSUE_TEMPLATE/](../../.github/ISSUE_TEMPLATE/).
+- Body follows the section structure of `.github/ISSUE_TEMPLATE/` at the repository root.
 - Extract the issue number from the response immediately after `gh issue create` → feed it into state C (branch creation).
 
 ## Branch creation rules
@@ -65,7 +67,7 @@ Map the collected signals using the table below:
 
 - Only in state E (all checkboxes done + no open PR). Never create a PR with unchecked items remaining.
 - Title: same format as the issue title (keep the prefix). One PR = one issue.
-- Body follows [.github/PULL_REQUEST_TEMPLATE.md](../../.github/PULL_REQUEST_TEMPLATE.md) exactly:
+- Body follows `.github/PULL_REQUEST_TEMPLATE.md` at the repository root exactly:
   - **Summary**: 3–5 bullets, what was done (PR-level summary, not a commit log)
   - **Closes #N**: auto-close trigger. Use the exact issue number.
   - **Test plan**: list the §Verification / §DoD items from the tasks file as bullet points
@@ -90,8 +92,8 @@ Map the collected signals using the table below:
 ## Behavioral rules
 
 - **GitHub actions (gh issue/pr create, merge, push) always require user approval.** Show the draft body and wait for yes/no.
-- **Auto-update checkboxes**: when one item in the tasks file is done, immediately Edit `[ ]` → `[x]`. The user should not need to check manually.
-- **Use `/commit` skill for commits**: in state D, invoke the `/commit` slash command (Skill tool) instead of running `git commit` directly. Include the tasks file checkbox update in the same commit.
+- **Auto-update checkboxes**: when one item in the tasks file is done, immediately update `[ ]` → `[x]`. The user should not need to check manually.
+- **Use the `commit` skill for commits**: in state D, follow the `commit` skill using the host's skill invocation mechanism, or read `.claude/skills/commit/SKILL.md` directly if unavailable. Include the tasks file checkbox update in the same commit.
 - **One step at a time**: in state D, do not try to complete *all* unchecked items in one invocation. Stop at a natural work unit (typically 1–3 checkboxes = 1 commit) and report progress to the user.
 
 ## Report format

@@ -6,6 +6,8 @@ allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*)
 
 # commit
 
+Run shell commands from the repository root using the host's available shell tool. The `allowed-tools` frontmatter is Claude Code-specific; Codex uses its own permission configuration.
+
 ## Workflow
 
 1. Run `git status` and `git diff --staged` in parallel to understand the changes
