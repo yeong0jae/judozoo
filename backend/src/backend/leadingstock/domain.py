@@ -10,6 +10,11 @@ from datetime import date, datetime
 
 from backend.library.ranking import top_balanced
 
+#: 일반 종목의 가격제한폭(%). 이보다 크게 움직였다면 제한폭이 넓은 날이다 — 상장 첫날이 대표적이다
+NORMAL_LIMIT_RATE = 30.0
+#: 상장 첫날의 오름 폭 상한(%) — 공모가의 60~400%에서 거래되므로 +300%까지 오를 수 있다
+LISTING_LIMIT_RATE = 300.0
+
 
 @dataclass(frozen=True)
 class LeadingStockSnapshot:
@@ -33,6 +38,19 @@ class LeadingStockSnapshot:
     #: 상한가로 잠겼는가. **거래소가 준 판정**이라 등락률로 대신 가릴 수 없다 —
     #: 신규상장 종목은 제한폭이 없어 +150%로도 상한가가 아니다.
     limit_up: bool = False
+
+    @property
+    def rate_for_ranking(self) -> float:
+        """주도주 순위를 매길 때 쓰는 등락률. 제한폭이 넓은 날(+30% 초과)이면 일반 제한폭으로 환산한다.
+
+        상장 첫날 등락률은 공모가 대비라 일반 종목의 하루 등락률과 한 줄에 세울 수 없다. 점수가
+        등락률의 **등수**를 쓰므로 조금 깎아서는 소용없다 — +30%를 넘는 한 늘 1등이다. 그래서
+        "제한폭 중 얼마나 올랐나"로 견준다: 공모가 대비 +86.9%는 +300% 중 29%라 일반 종목 +8.7%와 같은 자리다.
+        화면에는 원래 등락률을 보인다 — 여기 값은 순위에만 쓴다.
+        """
+        if self.price_change_rate <= NORMAL_LIMIT_RATE:
+            return self.price_change_rate
+        return self.price_change_rate * NORMAL_LIMIT_RATE / LISTING_LIMIT_RATE
 
 
 @dataclass(frozen=True)
@@ -146,7 +164,7 @@ class LeadingStocks:
         self._stocks = stocks
 
     def leaders(self, count: int) -> list[LeadingStockSnapshot]:
-        """거래대금·등락률 두 축이 모두 높은 순으로 `count`개.
+        """거래대금·등락률 두 축이 모두 높은 순으로 `count`개. 등락률은 제한폭으로 환산한 값이다(`rate_for_ranking`).
 
         **오른 종목만 본다.** 돈이 아무리 붙어도 내린 종목은 그날의 주도주가 아니다.
         """
@@ -154,7 +172,7 @@ class LeadingStocks:
         return top_balanced(
             risen,
             lambda s: s.accumulated_trading_value,
-            lambda s: s.price_change_rate,
+            lambda s: s.rate_for_ranking,
             count,
             TRADING_VALUE_WEIGHT,
         )
