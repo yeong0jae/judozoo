@@ -112,7 +112,7 @@ function SettingsModal({
               onClick={onWithdraw}
               className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300"
             >
-              탈퇴
+              탈퇴하기
             </button>
           </div>
         )}
