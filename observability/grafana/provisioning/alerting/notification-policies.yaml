@@ -32,3 +32,11 @@ policies:
         group_wait: 30s
         group_interval: 5m
         repeat_interval: 24h
+      # 탈퇴도 가입과 같은 채널. 로그 규칙이라 행 번호 대신 사용자 번호(`user`)로 가른다.
+      - receiver: slack-withdraw
+        matchers:
+          - kind = withdraw
+        group_by: [alertname, user]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 24h

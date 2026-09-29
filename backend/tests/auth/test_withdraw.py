@@ -1,8 +1,11 @@
 """탈퇴 — 가입자와 그 사람이 보낸 의견이 함께 사라지고, 남의 것은 남는다."""
 
+import re
 from datetime import datetime
+from pathlib import Path
 
 import pytest
+import yaml
 
 from backend.auth import application
 from backend.auth.domain import AppUser, CurrentUser
@@ -87,3 +90,22 @@ class Test탈퇴:
         application.withdraw(db.get_session_factory()(), 나)
 
         application.withdraw(db.get_session_factory()(), 나)
+
+    def test_탈퇴_알림이_세는_로그를_남긴다(self, 빈_테이블, caplog):
+        """Grafana 탈퇴 규칙은 이 로그 한 줄을 센다 — 문구를 바꾸면 알림이 조용히 끊긴다."""
+        규칙 = yaml.safe_load(
+            (Path(__file__).parents[2] / "../observability/grafana/provisioning/alerting/rules.yaml")
+            .resolve()
+            .read_text()
+        )
+        식 = next(g for g in 규칙["groups"] if g["name"] == "탈퇴")["rules"][0]["data"][0]["model"]["expr"]
+        로거 = re.search(r'logger = "([^"]+)"', 식).group(1)
+        문구 = re.search(r'msg =~ "([^"]+)"', 식).group(1)
+        나 = 가입("111")
+
+        with caplog.at_level("INFO"):
+            application.withdraw(db.get_session_factory()(), 나)
+
+        assert any(
+            r.name == 로거 and re.fullmatch(문구, r.getMessage()) and r.user == 나.id for r in caplog.records
+        )

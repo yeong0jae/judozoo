@@ -54,3 +54,17 @@ contactPoints:
           text: |
             {{ range .Alerts }}{{ .Annotations.summary }}
             {{ end }}
+
+  # 탈퇴 수신처. 가입·의견과 같은 웹훅 — 같은 이유로 해소 메시지를 끈다(사건이지 상태가 아니다).
+  - orgId: 1
+    name: slack-withdraw
+    receivers:
+      - uid: slack-withdraw-webhook
+        type: slack
+        disableResolveMessage: true
+        settings:
+          url: $SIGNUP_SLACK_WEBHOOK_URL
+          title: '👋 {{ .CommonLabels.alertname }}'
+          text: |
+            {{ range .Alerts }}{{ .Annotations.summary }}
+            {{ end }}

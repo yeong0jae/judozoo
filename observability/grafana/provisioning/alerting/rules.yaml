@@ -294,3 +294,47 @@ groups:
                 - evaluator:
                     type: gt
                     params: [0]
+
+  # ── 탈퇴 ─────────────────────────────────────────────────────────
+  # 가입·의견과 같은 자리의 알림인데 **DB가 아니라 로그를 본다.** 탈퇴는 `app_user` 행을
+  # 지우는 일이라 DB에는 볼 것이 남지 않는다. 탈퇴 기록 표를 따로 두면 지운 사람의 흔적을
+  # 일부러 남기는 셈이라 두지 않았다. `auth.application.withdraw`가 남기는 한 줄을 센다.
+  #
+  # 사용자 번호별로 센다 — 가입 규칙이 행마다 인스턴스를 만드는 것과 같은 이유다.
+  # 번호는 이미 지워진 행의 것이라 시스템 안에서도 더는 아무것도 가리키지 않는다.
+  - orgId: 1
+    name: 탈퇴
+    folder: judozoo
+    interval: 1m
+    rules:
+      - uid: new-withdraw
+        title: 탈퇴
+        condition: THRESHOLD
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: info
+          kind: withdraw
+        annotations:
+          summary: '{{ if $labels.user }}{{ $labels.user }}번 사용자가 탈퇴했습니다 (보낸 의견도 함께 삭제){{ else }}탈퇴 규칙이 질의에 실패했습니다 — Grafana에서 규칙 상태를 본다{{ end }}'
+          runbook: 'Grafana "사용자 여정"에서 그 번호로 탈퇴 전 무엇을 봤는지 본다'
+        data:
+          - refId: QUERY
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              refId: QUERY
+              datasource: { type: loki, uid: loki }
+              queryType: instant
+              expr: 'sum by (user) (count_over_time({service="backend"} | json | logger = "backend.auth.application" | msg =~ "탈퇴.*" [10m]))'
+          - refId: THRESHOLD
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
