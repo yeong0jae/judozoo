@@ -1,6 +1,3 @@
-import { useState } from "react";
-import { createPortal } from "react-dom";
-import { useMe, useWithdraw } from "../api/auth";
 import LegalPage from "../components/common/LegalPage";
 
 const CONTACT = "judozooweb@gmail.com";
@@ -60,7 +57,7 @@ export default function PrivacyPage() {
         요청하면 확인 후 처리합니다. 로그아웃만으로는 저장된 정보가 삭제되지 않습니다.
       </p>
       <p>
-        탈퇴는 로그인한 상태에서 이 자리의 <WithdrawLink />를 누르면 바로 처리됩니다. 1항의 계정 관련
+        탈퇴는 로그인한 상태에서 설정(톱니바퀴) 창의 "탈퇴"를 누르면 바로 처리됩니다. 1항의 계정 관련
         두 항목과 보낸 의견이 함께 삭제되며 되돌릴 수 없습니다.
       </p>
 
@@ -101,56 +98,5 @@ export default function PrivacyPage() {
         <li>2026-09-13: 최초 시행</li>
       </ul>
     </LegalPage>
-  );
-}
-
-/**
- * 탈퇴 — 처리방침 5항 안에만 둔다. 설정·계정 메뉴처럼 늘 보이는 자리에 두지 않는다.
- * 로그인하지 않았으면 누를 것이 없어 글자만 보인다.
- */
-function WithdrawLink() {
-  const { data: me } = useMe();
-  const [confirming, setConfirming] = useState(false);
-  if (!me?.authenticated) return <>"탈퇴하기"</>;
-  return (
-    <>
-      <button type="button" onClick={() => setConfirming(true)} className="underline underline-offset-2">
-        탈퇴하기
-      </button>
-      {confirming && <WithdrawConfirm onClose={() => setConfirming(false)} />}
-    </>
-  );
-}
-
-/** 되돌릴 수 없는 일이라 한 번 더 묻는다. 설정 모달과 같은 이유로 body에 포털한다. */
-function WithdrawConfirm({ onClose }: { onClose: () => void }) {
-  const withdraw = useWithdraw();
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="mb-2 text-lg font-semibold text-zinc-100">정말 탈퇴할까요?</h3>
-        <p className="mb-5 text-sm text-zinc-400">
-          가입 기록과 보낸 의견이 바로 삭제되며 되돌릴 수 없습니다. 다시 로그인하면 새로 가입됩니다.
-        </p>
-        {withdraw.isError && <p className="mb-3 text-sm text-red-400">탈퇴하지 못했습니다. 잠시 뒤 다시 시도해 주세요.</p>}
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-850">
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={() => withdraw.mutate()}
-            disabled={withdraw.isPending}
-            className="rounded-lg bg-red-500/90 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
-          >
-            {withdraw.isPending ? "처리 중" : "탈퇴"}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
   );
 }

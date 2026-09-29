@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useMe } from "../../api/auth";
 import { useTheme, type ThemeMode } from "../../theme/theme";
 import FeedbackModal from "./FeedbackModal";
+import WithdrawConfirm from "./WithdrawConfirm";
 
 export default function SettingsButton() {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   // 쓰던 의견은 버튼 쪽에 둔다 — 모달은 바깥을 누르면 닫히는데, 그때 초안까지 사라지면
   // 잘못 눌렀다가 처음부터 다시 써야 한다.
   const [feedback, setFeedback] = useState("");
@@ -16,7 +19,7 @@ export default function SettingsButton() {
         type="button"
         onClick={() => setOpen(true)}
         className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-          open || feedbackOpen ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
+          open || feedbackOpen || withdrawOpen ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:bg-zinc-850 hover:text-zinc-200"
         }`}
         aria-label="설정"
       >
@@ -29,12 +32,17 @@ export default function SettingsButton() {
       {open && (
         <SettingsModal
           onClose={() => setOpen(false)}
+          onWithdraw={() => {
+            setOpen(false);
+            setWithdrawOpen(true);
+          }}
           onFeedback={() => {
             setOpen(false);
             setFeedbackOpen(true);
           }}
         />
       )}
+      {withdrawOpen && <WithdrawConfirm onClose={() => setWithdrawOpen(false)} />}
       {feedbackOpen && (
         <FeedbackModal
           content={feedback}
@@ -56,7 +64,16 @@ export default function SettingsButton() {
  * body로 포털한다 — 트리거가 좌측 레일 안에 있어서, 그대로 두면 `fixed`가
  * 레일 폭에 갇혀 모달이 찌그러진다.
  */
-function SettingsModal({ onClose, onFeedback }: { onClose: () => void; onFeedback: () => void }) {
+function SettingsModal({
+  onClose,
+  onFeedback,
+  onWithdraw,
+}: {
+  onClose: () => void;
+  onFeedback: () => void;
+  onWithdraw: () => void;
+}) {
+  const { data: me } = useMe();
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -87,6 +104,18 @@ function SettingsModal({ onClose, onFeedback }: { onClose: () => void; onFeedbac
         >
           의견 보내기
         </button>
+        {/* 탈퇴는 눈에 띄지 않게 — 오른쪽 작은 밑줄 글자. 로그인했을 때만 */}
+        {me?.authenticated && (
+          <div className="mt-3 text-right">
+            <button
+              type="button"
+              onClick={onWithdraw}
+              className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300"
+            >
+              탈퇴
+            </button>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
