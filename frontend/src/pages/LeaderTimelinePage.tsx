@@ -82,14 +82,15 @@ const fmtDur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? 
  * 치수는 시안 px 값을 그대로 쓴다(024 캘린더와 같은 이유 — rem이면 넓은 화면에서 성겨진다).
  */
 export default function LeaderTimelinePage() {
-  // 홈 해외 카드의 "타임라인"은 `?market=us`로 들어온다 — 처음 여는 탭만 정하고, 그 뒤 탭 전환은 주소를 건드리지 않는다.
-  // 주소에 없으면 홈이 주인공을 고르는 규칙(`overseasIsMain`)을 따른다
+  // 홈 주도주 카드의 "타임라인"은 그 카드의 시장(`?market=kr|us`)으로 들어온다 — 처음 여는 탭만 정하고,
+  // 그 뒤 탭 전환은 주소를 건드리지 않는다. 주소에 없으면 홈이 주인공을 고르는 규칙(`overseasIsMain`)을 따른다
   const [params] = useSearchParams();
+  const asked = params.get("market");
   const [market, setMarket] = useState<TimelineMarket>(() =>
-    params.get("market") === "us" || overseasIsMain(new Date()) ? "us" : "kr",
+    asked === "kr" || asked === "us" ? asked : overseasIsMain(new Date()) ? "us" : "kr",
   );
   /** 탭을 주소나 클릭으로 정했는가 — 정했으면 휴장일이라도 해외로 돌리지 않는다 */
-  const marketPicked = useRef(params.get("market") === "us");
+  const marketPicked = useRef(asked === "kr" || asked === "us");
   const [date, setDate] = useState(() => latestTradingDayStr(marketNow(market).date));
   /** 고정해 둔 슬롯. null = 최신을 따라간다 */
   const [pinned, setPinned] = useState<number | null>(null);
