@@ -57,7 +57,7 @@ export function ReasonCard({
       {head}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2 text-xs font-bold text-zinc-500">
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5 text-zinc-300">
             왜 올랐나요?
             <span className="rounded border border-zinc-800 px-1 text-[10.5px] font-semibold text-zinc-400">AI 요약</span>
           </span>
