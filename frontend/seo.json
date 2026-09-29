@@ -2,7 +2,7 @@
   "origin": "https://judozoo.com",
   "routes": {
     "/": {
-      "title": "주도주와 시그널을 한 화면에 : judozoo",
+      "title": "오늘의 주도주와 타임라인을 한눈에 : judozoo",
       "description": "주도주와 시그널, 지지·저항, 지수·수급을 한 화면에 모아 보여줍니다."
     },
     "/leading-stocks": {
