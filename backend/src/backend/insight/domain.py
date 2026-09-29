@@ -72,11 +72,11 @@ SCHEDULES: dict[Region, Schedule] = {
         slots=(time(8, 30), time(9, 30), time(11, 0), time(14, 0), time(16, 0), time(18, 0), time(20, 0)),
         close=time(15, 30),
     ),
-    # KST(서머타임 중) 23:00 · 01:00 · 03:00 · 05:30 · 07:00
+    # KST(서머타임 중) 23:00 · 00:00 · 02:00 · 05:30 · 07:00
     Region.US: Schedule(
         reset=time(4, 0),
         window=(time(10, 0), time(18, 0)),
-        slots=(time(10, 0), time(12, 0), time(14, 0), time(16, 30), time(18, 0)),
+        slots=(time(10, 0), time(11, 0), time(13, 0), time(16, 30), time(18, 0)),
         close=time(16, 0),
     ),
 }

@@ -50,7 +50,7 @@ class Test국내_생성_시간:
 class Test해외_생성_시간:
     """해외 시각은 뉴욕 기준이다 — 서머타임이 바뀌어도 미국 장의 같은 순간에 돈다."""
 
-    @pytest.mark.parametrize("t", [time(10, 0), time(12, 0), time(14, 0), time(16, 30), time(18, 0)])
+    @pytest.mark.parametrize("t", [time(10, 0), time(11, 0), time(13, 0), time(16, 30), time(18, 0)])
     def test_정해진_시각은_뉴욕_기준_다섯_번이다(self, t):
         assert US.is_slot(t)
 
