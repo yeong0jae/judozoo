@@ -1,4 +1,4 @@
-"""해외 후보 풀 갱신 폴러 — 미국 장중에만 돈다."""
+"""해외 폴러 — 후보 풀 갱신은 미국 장중에만, 분봉 마감 확정은 미국 개장일에만 돈다."""
 
 from backend.overseasleadingstock import application, scheduler
 
@@ -35,3 +35,21 @@ class Test해외_후보_풀_갱신:
         monkeypatch.setattr(application, "refresh_ranking_pool", 터진다)
 
         scheduler.refresh_ranking_pool()
+
+
+class Test해외_분봉_마감_확정:
+    def 준비(self, monkeypatch, 휴장: bool) -> list:
+        monkeypatch.setattr("backend.market.calendar.is_holiday", lambda region: 휴장)
+        호출됨: list = []
+        monkeypatch.setattr(application, "settle_minutes", lambda: 호출됨.append(1) or 0)
+        return 호출됨
+
+    def test_미국_개장일이면_오늘_봉을_굳혀_넘긴다(self, monkeypatch):
+        호출됨 = self.준비(monkeypatch, 휴장=False)
+        scheduler.settle_minutes()
+        assert 호출됨 == [1]
+
+    def test_미국_휴장이면_하지_않는다(self, monkeypatch):
+        호출됨 = self.준비(monkeypatch, 휴장=True)
+        scheduler.settle_minutes()
+        assert 호출됨 == []

@@ -61,6 +61,7 @@ async def lifespan(app: FastAPI):
     from backend.leadercalendar.entities import LeaderDay, LeaderDayStock
     from backend.leadertimeline.entities import LeaderTick, LeaderTickStock
     from backend.leadingstock.infrastructure import StockMinuteCandleEntity
+    from backend.overseasleadingstock.infrastructure import OverseasMinuteCandleEntity
     from backend.insight.entities import StockReason
 
     try:
@@ -71,6 +72,7 @@ async def lifespan(app: FastAPI):
         LeaderTick.__table__.create(get_engine(), checkfirst=True)
         LeaderTickStock.__table__.create(get_engine(), checkfirst=True)
         StockMinuteCandleEntity.__table__.create(get_engine(), checkfirst=True)
+        OverseasMinuteCandleEntity.__table__.create(get_engine(), checkfirst=True)
         StockReason.__table__.create(get_engine(), checkfirst=True)
     except Exception:
         log.warning("가입자·의견·주도주 캘린더·타임라인·지난 날 분봉 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)

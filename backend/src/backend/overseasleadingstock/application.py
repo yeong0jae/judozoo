@@ -4,15 +4,20 @@
 국내와 같은 흐름 — 거래대금 상위 풀에서 당일 등락률이 기준 이상인 것만 남긴다.
 """
 
+import logging
+from datetime import timedelta
+
 from backend.library.cache import ttl_cache
 from backend.market import calendar
-from backend.overseasleadingstock import minutes
+from backend.overseasleadingstock import minute_archive, minutes
 from backend.overseasleadingstock.domain import (
     FilterResult,
     OverseasStockRank,
     OverseasStockRanks,
 )
 from backend.platform.kis import overseas_chart, overseas_product, overseas_ranking
+
+log = logging.getLogger(__name__)
 
 EXCHANGES = ("NAS", "NYS", "AMS")
 TOP_N = 40
@@ -158,3 +163,17 @@ def _to_float(value: str) -> float:
         return float(value.strip())
     except (TypeError, ValueError):
         return 0.0
+
+
+#: 지난 날 분봉 보관 기간 — 국내와 같다. 수정주가(액면분할 등) 소급이 반영되지 않는 봉을 오래 두지 않는다.
+_MINUTE_ARCHIVE_RETENTION = timedelta(days=14)
+
+
+def settle_minutes() -> int:
+    """마감 뒤 들고 있는 종목의 오늘 봉을 굳혀 보관소에 넘기고, 2주 지난 날을 지운다. 실패한 종목 수를 돌려준다."""
+    failures = minutes.settle()
+    try:
+        minute_archive.purge(calendar.Region.US.today() - _MINUTE_ARCHIVE_RETENTION)
+    except Exception:
+        log.warning("해외 지난 날 분봉 정리 실패", exc_info=True)
+    return failures

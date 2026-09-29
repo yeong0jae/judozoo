@@ -31,6 +31,13 @@ def KIS(monkeypatch):
         return [c for c in 상태["응답"] if since is None or c.date_time >= since]
 
     monkeypatch.setattr(minutes.overseas_chart, "fetch_minute_candles", 받기)
+    # 보관소는 메모리 흉내로 — DB 층은 test_minute_archive_db가 본다
+    상태["보관"] = {}
+    monkeypatch.setattr(
+        minutes.minute_archive, "recent",
+        lambda ex, sym, limit: sorted(((d, b) for (e, s, d), b in 상태["보관"].items() if (e, s) == (ex, sym)), reverse=True)[:limit],
+    )
+    monkeypatch.setattr(minutes.minute_archive, "put", lambda ex, sym, d, b: 상태["보관"].__setitem__((ex, sym, d), b))
     yield 상태
     minutes.reset()
 
@@ -132,4 +139,76 @@ class Test정리:
 
         minutes.minute_candles("NAS", "AAPL")
 
-        assert KIS["호출"][-1] is None               # 처음처럼 다시 받는다
+        # 들고 있던 봉은 버렸지만 끝난 날(어제)은 보관소에 있다 — 그 뒤부터만 받는다
+        assert KIS["호출"][-1] == datetime(2026, 9, 25, 5, 0)
+
+
+class Test끝난_날_보관:
+    def test_처음_열어_2거래일치를_받으면_직전_거래일을_넘긴다(self, KIS):
+        처음_열기(KIS)
+
+        assert list(KIS["보관"]) == [("NAS", "AAPL", 어제)]
+
+    def test_날이_넘어가면_최신이던_날을_넘긴다(self, KIS):
+        처음_열기(KIS)
+        KIS["지금"] += timedelta(hours=18)
+        다음날 = date(2026, 9, 26)
+        KIS["응답"] = [봉(오늘, datetime(2026, 9, 26, 8, 59)), 봉(다음날, datetime(2026, 9, 26, 17, 0))]
+
+        minutes.minute_candles("NAS", "AAPL")
+
+        assert [c.date_time.hour for c in KIS["보관"][("NAS", "AAPL", 오늘)]] == [22, 8]   # 마지막 봉까지 담겨 넘어간다
+
+    def test_마감_확정은_들고_있는_종목의_최신_거래일을_한_번_더_받아_넘긴다(self, KIS):
+        처음_열기(KIS)
+        KIS["응답"].append(봉(오늘, datetime(2026, 9, 26, 8, 59), 종가=120))
+
+        assert minutes.settle() == 0
+
+        assert KIS["호출"][-1] == datetime(2026, 9, 25, 22, 28)          # 마지막 봉 2분 앞부터
+        assert [c.close for c in KIS["보관"][("NAS", "AAPL", 오늘)]] == [100, 120]
+
+    def test_마감_확정에_실패한_종목은_세고_넘기지_않는다(self, KIS):
+        처음_열기(KIS)
+        KIS["오류"] = RuntimeError("KIS 오류")
+
+        assert minutes.settle() == 1
+        assert ("NAS", "AAPL", 오늘) not in KIS["보관"]
+
+
+class Test보관소에서_열기:
+    def test_직전_거래일이_있으면_그_뒤_봉만_받는다(self, KIS):
+        KIS["보관"][("NAS", "AAPL", 어제)] = [봉(어제, datetime(2026, 9, 25, 4, 59))]
+        KIS["응답"] = [봉(어제, datetime(2026, 9, 25, 4, 59)), 봉(오늘, datetime(2026, 9, 25, 22, 30))]
+
+        봉들 = minutes.minute_candles("NAS", "AAPL")
+
+        assert KIS["호출"] == [datetime(2026, 9, 25, 5, 0)]              # 보관한 마지막 봉 1분 뒤부터
+        assert [c.trading_day for c in 봉들] == [어제, 오늘]
+
+    def test_새_봉이_없으면_보관한_두_날을_보여준다(self, KIS):
+        """장이 열리기 전 — 오늘 봉이 아직 없다."""
+        그제 = date(2026, 9, 23)
+        KIS["보관"][("NAS", "AAPL", 그제)] = [봉(그제, datetime(2026, 9, 24, 4, 59))]
+        KIS["보관"][("NAS", "AAPL", 어제)] = [봉(어제, datetime(2026, 9, 25, 4, 59))]
+        KIS["응답"] = []
+
+        봉들 = minutes.minute_candles("NAS", "AAPL")
+
+        assert [c.trading_day for c in 봉들] == [그제, 어제]
+
+    def test_보관한_날이_하나뿐이고_새_봉도_없으면_2거래일치를_받는다(self, KIS):
+        KIS["보관"][("NAS", "AAPL", 어제)] = [봉(어제, datetime(2026, 9, 25, 4, 59))]
+        KIS["응답"] = []
+
+        minutes.minute_candles("NAS", "AAPL")
+
+        assert KIS["호출"] == [datetime(2026, 9, 25, 5, 0), None]
+
+    def test_보관한_날이_너무_오래됐으면_2거래일치를_받는다(self, KIS):
+        """그 뒤를 이어 받으면 2거래일치보다 더 받게 된다."""
+        옛날 = date(2026, 9, 18)
+        KIS["보관"][("NAS", "AAPL", 옛날)] = [봉(옛날, datetime(2026, 9, 19, 4, 59))]
+        처음_열기(KIS)
+
+        assert KIS["호출"] == [None]
