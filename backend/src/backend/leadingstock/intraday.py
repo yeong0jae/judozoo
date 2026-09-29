@@ -20,6 +20,7 @@ from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 
 from backend.leadingstock.domain import MinuteCandle
+from backend.library.singleflight import SingleFlight
 from backend.library.time import now, today
 from backend.platform.toss import candles as toss_candles
 
@@ -37,6 +38,9 @@ _day: date | None = None
 _bars: dict[str, dict[datetime, MinuteCandle]] = {}
 _synced_at: dict[str, datetime] = {}   # 마지막으로 받는 데 성공한 시각
 _read_at: dict[str, datetime] = {}
+#: 화면 요청끼리 같은 종목을 동시에 받으면 한 번만 부른다. 폴러·마감 확정은 여기 태우지 않는다 —
+#: 마감 확정이 마감 전에 시작된 화면 요청에 얹히면 덜 찬 마지막 봉을 확정본으로 넘긴다.
+_flight = SingleFlight()
 
 
 def _key(stock_code: str) -> str:
@@ -100,7 +104,7 @@ def ensure(stock_code: str, fresh_since: datetime) -> list[MinuteCandle]:
             return _ordered(_bars[key])
         _evict(keep={key})
     try:
-        _sync_one(key, day)
+        _flight.do(key, lambda: _sync_if_stale(key, day, fresh_since))
     except Exception:
         log.error("당일 분봉 조회 실패 stk_cd=%s", key, exc_info=True)
     with _lock:
@@ -111,6 +115,14 @@ def synced_since(stock_code: str, since: datetime) -> bool:
     """`since` 이후에 받는 데 성공했는가. 실패해 옛 봉을 돌려받았는지 가를 때 쓴다."""
     with _lock:
         return _synced_at.get(_key(stock_code), datetime.min) >= since
+
+
+def _sync_if_stale(key: str, day: date, fresh_since: datetime) -> None:
+    """선두가 막 받고 끝난 뒤에 들어온 요청이 또 받지 않게, 받기 직전에 한 번 더 본다."""
+    with _lock:
+        if _synced_at.get(key, datetime.min) >= fresh_since:
+            return
+    _sync_one(key, day)
 
 
 def _sync_one(key: str, day: date) -> None:

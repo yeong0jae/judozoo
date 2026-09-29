@@ -23,6 +23,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
+from backend.library.singleflight import SingleFlight
 from backend.library.time import now
 from backend.market import calendar
 from backend.overseasleadingstock import minute_archive
@@ -62,6 +63,9 @@ class _Stock:
 
 _lock = threading.Lock()
 _stocks: dict[tuple[str, str], _Stock] = {}
+#: 같은 종목을 동시에 받으면 한 번만 부른다 — 처음 열기는 KIS 12페이지 안팎이라, 인기 종목을
+#: 여럿이 동시에 열면 곧장 한도에 걸렸다. 마감 확정(`settle`)은 태우지 않는다(국내와 같은 이유).
+_flight = SingleFlight()
 
 
 def minute_candles(exchange: str, symbol: str) -> list[OverseasMinuteCandle]:
@@ -74,9 +78,22 @@ def minute_candles(exchange: str, symbol: str) -> list[OverseasMinuteCandle]:
         stock = _stocks.get(key)
         if stock is not None:
             stock.read_at = at
-            if at - stock.synced_at <= _FRESH or (closed and stock.synced_while_closed):
+            if _is_fresh(stock, at, closed):
                 return stock.candles()
+    return _flight.do(key, lambda: _refresh(key, at, closed))
 
+
+def _is_fresh(stock: _Stock, at: datetime, closed: bool) -> bool:
+    return at - stock.synced_at <= _FRESH or (closed and stock.synced_while_closed)
+
+
+def _refresh(key: tuple[str, str], at: datetime, closed: bool) -> list[OverseasMinuteCandle]:
+    """처음 열거나 새 봉을 이어 받는다. 선두가 막 받고 끝난 뒤에 들어온 요청은 받지 않고 그 값을 쓴다."""
+    exchange, symbol = key
+    with _lock:
+        stock = _stocks.get(key)
+        if stock is not None and _is_fresh(stock, at, closed):
+            return stock.candles()
     if stock is None:
         return _load(key, at, closed)
     try:

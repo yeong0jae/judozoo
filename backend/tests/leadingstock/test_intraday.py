@@ -1,5 +1,7 @@
 """당일 분봉 저장소 — 한 번 채운 뒤 마지막 봉 이후만 받아 이어 붙인다."""
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -167,3 +169,32 @@ class Test마감_확정:
 
         assert set(확정) == {"005930"}
         assert 실패 == 1
+
+
+class Test동시_요청:
+    def test_같은_종목을_동시에_열면_토스를_한_번만_부른다(self, 토스, monkeypatch):
+        """감시 풀 밖의 종목을 여럿이 한꺼번에 연 상황."""
+        토스["봉"]["000660"] = [봉(9, 0), 봉(9, 1)]
+        받기, 풀림 = intraday.toss_candles.fetch_today_minute_candles, threading.Event()
+
+        def 느린_받기(code, since=None):
+            풀림.wait(1)
+            return 받기(code, since)
+
+        monkeypatch.setattr(intraday.toss_candles, "fetch_today_minute_candles", 느린_받기)
+        with ThreadPoolExecutor(4) as pool:
+            futures = [pool.submit(intraday.ensure, "000660", 토스["지금"]) for _ in range(4)]
+            threading.Event().wait(0.1)
+            풀림.set()
+            결과 = [분(f.result()) for f in futures]
+
+        assert len(토스["호출"]) == 1
+        assert 결과 == [[0, 1]] * 4
+
+    def test_막_받은_값이_있으면_뒤에_온_요청은_다시_받지_않는다(self, 토스):
+        토스["봉"]["000660"] = [봉(9, 0)]
+        intraday.ensure("000660", 토스["지금"])
+
+        intraday.ensure("000660", 토스["지금"] - timedelta(seconds=30))
+
+        assert len(토스["호출"]) == 1

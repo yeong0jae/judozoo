@@ -1,5 +1,7 @@
 """해외 1분봉 저장소 — 처음만 2거래일을 받고, 그다음은 새 봉만 받는다."""
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -212,3 +214,42 @@ class Test보관소에서_열기:
         처음_열기(KIS)
 
         assert KIS["호출"] == [None]
+
+
+class Test동시_요청:
+    def test_같은_종목을_동시에_처음_열면_KIS를_한_번만_부른다(self, KIS, monkeypatch):
+        """재시작 직후 인기 종목을 여럿이 한꺼번에 연 상황 — 각자 12페이지씩 받으면 한도에 걸린다."""
+        KIS["응답"] = [봉(어제, datetime(2026, 9, 25, 4, 59)), 봉(오늘, datetime(2026, 9, 25, 22, 30))]
+        받기, 풀림 = minutes.overseas_chart.fetch_minute_candles, threading.Event()
+
+        def 느린_받기(exchange, symbol, since=None):
+            풀림.wait(1)
+            return 받기(exchange, symbol, since)
+
+        monkeypatch.setattr(minutes.overseas_chart, "fetch_minute_candles", 느린_받기)
+        with ThreadPoolExecutor(4) as pool:
+            futures = [pool.submit(minutes.minute_candles, "NAS", "NVDA") for _ in range(4)]
+            threading.Event().wait(0.1)
+            풀림.set()
+            결과 = [len(f.result()) for f in futures]
+
+        assert KIS["호출"] == [None]
+        assert 결과 == [2] * 4
+
+    def test_60초가_지나_동시에_물어도_이어_받기는_한_번이다(self, KIS, monkeypatch):
+        처음_열기(KIS)
+        KIS["지금"] += timedelta(seconds=61)
+        받기, 풀림 = minutes.overseas_chart.fetch_minute_candles, threading.Event()
+
+        def 느린_받기(exchange, symbol, since=None):
+            풀림.wait(1)
+            return 받기(exchange, symbol, since)
+
+        monkeypatch.setattr(minutes.overseas_chart, "fetch_minute_candles", 느린_받기)
+        with ThreadPoolExecutor(4) as pool:
+            futures = [pool.submit(minutes.minute_candles, "NAS", "AAPL") for _ in range(4)]
+            threading.Event().wait(0.1)
+            풀림.set()
+            [f.result() for f in futures]
+
+        assert len(KIS["호출"]) == 2   # 처음 열기 + 이어 받기 한 번
