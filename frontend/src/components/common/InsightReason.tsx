@@ -58,7 +58,7 @@ export function ReasonCard({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2 text-xs font-bold text-zinc-500">
           <span className="flex items-center gap-1.5">
-            왜 오르나요?
+            왜 올랐나요?
             <span className="rounded border border-zinc-800 px-1 text-[10.5px] font-semibold text-zinc-400">AI 요약</span>
           </span>
           <span className="num font-normal">{clock(item.generatedAt)} 기준</span>

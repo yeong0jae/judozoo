@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 /**
  * 차트 카드 — 테두리만 있는 카드 + 맨 위 라벨 줄(왼쪽 제목, 오른쪽 1분봉·일봉 토글).
- * "왜 오르나요?" 카드와 같은 모양이다. 국내·해외 상세가 같이 쓴다.
+ * "왜 올랐나요?" 카드와 같은 모양이다. 국내·해외 상세가 같이 쓴다.
  */
 export function ChartCard({ title, action, children }: { title: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (

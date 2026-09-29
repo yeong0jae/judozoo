@@ -42,7 +42,7 @@ export default function StockDetailPanel({
   stockCode: string | null;
   date?: string; // 차트 기준 날짜 — 미지정 시 오늘
   onBack?: () => void;
-  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 오르나요?" 카드(026). 다른 화면은 비워 둔다 */
+  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 올랐나요?" 카드(026). 다른 화면은 비워 둔다 */
   insight?: ReactNode;
 }) {
   const detailQ = useLeadingStockDetail(stockCode);

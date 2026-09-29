@@ -38,7 +38,7 @@ export default function OverseasStockDetailPanel({
   symbol: string | null;
   chartOnly?: boolean;
   onBack?: () => void;
-  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 오르나요?" 카드(026) */
+  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 올랐나요?" 카드(026) */
   insight?: ReactNode;
 }) {
   const [interval, setChartInterval] = useState<ChartInterval>("1m");
