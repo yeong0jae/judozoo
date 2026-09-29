@@ -42,6 +42,7 @@ def 빈_테이블(통합_db):
 def 바깥(mocker):
     """주도주 풀·Vertex·기사 사이트. 기본은 LG이노텍 하나가 제대로 설명되는 경우."""
     mocker.patch.object(application.leadingstock, "find_leaders", return_value=[국내("011070", "LG이노텍")])
+    mocker.patch.object(application.leadingstock, "find_candidate_stocks", return_value=[])
     mocker.patch.object(application.calendar, "previous_open_day", return_value=date(2026, 9, 25))
     ground = mocker.patch.object(application.vertex, "ground", return_value=Grounded(
         text="美 라이다 업체 Aeva 지분가치가 올랐다.",
@@ -131,6 +132,17 @@ class Test사유_만들기:
         with 세션() as s:
             assert application.run(s, Region.KR, kst(10, 15)) == 1
         assert len(행들()) == 1
+
+
+    def test_5퍼센트_넘게_오른_후보는_새로_들어올_때만_만든다(self, 빈_테이블, 바깥):
+        ground, _ = 바깥
+        application.leadingstock.find_candidate_stocks.return_value = [국내("011070", "LG이노텍"), 국내("009830", "한화솔루션")]
+        with 세션() as s:
+            application.run(s, Region.KR, kst(10, 15))
+            application.run(s, Region.KR, kst(11, 0))
+
+        assert [(r.code, r.trigger) for r in 행들()] == [("011070", "entry"), ("009830", "entry"), ("011070", "scheduled")]
+        application.leadingstock.find_candidate_stocks.assert_called_with(5.0)
 
 
 @pytest.mark.integration

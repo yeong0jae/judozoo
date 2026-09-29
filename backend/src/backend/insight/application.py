@@ -1,6 +1,7 @@
 """주도주 "왜 오르나" — 매분 만들 종목을 골라 Gemini로 사유를 만들고, 화면에는 고른 한 행씩 내준다.
 
-무엇이 주도주인지는 홈 카드가 정한다(`find_leaders`·`get_leaders`). 여기서는 그 5종목에 사유를 붙인다.
+무엇이 주도주인지는 홈 카드가 정한다(`find_leaders`·`get_leaders`). 여기서는 그 5종목과, 등락률 5% 넘게 오른
+나머지 후보에 사유를 붙인다(후보는 새로 들어올 때 한 번만).
 Gemini는 두 번 부른다 — 검색 켠 문장 → 서버가 출처를 실제 기사로 → 검색 없는 JSON(번호만)(026 §생성 파이프라인).
 """
 
@@ -41,6 +42,8 @@ log = logging.getLogger(__name__)
 
 #: 홈 주도주 카드의 줄 수(`leadercalendar.application.LEADERS_COUNT`와 같은 값)
 LEADERS_COUNT = 5
+#: 주도주가 아니어도 이만큼(%) 넘게 오른 후보는 사유를 만든다 — 새로 들어올 때 한 번만(026)
+CANDIDATE_MIN_CHANGE_RATE = 5.0
 
 _SCHEMA = {
     "type": "OBJECT",
@@ -81,12 +84,16 @@ def run(session: Session, region: Region, now_kst: datetime) -> int:
     if not schedule.in_window(now.time()):
         return 0
 
-    leaders = {lead.code: lead for lead in _leaders(region)}
+    leaders, candidates = _targets(region)
+    targets = {t.code: t for t in [*candidates, *leaders]}
     rows = _rows(session, region, now.date())
     history: dict[str, list] = defaultdict(list)
     for r in rows:
         history[r.code].append(r.attempt(local(region, r.generated_at)))
-    picks = pick(schedule, list(leaders), {c: Attempts(a) for c, a in history.items()}, now)
+    picks = pick(
+        schedule, [t.code for t in leaders], {c: Attempts(a) for c, a in history.items()}, now,
+        candidates=[t.code for t in candidates],
+    )
 
     started = monotonic()
     made = 0
@@ -94,7 +101,7 @@ def run(session: Session, region: Region, now_kst: datetime) -> int:
         if _used_today(session, now_kst) >= get_settings().vertex.daily_limit:
             log.warning("왜 오르나 — 하루 상한에 닿아 오늘은 멈춘다 (%s개 남김)", len(picks) - made)
             break
-        row = make(region, schedule, leaders[code], trigger, now.date(), now_kst)
+        row = make(region, schedule, targets[code], trigger, now.date(), now_kst)
         # 한 종목에 10~15초 — 실행 시작 시각을 그대로 찍으면 뒤 종목일수록 "기준" 시각이 실제보다 이르다.
         # 벽시계를 다시 읽지 않고 경과만 더한다: 30분·3분 규칙이 같은 시계로 계산된다
         row.generated_at = now_kst + timedelta(seconds=monotonic() - started)
@@ -126,22 +133,30 @@ def make(region: Region, schedule: Schedule, leader: Leader, trigger: Trigger, d
     )
 
 
-def _leaders(region: Region) -> list[Leader]:
+def _targets(region: Region) -> tuple[list[Leader], list[Leader]]:
+    """(주도주, 등락률 기준을 넘은 나머지 후보). 후보 쪽은 주도주를 뺀다."""
     if region == Region.KR:
-        return [
-            Leader(
-                code=s.stock_code.split("_", 1)[0], name=s.stock_name, search_name=s.stock_name,
-                rate=s.price_change_rate, trading_value=f"{s.accumulated_trading_value / 1e8:,.0f}억 원",
-            )
-            for s in leadingstock.find_leaders(LEADERS_COUNT)
-        ]
-    return [
-        Leader(
-            code=s.symbol, name=s.name, search_name=s.ename or s.name,
-            rate=s.rate, trading_value=f"${s.trading_value / 1e9:,.2f}B",
-        )
-        for s in overseasleadingstock.get_leaders(LEADERS_COUNT)
-    ]
+        leaders = [_domestic(s) for s in leadingstock.find_leaders(LEADERS_COUNT)]
+        pool = [_domestic(s) for s in leadingstock.find_candidate_stocks(CANDIDATE_MIN_CHANGE_RATE)]
+    else:
+        leaders = [_overseas(s) for s in overseasleadingstock.get_leaders(LEADERS_COUNT)]
+        pool = [_overseas(s) for s in overseasleadingstock.get_candidates(CANDIDATE_MIN_CHANGE_RATE)]
+    lead = {t.code for t in leaders}
+    return leaders, [t for t in pool if t.code not in lead]
+
+
+def _domestic(s) -> Leader:
+    return Leader(
+        code=s.stock_code.split("_", 1)[0], name=s.stock_name, search_name=s.stock_name,
+        rate=s.price_change_rate, trading_value=f"{s.accumulated_trading_value / 1e8:,.0f}억 원",
+    )
+
+
+def _overseas(s) -> Leader:
+    return Leader(
+        code=s.symbol, name=s.name, search_name=s.ename or s.name,
+        rate=s.rate, trading_value=f"${s.trading_value / 1e9:,.2f}B",
+    )
 
 
 def _previous_open_day(region: Region, day: date) -> date:

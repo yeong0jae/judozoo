@@ -124,19 +124,31 @@ class Attempts:
         return last is not None and not last.published and not last.retry and now - last.at >= RETRY_AFTER
 
 
-def pick(schedule: Schedule, leaders: Sequence[str], history: dict[str, Attempts], now: datetime) -> list[tuple[str, Trigger]]:
-    """지금 만들 종목과 그 이유. 대상은 **지금 주도주**뿐이다 — 빠진 종목은 사유만 남고 다시 만들지 않는다."""
+def pick(
+    schedule: Schedule,
+    leaders: Sequence[str],
+    history: dict[str, Attempts],
+    now: datetime,
+    candidates: Sequence[str] = (),
+) -> list[tuple[str, Trigger]]:
+    """지금 만들 종목과 그 이유. 대상은 **지금 주도주**와 **등락률 기준을 넘은 후보**다 —
+    빠진 종목은 사유만 남고 다시 만들지 않는다.
+
+    후보는 새로 들어올 때와 3분 재시도만 한다. 정해진 시각에 다시 만드는 건 주도주뿐이다 —
+    후보까지 매번 다시 만들면 검색이 무료 한도를 넘는다(026 §설계 결정). 주도주로 올라오면 그때부터 다시 만든다.
+    """
     if not schedule.in_window(now.time()):
         return []
     slot = schedule.is_slot(now.time())
+    lead = set(leaders)
     picked: list[tuple[str, Trigger]] = []
-    for code in leaders:
+    for code in [*leaders, *(c for c in candidates if c not in lead)]:
         done = history.get(code, Attempts())
         if not done.items:
             picked.append((code, Trigger.ENTRY))
         elif done.needs_retry(now):
             picked.append((code, Trigger.RETRY))
-        elif slot and not done.made_within(now, RECENT):
+        elif slot and code in lead and not done.made_within(now, RECENT):
             picked.append((code, Trigger.SCHEDULED))
     return picked
 

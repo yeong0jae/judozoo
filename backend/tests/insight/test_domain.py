@@ -120,6 +120,22 @@ class Test만들_종목_고르기:
         history = {"A": Attempts([made(10, 15, ok=False), made(10, 18, ok=False, retry=True)])}
         assert pick(KR, ["A"], history, at(10, 30)) == []
 
+    def test_후보는_새로_들어올_때_바로_만든다(self):
+        assert pick(KR, ["A"], {}, at(10, 15), candidates=["C"]) == [("A", Trigger.ENTRY), ("C", Trigger.ENTRY)]
+
+    def test_후보는_정해진_시각에_다시_만들지_않는다(self):
+        """후보는 한 번 만든 사유로 둔다 — 비용 때문. 주도주로 올라오면 그때부터 정해진 시각마다 다시 만든다."""
+        history = {"A": Attempts([made(9, 30)]), "C": Attempts([made(9, 30)])}
+        assert pick(KR, ["A"], history, at(11, 0), candidates=["C"]) == [("A", Trigger.SCHEDULED)]
+
+    def test_후보도_실패하면_3분_뒤_한_번_다시_시도한다(self):
+        history = {"C": Attempts([made(10, 15, ok=False)])}
+        assert pick(KR, [], history, at(10, 18), candidates=["C"]) == [("C", Trigger.RETRY)]
+
+    def test_주도주와_후보에_같은_종목이_있으면_주도주로_본다(self):
+        history = {"A": Attempts([made(9, 30)])}
+        assert pick(KR, ["A"], history, at(11, 0), candidates=["A"]) == [("A", Trigger.SCHEDULED)]
+
     def test_주도주에서_빠진_종목은_다시_만들지_않는다(self):
         assert pick(KR, ["B"], {"A": Attempts([made(9, 30)])}, at(11, 0)) == [("B", Trigger.ENTRY)]
 
