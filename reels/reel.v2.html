@@ -431,13 +431,21 @@ function setup(mk) {
   $("dateLbl").textContent = MK.dateLbl;
   // 자막은 1위 교체만 — "몇 시간 버텼다"는 자극이 없다
   M.events = M.relay.slice(1).map((r) => ({ i: r.i, type: "top", k: r.k }));
-  // 폭발 — 10분 사이 가장 크게 뛴 등락률. 장 시작 직후 첫 몇 분은 뺀다(0에서 첫 값으로 뛰는 건 폭발이 아니다)
-  let best = { r: 0 };
-  for (let k = 0; k < M.N; k++) for (let i = 5; i <= M.last; i++) {
-    const d = M.rate[k][i] - M.rate[k][Math.max(0, i - 10)];
-    if (d > best.r && M.pos[k][i] < 5) best = { k, i, r: M.rate[k][i], d };
+  // 폭발 — 그날의 주인공이 10분 사이 가장 크게 뛴 순간. 장 시작 직후 첫 몇 분은 뺀다(0에서 첫 값으로 뛰는 건 폭발이 아니다)
+  // 주인공은 2위 안에 30분 넘게 머문 종목 중 가장 오래 머문 종목이다. 뛴 폭만 보면 4~5위를 잠깐 스친
+  // 급등주가 하루를 대표해 버린다(해외 9/28 — 2위를 8시간 지킨 코디악 대신 볼라토가 뽑혔다)
+  const top2 = [...Array(M.N)].map((_, k) => M.live.filter((i) => M.snap[i].slice(0, 2).some((e) => e.k === k)).length);
+  let best = null;
+  for (let k = 0; k < M.N; k++) {
+    if (top2[k] < 30) continue;
+    let own = { d: 0 };
+    for (let i = 5; i <= M.last; i++) {
+      const d = M.rate[k][i] - M.rate[k][Math.max(0, i - 10)];
+      if (d > own.d && M.pos[k][i] < 5) own = { k, i, r: M.rate[k][i], d };
+    }
+    if (own.d >= 15 && (!best || top2[k] > top2[best.k])) best = own;
   }
-  M.boom = best.d >= 15 ? best : null;
+  M.boom = best;
   // 폭발한 종목이 곧바로 1위에 오르면 "역전!"은 폭발 연출이 대신한다
   if (M.boom) M.events = M.events.filter((e) => !(e.k === M.boom.k && Math.abs(e.i - M.boom.i) <= 15));
   const kor = ["", "한", "두", "세", "네"];
