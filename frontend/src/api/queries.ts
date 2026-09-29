@@ -545,7 +545,8 @@ export function useOverseasMinuteCandles(
         `/api/overseas-leading-stocks/${exchange}/${symbol}/minute-candles`,
       ),
     enabled,
-    refetchInterval: 60_000,
+    // 국내 1분 차트와 같은 주기 — 서버도 30초 넘게 묵은 값만 이어 받는다(`minutes._FRESH`)
+    refetchInterval: 30_000,
   });
 }
 

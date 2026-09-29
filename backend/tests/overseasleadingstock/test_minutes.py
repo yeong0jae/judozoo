@@ -67,17 +67,17 @@ class Test처음_열기:
 
 
 class Test이어_받기:
-    def test_60초_안이면_다시_부르지_않는다(self, KIS):
+    def test_30초_안이면_다시_부르지_않는다(self, KIS):
         처음_열기(KIS)
-        KIS["지금"] += timedelta(seconds=30)
+        KIS["지금"] += timedelta(seconds=20)
 
         minutes.minute_candles("NAS", "AAPL")
 
         assert len(KIS["호출"]) == 1
 
-    def test_60초가_지나면_마지막_봉_2분_앞부터만_받는다(self, KIS):
+    def test_30초가_지나면_마지막_봉_2분_앞부터만_받는다(self, KIS):
         처음_열기(KIS)
-        KIS["지금"] += timedelta(seconds=61)
+        KIS["지금"] += timedelta(seconds=31)
 
         minutes.minute_candles("NAS", "AAPL")
 
@@ -85,7 +85,7 @@ class Test이어_받기:
 
     def test_새_봉은_붙고_진행_중이던_봉은_덮어쓴다(self, KIS):
         처음_열기(KIS)
-        KIS["지금"] += timedelta(seconds=61)
+        KIS["지금"] += timedelta(seconds=31)
         KIS["응답"] = [봉(오늘, datetime(2026, 9, 25, 22, 30), 종가=105), 봉(오늘, datetime(2026, 9, 25, 22, 31), 종가=110)]
 
         봉들 = minutes.minute_candles("NAS", "AAPL")
@@ -104,7 +104,7 @@ class Test이어_받기:
 
     def test_이어_받기가_실패하면_들고_있던_봉을_준다(self, KIS):
         처음_열기(KIS)
-        KIS["지금"] += timedelta(seconds=61)
+        KIS["지금"] += timedelta(seconds=31)
         KIS["오류"] = RuntimeError("KIS 오류")
 
         assert len(minutes.minute_candles("NAS", "AAPL")) == 2
@@ -236,9 +236,9 @@ class Test동시_요청:
         assert KIS["호출"] == [None]
         assert 결과 == [2] * 4
 
-    def test_60초가_지나_동시에_물어도_이어_받기는_한_번이다(self, KIS, monkeypatch):
+    def test_30초가_지나_동시에_물어도_이어_받기는_한_번이다(self, KIS, monkeypatch):
         처음_열기(KIS)
-        KIS["지금"] += timedelta(seconds=61)
+        KIS["지금"] += timedelta(seconds=31)
         받기, 풀림 = minutes.overseas_chart.fetch_minute_candles, threading.Event()
 
         def 느린_받기(exchange, symbol, since=None):

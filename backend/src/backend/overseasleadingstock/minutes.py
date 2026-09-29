@@ -32,8 +32,8 @@ from backend.platform.kis.overseas_chart import MinutePagesInterrupted, Overseas
 
 log = logging.getLogger(__name__)
 
-#: 장중에 이보다 오래된 값이면 이어 받는다 — 화면이 60초마다 묻는다.
-_FRESH = timedelta(seconds=60)
+#: 장중에 이보다 오래된 값이면 이어 받는다 — 화면이 30초마다 묻는다(국내 1분 차트와 같다).
+_FRESH = timedelta(seconds=30)
 #: 마지막 봉부터 이만큼 거슬러 다시 받아 덮어쓴다 — 진행 중이던 봉이 그사이 확정됐을 수 있다.
 _REWRITE = timedelta(minutes=2)
 #: 이만큼 아무도 안 본 종목은 버린다.
