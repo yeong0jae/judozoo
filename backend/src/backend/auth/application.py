@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.auth.domain import AppUser, CurrentUser
+from backend.feedback import application as feedback
 from backend.settings import get_settings
 
 log = logging.getLogger(__name__)
@@ -95,3 +96,18 @@ def record_login(db: Session, user: CurrentUser, now: datetime) -> CurrentUser:
     # 관문이 사용자를 심지 못하므로, 여기서만 직접 싣는다.
     log.info("로그인", extra={"user": row.id})
     return replace(user, id=row.id)
+
+
+def withdraw(db: Session, user: CurrentUser) -> None:
+    """탈퇴 — 가입자 행과 그 사람이 보낸 의견을 한 트랜잭션으로 지운다.
+
+    `google_sub`로 찾는다 — 옛 세션에는 내부 `id`가 없을 수 있다. 이미 없는 사람이면(두 번 누름)
+    할 일이 없을 뿐 실패는 아니다. 다시 로그인하면 새 가입자로 처음부터 기록된다.
+    """
+    row = db.scalar(select(AppUser).where(AppUser.google_sub == user.google_sub))
+    if row is None:
+        return
+    erased = feedback.erase_by(db, row.id)
+    db.delete(row)
+    db.commit()
+    log.info("탈퇴 — 의견 %d건 함께 삭제", erased, extra={"user": row.id})

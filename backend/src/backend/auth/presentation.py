@@ -68,6 +68,16 @@ def logout(request: Request) -> ApiResponse[None]:
     return ApiResponse.ok(None)
 
 
+@router.post("/withdraw")
+def withdraw(
+    request: Request, user: CurrentUser = Depends(require_login), db: Session = Depends(get_db)
+) -> ApiResponse[None]:
+    """`/api/auth/*`는 관문 허용목록이라 로그인 확인을 여기서 직접 건다."""
+    application.withdraw(db, user)
+    request.session.pop(SESSION_KEY, None)
+    return ApiResponse.ok(None)
+
+
 class MeResponse(BaseModel):
     authenticated: bool
     email: str | None = None

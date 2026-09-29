@@ -304,6 +304,7 @@ GET /api/stocks/{code}/investor/daily
 # 인증·의견
 GET  /api/auth/login | /callback | /me           공개
 POST /api/auth/logout                            공개
+POST /api/auth/withdraw                          # 탈퇴 — 가입 기록과 보낸 의견을 함께 삭제
 POST /api/feedback                                       # 500자
 ```
 

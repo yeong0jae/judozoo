@@ -30,3 +30,13 @@ export function useLogout() {
     },
   });
 }
+
+/** 탈퇴 — 가입 기록과 보낸 의견이 지워지고 세션도 비워진다. 끝나면 로그아웃처럼 첫 화면으로 전체 이동한다. */
+export function useWithdraw() {
+  return useMutation({
+    mutationFn: () => apiFetch<null>("/api/auth/withdraw", { method: "POST" }),
+    onSuccess: () => {
+      window.location.href = "/";
+    },
+  });
+}

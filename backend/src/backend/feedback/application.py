@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from backend.auth.domain import CurrentUser
@@ -22,3 +23,11 @@ def receive(db: Session, user: CurrentUser, content: str, now: datetime) -> None
     db.commit()
     # 알림이 안 오면 규칙이 문제인지 접수가 문제인지 여기서 갈린다.
     log.info("의견 접수 — %d자", len(content.strip()))
+
+
+def erase_by(db: Session, user_id: int) -> int:
+    """탈퇴한 사람이 보낸 의견을 지운다. 처리방침이 의견 내용을 수집 항목으로 적고 있어 함께 지운다.
+
+    커밋은 부르는 쪽이 한다 — 가입자 행과 한 트랜잭션으로 지워야, 하나만 지워진 채 남지 않는다.
+    """
+    return db.execute(delete(Feedback).where(Feedback.user_id == user_id)).rowcount
