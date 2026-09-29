@@ -434,7 +434,7 @@ function Row({ stock, rank, valueRatio, flash, isSelected, onOpen, reason }: Ite
           <ProfitText value={stock.priceChangeRate / 100} format={formatPct} />
         </FlashOnChange>
       </span>
-      <ReasonLine item={reason} className="col-span-4 col-start-2 mt-1" />
+      <ReasonLine item={reason} className="col-span-4 col-start-2 mt-2" />
     </button>
   );
 }
@@ -454,7 +454,7 @@ function Card({ stock, rank, flash, isSelected, onOpen, reason }: ItemProps) {
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13.5px] text-zinc-100">{stock.stockName}</span>
         <span className="num text-[11px] text-zinc-500">{formatKoreanMoney(stock.accumulatedTradingValue)}</span>
-        <ReasonLine item={reason} />
+        <ReasonLine item={reason} className="mt-1" />
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5">
         <FlashOnChange value={stock.currentPrice} duration={1000}>

@@ -284,7 +284,7 @@ function Row({ stock, rank, valueRatio, isSelected, onOpen, reason }: ItemProps)
       <span className="num text-right text-xs">
         <ProfitText value={stock.rate / 100} format={formatPct} />
       </span>
-      <ReasonLine item={reason} className="col-span-4 col-start-2 mt-1" />
+      <ReasonLine item={reason} className="col-span-4 col-start-2 mt-2" />
     </button>
   );
 }
@@ -304,7 +304,7 @@ function Card({ stock, rank, isSelected, onOpen, reason }: ItemProps) {
         <span className="num text-[11px] text-zinc-500">
           {stock.symbol} · {compactUsd(stock.tradingValue)}
         </span>
-        <ReasonLine item={reason} />
+        <ReasonLine item={reason} className="mt-1" />
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5">
         <NumUsd value={stock.price} prefix="" className="num text-[13.5px] text-zinc-100" />
