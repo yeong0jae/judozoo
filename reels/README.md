@@ -7,11 +7,11 @@ cd reels
 npm install                          # 처음 한 번 — playwright, ffmpeg, 글꼴
 npx playwright install chromium      # 처음 한 번
 
-node render.mjs us 2026-09-25        # → out/주도주-해외-0925-v2.mp4 (최신 버전)
-node render.mjs kr 2026-09-23        # → out/주도주-국내-0923-v2.mp4
+node render.mjs us 2026-09-25        # → out/주도주-해외-0925-v3.mp4 (최신 버전)
+node render.mjs kr 2026-09-23        # → out/주도주-국내-0923-v3.mp4
 node render.mjs kr 2026-09-23 --v 1  # → out/주도주-국내-0923-v1.mp4 (예전 버전으로)
 node render.mjs kr 2026-09-23 --secs 8   # 앞 8초만 — 화면 확인용
-node render.mjs us 2026-09-28 --fps 60   # 60fps → out/주도주-해외-0928-v2-60fps.mp4 (굽는 시간 두 배)
+node render.mjs us 2026-09-28 --fps 60   # 60fps → out/주도주-해외-0928-v3-60fps.mp4 (굽는 시간 두 배)
 ```
 
 - 데이터는 운영 타임라인 API(`/api/leader-timeline`)에서 받는다. 날짜는 각 시장의 현지 날짜 — 해외는 뉴욕 날짜
@@ -34,8 +34,13 @@ node render.mjs us 2026-09-28 --fps 60   # 60fps → out/주도주-해외-0928-v
 |---|---|
 | v1 | 약 41초. 여는 장면 4.6초(1위 바통), 본 장면 30초(하루 흐름 + 굵직한 자막), 닫는 장면 5초(마감 순위 · 주소). 국내는 20:00까지 |
 | v2 | 약 19초. 여는 장면 없이 훅으로 시작, 가변 속도, 두 시장 모두 정규장 마감까지 — 아래 "화면" |
+| v3 | v2와 같은 구성에 낮과 밤 — 국내는 밝은 화면(낮), 해외는 v2 그대로 어두운 화면(밤) |
 
-## 화면 (v2)
+## 화면 (v2 · v3)
+
+v3는 v2와 구성이 같고 색만 시장을 따른다. 한국 시간으로 국장은 낮에, 미장은 밤에 열리니 국내는 밝게, 해외는 어둡게 —
+피드에서 첫 프레임만 봐도 어느 시장인지 갈린다. 색은 CSS 변수(`body.day`)와 캔버스 테마(`THEMES`) 두 곳에 있다.
+낮의 종목 색은 밝은 바탕에서 묻히지 않게 명도를 내린 별도 10색이고, 선·점 번짐은 줄였다.
 
 직접 열면 데이터가 없어 빈 화면이다 — `render.mjs`가 `window.__REEL__`에 데이터를 넣고 `__play()`를 부른다.
 
