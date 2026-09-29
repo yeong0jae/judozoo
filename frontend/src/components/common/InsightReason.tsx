@@ -10,7 +10,7 @@ import type { InsightArticle, InsightReasonItem } from "../../types";
 
 function Keyword({ word }: { word: string }) {
   return (
-    <span className="shrink-0 rounded-[5px] bg-blue-50 px-1.5 text-[11px] font-semibold leading-[18px] text-blue-700">
+    <span className="shrink-0 rounded-[5px] bg-emerald-700/16 px-1.5 text-[11px] font-semibold leading-[18px] text-emerald-700">
       {word}
     </span>
   );
