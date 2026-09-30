@@ -732,36 +732,59 @@ def _nasdaq_daily_candles() -> list[yahoo.YahooBar]:
     return yahoo.fetch_candles(NASDAQ_SYMBOL, "1d", "6mo")
 
 
-def _us_day(bar: yahoo.YahooBar) -> date:
-    """야후의 KST 시각을 미국 현물시장 거래일로 바꾼다."""
+_YAHOO_ROLLOVER = {"KRW=X": time(17), "CL=F": time(18)}
+
+
+def _ny_at(bar: yahoo.YahooBar) -> datetime:
     at = datetime.fromisoformat(f"{bar.date}T{bar.time}").replace(tzinfo=KST)
-    return at.astimezone(calendar.Region.US.zone).date()
+    return at.astimezone(calendar.Region.US.zone).replace(tzinfo=None)
 
 
-def _complete_nasdaq_day(bars: list[yahoo.YahooBar]) -> bool:
-    """조회 창에 잘린 날짜를 DB에 확정하지 않는다(정상 정규장 기준)."""
-    times = [datetime.fromisoformat(f"{bar.date}T{bar.time}").replace(tzinfo=KST)
-             .astimezone(calendar.Region.US.zone).time() for bar in bars]
-    return bool(times) and min(times) <= time(9, 30) and max(times) >= time(15, 59)
+def _yahoo_session_day(symbol: str, at: datetime) -> date:
+    """환율·WTI는 야간 개장일을 다음 미국 거래일에, 현물 지표는 현지 날짜에 묶는다."""
+    rollover = _YAHOO_ROLLOVER.get(symbol)
+    return at.date() + timedelta(days=1) if rollover and at.time() >= rollover else at.date()
+
+
+def _complete_yahoo_day(symbol: str, day: date, bars: list[yahoo.YahooBar]) -> bool:
+    """조회 창이 세션 양 끝을 덮은 날만 DB에 확정한다."""
+    if not bars:
+        return False
+    if symbol in _YAHOO_ROLLOVER:
+        rollover = _YAHOO_ROLLOVER[symbol]
+        start = datetime.combine(day - timedelta(days=1), rollover) + timedelta(minutes=30)
+        # WTI는 17시부터 한 시간 휴장한다. 마지막 분봉은 18시 재개장보다 앞선다.
+        end = datetime.combine(day, rollover) - timedelta(minutes=90 if symbol == "CL=F" else 30)
+    else:
+        start_at, end_at = (time(8, 20), time(15)) if symbol == "^TNX" else (time(9, 30), time(15, 59))
+        grace = timedelta() if symbol == NASDAQ_SYMBOL else timedelta(minutes=30)
+        start = datetime.combine(day, start_at) + grace
+        end = datetime.combine(day, end_at) - grace
+    times = [_ny_at(bar) for bar in bars]
+    return min(times) <= start and max(times) >= end
 
 
 @ttl_cache("nasdaqIndexMinuteCandles", ttl_seconds=30, maxsize=1, skip_if=is_empty)
 def _nasdaq_minute_candles() -> list[yahoo.YahooBar]:
-    """오늘 미국 거래일은 야후에서 갱신하고 완성된 최근 거래일은 DB에서 읽는다."""
-    current = now().replace(tzinfo=KST).astimezone(calendar.Region.US.zone).date()
-    archived = yahoo_minute_archive.recent(NASDAQ_SYMBOL, current)
+    return _yahoo_minute_candles(NASDAQ_SYMBOL)
+
+
+def _yahoo_minute_candles(symbol: str) -> list[yahoo.YahooBar]:
+    """진행 중인 미국 세션은 야후에서 갱신하고 완성된 최근 세션은 DB에서 읽는다."""
+    current = _yahoo_session_day(symbol, now().replace(tzinfo=KST).astimezone(calendar.Region.US.zone))
+    archived = yahoo_minute_archive.recent(symbol, current)
     previous = current - timedelta(days=1)
     while previous.weekday() >= 5:
         previous -= timedelta(days=1)
     # 직전 거래일이 DB에 있으면 야후에는 최신 하루만 묻는다. 휴일이면 2일로 폴백한다.
     window = "1d" if previous in archived else "2d"
-    fresh = yahoo.fetch_candles(NASDAQ_SYMBOL, "1m", window)
+    fresh = yahoo.fetch_candles(symbol, "1m", window)
     by_day: dict[date, list[yahoo.YahooBar]] = {}
     for bar in fresh:
-        by_day.setdefault(_us_day(bar), []).append(bar)
+        by_day.setdefault(_yahoo_session_day(symbol, _ny_at(bar)), []).append(bar)
     for day, bars in by_day.items():
-        if day < current and day not in archived and _complete_nasdaq_day(bars):
-            yahoo_minute_archive.put(NASDAQ_SYMBOL, day, bars)
+        if day < current and day not in archived and _complete_yahoo_day(symbol, day, bars):
+            yahoo_minute_archive.put(symbol, day, bars)
             archived[day] = bars
     by_day.update(archived)
     latest = sorted(by_day, reverse=True)[:2]
@@ -793,16 +816,25 @@ def macro_quotes() -> MacroQuotes:
     )
 
 
-@ttl_cache(
-    "macroCandles",
-    ttl_seconds=60,
-    maxsize=8,  # 대상 4 × 간격 2
-    key=lambda target, interval: f"{target}{interval}",
-    skip_if=is_empty,
-)
 def macro_candles(target: str, interval: str) -> list:
     symbol = MACRO_SYMBOLS.get(target)
-    return _yahoo_candles(symbol, interval) if symbol else []
+    if symbol is None:
+        return []
+    if interval == "1m":
+        return _macro_minute_candles(symbol)
+    if interval == "1d":
+        return _macro_daily_candles(symbol)
+    return []
+
+
+@ttl_cache("macroMinuteCandles", ttl_seconds=30, maxsize=4, skip_if=is_empty)
+def _macro_minute_candles(symbol: str) -> list[yahoo.YahooBar]:
+    return _yahoo_minute_candles(symbol)
+
+
+@ttl_cache("macroDailyCandles", ttl_seconds=60, maxsize=4, skip_if=is_empty)
+def _macro_daily_candles(symbol: str) -> list[yahoo.YahooBar]:
+    return yahoo.fetch_candles(symbol, "1d", "6mo")
 
 
 def _yahoo_candles(symbol: str, interval: str) -> list:

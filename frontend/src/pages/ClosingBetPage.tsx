@@ -803,7 +803,7 @@ function MacroDetail({ item }: { item: MacroItem }) {
   );
 }
 
-/** 매크로 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
+/** 매크로 1분봉(최근 2개 미국 거래 세션)/일봉(6개월) — 야후 캔들. */
 function MacroChart({ target, interval }: { target: MacroTarget; interval: ChartInterval }) {
   const { data, isLoading } = useMacroCandles(target, interval);
   const items = data ?? [];

@@ -1,4 +1,4 @@
-"""야후 지수의 완성된 지난 미국 거래일 분봉을 DB에서 재사용한다."""
+"""야후 지수·매크로 지표의 완성된 지난 미국 거래 세션 분봉을 DB에서 재사용한다."""
 
 import logging
 from dataclasses import asdict
