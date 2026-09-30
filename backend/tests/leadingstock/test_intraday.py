@@ -118,14 +118,15 @@ class Test읽을_때_이어_받기:
 
 
 class Test정리:
-    def test_감시_풀에서_빠지고_한동안_안_읽힌_종목은_버린다(self, 토스):
+    def test_감시_풀에서_빠져도_상한_안에서는_이어_받을_봉을_남긴다(self, 토스):
         토스["봉"]["005930"] = [봉(9, 0)]
         intraday.sync(["005930"])
         토스["지금"] += timedelta(minutes=11)
 
         intraday.sync([])
+        intraday.ensure("005930", 토스["지금"])
 
-        assert not intraday.synced_since("005930", datetime.min + timedelta(days=1))
+        assert 토스["호출"][-1] == ("005930", datetime(2026, 9, 28, 8, 58))
 
     def test_상세_화면이_보고_있는_종목은_풀_밖이어도_남긴다(self, 토스):
         토스["봉"]["035720"] = [봉(9, 0)]

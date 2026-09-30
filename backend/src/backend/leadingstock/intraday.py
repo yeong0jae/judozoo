@@ -28,8 +28,6 @@ log = logging.getLogger(__name__)
 
 #: 마지막 봉부터 이만큼 거슬러 다시 받아 덮어쓴다 — 진행 중이던 봉이 그사이 확정됐을 수 있다.
 _REWRITE = timedelta(minutes=2)
-#: 감시 풀 밖의 종목은 이만큼 아무도 읽지 않으면 버린다.
-_IDLE = timedelta(minutes=10)
 #: 종목 수 상한. 넘치면 가장 오래 안 읽힌 종목부터 버린다.
 _MAX_STOCKS = 100
 
@@ -52,7 +50,7 @@ def sync(stock_codes: Iterable[str]) -> int:
     """감시 풀의 오늘 분봉을 이어 받는다. 실패한 종목 수를 돌려준다.
 
     한 종목이 실패해도 나머지는 계속한다. 실패한 종목은 기존 봉을 그대로 둔다.
-    풀 밖의 종목은 한동안 아무도 읽지 않았을 때만 버린다 — 상세 화면이 보고 있을 수 있다.
+    풀 밖의 종목도 상한 안에서는 유지한다 — 다시 열면 이어 받을 수 있다.
     """
     keys = [_key(c) for c in stock_codes]
     day = today()
@@ -144,10 +142,7 @@ def _ordered(bars: dict[datetime, MinuteCandle]) -> list[MinuteCandle]:
 
 
 def _evict(keep: set[str]) -> None:
-    """오래 안 읽힌 종목과 상한을 넘친 종목을 버린다. 호출자가 락을 쥔 상태여야 한다."""
-    idle_before = now() - _IDLE
-    for key in [k for k in _bars if k not in keep and _read_at.get(k, datetime.min) < idle_before]:
-        _drop(key)
+    """상한을 넘으면 오래 안 읽힌 종목부터 버린다. 호출자가 락을 쥔 상태여야 한다."""
     # 곧 들어올 종목(`keep`)까지 센다 — 받기 전에 자리를 비워 둬야 상한을 넘지 않는다
     overflow = len(set(_bars) | keep) - _MAX_STOCKS
     if overflow > 0:

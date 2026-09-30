@@ -133,7 +133,7 @@ class Test미국_장이_닫혀_있으면:
 
 
 class Test정리:
-    def test_10분_동안_안_본_종목은_버린다(self, KIS):
+    def test_10분_넘게_안_봐도_당일_봉을_이어_받는다(self, KIS):
         처음_열기(KIS)
         KIS["지금"] += timedelta(minutes=11)
         KIS["응답"] = [봉(오늘, datetime(2026, 9, 25, 22, 30))]
@@ -141,8 +141,7 @@ class Test정리:
 
         minutes.minute_candles("NAS", "AAPL")
 
-        # 들고 있던 봉은 버렸지만 끝난 날(어제)은 보관소에 있다 — 그 뒤부터만 받는다
-        assert KIS["호출"][-1] == datetime(2026, 9, 25, 5, 0)
+        assert KIS["호출"][-1] == datetime(2026, 9, 25, 22, 28)
 
 
 class Test끝난_날_보관:
@@ -253,3 +252,64 @@ class Test동시_요청:
             [f.result() for f in futures]
 
         assert len(KIS["호출"]) == 2   # 처음 열기 + 이어 받기 한 번
+
+
+class Test거래일_분리:
+    def test_한국_자정이_지나도_같은_미국_거래일_봉은_이어_받는다(self, KIS):
+        처음_열기(KIS)
+        KIS["지금"] = datetime(2026, 9, 26, 0, 1)
+        KIS["응답"] = [봉(오늘, KIS["지금"], 종가=110)]
+
+        결과 = minutes.minute_candles("NAS", "AAPL")
+
+        assert [c.close for c in 결과 if c.trading_day == 오늘] == [100, 110]
+        assert ("NAS", "AAPL", 오늘) not in KIS["보관"]
+
+    def test_거래일_전환_중_조회가_끊기면_이전_날을_확정하지_않고_재시도한다(self, KIS):
+        처음_열기(KIS)
+        KIS["지금"] += timedelta(days=1)
+        다음날 = 오늘 + timedelta(days=1)
+        새봉 = 봉(다음날, datetime(2026, 9, 26, 22, 30))
+        KIS["오류"] = MinutePagesInterrupted("끊김", [새봉])
+        minutes.minute_candles("NAS", "AAPL")
+        assert ("NAS", "AAPL", 오늘) not in KIS["보관"]
+
+        KIS["오류"] = None
+        KIS["응답"] = [봉(오늘, datetime(2026, 9, 26, 8, 59)), 새봉]
+        결과 = minutes.minute_candles("NAS", "AAPL")
+        assert KIS["호출"][-1] == datetime(2026, 9, 25, 22, 28)
+        assert [c.trading_day for c in 결과] == [오늘, 오늘, 다음날]
+        assert len(KIS["보관"][("NAS", "AAPL", 오늘)]) == 2
+
+    def test_며칠_건너뛰면_실제_직전_거래일을_보관소에서_합친다(self, KIS):
+        처음_열기(KIS)
+        KIS["지금"] += timedelta(days=3)
+        직전, 최신 = date(2026, 9, 27), date(2026, 9, 28)
+        KIS["응답"] = [봉(직전, datetime(2026, 9, 27, 23)), 봉(최신, datetime(2026, 9, 28, 23))]
+        결과 = minutes.minute_candles("NAS", "AAPL")
+        assert [c.trading_day for c in 결과] == [직전, 최신]
+        assert ("NAS", "AAPL", 직전) in KIS["보관"]
+
+    def test_오래_안_본_종목은_최근_두_거래일로_다시_받는다(self, KIS):
+        처음_열기(KIS)
+        KIS["지금"] += timedelta(days=10)
+        KIS["응답"] = [봉(date(2026, 10, 2), datetime(2026, 10, 2, 23)),
+                       봉(date(2026, 10, 5), datetime(2026, 10, 5, 23))]
+        결과 = minutes.minute_candles("NAS", "AAPL")
+        assert KIS["호출"][-1] is None
+        assert [c.trading_day for c in 결과] == [date(2026, 10, 2), date(2026, 10, 5)]
+
+    def test_상한을_넘으면_오래_안_본_종목은_보관소에서_복원한다(self, KIS, monkeypatch):
+        monkeypatch.setattr(minutes, "_MAX_STOCKS", 1)
+        처음_열기(KIS)
+        KIS["지금"] += timedelta(seconds=1)
+        minutes.minute_candles("NAS", "MSFT")
+        minutes.minute_candles("NAS", "AAPL")
+        assert KIS["호출"][-1] == datetime(2026, 9, 25, 5, 0)
+
+    def test_닫힌_뒤_받았어도_미국_날짜가_달라지면_갱신한다(self, KIS):
+        KIS["닫힘"] = True
+        처음_열기(KIS)
+        KIS["지금"] += timedelta(days=3)
+        minutes.minute_candles("NAS", "AAPL")
+        assert len(KIS["호출"]) == 2

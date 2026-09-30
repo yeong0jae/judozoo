@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from backend.leadingstock.infrastructure import MarketInvestorSnapshot, investor_snapshot_at
 from backend.library.cache import is_empty, ttl_cache
 from backend.library.time import now, today
-from backend.market import calendar
+from backend.market import calendar, minute_archive
 from backend.market.domain import (
     FuturesInvestorSnapshot,
     FuturesNets,
@@ -88,23 +88,44 @@ def daily_candles(market: Market, count: int) -> list[toss_indicator.TossCandle]
 @ttl_cache("indexMinuteCandles", ttl_seconds=30, maxsize=2, skip_if=is_empty)
 def minute_candles_today(market: Market) -> list[toss_indicator.TossCandle]:
     """가장 최근 2영업일의 1분봉(오름차순) — 여러 페이지를 모아 2일치를 덮는다."""
-    collected: list[toss_indicator.TossCandle] = []
-    seen_dates: set[date] = set()
+    current = today()
+    by_day: dict[date, dict[datetime, toss_indicator.TossCandle]] = {}
+    archived: set[date] = set()
+    checked: set[date] = set()
     before: str | None = None
+    exhausted = False
 
     for _ in range(_MAX_PAGES):
         page = toss_indicator.fetch_candles(market.name, "1m", _MAX_PAGE_SIZE, before)
         if not page.candles:
+            # 외부 오류도 빈 페이지로 오므로 수집 완료로 취급하지 않는다.
             break
-        collected.extend(page.candles)
-        seen_dates.update(c.timestamp.date() for c in page.candles)
-        # 고유 거래일이 3개 이상 잡히면 2일치 수집이 끝난 것
-        if len(seen_dates) > 2 or page.next_before is None:
+        for c in page.candles:
+            day = c.timestamp.date()
+            by_day.setdefault(day, {})[c.timestamp] = c
+        for day in list(by_day):
+            if day < current and day not in checked:
+                checked.add(day)
+                stored = minute_archive.get(market, day)
+                if stored:
+                    by_day[day] = {c.timestamp: c for c in stored}
+                    archived.add(day)
+        exhausted = page.next_before is None
+        latest = sorted(by_day, reverse=True)[:2]
+        # 두 번째 날이 DB에 완성본으로 있으면 더 과거 페이지는 필요 없다.
+        if len(by_day) > 2 or exhausted or (len(latest) == 2 and latest[-1] in archived):
             break
         before = page.next_before
 
-    valid = set(sorted(seen_dates, reverse=True)[:2])
-    return sorted((c for c in collected if c.timestamp.date() in valid), key=lambda c: c.timestamp)
+    if not by_day:
+        return []
+    earliest = min(by_day)
+    for day, candles in by_day.items():
+        # 더 이전 날짜를 실제로 보거나 끝까지 받은 날만 완성본이다.
+        if day < current and day not in archived and (day > earliest or exhausted):
+            minute_archive.put(market, day, list(candles.values()))
+    valid = sorted(by_day, reverse=True)[:2]
+    return sorted((c for day in valid for c in by_day[day].values()), key=lambda c: c.timestamp)
 
 
 # ── 시장 투자자 수급 ────────────────────────────────────────────────────

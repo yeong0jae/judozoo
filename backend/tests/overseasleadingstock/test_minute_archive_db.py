@@ -69,3 +69,12 @@ class Test해외_지난_날_분봉_DB:
         minute_archive.reset()
 
         assert [d for d, _ in minute_archive.recent("NAS", "AAPL", 5)] == [어제]
+
+
+class Test보관소_장애:
+    def test_DB가_안_되어도_완성된_지난_봉은_메모리에서_읽는다(self):
+        day = date(2026, 9, 25)
+        bars = [봉(day, datetime(2026, 9, 25, 23))]
+        # conftest가 DB 접근을 차단한 상태에서도 메모리 보관본은 살아 있어야 한다.
+        minute_archive.put("NAS", "AAPL", day, bars)
+        assert minute_archive.recent("NAS", "AAPL", 2) == [(day, bars)]

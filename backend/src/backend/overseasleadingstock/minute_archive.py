@@ -1,7 +1,7 @@
 """해외 종목 지난 거래일 1분봉 보관소 — `(거래소, 종목, 현지 영업일)` → 그날 봉 전체.
 
 처음 여는 종목은 KIS에서 2거래일치(12페이지 안팎)를 받아야 했다. 직전 거래일은 이미 끝난 날인데도
-재시작하거나 10분 넘게 안 보면 매번 다시 받았고, 몰리면 KIS 한도(EGW00201)에 걸렸다.
+재시작하거나 메모리에서 정리되면 매번 다시 받았고, 몰리면 KIS 한도(EGW00201)에 걸렸다.
 여기 넣어 두면 처음 열 때 직전 거래일은 여기서 꺼내고 그 뒤 봉만 받는다.
 
 **완성된 날만 넣는다.** 형성 중인 날을 넣으면 그대로 굳는다(`minutes`가 넣는 때를 정한다).
@@ -30,21 +30,26 @@ _days: dict[tuple[str, str, date], tuple[float, list[OverseasMinuteCandle]]] = {
 
 
 def recent(exchange: str, symbol: str, limit: int) -> list[tuple[date, list[OverseasMinuteCandle]]]:
-    """들고 있는 날 중 최근 것부터 `limit`개. DB를 못 읽으면 빈 목록 — 받는 쪽이 KIS로 받는다."""
-    try:
-        with get_session_factory()() as session:
-            days = store.latest_days(session, exchange, symbol, limit)
-            out = []
-            for day in days:
-                bars = _recall(exchange, symbol, day)
-                if bars is None:
-                    bars = store.load_day(session, exchange, symbol, day)
-                    _remember(exchange, symbol, day, bars)
-                out.append((day, bars))
-            return out
-    except Exception:
-        log.warning("해외 지난 날 분봉 DB 조회 실패 (%s:%s)", exchange, symbol, exc_info=True)
-        return []
+    """최근 완성본을 메모리 우선으로 읽는다. DB 장애 중에도 메모리의 지난 봉을 유지한다."""
+    with _lock:
+        dates = [d for e, s, d in _days if (e, s) == (exchange, symbol)]
+    remembered = {}
+    for day in dates:
+        bars = _recall(exchange, symbol, day)
+        if bars:
+            remembered[day] = bars
+    if len(remembered) < limit:
+        try:
+            with get_session_factory()() as session:
+                for day in store.latest_days(session, exchange, symbol, limit):
+                    if day not in remembered:
+                        bars = store.load_day(session, exchange, symbol, day)
+                        if bars:
+                            _remember(exchange, symbol, day, bars)
+                            remembered[day] = bars
+        except Exception:
+            log.warning("해외 지난 날 분봉 DB 조회 실패 (%s:%s)", exchange, symbol, exc_info=True)
+    return [(day, remembered[day]) for day in sorted(remembered, reverse=True)[:limit]]
 
 
 def put(exchange: str, symbol: str, day: date, bars: list[OverseasMinuteCandle]) -> None:

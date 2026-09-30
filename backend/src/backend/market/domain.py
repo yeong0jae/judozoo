@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date as date_type
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Enum, Index
+from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.library.db import Base
@@ -150,3 +150,13 @@ class FuturesNets:
             self.breakdown - o.breakdown,
         )
 
+
+
+class IndexMinuteDay(Base):
+    """완전히 수집된 지난 거래일의 지수 OHLCV. 부분 수집·당일 봉은 저장하지 않는다."""
+
+    __tablename__ = "index_minute_day"
+
+    market: Mapped[Market] = mapped_column(Enum(Market), primary_key=True)
+    trade_date: Mapped[date_type] = mapped_column(Date, primary_key=True)
+    candles: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
