@@ -100,15 +100,6 @@ export interface FuturesQuote {
   openInterestChange: number; // 전일 대비 증감
   rmnnDays: number; // 만기 잔존일수
   expiryDate: string; // 만기일 yyyy-MM-dd
-  investors: FuturesInvestors | null; // 투자자별 순매수(계약). 조회 실패 시 null
-}
-
-/** 선물 시장 투자자별 순매수(계약). 양수 = 순매수. */
-export interface FuturesInvestors {
-  foreign: number;
-  individual: number;
-  institution: number;
-  otherCorp: number;
 }
 
 /** 코스피 야간선물(18:00~익일 06:00) 시세 — KIS 시장구분 CM. 값은 지수 포인트. */

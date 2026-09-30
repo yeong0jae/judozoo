@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date as date_type
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, Date, DateTime, Enum, Index
+from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, Enum, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.library.db import Base
@@ -158,5 +158,17 @@ class IndexMinuteDay(Base):
     __tablename__ = "index_minute_day"
 
     market: Mapped[Market] = mapped_column(Enum(Market), primary_key=True)
+    trade_date: Mapped[date_type] = mapped_column(Date, primary_key=True)
+    candles: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+
+
+class FuturesMinuteDay(Base):
+    """완성된 지난 정규장 거래일 또는 야간 세션의 근월물 분봉."""
+
+    __tablename__ = "futures_minute_day"
+
+    market: Mapped[Market] = mapped_column(Enum(Market), primary_key=True)
+    contract_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    night: Mapped[bool] = mapped_column(Boolean, primary_key=True)
     trade_date: Mapped[date_type] = mapped_column(Date, primary_key=True)
     candles: Mapped[list[dict]] = mapped_column(JSON, nullable=False)

@@ -65,8 +65,9 @@ class Test시세_폴러:
         daily = mocker.patch.object(application.kis_futures, "fetch_daily", return_value=SimpleNamespace(
             summary=SimpleNamespace(futures_price=300, change_rate=1, spot=299, basis=1,
                                     dprt=0, open_interest=100, open_interest_change=1)))
-        mocker.patch.object(application.kis_futures, "fetch_investors", return_value=None)
+        외부수급 = mocker.patch.object(application.kis_futures, "fetch_investors")
         assert application.futures_quote(Market.KOSPI).futures_price == 300
+        외부수급.assert_not_called()
         cache._caches["futuresQuote"].clear()
         daily.return_value = None
         assert application.futures_quote.refresh(Market.KOSPI) is None

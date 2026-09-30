@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from backend.leadingstock.infrastructure import MarketInvestorSnapshot, investor_snapshot_at
 from backend.library.cache import is_empty, ttl_cache
 from backend.library.time import now, today
-from backend.market import calendar, minute_archive
+from backend.market import calendar, futures_minute_archive, minute_archive
 from backend.market.domain import (
     FuturesInvestorSnapshot,
     FuturesNets,
@@ -411,14 +411,6 @@ _FUT_SESSION_END = time(15, 45)   # 조회 상한(마감 동시호가 체결까�
 
 
 @dataclass(frozen=True)
-class FuturesInvestorsSummary:
-    foreign: int
-    individual: int
-    institution: int
-    other_corp: int
-
-
-@dataclass(frozen=True)
 class FuturesQuote:
     """지수선물 시세 요약 — 값은 지수 포인트."""
 
@@ -431,7 +423,6 @@ class FuturesQuote:
     open_interest_change: int
     rmnn_days: int
     expiry_date: str             # 만기일 yyyy-MM-dd
-    investors: FuturesInvestorsSummary | None
 
 
 @ttl_cache("futuresQuote", ttl_seconds=40, maxsize=2, skip_if=lambda r: r is None, serve_stale=True)
@@ -444,7 +435,6 @@ def futures_quote(market: Market) -> FuturesQuote | None:
     if daily is None:
         return None
     s = daily.summary
-    investors = kis_futures.fetch_investors(market)
     return FuturesQuote(
         futures_price=s.futures_price,
         change_rate=s.change_rate,
@@ -455,13 +445,6 @@ def futures_quote(market: Market) -> FuturesQuote | None:
         open_interest_change=s.open_interest_change,
         rmnn_days=near.rmnn_days,
         expiry_date=_expiry_of(near.name) or "",
-        investors=(
-            FuturesInvestorsSummary(
-                investors.foreign, investors.individual, investors.institution, investors.other_corp
-            )
-            if investors
-            else None
-        ),
     )
 
 
@@ -482,7 +465,7 @@ def _expiry_of(name: str) -> str | None:
 
 @ttl_cache(
     "futuresCandles",
-    ttl_seconds=60,
+    ttl_seconds=30,
     maxsize=8,
     key=lambda market, interval, count: f"{market.name}:{interval}:{count}",
     skip_if=is_empty,
@@ -496,23 +479,38 @@ def futures_candles(market: Market, interval: str, count: int) -> list[kis_futur
         daily = kis_futures.fetch_daily(near.iscd, current - timedelta(days=count * 2 + 10), current)
         return daily.candles if daily else []
     if interval == "1m":
-        return _recent_futures_minutes(near.iscd)
+        return _recent_futures_minutes(market, near.iscd)
     return []
 
 
-def _recent_futures_minutes(iscd: str) -> list[kis_futures.FuturesBar]:
+def _recent_futures_minutes(market: Market, iscd: str) -> list[kis_futures.FuturesBar]:
     """오늘부터 뒤로 밀며 최근 2거래일치.
 
     휴장일을 요청하면 KIS가 **직전 영업일 분봉을 준다** — 그래서 실제 반환된 날짜의 하루 전부터
     다음 회차를 조회한다. 종료시각은 항상 장 마감으로 고정한다.
     """
     bars: list[kis_futures.FuturesBar] = []
-    day = today()
+    current = today()
+    day = current
+    if now().time() < _FUT_SESSION_START or calendar.is_open(current) is False:
+        day = calendar.previous_open_day(current) or current
     collected = 0
     for _ in range(_MINUTE_DAYS + 5):
         if collected == _MINUTE_DAYS:
             break
-        day_bars = _futures_minutes_of_day(iscd, day, _FUT_SESSION_END)
+        stored = futures_minute_archive.get(market, iscd, False, day) if day < current else None
+        if stored:
+            day_bars = stored
+        else:
+            day_bars, complete = _futures_minutes_of_day(iscd, day, _FUT_SESSION_END)
+            if day_bars:
+                actual = date.fromisoformat(day_bars[0].date)
+                if actual < current:
+                    archived = futures_minute_archive.get(market, iscd, False, actual)
+                    if archived:
+                        day_bars = archived
+                    elif complete:
+                        futures_minute_archive.put(market, iscd, False, actual, day_bars)
         if not day_bars:
             day -= timedelta(days=1)
             continue
@@ -522,10 +520,13 @@ def _recent_futures_minutes(iscd: str) -> list[kis_futures.FuturesBar]:
     return sorted(bars, key=lambda b: b.date + b.time)
 
 
-def _futures_minutes_of_day(iscd: str, day: date, end: time) -> list[kis_futures.FuturesBar]:
+def _futures_minutes_of_day(
+    iscd: str, day: date, end: time
+) -> tuple[list[kis_futures.FuturesBar], bool]:
     """하루치 분봉 — 한 번에 102봉만 오므로 `end`부터 장 시작까지 뒤로 페이징."""
     by_time: dict[str, kis_futures.FuturesBar] = {}
     hour = end
+    complete = False
     for _ in range(_MINUTE_PAGES):
         page = kis_futures.fetch_minute(iscd, day, hour)
         if not page:
@@ -534,9 +535,10 @@ def _futures_minutes_of_day(iscd: str, day: date, end: time) -> list[kis_futures
             by_time[bar.time] = bar
         earliest = time.fromisoformat(page[0].time)
         if earliest <= _FUT_SESSION_START:
+            complete = True
             break
         hour = (datetime.combine(day, earliest) - timedelta(minutes=1)).time()
-    return [by_time[t] for t in sorted(by_time)]
+    return [by_time[t] for t in sorted(by_time)], complete
 
 
 # ── 야간선물 ────────────────────────────────────────────────────────────
@@ -588,7 +590,7 @@ def night_futures_quote() -> NightFuturesQuote | None:
 
 @ttl_cache(
     "nightFuturesCandles",
-    ttl_seconds=60,
+    ttl_seconds=30,
     maxsize=4,
     key=lambda interval, count: f"{interval}:{count}",
     skip_if=is_empty,
@@ -613,21 +615,37 @@ def _recent_night_session(iscd: str) -> list[kis_futures.FuturesBar]:
 
     세션 기준일은 18:00이 속한 날이라, 새벽(06:00 이전)에는 아직 **어제 세션이 진행 중**이다.
     """
-    day = today()
-    if now().hour < _NIGHT_END_HOUR:
-        day -= timedelta(days=1)
+    at = now()
+    day = at.date() if at.hour >= 18 else at.date() - timedelta(days=1)
+    if calendar.is_open(day) is False:
+        day = calendar.previous_open_day(day + timedelta(days=1)) or day
     for _ in range(5):
-        bars = _night_session_minutes(iscd, day)
+        completed = at >= datetime.combine(day + timedelta(days=1), time(_NIGHT_END_HOUR))
+        stored = futures_minute_archive.get(Market.KOSPI, iscd, True, day) if completed else None
+        if stored:
+            return stored
+        bars, complete = _night_session_minutes(iscd, day)
         if bars:
+            first = bars[0]
+            actual = date.fromisoformat(first.date)
+            if first.time < f"{_NIGHT_END_HOUR:02d}:00:00":
+                actual -= timedelta(days=1)
+            if actual != day:
+                archived = futures_minute_archive.get(Market.KOSPI, iscd, True, actual)
+                if archived:
+                    return archived
+            if complete and at >= datetime.combine(actual + timedelta(days=1), time(_NIGHT_END_HOUR)):
+                futures_minute_archive.put(Market.KOSPI, iscd, True, actual, bars)
             return bars
         day -= timedelta(days=1)
     return []
 
 
-def _night_session_minutes(iscd: str, day: date) -> list[kis_futures.FuturesBar]:
+def _night_session_minutes(iscd: str, day: date) -> tuple[list[kis_futures.FuturesBar], bool]:
     """`day` 18:00에 시작한 세션의 분봉 — 102봉씩 뒤로 페이징. 시각은 18:00~29:59(=익일 05:59)."""
     bars: dict[str, kis_futures.FuturesBar] = {}
     minute = _NIGHT_END_MIN
+    complete = False
     for _ in range(_NIGHT_PAGES):
         page = kis_futures.fetch_minute(iscd, day, _hhmmss(minute), kis_futures.NIGHT)
         if not page:
@@ -636,9 +654,10 @@ def _night_session_minutes(iscd: str, day: date) -> list[kis_futures.FuturesBar]
             bars[f"{bar.date} {bar.time}"] = bar
         earliest = _extended_minute(page[0])
         if earliest <= _NIGHT_START_MIN:
+            complete = True
             break
         minute = earliest - 1
-    return [bars[k] for k in sorted(bars)]
+    return [bars[k] for k in sorted(bars)], complete
 
 
 def _extended_minute(bar: kis_futures.FuturesBar) -> int:
@@ -780,8 +799,8 @@ def today_nets(session: Session) -> list[TodayNet]:
 
     현물(억원)과 선물(계약)은 단위가 달라 한 목록에 담겨도 서로 더하거나 견주지 않는다.
 
-    현물 수급은 시장 시그널 폴러가 저장한 오늘의 최신 스냅샷을 쓴다. 아직 스냅샷이
-    없으면 지수 시세만 보여주고 수급은 비운다.
+    현물·선물 수급은 각각의 폴러가 저장한 오늘의 최신 스냅샷을 쓴다. 아직 스냅샷이
+    없으면 시세만 보여주고 수급은 비운다.
 
     시세조차 못 받은 시장만 목록에서 빠진다. 수급만 비는 경우는 `nets=None`으로 남는다.
     """
@@ -808,14 +827,14 @@ def today_nets(session: Session) -> list[TodayNet]:
         quote = futures_quote(market)
         if quote is None:
             continue
-        i = quote.investors
+        snapshot = _futures_snapshot_at(session, market, now())
         out.append(
             TodayNet(
                 market=market, futures=True,
                 index_value=quote.futures_price, change_rate=quote.change_rate,
-                nets=None if i is None else TodayNetInvestors(
-                    individual=i.individual, foreign=i.foreign,
-                    institution=i.institution, other_corp=i.other_corp,
+                nets=None if snapshot is None else TodayNetInvestors(
+                    individual=snapshot.individual_qty, foreign=snapshot.foreign_qty,
+                    institution=snapshot.institution_qty, other_corp=snapshot.other_corp_qty,
                 ),
             )
         )

@@ -80,6 +80,21 @@ class Test리터럴_경로_우선:
         assert 응답.json()["data"] == {"isHoliday": False, "previousOpenDay": None}
 
 
+class Test선물_시세_응답:
+    def test_시세에는_투자자_수급을_담지_않는다(self, 로그인_client, monkeypatch):
+        monkeypatch.setattr(application, "futures_quote", lambda market: application.FuturesQuote(
+            futures_price=300, change_rate=1.2, spot=299, basis=1, dprt=0.1,
+            open_interest=1000, open_interest_change=20, rmnn_days=10,
+            expiry_date="2026-10-08",
+        ))
+
+        응답 = 로그인_client.get("/api/market/futures/KOSPI/quote")
+
+        assert 응답.status_code == 200
+        assert 응답.json()["data"]["futuresPrice"] == 300
+        assert "investors" not in 응답.json()["data"]
+
+
 class Test시장_경로:
     def test_코스피_캔들은_정상_매칭된다(self, 로그인_client):
         assert 로그인_client.get("/api/market/KOSPI/candles", params={"interval": "1d"}).status_code == 200

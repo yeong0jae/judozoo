@@ -138,13 +138,6 @@ class FuturesInvestorDayItem(BaseModel):
     nets: FuturesNetsItem
 
 
-class FuturesInvestorsItem(BaseModel):
-    foreign: int
-    individual: int
-    institution: int
-    other_corp: int = Field(serialization_alias="otherCorp")
-
-
 class FuturesQuoteItem(BaseModel):
     futures_price: float = Field(serialization_alias="futuresPrice")
     change_rate: float = Field(serialization_alias="changeRate")
@@ -155,7 +148,6 @@ class FuturesQuoteItem(BaseModel):
     open_interest_change: int = Field(serialization_alias="openInterestChange")
     rmnn_days: int = Field(serialization_alias="rmnnDays")
     expiry_date: str = Field(serialization_alias="expiryDate")
-    investors: FuturesInvestorsItem | None
 
 
 class NightFuturesQuoteItem(BaseModel):
@@ -342,10 +334,7 @@ def futures_quote(market: Market) -> ApiResponse[FuturesQuoteItem | None]:
     q = application.futures_quote(market)
     if q is None:
         return ApiResponse.ok(None)
-    investors = None if q.investors is None else FuturesInvestorsItem(**vars(q.investors))
-    return ApiResponse.ok(
-        FuturesQuoteItem(**{**vars(q), "investors": investors})
-    )
+    return ApiResponse.ok(FuturesQuoteItem(**vars(q)))
 
 
 @router.get("/futures/{market}/investor/daily")
