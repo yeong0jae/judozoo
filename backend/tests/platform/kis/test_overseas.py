@@ -1,8 +1,10 @@
+from datetime import date, datetime
+
 import httpx
 import pytest
 import respx
 
-from backend.platform.kis import client as kis_client
+from backend.platform.kis import client as kis_client, overseas_product
 from backend.platform.kis.overseas_product import fetch_market_cap
 from backend.platform.kis.overseas_ranking import fetch_trading_value_ranking
 
@@ -71,6 +73,29 @@ class Test거래대금순위:
 
 
 class Test시가총액:
+    def test_한국_날짜가_먼저_바뀌어도_미국_날짜를_기준으로_삼는다(self, mocker):
+        지금 = mocker.patch.object(overseas_product, "now", return_value=datetime(2026, 9, 30, 0, 30))
+
+        assert overseas_product._us_date() == date(2026, 9, 29)
+
+        지금.return_value = datetime(2026, 9, 30, 13, 30)
+        assert overseas_product._us_date() == date(2026, 9, 30)
+
+    @respx.mock
+    def test_같은_미국_날짜에는_한_번만_조회하고_날짜가_바뀌면_갱신한다(self, respx_mock, 토큰_발급, mocker):
+        미국날짜 = mocker.patch.object(overseas_product, "_us_date", return_value=date(2026, 9, 29))
+        route = respx_mock.get(PRODUCT_URL).mock(return_value=httpx.Response(200, json={
+            "rt_cd": "0", "output": {"lstg_stck_num": "1000000", "ovrs_now_pric1": "230.5"},
+        }))
+
+        assert fetch_market_cap("NAS", "AAPL") == 230_500_000
+        assert fetch_market_cap("NAS", "AAPL") == 230_500_000
+        assert route.call_count == 1
+
+        미국날짜.return_value = date(2026, 9, 30)
+        assert fetch_market_cap("NAS", "AAPL") == 230_500_000
+        assert route.call_count == 2
+
     @respx.mock
     def test_상장주식수와_현재가를_곱한다(self, respx_mock, 토큰_발급):
         respx_mock.get(PRODUCT_URL).mock(

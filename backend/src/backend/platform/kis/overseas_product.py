@@ -1,10 +1,13 @@
 """KIS 상품기본정보 (CTPF1702R) — 해외 종목 시가총액."""
 
 import logging
+from datetime import date
 from time import sleep
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from backend.library.cache import ttl_cache
+from backend.library.time import KST, now
 from backend.platform.kis.client import auth_headers, get_client
 
 log = logging.getLogger(__name__)
@@ -14,13 +17,22 @@ _PRDT_TYPE_CD = {"NAS": "512", "NYS": "513", "AMS": "529"}
 
 #: KIS 초당 거래건수 초과. HTTP 500에 실려 온다 — 잠깐 쉬었다 한 번 더 부르면 대개 지나간다.
 _RATE_LIMITED = "EGW00201"
+_US_EASTERN = ZoneInfo("America/New_York")
 
 
-@ttl_cache("kisOverseasMarketCap", ttl_seconds=3600, maxsize=100, skip_if=lambda v: v is None)
+def _us_date() -> date:
+    """해외 시총 캐시는 한국 날짜가 아닌 미국 현지 날짜에 맞춰 교체한다."""
+    return now().replace(tzinfo=KST).astimezone(_US_EASTERN).date()
+
+
+@ttl_cache(
+    "kisOverseasMarketCap", ttl_seconds=24 * 60 * 60, maxsize=100,
+    key=lambda excd, symb: (excd, symb, _us_date()), skip_if=lambda v: v is None,
+)
 def fetch_market_cap(excd: str, symb: str) -> int | None:
     """시가총액(달러) = 상장주식수 × 현재가. 데이터 없거나 KIS가 실패하면 None.
 
-    상장주식수는 거의 불변이라 TTL이 길다.
+    종목별·미국 현지 날짜별로 하루 보관한다. 조회 실패는 보관하지 않는다.
 
     **실패해도 예외를 올리지 않는다.** 시가총액은 상세 화면의 필터 하나일 뿐이라 "조회 불가"로 두면 된다
     (2026-09-30 META — KIS가 HTTP 500을 주자 상세 화면 전체가 500이 됐다). KIS는 한도 초과도 HTTP 500으로
