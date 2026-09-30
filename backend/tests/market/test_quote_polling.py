@@ -74,6 +74,64 @@ class Test시세_폴러:
         assert application.futures_quote(Market.KOSPI).futures_price == 300
 
 
+class Test선물_근월물_공유:
+    def test_정규장과_야간_시세가_근월물_조회_한_번을_공유한다(self, mocker):
+        mocker.patch.object(application, "now", return_value=datetime(2026, 9, 30, 10))
+        near = mocker.patch.object(application.kis_futures, "fetch_near_month", return_value=SimpleNamespace(
+            iscd="CONTRACT", name="F 202612", rmnn_days=50,
+        ))
+        mocker.patch.object(application.kis_futures, "fetch_daily", return_value=SimpleNamespace(
+            summary=SimpleNamespace(futures_price=300, change_rate=1, spot=299, basis=1, dprt=0,
+                                    open_interest=100, open_interest_change=1),
+            candles=[],
+        ))
+        mocker.patch.object(application.kis_futures, "fetch_price", return_value=SimpleNamespace(
+            price=300, change_rate=1, prev_close=299, price_change=1, open=299,
+            high=301, low=298, volume=100, open_interest=100, open_interest_change=1,
+        ))
+
+        assert application.futures_quote(Market.KOSPI).futures_price == 300
+        assert application.night_futures_quote().price == 300
+        assert application.futures_candles(Market.KOSPI, "1d", 90) == []
+        assert application.night_futures_candles("1d", 90) == []
+        assert application.futures_quote.refresh(Market.KOSPI).futures_price == 300
+        assert near.call_count == 1
+
+    def test_야간장_시작과_만기_교체_시_근월물을_다시_확인한다(self, mocker):
+        clock = mocker.patch.object(application, "now", return_value=datetime(2026, 9, 30, 17, 59))
+        near = mocker.patch.object(application.kis_futures, "fetch_near_month", side_effect=[
+            SimpleNamespace(iscd="OLD", name="F 202609", rmnn_days=0),
+            SimpleNamespace(iscd="NEW", name="F 202612", rmnn_days=90),
+        ])
+        price = mocker.patch.object(application.kis_futures, "fetch_price", side_effect=lambda iscd, _: (
+            None if iscd == "OLD" else SimpleNamespace(
+                price=310, change_rate=1, prev_close=309, price_change=1, open=309,
+                high=311, low=308, volume=100, open_interest=100, open_interest_change=1,
+            )
+        ))
+
+        assert application.night_futures_quote().price == 310
+        assert [call.args[0] for call in price.call_args_list] == ["OLD", "NEW"]
+        assert near.call_count == 2
+
+        clock.return_value = datetime(2026, 9, 30, 18)
+        near.side_effect = None
+        near.return_value = SimpleNamespace(iscd="NEW", name="F 202612", rmnn_days=90)
+        assert application._near_month(Market.KOSPI).iscd == "NEW"
+        assert near.call_count == 3
+
+    def test_자정이_지나도_진행_중인_야간_세션_코드를_재조회하지_않는다(self, mocker):
+        clock = mocker.patch.object(application, "now", return_value=datetime(2026, 9, 30, 23))
+        near = mocker.patch.object(application.kis_futures, "fetch_near_month", return_value=SimpleNamespace(
+            iscd="CONTRACT", name="F 202612", rmnn_days=90,
+        ))
+
+        assert application._near_month(Market.KOSPI).iscd == "CONTRACT"
+        clock.return_value = datetime(2026, 10, 1, 1)
+        assert application._near_month(Market.KOSPI).iscd == "CONTRACT"
+        assert near.call_count == 1
+
+
 class Test시세_운영시간:
     def test_야간은_금요일_세션의_토요일_새벽도_포함한다(self, mocker):
         opened = mocker.patch.object(scheduler.calendar, "is_open", return_value=True)

@@ -425,15 +425,43 @@ class FuturesQuote:
     expiry_date: str             # 만기일 yyyy-MM-dd
 
 
+def _near_month_cache_key(market: Market) -> tuple[Market, date, str]:
+    """정규장·야간장 경계에서는 만기 교체를 바로 확인하고, 자정에는 야간 코드를 유지한다."""
+    at = now()
+    if at.time() < time(6):
+        return market, at.date() - timedelta(days=1), "night"
+    return market, at.date(), "night" if at.time() >= time(18) else "day"
+
+
+@ttl_cache(
+    "futuresNearMonth", ttl_seconds=24 * 60 * 60, maxsize=4,
+    key=_near_month_cache_key, skip_if=lambda r: r is None,
+)
+def _near_month(market: Market) -> kis_futures.NearMonth | None:
+    """시세·정규장/야간 차트가 같은 근월물 코드를 쓴다. 만기 교체는 시세 실패 시 즉시 재확인한다."""
+    return kis_futures.fetch_near_month(market)
+
+
+def _changed_near_month(market: Market, iscd: str) -> kis_futures.NearMonth | None:
+    """기존 종목 조회가 실패했을 때만 전광판을 다시 보고 코드가 바뀌었으면 재시도한다."""
+    refreshed = _near_month.refresh(market)
+    return refreshed if refreshed is not None and refreshed.iscd != iscd else None
+
+
 @ttl_cache("futuresQuote", ttl_seconds=40, maxsize=2, skip_if=lambda r: r is None, serve_stale=True)
 def futures_quote(market: Market) -> FuturesQuote | None:
-    near = kis_futures.fetch_near_month(market)
+    near = _near_month(market)
     if near is None:
         return None
     current = today()
     daily = kis_futures.fetch_daily(near.iscd, current - timedelta(days=10), current)
     if daily is None:
-        return None
+        near = _changed_near_month(market, near.iscd)
+        if near is None:
+            return None
+        daily = kis_futures.fetch_daily(near.iscd, current - timedelta(days=10), current)
+        if daily is None:
+            return None
     s = daily.summary
     return FuturesQuote(
         futures_price=s.futures_price,
@@ -471,12 +499,18 @@ def _expiry_of(name: str) -> str | None:
     skip_if=is_empty,
 )
 def futures_candles(market: Market, interval: str, count: int) -> list[kis_futures.FuturesBar]:
-    near = kis_futures.fetch_near_month(market)
+    near = _near_month(market)
     if near is None:
         return []
     current = today()
     if interval == "1d":
         daily = kis_futures.fetch_daily(near.iscd, current - timedelta(days=count * 2 + 10), current)
+        if daily is None:
+            refreshed = _changed_near_month(market, near.iscd)
+            if refreshed is not None:
+                daily = kis_futures.fetch_daily(
+                    refreshed.iscd, current - timedelta(days=count * 2 + 10), current
+                )
         return daily.candles if daily else []
     if interval == "1m":
         return _recent_futures_minutes(market, near.iscd)
@@ -568,12 +602,17 @@ class NightFuturesQuote:
 @ttl_cache("nightFuturesQuote", ttl_seconds=40, maxsize=1, skip_if=lambda r: r is None, serve_stale=True)
 def night_futures_quote() -> NightFuturesQuote | None:
     """근월물 코드는 정규장 전광판에서 뽑은 것을 그대로 쓴다(전광판은 야간을 지원하지 않는다)."""
-    near = kis_futures.fetch_near_month(Market.KOSPI)
+    near = _near_month(Market.KOSPI)
     if near is None:
         return None
     p = kis_futures.fetch_price(near.iscd, kis_futures.NIGHT)
     if p is None:
-        return None
+        near = _changed_near_month(Market.KOSPI, near.iscd)
+        if near is None:
+            return None
+        p = kis_futures.fetch_price(near.iscd, kis_futures.NIGHT)
+        if p is None:
+            return None
     return NightFuturesQuote(
         price=p.price,
         change_rate=p.change_rate,
@@ -596,7 +635,7 @@ def night_futures_quote() -> NightFuturesQuote | None:
     skip_if=is_empty,
 )
 def night_futures_candles(interval: str, count: int) -> list[kis_futures.FuturesBar]:
-    near = kis_futures.fetch_near_month(Market.KOSPI)
+    near = _near_month(Market.KOSPI)
     if near is None:
         return []
     current = today()
@@ -604,6 +643,12 @@ def night_futures_candles(interval: str, count: int) -> list[kis_futures.Futures
         daily = kis_futures.fetch_daily(
             near.iscd, current - timedelta(days=count * 2 + 10), current, kis_futures.NIGHT
         )
+        if daily is None:
+            refreshed = _changed_near_month(Market.KOSPI, near.iscd)
+            if refreshed is not None and refreshed.iscd != near.iscd:
+                daily = kis_futures.fetch_daily(
+                    refreshed.iscd, current - timedelta(days=count * 2 + 10), current, kis_futures.NIGHT
+                )
         return daily.candles if daily else []
     if interval == "1m":
         return _recent_night_session(near.iscd)
