@@ -108,6 +108,7 @@ export default function OverseasLeadingStocks({
     <OverseasStockDetailPanel
       exchange={selected?.exchange ?? null}
       symbol={openSymbol}
+      preview={selected ?? undefined}
       onBack={mobile.hide}
       insight={<ReasonCard item={reason} member />}
     />

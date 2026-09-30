@@ -4,7 +4,7 @@ import {
   useOverseasMinuteCandles,
   useOverseasDailyCandles,
 } from "../../api/queries";
-import type { OverseasStockDetailResponse } from "../../types";
+import type { OverseasStockDetailResponse, OverseasStockRankItem } from "../../types";
 import { colorByPnL, formatPct, formatUsd } from "../../lib/format";
 import Skeleton from "./Skeleton";
 import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
@@ -30,12 +30,15 @@ type ChartInterval = "1m" | "1d";
 export default function OverseasStockDetailPanel({
   exchange,
   symbol,
+  preview,
   chartOnly = false,
   onBack,
   insight,
 }: {
   exchange: string | null;
   symbol: string | null;
+  /** 주도주 목록에서 이미 받은 시세 — 상세 API를 기다리지 않고 머리를 그린다. */
+  preview?: OverseasStockRankItem;
   chartOnly?: boolean;
   onBack?: () => void;
   /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 올랐나요?" 카드(026) */
@@ -56,6 +59,7 @@ export default function OverseasStockDetailPanel({
   }
 
   const minutes = minuteQ.data ?? [];
+  const quote = preview?.exchange === exchange && preview.symbol === symbol ? preview : d;
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,7 +74,17 @@ export default function OverseasStockDetailPanel({
         </button>
       )}
 
-      {!d ? <Skeleton className="h-28 w-full" /> : <DetailHeader detail={d} />}
+      {!quote && detailQ.isLoading ? (
+        <Skeleton className="h-28 w-full" />
+      ) : !quote ? (
+        <p className="text-xs text-rose-700">상세 정보를 불러올 수 없습니다</p>
+      ) : (
+        <DetailHeader quote={quote} />
+      )}
+
+      {quote && detailQ.isError && (
+        <p className="text-xs text-rose-700">주도주 조건을 불러올 수 없습니다</p>
+      )}
 
       {insight}
 
@@ -129,24 +143,24 @@ export default function OverseasStockDetailPanel({
 const signedUsd = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${formatUsd(Math.abs(v))}`;
 
 /** 심볼·이름·거래소 / 큰 가격·전일 대비·등락률 / 통합 순위·거래대금. */
-function DetailHeader({ detail }: { detail: OverseasStockDetailResponse }) {
-  const pct = detail.rate;
+function DetailHeader({ quote }: { quote: OverseasStockRankItem | OverseasStockDetailResponse }) {
+  const pct = quote.rate;
   const pctBadge = pct > 0 ? "bg-red-500/10" : pct < 0 ? "bg-blue-500/10" : "bg-zinc-800";
   const facts: [string, ReactNode][] = [
-    ["통합 순위", `${detail.rank}위`],
-    ["거래대금", `$${Math.round(detail.tradingValue).toLocaleString("en-US")}`],
+    ["통합 순위", `${quote.rank}위`],
+    ["거래대금", `$${Math.round(quote.tradingValue).toLocaleString("en-US")}`],
   ];
   return (
     <header className="flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h2 className="text-lg font-bold tracking-tight text-zinc-100">{detail.symbol}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-zinc-100">{quote.symbol}</h2>
         <span className="truncate text-xs text-zinc-500">
-          {detail.name} · {exchangeLabel(detail.exchange)}
+          {quote.name} · {exchangeLabel(quote.exchange)}
         </span>
       </div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <NumUsd value={detail.price} className="num text-2xl font-bold tracking-tight text-zinc-100 sm:text-3xl" />
-        <span className={`num text-base font-semibold ${colorByPnL(detail.diff)}`}>{signedUsd(detail.diff)}</span>
+        <NumUsd value={quote.price} className="num text-2xl font-bold tracking-tight text-zinc-100 sm:text-3xl" />
+        <span className={`num text-base font-semibold ${colorByPnL(quote.diff)}`}>{signedUsd(quote.diff)}</span>
         <span className={`num rounded-md px-2 py-0.5 text-[13px] font-bold ${pctBadge} ${colorByPnL(pct)}`}>
           {formatPct(pct / 100)}
         </span>
