@@ -50,12 +50,12 @@ function body({ market, date, stocks, facts, reasons }) {
     const rank = closeRank.get(k);
     const r = reasons.get(stocks[k].code);
     const why = r?.explained ? ` | ${r.reason}` : "";
-    const rate = rank ? `${pct(rateOf(k))} (마감 ${rank}위)` : `장중 최고 ${pct(facts.peak[k])}`;
+    const rate = rank ? pct(rateOf(k)) : `장중 최고 ${pct(facts.peak[k])}`;
     lines.push(`${rank === 1 ? "👑" : "🚀"} ${stocks[k].name} ${rate}${why}`);
   }
   lines.push("");
-  if (facts.relay.length > 1) lines.push(`1위 흐름: ${facts.relay.map((k) => stocks[k].name).join(" → ")}`);
-  lines.push("📍 judozoo.com", "", "※ 사유는 AI 뉴스 요약 · 투자 권유 아님", "");
+  if (facts.relay.length > 1) lines.push(`주도 흐름: ${facts.relay.map((k) => stocks[k].name).join(" → ")}`);
+  lines.push("📍 judozoo.com", "", "※ 제공되는 정보는 투자 권유가 아니며, 투자 판단과 책임은 이용자 본인에게 있습니다.", "");
   lines.push([...tags, "#주도주", ...picks.map((k) => hashtag(stocks[k].name)), "#급등주"].join(" "));
   return { text: lines.join("\n"), picks };
 }
