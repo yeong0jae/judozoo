@@ -23,7 +23,7 @@ def 외부호출_차단(monkeypatch):
     monkeypatch.setattr(application, "night_futures_candles", lambda interval, count: [])
     monkeypatch.setattr(application, "futures_quote", lambda market: None)
     monkeypatch.setattr(application, "daily_candles", lambda market, count: [])
-    monkeypatch.setattr(application, "today_nets", lambda: [])
+    monkeypatch.setattr(application, "today_nets", lambda db: [])
     monkeypatch.setattr(calendar, "is_holiday", lambda region: False)
     monkeypatch.setattr(calendar, "previous_open_day", lambda on: None)
 

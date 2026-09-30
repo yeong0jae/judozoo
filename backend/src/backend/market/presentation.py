@@ -271,7 +271,7 @@ def kosdaq() -> ApiResponse[IndexItem]:
 
 
 @router.get("/investor/today")
-def investor_today() -> ApiResponse[list[TodayNetItem]]:
+def investor_today(db: Session = Depends(get_db)) -> ApiResponse[list[TodayNetItem]]:
     """첫 화면 "오늘의 수급" — 코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수."""
     return ApiResponse.ok(
         [
@@ -280,7 +280,7 @@ def investor_today() -> ApiResponse[list[TodayNetItem]]:
                 index_value=n.index_value, change_rate=n.change_rate,
                 nets=None if n.nets is None else TodayNetInvestorsItem(**vars(n.nets)),
             )
-            for n in application.today_nets()
+            for n in application.today_nets(db)
         ]
     )
 
@@ -436,4 +436,3 @@ def investor_sessions(
             ],
         )
     )
-

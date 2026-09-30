@@ -775,25 +775,32 @@ class TodayNet:
     nets: TodayNetInvestors | None
 
 
-def today_nets() -> list[TodayNet]:
+def today_nets(session: Session) -> list[TodayNet]:
     """코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수.
 
     현물(억원)과 선물(계약)은 단위가 달라 한 목록에 담겨도 서로 더하거나 견주지 않는다.
+
+    현물 수급은 시장 시그널 폴러가 저장한 오늘의 최신 스냅샷을 쓴다. 아직 스냅샷이
+    없으면 지수 시세만 보여주고 수급은 비운다.
 
     시세조차 못 받은 시장만 목록에서 빠진다. 수급만 비는 경우는 `nets=None`으로 남는다.
     """
     out: list[TodayNet] = []
     for market in Market:
-        nb = kiwoom_sector.fetch_sector_net_buy(_MRKT_TP[market])
-        if nb is None:
-            continue
+        snapshot = investor_snapshot_at(session, market, now())
+        if snapshot is None:
+            try:
+                quote = get_kospi() if market == Market.KOSPI else get_kosdaq()
+            except RuntimeError:
+                continue
         out.append(
             TodayNet(
                 market=market, futures=False,
-                index_value=nb.index_value, change_rate=nb.change_rate,
-                nets=TodayNetInvestors(
-                    individual=nb.individual_eok, foreign=nb.foreign_eok,
-                    institution=nb.institution_eok, other_corp=nb.other_corp_eok,
+                index_value=snapshot.index_value if snapshot else quote.current_value,
+                change_rate=snapshot.change_rate if snapshot else quote.change_rate,
+                nets=None if snapshot is None else TodayNetInvestors(
+                    individual=snapshot.individual_eok, foreign=snapshot.foreign_eok,
+                    institution=snapshot.institution_eok, other_corp=snapshot.other_corp_eok,
                 ),
             )
         )
