@@ -124,3 +124,42 @@ class Test시가총액:
         fetch_market_cap("NAS", "AAPL")
 
         assert route.call_count == 2
+
+    @respx.mock
+    def test_KIS가_500을_주면_예외_없이_시가총액을_주지_않는다(self, respx_mock, 토큰_발급):
+        """상세 화면 전체가 500이 되지 않게 — 시가총액만 "조회 불가"로 남는다."""
+        respx_mock.get(PRODUCT_URL).mock(
+            return_value=httpx.Response(500, json={"rt_cd": "1", "msg_cd": "EGW00123", "msg1": "기간이 만료된 token"})
+        )
+
+        assert fetch_market_cap("NAS", "META") is None
+
+    @respx.mock
+    def test_본문이_JSON이_아니어도_예외_없이_시가총액을_주지_않는다(self, respx_mock, 토큰_발급):
+        respx_mock.get(PRODUCT_URL).mock(return_value=httpx.Response(500, text="Internal Server Error"))
+
+        assert fetch_market_cap("NAS", "META") is None
+
+    @respx.mock
+    def test_한도_초과면_1초_쉬고_한_번_더_부른다(self, respx_mock, 토큰_발급, monkeypatch):
+        쉼: list[float] = []
+        monkeypatch.setattr("backend.platform.kis.overseas_product.sleep", 쉼.append)
+        route = respx_mock.get(PRODUCT_URL).mock(side_effect=[
+            httpx.Response(500, json={"rt_cd": "1", "msg_cd": "EGW00201", "msg1": "초당 거래건수를 초과하였습니다."}),
+            httpx.Response(200, json={"rt_cd": "0", "msg1": "",
+                                      "output": {"lstg_stck_num": "1000000", "ovrs_now_pric1": "230.5"}}),
+        ])
+
+        assert fetch_market_cap("NAS", "META") == 230_500_000
+        assert route.call_count == 2
+        assert 쉼 == [1.0]
+
+    @respx.mock
+    def test_다시_불러도_한도_초과면_시가총액을_주지_않는다(self, respx_mock, 토큰_발급, monkeypatch):
+        monkeypatch.setattr("backend.platform.kis.overseas_product.sleep", lambda _: None)
+        route = respx_mock.get(PRODUCT_URL).mock(
+            return_value=httpx.Response(500, json={"rt_cd": "1", "msg_cd": "EGW00201", "msg1": "초당 거래건수를 초과하였습니다."})
+        )
+
+        assert fetch_market_cap("NAS", "META") is None
+        assert route.call_count == 2

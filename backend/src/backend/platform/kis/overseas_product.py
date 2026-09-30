@@ -1,6 +1,7 @@
 """KIS 상품기본정보 (CTPF1702R) — 해외 종목 시가총액."""
 
 import logging
+from time import sleep
 from typing import Any
 
 from backend.library.cache import ttl_cache
@@ -11,26 +12,43 @@ log = logging.getLogger(__name__)
 # 거래소별 상품유형코드. 지원하지 않는 거래소는 호출 자체가 잘못된 것이라 예외를 올린다.
 _PRDT_TYPE_CD = {"NAS": "512", "NYS": "513", "AMS": "529"}
 
+#: KIS 초당 거래건수 초과. HTTP 500에 실려 온다 — 잠깐 쉬었다 한 번 더 부르면 대개 지나간다.
+_RATE_LIMITED = "EGW00201"
+
 
 @ttl_cache("kisOverseasMarketCap", ttl_seconds=3600, maxsize=100, skip_if=lambda v: v is None)
 def fetch_market_cap(excd: str, symb: str) -> int | None:
-    """시가총액(달러) = 상장주식수 × 현재가. 데이터 없으면 None.
+    """시가총액(달러) = 상장주식수 × 현재가. 데이터 없거나 KIS가 실패하면 None.
 
     상장주식수는 거의 불변이라 TTL이 길다.
+
+    **실패해도 예외를 올리지 않는다.** 시가총액은 상세 화면의 필터 하나일 뿐이라 "조회 불가"로 두면 된다
+    (2026-09-30 META — KIS가 HTTP 500을 주자 상세 화면 전체가 500이 됐다). KIS는 한도 초과도 HTTP 500으로
+    주므로 본문의 `msg_cd`를 읽어 남기고, 한도 초과면 1초 쉬고 한 번 더 부른다.
     """
     prdt_type_cd = _PRDT_TYPE_CD.get(excd)
     if prdt_type_cd is None:
         raise ValueError(f"지원하지 않는 거래소: {excd}")
 
-    response = get_client().get(
-        "/uapi/overseas-price/v1/quotations/search-info",
-        params={"PRDT_TYPE_CD": prdt_type_cd, "PDNO": symb},
-        headers=auth_headers("CTPF1702R"),
-    )
-    response.raise_for_status()
-    body = response.json()
-    if body.get("rt_cd") != "0":
-        log.warning("KIS 상품기본정보 오류: %s (%s:%s)", body.get("msg1"), excd, symb)
+    for attempt in (1, 2):
+        try:
+            response = get_client().get(
+                "/uapi/overseas-price/v1/quotations/search-info",
+                params={"PRDT_TYPE_CD": prdt_type_cd, "PDNO": symb},
+                headers=auth_headers("CTPF1702R"),
+            )
+            body = response.json()
+        except Exception:
+            log.warning("KIS 상품기본정보 조회 실패 (%s:%s)", excd, symb, exc_info=True)
+            return None
+        if response.status_code == 200 and body.get("rt_cd") == "0":
+            break
+        msg_cd, msg1 = body.get("msg_cd"), body.get("msg1")
+        if msg_cd == _RATE_LIMITED and attempt == 1:
+            log.warning("KIS 상품기본정보 한도 초과 — 1초 뒤 다시 (%s:%s)", excd, symb)
+            sleep(1.0)
+            continue
+        log.warning("KIS 상품기본정보 오류: HTTP %s %s %s (%s:%s)", response.status_code, msg_cd, msg1, excd, symb)
         return None
 
     output = body.get("output")
