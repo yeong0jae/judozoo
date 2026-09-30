@@ -7,12 +7,13 @@ import {
   useStockInvestorDaily,
 } from "../../api/queries";
 import type {
+  CandidateStockItem,
   LeadingStockDetailResponse,
   MinuteCandleItem,
   StockInvestorDay,
   StockOrgBreakdown,
 } from "../../types";
-import { colorByPnL, formatKoreanMoney, formatPct, formatPrice } from "../../lib/format";
+import { colorByPnL, formatKoreanMoney, formatPct } from "../../lib/format";
 import CandleChart, { dailySeries, minuteSeries } from "./CandleChart";
 import { todayStr } from "./DateNavigator";
 import NumWon from "./NumWon";
@@ -35,11 +36,14 @@ type ChartInterval = "1m" | "1d";
  */
 export default function StockDetailPanel({
   stockCode,
+  preview,
   date = todayStr(),
   onBack,
   insight,
 }: {
   stockCode: string | null;
+  /** 주도주 목록에서 이미 받은 시세 — 상세 API를 기다리지 않고 머리를 그린다. */
+  preview?: CandidateStockItem;
   date?: string; // 차트 기준 날짜 — 미지정 시 오늘
   onBack?: () => void;
   /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 올랐나요?" 카드(026). 다른 화면은 비워 둔다 */
@@ -61,6 +65,7 @@ export default function StockDetailPanel({
   }
 
   const minutes = minuteQ.data ?? [];
+  const quote = preview?.stockCode === stockCode ? preview : detail;
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,12 +80,16 @@ export default function StockDetailPanel({
         </button>
       )}
 
-      {detailQ.isLoading ? (
+      {!quote && detailQ.isLoading ? (
         <Skeleton className="h-28 w-full" />
-      ) : detailQ.isError || !detail ? (
+      ) : !quote ? (
         <p className="text-xs text-rose-700">상세 정보를 불러올 수 없습니다</p>
       ) : (
-        <DetailHeader stockCode={stockCode} detail={detail} lastMinute={minutes[minutes.length - 1]} />
+        <DetailHeader stockCode={stockCode} quote={quote} detail={detail} lastMinute={minutes[minutes.length - 1]} />
+      )}
+
+      {quote && detailQ.isError && (
+        <p className="text-xs text-rose-700">주도주 조건을 불러올 수 없습니다</p>
       )}
 
       {insight}
@@ -158,42 +167,33 @@ function asOfLabel(c: MinuteCandleItem): string {
   return `${dayLabel(date)} ${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")} 기준`;
 }
 
-/** 부호 붙인 원 — 음수는 하이픈이 아니라 마이너스 기호. */
-const signedWon = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${formatPrice(Math.abs(v))}`;
-
-/** 이름·코드 / 큰 가격·전일 대비·등락률 / RVOL·거래대금·기준 시각. 넓으면 오른쪽에 시가·고가·저가·전일. */
+/** 이름·코드 / 목록에서 이미 받은 가격·등락률 / 상세에서 받는 RVOL·분봉 기준 시각. */
 function DetailHeader({
   stockCode,
+  quote,
   detail,
   lastMinute,
 }: {
   stockCode: string;
-  detail: LeadingStockDetailResponse;
+  quote: CandidateStockItem | LeadingStockDetailResponse;
+  detail: LeadingStockDetailResponse | undefined;
   lastMinute: MinuteCandleItem | undefined;
 }) {
-  const pct = detail.priceChangeRate;
-  // 전일 종가가 없으면(0) 전일 대비를 그리지 않는다 — 현재가 전체가 상승분처럼 읽힌다
-  const hasPrev = detail.previousClose > 0;
-  const chg = detail.currentPrice - detail.previousClose;
+  const pct = quote.priceChangeRate;
   const pctBadge = pct > 0 ? "bg-red-500/10" : pct < 0 ? "bg-blue-500/10" : "bg-zinc-800";
-  const stats: [string, number][] = [
-    ["시가", detail.openingPrice],
-    ["고가", detail.highPrice],
-    ["저가", detail.lowPrice],
-    ["전일", detail.previousClose],
-  ];
+  const tradingValue = "accumulatedTradingValue" in quote ? quote.accumulatedTradingValue : quote.tradingValue;
   // RVOL · 거래대금 · 기준 시각 — 값이 없는 칸은 빼고 가운뎃점으로 잇는다
   const facts: ReactNode[] = [
-    detail.relativeVolume != null && (
+    detail?.relativeVolume != null && (
       <span key="rvol" className="flex items-baseline gap-1.5" title="당일 누적 거래량 / 직전 20거래일 평균 (장 초반엔 낮게 나옴)">
         <span className="text-zinc-500">RVOL</span>
         <span className="num font-semibold text-zinc-300">{detail.relativeVolume.toFixed(1)}배</span>
       </span>
     ),
-    detail.tradingValue != null && (
+    tradingValue != null && (
       <span key="value" className="flex items-baseline gap-1.5">
         <span className="text-zinc-500">거래대금</span>
-        <span className="num font-semibold text-zinc-300">{formatKoreanMoney(detail.tradingValue)}</span>
+        <span className="num font-semibold text-zinc-300">{formatKoreanMoney(tradingValue)}</span>
       </span>
     ),
     lastMinute && (
@@ -207,15 +207,14 @@ function DetailHeader({
     <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
       <div className="flex min-w-0 flex-col gap-2">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <h2 className="text-lg font-bold tracking-tight text-zinc-100">{detail.stockName}</h2>
+          <h2 className="text-lg font-bold tracking-tight text-zinc-100">{quote.stockName}</h2>
           <span className="num text-xs text-zinc-500">
             {shortCode(stockCode)}
-            {detail.market && ` · ${detail.market}`}
+            {detail?.market && ` · ${detail.market}`}
           </span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <NumWon value={detail.currentPrice} className="num text-2xl font-bold tracking-tight text-zinc-100 sm:text-3xl" />
-          {hasPrev && <span className={`num text-base font-semibold ${colorByPnL(chg)}`}>{signedWon(chg)}</span>}
+          <NumWon value={quote.currentPrice} className="num text-2xl font-bold tracking-tight text-zinc-100 sm:text-3xl" />
           <span className={`num rounded-md px-2 py-0.5 text-[13px] font-bold ${pctBadge} ${colorByPnL(pct)}`}>
             {formatPct(pct / 100)}
           </span>
@@ -226,17 +225,6 @@ function DetailHeader({
           </p>
         )}
       </div>
-      {/* 모바일은 싣지 않는다 — 폭이 좁아 가격 줄 아래로 한 줄을 더 차지하고, 차트가 같은 걸 보여준다 */}
-      {hasPrev && (
-        <dl className="hidden gap-5 text-xs md:flex">
-          {stats.map(([label, v]) => (
-            <div key={label} className="flex flex-col items-end gap-1">
-              <dt className="text-zinc-500">{label}</dt>
-              <dd className="num font-semibold text-zinc-300">{formatPrice(v)}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
     </header>
   );
 }

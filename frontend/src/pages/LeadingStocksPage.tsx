@@ -262,6 +262,7 @@ function DomesticLeadingStocks({
   const detail = me?.authenticated ? (
     <StockDetailPanel
       stockCode={openCode}
+      preview={opened}
       onBack={mobile.hide}
       insight={<ReasonCard item={reason} member />}
     />
