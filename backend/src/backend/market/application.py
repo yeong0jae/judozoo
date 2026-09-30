@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 
 from backend.leadingstock.infrastructure import MarketInvestorSnapshot, investor_snapshot_at
 from backend.library.cache import is_empty, ttl_cache
-from backend.library.time import now, today
-from backend.market import calendar, futures_minute_archive, minute_archive
+from backend.library.time import KST, now, today
+from backend.market import calendar, futures_minute_archive, minute_archive, yahoo_minute_archive
 from backend.market.domain import (
     FuturesInvestorSnapshot,
     FuturesNets,
@@ -719,9 +719,53 @@ def nasdaq_quote() -> QuoteResult | None:
     return _quote_of(NASDAQ_SYMBOL)
 
 
-@ttl_cache("nasdaqIndexCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
 def nasdaq_candles(interval: str) -> list:
-    return _yahoo_candles(NASDAQ_SYMBOL, interval)
+    if interval == "1m":
+        return _nasdaq_minute_candles()
+    if interval == "1d":
+        return _nasdaq_daily_candles()
+    return []
+
+
+@ttl_cache("nasdaqIndexDailyCandles", ttl_seconds=60, maxsize=1, skip_if=is_empty)
+def _nasdaq_daily_candles() -> list[yahoo.YahooBar]:
+    return yahoo.fetch_candles(NASDAQ_SYMBOL, "1d", "6mo")
+
+
+def _us_day(bar: yahoo.YahooBar) -> date:
+    """야후의 KST 시각을 미국 현물시장 거래일로 바꾼다."""
+    at = datetime.fromisoformat(f"{bar.date}T{bar.time}").replace(tzinfo=KST)
+    return at.astimezone(calendar.Region.US.zone).date()
+
+
+def _complete_nasdaq_day(bars: list[yahoo.YahooBar]) -> bool:
+    """조회 창에 잘린 날짜를 DB에 확정하지 않는다(정상 정규장 기준)."""
+    times = [datetime.fromisoformat(f"{bar.date}T{bar.time}").replace(tzinfo=KST)
+             .astimezone(calendar.Region.US.zone).time() for bar in bars]
+    return bool(times) and min(times) <= time(9, 30) and max(times) >= time(15, 59)
+
+
+@ttl_cache("nasdaqIndexMinuteCandles", ttl_seconds=30, maxsize=1, skip_if=is_empty)
+def _nasdaq_minute_candles() -> list[yahoo.YahooBar]:
+    """오늘 미국 거래일은 야후에서 갱신하고 완성된 최근 거래일은 DB에서 읽는다."""
+    current = now().replace(tzinfo=KST).astimezone(calendar.Region.US.zone).date()
+    archived = yahoo_minute_archive.recent(NASDAQ_SYMBOL, current)
+    previous = current - timedelta(days=1)
+    while previous.weekday() >= 5:
+        previous -= timedelta(days=1)
+    # 직전 거래일이 DB에 있으면 야후에는 최신 하루만 묻는다. 휴일이면 2일로 폴백한다.
+    window = "1d" if previous in archived else "2d"
+    fresh = yahoo.fetch_candles(NASDAQ_SYMBOL, "1m", window)
+    by_day: dict[date, list[yahoo.YahooBar]] = {}
+    for bar in fresh:
+        by_day.setdefault(_us_day(bar), []).append(bar)
+    for day, bars in by_day.items():
+        if day < current and day not in archived and _complete_nasdaq_day(bars):
+            yahoo_minute_archive.put(NASDAQ_SYMBOL, day, bars)
+            archived[day] = bars
+    by_day.update(archived)
+    latest = sorted(by_day, reverse=True)[:2]
+    return sorted((bar for day in latest for bar in by_day[day]), key=lambda bar: bar.date + bar.time)
 
 
 def nasdaq_futures_quote() -> QuoteResult | None:

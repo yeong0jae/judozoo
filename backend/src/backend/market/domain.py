@@ -172,3 +172,13 @@ class FuturesMinuteDay(Base):
     night: Mapped[bool] = mapped_column(Boolean, primary_key=True)
     trade_date: Mapped[date_type] = mapped_column(Date, primary_key=True)
     candles: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
+
+
+class YahooMinuteDay(Base):
+    """미국 시장의 완성된 지난 거래일 1분봉. 날짜는 뉴욕 현지 거래일이다."""
+
+    __tablename__ = "yahoo_minute_day"
+
+    symbol: Mapped[str] = mapped_column(String(20), primary_key=True)
+    trade_date: Mapped[date_type] = mapped_column(Date, primary_key=True)
+    candles: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
