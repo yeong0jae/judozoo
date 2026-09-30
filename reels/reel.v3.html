@@ -156,7 +156,7 @@ canvas { position: absolute; inset: 0; width: 1080px; height: 1920px; }
 <script>
 /**
  * 시장 — 분은 **현지 시각**(국내 KST, 해외 뉴욕)이고 화면 표시는 한국 시간이다.
- * 두 시장 모두 **정규장 마감까지만** — 국내 NXT 프리(08:00)~15:30, 해외 프리(04:00)~16:00(뉴욕).
+ * 두 시장 모두 **정규장 마감까지만** — 국내 NXT 프리(08:00)~15:30, 해외 뉴욕 07:00~16:00(한국 20:00~05:00, 서머타임이 아니면 뉴욕 06:00부터).
  * 정규장이 끝나면 순위가 거의 움직이지 않고, 사람들이 "오늘 장"이라 느끼는 것도 정규장이다.
  * 국내 캘린더·홈의 "마감 주도주"는 NXT 애프터(20:00) 기준이라 날에 따라 영상의 정규장 마감 1위와 다를 수 있다.
  */
@@ -179,9 +179,11 @@ function marketOf({ market, date, data }) {
     sess: (m) => m < 530 ? "NXT 프리마켓" : m < 540 ? "쉬는 구간" : "정규장",
     tone: (m) => m < 540 ? 0 : 1,
   };
+  // 해외는 한국 시간 20:00부터 — 뉴욕으로 서머타임엔 07:00, 아니면 06:00
+  const off = kstOffsetFromNewYork(date), start = 1200 - off, from = hhmm(start);
   return {
-    market, data: { ...data, ticks: data.ticks.filter(([at]) => at <= "16:00") },
-    start: 240, slots: 721, open: 570, off: kstOffsetFromNewYork(date), date: [y, mo, d], dateLbl: `${dateLbl} 뉴욕`, name: "해외",
+    market, data: { ...data, ticks: data.ticks.filter(([at]) => at >= from && at <= "16:00") },
+    start, slots: 960 - start + 1, open: 570, off, date: [y, mo, d], dateLbl: `${dateLbl} 뉴욕`, name: "해외",
     sess: (m) => (m < 570 ? "프리마켓" : "정규장"),
     tone: (m) => (m < 570 ? 0 : 1),
   };
