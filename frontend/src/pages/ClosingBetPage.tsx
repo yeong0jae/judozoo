@@ -747,7 +747,7 @@ function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
   );
 }
 
-/** 나스닥 선물 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
+/** 나스닥 선물 1분봉(최근 1일)/일봉(6개월) — 야후 캔들. */
 function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
   const { data, isLoading } = useNasdaqFuturesCandles(interval);
   const items = data ?? [];

@@ -778,6 +778,8 @@ def nasdaq_futures_quote() -> QuoteResult | None:
 
 @ttl_cache("nasdaqFuturesCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
 def nasdaq_futures_candles(interval: str) -> list:
+    if interval == "1m":
+        return yahoo.fetch_candles(NASDAQ_FUTURES_SYMBOL, "1m", "1d")
     return _yahoo_candles(NASDAQ_FUTURES_SYMBOL, interval)
 
 
