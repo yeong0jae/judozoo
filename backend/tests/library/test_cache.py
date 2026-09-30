@@ -302,3 +302,61 @@ class Test수명을_함수로_주면:
         time.sleep(0.15)
 
         assert 조회() == 3     # 60초짜리였다면 다시 부르지 않았다
+
+
+class Test폴러가_갱신하는_캐시:
+    def test_만료되어도_요청은_마지막_정상값을_받고_폴러만_갱신한다(self):
+        calls = []
+
+        @ttl_cache("테스트_폴러_보관", ttl_seconds=0, serve_stale=True)
+        def 조회():
+            calls.append(1)
+            return len(calls)
+
+        assert 조회() == 1
+        assert 조회() == 1
+        assert 조회.refresh() == 2
+        assert 조회() == 2
+        assert len(calls) == 2
+
+    def test_갱신_예외와_빈_응답은_이전_시세를_덮지_않는다(self):
+        state = {"value": 100}
+
+        @ttl_cache("테스트_폴러_실패", ttl_seconds=0, serve_stale=True, skip_if=lambda r: r is None)
+        def 조회():
+            if isinstance(state["value"], Exception):
+                raise state["value"]
+            return state["value"]
+
+        assert 조회() == 100
+        state["value"] = RuntimeError("외부 장애")
+        with pytest.raises(RuntimeError):
+            조회.refresh()
+        assert 조회() == 100
+        state["value"] = None
+        assert 조회.refresh() is None
+        assert 조회() == 100
+
+    def test_갱신_중인_폴러를_기다리지_않고_이전값을_받는다(self):
+        from threading import Event
+        started, release = Event(), Event()
+        calls = []
+
+        @ttl_cache("테스트_폴러_대기", ttl_seconds=0, serve_stale=True)
+        def 조회():
+            calls.append(1)
+            if len(calls) > 1:
+                started.set()
+                assert release.wait(2)
+            return len(calls)
+
+        assert 조회() == 1
+        with ThreadPoolExecutor(1) as pool:
+            pending = pool.submit(조회.refresh)
+            try:
+                assert started.wait(2)
+                assert 조회() == 1
+            finally:
+                release.set()
+            assert pending.result() == 2
+        assert 조회() == 2

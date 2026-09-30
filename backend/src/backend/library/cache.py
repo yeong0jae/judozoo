@@ -26,7 +26,7 @@ from threading import Lock
 from time import monotonic
 from typing import Any, ParamSpec, TypeVar
 
-from cachetools import TLRUCache, TTLCache
+from cachetools import LRUCache, TLRUCache, TTLCache
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -36,6 +36,8 @@ _caches: dict[str, TTLCache | TLRUCache] = {}
 _locks: dict[str, Lock] = {}
 # 이름 → (키 → 진행 중인 호출). 선두 스레드가 끝나면 비운다.
 _inflight: dict[str, dict[Hashable, Future]] = {}
+# 폴러가 갱신하는 캐시만 마지막 정상값을 TTL 밖에서도 보관한다.
+_retained: dict[str, LRUCache] = {}
 
 
 def ttl_cache(
@@ -44,6 +46,7 @@ def ttl_cache(
     maxsize: int = 100,
     key: Callable[..., Hashable] | None = None,
     skip_if: Callable[[Any], bool] | None = None,
+    serve_stale: bool = False,
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
     :param name: 캐시 이름. Kotlin `@Cacheable("...")`의 이름을 그대로 쓴다.
@@ -51,7 +54,10 @@ def ttl_cache(
     :param maxsize: 최대 엔트리 수. 초과 시 오래된 항목부터 밀려난다.
     :param key: 인자 → 캐시 키. 기본은 위치·키워드 인자 전체.
     :param skip_if: 결과가 이 조건을 만족하면 **저장하지 않는다**.
+    :param serve_stale: 폴러 전용. 마지막 정상값은 만료 후에도 반환하고 refresh만 갱신한다.
+        콜드 스타트에는 요청도 조회한다. 실패·skip 결과는 보관값을 덮지 않는다.
     """
+    retained = _retained.setdefault(name, LRUCache(maxsize=maxsize)) if serve_stale else None
     ttl_of = ttl_seconds if callable(ttl_seconds) else None
     # 수명이 항목마다 다르면 (만료 시각, 값)으로 담고 TLRUCache가 그 시각을 읽는다
     cache = _caches.setdefault(
@@ -69,6 +75,8 @@ def ttl_cache(
             with lock:
                 if not force and cache_key in cache:
                     return cache[cache_key][1] if ttl_of else cache[cache_key]
+                if not force and retained is not None and cache_key in retained:
+                    return retained[cache_key]
                 pending = inflight.get(cache_key)
                 if pending is None:
                     pending = inflight[cache_key] = Future()
@@ -97,6 +105,8 @@ def ttl_cache(
             with lock:
                 if store:
                     cache[cache_key] = (expires_at, result) if ttl_of else result
+                    if retained is not None:
+                        retained[cache_key] = result
                 del inflight[cache_key]
             pending.set_result(result)
             return result
@@ -108,6 +118,16 @@ def ttl_cache(
         def refresh(*args: P.args, **kwargs: P.kwargs) -> R:
             return call(True, args, kwargs)
 
+        def peek(*args: P.args, **kwargs: P.kwargs) -> R | None:
+            cache_key = key(*args, **kwargs) if key else (args, tuple(sorted(kwargs.items())))
+            with lock:
+                if retained is not None:
+                    return retained.get(cache_key)
+                if cache_key in cache:
+                    return cache[cache_key][1] if ttl_of else cache[cache_key]
+                return None
+
+        wrapper.peek = peek  # type: ignore[attr-defined]
         wrapper.cache_name = name  # type: ignore[attr-defined]
         wrapper.refresh = refresh  # type: ignore[attr-defined]
         return wrapper
@@ -121,6 +141,8 @@ def clear_all() -> None:
         with _locks[name]:
             _caches[name].clear()
             _inflight[name].clear()
+            if name in _retained:
+                _retained[name].clear()
 
 
 def is_empty(result: Any) -> bool:

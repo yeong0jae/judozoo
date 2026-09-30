@@ -51,12 +51,12 @@ class IndexResult:
     change_rate: float  # 단위 % (예: +0.42)
 
 
-@ttl_cache("kospiIndex", ttl_seconds=5, maxsize=1)
+@ttl_cache("kospiIndex", ttl_seconds=40, maxsize=1, serve_stale=True)
 def get_kospi() -> IndexResult:
     return _index_of(Market.KOSPI)
 
 
-@ttl_cache("kosdaqIndex", ttl_seconds=5, maxsize=1)
+@ttl_cache("kosdaqIndex", ttl_seconds=40, maxsize=1, serve_stale=True)
 def get_kosdaq() -> IndexResult:
     return _index_of(Market.KOSDAQ)
 
@@ -65,8 +65,7 @@ def _index_of(market: Market) -> IndexResult:
     code, mrkt_tp = _INDEX_CODE[market]
     snap = kiwoom_index.fetch_index(code, mrkt_tp)
     if snap is None:
-        log.warning("%s 지수 조회 실패 — 0으로 폴백", market.name)
-        return IndexResult(current_value=0.0, change_rate=0.0)
+        raise RuntimeError(f"{market.name} 지수 조회 실패")
     return IndexResult(current_value=snap.current_value, change_rate=snap.change_rate)
 
 
@@ -435,7 +434,7 @@ class FuturesQuote:
     investors: FuturesInvestorsSummary | None
 
 
-@ttl_cache("futuresQuote", ttl_seconds=5, maxsize=2, skip_if=lambda r: r is None)
+@ttl_cache("futuresQuote", ttl_seconds=40, maxsize=2, skip_if=lambda r: r is None, serve_stale=True)
 def futures_quote(market: Market) -> FuturesQuote | None:
     near = kis_futures.fetch_near_month(market)
     if near is None:
@@ -564,7 +563,7 @@ class NightFuturesQuote:
     open_interest_change: int
 
 
-@ttl_cache("nightFuturesQuote", ttl_seconds=5, maxsize=1, skip_if=lambda r: r is None)
+@ttl_cache("nightFuturesQuote", ttl_seconds=40, maxsize=1, skip_if=lambda r: r is None, serve_stale=True)
 def night_futures_quote() -> NightFuturesQuote | None:
     """근월물 코드는 정규장 전광판에서 뽑은 것을 그대로 쓴다(전광판은 야간을 지원하지 않는다)."""
     near = kis_futures.fetch_near_month(Market.KOSPI)
@@ -682,6 +681,7 @@ NASDAQ_FUTURES_SYMBOL = "NQ=F"
 MACRO_SYMBOLS = {"USD_KRW": "KRW=X", "WTI": "CL=F", "VIX": "^VIX", "US10Y": "^TNX"}
 
 
+@ttl_cache("yahooQuotes", ttl_seconds=40, maxsize=6, skip_if=lambda r: r is None, serve_stale=True)
 def _quote_of(symbol: str) -> QuoteResult | None:
     q = yahoo.fetch_quote(symbol)
     if q is None:
@@ -695,7 +695,6 @@ def _quote_of(symbol: str) -> QuoteResult | None:
     )
 
 
-@ttl_cache("nasdaqIndexQuote", ttl_seconds=10, maxsize=1, skip_if=lambda r: r is None)
 def nasdaq_quote() -> QuoteResult | None:
     """현물이라 미 정규장에만 움직인다 — 우리 장중엔 직전 마감가에 멈춰 있다."""
     return _quote_of(NASDAQ_SYMBOL)
@@ -706,7 +705,6 @@ def nasdaq_candles(interval: str) -> list:
     return _yahoo_candles(NASDAQ_SYMBOL, interval)
 
 
-@ttl_cache("nasdaqFuturesQuote", ttl_seconds=10, maxsize=1, skip_if=lambda r: r is None)
 def nasdaq_futures_quote() -> QuoteResult | None:
     """현물과 달리 거의 하루 종일 돈다 — **우리 장중에 미국 심리를 읽는 자리**다.
 
@@ -720,7 +718,6 @@ def nasdaq_futures_candles(interval: str) -> list:
     return _yahoo_candles(NASDAQ_FUTURES_SYMBOL, interval)
 
 
-@ttl_cache("macroQuotes", ttl_seconds=10, maxsize=1)
 def macro_quotes() -> MacroQuotes:
     """일부가 실패해도 나머지는 살려서 준다."""
     return MacroQuotes(
