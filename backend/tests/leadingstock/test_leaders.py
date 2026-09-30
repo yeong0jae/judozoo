@@ -119,6 +119,20 @@ class Test제한폭이_넓은_날의_등락률:
 
         assert 이름들(LeadingStocks(pool).leaders(1)) == ["신규상장주"]
 
+    def test_넘은_적이_있으면_30퍼센트_아래로_내려와도_계속_환산한다(self):
+        """+100%에서 +26%로 밀려 내려온 신규상장주가 "+26% 급등주"로 튀어 오르지 않는다."""
+        내려온 = LeadingStockSnapshot(
+            stock_code="000001", stock_name="신규상장주", current_price=1, price_change_rate=26.0,
+            trading_value_rank=3, accumulated_trading_value=900_000_000_000, wide_limit_day=True,
+        )
+        pool = [종목("대장주", 9_000_000_000_000, 1.5), 내려온, 종목("잘오른주", 1_000_000_000_000, 12.0)]
+
+        assert 내려온.rate_for_ranking == 2.6
+        assert 이름들(LeadingStocks(pool).leaders(3))[-1] == "신규상장주"   # +12% 오른 종목보다 등락률 축에서 뒤진다
+
+    def test_넘은_적이_없는_26퍼센트는_그대로_견준다(self):
+        assert 종목("급등주", 1_000_000_000_000, 26.0).rate_for_ranking == 26.0
+
     def test_보이는_등락률은_그대로다(self):
         """환산은 순위를 매길 때만 쓴다 — 화면에 +8.69%로 보이면 틀린 값이다."""
         pool = [종목("신규상장주", 1_000_000_000_000, 86.9)]

@@ -68,14 +68,20 @@ def 지난_날_분봉_DB_격리(monkeypatch):
     DB 층까지 보는 테스트는 `통합_db`와 함께 `minute_archive.get_session_factory`를 되돌린다.
     """
     from backend.leadingstock import minute_archive
+    from backend.market import minute_archive as index_minute_archive
     from backend.overseasleadingstock import minute_archive as overseas_minute_archive
 
     def 없는_DB():
         raise RuntimeError("테스트에서는 DB를 쓰지 않는다")
 
     monkeypatch.setattr(minute_archive, "get_session_factory", 없는_DB)
+    monkeypatch.setattr(index_minute_archive, "get_session_factory", 없는_DB)
     monkeypatch.setattr(overseas_minute_archive, "get_session_factory", 없는_DB)
     overseas_minute_archive.reset()
+    from backend.leadingstock import wide_limit_days
+
+    monkeypatch.setattr(wide_limit_days, "get_session_factory", 없는_DB)
+    wide_limit_days.reset()
 
 
 @pytest.fixture(scope="session")

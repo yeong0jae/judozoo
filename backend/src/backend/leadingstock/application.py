@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from backend.leadingstock import filters as flt
-from backend.leadingstock import intraday, minute_archive
+from backend.leadingstock import intraday, minute_archive, wide_limit_days
 from backend.leadingstock.domain import (
     DailyCandle,
     DailyCandles,
@@ -121,8 +121,11 @@ def _seconds_until_session() -> float:
 
 @ttl_cache("tradingValuePool", ttl_seconds=_pool_ttl, maxsize=1)
 def _trading_value_pool() -> list[LeadingStockSnapshot]:
-    """거래대금 상위 — 후보 목록·주도주·상세 평가가 같은 응답을 나눠 쓴다."""
-    return kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE)
+    """거래대금 상위 — 후보 목록·주도주·상세 평가가 같은 응답을 나눠 쓴다.
+
+    오늘 +30%를 넘은 적이 있는 종목(상장 첫날)에는 여기서 표시를 붙인다 — 순위가 그 표시를 본다.
+    """
+    return wide_limit_days.mark(kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE), today(), now())
 
 
 def refresh_trading_value_pool() -> None:

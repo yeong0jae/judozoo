@@ -132,3 +132,20 @@ def buffer_eok(market: Market) -> int:
 
 def reversal_eok(market: Market) -> int:
     return _REVERSAL_EOK[market]
+
+
+class WideLimitDay(Base):
+    """그날 +30%를 넘은 적이 있는 종목 — 제한폭이 넓은 날(상장 첫날)이라는 표시.
+
+    넘은 순간 한 번 넣고, 그날 내내 순위 계산이 이 표시를 본다(`LeadingStockSnapshot.wide_limit_day`).
+    메모리로만 들고 있으면 재시작 뒤 +30% 아래로 내려와 있는 종목을 다시 알아볼 방법이 없다 —
+    키움 거래대금 순위(ka10032)에는 고가도 전일 종가도 오지 않는다.
+    """
+
+    __tablename__ = "wide_limit_day"
+    __table_args__ = (UniqueConstraint("trade_date", "stock_code", name="uk_wide_limit_day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    trade_date: Mapped[date_type] = mapped_column(Date, nullable=False)
+    stock_code: Mapped[str] = mapped_column(String(12), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

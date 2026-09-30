@@ -38,17 +38,28 @@ class LeadingStockSnapshot:
     #: 상한가로 잠겼는가. **거래소가 준 판정**이라 등락률로 대신 가릴 수 없다 —
     #: 신규상장 종목은 제한폭이 없어 +150%로도 상한가가 아니다.
     limit_up: bool = False
+    #: 오늘이 제한폭이 넓은 날(상장 첫날)인가. 오늘 한 번이라도 +30%를 넘었으면 **그날 내내** 참이다 —
+    #: 채우는 쪽은 `leadingstock.wide_limit_days`다. 지금 등락률만 보면 +100%에서 +26%로 밀려 내려온
+    #: 신규상장 종목이 갑자기 "+26% 급등주"가 되어 순위가 튄다.
+    wide_limit_day: bool = False
+
+    @property
+    def exceeds_normal_limit(self) -> bool:
+        """일반 종목은 닿을 수 없는 폭(+30% 초과)으로 올랐는가 — 제한폭이 넓은 날이라는 표시다."""
+        return self.price_change_rate > NORMAL_LIMIT_RATE
 
     @property
     def rate_for_ranking(self) -> float:
-        """주도주 순위를 매길 때 쓰는 등락률. 제한폭이 넓은 날(+30% 초과)이면 일반 제한폭으로 환산한다.
+        """주도주 순위를 매길 때 쓰는 등락률. 제한폭이 넓은 날이면 일반 제한폭으로 환산한다.
 
         상장 첫날 등락률은 공모가 대비라 일반 종목의 하루 등락률과 한 줄에 세울 수 없다. 점수가
         등락률의 **등수**를 쓰므로 조금 깎아서는 소용없다 — +30%를 넘는 한 늘 1등이다. 그래서
         "제한폭 중 얼마나 올랐나"로 견준다: 공모가 대비 +86.9%는 +300% 중 29%라 일반 종목 +8.7%와 같은 자리다.
         화면에는 원래 등락률을 보인다 — 여기 값은 순위에만 쓴다.
+
+        지금 +30% 아래로 내려와 있어도 그날 넘은 적이 있으면(`wide_limit_day`) 계속 환산한다.
         """
-        if self.price_change_rate <= NORMAL_LIMIT_RATE:
+        if not (self.wide_limit_day or self.exceeds_normal_limit):
             return self.price_change_rate
         return self.price_change_rate * NORMAL_LIMIT_RATE / LISTING_LIMIT_RATE
 
