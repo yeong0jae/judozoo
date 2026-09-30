@@ -13,6 +13,9 @@ NXT 프리·애프터 봉도 같이 온다. 다른 점은 두 가지이고 여�
 import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
+from time import sleep
+
+import httpx
 
 from backend.leadingstock.domain import MinuteCandle
 from backend.library.rate_limiter import RateLimiter
@@ -25,6 +28,9 @@ log = logging.getLogger(__name__)
 _PAGE_SIZE = 200
 #: 하루치(720봉)를 넘겨 받지 않게 막는 상한 — 응답이 이상해도 끝없이 돌지 않는다.
 _MAX_PAGES = 5
+#: 한도 초과(429) 뒤 쉬는 시간. 우리는 초당 20건 한도 아래로 균등하게 보내지만, 도착 시각이 흔들리면
+#: 토스가 재는 1초 창에서 가끔 넘친다(2026-09-30 감시 풀 갱신이 30여 종목을 몰아 받다가 1~2종목씩).
+_RATE_LIMITED_WAIT_SECONDS = 1.0
 
 _limiter: RateLimiter | None = None
 
@@ -79,6 +85,14 @@ def _page(symbol: str, count: int, before: str | None) -> dict:
         response.raise_for_status()
         return response.json().get("result") or {}
 
+    try:
+        return client.with_token_retry(call)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code != 429:
+            raise
+    # 한 번만 다시 부른다. 다시 부르는 것도 같은 리미터 앞에 줄을 서므로 한꺼번에 몰려 나가지 않는다
+    log.warning("토스 캔들 한도 초과 — %.0f초 뒤 다시 (%s)", _RATE_LIMITED_WAIT_SECONDS, symbol)
+    sleep(_RATE_LIMITED_WAIT_SECONDS)
     return client.with_token_retry(call)
 
 

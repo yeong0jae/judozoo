@@ -125,6 +125,39 @@ class Test이어_받기:
 
 class Test실패:
     @respx.mock
+    def test_한도_초과면_잠깐_쉬고_한_번_더_부른다(self, respx_mock, 토큰_발급, monkeypatch):
+        쉼: list[float] = []
+        monkeypatch.setattr(candles, "sleep", 쉼.append)
+        route = respx_mock.get(CANDLES_URL).mock(side_effect=[
+            httpx.Response(429), 응답([봉("2026-09-28T09:01:00")]),
+        ])
+
+        받은_봉 = candles.fetch_today_minute_candles("005930")
+
+        assert route.call_count == 2
+        assert 쉼 == [1.0]
+        assert len(받은_봉) == 1
+
+    @respx.mock
+    def test_다시_불러도_한도_초과면_예외로_올린다(self, respx_mock, 토큰_발급, monkeypatch):
+        """한 번만 다시 부른다 — 계속 넘치면 부르는 쪽(다음 갱신 회차)에 맡긴다."""
+        monkeypatch.setattr(candles, "sleep", lambda _: None)
+        route = respx_mock.get(CANDLES_URL).mock(return_value=httpx.Response(429))
+
+        with pytest.raises(httpx.HTTPStatusError):
+            candles.fetch_today_minute_candles("005930")
+        assert route.call_count == 2
+
+    @respx.mock
+    def test_한도_초과가_아닌_오류는_다시_부르지_않는다(self, respx_mock, 토큰_발급, monkeypatch):
+        monkeypatch.setattr(candles, "sleep", lambda _: None)
+        route = respx_mock.get(CANDLES_URL).mock(return_value=httpx.Response(500))
+
+        with pytest.raises(httpx.HTTPStatusError):
+            candles.fetch_today_minute_candles("005930")
+        assert route.call_count == 1
+
+    @respx.mock
     def test_오류는_예외로_올린다(self, respx_mock, 토큰_발급):
         """이어 붙이는 쪽이 기존 봉을 지키려면 실패를 알아야 한다."""
         respx_mock.get(CANDLES_URL).mock(return_value=httpx.Response(500))
