@@ -29,6 +29,7 @@ class LeadingStockSnapshot:
     price_change_rate: float
     trading_value_rank: int
     accumulated_trading_value: int
+    accumulated_volume: int | None = None
     market_cap: int = 0
     opening_price: int = 0
     previous_close: int = 0
@@ -283,7 +284,13 @@ class DailyCandles:
         장 초반엔 당일 누적이 아직 적어 1 미만으로 낮게 나온다(풀데이 방식의 한계).
         """
         today_candle = next((c for c in self._candles if c.date == today), None)
-        if today_candle is None:
+        return self.relative_volume_from(
+            today_candle.volume if today_candle is not None else None, today, lookback,
+        )
+
+    def relative_volume_from(self, current_volume: int | None, today: date, lookback: int) -> float | None:
+        """현재 누적 거래량이 별도 시세에서 올 때 과거 일봉만으로 RVOL을 계산한다."""
+        if current_volume is None:
             return None
         baseline = [c.volume for c in self._candles if c.date < today][:lookback]
         if not baseline:
@@ -291,7 +298,7 @@ class DailyCandles:
         avg = sum(baseline) / len(baseline)
         if avg <= 0:
             return None
-        return today_candle.volume / avg
+        return current_volume / avg
 
 
 # ── 지수 1분봉 ──────────────────────────────────────────────────────────

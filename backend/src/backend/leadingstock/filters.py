@@ -10,6 +10,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 
 from backend.leadingstock.domain import DailyCandle, LeadingStockSnapshot, MinuteCandle
 from backend.library.money import format_korean_money, format_korean_money_with_man, format_price
@@ -222,12 +223,17 @@ class SpacExclusionFilter(StockFilter):
 class DailyHighPositionFilter(StockFilter):
     name = "최근 고가 대비 현재가"
 
-    def __init__(self, criteria: LeadingStockCriteria, daily_candles: DailyCandleProvider) -> None:
+    def __init__(self, criteria: LeadingStockCriteria, daily_candles: DailyCandleProvider, as_of: date) -> None:
         self._criteria = criteria
         self._daily_candles = daily_candles
+        self._as_of = as_of
 
     def _drop_rate(self, stock) -> float | None:
-        candles = self._daily_candles(stock.stock_code)
+        candles = sorted(
+            (c for c in self._daily_candles(stock.stock_code) if c.date < self._as_of),
+            key=lambda c: c.date,
+            reverse=True,
+        )[:60]
         if not candles:
             return None
         max_high = max(c.high_price for c in candles)
@@ -244,7 +250,7 @@ class DailyHighPositionFilter(StockFilter):
         actual = f"{rate:.2f}%" if rate is not None else "데이터 없음"
         return self._result(
             stock,
-            f"최근 일봉 60개 중 고가 대비 현재가 {self._criteria.max_high_position_drop_rate}% 이상",
+            f"전일까지 최근 60거래일 고가 대비 현재가 {self._criteria.max_high_position_drop_rate}% 이상",
             actual,
         )
 

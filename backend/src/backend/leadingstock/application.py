@@ -209,6 +209,29 @@ def find_limit_ups() -> list[LeadingStockSnapshot]:
     return LeadingStocks(find_candidate_stocks(0.0)).limit_ups()
 
 
+@ttl_cache(
+    "stockBasics", ttl_seconds=24 * 60 * 60, maxsize=100,
+    key=lambda stock_code: (stock_code, today(), now().time() >= _SESSION_START),
+    skip_if=lambda value: value is None,
+)
+def _stock_basics(stock_code: str) -> LeadingStockSnapshot | None:
+    """시총·시가·전일 종가를 보관한다. 개장 전에 읽은 값은 08:00 이후 한 번 갱신한다."""
+    return kiwoom_market.fetch_stock_detail(stock_code)
+
+
+@ttl_cache(
+    "stockEvaluationHistory", ttl_seconds=24 * 60 * 60, maxsize=100,
+    key=lambda stock_code: (stock_code, today()), skip_if=lambda candles: not candles,
+)
+def _evaluation_history(stock_code: str) -> list[DailyCandle]:
+    """상세 조건용 전일까지 최근 60거래일. 차트의 당일 일봉 캐시와 수명을 분리한다."""
+    current_day = today()
+    return [
+        candle for candle in kiwoom_market.fetch_daily_candles(stock_code, 61)
+        if candle.date < current_day
+    ][:60]
+
+
 def evaluate_stock(stock_code: str) -> StockEvaluation:
     """모든 필터 평가 + 상대거래량 — 상세 보기용."""
     log.info("종목 평가: %s", stock_code)
@@ -217,22 +240,31 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         (s for s in _trading_value_pool() if s.stock_code == stock_code),
         None,
     )
-    base = kiwoom_market.fetch_stock_detail(stock_code)
-    if base is None:
-        raise LookupError(f"종목을 찾을 수 없습니다: {stock_code}")
+    current_day = today()
+    history = _evaluation_history(stock_code)
 
-    stock = (
-        dataclasses.replace(
-            base,
-            trading_value_rank=rank_info.trading_value_rank,
-            accumulated_trading_value=rank_info.accumulated_trading_value,
+    if rank_info is not None:
+        basics = _stock_basics(stock_code)
+        if basics is None:
+            raise LookupError(f"종목을 찾을 수 없습니다: {stock_code}")
+        stock = dataclasses.replace(
+            rank_info,
+            market_cap=basics.market_cap,
+            opening_price=basics.opening_price,
+            previous_close=basics.previous_close,
         )
-        if rank_info is not None
-        else base
-    )
+    else:
+        # 후보 풀 밖의 종목도 과거 시그널 등에서 열 수 있다. 그때만 기본정보로 시세를 받는다.
+        stock = kiwoom_market.fetch_stock_detail(stock_code)
+        if stock is None:
+            raise LookupError(f"종목을 찾을 수 없습니다: {stock_code}")
 
-    # 일봉 1회 조회 — 고가 위치·전일 등락률·시초가 필터가 공유한다
-    daily = kiwoom_market.fetch_daily_candles(stock_code, 60)
+    # 전일·시가 필터는 최신 봉을 오늘로 간주한다. 변하지 않는 값만 합성하고
+    # 당일 거래량은 후보라면 거래대금 순위, 후보 밖이라면 기본정보 시세에서 받는다.
+    daily = [
+        DailyCandle(current_day, stock.opening_price, 0, 0, stock.current_price, 0, stock.price_change_rate),
+        *history,
+    ]
     criteria = _criteria()
     # 나열 순서가 곧 화면 표시 순서다. 판별력이 큰 것부터 둔다 —
     # 주도주를 정의하는 둘 → 진입 자리 → 과열 배제(상한) → 기준이 느슨해 대부분 통과하는 둘.
@@ -241,7 +273,7 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         flt.TradingValueRankFilter(criteria),
         flt.DailyPriceChangeFilter(criteria),
         # 지금 들어갈 자리인가
-        flt.DailyHighPositionFilter(criteria, lambda _c: daily),
+        flt.DailyHighPositionFilter(criteria, lambda _c: daily, current_day),
         flt.PriceAboveOpenFilter(),
         # 이미 다 간 종목 배제(상한)
         flt.PrevDayCloseFilter(criteria, lambda _c: daily[:3]),
@@ -254,7 +286,14 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
     return StockEvaluation(
         stock=stock,
         filter_results=[f.evaluate(stock) for f in all_filters],
-        relative_volume=DailyCandles(daily).relative_volume(today(), _RVOL_LOOKBACK_DAYS),
+        relative_volume=DailyCandles(history).relative_volume_from(
+            stock.accumulated_volume
+            if stock.accumulated_volume is not None
+            and now().time() >= _SESSION_START
+            and calendar.is_open(current_day) is True
+            else None,
+            current_day, _RVOL_LOOKBACK_DAYS,
+        ),
         # 소속 시장은 종목 카탈로그가 안다 — 시세에는 없는 정보라 stock 피처에 묻는다
         market=stock_app.market_of(stock_code),
     )

@@ -141,6 +141,16 @@ def 일봉(on: date, 거래량: int) -> DailyCandle:
 
 
 class Test상대거래량:
+    def test_현재거래량을_별도로_받으면_캐시된_오늘_봉보다_우선한다(self):
+        캔들 = DailyCandles([
+            일봉(오늘, 100),
+            일봉(오늘 - timedelta(days=1), 200),
+            일봉(오늘 - timedelta(days=2), 200),
+        ])
+
+        assert 캔들.relative_volume_from(600, 오늘, 20) == 3.0
+        assert 캔들.relative_volume_from(None, 오늘, 20) is None
+
     def test_당일_누적이_직전_평균의_몇_배인지_낸다(self):
         캔들 = DailyCandles([
             일봉(오늘, 300),

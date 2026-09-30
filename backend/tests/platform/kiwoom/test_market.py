@@ -30,11 +30,12 @@ def 토큰_발급(respx_mock):
 
 
 def 순위행(code: str, name: str, cur_prc: str = "+71500", rank: str = "1", tamt: str = "1000",
-         flu_rt: str = "+3.5", sig: str = "2") -> dict:
+         flu_rt: str = "+3.5", sig: str = "2", volume: str = "123456") -> dict:
     """`pred_pre_sig`는 등락부호 — 1:상한 2:상승 3:보합 4:하한 5:하락."""
     return {
         "stk_cd": code, "stk_nm": name, "cur_prc": cur_prc, "now_rank": rank,
         "flu_rt": flu_rt, "trde_prica": tamt, "pred_pre_sig": sig,
+        "now_trde_qty": volume,
     }
 
 
@@ -55,6 +56,7 @@ class Test거래대금_상위:
         assert (s.stock_code, s.stock_name) == ("005930", "삼성전자")
         assert s.current_price == 71500       # "+71500" → 부호 제거
         assert s.accumulated_trading_value == 5_000_000_000  # 백만원 단위 → 원
+        assert s.accumulated_volume == 123456
 
     @respx.mock
     def test_등락부호로_상한가를_읽는다(self, respx_mock, 토큰_발급):
@@ -137,13 +139,15 @@ class Test종목_기본정보:
                 "stk_cd": "005930", "stk_nm": "삼성전자", "cur_prc": "+71500",
                 "flu_rt": "+1.5", "mac": "4200000", "open_pric": "71000",
                 "base_pric": "70500", "high_pric": "72000", "low_pric": "70800",
+                "trde_qty": "987654",
             })
         )
 
-        market.fetch_stock_detail("005930")
+        detail = market.fetch_stock_detail("005930")
 
         import json
         assert json.loads(route.calls[0].request.content)["stk_cd"] == "005930_AL"
+        assert detail.accumulated_volume == 987654
 
     @respx.mock
     def test_이미_접미사가_있으면_그대로_둔다(self, respx_mock, 토큰_발급):
@@ -181,7 +185,7 @@ class Test일봉:
             return_value=httpx.Response(200, json={"stk_dt_pole_chart_qry": []})
         )
 
-        market.fetch_daily_candles("005930", base_date=date(2026, 9, 11))
+        market.fetch_daily_candles("005930_AL", base_date=date(2026, 9, 11))
 
         import json
         assert json.loads(route.calls[0].request.content)["stk_cd"] == "005930"

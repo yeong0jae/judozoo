@@ -1,9 +1,80 @@
 """거래대금 상위를 언제까지 들고 있는가 — 장이 멈춘 동안은 다시 물을 이유가 없다."""
 
+import dataclasses
 from datetime import date, datetime, timedelta
 
 from backend.leadingstock import application
 from backend.leadingstock.domain import LeadingStockSnapshot
+
+
+class Test주도주_상세_시세:
+    def test_후보풀_시세와_일봉_시가를_쓰고_시총은_하루에_한_번만_조회한다(self, mocker):
+        from backend.leadingstock.domain import DailyCandle
+
+        day = mocker.patch.object(application, "today", return_value=date(2026, 9, 30))
+        mocker.patch.object(application, "now", return_value=datetime(2026, 9, 30, 10, 0))
+        open_day = mocker.patch.object(application.calendar, "is_open", return_value=True)
+        rank = LeadingStockSnapshot(
+            stock_code="005930", stock_name="삼성전자", current_price=105,
+            price_change_rate=5, trading_value_rank=1, accumulated_trading_value=10**12,
+            accumulated_volume=2000,
+        )
+        pool = mocker.patch.object(application, "_trading_value_pool", return_value=[rank])
+        detail = mocker.patch.object(application.kiwoom_market, "fetch_stock_detail", return_value=
+            LeadingStockSnapshot(
+                stock_code="005930", stock_name="삼성전자", current_price=999,
+                price_change_rate=99, trading_value_rank=0, accumulated_trading_value=0,
+                market_cap=5000, opening_price=100, previous_close=100,
+            )
+        )
+        daily = mocker.patch.object(application.kiwoom_market, "fetch_daily_candles", return_value=[
+            DailyCandle(date(2026, 9, 30), 100, 200, 90, 105, 1000, 5),
+            DailyCandle(date(2026, 9, 29), 95, 110, 90, 100, 1000, 1),
+        ])
+        mocker.patch.object(application.kiwoom_program, "fetch_program_net_buy", return_value=0)
+        mocker.patch.object(application.stock_app, "market_of", return_value=None)
+
+        first = application.evaluate_stock("005930")
+        second = application.evaluate_stock("005930")
+
+        assert (first.stock.current_price, first.stock.price_change_rate) == (105, 5)
+        assert (first.stock.opening_price, first.stock.market_cap) == (100, 5000)
+        assert first.relative_volume == 2.0
+        assert next(r for r in first.filter_results if r.filter_name == "시가 대비 현재가").passed
+        assert next(r for r in first.filter_results if r.filter_name == "최근 고가 대비 현재가").passed
+        assert second.stock.market_cap == 5000
+        assert detail.call_count == 1
+        assert daily.call_count == 1
+
+        pool.return_value = [dataclasses.replace(rank, current_price=109, accumulated_volume=3000)]
+        updated = application.evaluate_stock("005930")
+        assert updated.relative_volume == 3.0
+        assert updated.stock.current_price == 109
+        assert daily.call_count == 1
+
+        open_day.return_value = False
+        assert application.evaluate_stock("005930").relative_volume is None
+        open_day.return_value = True
+
+        day.return_value = date(2026, 10, 1)
+        application.evaluate_stock("005930")
+        assert detail.call_count == 2
+        assert daily.call_count == 2
+
+    def test_현재_후보풀_밖의_종목은_기본정보_시세를_사용한다(self, mocker):
+        mocker.patch.object(application, "_trading_value_pool", return_value=[])
+        base = LeadingStockSnapshot(
+            stock_code="005930", stock_name="삼성전자", current_price=100,
+            price_change_rate=2, trading_value_rank=0, accumulated_trading_value=0,
+            market_cap=5000, opening_price=98,
+        )
+        detail = mocker.patch.object(application.kiwoom_market, "fetch_stock_detail", return_value=base)
+        mocker.patch.object(application.kiwoom_market, "fetch_daily_candles", return_value=[])
+        mocker.patch.object(application.kiwoom_program, "fetch_program_net_buy", return_value=0)
+        mocker.patch.object(application.stock_app, "market_of", return_value=None)
+
+        assert application.evaluate_stock("005930").stock == base
+        detail.assert_called_once_with("005930")
 
 
 def 장_상태(monkeypatch, 휴장: bool, 거래시간: bool, 지금: datetime) -> None:

@@ -99,12 +99,31 @@ class Test종목_프로그램매매:
         assert 결과.program_net_buy_amount == 500
 
     @respx.mock
+    def test_같은_종목은_캐시하고_날짜가_바뀌면_다시_조회한다(self, respx_mock, 토큰_발급, mocker):
+        현재날짜 = mocker.patch.object(program, "today", return_value=date(2026, 9, 30))
+        route = respx_mock.post(MRKCOND_URL).mock(return_value=httpx.Response(200, json={
+            "stk_daly_prm_trde_trnsn": [{"dt": "20260930", "prm_netprps_amt": "500"}],
+        }))
+
+        assert program.fetch_program_net_buy("005930") == 500
+        assert program.fetch_program_net_buy("005930") == 500
+        assert route.call_count == 1
+
+        assert program.fetch_program_net_buy("000660") == 500
+        assert route.call_count == 2
+
+        현재날짜.return_value = date(2026, 10, 1)
+        assert program.fetch_program_net_buy("005930") == 500
+        assert route.call_count == 3
+
+    @respx.mock
     def test_목록이_통째로_빠져도_None으로_넘긴다(self, respx_mock, 토큰_발급):
         """운영 로그에서 이 필드가 없는 응답이 확인됐다."""
-        respx_mock.post(MRKCOND_URL).mock(return_value=httpx.Response(200, json={}))
+        route = respx_mock.post(MRKCOND_URL).mock(return_value=httpx.Response(200, json={}))
 
         assert program.fetch_program_trading("005930") is None
         assert program.fetch_program_net_buy("005930") == 0
+        assert route.call_count == 2
 
 
 class Test금액_파서:

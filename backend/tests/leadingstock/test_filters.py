@@ -182,7 +182,9 @@ class Test스팩_제외:
 
 class Test최근_고가_대비:
     def 필터(self, 일봉들):
-        return f.DailyHighPositionFilter(기준(max_high_position_drop_rate=-5.0), lambda _c: 일봉들)
+        return f.DailyHighPositionFilter(
+            기준(max_high_position_drop_rate=-5.0), lambda _c: 일봉들, date(2026, 5, 24),
+        )
 
     def test_고가에서_많이_안_빠졌으면_통과(self):
         # 고가 71,000 대비 현재가 70,000 = -1.41%
@@ -199,6 +201,27 @@ class Test최근_고가_대비:
         일봉들 = [일봉(high_price=71_000), 일봉(high_price=100_000), 일봉(high_price=72_000)]
 
         assert self.필터(일봉들).filter(종목(current_price=70_000)) is False
+
+    def test_오늘_찍은_고가는_제외한다(self):
+        일봉들 = [
+            일봉(high_price=100_000, on=date(2026, 5, 24)),
+            일봉(high_price=71_000, on=date(2026, 5, 23)),
+        ]
+
+        결과 = self.필터(일봉들).evaluate(종목(current_price=70_000))
+
+        assert 결과.passed is True
+        assert 결과.criteria_description == "전일까지 최근 60거래일 고가 대비 현재가 -5.0% 이상"
+
+    def test_전일까지의_가장_최근_60봉만_쓴다(self):
+        from datetime import timedelta
+
+        일봉들 = [
+            일봉(high_price=71_000, on=date(2026, 5, 23) - timedelta(days=i))
+            for i in range(60)
+        ] + [일봉(high_price=100_000, on=date(2026, 3, 24))]
+
+        assert self.필터(일봉들).filter(종목(current_price=70_000)) is True
 
 
 class Test1분봉_거래대금:

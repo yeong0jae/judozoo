@@ -112,6 +112,7 @@ def _fetch_top_trading_value_once(count: int) -> list[LeadingStockSnapshot]:
                 price_change_rate=_to_float(item.get("flu_rt")),
                 trading_value_rank=_to_int(item.get("now_rank")) or (index + 1),
                 accumulated_trading_value=million * 1_000_000,
+                accumulated_volume=_optional_int(item.get("now_trde_qty")),
                 limit_up=item.get("pred_pre_sig") == _SIG_LIMIT_UP,
             )
         )
@@ -178,6 +179,7 @@ def fetch_stock_detail(stock_code: str) -> LeadingStockSnapshot | None:
             price_change_rate=_to_float(body.get("flu_rt")),
             trading_value_rank=0,
             accumulated_trading_value=0,
+            accumulated_volume=_optional_int(body.get("trde_qty")),
             market_cap=_to_int(body.get("mac")),
             opening_price=parse_price(body.get("open_pric", "")),
             previous_close=parse_price(body.get("base_pric", "")),
@@ -191,7 +193,7 @@ def fetch_stock_detail(stock_code: str) -> LeadingStockSnapshot | None:
 
 def fetch_daily_candles(stock_code: str, count: int = 60, base_date: date | None = None) -> list[DailyCandle]:
     """일봉 (ka10081) — base_dt 기준 과거 봉 N개."""
-    return _fetch_daily_page(stock_code, base_date or today())[:count]
+    return _fetch_daily_page(stock_code.split("_", 1)[0], base_date or today())[:count]
 
 
 @ttl_cache("dailyCandles", ttl_seconds=30, maxsize=60, skip_if=is_empty)
@@ -304,6 +306,10 @@ def _to_int(value: str | None) -> int:
         return int((value or "").strip())
     except (ValueError, AttributeError):
         return 0
+
+
+def _optional_int(value: str | None) -> int | None:
+    return _to_int(value) if value is not None and value.strip() else None
 
 
 def _to_float(value: str | None) -> float:
