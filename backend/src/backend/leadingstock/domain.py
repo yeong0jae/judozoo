@@ -14,6 +14,11 @@ from backend.library.ranking import top_balanced
 NORMAL_LIMIT_RATE = 30.0
 #: 상장 첫날의 오름 폭 상한(%) — 공모가의 60~400%에서 거래되므로 +300%까지 오를 수 있다
 LISTING_LIMIT_RATE = 300.0
+#: 제한폭이 넓은 날(상장 첫날) 순위용 거래대금을 이만큼 나눈다. 상장 첫날은 손바뀜이 몰려 거래대금이
+#: 부풀려진다 — 등락률을 환산해도 거래대금 축이 높아 1위를 지켰다(2026-10-01 브릴스: 등락률을 ÷40은 해야
+#: 1위가 바뀌었다). 2면 그날 브릴스 2,546억 → 1,273억, 1위 → 4위. 돈이 몰린 것 자체는 사실이라 크게 깎지
+#: 않는다 — ÷3이면 같은 날 17종목 중 16위로 떨어졌다(백분위라 1,100억~1,300억대 무리 아래로 빠진다).
+LISTING_TRADING_VALUE_DIVISOR = 2.0
 
 
 @dataclass(frozen=True)
@@ -50,6 +55,21 @@ class LeadingStockSnapshot:
         return self.price_change_rate > NORMAL_LIMIT_RATE
 
     @property
+    def is_wide_limit_day(self) -> bool:
+        """제한폭이 넓은 날(상장 첫날)인가 — 오늘 넘은 적이 있거나 지금 넘어 있다."""
+        return self.wide_limit_day or self.exceeds_normal_limit
+
+    @property
+    def trading_value_for_ranking(self) -> float:
+        """주도주 순위를 매길 때 쓰는 거래대금. 제한폭이 넓은 날이면 부풀려진 만큼 나눈다.
+
+        화면에는 원래 거래대금을 보인다 — 여기 값은 순위에만 쓴다.
+        """
+        if not self.is_wide_limit_day:
+            return self.accumulated_trading_value
+        return self.accumulated_trading_value / LISTING_TRADING_VALUE_DIVISOR
+
+    @property
     def rate_for_ranking(self) -> float:
         """주도주 순위를 매길 때 쓰는 등락률. 제한폭이 넓은 날이면 일반 제한폭으로 환산한다.
 
@@ -60,7 +80,7 @@ class LeadingStockSnapshot:
 
         지금 +30% 아래로 내려와 있어도 그날 넘은 적이 있으면(`wide_limit_day`) 계속 환산한다.
         """
-        if not (self.wide_limit_day or self.exceeds_normal_limit):
+        if not self.is_wide_limit_day:
             return self.price_change_rate
         return self.price_change_rate * NORMAL_LIMIT_RATE / LISTING_LIMIT_RATE
 
@@ -176,14 +196,15 @@ class LeadingStocks:
         self._stocks = stocks
 
     def leaders(self, count: int) -> list[LeadingStockSnapshot]:
-        """거래대금·등락률 두 축이 모두 높은 순으로 `count`개. 등락률은 제한폭으로 환산한 값이다(`rate_for_ranking`).
+        """거래대금·등락률 두 축이 모두 높은 순으로 `count`개. 상장 첫날은 두 축 모두 보정한 값을 쓴다
+        (`trading_value_for_ranking`, `rate_for_ranking`).
 
         **오른 종목만 본다.** 돈이 아무리 붙어도 내린 종목은 그날의 주도주가 아니다.
         """
         risen = [s for s in self._stocks if s.price_change_rate > 0]
         return top_balanced(
             risen,
-            lambda s: s.accumulated_trading_value,
+            lambda s: s.trading_value_for_ranking,
             lambda s: s.rate_for_ranking,
             count,
             TRADING_VALUE_WEIGHT,
