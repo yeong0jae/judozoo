@@ -1,6 +1,6 @@
 """왜 오르나 — 매분 확인. 만들지 말지·무엇을 만들지는 도메인(`pick`)이 정한다.
 
-국내는 KST 08~20시, 해외는 뉴욕 10~18시에만 깨어난다(생성 시간 밖의 분은 `run`이 바로 끝낸다).
+국내는 KST 08~20시, 해외는 뉴욕 08~18시에만 깨어난다(생성 시간 밖의 분은 `run`이 바로 끝낸다).
 해외를 KST로 걸지 않는다 — 서머타임이 끝나면(11월) 한 시간 어긋난다.
 
 한 번에 5종목을 만들면 1분을 넘긴다. 겹친 실행은 APScheduler가 건너뛰는데, 정해진 시각을 5분 폭으로
@@ -57,6 +57,6 @@ def register(scheduler: BaseScheduler) -> None:
     )
     scheduler.add_job(
         run_overseas,
-        CronTrigger(day_of_week="mon-fri", hour="10-18", minute="*", second=0, timezone=Region.US.zone),
+        CronTrigger(day_of_week="mon-fri", hour="8-18", minute="*", second=0, timezone=Region.US.zone),
         id=_OVERSEAS_JOB, replace_existing=True, max_instances=1, coalesce=True,
     )
