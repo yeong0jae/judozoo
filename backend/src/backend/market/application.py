@@ -37,6 +37,7 @@ _MORNING_END = time(12, 0)
 _AFTERNOON_END = time(15, 0)
 _CLOSE = time(15, 40)
 _AFTER_END = time(20, 0)
+_DAILY_FLOW_START = time(8, 0)  # NXT 프리마켓 전에는 ka10051이 전일 값을 오늘로 돌려줄 수 있다
 
 _MRKT_TP = {Market.KOSPI: "0", Market.KOSDAQ: "1"}
 _INDEX_CODE = {Market.KOSPI: ("001", "0"), Market.KOSDAQ: ("101", "1")}
@@ -165,39 +166,48 @@ class SessionNet:
 def investor_daily_history(market: Market, count: int) -> list[MarketInvestorDay]:
     """최근 `count` 거래일 일별 순매수. 최신순.
 
-    주말·공휴일은 건너뛴다 — 휴장일에 base_dt로 부르면 **직전 영업일 값이 그대로 와 중복된다**.
+    장 시작 전·휴장일은 건너뛴다 — 해당 날짜를 base_dt로 부르면
+    **직전 영업일 값이 그대로 와 새 날짜로 중복 표시된다**.
     """
     mrkt_tp = _MRKT_TP[market]
     out: list[MarketInvestorDay] = []
-    day = today()
+    current_day = today()
+    day = current_day if now().time() >= _DAILY_FLOW_START else current_day - timedelta(days=1)
     guard = 0
-    while len(out) < count and guard < count * 3 + 10:
+    # count=1이어도 전일 값을 한 번 받아 오늘 행이 복사본인지 확인한다.
+    while (
+        len(out) < count
+        or (count == 1 and len(out) == 1 and out[0].date == current_day)
+    ) and guard < count * 3 + 10:
         guard += 1
         if day.weekday() >= 5 or calendar.is_open(day) is False:
             day -= timedelta(days=1)
             continue
         nb = kiwoom_sector.fetch_sector_net_buy(mrkt_tp, day.strftime("%Y%m%d"))
         if nb is not None:
-            out.append(
-                MarketInvestorDay(
-                    date=day,
-                    individual_eok=nb.individual_eok,
-                    foreign_eok=nb.foreign_eok,
-                    institution_eok=nb.institution_eok,
-                    other_corp_eok=nb.other_corp_eok,
-                    breakdown=OrgBreakdown(
-                        financial_investment_eok=nb.financial_investment_eok,
-                        trust_eok=nb.trust_eok,
-                        pension_fund_eok=nb.pension_fund_eok,
-                        private_equity_eok=nb.private_equity_eok,
-                        insurance_eok=nb.insurance_eok,
-                        bank_eok=nb.bank_eok,
-                        other_finance_eok=nb.other_finance_eok,
-                    ),
+            entry = MarketInvestorDay(
+                date=day,
+                individual_eok=nb.individual_eok,
+                foreign_eok=nb.foreign_eok,
+                institution_eok=nb.institution_eok,
+                other_corp_eok=nb.other_corp_eok,
+                breakdown=OrgBreakdown(
+                    financial_investment_eok=nb.financial_investment_eok,
+                    trust_eok=nb.trust_eok,
+                    pension_fund_eok=nb.pension_fund_eok,
+                    private_equity_eok=nb.private_equity_eok,
+                    insurance_eok=nb.insurance_eok,
+                    bank_eok=nb.bank_eok,
+                    other_finance_eok=nb.other_finance_eok,
                 )
             )
+            # ka10051에는 실제 거래일 필드가 없다. 오늘 응답이 직전 거래일과
+            # 모든 수급 항목에서 같다면 키움이 전일 값을 되돌린 것으로 본다.
+            if out and out[0].date == current_day and replace(out[0], date=day) == entry:
+                out.pop(0)
+            out.append(entry)
         day -= timedelta(days=1)
-    return out
+    return out[:count]
 
 
 def _latest_date_with_data(session: Session, model, market: Market, on: date) -> date:
