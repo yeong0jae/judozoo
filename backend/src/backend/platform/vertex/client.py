@@ -24,8 +24,8 @@ from backend.settings import get_settings
 log = logging.getLogger(__name__)
 
 _SCOPE = "https://www.googleapis.com/auth/cloud-platform"
-#: 검색까지 도는 호출은 10~20초 걸린다
-_TIMEOUT = 60.0
+#: 검색을 포함한 생성 응답을 기다릴 여유를 둔다
+_TIMEOUT = 120.0
 
 _client: httpx.Client | None = None
 _credentials: Any = None
