@@ -159,9 +159,9 @@ const HOLD = 3;
  * 결말(마감 순위 + 핵심 포인트) → 되감기 → 본 장면 → 다시 결말. 15:29에 닿으면 마감 순위가 차오르며
  * 첫 프레임과 같은 화면으로 끝난다 — 반복 재생되면 그대로 이어져 핵심 포인트가 다시 터진다.
  */
-const T_POINT = 0.35, T_INTRO = 2.8, T_REWIND = 1.6, T_MAIN = 20, T_HOLD = 0.5, T_BACK = 1.2;
+const T_POINT = 0.35, T_INTRO = 2.8, T_REWIND = 1.6, T_MAIN = 16.5, T_HOLD = 0.5, T_BACK = 1.2;
 /** 1위가 바뀌는 구간의 속도 기준 — 본 장면이 이 길이일 때의 속도로 지나간다. 남는 시간은 잔잔한 구간이 나눠 갖는다 */
-const T_FLIP_PACE = 13.5;
+const T_FLIP_PACE = 11.1;
 const T_PLAY = T_INTRO + T_REWIND;   // 본 장면이 시작하는 시각
 const T_END = T_PLAY + T_MAIN + T_HOLD; // 결말로 돌아가기 시작하는 시각
 const T_TOTAL = T_END + T_BACK;
@@ -185,7 +185,7 @@ const ink = (a) => `rgba(${TH.ink},${a})`;
 // 차트 영역
 const CX0 = 90, CX1 = 990, CY0 = 560, CY1 = 1230;
 const NOW_X = 560;                 // 지금 시각이 서는 자리 — 오른쪽은 이름표 자리
-const WINDOW = 170;                // 화면에 보이는 과거 분
+const WINDOW = 100;                // 화면에 보이는 과거 분 — 줄일수록 같은 시간에 선이 더 멀리 흐른다
 const PPM = (NOW_X - CX0) / WINDOW;
 const RANK_H = (CY1 - CY0) / 5.2;
 const yOf = (pos) => CY0 + RANK_H * (0.5 + pos);   // pos 0 = 1위
