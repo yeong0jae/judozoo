@@ -154,18 +154,27 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
         if: steps.changes.outputs.ops == 'true'
 
+      # IAP 터널 업로드 가속. NumPy가 없으면 gcloud가 웹소켓 프레임을 한 바이트씩 Python으로 마스킹해,
+      # 164KB 남짓한 scp가 매번 6분 40초 걸렸다(2026-09 배포 5회 모두 393~403초).
+      # ubuntu-24.04 러너는 시스템 Python에 pip 설치를 막아(PEP 668) 가상환경을 만들어 gcloud에 물린다.
+      - name: Speed up IAP tunnel uploads
+        if: steps.changes.outputs.ops == 'true'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/gcloud-py"
+          "$RUNNER_TEMP/gcloud-py/bin/pip" install --quiet numpy
+          {
+            echo "CLOUDSDK_PYTHON=$RUNNER_TEMP/gcloud-py/bin/python"
+            echo "CLOUDSDK_PYTHON_SITEPACKAGES=1"
+          } >> "$GITHUB_ENV"
+
+      # 대기 폴더(~/deploy-sync)로만 올린다 — 제자리 복사는 다음 단계의 SSH가 한다(터널을 한 번 덜 연다).
       - name: Sync compose + deploy script to ops VM
         if: steps.changes.outputs.ops == 'true'
         run: |
-          # **rm 하지 않는다.** 디렉터리·파일 inode가 바뀌면 재사용된 컨테이너의 bind mount가
-          # 끊긴다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽은 원인). scp는 기존
-          # 파일을 truncate해 덮으므로 inode가 보존된다. rm이 있던 이유는 실패한 배포가
-          # root 소유로 남긴 디렉터리가 scp를 막았기 때문인데, 소유권만 고치면 된다.
-          gcloud compute ssh "${{ vars.VM_NAME_OPS }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command 'sudo mkdir -p ~/observability && sudo chown -R "$(id -u):$(id -g)" ~/observability'
+          mkdir -p deploy-sync
+          cp -r docker-compose.ops.yml docker-compose.ops.prod.yml infra/deploy/remote_deploy_ops.sh observability deploy-sync/
           gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" --recurse \
-            docker-compose.ops.yml docker-compose.ops.prod.yml infra/deploy/remote_deploy_ops.sh observability \
-            "${{ vars.VM_NAME_OPS }}:~/"
+            deploy-sync "${{ vars.VM_NAME_OPS }}:~/"
 
       # 설정 디렉터리별 트리 해시. 바뀐 서비스만 재생성된다 — 예전에는 --force-recreate로
       # 매 배포마다 loki·prometheus·tempo가 재시작해 수집에 공백이 생겼다.
@@ -183,8 +192,13 @@ jobs:
       - name: Deploy on ops VM
         if: steps.changes.outputs.ops == 'true'
         run: |
+          # **rm 하지 않는다.** 디렉터리·파일 inode가 바뀌면 재사용된 컨테이너의 bind mount가
+          # 끊긴다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽은 원인). cp는 기존 파일을
+          # truncate해 덮으므로 inode가 보존된다. 실패한 배포가 root 소유로 남긴 디렉터리는 소유권만 고친다.
           gcloud compute ssh "${{ vars.VM_NAME_OPS }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command "bash ~/remote_deploy_ops.sh \
+            --command "sudo mkdir -p ~/observability && sudo chown -R \$(id -u):\$(id -g) ~/observability \
+              && cp -r ~/deploy-sync/. ~/ \
+              && bash ~/remote_deploy_ops.sh \
               ${{ steps.cfg.outputs.loki }} \
               ${{ steps.cfg.outputs.prometheus }} \
               ${{ steps.cfg.outputs.tempo }} \
@@ -211,21 +225,29 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      # IAP 터널 업로드 가속. NumPy가 없으면 gcloud가 웹소켓 프레임을 한 바이트씩 Python으로 마스킹해,
+      # 164KB 남짓한 scp가 매번 6분 40초 걸렸다(2026-09 배포 5회 모두 393~403초).
+      # ubuntu-24.04 러너는 시스템 Python에 pip 설치를 막아(PEP 668) 가상환경을 만들어 gcloud에 물린다.
+      - name: Speed up IAP tunnel uploads
+        run: |
+          python3 -m venv "$RUNNER_TEMP/gcloud-py"
+          "$RUNNER_TEMP/gcloud-py/bin/pip" install --quiet numpy
+          {
+            echo "CLOUDSDK_PYTHON=$RUNNER_TEMP/gcloud-py/bin/python"
+            echo "CLOUDSDK_PYTHON_SITEPACKAGES=1"
+          } >> "$GITHUB_ENV"
+
       - name: Resolve VM name
         id: vm
         run: echo "name=${{ vars[matrix.target.vm_var] }}" >> "$GITHUB_OUTPUT"
 
+      # 대기 폴더(~/deploy-sync)로만 올린다 — 제자리 복사는 다음 단계의 SSH가 한다(터널을 한 번 덜 연다).
       - name: Sync compose + deploy script to VM
         run: |
-          # **rm 하지 않는다.** 디렉터리·파일 inode가 바뀌면 재사용된 컨테이너의 bind mount가
-          # 끊긴다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽은 원인). scp는 기존
-          # 파일을 truncate해 덮으므로 inode가 보존된다. rm이 있던 이유는 실패한 배포가
-          # root 소유로 남긴 디렉터리가 scp를 막았기 때문인데, 소유권만 고치면 된다.
-          gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command 'sudo mkdir -p ~/observability && sudo chown -R "$(id -u):$(id -g)" ~/observability'
+          mkdir -p deploy-sync
+          cp -r docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh observability deploy-sync/
           gcloud compute scp --tunnel-through-iap --zone "${VM_ZONE}" --recurse \
-            docker-compose.yml docker-compose.prod.yml infra/deploy/remote_deploy.sh observability \
-            "${{ steps.vm.outputs.name }}:~/"
+            deploy-sync "${{ steps.vm.outputs.name }}:~/"
 
       # Deploy + 헬스체크를 한 SSH 세션에서 — remote_deploy.sh 마지막이 VM 내부 localhost:3000을 검사.
       # (방화벽이 프론트 3000을 특정 IP로만 열 수 있어 러너에서 외부로 치지 않음)
@@ -242,8 +264,13 @@ jobs:
 
       - name: Deploy on VM
         run: |
+          # **rm 하지 않는다.** 디렉터리·파일 inode가 바뀌면 재사용된 컨테이너의 bind mount가
+          # 끊긴다(020에서 Grafana 프로비저닝이 두 배포 동안 조용히 죽은 원인). cp는 기존 파일을
+          # truncate해 덮으므로 inode가 보존된다. 실패한 배포가 root 소유로 남긴 디렉터리는 소유권만 고친다.
           gcloud compute ssh "${{ steps.vm.outputs.name }}" --tunnel-through-iap --zone "${VM_ZONE}" \
-            --command "bash ~/remote_deploy.sh ${AR_REPO} ${REGION} \
+            --command "sudo mkdir -p ~/observability && sudo chown -R \$(id -u):\$(id -g) ~/observability \
+              && cp -r ~/deploy-sync/. ~/ \
+              && bash ~/remote_deploy.sh ${AR_REPO} ${REGION} \
               ${{ steps.tags.outputs.backend }} \
               ${{ steps.tags.outputs.frontend }} \
               ${{ steps.tags.outputs.alloy }}"
