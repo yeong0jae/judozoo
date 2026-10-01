@@ -1,10 +1,11 @@
 /**
  * 주도주 릴스 mp4 굽기 — 운영 타임라인 API에서 그날 데이터를 받아 `reel.vN.html`을 한 프레임씩 찍는다.
  *
- *   node render.mjs 2026-09-23               # 최신 버전 → out/2026-09-23/주도주-국내-0923-v4.mp4
+ *   node render.mjs 2026-09-23               # 최신 버전 → out/2026-09-23/주도주-국내-0923-v6.mp4
+ *   node render.mjs 2026-09-23 --point "문장" # 첫 화면 핵심 포인트를 직접 쓴다(v6부터)
  *   node render.mjs 2026-09-23 --v 1         # 예전 버전으로
  *   node render.mjs 2026-09-23 --secs 8      # 앞 8초만 (확인용)
- *   node render.mjs 2026-09-23 --fps 60      # 60fps → out/2026-09-23/주도주-국내-0923-v4-60fps.mp4 (굽는 시간 두 배)
+ *   node render.mjs 2026-09-23 --fps 60      # 60fps → out/2026-09-23/주도주-국내-0923-v6-60fps.mp4 (굽는 시간 두 배)
  *
  * 국내만 굽는다. 화면에는 여전히 `market: "kr"`을 넘긴다 — 옛 버전(v1~v3)이 시장을 받아서 고른다.
  *
@@ -17,7 +18,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ffmpegPath from "ffmpeg-static";
 import { chromium } from "playwright";
-import { writeCaption } from "./caption.mjs";
+import { fetchReasons, writeCaption } from "./caption.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +29,7 @@ const flag = (name) => {
 };
 const secs = Number(flag("--secs")) || null;
 const FPS = Number(flag("--fps") ?? 30);
+const point = flag("--point");
 const api = flag("--api") ?? "https://judozoo.com";
 const versions = readdirSync(here).map((f) => f.match(/^reel\.v(\d+)\.html$/)?.[1]).filter(Boolean).map(Number);
 const version = Number(flag("--v") ?? Math.max(...versions));
@@ -35,7 +37,7 @@ let out = flag("--out");
 const market = "kr";
 const [date] = args;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") || !versions.includes(version)) {
-  console.error(`사용법: node render.mjs <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--fps 30|60] [--out 파일] [--api 주소]`);
+  console.error(`사용법: node render.mjs <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--fps 30|60] [--point 문장] [--out 파일] [--api 주소]`);
   process.exit(1);
 }
 // 날짜별 폴더 — 같은 날 버전이 한곳에 모인다
@@ -51,22 +53,29 @@ async function fetchDay() {
   if (!data?.ticks?.length) throw new Error(`${date} — 찍힌 분이 없습니다`);
   return {
     stocks: data.stocks,
-    data: { stocks: data.stocks.map((s) => s.name), ticks: data.ticks.map((t) => [t.at, t.stocks, t.rates]) },
+    data: { stocks: data.stocks.map((s) => s.name), codes: data.stocks.map((s) => s.code), ticks: data.ticks.map((t) => [t.at, t.stocks, t.rates]) },
   };
 }
 
 const { stocks, data } = await fetchDay();
 console.log(`${date} v${version} — ${data.ticks.length}분, 종목 ${data.stocks.length}개`);
 
+// AI 근거 — 화면 자막과 본문이 같이 쓴다. API가 지금 것만 주므로 그 날짜에 만들어진 것만 화면에 넘긴다
+const reasons = await fetchReasons(api, process.env.JUDOZOO_SESSION)
+  .catch((e) => { console.warn(`AI 근거를 받지 못했습니다 — ${e.message}`); return new Map(); });
+const reasonsOfDay = Object.fromEntries(
+  [...reasons].filter(([, r]) => r.explained && r.reason && r.generatedAt.slice(0, 10) === date).map(([code, r]) => [code, r.reason]),
+);
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
-await page.addInitScript((reel) => { window.__REEL__ = reel; }, { market, date, data });
+await page.addInitScript((reel) => { window.__REEL__ = reel; }, { market, date, data, reasons: reasonsOfDay, point });
 await page.clock.install();
 await page.goto(pathToFileURL(resolve(here, `reel.v${version}.html`)).href);
 // 본문 — 영상보다 먼저 남긴다(굽는 데 수 분 걸린다). 계산을 내주지 않는 옛 버전은 건너뛴다
 const facts = await page.evaluate(() => window.__REEL_FACTS);
 if (facts) {
-  const txt = await writeCaption({ api, date, stocks, facts, out: out.replace(/\.mp4$/, ".txt") })
+  const txt = await writeCaption({ date, stocks, facts, reasons, out: out.replace(/\.mp4$/, ".txt") })
     .catch((e) => console.warn(`본문을 만들지 못했습니다 — ${e.message}`));
   if (txt) console.log(`본문 — ${txt}`);
 } else {

@@ -10,7 +10,7 @@ import { writeFileSync } from "node:fs";
 const pct = (r) => `${r >= 0 ? "+" : ""}${r.toFixed(2)}%`;
 const hashtag = (name) => `#${name.replace(/[\s()·.&]/g, "")}`;
 
-async function fetchReasons(api, session) {
+export async function fetchReasons(api, session) {
   const res = await fetch(`${api}/api/insight/reasons?market=kr`, {
     headers: session ? { cookie: `judozoo_session=${session}` } : {},
   });
@@ -73,9 +73,8 @@ function evidence({ date, stocks, picks, reasons, session }) {
   return lines.join("\n");
 }
 
-export async function writeCaption({ api, date, stocks, facts, out }) {
+export async function writeCaption({ date, stocks, facts, reasons, out }) {
   const session = process.env.JUDOZOO_SESSION;
-  const reasons = await fetchReasons(api, session);
   const { text, picks } = body({ date, stocks, facts, reasons });
   writeFileSync(out, `${text}${evidence({ date, stocks, picks, reasons, session })}\n`);
   return out;

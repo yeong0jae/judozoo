@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>주도주 릴스</title>
+<!-- 1080×1920 릴스 화면. 직접 열지 않는다 — `render.mjs`가 데이터를 넣고 한 프레임씩 찍는다 -->
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-kr/300.css">
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-kr/400.css">
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-kr/500.css">
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-kr/600.css">
+<link rel="stylesheet" href="node_modules/@fontsource/noto-sans-kr/700.css">
+<link rel="stylesheet" href="node_modules/@fontsource/jetbrains-mono/200.css">
+<link rel="stylesheet" href="node_modules/@fontsource/jetbrains-mono/300.css">
+<link rel="stylesheet" href="node_modules/@fontsource/jetbrains-mono/400.css">
+<link rel="stylesheet" href="node_modules/@fontsource/jetbrains-mono/500.css">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #07080b; --frame: #0b0d12; --panel: #161a21; --line: #232833;
+  --text: #f3f5f7; --sub: #c4c9d1; --muted: #8791a0; --faint: #48505e;
+  --up: #ff5a66; --down: #4d8dff; --mint: #5eead4;
+  /* 선·테두리 — 흰 기운 */
+  --hair: rgba(255,255,255,.16); --hair-soft: rgba(255,255,255,.08); --hair-arrow: rgba(255,255,255,.18);
+  /* 장면 덮개 — 차트를 흐리게 가린다 */
+  --veil: rgba(11,13,18,.82); --veil-strong: rgba(11,13,18,.88);
+  --flash: rgba(255,255,255,.55); --flash-0: rgba(255,255,255,0);
+  --up-glow: rgba(255,90,102,.45);
+  --sans: "Noto Sans KR", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--frame); color: var(--text); margin: 0; font-family: var(--sans); width: 1080px; height: 1920px; overflow: hidden; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* 1080 × 1920 프레임 — 녹화는 이 크기 그대로 */
+.frame { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; background: var(--frame); overflow: hidden; }
+canvas { position: absolute; inset: 0; width: 1080px; height: 1920px; }
+.layer { position: absolute; inset: 0; transition: opacity .8s ease; }
+.layer.off { opacity: 0; pointer-events: none; }
+
+/* 머리 */
+.head { position: absolute; left: 90px; right: 90px; top: 200px; }
+.brandline { display: flex; justify-content: space-between; font-size: 30px; font-weight: 400; color: var(--muted); letter-spacing: 0.01em; }
+.brandline b { color: var(--text); font-weight: 600; }
+.clock { margin-top: 20px; display: flex; align-items: baseline; gap: 22px; }
+.clock .md { font-size: 52px; font-weight: 300; color: var(--faint); }
+.clock .hm { font-size: 156px; font-weight: 200; letter-spacing: -0.04em; line-height: 1; }
+.clock .sess { margin-left: auto; font-size: 30px; font-weight: 400; color: var(--sub); padding: 6px 20px; border-radius: 999px; border: 1.5px solid var(--hair); }
+
+.mark { position: absolute; left: 90px; top: 1540px; font-size: 28px; font-weight: 500; color: var(--faint); letter-spacing: 0.02em; }
+
+.layer.instant { transition: none; }
+/* 닫는 장면 — 1위를 거쳐 간 종목 */
+.passed { margin-top: 36px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; font-size: 40px; font-weight: 400; color: var(--sub); }
+.passed .lbl { width: 100%; font-size: 30px; font-weight: 300; color: var(--muted); }
+.passed .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 10px; vertical-align: middle; }
+.passed .arr { color: var(--faint); }
+/* 1위에 오른 종목 — 이름과 큰 숫자 */
+.big { position: absolute; left: 90px; right: 150px; top: 1250px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transform: scale(.92); transform-origin: left center; transition: opacity .25s ease, transform .35s cubic-bezier(.2,.8,.2,1); }
+.big.on { opacity: 1; transform: none; }
+.big.instant { transition: none; }
+.big .nm { font-size: 50px; font-weight: 600; letter-spacing: -0.02em; }
+.big .v { font-size: 150px; font-weight: 300; line-height: 1; color: var(--up); letter-spacing: -0.04em; text-shadow: 0 0 40px var(--up-glow); }
+/* 1위 교체 연출 — 번쩍임과 짧은 흔들림 */
+.fx { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 42%, var(--flash), var(--flash-0) 60%); }
+.fx.flash { animation: flash .7s ease-out; }
+@keyframes flash { 0% { opacity: .9; } 100% { opacity: 0; } }
+#cv.shake { animation: shake .42s cubic-bezier(.36,.07,.19,.97); }
+@keyframes shake { 0%,100% { transform: none; } 15% { transform: translate(-10px, 4px); } 35% { transform: translate(9px, -5px); } 55% { transform: translate(-6px, 3px); } 75% { transform: translate(4px, -2px); } }
+/* 마감 1위 — 크게 */
+.final div:first-child { font-size: 62px; font-weight: 600; padding-bottom: 22px; }
+.final div:first-child .rt { font-size: 46px; }
+.final div:first-child .dot { width: 20px; height: 20px; box-shadow: 0 0 20px currentColor; }
+/* (옛 여는 장면 — 쓰지 않는다) */
+.intro { display: flex; flex-direction: column; justify-content: center; padding: 0 90px 400px; gap: 30px; background: var(--veil); }
+.eyebrow { font-size: 34px; font-weight: 400; color: var(--muted); }
+.hook-title { font-size: 44px; font-weight: 300; color: var(--sub); margin: 0; }
+.relay { display: grid; gap: 6px; margin: 6px 0 10px; }
+.baton { display: grid; grid-template-columns: 14px minmax(0,1fr) auto; column-gap: 26px; align-items: center; opacity: 0; transform: translateY(18px); transition: opacity .5s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
+.intro:not(.off) .baton { opacity: 1; transform: none; }
+.baton .dot { width: 14px; height: 14px; border-radius: 50%; }
+.baton .nm { font-size: 80px; font-weight: 500; letter-spacing: -0.035em; line-height: 1.12; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.baton .tm { font-size: 36px; font-weight: 300; color: var(--muted); }
+.baton-arrow { margin-left: 6px; width: 2px; height: 30px; background: var(--hair-arrow); }
+.hook-sub { font-size: 40px; font-weight: 300; color: var(--sub); }
+.hook-sub b { font-weight: 600; color: var(--text); }
+.hook-sub .up { color: var(--up); font-family: var(--mono); font-weight: 400; }
+
+/* 닫는 장면 */
+.outro { display: flex; flex-direction: column; justify-content: center; padding: 0 90px 420px; gap: 20px; background: var(--veil-strong); }
+.outro h2 { font-size: 52px; font-weight: 300; margin: 0 0 18px; letter-spacing: -0.02em; }
+.final { display: grid; gap: 16px; }
+.final div { display: grid; grid-template-columns: 60px 14px minmax(0,1fr) auto; gap: 22px; align-items: center; font-size: 46px; font-weight: 400; padding-bottom: 16px; border-bottom: 1px solid var(--hair-soft); opacity: 0; transform: translateX(-30px); transition: opacity .5s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
+.outro:not(.off) .final div { opacity: 1; transform: none; }
+.final .rk { font-size: 38px; font-weight: 300; color: var(--muted); }
+.final .dot { width: 14px; height: 14px; border-radius: 50%; }
+.final .rt { color: var(--up); font-size: 38px; font-weight: 400; }
+.cta { margin-top: 44px; font-size: 38px; font-weight: 300; color: var(--sub); line-height: 1.5; }
+.cta b { color: var(--text); font-size: 72px; font-weight: 500; display: block; letter-spacing: -0.02em; }
+.disc { font-size: 26px; font-weight: 300; color: var(--muted); }
+
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+  <canvas id="cv" width="1080" height="1920"></canvas>
+  <div class="fx" id="fx"></div>
+
+  <div class="layer" id="mainLayer">
+    <div class="head">
+      <div class="brandline"><span><b>주도주 타임라인</b> · <span id="mkt"></span></span><span id="dateLbl"></span></div>
+      <div class="clock"><span class="num md" id="md"></span><span class="num hm" id="hm"></span><span class="sess" id="sess"></span></div>
+    </div>
+    <div class="big" id="big"><span class="nm" id="bigName"></span><span class="v num" id="bigVal"></span></div>
+    <div class="mark">judozoo.com</div>
+  </div>
+
+  <section class="layer outro off" id="outro">
+    <h2 id="outroTitle"></h2>
+    <div class="final" id="final"></div>
+    <div class="passed" id="passed"></div>
+    <div class="cta">타임라인은 장 중에도 확인할 수 있어요<b>judozoo.com</b></div>
+    <div class="disc">투자 권유가 아닙니다. 투자 판단과 책임은 본인에게 있습니다.</div>
+  </section>
+</div>
+
+<script>
+/**
+ * 국내만 — 분은 KST. **정규장 마감까지만** — NXT 프리(08:00)~15:30.
+ * 정규장이 끝나면 순위가 거의 움직이지 않고, 사람들이 "오늘 장"이라 느끼는 것도 정규장이다.
+ * 캘린더·홈의 "마감 주도주"는 NXT 애프터(20:00) 기준이라 날에 따라 영상의 정규장 마감 1위와 다를 수 있다.
+ */
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function marketOf({ date, data }) {
+  const [y, mo, d] = date.split("-").map(Number);
+  return {
+    // 15:30~15:40은 타임라인이 찍지 않는 쉬는 구간이라 마지막 분은 15:29다
+    data: { ...data, ticks: data.ticks.filter(([at]) => at < "15:30") },
+    start: 480, slots: 451, date: [y, mo, d], dateLbl: `${mo}월 ${d}일 (${WEEKDAYS[new Date(y, mo - 1, d).getDay()]})`, name: "국내", open: 540,
+    sess: (m) => m < 530 ? "NXT 프리마켓" : m < 540 ? "쉬는 구간" : "정규장",
+    tone: (m) => m < 540 ? 0 : 1,
+  };
+}
+
+const HOLD = 3;
+const T_MAIN = 14.5, T_TAIL = 0.6, T_OUTRO = 3.6;
+/** 끝에서 첫 화면으로 되돌아가는 시간 — 릴스가 반복 재생될 때 이음새가 안 보이게 */
+const T_LOOP = 0.5;
+const T_TOTAL = T_MAIN + T_TAIL + T_OUTRO;
+/** 가변 속도 — 순위가 움직이는 곳은 느리게, 멈춘 곳은 건너뛰듯 빠르게. 끄면 고르게 흐른다(비교용) */
+const warpOn = true;
+/**
+ * 캔버스 테마 — 어두운 화면(v2의 밤 색). `ink`는 안내선·순위 숫자·진행 막대 바탕에 쓰는 기운의 RGB, `glow`는 선·점 번짐 세기.
+ * 종목 색은 등장 순서대로 — 한 화면에 동시에 뜨는 종목은 대개 8개 이하라 10색을 돌려 쓴다.
+ * 세션별 배경 기운 — 프리 / 정규장 / 애프터.
+ */
+const TH = {
+  bg: "#0b0d12", fade: "rgba(11,13,18,0)", ink: "255,255,255", text: "#f3f5f7", up: "#ff5a66", down: "#4d8dff", glow: 1, toneAlpha: 0.34,
+  hues: ["#5aa2ff", "#ff6b7a", "#39d6b0", "#ffb547", "#b58cff", "#ff7fc8", "#8ddc5a", "#56d3ff", "#ff9468", "#d6d35a"],
+  tones: [[70, 60, 150], [30, 90, 170], [120, 60, 150]],
+  progress: ["#5aa2ff", "#5eead4"],
+};
+const ink = (a) => `rgba(${TH.ink},${a})`;
+
+// 차트 영역
+const CX0 = 90, CX1 = 990, CY0 = 560, CY1 = 1230;
+const NOW_X = 560;                 // 지금 시각이 서는 자리 — 오른쪽은 이름표 자리
+const WINDOW = 170;                // 화면에 보이는 과거 분
+const PPM = (NOW_X - CX0) / WINDOW;
+const RANK_H = (CY1 - CY0) / 5.2;
+const yOf = (pos) => CY0 + RANK_H * (0.5 + pos);   // pos 0 = 1위
+
+const $ = (id) => document.getElementById(id);
+const hhmm = (m) => { m = ((m % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+const pct = (r) => `${r > 0 ? "+" : ""}${r.toFixed(2)}%`;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+let MK, M, names, colors, raf = 0;
+
+// ── 모델 — 앱과 같은 3분 다듬기 ──
+function smooth(live, raw) {
+  const out = new Map(); if (!live.length) return out;
+  let state = raw(live[0]);
+  live.forEach((i, n) => { const v = raw(i); if (v !== state && live.slice(n, n + HOLD).every((j) => raw(j) === v)) state = v; out.set(i, state); });
+  return out;
+}
+function build(mk) {
+  const SLOTS = mk.slots;
+  const N = mk.data.stocks.length;
+  const snap = new Array(SLOTS).fill(undefined);
+  mk.data.ticks.forEach(([at, ks, rates]) => { const [h, m] = at.split(":").map(Number); snap[h * 60 + m - mk.start] = ks.map((k, n) => ({ k, rank: n + 1, rate: rates[n] })); });
+  const live = snap.flatMap((s, i) => (s ? [i] : []));
+  const last = live.at(-1) ?? 0;
+  const lineup = new Map();
+  smooth(live, (i) => snap[i].map((e) => e.k).join(",")).forEach((v, i) => lineup.set(i, v ? v.split(",").map(Number) : []));
+  const lineAt = (t) => { for (let i = t; i >= 0; i--) { const l = lineup.get(i); if (l) return l; } return []; };
+  // 슬롯마다 자리(0~4, 밖이면 6) → 눈으로 보기 좋게 한 번 더 부드럽게(σ 5분 가우시안)
+  const OUT = 6;
+  const raw = [...Array(N).keys()].map((k) => [...Array(SLOTS).keys()].map((i) => { const p = lineAt(i).indexOf(k); return p < 0 ? OUT : p; }));
+  const K = []; for (let d = -12; d <= 12; d++) K.push(Math.exp(-(d * d) / (2 * 5 * 5)));
+  const pos = raw.map((r) => r.map((_, i) => { let s = 0, w = 0; K.forEach((kw, j) => { const x = i + j - 12; if (x >= 0 && x <= last) { s += r[x] * kw; w += kw; } }); return s / w; }));
+  const rate = [...Array(N).keys()].map((k) => { let v = 0; return [...Array(SLOTS).keys()].map((i) => { const e = snap[i]?.find((x) => x.k === k); if (e) v = e.rate; return v; }); });
+  // 자막거리 — 1위 교체, 새로 들어옴
+  const leader = smooth(live, (i) => (snap[i].length ? snap[i][0].k : -1));
+  const member = [...Array(N).keys()].map((k) => smooth(live, (i) => snap[i].some((e) => e.k === k)));
+  const events = [];
+  live.forEach((i, n) => {
+    if (n === 0) return;
+    const p = live[n - 1];
+    const l = leader.get(i);
+    if (l !== leader.get(p) && l !== -1) events.push({ i, type: "top", k: l });
+    for (let k = 0; k < N; k++) if (!member[k].get(p) && member[k].get(i)) events.push({ i, type: "in", k, r: snap[i].find((e) => e.k === k)?.rank ?? 5 });
+  });
+  // 등장 순서대로 색
+  const order = []; for (let i = 0; i <= last; i++) lineAt(i).forEach((k) => { if (!order.includes(k)) order.push(k); });
+  const col = new Array(N).fill("#666"); order.forEach((k, n) => (col[k] = TH.hues[n % TH.hues.length]));
+  // 1위 바통 — 원본 1위가 10분 넘게 이어진 구간만, 같은 종목이 이어지면 하나로. 넷이 넘으면 오래 지킨 넷
+  const runs = [];
+  live.forEach((i) => { const l = snap[i][0]?.k ?? -1; const r = runs.at(-1); if (r && r.k === l) r.n++; else runs.push({ k: l, i, n: 1 }); });
+  let relay = [];
+  runs.filter((r) => r.k >= 0 && r.n >= 10).forEach((r) => { const p = relay.at(-1); if (p && p.k === r.k) p.n += r.n; else relay.push({ ...r }); });
+  if (relay.length > 4) { const keep = new Set([...relay].sort((a, b) => b.n - a.n).slice(0, 4)); relay = relay.filter((r) => keep.has(r)); }
+  // 1위에 머문 분 — 종목별 합
+  const held = new Array(N).fill(0); live.forEach((i) => { const l = snap[i][0]?.k; if (l !== undefined) held[l]++; });
+  // 장중 최고 등락
+  let peak = { k: -1, r: -Infinity, i: 0 };
+  live.forEach((i) => snap[i].forEach((e) => { if (e.rate > peak.r) peak = { k: e.k, r: e.rate, i }; }));
+  // 자막은 굵직한 것만 — ① 1위 바통이 넘어간 순간 ② 장중 최고 등락에 닿은 순간 ③ 새로 들어와 두 시간 넘게 버틴 종목 중 오래 버틴 둘
+  const highlights = relay.slice(1).map((r) => ({ i: r.i, type: "top", k: r.k }));
+  if (peak.r >= 10) highlights.push({ i: peak.i, type: "peak", k: peak.k, r: peak.r });
+  const start = live[0] ?? 0;
+  const stays = [];
+  for (let k = 0; k < N; k++) {
+    let from = -1;
+    live.forEach((i) => {
+      const inTop = member[k].get(i);
+      if (inTop && from < 0) from = i;
+      if ((!inTop || i === last) && from >= 0) {
+        const stay = i - from;
+        const baton = relay.some((r) => r.k === k); // 1위를 넘겨받는 종목은 그때 한 번만 부른다
+        if (from > start + 5 && stay >= 120 && !baton) stays.push({ i: from, type: "in", k, r: snap[from].find((e) => e.k === k)?.rank ?? 5, stay });
+        from = -1;
+      }
+    });
+  }
+  highlights.push(...stays.sort((a, b) => b.stay - a.stay).slice(0, 2));
+  highlights.sort((a, b) => a.i - b.i);
+  return { N, snap, live, last, lineAt, pos, rate, events: highlights, col, relay, held, peak };
+}
+
+// ── 그리기 ──
+const cv = $("cv"), g0 = cv.getContext("2d");
+const lc = document.createElement("canvas"); lc.width = 1080; lc.height = 1920;
+const lg0 = lc.getContext("2d");
+let g = g0;
+let tone = [...TH.tones[0]];
+function drawChart(s, alpha = 1) {
+  const W = 1080, H = 1920;
+  // 배경 — 세션 기운이 천천히 번진다
+  const target = TH.tones[MK.tone(MK.start + Math.floor(s))];
+  tone = tone.map((v, n) => lerp(v, target[n], 0.03));
+  g.fillStyle = TH.bg; g.fillRect(0, 0, W, H);
+  const rg = g.createRadialGradient(540, 820, 60, 540, 820, 1000);
+  rg.addColorStop(0, `rgba(${tone.map(Math.round).join(",")},${TH.toneAlpha})`); rg.addColorStop(1, TH.fade);
+  g.fillStyle = rg; g.fillRect(0, 0, W, H);
+  g.globalAlpha = alpha;
+
+  // 순위 안내선
+  g.font = "700 30px 'JetBrains Mono', monospace"; g.textBaseline = "middle";
+  for (let r = 0; r < 5; r++) {
+    const y = yOf(r);
+    g.strokeStyle = ink(0.06); g.lineWidth = 1; g.setLineDash([]);
+    g.beginPath(); g.moveTo(CX0 + 40, y); g.lineTo(NOW_X, y); g.stroke(); g.setLineDash([]);
+  }
+  // 지금 세로선
+  const vg = g.createLinearGradient(0, CY0 - 40, 0, CY1 + 40);
+  vg.addColorStop(0, ink(0)); vg.addColorStop(0.5, ink(0.28)); vg.addColorStop(1, ink(0));
+  g.fillStyle = vg; g.fillRect(NOW_X - 0.5, CY0 - 40, 1, CY1 - CY0 + 80);
+
+  const i0 = Math.max(0, Math.floor(s - WINDOW)), i1 = Math.floor(s);
+  const f = s - i1;
+  const posAt = (k, i) => (i >= M.last ? M.pos[k][M.last] : lerp(M.pos[k][i], M.pos[k][Math.min(M.last, i + 1)], i === i1 ? f : 0));
+  const heads = [];
+  g = lg0; g.clearRect(0, 0, 1080, 1920);
+  for (let k = 0; k < M.N; k++) {
+    const P = M.pos[k];
+    // 선 — 차트 안(자리 < 5.2)에 있는 구간만 잇는다
+    g.lineCap = "round"; g.lineJoin = "round";
+    let drawing = false;
+    const flush = () => { if (drawing) { g.stroke(); drawing = false; } };
+    g.strokeStyle = M.col[k]; g.lineWidth = 6; g.shadowColor = M.col[k]; g.shadowBlur = 14 * TH.glow;
+    for (let i = i0; i <= i1 + 1; i++) {
+      const ii = Math.min(i, i1), p = i > i1 ? posAt(k, i1) : P[ii];
+      const x = i > i1 ? NOW_X : NOW_X - (s - ii) * PPM;
+      if (p > 4.8) { flush(); continue; }
+      const y = yOf(p);
+      if (!drawing) { g.beginPath(); g.moveTo(x, y); drawing = true; } else g.lineTo(x, y);
+    }
+    flush();
+    g.shadowBlur = 0;
+    const p = posAt(k, i1);
+    if (p < 4.7) heads.push({ k, p }); // 다 사라진 이름표는 자리 계산에서도 뺀다
+  }
+  // 왼쪽 가장자리로 갈수록 선이 사라진다
+  g.globalCompositeOperation = "destination-in";
+  const lg = g.createLinearGradient(CX0 + 40, 0, CX0 + 230, 0);
+  lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(1, "rgba(0,0,0,1)");
+  g.fillStyle = lg; g.fillRect(0, 0, 1080, 1920);
+  // 5위 아래로 빠지는 선은 끊지 않고 흐려지며 사라진다
+  const bg = g.createLinearGradient(0, yOf(4.15), 0, yOf(4.6));
+  bg.addColorStop(0, "rgba(0,0,0,1)"); bg.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = bg; g.fillRect(0, 0, 1080, 1920);
+  g.globalCompositeOperation = "source-over";
+  g = g0; g.globalAlpha = alpha; g.drawImage(lc, 0, 0);
+
+  g.font = "300 28px 'JetBrains Mono', monospace"; g.textBaseline = "middle";
+  for (let r = 0; r < 5; r++) { g.fillStyle = r === 0 ? ink(0.6) : ink(0.25); g.fillText(`${r + 1}`, CX0, yOf(r)); }
+  // 선 끝 — 점과 이름표
+  const LABEL_GAP = 98;
+  heads.sort((a, b) => a.p - b.p);
+  // 이름표가 차트 아래(자막·큰 숫자 자리)로 넘치면 묶음째 위로 올린다 — 위쪽은 대개 비어 있다
+  heads.forEach((h, n) => { h.ly = Math.max(yOf(h.p), n ? heads[n - 1].ly + LABEL_GAP : -Infinity); });
+  const over = heads.length ? heads.at(-1).ly - (CY1 - 30) : 0;
+  if (over > 0) heads.forEach((h) => { h.ly -= over; });
+  heads.slice().reverse().forEach(({ k, p, ly }) => {
+    const y = yOf(p);
+    const fade = Math.max(0, Math.min(1, (4.7 - p) / 0.5));
+    g.globalAlpha = alpha * fade;
+    g.fillStyle = M.col[k]; g.shadowColor = M.col[k]; g.shadowBlur = 16 * TH.glow;
+    g.beginPath(); g.arc(NOW_X, y, 10, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.strokeStyle = M.col[k]; g.lineWidth = 1.5; g.globalAlpha = alpha * fade * 0.45;
+    g.beginPath(); g.arc(NOW_X, y, 15, 0, Math.PI * 2); g.stroke(); g.globalAlpha = alpha * fade;
+    const lead = p < 0.5;
+    if (Math.abs(ly - y) > 3) {
+      g.strokeStyle = M.col[k]; g.lineWidth = 1; g.globalAlpha = alpha * fade * 0.5;
+      g.beginPath(); g.moveTo(NOW_X + 15, y); g.lineTo(NOW_X + 30, ly - 12); g.stroke(); g.globalAlpha = alpha * fade;
+    }
+    g.fillStyle = TH.text; g.textBaseline = "alphabetic";
+    g.font = `${lead ? 700 : 500} ${lead ? 50 : 42}px 'Noto Sans KR', sans-serif`;
+    let name = names[k]; const maxW = CX1 + 50 - (NOW_X + 40);
+    while (g.measureText(name).width > maxW && name.length > 2) name = name.slice(0, -2) + "…";
+    g.fillText(name, NOW_X + 40, ly + 4);
+    const r = M.rate[k][Math.min(i1, M.last)];
+    g.font = "500 34px 'JetBrains Mono', monospace";
+    g.fillStyle = r >= 0 ? TH.up : TH.down;
+    g.fillText(pct(r), NOW_X + 40, ly + 46);
+    g.globalAlpha = alpha;
+  });
+  g.globalAlpha = 1;
+
+  // 하루 진행
+  const py = 1512;
+  g.fillStyle = ink(0.08); roundRect(CX0, py, CX1 - CX0, 3, 1.5); g.fill();
+  const pg = g.createLinearGradient(CX0, 0, CX1, 0); pg.addColorStop(0, TH.progress[0]); pg.addColorStop(1, TH.progress[1]);
+  g.fillStyle = pg; roundRect(CX0, py, (CX1 - CX0) * Math.min(1, (s + 1) / MK.slots), 3, 1.5); g.fill();
+}
+function roundRect(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, Math.max(w, 0.1), h, r); }
+
+// ── 자막 ──
+let capQueue = [], capUntil = 0, lastEventSlot = -1, burst = null;
+/** CSS 애니메이션을 처음부터 다시 — 클래스를 뗐다 붙인다 */
+function retrigger(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function jolt() { retrigger($("fx"), "flash"); retrigger($("cv"), "shake"); }
+
+/** 1위에 오른 종목을 크게 — `full`이면 숫자가 처음부터 다 차 있다(첫 화면) */
+function showBurst(e, now, full = false) {
+  burst = { e, t: full ? now - 1 : now };
+  $("bigName").textContent = names[e.k]; $("bigName").style.color = M.col[e.k];
+  $("bigVal").style.color = e.r >= 0 ? "" : "var(--down)";
+  const big = $("big");
+  if (full) { big.classList.add("instant", "on"); void big.offsetWidth; big.classList.remove("instant"); } else big.classList.add("on");
+}
+function pushCaptions(s, now) {
+  const cur = Math.floor(s);
+  if (burst) {
+    // 숫자가 0에서 치솟는다
+    const x = Math.min(1, (now - burst.t) / 0.9);
+    $("bigVal").textContent = pct(burst.e.r * (1 - Math.pow(1 - x, 3)));
+    if (now >= capUntil - 0.1) $("big").classList.remove("on");
+  }
+  M.events.filter((e) => e.i > lastEventSlot && e.i <= cur).forEach((e) => capQueue.push(e));
+  lastEventSlot = cur;
+  if (now < capUntil || !capQueue.length) return;
+  showBurst(capQueue.shift(), now); jolt();
+  capUntil = now + 2.6;
+}
+
+// ── 장면 ──
+function setup(mk) {
+  MK = mk; M = build(MK); names = MK.data.stocks;
+  const close = M.lineAt(M.last);
+  $("mkt").textContent = MK.name;
+  $("dateLbl").textContent = MK.dateLbl;
+  // 자막은 1위에 오른 종목의 이름과 그때 등락률뿐 — 첫 1위부터, 바뀔 때마다 터진다
+  M.events = M.relay.map((r) => ({ i: r.i, k: r.k, r: M.rate[r.k][r.i] }));
+  // 시작 — 첫 1위가 선 때
+  M.s0 = M.relay[0]?.i ?? 0;
+  // 가변 속도 — 슬롯마다 무게를 매기고, 무게만큼 화면 시간을 준다
+  const W = new Float64Array(M.last + 1).fill(0.1);
+  const bump = (at, amp, sig) => { for (let i = Math.max(0, at - 4 * sig); i <= Math.min(M.last, at + 4 * sig); i++) W[i] += amp * Math.exp(-((i - at) ** 2) / (2 * sig * sig)); };
+  for (let i = 1; i <= M.last; i++) if (M.lineAt(i).join() !== M.lineAt(i - 1).join()) bump(i, 0.07, 4);
+  M.events.forEach((e) => bump(e.i, 3.2, 6));
+  const C = [0]; for (let i = M.s0; i < M.last; i++) C.push(C.at(-1) + W[i]);
+  M.warp = C.map((c) => c / C.at(-1));
+  $("passed").innerHTML = M.relay.length > 1
+    ? `<span class="lbl">1위를 거쳐 간 종목</span>` + M.relay.map((r, n) =>
+        `${n ? '<span class="arr">→</span>' : ""}<span><span class="dot" style="background:${M.col[r.k]}"></span>${names[r.k]}</span>`).join("")
+    : "";
+  // 본문(txt)용 — 영상과 같은 계산을 `render.mjs`가 그대로 받아 쓴다. 종목은 데이터의 번호(k)로 넘긴다
+  window.__REEL_FACTS = {
+    relay: M.relay.map((r) => r.k),
+    close: close.map((k) => ({ k, rate: M.rate[k][M.last] })),
+    // 마감 5위 밖으로 밀려난 종목은 마감 등락률이 없다 — 장중 최고로 적는다
+    peak: M.rate.map((r) => Math.max(...r)),
+  };
+  $("outroTitle").textContent = `${MK.name} 정규장 마감 주도주 순위`;
+  $("final").innerHTML = close.map((k, n) => `<div style="transition-delay:${0.1 + n * 0.1}s;color:${n ? "" : M.col[k]}"><span class="rk num">${n + 1}</span><span class="dot" style="background:${M.col[k]};color:${M.col[k]}"></span><span style="color:var(--text)">${names[k]}</span><span class="rt num">${pct(M.rate[k][M.last])}</span></div>`).join("");
+  tone = [...TH.tones[MK.tone(MK.start + M.s0)]];
+}
+function setClock(s) {
+  const i = Math.min(M.last, Math.floor(s));
+  const m = MK.start + i;
+  $("hm").textContent = hhmm(m);
+  $("md").textContent = `${MK.date[1]}/${MK.date[2]}`;
+  $("sess").textContent = MK.sess(MK.start + i);
+}
+
+/** 본 장면 진행(0~1) → 슬롯 */
+function slotAt(p) {
+  if (!warpOn) return M.s0 + (M.last - M.s0) * p;
+  const w = M.warp; let lo = 0, hi = w.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (w[mid] <= p) lo = mid; else hi = mid; }
+  const f = w[hi] > w[lo] ? (p - w[lo]) / (w[hi] - w[lo]) : 0;
+  return M.s0 + lo + Math.min(1, Math.max(0, f));
+}
+function showStart() {
+  const main = $("mainLayer");
+  main.classList.add("instant"); main.classList.remove("off"); void main.offsetWidth; main.classList.remove("instant");
+  $("outro").classList.add("off"); $("big").classList.remove("on");
+  tone = [...TH.tones[MK.tone(MK.start + M.s0)]];
+  drawChart(M.s0); setClock(M.s0);
+  // 첫 1위 — 첫 프레임부터 보이게, 치솟지 않고 다 찬 채로
+  if (M.events.length) { showBurst(M.events[0], 0, true); $("bigVal").textContent = pct(M.events[0].r); }
+}
+function play() {
+  cancelAnimationFrame(raf);
+  capQueue = []; lastEventSlot = M.s0;
+  showStart();
+  capUntil = 2.2; // 첫 1위가 걷히기 전엔 다음 자막을 올리지 않는다
+  const t0 = performance.now();
+  let looped = false;
+  // rAF가 넘겨 주는 시각이 아니라 performance.now()를 쓴다 — 녹화는 가짜 시계로 프레임을 넘기는데,
+  // rAF 인자는 그 시계와 기준이 달라 재생이 한 번에 끝나 버린다
+  const tick = () => {
+    const t = (performance.now() - t0) / 1000;
+    if (t < T_MAIN + T_TAIL) {
+      const s = slotAt(Math.min(1, t / T_MAIN));
+      drawChart(s); setClock(s); pushCaptions(s, t);
+    } else if (t < T_TOTAL - T_LOOP) {
+      $("mainLayer").classList.add("off"); $("outro").classList.remove("off"); $("big").classList.remove("on");
+      drawChart(M.last, 0.12);
+    } else if (t < T_TOTAL) {
+      // 첫 화면으로 되돌아간다 — 반복 재생의 이음새
+      if (!looped) {
+        looped = true; $("outro").classList.add("off"); $("mainLayer").classList.remove("off");
+        if (M.events.length) { showBurst(M.events[0], t, true); $("bigVal").textContent = pct(M.events[0].r); }
+      }
+      drawChart(M.s0, Math.min(1, (t - (T_TOTAL - T_LOOP)) / T_LOOP)); setClock(M.s0);
+    } else return;
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+}
+
+// 녹화 스크립트(`render.mjs`)가 `window.__REEL__`에 { market, date, data }를 넣고, 글꼴이 오면 `__play()`를 부른다
+window.__REEL_SECONDS = T_TOTAL;
+setup(marketOf(window.__REEL__));
+showStart(); // 첫 프레임(썸네일)과 같은 화면
+window.__play = play;
+</script>
+</body>
+</html>
