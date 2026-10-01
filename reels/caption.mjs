@@ -7,16 +7,11 @@
  */
 import { writeFileSync } from "node:fs";
 
-const LABEL = {
-  kr: { market: "국내장", tags: ["#국내주식", "#국장"] },
-  us: { market: "미국장", tags: ["#미국주식", "#미장"] },
-};
-
 const pct = (r) => `${r >= 0 ? "+" : ""}${r.toFixed(2)}%`;
 const hashtag = (name) => `#${name.replace(/[\s()·.&]/g, "")}`;
 
-async function fetchReasons(api, market, session) {
-  const res = await fetch(`${api}/api/insight/reasons?market=${market}`, {
+async function fetchReasons(api, session) {
+  const res = await fetch(`${api}/api/insight/reasons?market=kr`, {
     headers: session ? { cookie: `judozoo_session=${session}` } : {},
   });
   if (!res.ok) throw new Error(`사유 API ${res.status}`);
@@ -24,16 +19,10 @@ async function fetchReasons(api, market, session) {
   return new Map(data.map((r) => [r.code, r]));
 }
 
-/** 사유가 그 날짜 것인지 — 해외는 뉴욕 날짜라 한국 시각으로는 다음 날 새벽까지 이어진다 */
-function isOfDate(generatedAt, date) {
-  const kst = generatedAt.slice(0, 10);
-  const next = new Date(`${date}T00:00:00Z`);
-  next.setUTCDate(next.getUTCDate() + 1);
-  return kst === date || kst === next.toISOString().slice(0, 10);
-}
+/** 사유가 그 날짜 것인지 — 생성 시각은 한국 시각이다 */
+const isOfDate = (generatedAt, date) => generatedAt.slice(0, 10) === date;
 
-function body({ market, date, stocks, facts, reasons }) {
-  const { market: where, tags } = LABEL[market];
+function body({ date, stocks, facts, reasons }) {
   const closeRank = new Map(facts.close.map((c, n) => [c.k, n + 1]));
   const rateOf = (k) => facts.close.find((c) => c.k === k)?.rate;
   // 주인공(폭발 종목)과 마감 1위. 같으면 마감 2위를 더한다
@@ -45,7 +34,7 @@ function body({ market, date, stocks, facts, reasons }) {
 
   const lines = [];
   if (best >= 10) lines.push(`하루 만에 +${Math.floor(best)}%?! 😳`);
-  lines.push(`${m}/${d} ${where} 주도주 — ${picks.map((k) => stocks[k].name).join(" & ")}`, "");
+  lines.push(`${m}/${d} 국내장 주도주 — ${picks.map((k) => stocks[k].name).join(" & ")}`, "");
   for (const k of picks) {
     const rank = closeRank.get(k);
     const r = reasons.get(stocks[k].code);
@@ -56,7 +45,7 @@ function body({ market, date, stocks, facts, reasons }) {
   lines.push("");
   if (facts.relay.length > 1) lines.push(`주도 흐름: ${facts.relay.map((k) => stocks[k].name).join(" → ")}`);
   lines.push("📍 judozoo.com", "", "※ 제공되는 정보는 투자 권유가 아니며, 투자 판단과 책임은 이용자 본인에게 있습니다.", "");
-  lines.push([...tags, "#주도주", ...picks.map((k) => hashtag(stocks[k].name)), "#급등주"].join(" "));
+  lines.push(["#국내주식", "#국장", "#주도주", ...picks.map((k) => hashtag(stocks[k].name)), "#급등주"].join(" "));
   return { text: lines.join("\n"), picks };
 }
 
@@ -84,10 +73,10 @@ function evidence({ date, stocks, picks, reasons, session }) {
   return lines.join("\n");
 }
 
-export async function writeCaption({ api, market, date, stocks, facts, out }) {
+export async function writeCaption({ api, date, stocks, facts, out }) {
   const session = process.env.JUDOZOO_SESSION;
-  const reasons = await fetchReasons(api, market, session);
-  const { text, picks } = body({ market, date, stocks, facts, reasons });
+  const reasons = await fetchReasons(api, session);
+  const { text, picks } = body({ date, stocks, facts, reasons });
   writeFileSync(out, `${text}${evidence({ date, stocks, picks, reasons, session })}\n`);
   return out;
 }

@@ -1,10 +1,12 @@
 /**
  * 주도주 릴스 mp4 굽기 — 운영 타임라인 API에서 그날 데이터를 받아 `reel.vN.html`을 한 프레임씩 찍는다.
  *
- *   node render.mjs us 2026-09-25            # 최신 버전 → out/2026-09-25/주도주-해외-0925-v3.mp4
- *   node render.mjs kr 2026-09-23 --v 1      # 예전 버전으로
- *   node render.mjs kr 2026-09-23 --secs 8   # 앞 8초만 (확인용)
- *   node render.mjs us 2026-09-28 --fps 60   # 60fps → out/2026-09-28/주도주-해외-0928-v3-60fps.mp4 (굽는 시간 두 배)
+ *   node render.mjs 2026-09-23               # 최신 버전 → out/2026-09-23/주도주-국내-0923-v4.mp4
+ *   node render.mjs 2026-09-23 --v 1         # 예전 버전으로
+ *   node render.mjs 2026-09-23 --secs 8      # 앞 8초만 (확인용)
+ *   node render.mjs 2026-09-23 --fps 60      # 60fps → out/2026-09-23/주도주-국내-0923-v4-60fps.mp4 (굽는 시간 두 배)
+ *
+ * 국내만 굽는다. 화면에는 여전히 `market: "kr"`을 넘긴다 — 옛 버전(v1~v3)이 시장을 받아서 고른다.
  *
  * 화면 녹화가 아니라 가짜 시계로 프레임을 넘기며 찍는다 — 1080×1920 원본 크기 그대로이고,
  * 캡처가 느려도 프레임이 빠지지 않는다. CSS 전환(자막·장면 페이드)도 같은 시계에 맞춘다.
@@ -30,13 +32,14 @@ const api = flag("--api") ?? "https://judozoo.com";
 const versions = readdirSync(here).map((f) => f.match(/^reel\.v(\d+)\.html$/)?.[1]).filter(Boolean).map(Number);
 const version = Number(flag("--v") ?? Math.max(...versions));
 let out = flag("--out");
-const [market, date] = args;
-if (!["kr", "us"].includes(market) || !/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") || !versions.includes(version)) {
-  console.error(`사용법: node render.mjs <kr|us> <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--fps 30|60] [--out 파일] [--api 주소]`);
+const market = "kr";
+const [date] = args;
+if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? "") || !versions.includes(version)) {
+  console.error(`사용법: node render.mjs <YYYY-MM-DD> [--v ${versions.sort((a, b) => a - b).join("|")}] [--secs N] [--fps 30|60] [--out 파일] [--api 주소]`);
   process.exit(1);
 }
-// 날짜별 폴더 — 같은 날 국내·해외·버전이 한곳에 모인다. 날짜는 인자 그대로(해외는 뉴욕 날짜)
-out ??= resolve(here, "out", date, `주도주-${market === "kr" ? "국내" : "해외"}-${date.slice(5).replace("-", "")}-v${version}${FPS === 30 ? "" : `-${FPS}fps`}.mp4`);
+// 날짜별 폴더 — 같은 날 버전이 한곳에 모인다
+out ??= resolve(here, "out", date, `주도주-국내-${date.slice(5).replace("-", "")}-v${version}${FPS === 30 ? "" : `-${FPS}fps`}.mp4`);
 // 본문(txt)이 영상보다 먼저 이 폴더에 쓰인다 — 여기서 만든다. 이미 있으면 그대로 쓴다
 mkdirSync(dirname(out), { recursive: true });
 
@@ -45,7 +48,7 @@ async function fetchDay() {
   const res = await fetch(`${api}/api/leader-timeline?market=${market}&date=${date}`);
   if (!res.ok) throw new Error(`타임라인 API ${res.status}`);
   const { data } = await res.json();
-  if (!data?.ticks?.length) throw new Error(`${market} ${date} — 찍힌 분이 없습니다`);
+  if (!data?.ticks?.length) throw new Error(`${date} — 찍힌 분이 없습니다`);
   return {
     stocks: data.stocks,
     data: { stocks: data.stocks.map((s) => s.name), ticks: data.ticks.map((t) => [t.at, t.stocks, t.rates]) },
@@ -53,7 +56,7 @@ async function fetchDay() {
 }
 
 const { stocks, data } = await fetchDay();
-console.log(`${market} ${date} v${version} — ${data.ticks.length}분, 종목 ${data.stocks.length}개`);
+console.log(`${date} v${version} — ${data.ticks.length}분, 종목 ${data.stocks.length}개`);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
@@ -63,7 +66,7 @@ await page.goto(pathToFileURL(resolve(here, `reel.v${version}.html`)).href);
 // 본문 — 영상보다 먼저 남긴다(굽는 데 수 분 걸린다). 계산을 내주지 않는 옛 버전은 건너뛴다
 const facts = await page.evaluate(() => window.__REEL_FACTS);
 if (facts) {
-  const txt = await writeCaption({ api, market, date, stocks, facts, out: out.replace(/\.mp4$/, ".txt") })
+  const txt = await writeCaption({ api, date, stocks, facts, out: out.replace(/\.mp4$/, ".txt") })
     .catch((e) => console.warn(`본문을 만들지 못했습니다 — ${e.message}`));
   if (txt) console.log(`본문 — ${txt}`);
 } else {
