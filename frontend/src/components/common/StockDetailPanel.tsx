@@ -40,6 +40,7 @@ export default function StockDetailPanel({
   date = todayStr(),
   onBack,
   insight,
+  showSupportResistance = false,
 }: {
   stockCode: string | null;
   /** 주도주 목록에서 이미 받은 시세 — 상세 API를 기다리지 않고 머리를 그린다. */
@@ -48,6 +49,8 @@ export default function StockDetailPanel({
   onBack?: () => void;
   /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 올랐나요?" 카드(026). 다른 화면은 비워 둔다 */
   insight?: ReactNode;
+  /** 눌림·돌파에서만 1분봉의 지지선·저항선을 표시한다. */
+  showSupportResistance?: boolean;
 }) {
   const detailQ = useLeadingStockDetail(stockCode);
   const detail = detailQ.data;
@@ -117,10 +120,10 @@ export default function StockDetailPanel({
             <CandleChart
               key={`${stockCode}-m`}
               series={minuteSeries(minutes)}
-              priceLines={[
+              priceLines={showSupportResistance ? [
                 { price: Math.max(...minutes.map((c) => c.high)), title: "저항선", color: "#fb923c" },
                 { price: Math.min(...minutes.map((c) => c.low)), title: "지지선", color: "#38bdf8" },
-              ]}
+              ] : undefined}
               className={`w-full ${CHART_H}`}
             />
           )

@@ -111,10 +111,6 @@ export default function OverseasStockDetailPanel({
             <CandleChart
               key={`${symbol}-m`}
               series={minuteSeries(minutes)}
-              priceLines={[
-                { price: Math.max(...minutes.map((c) => c.high)), title: "저항선", color: "#fb923c" },
-                { price: Math.min(...minutes.map((c) => c.low)), title: "지지선", color: "#38bdf8" },
-              ]}
               priceDecimals={2}
               className={`w-full ${CHART_H}`}
             />

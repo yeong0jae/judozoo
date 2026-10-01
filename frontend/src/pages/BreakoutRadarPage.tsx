@@ -201,7 +201,7 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
   );
 
   const detail = authenticated ? (
-    <StockDetailPanel stockCode={selectedCode} onBack={mobile.hide} />
+    <StockDetailPanel stockCode={selectedCode} onBack={mobile.hide} showSupportResistance />
   ) : (
     <LoginGate
       title="종목 상세"
