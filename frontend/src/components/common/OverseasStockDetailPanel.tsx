@@ -23,8 +23,8 @@ export function exchangeLabel(code: string): string {
 type ChartInterval = "1m" | "1d";
 
 /**
- * 해외 종목 상세 — 국내 상세와 같은 짜임(머리 / 차트 / 주도주 조건). 해외는 투자자별 수급이 없다.
- * [chartOnly]면 주도주 조건 없이 차트만 둔다.
+ * 해외 종목 상세 — 국내 상세와 같은 짜임(머리 / 주도주 체크리스트 / 차트). 해외는 투자자별 수급이 없다.
+ * [chartOnly]면 체크리스트 없이 차트만 둔다.
  * [onBack]을 주면 모바일에서 맨 위에 "목록" 버튼을 단다.
  */
 export default function OverseasStockDetailPanel({
@@ -88,6 +88,8 @@ export default function OverseasStockDetailPanel({
 
       {insight}
 
+      {!chartOnly && d && <LeadingConditions results={d.filterResults} />}
+
       <ChartCard
         title={interval === "1m" ? "1분봉" : "일봉"}
         action={
@@ -129,8 +131,6 @@ export default function OverseasStockDetailPanel({
           />
         )}
       </ChartCard>
-
-      {!chartOnly && d && <LeadingConditions results={d.filterResults} />}
     </div>
   );
 }
