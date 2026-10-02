@@ -69,7 +69,7 @@ export function Segmented<T extends string>({
 // 주도주 체크리스트
 // ============================================================
 
-type FilterResult = {
+export type FilterResult = {
   filterName: string;
   criteriaDescription: string;
   actualValue: string;
@@ -117,13 +117,33 @@ const CONDITION_GROUPS: { title: string; filters: string[] }[] = [
   { title: "이미 너무 오르진 않았나요?", filters: ["전일 등락률", "시초가"] },
 ];
 
-function groupConditions(results: FilterResult[]): { title: string; items: FilterResult[] }[] {
-  const groups = CONDITION_GROUPS.map((g) => ({
+/**
+ * 체크리스트 한 벌 — 제목·묶음·문구·눈금. 기본은 주도주 조건이고,
+ * 종가베팅의 종베 체크도 같은 모양으로 그리려고 바꿔 끼운다.
+ */
+export type ConditionKit = {
+  title: string;
+  subtitle: (count: number) => string;
+  groups: { title: string; filters: string[] }[];
+  copy: Record<string, { title: string; why: string }>;
+  scales: typeof CONDITION_SCALES;
+};
+
+const LEADING_KIT: ConditionKit = {
+  title: "주도주 체크리스트",
+  subtitle: (n) => `오늘 시장을 이끄는 종목인지 ${n}가지로 봐요.`,
+  groups: CONDITION_GROUPS,
+  copy: CONDITION_COPY,
+  scales: CONDITION_SCALES,
+};
+
+function groupConditions(results: FilterResult[], kit: ConditionKit): { title: string; items: FilterResult[] }[] {
+  const groups = kit.groups.map((g) => ({
     title: g.title,
     items: results.filter((r) => g.filters.includes(r.filterName)),
   }));
   // 서버에 조건이 새로 생기면 묶음 밖에서도 보이게 둔다
-  const known = new Set(CONDITION_GROUPS.flatMap((g) => g.filters));
+  const known = new Set(kit.groups.flatMap((g) => g.filters));
   groups.push({ title: "그 밖의 조건", items: results.filter((r) => !known.has(r.filterName)) });
   return groups.filter((g) => g.items.length > 0);
 }
@@ -135,8 +155,8 @@ function scoreOf(passed: number, total: number): { label: string; className: str
   return { label: "대부분 미달", className: "bg-red-400/15 text-red-300" };
 }
 
-export function LeadingConditions({ results }: { results: FilterResult[] }) {
-  const groups = groupConditions(results);
+export function LeadingConditions({ results, kit = LEADING_KIT }: { results: FilterResult[]; kit?: ConditionKit }) {
+  const groups = groupConditions(results, kit);
   // leaving = 방금 나간 묶음 — 위로 살짝 사라지고, 나머지는 아래에 대기했다가 떠오른다
   const [{ step: rawStep, leaving }, setPage] = useState<{ step: number; leaving: number | null }>({ step: 0, leaving: null });
   const step = Math.min(rawStep, Math.max(groups.length - 1, 0));
@@ -148,10 +168,8 @@ export function LeadingConditions({ results }: { results: FilterResult[] }) {
     <section className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h3 className="text-base font-bold text-zinc-100">주도주 체크리스트</h3>
-          <p className="break-keep text-[13px] leading-relaxed text-zinc-500">
-            오늘 시장을 이끄는 종목인지 {results.length}가지로 봐요.
-          </p>
+          <h3 className="text-base font-bold text-zinc-100">{kit.title}</h3>
+          <p className="break-keep text-[13px] leading-relaxed text-zinc-500">{kit.subtitle(results.length)}</p>
         </div>
         <span className={`inline-flex shrink-0 items-baseline rounded-2xl px-3.5 py-2 ${score.className}`}>
           <span className="num text-[22px] font-bold">{passedCount}</span>
@@ -185,7 +203,7 @@ export function LeadingConditions({ results }: { results: FilterResult[] }) {
               <h4 className="px-0.5 text-[15px] font-bold text-zinc-100">{g.title}</h4>
               <ul className="flex flex-col gap-1.5">
                 {g.items.map((r) => (
-                  <ConditionItem key={r.filterName} result={r} />
+                  <ConditionItem key={r.filterName} result={r} kit={kit} />
                 ))}
               </ul>
             </div>
@@ -239,8 +257,8 @@ export function LeadingConditions({ results }: { results: FilterResult[] }) {
   );
 }
 
-function ConditionItem({ result: r }: { result: FilterResult }) {
-  const copy = CONDITION_COPY[r.filterName];
+function ConditionItem({ result: r, kit }: { result: FilterResult; kit: ConditionKit }) {
+  const copy = kit.copy[r.filterName];
   return (
     <li className="flex gap-3 rounded-2xl bg-zinc-900 px-4 py-3.5">
       <span
@@ -260,7 +278,7 @@ function ConditionItem({ result: r }: { result: FilterResult }) {
             {r.actualValue}
           </span>
         </div>
-        <ConditionScale result={r} />
+        <ConditionScale result={r} scales={kit.scales} />
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs leading-normal">
           <span className="shrink-0 rounded-md bg-zinc-800 px-1.5 py-px text-zinc-400">기준 {r.criteriaDescription}</span>
           {copy && <span className="break-keep text-zinc-500">{copy.why}</span>}
@@ -270,8 +288,8 @@ function ConditionItem({ result: r }: { result: FilterResult }) {
   );
 }
 
-function ConditionScale({ result: r }: { result: FilterResult }) {
-  const scale = CONDITION_SCALES[r.filterName];
+function ConditionScale({ result: r, scales }: { result: FilterResult; scales: ConditionKit["scales"] }) {
+  const scale = scales[r.filterName];
   if (!scale || r.value == null || r.threshold == null) return null;
   const { min, max } = scale;
   const at = (v: number) => (Math.max(0, Math.min(1, (v - min) / (max - min))) * 100);

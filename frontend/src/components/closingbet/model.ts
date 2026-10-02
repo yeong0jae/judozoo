@@ -35,20 +35,21 @@ export const NICKNAME_COOLDOWN_DAYS = 7;
 // 종베 체크
 // ============================================================
 
+/** 체크 한 줄 — 주도주 체크리스트(`detailParts.LeadingConditions`)의 조건 한 줄과 같은 모양으로 그린다 */
 export type Check = {
   key: "high" | "foreign" | "institution" | "late" | "recentHigh";
   title: string;
-  question: string;
   criteria: string;
   ok: boolean;
   value: string;
+  /** 이 종목에 맞춘 풀이 한 문장 */
   sentence: string;
-  why: string;
-  range?: { low: number; high: number; pos: number; zoneStart: number };
-  flows?: { label: string; value: number; max: number }[];
+  /** 눈금 막대 — 지금 값과 기준(%) */
+  scale?: { value: number; threshold: number };
 };
 
 const NEAR_HIGH = -1.5;
+// 기준 −5%는 서버 설정(주도주 조건 `max_high_position_drop_rate`)과 같다. 판정은 서버 값을 따른다
 const RECENT_HIGH_FLOOR = -5;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 const signed = (n: number) => `${n > 0 ? "+" : ""}${won(n)}`;
@@ -58,11 +59,10 @@ export function lateSum(flow: MarketFlow): number {
   return flow.foreign[4] + flow.foreign[5] + flow.institution[4] + flow.institution[5];
 }
 
-export function checksOf(x: BetStock, list: BetStock[], markets: Record<MarketName, MarketFlow>): Check[] {
+export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): Check[] {
   const fromHigh = (x.price / x.high - 1) * 100;
   const gap = x.recentHighGap;
   const near = fromHigh >= NEAR_HIGH;
-  const maxAbs = (k: "frgn" | "inst" | "frgn5" | "inst5") => Math.max(...list.map((s) => Math.abs(s[k]))) || 1;
 
   const flowCheck = (who: "외국인" | "기관", k: "frgn" | "inst"): Check => {
     const v = x[k];
@@ -75,64 +75,49 @@ export function checksOf(x: BetStock, list: BetStock[], markets: Record<MarketNa
     return {
       key: k === "frgn" ? "foreign" : "institution",
       title: who,
-      question: `${who}이 샀나요?`,
       criteria: "오늘 순매수 (KRX+NXT)",
       ok: v > 0,
-      value: `${signed(v)}억`,
-      sentence: `오늘 ${who}이 ${won(Math.abs(v))}억어치 더 ${v > 0 ? "샀어요" : "팔았어요"}.${week}`,
-      why: "판정은 오늘 순매수로 해요. 5일 흐름이 같은 방향이면 더 믿을 만해요.",
-      flows: [
-        { label: "오늘", value: v, max: maxAbs(k) },
-        { label: "5일", value: v5, max: maxAbs(k === "frgn" ? "frgn5" : "inst5") },
-      ],
+      value: `${signed(v)}억 · 5일 ${signed(v5)}억`,
+      sentence: `오늘 ${won(Math.abs(v))}억어치 더 ${v > 0 ? "샀어요" : "팔았어요"}.${week}`,
     };
   };
 
   const flow = markets[x.market];
   const sum = lateSum(flow);
-  const late: Check = {
-    key: "late",
-    title: "시장 막판",
-    question: "시장도 막판에 사들였나요?",
-    criteria: "시장 마감·애프터 외인+기관 합 플러스",
-    ok: sum > 0,
-    value: `${x.market} ${signed(sum)}억`,
-    sentence: `${x.market}에서 마감 구간과 애프터에 외국인·기관이 합쳐 ${won(Math.abs(sum))}억 ${sum > 0 ? "순매수" : "순매도"}했어요. (외인 ${signed(flow.foreign[4] + flow.foreign[5])}억 · 기관 ${signed(flow.institution[4] + flow.institution[5])}억)`,
-    why: "이 종목이 속한 시장의 마감·애프터 외인+기관 합이 플러스면 맞아요.",
-  };
 
   return [
     {
       key: "high",
       title: "고가 마감",
-      question: "고가 근처에서 끝났나요?",
-      criteria: `고가 대비 ${NEAR_HIGH}% 이내`,
+      criteria: `고가 대비 ${NEAR_HIGH}% 안`,
       ok: near,
       value: `${fromHigh.toFixed(1)}%`,
-      sentence: near ? "오늘 고가 바로 아래에서 버티고 있어요. 윗꼬리가 짧아요." : `고가에서 ${Math.abs(fromHigh).toFixed(1)}% 밀려 내려왔어요. 윗꼬리가 길어요.`,
-      why: "장 막판까지 고가를 지킨 종목은 다음 날 아침 매물이 적어요. 초록 구간(고가 -1.5% 안)이면 맞아요.",
-      range: { low: x.low, high: x.high, pos: (x.price - x.low) / (x.high - x.low), zoneStart: (x.high * (1 + NEAR_HIGH / 100) - x.low) / (x.high - x.low) },
+      sentence: near ? "오늘 고가 바로 아래에서 버텨 다음 날 아침 매물이 적어요." : `고가에서 ${Math.abs(fromHigh).toFixed(1)}% 밀려 윗꼬리가 길어요.`,
+      scale: { value: fromHigh, threshold: NEAR_HIGH },
     },
-    flowCheck("외국인", "frgn"),
-    flowCheck("기관", "inst"),
-    late,
     {
       key: "recentHigh",
       title: "최근 고점",
-      question: "최근 고점 근처인가요?",
-      // 기준 −5%는 서버 설정(주도주 조건 `max_high_position_drop_rate`)과 같다. 판정은 서버 값을 따른다
-      criteria: "최근 60거래일 고가에서 −5% 안",
+      criteria: `최근 60거래일 고가 대비 ${RECENT_HIGH_FLOOR}% 안`,
       ok: gap !== null && gap >= RECENT_HIGH_FLOOR,
       value: gap === null ? "—" : `${gap > 0 ? "+" : ""}${gap.toFixed(1)}%`,
       sentence:
         gap === null
           ? "최근 일봉이 없어 재지 못했어요."
           : gap >= 0
-            ? "최근 60거래일 고점을 넘어섰어요. 위에 물려서 팔려는 사람이 없어요."
-            : gap >= RECENT_HIGH_FLOOR
-              ? `최근 고점까지 ${Math.abs(gap).toFixed(1)}% 남았어요. 고점 바로 아래예요.`
-              : `최근 고점에서 ${Math.abs(gap).toFixed(1)}% 아래예요. 위쪽에 예전에 산 사람들의 물량이 남아 있어요.`,
-      why: "고점 근처라야 위에서 본전에 팔려는 물량이 적어요. 종목 상세의 \"최근 고점과의 거리\"와 같은 기준이에요.",
+            ? "최근 고점을 넘어서 위에서 본전에 팔려는 물량이 없어요."
+            : `최근 고점까지 ${Math.abs(gap).toFixed(1)}% — 고점 근처라야 위에서 본전에 팔려는 물량이 적어요.`,
+      scale: gap === null ? undefined : { value: gap, threshold: RECENT_HIGH_FLOOR },
+    },
+    flowCheck("외국인", "frgn"),
+    flowCheck("기관", "inst"),
+    {
+      key: "late",
+      title: "시장 막판",
+      criteria: "시장 마감·애프터 외인+기관 합 플러스",
+      ok: sum > 0,
+      value: `${x.market} ${signed(sum)}억`,
+      sentence: `마감 구간과 애프터에 외인 ${signed(flow.foreign[4] + flow.foreign[5])}억 · 기관 ${signed(flow.institution[4] + flow.institution[5])}억.`,
     },
   ];
 }

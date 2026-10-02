@@ -35,7 +35,6 @@ export function GradeAvatar({ grade, size = 24 }: { grade: Grade | null; size?: 
   );
 }
 
-/** 0을 가운데 둔 양방향 막대 — 순매수 빨강(오른쪽), 순매도 파랑(왼쪽) */
 export function DivergingBar({ value, max, height = 8 }: { value: number; max: number; height?: number }) {
   const w = max ? (Math.abs(value) / max) * 50 : 0;
   return (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PoolPanel from "../components/closingbet/PoolPanel";
 import MarketFlowCard from "../components/closingbet/MarketFlowCard";
 import StockList, { type StockRow } from "../components/closingbet/StockList";
-import CheckPager from "../components/closingbet/CheckPager";
+import ClosingChecklist from "../components/closingbet/ClosingChecklist";
 import BetTicket from "../components/closingbet/BetTicket";
 import YesterdayReview, { type Me } from "../components/closingbet/YesterdayReview";
 import DayStrip from "../components/closingbet/DayStrip";
@@ -58,7 +58,7 @@ function LoginBox({ title, body, className = "" }: { title: string; body: string
 }
 
 /** 등급 이유 카드 — 로그인 + 서버 판정 + 시장 수급이 있을 때만 */
-function Pager({ row, list, flows, verdict, member }: { row: StockRow; list: BetStock[]; flows: Record<MarketName, MarketFlow> | null; verdict: Verdict | null; member: boolean }) {
+function Pager({ row, flows, verdict, member }: { row: StockRow; flows: Record<MarketName, MarketFlow> | null; verdict: Verdict | null; member: boolean }) {
   const box = "min-h-[240px] rounded-[18px] border-2 border-dashed border-zinc-800 p-6";
   if (!member) {
     return <LoginBox className={box} title={`왜 ${row.grade ?? "그"} 등급일까?`} body="등급 이유(고가 마감·외인·기관·시장 막판·최근 고점)는 로그인 후 볼 수 있어요." />;
@@ -66,7 +66,7 @@ function Pager({ row, list, flows, verdict, member }: { row: StockRow; list: Bet
   if (!verdict || !flows || !row.grade) {
     return <div className={`flex items-center justify-center text-[13px] text-zinc-400 ${box}`}>이 종목은 아직 등급을 매기지 못했어요.</div>;
   }
-  return <CheckPager code={row.stock.code} name={row.stock.name} grade={row.grade} checks={withVerdict(checksOf(row.stock, list, flows), verdict)} />;
+  return <ClosingChecklist code={row.stock.code} name={row.stock.name} grade={row.grade} checks={withVerdict(checksOf(row.stock, flows), verdict)} />;
 }
 
 function MarketLocked() {
@@ -178,7 +178,7 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
               <StockList rows={rows} selectedCode={shownDetail} mineCode={selected} onPick={onPick} showResult={false} />
               <div className="lg:sticky lg:top-20">
                 {detailIdx >= 0 ? (
-                  <Pager row={rows[detailIdx]} list={list} flows={flows} verdict={items[detailIdx].checks} member={member} />
+                  <Pager row={rows[detailIdx]} flows={flows} verdict={items[detailIdx].checks} member={member} />
                 ) : (
                   <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 rounded-[18px] border-2 border-dashed border-zinc-800 p-6 text-center">
                     <span className="text-[15px] font-bold">종목을 누르면</span>
@@ -265,7 +265,7 @@ function ReviewBoard({ now, member, me }: { now: ClosingBetNow; member: boolean;
       <YesterdayReview round={round} me={me} member={member}>
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
           <StockList rows={view.rows} selectedCode={shown} mineCode={round.me?.stockCode ?? null} onPick={setDetailCode} showResult covered={view.covered} />
-          <div className="lg:sticky lg:top-20">{idx >= 0 && <Pager row={view.rows[idx]} list={view.list} flows={flows} verdict={round.stocks[idx].checks} member={member} />}</div>
+          <div className="lg:sticky lg:top-20">{idx >= 0 && <Pager row={view.rows[idx]} flows={flows} verdict={round.stocks[idx].checks} member={member} />}</div>
         </div>
       </YesterdayReview>
       <section aria-label="복기" className="flex flex-col gap-3">
