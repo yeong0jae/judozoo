@@ -97,7 +97,7 @@ export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): 
     },
     {
       key: "recentHigh",
-      title: "최근 고점",
+      title: "최근 고점 (60거래일)",
       criteria: `최근 60거래일 고가 대비 ${RECENT_HIGH_FLOOR}% 안`,
       ok: gap !== null && gap >= RECENT_HIGH_FLOOR,
       value: gap === null ? "—" : `${gap > 0 ? "+" : ""}${gap.toFixed(1)}%`,
@@ -105,8 +105,8 @@ export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): 
         gap === null
           ? "최근 일봉이 없어 재지 못했어요."
           : gap >= 0
-            ? "최근 고점을 넘어서 위에서 본전에 팔려는 물량이 없어요."
-            : `최근 고점까지 ${Math.abs(gap).toFixed(1)}% — 고점 근처라야 위에서 본전에 팔려는 물량이 적어요.`,
+            ? "최근 60거래일 고점을 넘어서 위에서 본전에 팔려는 물량이 없어요."
+            : `최근 60거래일 고점까지 ${Math.abs(gap).toFixed(1)}% — 고점 근처라야 위에서 본전에 팔려는 물량이 적어요.`,
       scale: gap === null ? undefined : { value: gap, threshold: RECENT_HIGH_FLOOR },
     },
     flowCheck("외국인", "frgn"),
