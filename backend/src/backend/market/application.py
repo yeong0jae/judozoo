@@ -925,6 +925,23 @@ class TodayNet:
     #: 조회에 간헐적으로 500을 주는데, 그때마다 칸이 사라지면 카드가 넷이었다 셋이었다 한다.
     #: 가격·등락률은 멀쩡히 왔으므로 그것만 보여주고 수급 줄은 화면이 비운다.
     nets: TodayNetInvestors | None
+    #: 수급이 어느 날 것인지. 장 열기 전·휴장일엔 직전 거래일이라 화면이 "10/2 기준"을 붙인다.
+    trade_date: date | None
+
+
+#: 수급 폴러가 그날 첫 스냅샷을 남기는 시각(NXT 프리마켓 개장). 이전엔 오늘 수급이 있을 수 없다.
+_NET_SNAPSHOT_START = time(8, 0)
+
+
+def _before_open(session: Session, model, market: Market, at: datetime):
+    """장이 아직 안 열렸거나(08시 전) 쉬는 날이면 직전 거래일의 마지막 스냅샷.
+
+    장중에 오늘 것이 없을 때(폴러 실패)는 None이다 — 지난날 값을 오늘 카드에 섞지 않는다.
+    """
+    if at.time() >= _NET_SNAPSHOT_START and not calendar.is_holiday(calendar.Region.KR):
+        return None
+    latest, _ = _last_two(session, model, market, _latest_date_with_data(session, model, market, at.date()))
+    return latest
 
 
 def today_nets(session: Session) -> list[TodayNet]:
@@ -932,14 +949,18 @@ def today_nets(session: Session) -> list[TodayNet]:
 
     현물(억원)과 선물(계약)은 단위가 달라 한 목록에 담겨도 서로 더하거나 견주지 않는다.
 
-    현물·선물 수급은 각각의 폴러가 저장한 오늘의 최신 스냅샷을 쓴다. 아직 스냅샷이
-    없으면 시세만 보여주고 수급은 비운다.
+    현물·선물 수급은 각각의 폴러가 저장한 오늘의 최신 스냅샷을 쓴다. 장이 열리기 전과
+    휴장일엔 직전 거래일의 마지막 스냅샷을 쓴다. 장중에 아직 스냅샷이 없으면 시세만 보여주고
+    수급은 비운다.
 
     시세조차 못 받은 시장만 목록에서 빠진다. 수급만 비는 경우는 `nets=None`으로 남는다.
     """
+    at = now()
     out: list[TodayNet] = []
     for market in Market:
-        snapshot = investor_snapshot_at(session, market, now())
+        snapshot = investor_snapshot_at(session, market, at) or _before_open(
+            session, MarketInvestorSnapshot, market, at
+        )
         if snapshot is None:
             try:
                 quote = get_kospi() if market == Market.KOSPI else get_kosdaq()
@@ -954,13 +975,16 @@ def today_nets(session: Session) -> list[TodayNet]:
                     individual=snapshot.individual_eok, foreign=snapshot.foreign_eok,
                     institution=snapshot.institution_eok, other_corp=snapshot.other_corp_eok,
                 ),
+                trade_date=snapshot.trade_date if snapshot else None,
             )
         )
     for market in Market:
         quote = futures_quote(market)
         if quote is None:
             continue
-        snapshot = _futures_snapshot_at(session, market, now())
+        snapshot = _futures_snapshot_at(session, market, at) or _before_open(
+            session, FuturesInvestorSnapshot, market, at
+        )
         out.append(
             TodayNet(
                 market=market, futures=True,
@@ -969,6 +993,7 @@ def today_nets(session: Session) -> list[TodayNet]:
                     individual=snapshot.individual_qty, foreign=snapshot.foreign_qty,
                     institution=snapshot.institution_qty, other_corp=snapshot.other_corp_qty,
                 ),
+                trade_date=snapshot.trade_date if snapshot else None,
             )
         )
     return out

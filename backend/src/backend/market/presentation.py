@@ -187,13 +187,15 @@ class TodayNetInvestorsItem(BaseModel):
 class TodayNetItem(BaseModel):
     """`futures`가 단위를 가른다 — 현물은 억원, 선물은 계약.
 
-    `nets`는 수급만 못 받았을 때 null이다. 시세는 왔으므로 칸은 남는다."""
+    `nets`는 수급만 못 받았을 때 null이다. 시세는 왔으므로 칸은 남는다.
+    `trade_date`는 그 수급의 날짜다 — 장 열기 전·휴장일엔 직전 거래일이다."""
 
     market: str
     futures: bool
     index_value: float = Field(serialization_alias="indexValue")
     change_rate: float = Field(serialization_alias="changeRate")
     nets: TodayNetInvestorsItem | None
+    trade_date: date | None = Field(serialization_alias="tradeDate")
 
 
 # ── 변환기 ─────────────────────────────────────────────────────────────
@@ -271,6 +273,7 @@ def investor_today(db: Session = Depends(get_db)) -> ApiResponse[list[TodayNetIt
                 market=n.market.name, futures=n.futures,
                 index_value=n.index_value, change_rate=n.change_rate,
                 nets=None if n.nets is None else TodayNetInvestorsItem(**vars(n.nets)),
+                trade_date=n.trade_date,
             )
             for n in application.today_nets(db)
         ]

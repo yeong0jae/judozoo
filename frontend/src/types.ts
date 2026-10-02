@@ -357,6 +357,8 @@ export interface TodayNetItem {
   indexValue: number;
   changeRate: number;
   nets: TodayNets | null;
+  /** 수급의 날짜(YYYY-MM-DD). 장 열기 전·휴장일엔 직전 거래일이다. */
+  tradeDate: string | null;
 }
 
 /** 지수 1분봉 — 가격은 지수값(소수), volume은 1000주 단위. */

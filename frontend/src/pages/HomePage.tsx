@@ -107,7 +107,7 @@ export default function HomePage() {
         )}
       </div>
 
-      <TodayNets live={domesticOpen} clock={clock} />
+      <TodayNets live={domesticOpen} clock={clock} today={isoDay(now)} />
     </div>
   );
 }
@@ -627,10 +627,13 @@ function netLabel(item: TodayNetItem): { name: string; unit: string; slug: strin
  * 빈 카드 네 장만 남는다. 주도주 아래에 두는 것도 같은 이유다 — 첫 화면의 주인공은
  * "오늘 뭐가 주도주냐"고, 수급은 그다음에 보는 재료다.
  */
-function TodayNets({ live, clock }: { live: boolean; clock: string }) {
+function TodayNets({ live, clock, today }: { live: boolean; clock: string; today: string }) {
   const { data: me } = useMe();
   const authenticated = !!me?.authenticated;
   const { data, isLoading } = useTodayNets(authenticated);
+  // 장 열기 전·휴장일엔 서버가 직전 거래일 수급을 준다 — 그날 날짜를 적어 "오늘"과 가른다
+  const basis = data?.find((item) => item.nets && item.tradeDate)?.tradeDate;
+  const pastBasis = basis && basis !== today ? basis : null;
 
   // 비로그인은 빈 카드 대신 이 자리가 무엇인지 말하고 로그인으로 잇는다
   if (!authenticated) {
@@ -647,6 +650,7 @@ function TodayNets({ live, clock }: { live: boolean; clock: string }) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <h2 className="text-[15px] font-bold text-zinc-100">오늘의 수급</h2>
+        {pastBasis && <span className="num text-[11px] text-zinc-500">{shortDay(pastBasis)} 기준</span>}
         {live && (
           <span className="rounded-full bg-blue-50 px-2 py-px text-[11px] font-medium text-blue-700">
             장중 <span className="num">{clock}</span>
@@ -674,6 +678,12 @@ function TodayNets({ live, clock }: { live: boolean; clock: string }) {
       )}
     </div>
   );
+}
+
+/** "2026-10-02" → "10/2" */
+function shortDay(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${m}/${d}`;
 }
 
 function NetCard({ item }: { item: TodayNetItem }) {
