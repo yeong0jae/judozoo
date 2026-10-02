@@ -249,7 +249,7 @@ function ConditionItem({ result: r }: { result: FilterResult }) {
           </span>
         </div>
         <ConditionScale result={r} />
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[11.5px] leading-normal">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs leading-normal">
           <span className="shrink-0 rounded-md bg-zinc-800 px-1.5 py-px text-zinc-400">기준 {r.criteriaDescription}</span>
           {copy && <span className="break-keep text-zinc-500">{copy.why}</span>}
         </div>
