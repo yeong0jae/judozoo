@@ -282,3 +282,30 @@ class Test가격_파서:
     )
     def test_부호는_등락_방향_표식이라_절대값으로_읽는다(self, 입력, 기대):
         assert market.parse_price(입력) == 기대
+
+
+class TestNXT_상장_여부:
+    @respx.mock
+    def test_NX로_조회해_종목명이_오면_상장(self, respx_mock, 토큰_발급):
+        route = respx_mock.post(STOCK_INFO_URL).mock(
+            return_value=httpx.Response(200, json={"return_code": 0, "stk_nm": "SK하이닉스", "cur_prc": "+1834000"})
+        )
+        assert market.fetch_nxt_listed("000660_AL") is True
+        assert route.calls.last.request.content == b'{"stk_cd":"000660_NX"}'
+
+    @respx.mock
+    def test_정상_응답에_종목명이_비어_있으면_비상장(self, respx_mock, 토큰_발급):
+        respx_mock.post(STOCK_INFO_URL).mock(
+            return_value=httpx.Response(200, json={"return_code": 0, "return_msg": "정상적으로 처리되었습니다", "stk_nm": "", "cur_prc": ""})
+        )
+        assert market.fetch_nxt_listed("036010") is False
+
+    @respx.mock
+    def test_오류_코드면_단정하지_않는다(self, respx_mock, 토큰_발급):
+        respx_mock.post(STOCK_INFO_URL).mock(return_value=httpx.Response(200, json={"return_code": 1, "return_msg": "오류"}))
+        assert market.fetch_nxt_listed("036010") is None
+
+    @respx.mock
+    def test_서버_오류면_단정하지_않는다(self, respx_mock, 토큰_발급):
+        respx_mock.post(STOCK_INFO_URL).mock(return_value=httpx.Response(500))
+        assert market.fetch_nxt_listed("036010") is None

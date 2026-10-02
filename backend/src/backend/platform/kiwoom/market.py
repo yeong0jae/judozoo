@@ -191,6 +191,30 @@ def fetch_stock_detail(stock_code: str) -> LeadingStockSnapshot | None:
         return None
 
 
+@ttl_cache("nxtListed", ttl_seconds=24 * 60 * 60, maxsize=200, skip_if=lambda r: r is None)
+def fetch_nxt_listed(stock_code: str) -> bool | None:
+    """NXT 상장 여부 (ka10001 `_NX`). 실패하면 None — 상장이라고도 아니라고도 단정하지 않는다.
+
+    비상장 종목은 `return_code` 0에 **종목명·가격이 빈 값**으로 온다(027 0단계). 오류 코드가 아니다.
+    랭킹 코드는 비상장도 `_AL`이 붙어 와서 그쪽으로는 가릴 수 없다.
+    """
+    try:
+        response = client.get_client().post(
+            _STOCK_INFO_URL,
+            headers=client.query_headers("ka10001"),
+            json={"stk_cd": f"{stock_code.split('_', 1)[0]}_NX"},
+        )
+        response.raise_for_status()
+        body = response.json()
+        if body.get("return_code") != 0:
+            log.error("키움 NXT 상장 조회 오류 stk_cd=%s msg=%s", stock_code, body.get("return_msg"))
+            return None
+        return bool((body.get("stk_nm") or "").strip())
+    except Exception:
+        log.error("키움 NXT 상장 조회 실패 stk_cd=%s", stock_code, exc_info=True)
+        return None
+
+
 def fetch_daily_candles(stock_code: str, count: int = 60, base_date: date | None = None) -> list[DailyCandle]:
     """일봉 (ka10081) — base_dt 기준 과거 봉 N개."""
     return _fetch_daily_page(stock_code.split("_", 1)[0], base_date or today())[:count]

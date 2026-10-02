@@ -44,6 +44,11 @@ def previous_open_day(on: date) -> date | None:
     return max(earlier) if earlier else None
 
 
+def open_days() -> frozenset[date]:
+    """알고 있는 개장일 전부(기준일 20일 전부터 한 응답 약 24일치). 못 받았으면 빈 집합."""
+    return _refreshed_open_days()
+
+
 def _refreshed_open_days() -> frozenset[date]:
     global _cached_day, _open_days
     current = today()
