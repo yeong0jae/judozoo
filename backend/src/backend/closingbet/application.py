@@ -54,6 +54,8 @@ from backend.stock.domain import Market
 log = logging.getLogger(__name__)
 
 LEADERS_COUNT = 5
+#: 후보 등락률 하한(%) — 주도주 목록 화면의 기본값(+7%)보다 넓게, 오른 종목이면 다 고를 수 있게
+CANDIDATE_MIN_CHANGE_RATE = 0.0
 #: 최근 고점 60거래일 + 오늘
 _DAILY_COUNT = 61
 _FLOW_DAYS = 5
@@ -91,10 +93,10 @@ class PoolStock:
 
 
 def pool() -> list[PoolStock]:
-    """주도주 5 + 후보(등락률 기준을 넘은 나머지, 거래대금 순). 주도주 목록 화면과 같은 목록이다."""
+    """주도주 5 + 후보(오늘 0% 이상 오른 나머지, 거래대금 순). 거래대금 35위·ETF·스팩 거르기는 주도주 목록과 같다."""
     leaders = leadingstock.find_leaders(LEADERS_COUNT)
     lead = {_code(s.stock_code) for s in leaders}
-    candidates = leadingstock.find_candidate_stocks(get_settings().criteria.min_daily_price_change_rate)
+    candidates = leadingstock.find_candidate_stocks(CANDIDATE_MIN_CHANGE_RATE)
     out = [_pool_stock(s, True) for s in leaders]
     out += [_pool_stock(s, False) for s in candidates if _code(s.stock_code) not in lead]
     return out
