@@ -25,6 +25,7 @@ from backend.auth.gate import is_public
 from backend.auth.presentation import router as auth_router
 from backend.feedback.presentation import router as feedback_router
 from backend.insight.presentation import router as insight_router
+from backend.closingbet.presentation import router as closingbet_router
 from backend.overseasleadingstock.presentation import router as overseas_router
 from backend.leadingstock.presentation import router as leading_router
 from backend.leadercalendar.presentation import router as leader_calendar_router
@@ -168,6 +169,7 @@ app.include_router(leading_router)
 app.include_router(leader_calendar_router)
 app.include_router(leader_timeline_router)
 app.include_router(insight_router)
+app.include_router(closingbet_router)
 
 
 def _error(code: str, status: int) -> JSONResponse:

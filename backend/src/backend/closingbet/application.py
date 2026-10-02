@@ -206,6 +206,10 @@ def market_late(flows: dict) -> dict[Market, int]:
 # --- 닉네임 -------------------------------------------------------------------
 
 
+def find_player(session: Session, user_id: int) -> BetPlayer | None:
+    return session.get(BetPlayer, user_id)
+
+
 def player(session: Session, user_id: int, at: datetime) -> BetPlayer:
     """처음이면 랜덤 닉네임으로 만든다. 동시에 같은 닉네임이 나오면 한 번 더 뽑는다."""
     existing = session.get(BetPlayer, user_id)
@@ -367,7 +371,7 @@ def fill_round(session: Session, day: date, at: datetime) -> bool:
             lead=r.stock.lead, nxt=bool(nxt), close_price=r.close, high_price=r.high, low_price=r.low,
             change_rate=r.stock.change_rate, foreign_net=r.flows.foreign, institution_net=r.flows.institution,
             foreign_5d=r.flows.foreign_5d, institution_5d=r.flows.institution_5d,
-            level=r.level.value if r.level else None, checks=_checks_json(r.checks), grade=r.checks.grade.value,
+            level=r.level.value if r.level else None, checks=checks_json(r.checks), grade=r.checks.grade.value,
             crowd=crowd.get(r.stock.code, 0), pot_man=pots.get(r.stock.code, 0),
         ))
     for bet in session.scalars(select(ClosingBet).where(ClosingBet.trading_day == day, ClosingBet.status == "open")):
@@ -383,7 +387,7 @@ def fill_round(session: Session, day: date, at: datetime) -> bool:
     return True
 
 
-def _checks_json(c: Checks) -> dict:
+def checks_json(c: Checks) -> dict:
     return {"near_high": c.near_high, "foreign": c.foreign, "institution": c.institution, "market_late": c.market_late, "level": c.level}
 
 

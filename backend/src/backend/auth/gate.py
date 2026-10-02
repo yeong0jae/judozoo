@@ -26,6 +26,12 @@ _PUBLIC_PATTERNS = [
     r"/api/leader-timeline",
     # 왜 오르나 — 사유 한 줄은 공개. 근거·관련 기사는 엔드포인트가 로그인일 때만 싣는다
     r"/api/insight/reasons",
+    # 모의 종가베팅 — 판돈·LIVE·목록(등급)·랭킹은 공개. 등급 이유·내 베팅은 엔드포인트가 로그인일 때만 싣는다.
+    # 베팅·닉네임·시장 수급 표(`/market`)는 로그인 뒤다
+    r"/api/closingbet/now",
+    r"/api/closingbet/stocks",
+    r"/api/closingbet/feed",
+    rf"/api/closingbet/rounds/{_SEG}",
     # 종목 시그널 — 미리보기로 최신 몇 건만 연다. 자르는 건 엔드포인트가 한다
     # (여기서 열어도 응답 전체가 나가지는 않는다). 지수 시그널은 로그인 뒤다.
     r"/api/leading-stocks/signal-events",
