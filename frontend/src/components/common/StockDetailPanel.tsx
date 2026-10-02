@@ -29,7 +29,7 @@ function shortCode(stockCode: string): string {
 type ChartInterval = "1m" | "1d";
 
 /**
- * 종목 상세 — 머리(가격·전일 대비·시고저) / 차트 / 주도주 조건 · 투자자별 순매수.
+ * 종목 상세 — 머리(가격·전일 대비·시고저) / 주도주 체크리스트 · 투자자별 순매수 / 차트.
  * 주도주·눌림·돌파·시그널 세 화면이 같이 쓴다. 스크롤은 부르는 쪽이 맡는다.
  *
  * [onBack]을 주면 모바일에서 맨 위에 "목록" 버튼을 단다 — 모바일은 목록과 상세가 한 화면씩이다.
@@ -97,6 +97,12 @@ export default function StockDetailPanel({
 
       {insight}
 
+      {/* 넓을 때만 두 열 — 목록 옆에 붙는 상세는 폭이 좁아, 둘로 나누면 조건 칸이 한 글자씩 접힌다 */}
+      <div className="grid grid-cols-1 items-start gap-7 2xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        {detail && <LeadingConditions results={detail.filterResults} />}
+        <InvestorSection stockCode={shortCode(stockCode)} />
+      </div>
+
       <ChartCard
         title={interval === "1m" ? "1분봉" : "일봉"}
         action={
@@ -140,12 +146,6 @@ export default function StockDetailPanel({
           />
         )}
       </ChartCard>
-
-      {/* 넓을 때만 두 열 — 목록 옆에 붙는 상세는 폭이 좁아, 둘로 나누면 조건 칸이 한 글자씩 접힌다 */}
-      <div className="grid grid-cols-1 items-start gap-7 2xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        {detail && <LeadingConditions results={detail.filterResults} />}
-        <InvestorSection stockCode={shortCode(stockCode)} />
-      </div>
     </div>
   );
 }
