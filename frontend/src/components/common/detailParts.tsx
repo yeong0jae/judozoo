@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 /** 상세 패널 조각 — 국내(`StockDetailPanel`)와 해외(`OverseasStockDetailPanel`)가 같이 쓴다. */
 
@@ -66,50 +66,169 @@ export function Segmented<T extends string>({
 }
 
 // ============================================================
-// 주도주 조건
+// 주도주 체크리스트
 // ============================================================
 
-export function LeadingConditions({ results }: { results: { filterName: string; criteriaDescription: string; actualValue: string; passed: boolean }[] }) {
+type FilterResult = { filterName: string; criteriaDescription: string; actualValue: string; passed: boolean };
+
+/** 화면에 보이는 이름과 "왜 보나요" 한 줄. 키는 서버의 필터 이름이다(해외는 "당일 등락률"로 띄어 쓴다). */
+const CONDITION_COPY: Record<string, { title: string; why: string }> = {
+  거래대금순위: { title: "거래대금 순위", why: "주도주는 돈이 몰리는 곳에서 나와요." },
+  시가총액: { title: "회사 규모", why: "작은 회사는 적은 돈에도 가격이 크게 움직여요." },
+  당일등락률: { title: "오늘 상승률", why: "많이 거래돼도 덜 오른 종목은 시장을 이끈다고 보기 어려워요." },
+  "당일 등락률": { title: "오늘 상승률", why: "많이 거래돼도 덜 오른 종목은 시장을 이끈다고 보기 어려워요." },
+  "프로그램 양매수": { title: "프로그램 매매", why: "규칙대로 움직이는 큰 자금이 들어오는지 봐요." },
+  "최근 고가 대비 현재가": { title: "최근 고점과의 거리", why: "고점 근처라야 위에서 본전에 팔려는 물량이 적어요." },
+  "시가 대비 현재가": { title: "시가 위에 있나요", why: "시가 아래로 밀리면 손해 본 사람들의 매도가 나오기 쉬워요." },
+  "전일 등락률": { title: "어제 상승률", why: "이틀 연속 크게 오르면 차익 매물이 쏟아지기 쉬워요." },
+  시초가: { title: "시작 가격", why: "너무 높게 시작하면 장중에 밀리기 쉬워요." },
+};
+
+/** 두 개씩 한 묶음 — 질문 하나에 조건 둘. 없는 조건은 빠지고, 비는 묶음은 통째로 빠진다. */
+const CONDITION_GROUPS: { title: string; filters: string[] }[] = [
+  { title: "돈이 몰리는 큰 종목인가요?", filters: ["거래대금순위", "시가총액"] },
+  { title: "오늘 실제로 사고 있나요?", filters: ["당일등락률", "당일 등락률", "프로그램 양매수"] },
+  { title: "지금 가격은 어디쯤에 있나요?", filters: ["최근 고가 대비 현재가", "시가 대비 현재가"] },
+  { title: "이미 너무 오르진 않았나요?", filters: ["전일 등락률", "시초가"] },
+];
+
+function groupConditions(results: FilterResult[]): { title: string; items: FilterResult[] }[] {
+  const groups = CONDITION_GROUPS.map((g) => ({
+    title: g.title,
+    items: results.filter((r) => g.filters.includes(r.filterName)),
+  }));
+  // 서버에 조건이 새로 생기면 묶음 밖에서도 보이게 둔다
+  const known = new Set(CONDITION_GROUPS.flatMap((g) => g.filters));
+  groups.push({ title: "그 밖의 조건", items: results.filter((r) => !known.has(r.filterName)) });
+  return groups.filter((g) => g.items.length > 0);
+}
+
+function scoreOf(passed: number, total: number): { label: string; className: string } {
+  if (passed === total) return { label: "모두 통과", className: "bg-emerald-400/15 text-emerald-400" };
+  if (passed >= total * 0.75) return { label: "대부분 통과", className: "bg-emerald-400/15 text-emerald-400" };
+  if (passed >= total * 0.5) return { label: "절반쯤 통과", className: "bg-zinc-800 text-zinc-300" };
+  return { label: "대부분 미달", className: "bg-red-400/15 text-red-300" };
+}
+
+export function LeadingConditions({ results }: { results: FilterResult[] }) {
+  const groups = groupConditions(results);
+  const [rawStep, setStep] = useState(0);
+  const step = Math.min(rawStep, Math.max(groups.length - 1, 0));
+  const go = (i: number) => setStep((i + groups.length) % groups.length);
   const passedCount = results.filter((r) => r.passed).length;
+  const score = scoreOf(passedCount, results.length);
+  const current = groups[step];
+
   return (
-    <section className="@container flex flex-col gap-3">
-      <div className="flex items-baseline justify-between">
-        <h3 className="text-[15px] font-bold text-zinc-100">주도주 조건</h3>
-        <span className="num text-xs text-zinc-400">
-          <span className="font-bold text-emerald-400">{passedCount}</span> / {results.length} 통과
+    <section className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[15px] font-bold text-zinc-100">주도주 체크리스트</h3>
+          <p className="break-keep text-[13px] leading-relaxed text-zinc-500">
+            오늘 시장을 이끄는 종목인지 {results.length}가지로 봐요.
+          </p>
+        </div>
+        <span className={`inline-flex shrink-0 items-baseline rounded-2xl px-3.5 py-2 ${score.className}`}>
+          <span className="num text-[22px] font-bold">{passedCount}</span>
+          <span className="num text-[13px] opacity-75">/{results.length}</span>
+          <span className="ml-1.5 text-xs font-semibold">{score.label}</span>
         </span>
       </div>
-      {/* 한 칸이 조건 하나 — 어디서 떨어졌는지가 순서로 읽힌다(판별력이 큰 조건이 앞) */}
-      <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-zinc-850" aria-hidden>
-        {results.map((r) => (
-          <span key={r.filterName} className={`flex-1 ${r.passed ? "bg-emerald-400/85" : "bg-red-400/90"}`} />
-        ))}
-      </div>
-      {/* 두 열은 칸이 넓을 때만 — 좁은 두 열이면 이름이 글자 단위로 꺾인다(실측값이 "1조 2,406억 5,300만원"처럼 길다) */}
-      <ul className="grid grid-cols-1 gap-1.5 @xl:grid-cols-2">
-        {results.map((r) => (
-          <li key={r.filterName} className="flex items-center gap-2.5 rounded-xl bg-zinc-900 px-3 py-2.5">
-            <span
-              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${
-                r.passed ? "bg-emerald-400/10 text-emerald-400" : "bg-red-400/10 text-red-400"
-              }`}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d={r.passed ? "M5 12l5 5 9-10" : "M7 7l10 10M17 7L7 17"} />
-              </svg>
-              <span className="sr-only">{r.passed ? "통과" : "미달"}</span>
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-px">
-              <span className="break-keep text-xs font-semibold text-zinc-300">{r.filterName}</span>
-              <span className="truncate text-[11.5px] text-zinc-500">{r.criteriaDescription}</span>
-            </span>
-            <span className={`num shrink-0 whitespace-nowrap text-xs font-semibold ${r.passed ? "text-zinc-100" : "text-red-400"}`}>
-              {r.actualValue}
-            </span>
-          </li>
-        ))}
-      </ul>
+
+      {current && (
+        // 어디를 눌러도 다음 묶음 — 키보드는 아래 화살표·점 버튼으로 넘긴다
+        <div className="relative flex flex-col gap-2">
+          {groups.length > 1 && (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden
+              onClick={() => go(step + 1)}
+              className="absolute inset-0 z-0 cursor-pointer"
+            />
+          )}
+          <h4 className="pointer-events-none relative px-0.5 text-[15px] font-bold text-zinc-100">{current.title}</h4>
+          <ul className="pointer-events-none relative flex flex-col gap-1.5">
+            {current.items.map((r) => (
+              <ConditionItem key={r.filterName} result={r} />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {groups.length > 1 && (
+        <nav aria-label="묶음 넘기기" className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => go(step - 1)}
+            aria-label="이전 묶음"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-900 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+          >
+            <Chevron dir="left" />
+          </button>
+          <div className="flex items-center">
+            {groups.map((g, i) => {
+              const all = g.items.every((r) => r.passed);
+              const on = i === step;
+              return (
+                <button
+                  key={g.title}
+                  type="button"
+                  onClick={() => go(i)}
+                  aria-label={`${i + 1}번째 묶음, ${all ? "모두 통과" : "미충족 있음"}`}
+                  aria-current={on ? "step" : undefined}
+                  className="inline-flex h-6 items-center px-1"
+                >
+                  <span
+                    className={`block h-2 rounded-full transition-all duration-200 ${
+                      on ? "w-5 bg-zinc-100" : all ? "w-2 bg-emerald-500" : "w-2 bg-zinc-600"
+                    }`}
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => go(step + 1)}
+            aria-label={step === groups.length - 1 ? "처음 묶음으로" : "다음 묶음"}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-900 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100"
+          >
+            <Chevron dir="right" />
+          </button>
+        </nav>
+      )}
     </section>
+  );
+}
+
+function ConditionItem({ result: r }: { result: FilterResult }) {
+  const copy = CONDITION_COPY[r.filterName];
+  return (
+    <li className="flex gap-3 rounded-2xl bg-zinc-900 px-4 py-3.5">
+      <span
+        className={`inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[7px] ${
+          r.passed ? "bg-emerald-400/15 text-emerald-500" : "bg-red-400/15 text-red-400"
+        }`}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d={r.passed ? "M5 12.5l4.5 4.5L19 7.5" : "M7 7l10 10M17 7L7 17"} />
+        </svg>
+        <span className="sr-only">{r.passed ? "충족" : "미충족"}</span>
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="break-keep text-sm font-bold text-zinc-100">{copy?.title ?? r.filterName}</span>
+          <span className={`num shrink-0 whitespace-nowrap text-sm font-bold ${r.passed ? "text-emerald-400" : "text-red-400"}`}>
+            {r.actualValue}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[11.5px] leading-normal">
+          <span className="shrink-0 rounded-md bg-zinc-800 px-1.5 py-px text-zinc-400">기준 {r.criteriaDescription}</span>
+          {copy && <span className="break-keep text-zinc-500">{copy.why}</span>}
+        </div>
+      </div>
+    </li>
   );
 }
 

@@ -83,7 +83,7 @@ export default function OverseasStockDetailPanel({
       )}
 
       {quote && detailQ.isError && (
-        <p className="text-xs text-rose-700">주도주 조건을 불러올 수 없습니다</p>
+        <p className="text-xs text-rose-700">주도주 체크리스트를 불러올 수 없습니다</p>
       )}
 
       {insight}
