@@ -91,15 +91,18 @@ export default function StockDetailPanel({
         <DetailHeader stockCode={stockCode} quote={quote} detail={detail} lastMinute={minutes[minutes.length - 1]} />
       )}
 
-      {quote && detailQ.isError && (
-        <p className="text-xs text-rose-700">주도주 체크리스트를 불러올 수 없습니다</p>
-      )}
-
       {insight}
 
       {/* 넓을 때만 두 열 — 목록 옆에 붙는 상세는 폭이 좁아, 둘로 나누면 조건 칸이 한 글자씩 접힌다 */}
       <div className="grid grid-cols-1 items-start gap-7 2xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        {detail && <LeadingConditions results={detail.filterResults} />}
+        {/* 체크리스트 자리는 늘 왼쪽에 잡아 둔다 — 비워 두면 수급이 먼저 왼쪽에 그려졌다가 오른쪽으로 튄다 */}
+        {detail ? (
+          <LeadingConditions results={detail.filterResults} />
+        ) : detailQ.isError ? (
+          <p className="text-xs text-rose-700">주도주 체크리스트를 불러올 수 없습니다</p>
+        ) : (
+          <Skeleton className="h-[23rem] w-full" />
+        )}
         <InvestorSection stockCode={shortCode(stockCode)} />
       </div>
 
