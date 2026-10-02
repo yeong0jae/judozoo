@@ -8,7 +8,7 @@ const pct = (v: number) => `${v > 0 ? "+" : ""}${Number.isInteger(v) ? v : v.toF
 const GROUPS = [
   { title: "고가를 형성했나요?", filters: ["고가 마감", "최근 고점 (60거래일)"] },
   { title: "외국인·기관이 샀나요?", filters: ["외국인", "기관"] },
-  { title: "마감 부근 시장 분위기가 좋았나요?", filters: ["시장 막판"] },
+  { title: "마감 부근 시장 수급이 좋았나요?", filters: ["시장 막판"] },
 ];
 
 const SCALES: ConditionKit["scales"] = {
