@@ -153,7 +153,7 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
           <MarketLocked />
         ) : marketQ.data ? (
           <MarketFlowCard
-            title={live ? `오늘 시장 · ${clock.getHours()}:${String(clock.getMinutes()).padStart(2, "0")}` : "오늘 시장 · 마감"}
+            title={live ? "오늘 시장" : "오늘 시장 · 마감"}
             flows={toFlows(marketQ.data)}
             afterLive={live}
             night={nightOf(marketQ.data, "지금")}

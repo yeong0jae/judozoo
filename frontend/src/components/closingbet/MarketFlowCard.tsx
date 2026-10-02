@@ -15,6 +15,7 @@ const COLS: { label: string; time?: string; pick: (v: number[]) => number; split
 ];
 
 export default function MarketFlowCard({
+  /** 화면에는 그리지 않고 읽어 주기에만 쓴다 */
   title,
   flows,
   afterLive,
@@ -29,13 +30,6 @@ export default function MarketFlowCard({
   const markets: MarketName[] = ["코스피", "코스닥"];
   return (
     <section aria-label={title} className="flex min-w-0 flex-col gap-3.5 rounded-3xl bg-zinc-900 px-6 py-[22px]">
-      <span className="inline-flex items-center gap-2 text-[13px] font-bold text-blue-700">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-        </svg>
-        {title}
-      </span>
-
       <div className="grid flex-1 content-between text-sm" style={{ gridTemplateColumns: "3.6rem 2.6rem repeat(6, minmax(0, 1fr))" }}>
         <span />
         <span />
