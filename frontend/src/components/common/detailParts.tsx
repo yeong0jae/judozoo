@@ -69,7 +69,14 @@ export function Segmented<T extends string>({
 // 주도주 체크리스트
 // ============================================================
 
-type FilterResult = { filterName: string; criteriaDescription: string; actualValue: string; passed: boolean };
+type FilterResult = {
+  filterName: string;
+  criteriaDescription: string;
+  actualValue: string;
+  passed: boolean;
+  value?: number | null;
+  threshold?: number | null;
+};
 
 /** 화면에 보이는 이름과 "왜 보나요" 한 줄. 키는 서버의 필터 이름이다(해외는 "당일 등락률"로 띄어 쓴다). */
 const CONDITION_COPY: Record<string, { title: string; why: string }> = {
@@ -82,6 +89,24 @@ const CONDITION_COPY: Record<string, { title: string; why: string }> = {
   "시가 대비 현재가": { title: "시가 위에 있나요", why: "시가 아래로 밀리면 손해 본 사람들의 매도가 나오기 쉬워요." },
   "전일 등락률": { title: "어제 상승률", why: "이틀 연속 크게 오르면 차익 매물이 쏟아지기 쉬워요." },
   시초가: { title: "시작 가격", why: "너무 높게 시작하면 장중에 밀리기 쉬워요." },
+};
+
+/**
+ * 눈금 막대 — min~max 위에 충족 구간을 칠하고 지금 값을 꽂는다. 기준값은 서버가 주고 범위만 여기서 정한다.
+ * [pass]는 충족 구간이 기준의 어느 쪽인지. 범위를 벗어난 값은 양 끝에 붙인다.
+ */
+const pct = (v: number) => `${v > 0 ? "+" : ""}${Number.isInteger(v) ? v : v.toFixed(1)}%`;
+const CONDITION_SCALES: Record<
+  string,
+  { min: number; max: number; pass: "below" | "above"; label: (v: number) => string; names?: Record<number, string> }
+> = {
+  거래대금순위: { min: 1, max: 60, pass: "below", label: (v) => `${v}위` },
+  당일등락률: { min: 0, max: 30, pass: "above", label: pct },
+  "당일 등락률": { min: 0, max: 30, pass: "above", label: pct },
+  "최근 고가 대비 현재가": { min: -20, max: 0, pass: "above", label: pct, names: { 0: "고가" } },
+  "시가 대비 현재가": { min: -10, max: 20, pass: "above", label: pct, names: { 0: "시가" } },
+  "전일 등락률": { min: -10, max: 30, pass: "below", label: pct },
+  시초가: { min: -10, max: 20, pass: "below", label: pct },
 };
 
 /** 두 개씩 한 묶음 — 질문 하나에 조건 둘. 없는 조건은 빠지고, 비는 묶음은 통째로 빠진다. */
@@ -223,6 +248,7 @@ function ConditionItem({ result: r }: { result: FilterResult }) {
             {r.actualValue}
           </span>
         </div>
+        <ConditionScale result={r} />
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[11.5px] leading-normal">
           <span className="shrink-0 rounded-md bg-zinc-800 px-1.5 py-px text-zinc-400">기준 {r.criteriaDescription}</span>
           {copy && <span className="break-keep text-zinc-500">{copy.why}</span>}
@@ -232,3 +258,35 @@ function ConditionItem({ result: r }: { result: FilterResult }) {
   );
 }
 
+function ConditionScale({ result: r }: { result: FilterResult }) {
+  const scale = CONDITION_SCALES[r.filterName];
+  if (!scale || r.value == null || r.threshold == null) return null;
+  const { min, max } = scale;
+  const at = (v: number) => (Math.max(0, Math.min(1, (v - min) / (max - min))) * 100);
+  const [from, to] = scale.pass === "below" ? [min, r.threshold] : [r.threshold, max];
+  const ticks = [min, r.threshold, max].filter((v, i, all) => all.indexOf(v) === i);
+  return (
+    <div className="flex flex-col gap-1 px-0.5" aria-hidden>
+      <div className="relative h-2 rounded bg-zinc-800">
+        <span className="absolute inset-y-0 rounded bg-emerald-500/30" style={{ left: `${at(from)}%`, width: `${at(to) - at(from)}%` }} />
+        <span
+          className="absolute -top-1 h-4 w-1 -translate-x-1/2 rounded-sm bg-zinc-100 ring-2 ring-zinc-900"
+          style={{ left: `${at(r.value)}%` }}
+        />
+      </div>
+      <div className="relative h-3.5">
+        {ticks.map((v, i) => (
+          <span
+            key={v}
+            className={`num absolute top-0 whitespace-nowrap text-[10.5px] ${v === r.threshold ? "text-zinc-400" : "text-zinc-600"} ${
+              i === 0 ? "left-0" : i === ticks.length - 1 ? "right-0" : "-translate-x-1/2"
+            }`}
+            style={i > 0 && i < ticks.length - 1 ? { left: `${at(v)}%` } : undefined}
+          >
+            {scale.names?.[v] ?? scale.label(v)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}

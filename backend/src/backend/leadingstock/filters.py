@@ -28,6 +28,9 @@ class FilterEvaluationResult:
     criteria_description: str
     actual_value: str
     passed: bool
+    #: 실측값·기준값을 숫자로 — 화면이 눈금 막대를 그린다. 막대가 없는 조건이나 값이 없으면 None
+    value: float | None = None
+    threshold: float | None = None
 
 
 class StockFilter(ABC):
@@ -39,8 +42,11 @@ class StockFilter(ABC):
     @abstractmethod
     def evaluate(self, stock: LeadingStockSnapshot) -> FilterEvaluationResult: ...
 
-    def _result(self, stock: LeadingStockSnapshot, description: str, actual: str) -> FilterEvaluationResult:
-        return FilterEvaluationResult(self.name, description, actual, self.filter(stock))
+    def _result(
+        self, stock: LeadingStockSnapshot, description: str, actual: str,
+        value: float | None = None, threshold: float | None = None,
+    ) -> FilterEvaluationResult:
+        return FilterEvaluationResult(self.name, description, actual, self.filter(stock), value, threshold)
 
 
 class FilterChain:
@@ -72,6 +78,7 @@ class TradingValueRankFilter(StockFilter):
             stock,
             f"상위 {self._criteria.max_trading_value_rank}위 이내",
             f"{stock.trading_value_rank}위",
+            stock.trading_value_rank, self._criteria.max_trading_value_rank,
         )
 
 
@@ -89,6 +96,7 @@ class DailyPriceChangeFilter(StockFilter):
             stock,
             f"{self._criteria.min_daily_price_change_rate}% 이상",
             f"{stock.price_change_rate:+.2f}%",
+            stock.price_change_rate, self._criteria.min_daily_price_change_rate,
         )
 
 
@@ -117,12 +125,13 @@ class PriceAboveOpenFilter(StockFilter):
         return stock.opening_price > 0 and stock.current_price >= stock.opening_price
 
     def evaluate(self, stock):
+        rate = None
         if stock.opening_price > 0:
             rate = (stock.current_price - stock.opening_price) / stock.opening_price * 100
             actual = f"{rate:+.2f}%"
         else:
             actual = "시가 없음"
-        return self._result(stock, "현재가 ≥ 시가", actual)
+        return self._result(stock, "현재가 ≥ 시가", actual, rate, 0.0)
 
 
 class PrevDayCloseFilter(StockFilter):
@@ -141,8 +150,12 @@ class PrevDayCloseFilter(StockFilter):
 
     def evaluate(self, stock):
         candles = self._daily_candles(stock.stock_code)
-        actual = f"{candles[1].change_rate:+.2f}%" if len(candles) >= 2 else "데이터 부족"
-        return self._result(stock, f"{self._criteria.max_prev_close_change_rate}% 이하", actual)
+        rate = candles[1].change_rate if len(candles) >= 2 else None
+        actual = f"{rate:+.2f}%" if rate is not None else "데이터 부족"
+        return self._result(
+            stock, f"{self._criteria.max_prev_close_change_rate}% 이하", actual,
+            rate, self._criteria.max_prev_close_change_rate,
+        )
 
 
 class OpeningPriceFilter(StockFilter):
@@ -167,17 +180,18 @@ class OpeningPriceFilter(StockFilter):
 
     def evaluate(self, stock):
         candles = self._daily_candles(stock.stock_code)
+        rate = self._open_change_rate(stock)
         if len(candles) < 2:
             actual = "데이터 부족"
         else:
-            rate = self._open_change_rate(stock)
             actual = (
                 f"{format_price(candles[0].open_price)} ({rate:+.2f}%)"
                 if rate is not None
                 else "시초가 없음"
             )
         return self._result(
-            stock, f"시초가 {self._criteria.max_opening_price_change_rate}% 이하", actual
+            stock, f"시초가 {self._criteria.max_opening_price_change_rate}% 이하", actual,
+            rate, self._criteria.max_opening_price_change_rate,
         )
 
 
@@ -252,6 +266,7 @@ class DailyHighPositionFilter(StockFilter):
             stock,
             f"전일까지 최근 60거래일 고가 대비 현재가 {self._criteria.max_high_position_drop_rate}% 이상",
             actual,
+            rate, self._criteria.max_high_position_drop_rate,
         )
 
 

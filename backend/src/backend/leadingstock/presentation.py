@@ -154,6 +154,8 @@ class FilterResultItem(BaseModel):
     criteria_description: str = Field(serialization_alias="criteriaDescription")
     actual_value: str = Field(serialization_alias="actualValue")
     passed: bool
+    value: float | None = None
+    threshold: float | None = None
 
 
 class LeadingStockDetailResponse(BaseModel):
@@ -454,6 +456,7 @@ def get_stock_detail(stock_code: str) -> ApiResponse[LeadingStockDetailResponse]
                 FilterResultItem(
                     filter_name=r.filter_name, criteria_description=r.criteria_description,
                     actual_value=r.actual_value, passed=r.passed,
+                    value=r.value, threshold=r.threshold,
                 )
                 for r in ev.filter_results
             ],

@@ -38,6 +38,8 @@ class FilterResultItem(BaseModel):
     criteria_description: str = Field(serialization_alias="criteriaDescription")
     actual_value: str = Field(serialization_alias="actualValue")
     passed: bool
+    value: float | None = None
+    threshold: float | None = None
 
 
 class OverseasStockDetailResponse(BaseModel):
@@ -117,6 +119,8 @@ def get_stock_detail(exchange: str, symbol: str) -> ApiResponse[OverseasStockDet
                     criteria_description=f.criteria_description,
                     actual_value=f.actual_value,
                     passed=f.passed,
+                    value=f.value,
+                    threshold=f.threshold,
                 )
                 for f in result["filters"]
             ],

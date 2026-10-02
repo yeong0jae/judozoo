@@ -57,6 +57,11 @@ class Test거래대금순위:
         assert 결과.actual_value == "3위"
         assert 결과.passed is True
 
+    def test_눈금_막대용으로_순위와_기준을_숫자로도_준다(self):
+        결과 = self.필터.evaluate(종목(trading_value_rank=3))
+
+        assert (결과.value, 결과.threshold) == (3, 35)
+
 
 class Test당일등락률:
     필터 = f.DailyPriceChangeFilter(기준(min_daily_price_change_rate=7.0))
@@ -67,6 +72,11 @@ class Test당일등락률:
 
     def test_부호를_붙여_표시한다(self):
         assert self.필터.evaluate(종목(price_change_rate=7.25)).actual_value == "+7.25%"
+
+    def test_눈금_막대용으로_등락률과_기준을_숫자로도_준다(self):
+        결과 = self.필터.evaluate(종목(price_change_rate=7.25))
+
+        assert (결과.value, 결과.threshold) == (7.25, 7.0)
 
 
 class Test시가총액:
@@ -100,6 +110,13 @@ class Test시가_대비_현재가:
 
         assert 결과.passed is False
         assert 결과.actual_value == "시가 없음"
+        assert 결과.value is None
+
+    def test_눈금_막대용으로_시가_대비_등락률을_숫자로도_준다(self):
+        결과 = self.필터.evaluate(종목(current_price=77_000, opening_price=70_000))
+
+        assert 결과.value == pytest.approx(10.0)
+        assert 결과.threshold == 0.0
 
 
 class Test전일_등락률:
@@ -122,6 +139,12 @@ class Test전일_등락률:
 
         assert 결과.passed is False
         assert 결과.actual_value == "데이터 부족"
+        assert 결과.value is None
+
+    def test_눈금_막대용으로_어제_등락률과_기준을_숫자로도_준다(self):
+        결과 = self.필터([일봉(), 일봉(change_rate=12.5)]).evaluate(종목())
+
+        assert (결과.value, 결과.threshold) == (12.5, 25.0)
 
 
 class Test시초가:
@@ -140,6 +163,12 @@ class Test시초가:
         결과 = self.필터([일봉(open_price=73_000), 일봉(close_price=70_000)]).evaluate(종목())
 
         assert 결과.actual_value == "73,000원 (+4.29%)"
+
+    def test_눈금_막대용으로_갭과_기준을_숫자로도_준다(self):
+        결과 = self.필터([일봉(open_price=73_000), 일봉(close_price=70_000)]).evaluate(종목())
+
+        assert 결과.value == pytest.approx(4.2857, abs=1e-3)
+        assert 결과.threshold == 7.0
 
     def test_일봉이_부족하면_차단(self):
         assert self.필터([일봉()]).filter(종목()) is False
@@ -212,6 +241,13 @@ class Test최근_고가_대비:
 
         assert 결과.passed is True
         assert 결과.criteria_description == "전일까지 최근 60거래일 고가 대비 현재가 -5.0% 이상"
+
+    def test_눈금_막대용으로_고가_대비_거리와_기준을_숫자로도_준다(self):
+        # 고가 80,000 대비 현재가 76,000 = -5%
+        결과 = self.필터([일봉(high_price=80_000)]).evaluate(종목(current_price=76_000))
+
+        assert 결과.value == pytest.approx(-5.0)
+        assert 결과.threshold == -5.0
 
     def test_전일까지의_가장_최근_60봉만_쓴다(self):
         from datetime import timedelta

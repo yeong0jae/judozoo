@@ -160,6 +160,9 @@ class Test종목_상세:
         assert [f.passed for f in result["filters"]] == [True, True, True]
         assert result["filters"][1].actual_value == "+10.00%"
         assert result["filters"][2].actual_value == "$100B"
+        # 눈금 막대용 숫자 — 시가총액은 막대가 없어 비운다
+        assert (result["filters"][1].value, result["filters"][1].threshold) == (10.0, application.MIN_CHANGE_RATE_PCT)
+        assert result["filters"][2].value is None
 
     @respx.mock
     def test_시가총액을_못_구하면_조회_불가로_적고_탈락시킨다(self, respx_mock, 토큰_발급):

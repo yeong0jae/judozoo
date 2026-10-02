@@ -73,3 +73,6 @@ class FilterResult:
     criteria_description: str
     actual_value: str
     passed: bool
+    #: 실측값·기준값을 숫자로 — 화면이 눈금 막대를 그린다. 막대가 없는 조건은 None
+    value: float | None = None
+    threshold: float | None = None

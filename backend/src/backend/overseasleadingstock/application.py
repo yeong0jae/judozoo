@@ -102,12 +102,16 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
             criteria_description=f"통합 상위 {TOP_N}위 이내",
             actual_value=f"{stock.rank}위",
             passed=stock.rank <= TOP_N,
+            value=stock.rank,
+            threshold=TOP_N,
         ),
         FilterResult(
             filter_name="당일 등락률",
             criteria_description=f"{int(MIN_CHANGE_RATE_PCT)}% 이상",
             actual_value=f"{stock.rate:+.2f}%",
             passed=stock.rate >= MIN_CHANGE_RATE_PCT,
+            value=stock.rate,
+            threshold=MIN_CHANGE_RATE_PCT,
         ),
         FilterResult(
             filter_name="시가총액",

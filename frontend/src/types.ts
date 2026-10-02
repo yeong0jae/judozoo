@@ -374,6 +374,8 @@ export interface FilterResultItem {
   criteriaDescription: string;
   actualValue: string;
   passed: boolean;
+  value: number | null; // 눈금 막대용 실측값. 막대가 없는 조건이나 값이 없으면 null
+  threshold: number | null;
 }
 
 export interface LeadingStockDetailResponse {
@@ -407,6 +409,8 @@ export interface OverseasFilterResult {
   criteriaDescription: string;
   actualValue: string;
   passed: boolean;
+  value: number | null; // 눈금 막대용 실측값. 막대가 없는 조건이나 값이 없으면 null
+  threshold: number | null;
 }
 
 export interface OverseasStockDetailResponse {
