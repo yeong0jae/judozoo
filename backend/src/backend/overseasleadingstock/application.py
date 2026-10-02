@@ -26,8 +26,8 @@ TOP_N = 40
 MIN_CHANGE_RATE_PCT = 5.0          # 상세 B: 당일 등락률 하한
 MIN_MARKET_CAP_USD = 2_000_000_000  # 상세 C: 시가총액 $2B 하한
 MAX_OPENING_GAP_PCT = 7.0          # 상세 E: 전일 종가 대비 시가 상한 — 국내와 같다
-#: 장중 수명. 갱신 폴러(10초)가 한 번 늦어도 비지 않게 여유를 둔다.
-_POOL_TTL_SECONDS = 15
+#: 장중 수명. 갱신 폴러(15초)가 한 번 늦어도 비지 않게 여유를 둔다.
+_POOL_TTL_SECONDS = 20
 
 
 def _pool_ttl() -> float:

@@ -19,8 +19,8 @@ log = logging.getLogger(__name__)
 _POOL_REFRESH_JOB = "overseas-ranking-pool-refresher"
 _MINUTE_SETTLE_JOB = "overseas-minute-settler"
 
-# 후보 풀 캐시(TTL 15초)를 만료 전에 갈아 끼우는 주기
-_POOL_REFRESH_SECONDS = 10
+# 후보 풀 캐시(TTL 20초)를 만료 전에 갈아 끼우는 주기
+_POOL_REFRESH_SECONDS = 15
 
 
 @tracing.traced_job(_POOL_REFRESH_JOB)

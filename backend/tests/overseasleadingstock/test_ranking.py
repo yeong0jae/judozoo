@@ -259,8 +259,8 @@ class Test해외_주도주_API:
 
 
 class Test후보_풀_보관_기간:
-    def test_장중에는_15초만_들고_있는다(self):
-        assert application._pool_ttl() == 15
+    def test_장중에는_20초만_들고_있는다(self):
+        assert application._pool_ttl() == 20
 
     def test_장이_멈춘_동안은_다음_미국장까지_들고_있는다(self, monkeypatch):
         monkeypatch.setattr("backend.market.calendar.us_market_status", lambda: (False, False))

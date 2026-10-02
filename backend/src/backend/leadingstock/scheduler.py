@@ -51,8 +51,8 @@ _POOL_REFRESH_JOB = "trading-value-pool-refresher"
 _MINUTE_SYNC_JOB = "today-minute-syncer"
 _MINUTE_SETTLE_JOB = "today-minute-settler"
 
-# 거래대금 상위 캐시(TTL 15초)를 만료 전에 갈아 끼우는 주기
-_POOL_REFRESH_SECONDS = 10
+# 거래대금 상위 캐시(TTL 20초)를 만료 전에 갈아 끼우는 주기
+_POOL_REFRESH_SECONDS = 15
 
 _SNAPSHOT_START = time(8, 0)   # NXT 프리마켓 개장
 _SNAPSHOT_END = time(20, 0)    # NXT 애프터마켓 마감

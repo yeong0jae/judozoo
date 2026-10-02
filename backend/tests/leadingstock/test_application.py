@@ -83,10 +83,10 @@ def 장_상태(monkeypatch, 휴장: bool, 거래시간: bool, 지금: datetime) 
 
 
 class Test거래대금_상위_보관_기간:
-    def test_장중에는_15초만_들고_있는다(self, monkeypatch):
+    def test_장중에는_20초만_들고_있는다(self, monkeypatch):
         장_상태(monkeypatch, 휴장=False, 거래시간=True, 지금=datetime(2026, 9, 25, 10, 0))
 
-        assert application._pool_ttl() == 15
+        assert application._pool_ttl() == 20
 
     def test_마감_뒤에_받은_값은_다음날_장_시작까지_간다(self, monkeypatch):
         장_상태(monkeypatch, 휴장=False, 거래시간=False, 지금=datetime(2026, 9, 25, 20, 30))
