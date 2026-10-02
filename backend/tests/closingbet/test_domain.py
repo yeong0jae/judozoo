@@ -23,6 +23,7 @@ from backend.closingbet.domain import (
     phase_at,
     random_nickname,
     recent_high_gap,
+    regular_close,
     reveal_at,
     sell_price,
     shares_for,
@@ -157,22 +158,51 @@ class Test아침_5분_매도:
 
 
 class Test종베_체크와_등급:
-    def test_다섯_가지를_모두_채우면_S(self):
-        c = Checks.of(price=412_500, high=414_000, foreign_net=2640, institution_net=910, market_late_net=740, recent_high_gap=-0.4, recent_high_floor=-5.0)
-        assert (c.passed, c.grade) == (5, Grade.S)
+    def test_여섯_가지를_모두_채우면_S(self):
+        c = Checks.of(
+            price=412_500, high=414_000, foreign_net=2640, institution_net=910, market_late_net=740,
+            recent_high_gap=-0.4, recent_high_floor=-5.0, regular_close=410_000,
+        )
+        assert (c.passed, c.grade) == (6, Grade.S)
 
     def test_고가에서_1_5퍼센트_넘게_밀리면_고가_마감이_아니다(self):
-        assert Checks.of(985, 1000, 1, 1, 1, None, -5.0).near_high
-        assert not Checks.of(984, 1000, 1, 1, 1, None, -5.0).near_high
+        assert Checks.of(985, 1000, 1, 1, 1, None, -5.0, None).near_high
+        assert not Checks.of(984, 1000, 1, 1, 1, None, -5.0, None).near_high
 
-    @pytest.mark.parametrize(("passed", "grade"), [(4, Grade.A), (3, Grade.B), (2, Grade.C), (0, Grade.C)])
+    @pytest.mark.parametrize(("passed", "grade"), [(5, Grade.A), (4, Grade.B), (3, Grade.C), (0, Grade.C)])
     def test_채운_개수로_등급을_매긴다(self, passed, grade):
-        flags = [1 if i < passed else -1 for i in range(4)]
-        c = Checks.of(1000 if flags[0] > 0 else 900, 1000, flags[1], flags[2], flags[3], None, -5.0)
-        assert c.grade is grade
+        on = [i < passed for i in range(6)]
+        c = Checks.of(
+            1000 if on[0] else 900, 1000, 1 if on[1] else -1, 1 if on[2] else -1, 1 if on[3] else -1,
+            0.0 if on[4] else -10.0, -5.0, 900 if on[5] else 1100,
+        )
+        assert (c.passed, c.grade) == (passed, grade)
 
     def test_순매수가_0이면_샀다고_보지_않는다(self):
-        assert not Checks.of(1000, 1000, 0, 0, 0, None, -5.0).foreign
+        assert not Checks.of(1000, 1000, 0, 0, 0, None, -5.0, None).foreign
+
+
+class Test애프터_버팀:
+    @pytest.mark.parametrize(("close", "regular", "ok"), [(1000, 1000, True), (1001, 1000, True), (999, 1000, False)])
+    def test_20시_종가가_정규장_종가_이상이면_맞아요(self, close, regular, ok):
+        assert Checks.of(close, close, 1, 1, 1, None, -5.0, regular).after_hold is ok
+
+    def test_정규장이_안_끝났으면_통과로_세지_않는다(self):
+        assert not Checks.of(1000, 1000, 1, 1, 1, None, -5.0, None).after_hold
+
+    def test_정규장_종가는_15시30분까지의_마지막_체결이다(self):
+        bars = [bar(THU, 15, 19, 101, 100), bar(THU, 15, 30, 105, 105), bar(THU, 15, 41, 99, 99), bar(THU, 19, 59, 98, 98)]
+        assert regular_close(bars, THU) == 105
+
+    def test_15시30분_봉이_없어도_그_전_마지막_체결로_잡는다(self):
+        bars = [bar(THU, 15, 28, 103, 103), bar(THU, 16, 1, 99, 99)]
+        assert regular_close(bars, THU) == 103
+
+    def test_정규장이_끝나기_전에는_잡지_않는다(self):
+        assert regular_close([bar(THU, 15, 10, 101, 100)], THU) is None
+
+    def test_다른_날_봉은_보지_않는다(self):
+        assert regular_close([bar(date(2026, 9, 30), 15, 30, 100, 100)], THU) is None
 
 
 class Test최근_고점과의_거리:
@@ -194,7 +224,7 @@ class Test최근_고점과의_거리:
 
     @pytest.mark.parametrize(("gap", "ok"), [(-5.0, True), (-4.9, True), (-5.1, False), (None, False)])
     def test_기준_안이면_맞아요(self, gap, ok):
-        assert Checks.of(1000, 1000, 1, 1, 1, gap, -5.0).recent_high is ok
+        assert Checks.of(1000, 1000, 1, 1, 1, gap, -5.0, None).recent_high is ok
 
 
 class Test판돈:

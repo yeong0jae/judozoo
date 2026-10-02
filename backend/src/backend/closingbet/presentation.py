@@ -110,6 +110,8 @@ class CheckItem(_Camel):
     institution: bool
     market_late: bool
     recent_high: bool
+    #: V010 전에 찍힌 판에는 없다 — 그 판은 False로 읽는다
+    after_hold: bool = False
 
 
 class StockItem(_Camel):
@@ -135,6 +137,8 @@ class StockItem(_Camel):
     institution_week: int | None = None
     #: 최근 고점과의 거리(%)
     recent_high_gap: float | None = None
+    #: 15:30 정규장 종가
+    regular_close: int | None = None
     checks: CheckItem | None = None
 
 
@@ -176,6 +180,7 @@ def get_stocks(request: Request, db: Annotated[Session, Depends(get_db)]) -> Api
             item.foreign, item.institution = r.flows.foreign, r.flows.institution
             item.foreign_week, item.institution_week = r.flows.foreign_5d, r.flows.institution_5d
             item.recent_high_gap = r.recent_high_gap
+            item.regular_close = r.regular_close
             item.checks = CheckItem(**application.checks_json(r.checks))
         items.append(item)
     return ApiResponse.ok(items)
@@ -289,6 +294,7 @@ class RoundStock(_Camel):
     foreign_week: int | None = None
     institution_week: int | None = None
     recent_high_gap: float | None = None
+    regular_close: int | None = None
     checks: CheckItem | None = None
 
 
@@ -372,5 +378,6 @@ def _round_stock(s, member: bool) -> RoundStock:
         item.foreign, item.institution = s.foreign_net, s.institution_net
         item.foreign_week, item.institution_week = s.foreign_5d, s.institution_5d
         item.recent_high_gap = s.recent_high_gap
+        item.regular_close = s.regular_close
         item.checks = CheckItem(**s.checks)
     return item

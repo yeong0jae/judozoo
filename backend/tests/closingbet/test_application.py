@@ -74,6 +74,10 @@ def 바깥(mocker):
     mocker.patch.object(application.stock_app, "investor_daily_history", side_effect=수급)
     mocker.patch.object(application.stock_app, "market_of", side_effect=lambda code: Market.KOSPI if code == "000660" else Market.KOSDAQ)
     mocker.patch.object(application, "market_flows", return_value=FLOWS)
+    # 15:30 정규장 종가 — 종가보다 조금 아래라 애프터 버팀은 맞아요
+    mocker.patch.object(application.kiwoom_market, "fetch_historical_minute_candles", side_effect=lambda code, day: [
+        분봉(day, 15, 30, close - 1_000, close - 1_000) for close in [일봉(code, 1, day)[0].close_price]
+    ])
     return pool
 
 
@@ -136,6 +140,7 @@ class Test20시_체결:
         assert (bet.status, bet.buy_price, bet.shares) == ("filled", 400_000, 50)
         hynix = stocks["000660"]
         assert (hynix.grade, hynix.nxt, hynix.crowd, hynix.pot_man) == ("S", True, 1, 2_000)
+        assert hynix.regular_close == 399_000 and hynix.checks["after_hold"]
         assert hynix.recent_high_gap == pytest.approx(0.00025, abs=1e-4)
         assert stocks["277810"].nxt is False
         assert (round_.players, round_.pot_man, round_.market) == (1, 2_000, FLOWS)

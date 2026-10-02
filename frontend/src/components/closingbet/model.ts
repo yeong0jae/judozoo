@@ -20,6 +20,7 @@ export type BetStock = {
   frgn5: number; // 최근 5일 누적
   inst5: number;
   recentHighGap: number | null; // 최근 60거래일 고가 대비 %
+  regularClose: number | null; // 15:30 정규장 종가. 정규장이 끝나기 전이면 null
   crowd: number; // 고른 사람 수
   result?: number; // 지난 판 — 다음 날 아침 매도 수익률(%)
 };
@@ -37,7 +38,7 @@ export const NICKNAME_COOLDOWN_DAYS = 7;
 
 /** 체크 한 줄 — 주도주 체크리스트(`detailParts.LeadingConditions`)의 조건 한 줄과 같은 모양으로 그린다 */
 export type Check = {
-  key: "high" | "foreign" | "institution" | "late" | "recentHigh";
+  key: "high" | "foreign" | "institution" | "late" | "recentHigh" | "after";
   title: string;
   criteria: string;
   ok: boolean;
@@ -62,6 +63,8 @@ export function lateSum(flow: MarketFlow): number {
 export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): Check[] {
   const fromHigh = (x.price / x.high - 1) * 100;
   const gap = x.recentHighGap;
+  // 애프터 — 지금 가격(체결 뒤면 20:00 종가)이 정규장 종가보다 몇 % 위인가
+  const after = x.regularClose ? (x.price / x.regularClose - 1) * 100 : null;
   const near = fromHigh >= NEAR_HIGH;
 
   const flowCheck = (who: "외국인" | "기관", k: "frgn" | "inst"): Check => {
@@ -119,28 +122,38 @@ export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): 
       value: `${x.market} ${signed(sum)}억`,
       sentence: `마감 구간과 애프터에 외인 ${signed(flow.foreign[4] + flow.foreign[5])}억 · 기관 ${signed(flow.institution[4] + flow.institution[5])}억.`,
     },
+    {
+      key: "after",
+      title: "애프터 버팀",
+      criteria: "20:00 종가가 15:30 정규장 종가 이상",
+      ok: after !== null && after >= 0,
+      value: after === null ? "15:30 뒤" : `${after > 0 ? "+" : ""}${after.toFixed(1)}%`,
+      sentence:
+        after === null || x.regularClose === null
+          ? "15:30 정규장이 끝나면 애프터 흐름을 봐요."
+          : after >= 0
+            ? `정규장 종가 ${won(x.regularClose)}원에서 밀리지 않았어요. 애프터에서도 사는 사람이 있어요.`
+            : `정규장 종가 ${won(x.regularClose)}원에서 ${Math.abs(after).toFixed(1)}% 밀렸어요. 다음 날 아침에도 약할 수 있어요.`,
+    },
   ];
 }
 
 /** 서버 판정 — 문장은 `checksOf`가 쓰고, 맞아요/아니에요는 이 값을 따른다 */
-export type Verdict = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; recentHigh: boolean };
+export type Verdict = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; recentHigh: boolean; afterHold: boolean };
 
-const VERDICT_KEY: Record<Check["key"], keyof Verdict> = { high: "nearHigh", foreign: "foreign", institution: "institution", late: "marketLate", recentHigh: "recentHigh" };
+const VERDICT_KEY: Record<Check["key"], keyof Verdict> = { high: "nearHigh", foreign: "foreign", institution: "institution", late: "marketLate", recentHigh: "recentHigh", after: "afterHold" };
 
 export function withVerdict(checks: Check[], verdict: Verdict): Check[] {
   return checks.map((c) => ({ ...c, ok: verdict[VERDICT_KEY[c.key]] }));
 }
 
 // ============================================================
-// 등급 — 다섯 가지 중 몇 개를 채웠나. 금·은·동·철
+// 등급 — 여섯 가지 중 몇 개를 채웠나(서버가 매긴다). 금·은·동·철
 // ============================================================
 
 export type Grade = "S" | "A" | "B" | "C";
-export function gradeOf(passed: number): Grade {
-  return passed >= 5 ? "S" : passed === 4 ? "A" : passed === 3 ? "B" : "C";
-}
 export const GRADE_COLOR: Record<Grade, string> = { S: "#f5c451", A: "#d4d8de", B: "#c98a5a", C: "#8b95a1" };
-export const GRADE_TEXT: Record<Grade, string> = { S: "다섯 가지 모두 맞아요", A: "네 가지가 맞아요", B: "세 가지가 맞아요", C: "맞는 게 두 개 이하예요" };
+export const GRADE_TEXT: Record<Grade, string> = { S: "여섯 가지 모두 맞아요", A: "다섯 가지가 맞아요", B: "네 가지가 맞아요", C: "맞는 게 세 개 이하예요" };
 /** 티켓 머리 칸 물들이기 */
 export const GRADE_TINT: Record<Grade, string> = { S: "rgba(245,196,81,0.22)", A: "rgba(212,216,222,0.16)", B: "rgba(201,138,90,0.20)", C: "rgba(91,99,110,0.22)" };
 export const GRADE_PERF: Record<Grade, string> = { S: "rgba(245,196,81,0.55)", A: "rgba(212,216,222,0.5)", B: "rgba(201,138,90,0.55)", C: "rgba(107,116,128,0.5)" };

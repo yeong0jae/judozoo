@@ -211,21 +211,37 @@ class Grade(str, Enum):
     C = "C"
 
 
+REGULAR_CLOSE = time(15, 30)
+
+
+def regular_close(bars: Sequence[MinuteCandle], day: date) -> int | None:
+    """그날 정규장 종가 — 15:30 단일가까지의 마지막 체결. 정규장이 아직 안 끝났으면 None.
+
+    15:30 뒤에도 20:00까지 체결이 이어져(027 0단계) 일봉 종가는 정규장 종가가 아니다. 분봉으로 따로 잡는다.
+    """
+    today = sorted((b for b in bars if b.date_time.date() == day and b.volume > 0), key=lambda b: b.date_time)
+    if not any(b.date_time.time() >= REGULAR_CLOSE for b in today):
+        return None
+    regular = [b for b in today if b.date_time.time() <= REGULAR_CLOSE]
+    return regular[-1].close_price if regular else None
+
+
 @dataclass(frozen=True)
 class Checks:
-    """종베 체크 다섯 가지. 순매수는 통합(KRX+NXT), 시장 막판은 그 종목 시장의 마감 + 애프터 외인 + 기관,
-    최근 고점은 직전 60거래일 최고가에서 기준(−5%) 안."""
+    """종베 체크 여섯 가지. 순매수는 통합(KRX+NXT), 마감 부근 수급은 그 종목 시장의 마감 + 애프터 외인 + 기관,
+    구간 신고가는 직전 60거래일 최고가에서 기준(−5%) 안, 애프터 버팀은 20:00 종가가 15:30 정규장 종가 이상."""
 
     near_high: bool
     foreign: bool
     institution: bool
     market_late: bool
     recent_high: bool
+    after_hold: bool
 
     @staticmethod
     def of(
         price: int, high: int, foreign_net: int, institution_net: int, market_late_net: int,
-        recent_high_gap: float | None, recent_high_floor: float,
+        recent_high_gap: float | None, recent_high_floor: float, regular_close: int | None,
     ) -> "Checks":
         """`recent_high_floor`는 주도주 조건의 기준(`max_high_position_drop_rate`, −5%)을 그대로 받는다."""
         return Checks(
@@ -235,16 +251,18 @@ class Checks:
             institution=institution_net > 0,
             market_late=market_late_net > 0,
             recent_high=recent_high_gap is not None and recent_high_gap >= recent_high_floor,
+            # 정규장이 아직 안 끝났으면(15:00~15:30) 모른다 — 통과로 세지 않는다
+            after_hold=regular_close is not None and price >= regular_close,
         )
 
     @property
     def passed(self) -> int:
-        return sum((self.near_high, self.foreign, self.institution, self.market_late, self.recent_high))
+        return sum((self.near_high, self.foreign, self.institution, self.market_late, self.recent_high, self.after_hold))
 
     @property
     def grade(self) -> Grade:
         n = self.passed
-        return Grade.S if n == 5 else Grade.A if n == 4 else Grade.B if n == 3 else Grade.C
+        return Grade.S if n == 6 else Grade.A if n == 5 else Grade.B if n == 4 else Grade.C
 
 
 # --- 판돈 ---------------------------------------------------------------------

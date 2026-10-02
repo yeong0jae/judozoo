@@ -27,7 +27,7 @@ export type ClosingBetNow = {
   me: { nickname: string | null; nextRenameAt: string | null; bet: ClosingBetMyBet | null } | null;
 };
 
-export type ClosingBetChecks = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; recentHigh: boolean };
+export type ClosingBetChecks = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; recentHigh: boolean; afterHold: boolean };
 
 type Details = {
   high: number | null;
@@ -38,6 +38,8 @@ type Details = {
   institutionWeek: number | null;
   /** 최근 60거래일 고가 대비 % */
   recentHighGap: number | null;
+  /** 15:30 정규장 종가 */
+  regularClose: number | null;
   checks: ClosingBetChecks | null;
 };
 
@@ -233,6 +235,7 @@ export function toBetStock(
     frgn5: eokOf(s.foreignWeek),
     inst5: eokOf(s.institutionWeek),
     recentHighGap: s.recentHighGap,
+    regularClose: s.regularClose,
     crowd: s.crowd,
     result: result ?? undefined,
   };

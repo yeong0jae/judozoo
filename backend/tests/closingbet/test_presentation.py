@@ -13,7 +13,7 @@ from backend.stock.domain import Market
 목 = date(2026, 10, 1)
 BET = Phase(Moment.BET, betting=목, review=date(2026, 9, 30), next_at=datetime(2026, 10, 1, 20))
 HYNIX = PoolStock("000660", "SK하이닉스", True, 412_500, 6.82)
-CHECKS = Checks.of(412_500, 414_000, 2_640, 910, 740, -0.4, -5.0)
+CHECKS = Checks.of(412_500, 414_000, 2_640, 910, 740, -0.4, -5.0, 410_000)
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def 베팅_시간(mocker):
     mocker.patch.object(application, "phase", return_value=BET)
     mocker.patch.object(application, "pool", return_value=[HYNIX])
     mocker.patch.object(application, "stakes", return_value=Stakes([Stake(1, "000660", 2_000, datetime(2026, 10, 1, 15))]))
-    reading = StockReading(HYNIX, Market.KOSPI, 412_500, 414_000, 386_000, StockFlows(2_640, 910, 8_420, 2_150), -0.4, CHECKS)
+    reading = StockReading(HYNIX, Market.KOSPI, 412_500, 414_000, 386_000, StockFlows(2_640, 910, 8_420, 2_150), -0.4, 410_000, CHECKS)
     mocker.patch.object(presentation, "_readings", return_value={"flows": {"KOSPI": {}}, "readings": {"000660": reading}, "nxt": {"000660": True}})
 
 
@@ -54,7 +54,7 @@ class Test오늘의_종목:
 
     def test_로그인하면_등급_이유가_실린다(self, 로그인_client, 베팅_시간):
         [item] = 로그인_client.get("/api/closingbet/stocks").json()["data"]
-        assert item["checks"] == {"nearHigh": True, "foreign": True, "institution": True, "marketLate": True, "recentHigh": True}
+        assert item["checks"] == {"nearHigh": True, "foreign": True, "institution": True, "marketLate": True, "recentHigh": True, "afterHold": True}
         assert (item["foreignWeek"], item["recentHighGap"], item["high"]) == (8_420, -0.4, 414_000)
 
     def test_시장_수급_표는_로그인_뒤다(self, client, 베팅_시간):
@@ -96,7 +96,7 @@ class Test복기_API:
         mocker.patch.object(application, "round_stocks", return_value=[BetRoundStock(
             trading_day=목, stock_code="000660", stock_name="SK하이닉스", market="KOSPI", lead=True, nxt=True,
             close_price=400_000, high_price=401_000, low_price=390_000, change_rate=3.1, foreign_net=100, institution_net=50,
-            foreign_5d=500, institution_5d=200, recent_high_gap=-0.4, checks={"near_high": True, "foreign": True, "institution": True, "market_late": True, "recent_high": True},
+            foreign_5d=500, institution_5d=200, recent_high_gap=-0.4, checks={"near_high": True, "foreign": True, "institution": True, "market_late": True, "recent_high": True, "after_hold": True},
             grade="S", crowd=2, pot_man=4_000, sell_price=408_000.0, rate=2.0,
         )])
         mocker.patch.object(application, "results", return_value=Results([

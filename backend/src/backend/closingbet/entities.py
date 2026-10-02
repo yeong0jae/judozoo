@@ -101,7 +101,9 @@ class BetRoundStock(Base):
     institution_5d: Mapped[int] = mapped_column(BigInteger, nullable=False)
     #: 최근 고점과의 거리(%) — 직전 60거래일 최고가 대비. 일봉이 없으면 None
     recent_high_gap: Mapped[float | None] = mapped_column(Float, nullable=True)
-    #: {near_high, foreign, institution, market_late, recent_high}
+    #: 15:30 정규장 종가 — 애프터 버팀(20:00 종가 ≥ 이 값) 판정. 못 잡았으면 None
+    regular_close: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: {near_high, foreign, institution, market_late, recent_high, after_hold}
     checks: Mapped[dict] = mapped_column(JSON, nullable=False)
     grade: Mapped[str] = mapped_column(String(1), nullable=False)
     crowd: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

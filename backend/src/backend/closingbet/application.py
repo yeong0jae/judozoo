@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from backend.closingbet.domain import (
     BET_CLOSE,
+    REGULAR_CLOSE,
     RESULT_START,
     BetRejected,
     Checks,
@@ -30,8 +31,9 @@ from backend.closingbet.domain import (
     check_bet,
     check_nickname,
     check_rename,
-    recent_high_gap,
     phase_at,
+    recent_high_gap,
+    regular_close,
     random_nickname,
     reveal_at,
     sell_price,
@@ -40,6 +42,7 @@ from backend.closingbet.domain import (
 from backend.closingbet.entities import BetPlayer, BetRound, BetRoundStock, ClosingBet, ClosingBetEvent
 from backend.leadingstock import application as leadingstock
 from backend.leadingstock.domain import DailyCandle
+from backend.library.cache import ttl_cache
 from backend.library.time import now
 from backend.market import application as market_app
 from backend.market import calendar
@@ -128,6 +131,8 @@ class StockReading:
     flows: StockFlows
     #: 최근 고점과의 거리(%) — 직전 60거래일 최고가 대비
     recent_high_gap: float | None
+    #: 15:30 정규장 종가. 정규장이 끝나기 전이면 None
+    regular_close: int | None
     checks: Checks
 
 
@@ -142,13 +147,23 @@ def read_stock(stock: PoolStock, on: date, market_late: dict[Market, int]) -> St
     history: Sequence[DailyCandle] = [c for c in candles if c.date < on]
     flows = _stock_flows(stock.code, on)
     gap = recent_high_gap(history, today_bar.close_price)
+    regular = _regular_close(stock.code, on)
     checks = Checks.of(
         price=today_bar.close_price, high=today_bar.high_price,
         foreign_net=flows.foreign, institution_net=flows.institution,
         market_late_net=market_late.get(market, 0),
         recent_high_gap=gap, recent_high_floor=get_settings().criteria.max_high_position_drop_rate,
+        regular_close=regular,
     )
-    return StockReading(stock, market, today_bar.close_price, today_bar.high_price, today_bar.low_price, flows, gap, checks)
+    return StockReading(stock, market, today_bar.close_price, today_bar.high_price, today_bar.low_price, flows, gap, regular, checks)
+
+
+@ttl_cache("closingbetRegularClose", ttl_seconds=24 * 60 * 60, maxsize=200, skip_if=lambda v: v is None)
+def _regular_close(code: str, on: date) -> int | None:
+    """정규장 종가는 15:30에 한 번 정해지면 안 바뀐다 — 잡히면 하루 들고 있고, 그 전에는 분봉을 부르지 않는다."""
+    if now() < datetime.combine(on, REGULAR_CLOSE):
+        return None
+    return regular_close(kiwoom_market.fetch_historical_minute_candles(code, on), on)
 
 
 def _stock_flows(code: str, on: date) -> StockFlows:
@@ -372,7 +387,7 @@ def fill_round(session: Session, day: date, at: datetime) -> bool:
             lead=r.stock.lead, nxt=bool(nxt), close_price=r.close, high_price=r.high, low_price=r.low,
             change_rate=r.stock.change_rate, foreign_net=r.flows.foreign, institution_net=r.flows.institution,
             foreign_5d=r.flows.foreign_5d, institution_5d=r.flows.institution_5d,
-            recent_high_gap=r.recent_high_gap, checks=checks_json(r.checks), grade=r.checks.grade.value,
+            recent_high_gap=r.recent_high_gap, regular_close=r.regular_close, checks=checks_json(r.checks), grade=r.checks.grade.value,
             crowd=crowd.get(r.stock.code, 0), pot_man=pots.get(r.stock.code, 0),
         ))
     for bet in session.scalars(select(ClosingBet).where(ClosingBet.trading_day == day, ClosingBet.status == "open")):
@@ -389,7 +404,7 @@ def fill_round(session: Session, day: date, at: datetime) -> bool:
 
 
 def checks_json(c: Checks) -> dict:
-    return {"near_high": c.near_high, "foreign": c.foreign, "institution": c.institution, "market_late": c.market_late, "recent_high": c.recent_high}
+    return {"near_high": c.near_high, "foreign": c.foreign, "institution": c.institution, "market_late": c.market_late, "recent_high": c.recent_high, "after_hold": c.after_hold}
 
 
 # --- 아침 매도 · 정산 -----------------------------------------------------------
