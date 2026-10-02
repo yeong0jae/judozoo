@@ -96,15 +96,4 @@ export const NAV: NavItem[] = [
       </Icon>
     ),
   },
-  {
-    to: "/closing-bet",
-    label: "종가베팅",
-    full: "모의 종가베팅",
-    icon: (
-      <Icon>
-        {/* 지평선에 걸린 해 — 장 마감 */}
-        <path d="M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 6.5v2M6.3 9.8l1.4 1.4M17.7 9.8l-1.4 1.4" />
-      </Icon>
-    ),
-  },
 ];
