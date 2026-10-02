@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { MarketFlow, MarketName } from "./mock";
+import type { MarketFlow, MarketName } from "./model";
 import { signed } from "./parts";
 
 const tone = (n: number) => (n > 0 ? "text-red-400" : n < 0 ? "text-blue-400" : "text-zinc-400");

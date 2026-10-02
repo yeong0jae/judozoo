@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { DivergingBar, GradeAvatar, won } from "./parts";
-import { GRADE_TEXT, type Check, type Grade } from "./mock";
+import { GRADE_TEXT, type Check, type Grade } from "./model";
 
 /**
  * 종베 체크를 한 장씩 — 조건 다섯 장 + 마지막 등급 요약 한 장.

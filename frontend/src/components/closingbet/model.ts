@@ -1,7 +1,7 @@
 /**
- * 모의 종가베팅 — 화면 확인용 예시 데이터와 종베 체크 규칙.
+ * 모의 종가베팅 — 화면이 쓰는 모양과 종베 체크 설명.
  *
- * 아직 백엔드가 없어 값은 전부 고정이다. 실제 연동 때 이 파일의 모양이 API 응답 모양의 초안이 된다.
+ * 맞아요/아니에요 판정은 서버가 한다(`api/closingbet`의 `checks`). 여기서는 그 판정을 사람이 읽는 문장으로 푼다.
  */
 
 export type MarketName = "코스피" | "코스닥";
@@ -11,7 +11,7 @@ export type BetStock = {
   name: string;
   market: MarketName;
   lead: boolean; // 주도주(true) · 후보(false)
-  price: number; // 당일은 현재가, 어제 판은 20:00 종가(= 매수가)
+  price: number; // 오늘은 현재가, 지난 판은 20:00 종가(= 매수가)
   chg: number; // 당일 등락률(%)
   high: number;
   low: number;
@@ -21,90 +21,15 @@ export type BetStock = {
   inst5: number;
   tag: "" | "신고가" | "박스 돌파";
   crowd: number; // 고른 사람 수
-  result?: number; // 어제 판 — 다음 날 아침 매도 수익률(%)
+  result?: number; // 지난 판 — 다음 날 아침 매도 수익률(%)
 };
-
-export const TODAY: BetStock[] = [
-  { code: "000660", name: "SK하이닉스", market: "코스피", lead: true, price: 412500, chg: 6.82, high: 414000, low: 386000, frgn: 2640, inst: 910, frgn5: 8420, inst5: 2150, tag: "신고가", crowd: 41 },
-  { code: "034020", name: "두산에너빌리티", market: "코스피", lead: true, price: 68900, chg: 5.19, high: 69400, low: 65400, frgn: 780, inst: 260, frgn5: 2310, inst5: 640, tag: "신고가", crowd: 27 },
-  { code: "012450", name: "한화에어로스페이스", market: "코스피", lead: true, price: 1032000, chg: 4.13, high: 1044000, low: 991000, frgn: 520, inst: -140, frgn5: 1480, inst5: -520, tag: "신고가", crowd: 12 },
-  { code: "196170", name: "알테오젠", market: "코스닥", lead: true, price: 486000, chg: 9.31, high: 505000, low: 444500, frgn: -210, inst: 450, frgn5: -650, inst5: 1210, tag: "박스 돌파", crowd: 9 },
-  { code: "247540", name: "에코프로비엠", market: "코스닥", lead: false, price: 198400, chg: 7.86, high: 210200, low: 184000, frgn: -420, inst: -130, frgn5: -1830, inst5: -410, tag: "", crowd: 18 },
-  { code: "267260", name: "HD현대일렉트릭", market: "코스피", lead: false, price: 512000, chg: 3.39, high: 522500, low: 494000, frgn: 230, inst: -80, frgn5: 540, inst5: -310, tag: "박스 돌파", crowd: 6 },
-  { code: "277810", name: "레인보우로보틱스", market: "코스닥", lead: false, price: 341500, chg: 12.37, high: 346500, low: 302000, frgn: 110, inst: 60, frgn5: 260, inst5: 180, tag: "신고가", crowd: 14 },
-  { code: "003230", name: "삼양식품", market: "코스피", lead: false, price: 1284000, chg: 2.56, high: 1296000, low: 1251000, frgn: 48, inst: -15, frgn5: -120, inst5: 95, tag: "", crowd: 4 },
-];
-
-export const YESTERDAY: BetStock[] = [
-  { code: "000660", name: "SK하이닉스", market: "코스피", lead: true, price: 389000, chg: 3.12, high: 390500, low: 377000, frgn: 1950, inst: 420, frgn5: 6210, inst5: 1360, tag: "신고가", crowd: 48, result: 4.88 },
-  { code: "034020", name: "두산에너빌리티", market: "코스피", lead: true, price: 64900, chg: 4.02, high: 65200, low: 62300, frgn: 610, inst: 150, frgn5: 1890, inst5: 420, tag: "신고가", crowd: 31, result: 6.13 },
-  { code: "012450", name: "한화에어로스페이스", market: "코스피", lead: true, price: 991000, chg: 2.48, high: 1003000, low: 966000, frgn: 330, inst: -90, frgn5: 1130, inst5: -380, tag: "", crowd: 17, result: 3.51 },
-  { code: "196170", name: "알테오젠", market: "코스닥", lead: true, price: 444000, chg: 6.7, high: 452000, low: 416000, frgn: -80, inst: 310, frgn5: -520, inst5: 880, tag: "박스 돌파", crowd: 9, result: 5.31 },
-  { code: "247540", name: "에코프로비엠", market: "코스닥", lead: false, price: 184500, chg: 5.2, high: 189000, low: 175400, frgn: 120, inst: -60, frgn5: -980, inst5: -250, tag: "", crowd: 22, result: 2.1 },
-  { code: "267260", name: "HD현대일렉트릭", market: "코스피", lead: false, price: 498000, chg: 1.85, high: 507000, low: 489000, frgn: -140, inst: 40, frgn5: -310, inst5: -150, tag: "", crowd: 8, result: -0.82 },
-  { code: "277810", name: "레인보우로보틱스", market: "코스닥", lead: false, price: 298000, chg: 8.15, high: 298500, low: 275500, frgn: 90, inst: 55, frgn5: 190, inst5: 120, tag: "신고가", crowd: 6, result: 14.2 },
-  { code: "003230", name: "삼양식품", market: "코스피", lead: false, price: 1262000, chg: 1.1, high: 1281000, low: 1248000, frgn: -30, inst: 12, frgn5: -160, inst5: 70, tag: "", crowd: 7, result: -1.46 },
-];
 
 /** 시장 수급 — [현물 당일, 현물 5일, 선물 당일, 선물 5일, 마감 구간, 애프터] (현물 억원 · 선물 계약) */
 export type MarketFlow = { foreign: number[]; institution: number[] };
-export const MARKET: Record<"today" | "yesterday", Record<MarketName, MarketFlow>> = {
-  today: {
-    코스피: { foreign: [4820, 12340, 3412, 8905, 590, 60], institution: [1150, -2860, -1208, -4410, 130, -40] },
-    코스닥: { foreign: [610, -1240, 842, 1530, -15, -5], institution: [-230, 480, -315, -620, -20, -10] },
-  },
-  yesterday: {
-    코스피: { foreign: [3980, 9870, 2105, 6420, 410, 85], institution: [-620, -1940, -870, -3150, 95, -20] },
-    코스닥: { foreign: [-210, -1450, 380, 980, 30, 12], institution: [140, 520, -190, -410, 8, -6] },
-  },
-};
 
-export const NIGHT_FUTURES = {
-  today: { price: 413.6, rate: 0.35, note: "어젯밤 마감" },
-  yesterday: { price: 413.6, rate: 0.35, note: "9/30 밤 마감" },
-};
-
-/** 베팅 피드 — 금액은 만원. 음수는 취소 */
-export const FEED: { nick: string; stock: string; amount: number }[] = [
-  { nick: "새벽올빼미", stock: "SK하이닉스", amount: 5000 },
-  { nick: "번개토끼", stock: "레인보우로보틱스", amount: 10000 },
-  { nick: "조용한고래", stock: "두산에너빌리티", amount: 2000 },
-  { nick: "반짝이는별", stock: "알테오젠", amount: 500 },
-  { nick: "조용한고래", stock: "두산에너빌리티", amount: -2000 },
-  { nick: "느긋한판다", stock: "SK하이닉스", amount: 10000 },
-  { nick: "단단한거북", stock: "한화에어로스페이스", amount: 1000 },
-  { nick: "날쌘치타", stock: "에코프로비엠", amount: 5000 },
-  { nick: "푸른돌고래", stock: "HD현대일렉트릭", amount: 100 },
-  { nick: "졸린수달", stock: "SK하이닉스", amount: 2000 },
-  { nick: "용감한판다", stock: "삼양식품", amount: 500 },
-];
-
-/** 종목별 몰린 판돈(만원) */
-export const POT_TODAY: Record<string, number> = { SK하이닉스: 142000, 두산에너빌리티: 79000, 한화에어로스페이스: 41000, 알테오젠: 33000, 에코프로비엠: 56000, HD현대일렉트릭: 14000, 레인보우로보틱스: 39000, 삼양식품: 8000 };
-export const POT_YESTERDAY: Record<string, number> = { SK하이닉스: 186000, 두산에너빌리티: 112000, 한화에어로스페이스: 61000, 알테오젠: 34000, 에코프로비엠: 78000, HD현대일렉트릭: 19000, 레인보우로보틱스: 21000, 삼양식품: 16000 };
-
-export type RankRow = { nick: string; stock: string; profit: string; rate: string };
-export const RANK_PROFIT: RankRow[] = [
-  { nick: "새벽올빼미", stock: "두산에너빌리티", profit: "+612.4만", rate: "+6.13%" },
-  { nick: "느긋한판다", stock: "SK하이닉스", profit: "+488.0만", rate: "+4.88%" },
-  { nick: "단단한거북", stock: "한화에어로스페이스", profit: "+351.2만", rate: "+3.51%" },
-  { nick: "조용한고래", stock: "SK하이닉스", profit: "+244.0만", rate: "+4.88%" },
-  { nick: "날쌘치타", stock: "두산에너빌리티", profit: "+183.9만", rate: "+6.13%" },
-];
-export const RANK_RATE: RankRow[] = [
-  { nick: "번개토끼", stock: "레인보우로보틱스", profit: "+28.4만", rate: "+14.20%" },
-  { nick: "새벽올빼미", stock: "두산에너빌리티", profit: "+612.4만", rate: "+6.13%" },
-  { nick: "날쌘치타", stock: "두산에너빌리티", profit: "+183.9만", rate: "+6.13%" },
-  { nick: "반짝이는별", stock: "알테오젠", profit: "+53.1만", rate: "+5.31%" },
-  { nick: "느긋한판다", stock: "SK하이닉스", profit: "+488.0만", rate: "+4.88%" },
-];
-
-/** 닉네임 — 2~10자, 한글·영문·숫자만. 바꾸면 7일 뒤에 다시 바꿀 수 있다 */
+/** 닉네임 — 2~10자, 한글·영문·숫자만. 바꾸면 7일 뒤에 다시 바꿀 수 있다(최종 판정은 서버) */
 export const NICKNAME_RULE = /^[가-힣a-zA-Z0-9]{2,10}$/;
 export const NICKNAME_COOLDOWN_DAYS = 7;
-
-/** 어제 내 종베 */
-export const MY_YESTERDAY = { code: "247540", amount: 2000, shares: 108, pnl: 418500, rate: 2.1, profitRank: 23, rateRank: 31, players: 148, gapToAbove: 3200 };
 
 // ============================================================
 // 종베 체크
@@ -202,6 +127,15 @@ export function checksOf(x: BetStock, list: BetStock[], markets: Record<MarketNa
   ];
 }
 
+/** 서버 판정 — 문장은 `checksOf`가 쓰고, 맞아요/아니에요는 이 값을 따른다 */
+export type Verdict = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; level: boolean };
+
+const VERDICT_KEY: Record<Check["key"], keyof Verdict> = { high: "nearHigh", foreign: "foreign", institution: "institution", late: "marketLate", level: "level" };
+
+export function withVerdict(checks: Check[], verdict: Verdict): Check[] {
+  return checks.map((c) => ({ ...c, ok: verdict[VERDICT_KEY[c.key]] }));
+}
+
 // ============================================================
 // 등급 — 다섯 가지 중 몇 개를 채웠나. 금·은·동·철
 // ============================================================
@@ -216,4 +150,3 @@ export const GRADE_TEXT: Record<Grade, string> = { S: "다섯 가지 모두 맞�
 export const GRADE_TINT: Record<Grade, string> = { S: "rgba(245,196,81,0.22)", A: "rgba(212,216,222,0.16)", B: "rgba(201,138,90,0.20)", C: "rgba(91,99,110,0.22)" };
 export const GRADE_PERF: Record<Grade, string> = { S: "rgba(245,196,81,0.55)", A: "rgba(212,216,222,0.5)", B: "rgba(201,138,90,0.55)", C: "rgba(107,116,128,0.5)" };
 
-export const nxtListed = (code: string) => code !== "277810";

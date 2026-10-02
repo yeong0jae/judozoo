@@ -1,17 +1,18 @@
 import type { CSSProperties } from "react";
 import { GradeAvatar, pct, won } from "./parts";
-import { GRADE_PERF, GRADE_TEXT, GRADE_TINT, nxtListed, type BetStock, type Grade } from "./mock";
+import { GRADE_PERF, GRADE_TEXT, GRADE_TINT, type BetStock, type Grade } from "./model";
+import { goLogin } from "../../api/auth";
 import { colorByPnL } from "../../lib/format";
 
 /**
  * 베팅 → 체결 → 매도·랭킹. 지금 단계에 불이 들어온다.
- * 매도 시각은 종목 따라 — NXT 종목은 08:05, 아니면 09:05. 고르기 전에는 "내일 아침".
+ * 매도 시각은 종목 따라 — NXT 종목은 08:05, 아니면 09:05. 모르거나 고르기 전에는 "내일 아침".
  */
-function Steps({ at, code }: { at: number; code?: string }) {
+function Steps({ at, nxt }: { at: number; nxt?: boolean | null }) {
   const steps: [string, string][] = [
     ["베팅", "15:00~20:00"],
     ["체결", "20:00 종가"],
-    ["매도 · 랭킹", code === undefined ? "내일 아침" : nxtListed(code) ? "내일 08:05" : "내일 09:05"],
+    ["매도 · 랭킹", nxt === true ? "내일 08:05" : nxt === false ? "내일 09:05" : "내일 아침"],
   ];
   return (
     <ol aria-label="종베 진행" className="relative m-0 grid list-none grid-cols-3 p-0 pb-0.5">
@@ -49,6 +50,14 @@ export default function BetTicket({
   onEdit,
   onCancel,
   filled = false,
+  nxt,
+  dayLabel,
+  buyPrice,
+  shares: filledShares,
+  voided = false,
+  member,
+  busy = false,
+  error,
 }: {
   stock: BetStock | null;
   grade: Grade;
@@ -60,7 +69,34 @@ export default function BetTicket({
   onCancel: () => void;
   /** 20:00 체결 뒤 — 금액·종목을 더는 못 바꾼다 */
   filled?: boolean;
+  nxt?: boolean | null;
+  /** "10/1" */
+  dayLabel: string;
+  /** 체결 뒤 — 20:00 종가와 주식 수 */
+  buyPrice?: number | null;
+  shares?: number | null;
+  /** 종가로 한 주도 못 사서 판에서 빠졌다 */
+  voided?: boolean;
+  member: boolean;
+  busy?: boolean;
+  /** 서버가 돌려준 거절 이유 */
+  error?: string;
 }) {
+  if (!member) {
+    return (
+      <div className="flex min-h-[280px] flex-col items-center justify-center gap-2.5 rounded-[20px] border-2 border-dashed border-zinc-800 p-6 text-center">
+        <div className="mb-2.5 w-full">
+          <Steps at={0} />
+        </div>
+        <span className="text-[15px] font-bold">로그인하면 걸 수 있어요</span>
+        <span className="text-[13px] leading-relaxed text-zinc-400">가상 금액으로 하루 한 종목, 20:00 종가에 사요.</span>
+        <button type="button" onClick={goLogin} className="mt-1 h-10 rounded-xl bg-zinc-100 px-5 text-[14px] font-semibold text-zinc-950 hover:bg-white">
+          로그인
+        </button>
+      </div>
+    );
+  }
+
   if (!stock) {
     return (
       <div className="flex min-h-[280px] flex-col items-center justify-center gap-2.5 rounded-[20px] border-2 border-dashed border-zinc-800 p-6 text-center">
@@ -91,8 +127,8 @@ export default function BetTicket({
       <div className="relative flex h-32 flex-col gap-1.5 overflow-hidden rounded-t-[20px] px-[22px] py-5" style={{ background: GRADE_TINT[grade] }}>
         {sheen && <span key={stock.code} aria-hidden className={grade === "A" ? "cb-sheen cb-sheen-a" : "cb-sheen"} />}
         <span className="flex justify-between text-xs text-zinc-400">
-          <span>모의 종베 티켓 · 10/1</span>
-          <span className="num">No. 0148</span>
+          <span>모의 종베 티켓 · {dayLabel}</span>
+          <span className="num">{stock.code}</span>
         </span>
         <span className="text-[22px] font-bold tracking-tight">{stock.name}</span>
         <span className="flex items-center gap-2">
@@ -104,7 +140,7 @@ export default function BetTicket({
       <div className="mx-4 h-0 border-t-2 border-dashed" style={{ borderColor: GRADE_PERF[grade] }} />
 
       <div className="flex flex-col gap-4 px-[22px] pb-[22px] pt-5">
-        <Steps at={filled ? 1 : 0} code={stock.code} />
+        <Steps at={filled ? 1 : 0} nxt={nxt} />
 
         {!confirmed && !filled ? (
           <div className="flex flex-col gap-3">
@@ -142,10 +178,10 @@ export default function BetTicket({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={shares === 0}
+              disabled={shares === 0 || busy}
               className="h-12 rounded-xl bg-zinc-100 text-[15px] font-semibold text-zinc-950 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {shares === 0 ? "금액이 부족해요" : "베팅하기"}
+              {shares === 0 ? "금액이 부족해요" : busy ? "거는 중…" : "베팅하기"}
             </button>
           </div>
         ) : (
@@ -157,11 +193,11 @@ export default function BetTicket({
               </span>
               <span className="flex flex-col gap-0.5">
                 <span className="text-xs text-zinc-400">{filled ? "매수가 · 20:00 종가" : "매수가"}</span>
-                <span className="num text-lg font-bold">{filled ? `${won(stock.price)}원` : "20:00에 정해져요"}</span>
+                <span className="num text-lg font-bold">{filled && buyPrice ? `${won(buyPrice)}원` : "20:00에 정해져요"}</span>
               </span>
             </div>
             <span className="cb-stamp self-start rounded-[10px] border-[2.5px] border-red-400 px-3.5 py-1.5 text-[15px] font-bold tracking-[0.08em] text-red-400">
-              {filled ? "체결 완료" : "베팅 완료"}
+              {voided ? "체결 안 됨" : filled ? "체결 완료" : "베팅 완료"}
             </span>
             {!filled && (
             <div className="grid grid-cols-2 gap-1.5">
@@ -175,8 +211,13 @@ export default function BetTicket({
             )}
           </div>
         )}
+        {error && <span className="text-[13px] text-red-400">{error}</span>}
         <p className="m-0 text-xs leading-relaxed text-zinc-500">
-          {filled ? `${won(Math.floor((amount * 10000) / stock.price))}주 체결됐어요. 내일 아침 5분 중간가로 팔아요.` : "가상 금액이에요. 20:00 전까지 바꾸거나 취소할 수 있어요."}
+          {voided
+            ? "종가가 올라 이 금액으로는 한 주도 살 수 없었어요. 이 판에서는 빠져요."
+            : filled
+              ? `${won(filledShares ?? 0)}주 체결됐어요. 내일 아침 5분 중간가로 팔아요.`
+              : "가상 금액이에요. 20:00 전까지 바꾸거나 취소할 수 있어요."}
         </p>
       </div>
     </div>

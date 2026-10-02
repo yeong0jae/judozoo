@@ -37,7 +37,9 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const code = body?.code ?? (res.status >= 500 ? "SERVER_ERROR" : "INVALID_PARAMETER");
-    throw new ApiError(code, res.status);
+    // 거절 이유를 문장으로 싣는 API(종가베팅)는 `data.message`에 둔다 — 화면이 그대로 보여 준다
+    const message = (body?.data as { message?: unknown } | null | undefined)?.message;
+    throw new ApiError(code, res.status, typeof message === "string" ? message : undefined);
   }
 
   if (!body || body.data === null || body.data === undefined) {

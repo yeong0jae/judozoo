@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { GRADE_COLOR, type Grade } from "./mock";
+import { GRADE_COLOR, type Grade } from "./model";
 
 export const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 export const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${won(Math.abs(n))}`;
 export const pct = (n: number) => `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
+
+/** "2026-09-30" → "9/30" */
+export const md = (iso: string) => {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${m}/${d}`;
+};
+
+/** 원 → "+41.9만" */
+export const signedMan = (wonValue: number) => `${wonValue >= 0 ? "+" : "−"}${(Math.abs(wonValue) / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}만`;
 
 /** 만원 → "4억 8,500만" */
 export function eok(man: number): string {
@@ -13,15 +22,15 @@ export function eok(man: number): string {
   return sign + (e ? `${e}억` : "") + (r ? `${e ? " " : ""}${won(r)}만` : e ? "" : "0");
 }
 
-/** 등급 — 앱의 종목 아바타처럼 회색 면에 글자만 금·은·동·철 */
-export function GradeAvatar({ grade, size = 24 }: { grade: Grade; size?: number }) {
+/** 등급 — 앱의 종목 아바타처럼 회색 면에 글자만 금·은·동·철. 못 매긴 종목은 "–" */
+export function GradeAvatar({ grade, size = 24 }: { grade: Grade | null; size?: number }) {
   return (
     <span
       title="종베 등급"
       className="num inline-flex shrink-0 items-center justify-center bg-[#2b2d33] font-bold ring-1 ring-inset ring-white/10"
-      style={{ width: size, height: size, borderRadius: Math.round(size / 3.2), fontSize: Math.round(size * 0.5), color: GRADE_COLOR[grade] }}
+      style={{ width: size, height: size, borderRadius: Math.round(size / 3.2), fontSize: Math.round(size * 0.5), color: grade ? GRADE_COLOR[grade] : "#6b7684" }}
     >
-      {grade}
+      {grade ?? "–"}
     </span>
   );
 }

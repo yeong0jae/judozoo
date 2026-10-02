@@ -21,6 +21,7 @@ from backend.library.cache import ttl_cache
 from backend.library.db import get_db, get_session_factory
 from backend.library.time import now
 from backend.library.web import ApiResponse
+from backend.platform.kiwoom import market as kiwoom_market
 
 router = APIRouter(prefix="/api/closingbet")
 
@@ -117,6 +118,10 @@ class StockItem(_Camel):
     lead: bool
     price: int
     change_rate: float
+    #: KOSPI / KOSDAQ. 등급을 못 매긴 종목은 None
+    market: str | None
+    #: NXT 상장 — 매도 창(08:00 / 09:00)을 가른다. 못 받았으면 None
+    nxt: bool | None
     grade: str | None
     crowd: int
     pot_man: int
@@ -138,7 +143,12 @@ def _readings(day: date) -> dict:
     with get_session_factory()() as session:
         flows = application.market_flows(session, day)
     late = application.market_late(flows)
-    return {"flows": flows, "readings": {s.code: application.read_stock(s, day, late) for s in application.pool()}}
+    stocks = application.pool()
+    return {
+        "flows": flows,
+        "readings": {s.code: application.read_stock(s, day, late) for s in stocks},
+        "nxt": {s.code: kiwoom_market.fetch_nxt_listed(s.code) for s in stocks},
+    }
 
 
 @router.get("/stocks")
@@ -150,12 +160,14 @@ def get_stocks(request: Request, db: Annotated[Session, Depends(get_db)]) -> Api
     member = _member_id(request) is not None
     stakes = application.stakes(db, p.betting)
     pots, crowd = stakes.by_stock(), stakes.crowd()
-    readings = _readings(p.betting)["readings"]
+    cached = _readings(p.betting)
+    readings = cached["readings"]
     items = []
     for s in application.pool():
         r = readings.get(s.code)
         item = StockItem(
             code=s.code, name=s.name, lead=s.lead, price=s.price, change_rate=s.change_rate,
+            market=r.market.value if r else None, nxt=cached["nxt"].get(s.code),
             grade=r.checks.grade.value if r else None, crowd=crowd.get(s.code, 0), pot_man=pots.get(s.code, 0),
         )
         if member and r:
@@ -260,6 +272,7 @@ class RoundStock(_Camel):
     nxt: bool
     close_price: int
     change_rate: float
+    market: str
     grade: str
     crowd: int
     pot_man: int
@@ -350,7 +363,7 @@ def get_round(day: date, request: Request, db: Annotated[Session, Depends(get_db
 def _round_stock(s, member: bool) -> RoundStock:
     item = RoundStock(
         code=s.stock_code, name=s.stock_name, lead=s.lead, nxt=s.nxt, close_price=s.close_price,
-        change_rate=s.change_rate, grade=s.grade, crowd=s.crowd, pot_man=s.pot_man,
+        change_rate=s.change_rate, market=s.market, grade=s.grade, crowd=s.crowd, pot_man=s.pot_man,
         sell_price=s.sell_price, rate=s.rate,
     )
     if member:

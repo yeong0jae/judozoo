@@ -22,7 +22,7 @@ def 베팅_시간(mocker):
     mocker.patch.object(application, "pool", return_value=[HYNIX])
     mocker.patch.object(application, "stakes", return_value=Stakes([Stake(1, "000660", 2_000, datetime(2026, 10, 1, 15))]))
     reading = StockReading(HYNIX, Market.KOSPI, 412_500, 414_000, 386_000, StockFlows(2_640, 910, 8_420, 2_150), Level.NEW_HIGH, CHECKS)
-    mocker.patch.object(presentation, "_readings", return_value={"flows": {"KOSPI": {}}, "readings": {"000660": reading}})
+    mocker.patch.object(presentation, "_readings", return_value={"flows": {"KOSPI": {}}, "readings": {"000660": reading}, "nxt": {"000660": True}})
 
 
 class Test지금:
@@ -49,7 +49,7 @@ class Test지금:
 class Test오늘의_종목:
     def test_방문자는_등급까지만_본다(self, client, 베팅_시간):
         [item] = client.get("/api/closingbet/stocks").json()["data"]
-        assert (item["code"], item["grade"], item["crowd"], item["potMan"]) == ("000660", "S", 1, 2_000)
+        assert (item["code"], item["grade"], item["crowd"], item["potMan"], item["market"], item["nxt"]) == ("000660", "S", 1, 2_000, "KOSPI", True)
         assert item["checks"] is None and item["foreign"] is None
 
     def test_로그인하면_등급_이유가_실린다(self, 로그인_client, 베팅_시간):

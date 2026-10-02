@@ -1,6 +1,7 @@
 import { eok, useCountUp, won } from "./parts";
 
-export type FeedItem = { nick: string; stock: string; amount: number };
+/** LIVE 한 줄. `ago`는 화면에 그대로 쓰는 "방금"·"3초 전" */
+export type FeedItem = { id: number; nick: string; stock: string; amount: number; ago: string };
 
 /**
  * 판돈 — 원 단위로 풀어 쓰고, 베팅이 들어올 때마다 숫자가 차오른다.
@@ -59,12 +60,13 @@ export default function PoolPanel({
           <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-red-400" />
           LIVE <span className="font-medium text-zinc-500">방금 들어온 베팅</span>
         </span>
+        {feed.length === 0 && <span className="px-2.5 py-2 text-[13px] text-zinc-500">아직 들어온 베팅이 없어요. 첫 번째가 돼 보세요.</span>}
         {feed.map((f, i) => {
           const cancel = f.amount < 0;
           const allIn = f.amount >= 10000;
           return (
             <div
-              key={`${i}-${f.nick}-${f.amount}`}
+              key={f.id}
               className={`flex items-center justify-between gap-2.5 rounded-[10px] px-2.5 py-[7px] text-[13px] ${i === 0 ? "bg-[rgba(245,196,81,0.10)]" : ""}`}
               style={i === 0 ? undefined : { opacity: 1 - i * 0.16 }}
             >
@@ -76,7 +78,7 @@ export default function PoolPanel({
                 <b className={`num text-[13px] font-bold ${cancel ? "text-blue-400" : allIn ? "text-red-400" : "text-[#fcd34d]"}`}>
                   {cancel ? `취소 ${eok(-f.amount)}` : allIn ? "1억 올인" : eok(f.amount)}
                 </b>
-                <span className="num w-[3.4rem] text-right text-[11px] text-zinc-500">{i === 0 ? "방금" : `${i * 3}초 전`}</span>
+                <span className="num w-[3.4rem] text-right text-[11px] text-zinc-500">{f.ago}</span>
               </span>
             </div>
           );

@@ -1,9 +1,9 @@
 import { motion } from "motion/react";
 import { GradeAvatar, eok, pct, won } from "./parts";
-import type { BetStock, Grade } from "./mock";
+import type { BetStock, Grade } from "./model";
 import { colorByPnL } from "../../lib/format";
 
-export type StockRow = { stock: BetStock; grade: Grade; potMan: number; contrarian: boolean };
+export type StockRow = { stock: BetStock; grade: Grade | null; potMan: number; contrarian: boolean };
 
 /** 순위 · 종목 · 몰린 판돈 · 가격 · 등락(또는 결과) — 오늘의 주도주 목록과 같은 열 */
 const COLS = "grid-cols-[1.25rem_minmax(0,1fr)_6.5rem_5.5rem_4.5rem]";
