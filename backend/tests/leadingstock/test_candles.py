@@ -88,50 +88,31 @@ class Test거래대금_스파이크:
     def test_직전_평균이_0이면_None(self):
         assert MinuteCandles([대금봉(0, 0), 대금봉(1, 500)]).volume_spike(baseline_bars=20) is None
 
-    def test_종가가_고가권에서_끝나면_매수_저가권이면_매도다(self):
-        고가권 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=120, 저가=99, 종가=118, 대금=500)])
-        저가권 = MinuteCandles([*평탄봉, 봉(3, 시가=120, 고가=121, 저가=100, 종가=102, 대금=500)])
+    def test_양봉이면_매수_음봉이면_매도다(self):
+        """차트 거래량 막대 색과 같다 — 빨강(종가 ≥ 시가)은 매수, 파랑은 매도."""
+        양봉 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=120, 저가=99, 종가=118, 대금=500)])
+        음봉 = MinuteCandles([*평탄봉, 봉(3, 시가=120, 고가=121, 저가=100, 종가=102, 대금=500)])
 
-        assert 고가권.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
-        assert 저가권.volume_spike(baseline_bars=3).direction is SpikeDirection.SELL
+        assert 양봉.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
+        assert 음봉.volume_spike(baseline_bars=3).direction is SpikeDirection.SELL
 
-    def test_위로_찔렀다_되밀린_봉은_양봉이어도_매도다(self):
-        # 시가 100 → 고가 112까지 갔다가 101로 되밀렸다. 종가는 시가보다 높지만 저가권이다.
+    def test_위로_찔렀다_되밀려도_양봉이면_매수다(self):
+        # 시가 100 → 고가 112 → 종가 101. 고저 위치는 저가권이지만 막대가 빨강이다.
         되밀림 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=112, 저가=99, 종가=101, 대금=500)])
 
-        assert 되밀림.volume_spike(baseline_bars=3).direction is SpikeDirection.SELL
+        assert 되밀림.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
 
-    def test_아래로_밀렸다_고가_근처로_회복한_봉은_음봉이어도_매수다(self):
+    def test_고가_근처로_회복해도_음봉이면_매도다(self):
         회복 = MinuteCandles([*평탄봉, 봉(3, 시가=110, 고가=111, 저가=98, 종가=109, 대금=500)])
 
-        assert 회복.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
+        assert 회복.volume_spike(baseline_bars=3).direction is SpikeDirection.SELL
 
-    def test_가운데와_아래_사이에서_끝나면_중립이다(self):
-        """0.3 초과 0.5 미만 — 어느 쪽으로도 기울지 않은 구간."""
-        애매 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=110, 저가=100, 종가=104, 대금=500)])
-
-        assert 애매.volume_spike(baseline_bars=3).direction is SpikeDirection.FLAT
-
-    def test_정확히_가운데서_끝난_봉은_매수다(self):
-        """경계는 매수에 포함된다 — 상위 절반이면 매수로 본다."""
-        한가운데 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=110, 저가=100, 종가=105, 대금=500)])
-
-        assert 한가운데.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
-
-    def test_매수_문턱이_매도보다_낮아_같은_거리라도_매수만_붙는다(self):
-        """매수는 상위 50%, 매도는 하위 30% — 가운데서 같은 거리면 위쪽만 방향이 잡힌다."""
-        위로_0_6 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=120, 저가=100, 종가=112, 대금=500)])
-        아래로_0_4 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=120, 저가=100, 종가=108, 대금=500)])
-
-        assert 위로_0_6.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
-        assert 아래로_0_4.volume_spike(baseline_bars=3).direction is SpikeDirection.FLAT
-
-    def test_고가와_저가가_같은_봉은_중립이다(self):
-        """봉이 막 시작해 한 가격에만 체결된 경우 — 방향을 말할 수 없다."""
+    def test_종가가_시가와_같으면_차트처럼_매수다(self):
+        보합 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=105, 저가=95, 종가=100, 대금=500)])
         한가격 = MinuteCandles([*평탄봉, 봉(3, 시가=100, 고가=100, 저가=100, 종가=100, 대금=500)])
 
-        assert 한가격.volume_spike(baseline_bars=3).direction is SpikeDirection.FLAT
-
+        assert 보합.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
+        assert 한가격.volume_spike(baseline_bars=3).direction is SpikeDirection.BUY
 
 오늘 = date(2026, 6, 9)
 
