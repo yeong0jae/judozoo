@@ -63,6 +63,11 @@
       "title": "원달러 환율·WTI 유가·미국채 금리 : judozoo",
       "description": "원달러 환율, WTI 유가, VIX, 미국채 10년 금리를 한 화면에서 봅니다."
     },
+    "/closing-bet": {
+      "title": "모의 종가베팅 : judozoo",
+      "description": "주도주·후보 중 하나를 가상 금액으로 종가에 걸고 다음 날 아침 결과로 순위를 겨루는 모의 게임입니다.",
+      "sitemap": false
+    },
     "/privacy": {
       "title": "개인정보 처리방침 : judozoo",
       "description": "judozoo가 수집하는 정보와 그 이용·보관 방식을 설명합니다."
