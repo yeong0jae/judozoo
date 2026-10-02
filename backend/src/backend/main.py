@@ -64,6 +64,7 @@ async def lifespan(app: FastAPI):
     from backend.leadingstock.infrastructure import StockMinuteCandleEntity
     from backend.overseasleadingstock.infrastructure import OverseasMinuteCandleEntity
     from backend.insight.entities import StockReason
+    from backend.closingbet.entities import BetPlayer, BetRound, BetRoundStock, ClosingBet, ClosingBetEvent
     from backend.market.domain import FuturesMinuteDay, IndexMinuteDay, YahooMinuteDay
 
     try:
@@ -77,11 +78,16 @@ async def lifespan(app: FastAPI):
         OverseasMinuteCandleEntity.__table__.create(get_engine(), checkfirst=True)
         WideLimitDay.__table__.create(get_engine(), checkfirst=True)
         StockReason.__table__.create(get_engine(), checkfirst=True)
+        BetPlayer.__table__.create(get_engine(), checkfirst=True)
+        ClosingBet.__table__.create(get_engine(), checkfirst=True)
+        ClosingBetEvent.__table__.create(get_engine(), checkfirst=True)
+        BetRound.__table__.create(get_engine(), checkfirst=True)
+        BetRoundStock.__table__.create(get_engine(), checkfirst=True)
         IndexMinuteDay.__table__.create(get_engine(), checkfirst=True)
         FuturesMinuteDay.__table__.create(get_engine(), checkfirst=True)
         YahooMinuteDay.__table__.create(get_engine(), checkfirst=True)
     except Exception:
-        log.warning("가입자·의견·주도주 캘린더·타임라인·지난 날 분봉 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
+        log.warning("가입자·의견·주도주 캘린더·타임라인·지난 날 분봉·종가베팅 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
     load_stock_catalog()
     start_scheduler()
     # 스레드풀 계측. **여기여야 한다** — anyio 스레드풀은 실행 중인 이벤트 루프에 매여 있어
