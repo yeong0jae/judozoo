@@ -9,7 +9,6 @@ from backend.closingbet.domain import (
     BetRejected,
     Checks,
     Grade,
-    Level,
     Moment,
     NicknameRejected,
     OpenDays,
@@ -21,9 +20,9 @@ from backend.closingbet.domain import (
     check_bet,
     check_nickname,
     check_rename,
-    level_of,
     phase_at,
     random_nickname,
+    recent_high_gap,
     reveal_at,
     sell_price,
     shares_for,
@@ -159,42 +158,43 @@ class Test아침_5분_매도:
 
 class Test종베_체크와_등급:
     def test_다섯_가지를_모두_채우면_S(self):
-        c = Checks.of(price=412_500, high=414_000, foreign_net=2640, institution_net=910, market_late_net=740, level=Level.NEW_HIGH)
+        c = Checks.of(price=412_500, high=414_000, foreign_net=2640, institution_net=910, market_late_net=740, recent_high_gap=-0.4, recent_high_floor=-5.0)
         assert (c.passed, c.grade) == (5, Grade.S)
 
     def test_고가에서_1_5퍼센트_넘게_밀리면_고가_마감이_아니다(self):
-        assert Checks.of(985, 1000, 1, 1, 1, None).near_high
-        assert not Checks.of(984, 1000, 1, 1, 1, None).near_high
+        assert Checks.of(985, 1000, 1, 1, 1, None, -5.0).near_high
+        assert not Checks.of(984, 1000, 1, 1, 1, None, -5.0).near_high
 
     @pytest.mark.parametrize(("passed", "grade"), [(4, Grade.A), (3, Grade.B), (2, Grade.C), (0, Grade.C)])
     def test_채운_개수로_등급을_매긴다(self, passed, grade):
         flags = [1 if i < passed else -1 for i in range(4)]
-        c = Checks.of(1000 if flags[0] > 0 else 900, 1000, flags[1], flags[2], flags[3], None)
+        c = Checks.of(1000 if flags[0] > 0 else 900, 1000, flags[1], flags[2], flags[3], None, -5.0)
         assert c.grade is grade
 
     def test_순매수가_0이면_샀다고_보지_않는다(self):
-        assert not Checks.of(1000, 1000, 0, 0, 0, None).foreign
+        assert not Checks.of(1000, 1000, 0, 0, 0, None, -5.0).foreign
 
 
-class Test신고가와_박스_돌파:
+class Test최근_고점과의_거리:
     def history(self, highs_by_age: dict[int, int], filler: int = 100) -> list[DailyCandle]:
         """age 1 = 어제. 나머지 날은 filler."""
-        return [daily(FRI - timedelta(days=age), highs_by_age.get(age, filler)) for age in range(1, 300)]
+        return [daily(FRI - timedelta(days=age), highs_by_age.get(age, filler)) for age in range(1, 100)]
 
-    def test_고가가_52주_고가를_넘으면_신고가(self):
-        assert level_of(self.history({200: 150}), today_high=151, today_close=140) is Level.NEW_HIGH
+    def test_직전_60거래일_최고가_대비_퍼센트(self):
+        assert recent_high_gap(self.history({30: 200}), price=190) == pytest.approx(-5.0)
 
-    def test_52주_고가에_못_미쳐도_종가가_60일_고가_위면_박스_돌파(self):
-        assert level_of(self.history({200: 150, 30: 120}), today_high=130, today_close=121) is Level.BOX_BREAKOUT
+    def test_60거래일보다_오래된_고점은_보지_않는다(self):
+        assert recent_high_gap(self.history({80: 500}), price=100) == pytest.approx(0.0)
 
-    def test_60일_고가를_고가로만_넘고_종가가_못_지키면_아니다(self):
-        assert level_of(self.history({200: 150, 30: 120}), today_high=130, today_close=120) is None
+    def test_고점을_넘어서면_플러스다(self):
+        assert recent_high_gap(self.history({}), price=110) == pytest.approx(10.0)
 
-    def test_250거래일보다_오래된_고점은_보지_않는다(self):
-        assert level_of(self.history({280: 500}), today_high=101, today_close=101) is Level.NEW_HIGH
+    def test_과거_일봉이_없으면_재지_않는다(self):
+        assert recent_high_gap([], price=100) is None
 
-    def test_과거_일봉이_없으면_판정하지_않는다(self):
-        assert level_of([], today_high=100, today_close=100) is None
+    @pytest.mark.parametrize(("gap", "ok"), [(-5.0, True), (-4.9, True), (-5.1, False), (None, False)])
+    def test_기준_안이면_맞아요(self, gap, ok):
+        assert Checks.of(1000, 1000, 1, 1, 1, gap, -5.0).recent_high is ok
 
 
 class Test판돈:

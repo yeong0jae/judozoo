@@ -61,7 +61,7 @@ function LoginBox({ title, body, className = "" }: { title: string; body: string
 function Pager({ row, list, flows, verdict, member }: { row: StockRow; list: BetStock[]; flows: Record<MarketName, MarketFlow> | null; verdict: Verdict | null; member: boolean }) {
   const box = "min-h-[240px] rounded-[18px] border-2 border-dashed border-zinc-800 p-6";
   if (!member) {
-    return <LoginBox className={box} title={`왜 ${row.grade ?? "그"} 등급일까?`} body="등급 이유(고가 마감·외인·기관·시장 막판·신고가)는 로그인 후 볼 수 있어요." />;
+    return <LoginBox className={box} title={`왜 ${row.grade ?? "그"} 등급일까?`} body="등급 이유(고가 마감·외인·기관·시장 막판·최근 고점)는 로그인 후 볼 수 있어요." />;
   }
   if (!verdict || !flows || !row.grade) {
     return <div className={`flex items-center justify-center text-[13px] text-zinc-400 ${box}`}>이 종목은 아직 등급을 매기지 못했어요.</div>;
@@ -123,7 +123,7 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
     ticketIdx >= 0
       ? list[ticketIdx]
       : myBet && selected === myBet.stockCode
-        ? { code: myBet.stockCode, name: myBet.stockName, market: "코스피", lead: false, price: myBet.buyPrice ?? 0, chg: 0, high: 0, low: 0, frgn: 0, inst: 0, frgn5: 0, inst5: 0, tag: "", crowd: 0 }
+        ? { code: myBet.stockCode, name: myBet.stockName, market: "코스피", lead: false, price: myBet.buyPrice ?? 0, chg: 0, high: 0, low: 0, frgn: 0, inst: 0, frgn5: 0, inst5: 0, recentHighGap: null, crowd: 0 }
         : null;
 
   const shownDetail = detailCode ?? selected;
@@ -188,7 +188,7 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
               </div>
             </div>
           )}
-          <p className="m-0 text-xs leading-relaxed text-zinc-500">등급은 종베 체크 다섯 가지(고가 마감 · 외국인 · 기관 · 시장 막판 · 신고가)를 몇 개 채웠는지로 매겨요. S는 다섯 개 모두.</p>
+          <p className="m-0 text-xs leading-relaxed text-zinc-500">등급은 종베 체크 다섯 가지(고가 마감 · 외국인 · 기관 · 시장 막판 · 최근 고점)를 몇 개 채웠는지로 매겨요. S는 다섯 개 모두.</p>
         </section>
         <aside className="xl:sticky xl:top-20">
           <BetTicket

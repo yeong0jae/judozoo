@@ -19,7 +19,6 @@ from backend.closingbet.domain import (
     RESULT_START,
     BetRejected,
     Checks,
-    Level,
     NicknameRejected,
     OpenDays,
     Outcome,
@@ -31,7 +30,7 @@ from backend.closingbet.domain import (
     check_bet,
     check_nickname,
     check_rename,
-    level_of,
+    recent_high_gap,
     phase_at,
     random_nickname,
     reveal_at,
@@ -52,8 +51,8 @@ from backend.stock.domain import Market
 log = logging.getLogger(__name__)
 
 LEADERS_COUNT = 5
-#: 52주(250거래일) + 오늘
-_DAILY_COUNT = 251
+#: 최근 고점 60거래일 + 오늘
+_DAILY_COUNT = 61
 _FLOW_DAYS = 5
 
 _BANNED: tuple[str, ...] = ()
@@ -127,7 +126,8 @@ class StockReading:
     high: int
     low: int
     flows: StockFlows
-    level: Level | None
+    #: 최근 고점과의 거리(%) — 직전 60거래일 최고가 대비
+    recent_high_gap: float | None
     checks: Checks
 
 
@@ -141,13 +141,14 @@ def read_stock(stock: PoolStock, on: date, market_late: dict[Market, int]) -> St
         return None
     history: Sequence[DailyCandle] = [c for c in candles if c.date < on]
     flows = _stock_flows(stock.code, on)
-    level = level_of(history, today_bar.high_price, today_bar.close_price)
+    gap = recent_high_gap(history, today_bar.close_price)
     checks = Checks.of(
         price=today_bar.close_price, high=today_bar.high_price,
         foreign_net=flows.foreign, institution_net=flows.institution,
-        market_late_net=market_late.get(market, 0), level=level,
+        market_late_net=market_late.get(market, 0),
+        recent_high_gap=gap, recent_high_floor=get_settings().criteria.max_high_position_drop_rate,
     )
-    return StockReading(stock, market, today_bar.close_price, today_bar.high_price, today_bar.low_price, flows, level, checks)
+    return StockReading(stock, market, today_bar.close_price, today_bar.high_price, today_bar.low_price, flows, gap, checks)
 
 
 def _stock_flows(code: str, on: date) -> StockFlows:
@@ -371,7 +372,7 @@ def fill_round(session: Session, day: date, at: datetime) -> bool:
             lead=r.stock.lead, nxt=bool(nxt), close_price=r.close, high_price=r.high, low_price=r.low,
             change_rate=r.stock.change_rate, foreign_net=r.flows.foreign, institution_net=r.flows.institution,
             foreign_5d=r.flows.foreign_5d, institution_5d=r.flows.institution_5d,
-            level=r.level.value if r.level else None, checks=checks_json(r.checks), grade=r.checks.grade.value,
+            recent_high_gap=r.recent_high_gap, checks=checks_json(r.checks), grade=r.checks.grade.value,
             crowd=crowd.get(r.stock.code, 0), pot_man=pots.get(r.stock.code, 0),
         ))
     for bet in session.scalars(select(ClosingBet).where(ClosingBet.trading_day == day, ClosingBet.status == "open")):
@@ -388,7 +389,7 @@ def fill_round(session: Session, day: date, at: datetime) -> bool:
 
 
 def checks_json(c: Checks) -> dict:
-    return {"near_high": c.near_high, "foreign": c.foreign, "institution": c.institution, "market_late": c.market_late, "level": c.level}
+    return {"near_high": c.near_high, "foreign": c.foreign, "institution": c.institution, "market_late": c.market_late, "recent_high": c.recent_high}
 
 
 # --- 아침 매도 · 정산 -----------------------------------------------------------

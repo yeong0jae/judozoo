@@ -166,7 +166,7 @@ Backend (Python + FastAPI, package by feature)
 
 - 017 이후 추가된 테이블(`app_user`, `feedback`, `broker_token`, `leader_*`, `stock_minute_candle`, `overseas_minute_candle`, `wide_limit_day`)은 기동 시 `create(checkfirst=True)`로 만든다. 실패해도 기동은 막지 않는다 — 그 기능만 실패하고 공개 화면은 뜬다
 - 그 밖의 테이블은 이미 존재하고 앱이 DDL을 만들지 않는다
-- 컬럼 변경·DROP은 `backend/migration/VNNN__*.sql`로 두고 각 환경에 수동 적용한다 (현재 `V008`까지)
+- 컬럼 변경·DROP은 `backend/migration/VNNN__*.sql`로 두고 각 환경에 수동 적용한다 (현재 `V009`까지)
 
 ---
 

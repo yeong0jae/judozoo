@@ -186,30 +186,22 @@ class Outcome:
 # --- 종베 체크 · 등급 -----------------------------------------------------------
 
 NEAR_HIGH_RATE = -1.5  # 고가 대비 %
-NEW_HIGH_DAYS = 250  # 52주
-BOX_DAYS = 60
+#: 최근 고점 — 주도주 조건 "최근 고가 대비 현재가"(`leadingstock.filters.DailyHighPositionFilter`)와 같은 60봉
+RECENT_HIGH_DAYS = 60
 
 
-class Level(str, Enum):
-    NEW_HIGH = "신고가"
-    BOX_BREAKOUT = "박스 돌파"
+def recent_high_gap(history: Sequence[DailyCandle], price: int) -> float | None:
+    """최근 고점과의 거리(%) — 직전 60거래일 최고가 대비. `history`는 **오늘을 뺀** 과거 일봉.
 
-
-def level_of(history: Sequence[DailyCandle], today_high: int, today_close: int) -> Level | None:
-    """오늘 자리. `history`는 **오늘을 뺀** 과거 일봉.
-
-    - 신고가 — 오늘 고가가 직전 250거래일 고가보다 높다
-    - 박스 돌파 — 종가가 직전 60거래일 고가 위에서 끝났다
-    둘 다면 신고가.
+    종목 상세의 주도주 조건과 같은 식이다. 두 화면이 같은 종목에 다른 말을 하면 안 된다.
     """
-    past = sorted(history, key=lambda c: c.date, reverse=True)
+    past = sorted(history, key=lambda c: c.date, reverse=True)[:RECENT_HIGH_DAYS]
     if not past:
         return None
-    if today_high > max(c.high_price for c in past[:NEW_HIGH_DAYS]):
-        return Level.NEW_HIGH
-    if today_close > max(c.high_price for c in past[:BOX_DAYS]):
-        return Level.BOX_BREAKOUT
-    return None
+    top = max(c.high_price for c in past)
+    if top <= 0:
+        return None
+    return (price - top) / top * 100
 
 
 class Grade(str, Enum):
@@ -221,28 +213,33 @@ class Grade(str, Enum):
 
 @dataclass(frozen=True)
 class Checks:
-    """종베 체크 다섯 가지. 순매수는 통합(KRX+NXT), 시장 막판은 그 종목 시장의 마감 + 애프터 외인 + 기관."""
+    """종베 체크 다섯 가지. 순매수는 통합(KRX+NXT), 시장 막판은 그 종목 시장의 마감 + 애프터 외인 + 기관,
+    최근 고점은 직전 60거래일 최고가에서 기준(−5%) 안."""
 
     near_high: bool
     foreign: bool
     institution: bool
     market_late: bool
-    level: bool
+    recent_high: bool
 
     @staticmethod
-    def of(price: int, high: int, foreign_net: int, institution_net: int, market_late_net: int, level: Level | None) -> "Checks":
+    def of(
+        price: int, high: int, foreign_net: int, institution_net: int, market_late_net: int,
+        recent_high_gap: float | None, recent_high_floor: float,
+    ) -> "Checks":
+        """`recent_high_floor`는 주도주 조건의 기준(`max_high_position_drop_rate`, −5%)을 그대로 받는다."""
         return Checks(
             # 나눗셈 대신 곱셈 — 정확히 −1.5%인 경계가 부동소수 오차로 떨어지지 않게
             near_high=high > 0 and price * 100 >= high * (100 + NEAR_HIGH_RATE),
             foreign=foreign_net > 0,
             institution=institution_net > 0,
             market_late=market_late_net > 0,
-            level=level is not None,
+            recent_high=recent_high_gap is not None and recent_high_gap >= recent_high_floor,
         )
 
     @property
     def passed(self) -> int:
-        return sum((self.near_high, self.foreign, self.institution, self.market_late, self.level))
+        return sum((self.near_high, self.foreign, self.institution, self.market_late, self.recent_high))
 
     @property
     def grade(self) -> Grade:

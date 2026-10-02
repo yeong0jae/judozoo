@@ -19,7 +19,7 @@ export type BetStock = {
   inst: number;
   frgn5: number; // 최근 5일 누적
   inst5: number;
-  tag: "" | "신고가" | "박스 돌파";
+  recentHighGap: number | null; // 최근 60거래일 고가 대비 %
   crowd: number; // 고른 사람 수
   result?: number; // 지난 판 — 다음 날 아침 매도 수익률(%)
 };
@@ -36,7 +36,7 @@ export const NICKNAME_COOLDOWN_DAYS = 7;
 // ============================================================
 
 export type Check = {
-  key: "high" | "foreign" | "institution" | "late" | "level";
+  key: "high" | "foreign" | "institution" | "late" | "recentHigh";
   title: string;
   question: string;
   criteria: string;
@@ -49,6 +49,7 @@ export type Check = {
 };
 
 const NEAR_HIGH = -1.5;
+const RECENT_HIGH_FLOOR = -5;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 const signed = (n: number) => `${n > 0 ? "+" : ""}${won(n)}`;
 
@@ -59,6 +60,7 @@ export function lateSum(flow: MarketFlow): number {
 
 export function checksOf(x: BetStock, list: BetStock[], markets: Record<MarketName, MarketFlow>): Check[] {
   const fromHigh = (x.price / x.high - 1) * 100;
+  const gap = x.recentHighGap;
   const near = fromHigh >= NEAR_HIGH;
   const maxAbs = (k: "frgn" | "inst" | "frgn5" | "inst5") => Math.max(...list.map((s) => Math.abs(s[k]))) || 1;
 
@@ -115,22 +117,30 @@ export function checksOf(x: BetStock, list: BetStock[], markets: Record<MarketNa
     flowCheck("기관", "inst"),
     late,
     {
-      key: "level",
-      title: "신고가",
-      question: "위가 뚫린 자리인가요?",
-      criteria: "52주 신고가 또는 박스 돌파",
-      ok: !!x.tag,
-      value: x.tag || "아니에요",
-      sentence: x.tag === "신고가" ? "52주 신고가를 새로 썼어요. 위에 물려서 팔려는 사람이 없어요." : x.tag ? "한동안 막혀 있던 가격대를 뚫고 올라섰어요." : "위쪽에 예전에 물린 매물이 남아 있어요.",
-      why: "위에 매물이 없으면 조금만 사도 가격이 잘 올라가요.",
+      key: "recentHigh",
+      title: "최근 고점",
+      question: "최근 고점 근처인가요?",
+      // 기준 −5%는 서버 설정(주도주 조건 `max_high_position_drop_rate`)과 같다. 판정은 서버 값을 따른다
+      criteria: "최근 60거래일 고가에서 −5% 안",
+      ok: gap !== null && gap >= RECENT_HIGH_FLOOR,
+      value: gap === null ? "—" : `${gap > 0 ? "+" : ""}${gap.toFixed(1)}%`,
+      sentence:
+        gap === null
+          ? "최근 일봉이 없어 재지 못했어요."
+          : gap >= 0
+            ? "최근 60거래일 고점을 넘어섰어요. 위에 물려서 팔려는 사람이 없어요."
+            : gap >= RECENT_HIGH_FLOOR
+              ? `최근 고점까지 ${Math.abs(gap).toFixed(1)}% 남았어요. 고점 바로 아래예요.`
+              : `최근 고점에서 ${Math.abs(gap).toFixed(1)}% 아래예요. 위쪽에 예전에 산 사람들의 물량이 남아 있어요.`,
+      why: "고점 근처라야 위에서 본전에 팔려는 물량이 적어요. 종목 상세의 \"최근 고점과의 거리\"와 같은 기준이에요.",
     },
   ];
 }
 
 /** 서버 판정 — 문장은 `checksOf`가 쓰고, 맞아요/아니에요는 이 값을 따른다 */
-export type Verdict = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; level: boolean };
+export type Verdict = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; recentHigh: boolean };
 
-const VERDICT_KEY: Record<Check["key"], keyof Verdict> = { high: "nearHigh", foreign: "foreign", institution: "institution", late: "marketLate", level: "level" };
+const VERDICT_KEY: Record<Check["key"], keyof Verdict> = { high: "nearHigh", foreign: "foreign", institution: "institution", late: "marketLate", recentHigh: "recentHigh" };
 
 export function withVerdict(checks: Check[], verdict: Verdict): Check[] {
   return checks.map((c) => ({ ...c, ok: verdict[VERDICT_KEY[c.key]] }));

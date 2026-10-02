@@ -109,7 +109,7 @@ class CheckItem(_Camel):
     foreign: bool
     institution: bool
     market_late: bool
-    level: bool
+    recent_high: bool
 
 
 class StockItem(_Camel):
@@ -133,7 +133,8 @@ class StockItem(_Camel):
     #: 최근 5일 합
     foreign_week: int | None = None
     institution_week: int | None = None
-    level_tag: str | None = None
+    #: 최근 고점과의 거리(%)
+    recent_high_gap: float | None = None
     checks: CheckItem | None = None
 
 
@@ -174,7 +175,7 @@ def get_stocks(request: Request, db: Annotated[Session, Depends(get_db)]) -> Api
             item.high, item.low = r.high, r.low
             item.foreign, item.institution = r.flows.foreign, r.flows.institution
             item.foreign_week, item.institution_week = r.flows.foreign_5d, r.flows.institution_5d
-            item.level_tag = r.level.value if r.level else None
+            item.recent_high_gap = r.recent_high_gap
             item.checks = CheckItem(**application.checks_json(r.checks))
         items.append(item)
     return ApiResponse.ok(items)
@@ -287,7 +288,7 @@ class RoundStock(_Camel):
     #: 최근 5일 합
     foreign_week: int | None = None
     institution_week: int | None = None
-    level_tag: str | None = None
+    recent_high_gap: float | None = None
     checks: CheckItem | None = None
 
 
@@ -370,6 +371,6 @@ def _round_stock(s, member: bool) -> RoundStock:
         item.high, item.low = s.high_price, s.low_price
         item.foreign, item.institution = s.foreign_net, s.institution_net
         item.foreign_week, item.institution_week = s.foreign_5d, s.institution_5d
-        item.level_tag = s.level
+        item.recent_high_gap = s.recent_high_gap
         item.checks = CheckItem(**s.checks)
     return item

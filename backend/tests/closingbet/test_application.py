@@ -32,11 +32,11 @@ def 종목(code: str, name: str, price: int) -> LeadingStockSnapshot:
 
 
 def 일봉(code: str, n: int, base: date) -> list[DailyCandle]:
-    """오늘 봉(종가 = 20:00 체결) + 과거 250봉. 하이닉스는 신고가, 나머지는 평범."""
+    """오늘 봉(종가 = 20:00 체결) + 과거 60봉. 하이닉스는 고점 바로 아래, 나머지는 고점에서 한참 아래."""
     close = {"000660": 400_000, "247540": 200_000, "277810": 300_000}[code]
     today_ = DailyCandle(base, close, close, close - 10_000, close, 1, 5.0)
     past_high = close - 1 if code == "000660" else close * 2
-    past = [DailyCandle(date(2025, 1, 1).replace(day=1 + i % 28), 0, past_high, 0, 0, 1, 0.0) for i in range(250)]
+    past = [DailyCandle(date(2026, 7, 1).replace(day=1 + i % 28), 0, past_high, 0, 0, 1, 0.0) for i in range(60)]
     return [today_, *past]
 
 
@@ -135,7 +135,8 @@ class Test20시_체결:
             round_ = application.bet_round(s, 목)
         assert (bet.status, bet.buy_price, bet.shares) == ("filled", 400_000, 50)
         hynix = stocks["000660"]
-        assert (hynix.grade, hynix.level, hynix.nxt, hynix.crowd, hynix.pot_man) == ("S", "신고가", True, 1, 2_000)
+        assert (hynix.grade, hynix.nxt, hynix.crowd, hynix.pot_man) == ("S", True, 1, 2_000)
+        assert hynix.recent_high_gap == pytest.approx(0.00025, abs=1e-4)
         assert stocks["277810"].nxt is False
         assert (round_.players, round_.pot_man, round_.market) == (1, 2_000, FLOWS)
 
