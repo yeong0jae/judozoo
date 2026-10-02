@@ -203,6 +203,7 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
             buyPrice={myBet?.buyPrice}
             shares={myBet?.shares}
             voided={myBet?.status === "void"}
+            dropped={ticketIdx < 0 && !!myBet && selected === myBet.stockCode && stocksQ.isSuccess}
             member={member}
             busy={place.isPending || cancel.isPending}
             error={error}

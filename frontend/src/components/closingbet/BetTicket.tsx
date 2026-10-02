@@ -58,6 +58,7 @@ export default function BetTicket({
   member,
   busy = false,
   error,
+  dropped = false,
 }: {
   stock: BetStock | null;
   grade: Grade;
@@ -81,6 +82,8 @@ export default function BetTicket({
   busy?: boolean;
   /** 서버가 돌려준 거절 이유 */
   error?: string;
+  /** 걸어 둔 종목이 지금 목록에서 빠졌다 — 등급을 모르고, 금액은 못 바꾼다(취소·종목 바꾸기는 된다) */
+  dropped?: boolean;
 }) {
   if (!member) {
     return (
@@ -131,11 +134,15 @@ export default function BetTicket({
           <span className="num">{stock.code}</span>
         </span>
         <span className="text-[22px] font-bold tracking-tight">{stock.name}</span>
-        <span className="flex items-center gap-2">
-          <GradeAvatar grade={grade} />
-          <span className="text-[13px] text-zinc-300">{GRADE_TEXT[grade]}</span>
-          <span className={`num ml-auto text-[13px] ${colorByPnL(stock.chg)}`}>{pct(stock.chg)}</span>
-        </span>
+        {dropped ? (
+          <span className="self-start rounded-full bg-zinc-800 px-2.5 py-0.5 text-[12px] font-semibold text-zinc-300">목록에서 빠졌어요</span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <GradeAvatar grade={grade} />
+            <span className="text-[13px] text-zinc-300">{GRADE_TEXT[grade]}</span>
+            <span className={`num ml-auto text-[13px] ${colorByPnL(stock.chg)}`}>{pct(stock.chg)}</span>
+          </span>
+        )}
       </div>
       <div className="mx-4 h-0 border-t-2 border-dashed" style={{ borderColor: GRADE_PERF[grade] }} />
 
@@ -200,10 +207,12 @@ export default function BetTicket({
               {voided ? "체결 안 됨" : filled ? "체결 완료" : "베팅 완료"}
             </span>
             {!filled && (
-            <div className="grid grid-cols-2 gap-1.5">
-              <button type="button" onClick={onEdit} className="h-10 rounded-xl bg-zinc-850 text-[13px] font-semibold text-zinc-300 hover:text-zinc-100">
-                금액 바꾸기
-              </button>
+            <div className={`grid gap-1.5 ${dropped ? "grid-cols-1" : "grid-cols-2"}`}>
+              {!dropped && (
+                <button type="button" onClick={onEdit} className="h-10 rounded-xl bg-zinc-850 text-[13px] font-semibold text-zinc-300 hover:text-zinc-100">
+                  금액 바꾸기
+                </button>
+              )}
               <button type="button" onClick={onCancel} className="h-10 rounded-xl bg-zinc-850 text-[13px] font-semibold text-zinc-300 hover:text-zinc-100">
                 베팅 취소
               </button>
@@ -217,7 +226,9 @@ export default function BetTicket({
             ? "종가가 올라 이 금액으로는 한 주도 살 수 없었어요. 이 판에서는 빠져요."
             : filled
               ? `${won(filledShares ?? 0)}주 체결됐어요. 내일 아침 5분 중간가로 팔아요.`
-              : "가상 금액이에요. 20:00 전까지 바꾸거나 취소할 수 있어요."}
+              : dropped
+                ? "목록에서 빠진 종목이라 금액은 못 바꿔요. 이대로 두면 20:00 종가로 체결되고, 취소하거나 다른 종목으로 바꿀 수 있어요."
+                : "가상 금액이에요. 20:00 전까지 바꾸거나 취소할 수 있어요."}
         </p>
       </div>
     </div>
