@@ -32,14 +32,14 @@ export default function DayStrip({ moment, sub, timer }: { moment: Moment; sub: 
       </div>
       {/* 점과 선으로 이은 하루 흐름 — 티켓의 단계 표시와 같은 모양. 지금 칸만 파랗게 켜진다 */}
       <ol aria-label="하루 흐름" className="relative m-0 grid list-none grid-cols-4 p-0">
-        <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[5px] h-0.5 rounded bg-zinc-800" />
+        <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[4px] h-0.5 rounded bg-zinc-800" />
         {SEGS.map(([key, label, time]) => {
           const on = key === moment;
           return (
             <li key={key} aria-current={on ? "step" : undefined} className="relative flex flex-col items-center gap-1.5">
               <span
-                className="block h-3 w-3 rounded-full"
-                style={{ background: on ? "#3182f6" : "#3a3f47", boxShadow: on ? "0 0 0 4px rgba(49,130,246,0.25)" : undefined }}
+                className="block h-2.5 w-2.5 rounded-full"
+                style={{ background: on ? "#3182f6" : "#3a3f47", boxShadow: on ? "0 0 0 3px rgba(49,130,246,0.25)" : undefined }}
               />
               <span className={`text-[15px] ${on ? "font-bold text-zinc-100" : "font-medium text-zinc-500"}`}>{label}</span>
               <span className="num whitespace-nowrap text-xs text-zinc-500">{time}</span>
