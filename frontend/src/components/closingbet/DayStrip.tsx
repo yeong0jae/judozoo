@@ -30,24 +30,19 @@ export default function DayStrip({ moment, sub, timer }: { moment: Moment; sub: 
         <span className="text-[22px] font-bold tracking-tight">{c.title}</span>
         <span className="text-[13px] text-zinc-400">{sub}</span>
       </div>
-      <ol aria-label="하루 흐름" className="m-0 grid list-none grid-cols-4 gap-1 p-0">
+      {/* 점과 선으로 이은 하루 흐름 — 티켓의 단계 표시와 같은 모양. 지금 칸만 파랗게 켜진다 */}
+      <ol aria-label="하루 흐름" className="relative m-0 grid list-none grid-cols-4 p-0">
+        <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[7px] h-0.5 rounded bg-zinc-800" />
         {SEGS.map(([key, label, time]) => {
           const on = key === moment;
           return (
-            <li
-              key={key}
-              aria-current={on ? "step" : undefined}
-              className={`flex flex-col gap-[3px] rounded-xl px-3 py-2.5 ${on ? "bg-zinc-850" : "opacity-55"}`}
-              style={on ? { boxShadow: `inset 0 0 0 1px ${c.color}` } : undefined}
-            >
-              <span className="flex items-center gap-1.5 text-[13px] font-semibold">
-                <span
-                  className="inline-block h-[7px] w-[7px] rounded-full"
-                  style={{ background: on ? c.color : "#4e5968", boxShadow: on ? "0 0 0 4px rgba(255,255,255,0.06)" : undefined }}
-                />
-                {label}
-              </span>
-              <span className="num text-[11px] text-zinc-500">{time}</span>
+            <li key={key} aria-current={on ? "step" : undefined} className="relative flex flex-col items-center gap-1.5">
+              <span
+                className="block h-4 w-4 rounded-full"
+                style={{ background: on ? "#3182f6" : "#3a3f47", boxShadow: on ? "0 0 0 5px rgba(49,130,246,0.25)" : undefined }}
+              />
+              <span className={`text-[15px] ${on ? "font-bold text-zinc-100" : "font-medium text-zinc-500"}`}>{label}</span>
+              <span className="num whitespace-nowrap text-xs text-zinc-500">{time}</span>
             </li>
           );
         })}
