@@ -452,6 +452,9 @@ body {
 /* 모바일 타임라인 — 띠를 손가락으로 미는 가로 스크롤. 스크롤바 대신 가운데 세로선이 위치를 알린다 */
 .tl-scrub { scrollbar-width: none; overscroll-behavior-x: contain; }
 .tl-scrub::-webkit-scrollbar { display: none; }
+/* 주도주 캘린더 — 달을 스크롤로 넘기지만 막대는 보이지 않게 */
+.cal-scroll { scrollbar-width: none; }
+.cal-scroll::-webkit-scrollbar { display: none; }
 
 /* ─── 모의 종가베팅 ───────────────────────────────────────────── */
 /* 금(S)·은(A) 티켓 머리 칸을 한 번 지나가는 빛 */

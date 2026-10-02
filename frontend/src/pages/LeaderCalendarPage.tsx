@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLeaderCalendar } from "../api/queries";
 import type { LeaderDayItem, LeaderStockItem } from "../types";
 import { formatKoreanMoney } from "../lib/format";
@@ -53,25 +53,131 @@ function readMode(): Mode {
  */
 export default function LeaderCalendarPage() {
   const today = todayStr();
-  const [view, setView] = useState(() => {
-    const d = parse(today);
-    return { y: d.getFullYear(), m: d.getMonth() };
-  });
+  const thisMonth = today.slice(0, 7);
+  // 받아 둔 달 수 — 이번 달과 지난달로 시작해, 위로 올라가면 한 달씩 더 받는다
+  const [span, setSpan] = useState(2);
+  const months = useMemo(() => monthsBack(thisMonth, span), [thisMonth, span]);
+  const [visible, setVisible] = useState(thisMonth);
   const [mode, setModeState] = useState<Mode>(readMode);
   const [selected, setSelected] = useState<string | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
 
-  const month = `${view.y}-${pad(view.m + 1)}`;
-  // 해외 오늘(뉴욕 날짜)이 전달 끝이어도 이번 달 응답에 딸려 온다 — 이번 달만 다시 받으면 된다
-  const { data, isLoading, isError } = useLeaderCalendar(month, month === today.slice(0, 7));
+  const scroller = useRef<HTMLDivElement>(null);
+  const sections = useRef(new Map<string, HTMLDivElement>());
+  // 위에 달을 붙이기 직전 맨 위였던 달 — 붙인 뒤 그 달 맨 위로 다시 놓는다
+  const anchor = useRef<{ month: string } | null>(null);
+  const touched = useRef(false);
 
-  const domestic = useMemo(() => byDate(data?.domestic), [data]);
-  const overseas = useMemo(() => byDate(data?.overseas), [data]);
-  const krClosed = useMemo(() => closedDates(data?.domestic), [data]);
-  const usClosed = useMemo(() => closedDates(data?.overseas), [data]);
-  const krLive = useMemo(() => liveDates(data?.domestic), [data]);
-  const usLive = useMemo(() => liveDates(data?.overseas), [data]);
-  const days = useMemo(() => weekdaysOf(view.y, view.m), [view]);
+  // 맨 위 달까지 받아 봤는데 기록이 하나도 없으면 그 앞은 더 없다
+  const oldestQ = useLeaderCalendar(months[0], months[0] === thisMonth);
+  const exhausted = oldestQ.data !== undefined && oldestQ.data.domestic.length === 0 && oldestQ.data.overseas.length === 0;
+  // 그리는 달 — 기록이 없어 멈춘 맨 앞 달은 빈 칸만 보여 주므로 뺀다
+  const shown = exhausted && months.length > 1 ? months.slice(1) : months;
+
+  // 오른쪽 패널 — 보이는 달(자주 뽑힌 종목·기본 상세)과 고른 날의 달. 달력 칸과 같은 캐시를 쓴다
+  const visibleQ = useLeaderCalendar(visible, visible === thisMonth);
+  const detailMonth = selected ? selected.slice(0, 7) : visible;
+  const detailQ = useLeaderCalendar(detailMonth, detailMonth === thisMonth);
+
+  const sectionTop = (month: string) => {
+    const el = sections.current.get(month);
+    return el ? el.offsetTop : null;
+  };
+
+  const settleTimer = useRef<number | undefined>(undefined);
+
+  // 처음엔 이번 달 맨 위, 이전 달을 붙인 뒤엔 붙이기 전 맨 위였던 달의 맨 위에 놓는다.
+  // 데이터·글꼴이 들어오며 달 높이가 바뀌어도, 사람이 움직이기 전까진 크기가 바뀔 때마다 다시 맞춘다.
+  // 스냅 중인 브라우저도 붙어 있던 달로 다시 붙으므로 둘이 같은 자리를 가리킨다 — 늘어난 높이를 더하지 않는다
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const target = anchor.current?.month ?? (touched.current ? null : thisMonth);
+    if (!target) return;
+    const place = () => {
+      const top = sectionTop(target);
+      if (top !== null) el.scrollTop = top;
+    };
+    place();
+    const ro = new ResizeObserver(() => {
+      if (!touched.current || anchor.current) place();
+    });
+    ro.observe(el);
+    for (const child of el.children) ro.observe(child);
+    return () => ro.disconnect();
+    // 기록 없는 달이 빠지면(exhausted) 그 높이만큼 당겨진다 — 그때도 보던 달로 다시 놓는다
+  }, [span, exhausted]);
+
+  // 붙인 달을 다 받으면 기준을 놓는다 — 이후 크기 변화로 화면을 끌어당기지 않게
+  useEffect(() => {
+    if (!oldestQ.isFetching) anchor.current = null;
+  }, [oldestQ.isFetching]);
+
+  const onScrollIntent = () => {
+    touched.current = true;
+    anchor.current = null;
+  };
+
+  // 스크롤이 멈추면 — 맨 위 달에 머물러 있으면 그 앞 달을 붙인다.
+  // 달에 맞춰 멈추는 건 CSS 스냅(넓은 화면)이 한다. 손가락·관성을 그대로 따라가다 붙어 가장 매끄럽다
+  const settle = () => {
+    const el = scroller.current;
+    wheelGoal.current = null;
+    if (!el || !touched.current) return;
+    if (el.scrollTop < 240 && !exhausted && !oldestQ.isFetching && !oldestQ.isError && anchor.current === null) {
+      anchor.current = { month: shown[0] };
+      setSpan((n) => n + 1);
+    }
+  };
+
+  const onScroll = () => {
+    const el = scroller.current;
+    if (!el) return;
+    window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(settle, 140);
+    // 달 제목이 맨 위에 닿은 달이 보이는 달이다
+    const now = [...shown].reverse().find((m) => (sectionTop(m) ?? Infinity) <= el.scrollTop + 60) ?? shown[0];
+    if (now !== visible) {
+      setVisible(now);
+      setSelected(null);
+      setFocus(null);
+    }
+  };
+
+  // 휠 마우스는 한 칸이 100px 남짓이라 스냅만으론 여러 칸 굴려야 넘어가거나 제자리로 끌려온다 —
+  // 마우스 휠일 때만 기본 스크롤을 막고 한 칸에 한 달씩 넘긴다. 트랙패드는 스냅이 손을 따라가게 둔다
+  const wheelGoal = useRef<number | null>(null);
+  const onWheelNative = (e: WheelEvent) => {
+    const el = scroller.current;
+    if (!el || !window.matchMedia("(min-width: 640px)").matches || !isMouseWheel(e)) return;
+    e.preventDefault();
+    onScrollIntent();
+    const ts = shown.map((m) => sectionTop(m) ?? 0);
+    const here = wheelGoal.current ?? ts.reduce((best, t, k) => (Math.abs(t - el.scrollTop) < Math.abs(ts[best] - el.scrollTop) ? k : best), 0);
+    const next = Math.max(0, Math.min(ts.length - 1, here + Math.sign(e.deltaY)));
+    if (next === here) return;
+    // 빠르게 여러 칸 굴리면 목표를 한 칸씩 더 민다 — 다 넘어가 멈추면(settle) 목표를 놓는다
+    wheelGoal.current = next;
+    el.scrollTo({ top: ts[next], behavior: "smooth" });
+  };
+  const wheelRef = useRef(onWheelNative);
+  wheelRef.current = onWheelNative;
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    // React의 onWheel은 passive라 기본 스크롤을 막을 수 없다
+    const listener = (e: WheelEvent) => wheelRef.current(e);
+    el.addEventListener("wheel", listener, { passive: false });
+    return () => el.removeEventListener("wheel", listener);
+  }, []);
+
+  const goToday = () => {
+    onScrollIntent();
+    setSelected(null);
+    setFocus(null);
+    const top = sectionTop(thisMonth);
+    if (top !== null) scroller.current?.scrollTo({ top, behavior: "smooth" });
+  };
 
   const setMode = (m: Mode) => {
     setModeState(m);
@@ -82,26 +188,18 @@ export default function LeaderCalendarPage() {
       /* 기억 못 해도 동작한다 */
     }
   };
-  const shift = (n: number) => {
-    setView(({ y, m }) => {
-      const d = new Date(y, m + n, 1);
-      return { y: d.getFullYear(), m: d.getMonth() };
-    });
-    setSelected(null);
-    setFocus(null);
-  };
-  const goToday = () => {
-    const d = parse(today);
-    setView({ y: d.getFullYear(), m: d.getMonth() });
-    setSelected(null);
-    setFocus(null);
-  };
 
-  // 고른 날이 없으면 이달의 마지막 기록일(없으면 오늘)을 연다
+  const [vy, vm] = visible.split("-").map(Number);
+  const visibleDays = useMemo(() => weekdaysOf(vy, vm - 1), [vy, vm]);
+  const visibleDomestic = useMemo(() => byDate(visibleQ.data?.domestic), [visibleQ.data]);
+  const visibleOverseas = useMemo(() => byDate(visibleQ.data?.overseas), [visibleQ.data]);
+
+  // 고른 날이 없으면 보이는 달의 마지막 기록일을 연다
   const current =
     selected ??
-    [...days].reverse().find((d) => d <= today && (domestic.has(d) || overseas.has(d))) ??
+    [...visibleDays].reverse().find((d) => d <= today && (visibleDomestic.has(d) || visibleOverseas.has(d))) ??
     null;
+  const detailData = detailQ.data;
 
   const frequent = useMemo(() => {
     const count = new Map<string, { name: string; overseas: boolean; n: number }>();
@@ -114,15 +212,13 @@ export default function LeaderCalendarPage() {
           count.set(k, c);
         }
     };
-    const inMonth = (d: LeaderDayItem) => days.includes(d.date);
-    if (mode !== "overseas") tally(data?.domestic.filter(inMonth), false);
-    if (mode !== "domestic") tally(data?.overseas.filter(inMonth), true);
+    const inMonth = (d: LeaderDayItem) => visibleDays.includes(d.date);
+    if (mode !== "overseas") tally(visibleQ.data?.domestic.filter(inMonth), false);
+    if (mode !== "domestic") tally(visibleQ.data?.overseas.filter(inMonth), true);
     return [...count.entries()].filter(([, c]) => c.n >= 2).sort((a, b) => b[1].n - a[1].n);
-  }, [data, days, mode]);
+  }, [visibleQ.data, visibleDays, mode]);
 
   const caption = MODES.find((m) => m.key === mode)!.caption;
-  const leadingBlanks = days.length ? parse(days[0]).getDay() - 1 : 0;
-  const trailingBlanks = (5 - ((leadingBlanks + days.length) % 5)) % 5;
 
   return (
     <div className="space-y-5">
@@ -148,11 +244,9 @@ export default function LeaderCalendarPage() {
             ))}
           </div>
           <div className="flex items-center gap-1">
-            <NavButton label="이전 달" onClick={() => shift(-1)} d="M15 6l-6 6 6 6" />
-            <span className="min-w-[6.5rem] text-center text-base font-bold num">
-              {view.y}년 {view.m + 1}월
+            <span className="min-w-[6.5rem] text-center text-base font-bold num" aria-live="polite">
+              {vy}년 {vm}월
             </span>
-            <NavButton label="다음 달" onClick={() => shift(1)} d="M9 6l6 6-6 6" />
             <button
               type="button"
               onClick={goToday}
@@ -166,44 +260,36 @@ export default function LeaderCalendarPage() {
 
       <div className="grid gap-[24px] xl:grid-cols-[minmax(0,1fr)_320px] items-start">
         <section className="rounded-[14px] border border-zinc-800 overflow-hidden text-[14px] leading-[normal]" aria-label="달력">
-          <div className="hidden sm:grid grid-cols-5 border-b border-zinc-800">
-            {["월", "화", "수", "목", "금"].map((w) => (
-              <div key={w} className="px-[12px] py-[10px] text-[12px] font-semibold text-zinc-500">
-                {w}
-              </div>
+          {/* 달마다 이어 붙인 세로 스크롤 — 넓은 화면에선 한 번 미는 동작에 한 달씩 넘어가 맨 위에 붙는다(snap-always) */}
+          <div
+            ref={scroller}
+            onScroll={onScroll}
+            onWheel={onScrollIntent}
+            onTouchMove={onScrollIntent}
+            onPointerDown={onScrollIntent}
+            onKeyDown={(event) => {
+              if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) onScrollIntent();
+            }}
+            tabIndex={0}
+            aria-label="월별 주도주 달력"
+            className="cal-scroll relative h-[calc(100dvh-11.5rem)] min-h-[28rem] overflow-y-auto overscroll-contain [overflow-anchor:none] sm:snap-y sm:snap-mandatory"
+          >
+            {shown.map((m) => (
+              <MonthSection
+                key={m}
+                month={m}
+                today={today}
+                mode={mode}
+                focus={focus}
+                selected={current}
+                onSelect={setSelected}
+                sectionRef={(el) => {
+                  if (el) sections.current.set(m, el);
+                  else sections.current.delete(m);
+                }}
+              />
             ))}
           </div>
-          {isError ? (
-            <p className="py-16 text-center text-[14px] text-zinc-500">달력을 불러오지 못했습니다</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-px bg-zinc-800">
-              {Array.from({ length: leadingBlanks }, (_, i) => (
-                <div key={`b${i}`} className="hidden sm:block bg-zinc-900" />
-              ))}
-              {days.map((d, i) => (
-                <DayCell
-                  key={d}
-                  corner={cornerOf(leadingBlanks + i, leadingBlanks + days.length + trailingBlanks)}
-                  date={d}
-                  today={today}
-                  mode={mode}
-                  loading={isLoading}
-                  domestic={domestic.get(d)}
-                  krClosed={krClosed.has(d)}
-                  usClosed={usClosed.has(d)}
-                  krLive={krLive.has(d)}
-                  usLive={usLive.has(d)}
-                  overseas={overseas.get(d)}
-                  selected={d === current}
-                  focus={focus}
-                  onSelect={() => setSelected(d)}
-                />
-              ))}
-              {Array.from({ length: trailingBlanks }, (_, i) => (
-                <div key={`a${i}`} className="hidden sm:block bg-zinc-900" />
-              ))}
-            </div>
-          )}
         </section>
 
         <aside className="grid gap-[16px] text-[14px] leading-[normal] sm:grid-cols-2 xl:grid-cols-1">
@@ -211,17 +297,17 @@ export default function LeaderCalendarPage() {
             date={current}
             today={today}
             mode={mode}
-            domestic={current ? domestic.get(current) : undefined}
-            krClosed={current ? krClosed.has(current) : false}
-            usClosed={current ? usClosed.has(current) : false}
-            krLive={current ? krLive.has(current) : false}
-            usLive={current ? usLive.has(current) : false}
-            overseas={current ? overseas.get(current) : undefined}
+            domestic={current ? byDate(detailData?.domestic).get(current) : undefined}
+            krClosed={current ? closedDates(detailData?.domestic).has(current) : false}
+            usClosed={current ? closedDates(detailData?.overseas).has(current) : false}
+            krLive={current ? liveDates(detailData?.domestic).has(current) : false}
+            usLive={current ? liveDates(detailData?.overseas).has(current) : false}
+            overseas={current ? byDate(detailData?.overseas).get(current) : undefined}
           />
           <section className="rounded-[14px] border border-zinc-800 p-[16px]">
             <h3 className="text-[15px] font-bold">자주 뽑힌 종목</h3>
             <p className="mt-[2px] mb-[12px] text-[12px] text-zinc-500">
-              {frequent.length ? "이달 두 번 이상 뽑힌 종목" : "두 번 이상 뽑힌 종목이 없습니다"}
+              {frequent.length ? `${vm}월에 두 번 이상 뽑힌 종목` : "두 번 이상 뽑힌 종목이 없습니다"}
             </p>
             <div className="flex flex-col gap-[2px]">
               {frequent.map(([k, c]) => (
@@ -260,14 +346,107 @@ export default function LeaderCalendarPage() {
   );
 }
 
-/** 기록된 날 → 종목. 휴장일은 빼고 `closedDates`로 따로 든다. */
-/** 달력 아래 두 모서리 칸 — 테두리의 둥근 모서리가 선택 테두리를 자르지 않게 같은 둥글기를 준다(폰 목록은 해당 없음). */
-function cornerOf(index: number, total: number): string {
-  if (index === total - 5) return "sm:rounded-bl-[13px]";
-  if (index === total - 1) return "sm:rounded-br-[13px]";
-  return "";
+/** 한 달 — 제목 줄(스크롤 중 맨 위에 붙는다) + 요일 줄 + 평일 칸. 달마다 따로 받아 캐시를 칸과 오른쪽 패널이 같이 쓴다. */
+function MonthSection({
+  month,
+  today,
+  mode,
+  focus,
+  selected,
+  onSelect,
+  sectionRef,
+}: {
+  month: string;
+  today: string;
+  mode: Mode;
+  focus: string | null;
+  selected: string | null;
+  onSelect: (date: string) => void;
+  sectionRef: (el: HTMLDivElement | null) => void;
+}) {
+  const [y, m] = month.split("-").map(Number);
+  // 해외 오늘(뉴욕 날짜)이 전달 끝이어도 이번 달 응답에 딸려 온다 — 이번 달만 다시 받으면 된다
+  const { data, isLoading, isError } = useLeaderCalendar(month, month === today.slice(0, 7));
+  const domestic = useMemo(() => byDate(data?.domestic), [data]);
+  const overseas = useMemo(() => byDate(data?.overseas), [data]);
+  const krClosed = useMemo(() => closedDates(data?.domestic), [data]);
+  const usClosed = useMemo(() => closedDates(data?.overseas), [data]);
+  const krLive = useMemo(() => liveDates(data?.domestic), [data]);
+  const usLive = useMemo(() => liveDates(data?.overseas), [data]);
+  const days = useMemo(() => weekdaysOf(y, m - 1), [y, m]);
+  const leadingBlanks = days.length ? parse(days[0]).getDay() - 1 : 0;
+  const trailingBlanks = (5 - ((leadingBlanks + days.length) % 5)) % 5;
+
+  return (
+    // 넓은 화면에선 한 달이 달력 영역과 꼭 같은 높이다 — 내용이 길어도 달이 화면보다 길어지지 않아야
+    // 넘길 때 늘 달 맨 위에 맞는다. 너무 낮은 창에서만 36rem을 지켜 칸이 납작해지지 않게 한다
+    <div ref={sectionRef} className="flex min-h-full flex-col sm:min-h-0 sm:h-[max(100%,36rem)] sm:snap-start sm:snap-always">
+      <div className="sticky top-0 z-[2] flex h-12 shrink-0 items-center border-b border-zinc-800 bg-zinc-950 px-[14px] text-[15px] font-bold num">
+        {y}년 {m}월
+      </div>
+      {/* 요일은 달 제목 아래 — 한 화면에 한 달만 보이니 달마다 둔다 */}
+      <div className="hidden h-9 shrink-0 grid-cols-5 border-b border-zinc-800 sm:grid">
+        {["월", "화", "수", "목", "금"].map((w) => (
+          <div key={w} className="flex items-center px-[12px] text-[12px] font-semibold text-zinc-500">
+            {w}
+          </div>
+        ))}
+      </div>
+      {isError ? (
+        <p className="py-16 text-center text-[14px] text-zinc-500">달력을 불러오지 못했습니다</p>
+      ) : (
+        <div className="grid min-h-0 grid-cols-1 content-start sm:flex-1 gap-px bg-zinc-800 sm:grid-cols-5 sm:auto-rows-[minmax(0,1fr)]">
+          {Array.from({ length: leadingBlanks }, (_, i) => (
+            <div key={`b${i}`} className="hidden sm:block bg-zinc-900" />
+          ))}
+          {days.map((d) => (
+            <DayCell
+              key={d}
+              date={d}
+              today={today}
+              mode={mode}
+              loading={isLoading}
+              domestic={domestic.get(d)}
+              krClosed={krClosed.has(d)}
+              usClosed={usClosed.has(d)}
+              krLive={krLive.has(d)}
+              usLive={usLive.has(d)}
+              overseas={overseas.get(d)}
+              selected={d === selected}
+              focus={focus}
+              onSelect={() => onSelect(d)}
+            />
+          ))}
+          {Array.from({ length: trailingBlanks }, (_, i) => (
+            <div key={`a${i}`} className="hidden sm:block bg-zinc-900" />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
+/**
+ * 휠 마우스인가 — 트랙패드는 맥 Chrome·Safari에서 `wheelDeltaY`가 정확히 `deltaY`의 −3배로 오고,
+ * 마우스 휠은 한 칸이 120의 배수로 온다. 줄 단위(deltaMode 1)는 Firefox의 마우스 휠이다.
+ */
+function isMouseWheel(e: WheelEvent): boolean {
+  if (e.deltaMode === 1) return true;
+  const legacy = (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
+  if (!legacy) return false;
+  return legacy !== -3 * e.deltaY && legacy % 120 === 0;
+}
+
+/** `month`(yyyy-MM)까지 거슬러 `n`달 — 오래된 달부터. */
+function monthsBack(month: string, n: number): string[] {
+  const [y, m] = month.split("-").map(Number);
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(y, m - 1 - (n - 1 - i), 1);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  });
+}
+
+/** 기록된 날 → 종목. 휴장일은 빼고 `closedDates`로 따로 든다. */
 function byDate(items: LeaderDayItem[] | undefined): Map<string, LeaderStockItem[]> {
   return new Map((items ?? []).filter((d) => !d.closed).map((d) => [d.date, d.stocks]));
 }
@@ -289,21 +468,6 @@ function weekdaysOf(y: number, m: number): string[] {
     if (date.getDay() !== 0 && date.getDay() !== 6) out.push(iso(date));
   }
   return out;
-}
-
-function NavButton({ label, onClick, d }: { label: string; onClick: () => void; d: string }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className="grid h-8 w-8 place-items-center rounded-lg text-zinc-300 hover:bg-zinc-850"
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d={d} />
-      </svg>
-    </button>
-  );
 }
 
 function MarketTag({ overseas }: { overseas: boolean }) {
@@ -339,7 +503,8 @@ function CountDots({ n }: { n: number }) {
   );
 }
 
-function Rows({ stocks, limit, focus }: { stocks: LeaderStockItem[]; limit: number; focus: string | null }) {
+/** `more`가 꺼져 있으면 "외 N종목"을 뺀다 — 모두 보기 칸은 좁아 줄을 아낀다(개수는 점으로 보인다). */
+function Rows({ stocks, limit, focus, more = true }: { stocks: LeaderStockItem[]; limit: number; focus: string | null; more?: boolean }) {
   return (
     <>
       {stocks.slice(0, limit).map((s, i) => (
@@ -353,7 +518,7 @@ function Rows({ stocks, limit, focus }: { stocks: LeaderStockItem[]; limit: numb
           <span className="shrink-0 text-[11px] font-semibold text-red-600 num">{pct(s.changeRate)}</span>
         </div>
       ))}
-      {stocks.length > limit && <span className="text-[11px] text-zinc-500">외 {stocks.length - limit}종목</span>}
+      {more && stocks.length > limit && <span className="text-[11px] text-zinc-500">외 {stocks.length - limit}종목</span>}
     </>
   );
 }
@@ -372,9 +537,7 @@ function DayCell({
   selected,
   focus,
   onSelect,
-  corner,
 }: {
-  corner: string;
   date: string;
   today: string;
   mode: Mode;
@@ -428,7 +591,7 @@ function DayCell({
             </div>
           )}
           {domestic!.length ? (
-            <Rows stocks={domestic!} limit={mode === "both" ? 3 : MAX} focus={focus} />
+            <Rows stocks={domestic!} limit={mode === "both" ? 2 : MAX} focus={focus} more={mode !== "both"} />
           ) : (
             <span className="text-[12px] text-zinc-500">주도주 없음</span>
           )}
@@ -446,7 +609,7 @@ function DayCell({
           {usClosed ? (
             <span className="text-[12px] text-zinc-500">휴장</span>
           ) : overseas!.length ? (
-            <Rows stocks={overseas!} limit={mode === "both" ? 2 : MAX} focus={focus} />
+            <Rows stocks={overseas!} limit={mode === "both" ? 2 : MAX} focus={focus} more={mode !== "both"} />
           ) : (
             <span className="text-[12px] text-zinc-500">주도주 없음</span>
           )}
@@ -471,9 +634,9 @@ function DayCell({
     </div>
   );
 
-  const base = `min-h-0 sm:min-h-[132px] flex-col gap-[8px] px-[12px] pt-[10px] pb-[12px] text-left transition-[background-color,opacity] duration-150 ${
+  const base = `min-h-0 flex-col gap-[8px] px-[12px] pt-[10px] pb-[12px] text-left transition-[background-color,opacity] duration-150 ${
     dim ? "opacity-30" : ""
-  } ${hit ? "bg-emerald-700/5" : "bg-zinc-950"} ${closed ? "leader-closed" : ""} ${corner}`;
+  } ${hit ? "bg-emerald-700/5" : "bg-zinc-950"} ${closed ? "leader-closed" : ""}`;
 
   // 폰에서는 기록 없는 날을 목록에서 뺀다
   if (!has && !loading) return <div className={`${base} hidden sm:flex`}>{head}</div>;
@@ -485,7 +648,10 @@ function DayCell({
       className={`${base} flex hover:bg-zinc-850 ${selected ? "relative z-[1] ring-2 ring-inset ring-zinc-100" : ""}`}
     >
       {head}
-      {body}
+      {/* 넓은 화면은 칸 높이가 화면에 맞춰 정해진다 — 넘치는 종목은 아래를 흐리며 자른다(전부는 오른쪽 상세에) */}
+      <div className="flex min-h-0 flex-1 flex-col gap-[8px] sm:overflow-hidden sm:[mask-image:linear-gradient(to_bottom,black_calc(100%-14px),transparent)]">
+        {body}
+      </div>
     </button>
   );
 }
