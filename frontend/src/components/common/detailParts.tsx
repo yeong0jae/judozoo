@@ -142,13 +142,12 @@ export function LeadingConditions({ results }: { results: FilterResult[] }) {
   const go = (i: number) => setStep((i + groups.length) % groups.length);
   const passedCount = results.filter((r) => r.passed).length;
   const score = scoreOf(passedCount, results.length);
-  const current = groups[step];
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[15px] font-bold text-zinc-100">주도주 체크리스트</h3>
+          <h3 className="text-base font-bold text-zinc-100">주도주 체크리스트</h3>
           <p className="break-keep text-[13px] leading-relaxed text-zinc-500">
             오늘 시장을 이끄는 종목인지 {results.length}가지로 봐요.
           </p>
@@ -160,9 +159,9 @@ export function LeadingConditions({ results }: { results: FilterResult[] }) {
         </span>
       </div>
 
-      {current && (
+      {groups.length > 0 && (
         // 어디를 눌러도 다음 묶음 — 키보드는 아래 화살표·점 버튼으로 넘긴다
-        <div className="relative flex flex-col gap-2">
+        <div className="relative grid">
           {groups.length > 1 && (
             <button
               type="button"
@@ -172,12 +171,24 @@ export function LeadingConditions({ results }: { results: FilterResult[] }) {
               className="absolute inset-0 z-0 cursor-pointer"
             />
           )}
-          <h4 className="pointer-events-none relative px-0.5 text-[15px] font-bold text-zinc-100">{current.title}</h4>
-          <ul className="pointer-events-none relative flex flex-col gap-1.5">
-            {current.items.map((r) => (
-              <ConditionItem key={r.filterName} result={r} />
-            ))}
-          </ul>
+          {/* 묶음을 모두 한 칸에 겹쳐 두고 지금 것만 보인다 — 높이가 가장 긴 묶음에 맞춰져 넘겨도 아래 넘김 줄이 제자리다.
+              지나간 묶음은 왼쪽, 남은 묶음은 오른쪽에 비켜 두어 넘기면 옆으로 밀려 들어온다 */}
+          {groups.map((g, i) => (
+            <div
+              key={g.title}
+              aria-hidden={i !== step}
+              className={`pointer-events-none relative flex flex-col gap-2 transition-[opacity,transform,visibility] duration-300 ease-out [grid-area:1/1] motion-reduce:transition-none ${
+                i === step ? "translate-x-0 opacity-100" : i < step ? "invisible -translate-x-6 opacity-0" : "invisible translate-x-6 opacity-0"
+              }`}
+            >
+              <h4 className="px-0.5 text-[15px] font-bold text-zinc-100">{g.title}</h4>
+              <ul className="flex flex-col gap-1.5">
+                {g.items.map((r) => (
+                  <ConditionItem key={r.filterName} result={r} />
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
 

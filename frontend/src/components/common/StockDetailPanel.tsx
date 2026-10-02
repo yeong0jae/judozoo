@@ -257,7 +257,7 @@ function InvestorSection({ stockCode }: { stockCode: string }) {
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <h3 className="text-[15px] font-bold text-zinc-100">투자자별 순매수</h3>
+          <h3 className="text-base font-bold text-zinc-100">투자자별 순매수</h3>
           {days.length > 0 && <span className="num text-xs text-zinc-500">{dayLabel(days[0].date)} · 백만원</span>}
         </div>
         {days.length > 0 && (
