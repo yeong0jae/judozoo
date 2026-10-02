@@ -7,6 +7,7 @@ import BreakoutRadarPage from "./pages/BreakoutRadarPage";
 import SignalLogPage from "./pages/SignalLogPage";
 import LeaderCalendarPage from "./pages/LeaderCalendarPage";
 import LeaderTimelinePage from "./pages/LeaderTimelinePage";
+import MarketAnalysisPage from "./pages/MarketAnalysisPage";
 import ClosingBetPage from "./pages/ClosingBetPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
@@ -56,8 +57,9 @@ function AppShell() {
               <Route path="/leader-calendar" element={<LeaderCalendarPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
               {/* 지수는 URL이 정한다 — 슬러그 없이 들어오면 마지막에 보던 것으로 */}
-              <Route path="/market-analysis" element={<ClosingBetPage />} />
-              <Route path="/market-analysis/:slug" element={<ClosingBetPage />} />
+              <Route path="/market-analysis" element={<MarketAnalysisPage />} />
+              <Route path="/market-analysis/:slug" element={<MarketAnalysisPage />} />
+              <Route path="/closing-bet" element={<ClosingBetPage />} />
               <Route path="/signal-log" element={<SignalLogPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
