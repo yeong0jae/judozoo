@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import httpx
 import pytest
@@ -7,6 +7,7 @@ import respx
 from backend.overseasleadingstock import application
 from backend.overseasleadingstock.domain import OverseasStockRank
 from backend.platform.kis import client as kis_client
+from backend.platform.kis.overseas_chart import OverseasMinuteCandle
 
 BASE = "https://openapi.koreainvestment.com:9443"
 RANKING_URL = f"{BASE}/uapi/overseas-stock/v1/ranking/trade-pbmn"
@@ -143,7 +144,7 @@ class Test시가총액_표기:
 
 class Test종목_상세:
     @respx.mock
-    def test_필터_세_개를_평가해_돌려준다(self, respx_mock, 토큰_발급):
+    def test_필터_다섯_개를_평가해_돌려준다(self, respx_mock, 토큰_발급):
         거래소별_응답(respx_mock, nas=[순위행("AAA", "100", rate="10.0")])
         respx_mock.get(PRODUCT_URL).mock(
             return_value=httpx.Response(
@@ -156,13 +157,37 @@ class Test종목_상세:
         result = application.evaluate_stock("NAS", "AAA")
 
         이름 = [f.filter_name for f in result["filters"]]
-        assert 이름 == ["거래대금순위", "당일 등락률", "시가총액"]
-        assert [f.passed for f in result["filters"]] == [True, True, True]
+        assert 이름 == ["거래대금순위", "당일 등락률", "시가총액", "시가 대비 현재가", "시초가"]
+        # 분봉이 비어 시가를 모른다 — 시가 두 조건은 탈락으로 둔다(국내도 시가가 없으면 탈락)
+        assert [f.passed for f in result["filters"]] == [True, True, True, False, False]
+        assert [f.actual_value for f in result["filters"][3:]] == ["시가 없음", "시초가 없음"]
         assert result["filters"][1].actual_value == "+10.00%"
         assert result["filters"][2].actual_value == "$100B"
         # 눈금 막대용 숫자 — 시가총액은 막대가 없어 비운다
         assert (result["filters"][1].value, result["filters"][1].threshold) == (10.0, application.MIN_CHANGE_RATE_PCT)
         assert result["filters"][2].value is None
+
+    @respx.mock
+    def test_시가는_장전_거래를_건너뛴_정규장_첫_봉에서_읽는다(self, respx_mock, 토큰_발급, monkeypatch):
+        # 현재가 100, 대비 +5 → 전일 종가 95. 10월은 서머타임이라 현지 09:30 = 한국 22:30
+        거래소별_응답(respx_mock, nas=[순위행("AAA", "100", rate="5.26")])
+        respx_mock.get(PRODUCT_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"rt_cd": "0", "output": {"lstg_stck_num": "1000000000", "ovrs_now_pric1": "100"}},
+            )
+        )
+        하루 = date(2026, 10, 1)
+        monkeypatch.setattr(application.minutes, "minute_candles", lambda _e, _s: [
+            OverseasMinuteCandle(datetime(2026, 10, 1, 22, 29), 하루, 99.0, 99.0, 99.0, 99.0, 1, 1.0),
+            OverseasMinuteCandle(datetime(2026, 10, 1, 22, 30), 하루, 101.0, 101.0, 101.0, 101.0, 1, 1.0),
+        ])
+
+        시가, 시초가 = application.evaluate_stock("NAS", "AAA")["filters"][3:]
+
+        assert (시가.actual_value, 시가.passed) == ("-0.99%", False)
+        assert (시초가.actual_value, 시초가.passed) == ("$101.00 (+6.32%)", True)
+        assert 시초가.threshold == application.MAX_OPENING_GAP_PCT
 
     @respx.mock
     def test_시가총액을_못_구하면_조회_불가로_적고_탈락시킨다(self, respx_mock, 토큰_발급):

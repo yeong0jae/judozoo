@@ -8,12 +8,14 @@ import logging
 from datetime import timedelta
 
 from backend.library.cache import ttl_cache
+from backend.library.time import KST
 from backend.market import calendar
 from backend.overseasleadingstock import minute_archive, minutes
 from backend.overseasleadingstock.domain import (
     FilterResult,
     OverseasStockRank,
     OverseasStockRanks,
+    regular_session_open,
 )
 from backend.platform.kis import overseas_chart, overseas_product, overseas_ranking
 
@@ -23,6 +25,7 @@ EXCHANGES = ("NAS", "NYS", "AMS")
 TOP_N = 40
 MIN_CHANGE_RATE_PCT = 5.0          # 상세 B: 당일 등락률 하한
 MIN_MARKET_CAP_USD = 2_000_000_000  # 상세 C: 시가총액 $2B 하한
+MAX_OPENING_GAP_PCT = 7.0          # 상세 E: 전일 종가 대비 시가 상한 — 국내와 같다
 #: 장중 수명. 갱신 폴러(10초)가 한 번 늦어도 비지 않게 여유를 둔다.
 _POOL_TTL_SECONDS = 15
 
@@ -83,9 +86,10 @@ def get_leaders(count: int) -> list[OverseasStockRank]:
 
 
 def evaluate_stock(exchange: str, symbol: str) -> dict:
-    """종목 상세 — 필터 A(거래대금순위)·B(당일등락률)·C(시가총액) 평가.
+    """종목 상세 — 필터 A(거래대금순위)·B(당일등락률)·C(시가총액)·D(시가 대비 현재가)·E(시초가) 평가.
 
     A·B는 후보 풀에서, C는 상품기본정보(상장주식수×현재가)로 산출한다.
+    D·E의 시가는 차트가 받아 두는 1분봉 저장소에서 읽는다 — 새 요청을 늘리지 않는다.
     """
     stock = next(
         (r for r in _ranking_pool() if r.exchange == exchange and r.symbol == symbol),
@@ -95,6 +99,10 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
         raise LookupError(f"후보에 없는 종목: {exchange}:{symbol}")
 
     market_cap = overseas_product.fetch_market_cap(exchange, symbol)
+    session_open = _session_open(exchange, symbol)
+    from_open = (stock.price - session_open) / session_open * 100 if session_open else None
+    prev_close = stock.previous_close
+    gap = (session_open - prev_close) / prev_close * 100 if session_open and prev_close > 0 else None
 
     filters = [
         FilterResult(
@@ -119,6 +127,22 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
             actual_value=_format_usd_cap(market_cap) if market_cap is not None else "조회 불가",
             passed=market_cap is not None and market_cap >= MIN_MARKET_CAP_USD,
         ),
+        FilterResult(
+            filter_name="시가 대비 현재가",
+            criteria_description="현재가 ≥ 시가",
+            actual_value=f"{from_open:+.2f}%" if from_open is not None else "시가 없음",
+            passed=from_open is not None and from_open >= 0,
+            value=from_open,
+            threshold=0.0,
+        ),
+        FilterResult(
+            filter_name="시초가",
+            criteria_description=f"시초가 {MAX_OPENING_GAP_PCT}% 이하",
+            actual_value=f"${session_open:,.2f} ({gap:+.2f}%)" if gap is not None else "시초가 없음",
+            passed=gap is not None and gap <= MAX_OPENING_GAP_PCT,
+            value=gap,
+            threshold=MAX_OPENING_GAP_PCT,
+        ),
     ]
 
     return {
@@ -126,6 +150,23 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
         "market_cap": market_cap,
         "filters": filters,
     }
+
+
+def _session_open(exchange: str, symbol: str) -> float | None:
+    """최신 거래일의 정규장 시가. 분봉을 못 받으면 None — 상세의 나머지 조건은 그대로 보여 준다."""
+    try:
+        bars = minutes.minute_candles(exchange, symbol)
+    except Exception:
+        log.warning("해외 분봉을 못 받아 시가 조건을 비운다 (%s:%s)", exchange, symbol, exc_info=True)
+        return None
+    if not bars:
+        return None
+    day = max(b.trading_day for b in bars)
+    zone = calendar.Region.US.zone
+    return regular_session_open([
+        (b.date_time.replace(tzinfo=KST).astimezone(zone).replace(tzinfo=None), b.open)
+        for b in bars if b.trading_day == day
+    ])
 
 
 def minute_candles(exchange: str, symbol: str) -> list[overseas_chart.OverseasMinuteCandle]:

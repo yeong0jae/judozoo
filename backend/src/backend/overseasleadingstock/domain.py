@@ -4,7 +4,7 @@
 """
 
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, time
 
 from backend.library.ranking import top_balanced
 
@@ -36,6 +36,11 @@ class OverseasStockRank:
     def ranked(self, rank: int) -> "OverseasStockRank":
         return replace(self, rank=rank)
 
+    @property
+    def previous_close(self) -> float:
+        """전일 종가 — 대비(diff)는 현재가에서 전일 종가를 뺀 값이다."""
+        return self.price - self.diff
+
 
 #: 주도주 점수에서 거래대금 축에 주는 무게(나머지 0.45는 등락률).
 #:
@@ -65,6 +70,16 @@ class OverseasStockRanks:
         return top_balanced(
             risen, lambda s: s.trading_value, lambda s: s.rate, count, TRADING_VALUE_WEIGHT
         )
+
+
+#: 미국 정규장 시작(현지 시각). 분봉에는 장전·장후 거래도 섞여 있어 시가는 이 뒤 첫 봉에서 읽는다.
+US_REGULAR_OPEN = time(9, 30)
+
+
+def regular_session_open(bars: list[tuple[datetime, float]]) -> float | None:
+    """한 거래일치 (현지 시각, 시가) 중 정규장 첫 봉의 시가. 아직 장전이라 없으면 None."""
+    regular = [(at, price) for at, price in bars if at.time() >= US_REGULAR_OPEN and price > 0]
+    return min(regular)[1] if regular else None
 
 
 @dataclass(frozen=True)
