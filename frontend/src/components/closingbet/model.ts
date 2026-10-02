@@ -97,7 +97,7 @@ export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): 
     },
     {
       key: "recentHigh",
-      title: "최근 고점 (60거래일)",
+      title: "구간 신고가 (60거래일)",
       criteria: `최근 60거래일 고가 대비 ${RECENT_HIGH_FLOOR}% 안`,
       ok: gap !== null && gap >= RECENT_HIGH_FLOOR,
       value: gap === null ? "—" : `${gap > 0 ? "+" : ""}${gap.toFixed(1)}%`,

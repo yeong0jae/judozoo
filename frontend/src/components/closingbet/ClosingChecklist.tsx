@@ -6,14 +6,14 @@ const pct = (v: number) => `${v > 0 ? "+" : ""}${Number.isInteger(v) ? v : v.toF
 
 /** 묶음 — 질문 하나에 조건 둘(마감 부근 수급만 혼자). 주도주 체크리스트와 같은 넘김 방식 */
 const GROUPS = [
-  { title: "고가를 형성했나요?", filters: ["고가 마감", "최근 고점 (60거래일)"] },
+  { title: "고가를 형성했나요?", filters: ["고가 마감", "구간 신고가 (60거래일)"] },
   { title: "외국인·기관이 샀나요?", filters: ["외국인", "기관"] },
   { title: "마감 부근 시장 수급이 좋았나요?", filters: ["마감 부근 수급"] },
 ];
 
 const SCALES: ConditionKit["scales"] = {
   "고가 마감": { min: -10, max: 0, pass: "above", label: pct, names: { 0: "고가" } },
-  "최근 고점 (60거래일)": { min: -20, max: 0, pass: "above", label: pct, names: { 0: "고점" } },
+  "구간 신고가 (60거래일)": { min: -20, max: 0, pass: "above", label: pct, names: { 0: "고점" } },
 };
 
 /**
