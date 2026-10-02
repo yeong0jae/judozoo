@@ -113,7 +113,7 @@ export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): 
     flowCheck("기관", "inst"),
     {
       key: "late",
-      title: "시장 막판",
+      title: "마감 부근 수급",
       criteria: "시장 마감·애프터 외인+기관 합 플러스",
       ok: sum > 0,
       value: `${x.market} ${signed(sum)}억`,
