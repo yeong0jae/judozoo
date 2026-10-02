@@ -129,10 +129,10 @@ export function useStockSearch(query: string) {
 }
 
 /**
- * 주도주·후보 조회 주기. 서버가 국내·해외 거래대금 상위를 장중 10초마다 갈아 끼우므로 그에 맞춘다 —
+ * 주도주·후보 조회 주기. 서버가 국내·해외 거래대금 상위를 장중 15초마다 갈아 끼우므로 그에 맞춘다 —
  * 더 자주 물어도 같은 값이고, 드물게 물으면 바뀐 값을 한 박자 늦게 본다.
  */
-export const POOL_REFRESH_MS = 10_000;
+export const POOL_REFRESH_MS = 15_000;
 
 /** 눌림·돌파와 오늘 시그널의 조회 주기 — 화면 머리의 갱신 고리도 이 값으로 찬다. */
 export const LIVE_REFRESH_MS = 5_000;
