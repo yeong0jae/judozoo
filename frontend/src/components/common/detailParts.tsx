@@ -137,9 +137,10 @@ function scoreOf(passed: number, total: number): { label: string; className: str
 
 export function LeadingConditions({ results }: { results: FilterResult[] }) {
   const groups = groupConditions(results);
-  const [rawStep, setStep] = useState(0);
+  // leaving = 방금 나간 묶음 — 위로 살짝 사라지고, 나머지는 아래에 대기했다가 떠오른다
+  const [{ step: rawStep, leaving }, setPage] = useState<{ step: number; leaving: number | null }>({ step: 0, leaving: null });
   const step = Math.min(rawStep, Math.max(groups.length - 1, 0));
-  const go = (i: number) => setStep((i + groups.length) % groups.length);
+  const go = (i: number) => setPage({ step: (i + groups.length) % groups.length, leaving: step });
   const passedCount = results.filter((r) => r.passed).length;
   const score = scoreOf(passedCount, results.length);
 
@@ -172,13 +173,13 @@ export function LeadingConditions({ results }: { results: FilterResult[] }) {
             />
           )}
           {/* 묶음을 모두 한 칸에 겹쳐 두고 지금 것만 보인다 — 높이가 가장 긴 묶음에 맞춰져 넘겨도 아래 넘김 줄이 제자리다.
-              지나간 묶음은 왼쪽, 남은 묶음은 오른쪽에 비켜 두어 넘기면 옆으로 밀려 들어온다 */}
+              넘기면 나가는 묶음은 위로 흐려지고 들어오는 묶음은 아래에서 떠오른다 */}
           {groups.map((g, i) => (
             <div
               key={g.title}
               aria-hidden={i !== step}
-              className={`pointer-events-none relative flex flex-col gap-2 transition-[opacity,transform,visibility] duration-300 ease-out [grid-area:1/1] motion-reduce:transition-none ${
-                i === step ? "translate-x-0 opacity-100" : i < step ? "invisible -translate-x-6 opacity-0" : "invisible translate-x-6 opacity-0"
+              className={`pointer-events-none relative flex flex-col gap-2 transition-[opacity,transform,visibility] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] [grid-area:1/1] motion-reduce:transition-none ${
+                i === step ? "translate-y-0 opacity-100" : i === leaving ? "invisible -translate-y-1.5 opacity-0" : "invisible translate-y-3.5 opacity-0"
               }`}
             >
               <h4 className="px-0.5 text-[15px] font-bold text-zinc-100">{g.title}</h4>
