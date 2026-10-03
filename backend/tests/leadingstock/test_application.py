@@ -80,6 +80,7 @@ class Test주도주_상세_시세:
 def 장_상태(monkeypatch, 휴장: bool, 거래시간: bool, 지금: datetime) -> None:
     monkeypatch.setattr("backend.market.calendar.market_status", lambda: (휴장, 거래시간))
     monkeypatch.setattr(application, "now", lambda: 지금)
+    monkeypatch.setattr(application, "today", lambda: 지금.date())
 
 
 class Test거래대금_상위_보관_기간:
@@ -127,6 +128,41 @@ class Test장이_멈춘_동안_조회하면:
         application.find_candidate_stocks(5.0)
 
         assert 호출횟수 == 1
+
+
+class Test장이_열리기_전에_받은_신규상장주:
+    """장이 열리기 전·휴장일에 키움이 주는 순위는 직전 거래일 값이다 — 그날 것으로 기억한다."""
+
+    @staticmethod
+    def 키움이_준다(monkeypatch, 등락률: float) -> None:
+        monkeypatch.setattr(application.kiwoom_market, "fetch_top_trading_value_stocks", lambda count: [
+            LeadingStockSnapshot(
+                stock_code="468670_AL", stock_name="브릴스", current_price=34_150,
+                price_change_rate=등락률, trading_value_rank=1, accumulated_trading_value=446_733_000_000,
+            )
+        ])
+
+    def test_자정_넘어_받은_상장_첫날_값이_다음_거래일까지_따라가지_않는다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.previous_open_day", lambda on: date(2026, 10, 1))
+        장_상태(monkeypatch, 휴장=False, 거래시간=False, 지금=datetime(2026, 10, 2, 0, 23))
+        self.키움이_준다(monkeypatch, 등락률=100.0)
+        application._trading_value_pool()
+
+        장_상태(monkeypatch, 휴장=False, 거래시간=True, 지금=datetime(2026, 10, 2, 10, 0))
+        self.키움이_준다(monkeypatch, 등락률=12.15)
+
+        assert not application._trading_value_pool.refresh()[0].is_wide_limit_day
+
+    def test_휴장일에_받은_값은_직전_거래일의_상장_첫날_표시를_이어_쓴다(self, monkeypatch):
+        monkeypatch.setattr("backend.market.calendar.previous_open_day", lambda on: date(2026, 10, 2))
+        장_상태(monkeypatch, 휴장=False, 거래시간=True, 지금=datetime(2026, 10, 2, 9, 0))
+        self.키움이_준다(monkeypatch, 등락률=100.0)
+        application._trading_value_pool()
+
+        장_상태(monkeypatch, 휴장=True, 거래시간=False, 지금=datetime(2026, 10, 3, 14, 0))
+        self.키움이_준다(monkeypatch, 등락률=20.0)
+
+        assert application._trading_value_pool.refresh()[0].is_wide_limit_day
 
 
 def 분봉(날짜: date, 시: int, 분: int = 0):

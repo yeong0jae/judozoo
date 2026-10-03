@@ -125,7 +125,20 @@ def _trading_value_pool() -> list[LeadingStockSnapshot]:
 
     오늘 +30%를 넘은 적이 있는 종목(상장 첫날)에는 여기서 표시를 붙인다 — 순위가 그 표시를 본다.
     """
-    return wide_limit_days.mark(kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE), today(), now())
+    return wide_limit_days.mark(kiwoom_market.fetch_top_trading_value_stocks(_POOL_SIZE), _pool_trade_date(), now())
+
+
+def _pool_trade_date() -> date:
+    """받은 순위가 어느 거래일 값인가 — 장이 열리기 전(08시 전)·휴장일엔 직전 거래일이다.
+
+    오늘 날짜를 붙이면 자정 넘어 받은 상장 첫날 값이 다음 거래일 내내 상장 첫날로 남는다.
+    거래일 목록을 못 받았으면 오늘로 둔다 — 날짜를 지어내지 않는다.
+    """
+    holiday, _ = calendar.market_status()
+    at = now()
+    if not holiday and at.time() >= _SESSION_START:
+        return at.date()
+    return calendar.previous_open_day(at.date()) or at.date()
 
 
 def refresh_trading_value_pool() -> None:
