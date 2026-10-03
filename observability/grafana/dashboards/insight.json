@@ -635,7 +635,7 @@
           "legendFormat": "p95"
         }
       ],
-      "description": "검색까지 도는 호출은 10~20초가 정상이다. 타임아웃은 60초."
+      "description": "검색까지 도는 호출은 10~20초가 정상이다. 타임아웃은 60초. 버킷은 60초(타임아웃)까지 있다. 30초를 넘는 값은 2026-10-03 전에는 30으로 찍혔다."
     },
     {
       "id": 13,
@@ -690,6 +690,225 @@
       "description": "그라운딩 출처를 실제 기사로 따라갈 때 실패한 호출(사이트별). 실패한 출처는 목록에서 빠질 뿐 사유는 만들어진다."
     },
     {
+      "id": 18,
+      "type": "row",
+      "title": "실패 처리",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "panels": []
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "실패 종류",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "client_error"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (kind) (increase(llm_failures_total[$__interval]))",
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "description": "timeout·unavailable은 Vertex가 잠시 아픈 것(종목을 1·5·15분 뒤 다시 만들고 서킷이 센다), client_error는 우리 설정 문제(알림이 간다), bad_answer는 답이 이상한 것(다시 안 만든다). 026 §실패 처리."
+    },
+    {
+      "id": 20,
+      "type": "state-timeline",
+      "title": "서킷 상태",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "닫힘",
+                  "color": "green",
+                  "index": 0
+                },
+                "1": {
+                  "text": "시험",
+                  "color": "yellow",
+                  "index": 1
+                },
+                "2": {
+                  "text": "열림",
+                  "color": "red",
+                  "index": 2
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "never",
+        "mergeValues": true,
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(llm_circuit_state)",
+          "legendFormat": "Vertex"
+        }
+      ],
+      "description": "열림이면 Vertex를 부르지 않고 고른 종목을 건너뛴다(5분, 클라이언트 오류면 재배포까지). 시험은 한 종목으로 회복을 확인하는 상태."
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "사유 잡 소요 p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "spanNulls": true
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (job_id, le) (rate(scheduler_job_duration_seconds_bucket{job_id=~\"insight-reason-.*\"}[$__rate_interval])))",
+          "legendFormat": "{{job_id}}"
+        }
+      ],
+      "description": "매분 실행 한 번이 걸린 시간. 종목은 동시에 5개까지 만들어서, 가장 느린 종목 하나만큼 걸리는 게 정상이다. 1분을 넘기면 다음 분 실행이 건너뛰어진다."
+    },
+    {
       "id": 14,
       "type": "row",
       "title": "만든 사유 (stock_reason)",
@@ -698,7 +917,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 31
       },
       "panels": []
     },
@@ -714,7 +933,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 32
       },
       "fieldConfig": {
         "defaults": {
@@ -771,7 +990,7 @@
         "h": 12,
         "w": 16,
         "x": 0,
-        "y": 31
+        "y": 40
       },
       "targets": [
         {
@@ -805,7 +1024,7 @@
     {
       "id": 17,
       "type": "table",
-      "title": "최근 7일 거절 사유",
+      "title": "최근 7일 거절",
       "datasource": {
         "type": "mysql",
         "uid": "judozoo-mysql"
@@ -814,7 +1033,7 @@
         "h": 12,
         "w": 8,
         "x": 16,
-        "y": 31
+        "y": 40
       },
       "targets": [
         {
@@ -825,7 +1044,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(LEFT(error, 60), '(없음)') AS 오류, COUNT(*) AS 건수 FROM stock_reason WHERE published = 0 AND generated_at >= CURDATE() - INTERVAL 7 DAY GROUP BY 1 ORDER BY 2 DESC;"
+          "rawSql": "SELECT COALESCE(failure, '(구분 전)') AS 종류, COUNT(*) AS 건수, LEFT(MAX(error), 60) AS 예 FROM stock_reason WHERE published = 0 AND generated_at >= CURDATE() - INTERVAL 7 DAY GROUP BY 1 ORDER BY 2 DESC;"
         }
       ],
       "fieldConfig": {
@@ -843,7 +1062,7 @@
         "showHeader": true,
         "cellHeight": "sm"
       },
-      "description": "HTTP …는 Vertex 호출 실패, '목록에 없는 기사 번호'는 Gemini가 없는 번호를 고른 것, '권유 표현'은 금지어에 걸린 것."
+      "description": "실패 종류별. '(구분 전)'은 failure 열이 생기기 전(2026-10-03) 행이다. 예 칸의 앞머리 ground·structure가 두 호출 중 어디서 멈췄는지 알려 준다."
     }
   ]
 }

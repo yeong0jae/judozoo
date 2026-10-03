@@ -51,12 +51,13 @@ HTTP_CLIENT_REQUESTS = Counter(
 )
 
 # 리미터 대기를 포함하므로(아래 MeteredTransport 참고) 20~30초가 정상 범위에 있다.
-# 기본 버킷 상한 10초로는 그 구간이 안 보인다.
+# 기본 버킷 상한 10초로는 그 구간이 안 보인다. 45·60은 Vertex 타임아웃(60초) 아래를 보려고 둔다 —
+# 30에서 끊기면 느려진 건지 타임아웃 직전인지 가를 수 없었다(026 §실패 처리).
 HTTP_CLIENT_DURATION = Histogram(
     "http_client_request_duration_seconds",
     "외부 HTTP 응답 시간 — 레이트 리미터 대기 포함",
     ["vendor", "endpoint"],
-    buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, float("inf")),
+    buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, 45, 60, float("inf")),
 )
 
 # 리미터 대기. **대부분의 호출은 0초에 가깝다** — 한도에 안 걸리면 토큰이 바로 나온다.
@@ -94,6 +95,8 @@ LLM_FAILURES = Counter(
     "LLM 답을 게시하지 못한 까닭",
     ["model", "kind"],  # kind: timeout | unavailable | client_error | bad_answer
 )
+# 상태는 시간만 지나도 바뀐다(열림 → 5분 뒤 시험). 스크레이프 때 읽는다 — `insight.application`이 연결한다
+LLM_CIRCUIT_STATE = Gauge("llm_circuit_state", "Vertex 서킷 — 0 닫힘 · 1 시험 · 2 열림")
 
 # ── 스레드가 지금 무엇을 하고 있는가 ────────────────────────────────────
 #

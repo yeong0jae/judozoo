@@ -36,7 +36,7 @@ from backend.insight.domain import (
 from backend.insight.entities import StockReason
 from backend.leadingstock import application as leadingstock
 from backend.library import metrics
-from backend.library.time import KST
+from backend.library.time import KST, now as kst_now
 from backend.market import calendar
 from backend.market.calendar import Region
 from backend.overseasleadingstock import application as overseasleadingstock
@@ -57,6 +57,15 @@ MAX_CONCURRENCY = 5
 #: 국내·해외가 같은 Vertex를 부르므로 서킷도 하나다. 프로세스가 새로 뜨면(재배포) 닫힌 채로 시작한다
 _circuit = Circuit()
 _circuit_lock = threading.Lock()
+_CIRCUIT_GAUGE = {CircuitState.CLOSED: 0, CircuitState.HALF_OPEN: 1, CircuitState.OPEN: 2}
+
+
+def _circuit_gauge() -> int:
+    with _circuit_lock:
+        return _CIRCUIT_GAUGE[_circuit.state(kst_now())]
+
+
+metrics.LLM_CIRCUIT_STATE.set_function(_circuit_gauge)
 
 _SCHEMA = {
     "type": "OBJECT",
