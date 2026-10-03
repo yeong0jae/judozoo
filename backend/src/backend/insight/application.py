@@ -7,6 +7,8 @@ Gemini는 두 번 부른다 — 검색 켠 문장 → 서버가 출처를 실제
 
 import logging
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import copy_context
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from time import monotonic
@@ -44,6 +46,8 @@ log = logging.getLogger(__name__)
 LEADERS_COUNT = 5
 #: 주도주가 아니어도 이만큼(%) 넘게 오른 후보는 사유를 만든다 — 새로 들어올 때 한 번만(026)
 CANDIDATE_MIN_CHANGE_RATE = 5.0
+#: 한 번에 동시에 만드는 종목 수. 주도주 5종목은 한 번에, 08:30 같은 진입 몰림은 빈 자리가 나는 대로
+MAX_CONCURRENCY = 5
 
 _SCHEMA = {
     "type": "OBJECT",
@@ -95,19 +99,31 @@ def run(session: Session, region: Region, now_kst: datetime) -> int:
         candidates=[t.code for t in candidates],
     )
 
+    # 동시에 돌면 커밋 전이라 종목마다 세어도 같은 수가 나온다 — 시작 전에 한 번 세어 남은 만큼만 남긴다
+    room = max(get_settings().vertex.daily_limit - _used_today(session, now_kst), 0)
+    if len(picks) > room:
+        log.warning("왜 오르나 — 하루 상한에 닿아 오늘은 멈춘다 (%s개 남김)", len(picks) - room)
+        picks = picks[:room]
+    if not picks:
+        return 0
+
     started = monotonic()
     made = 0
-    for code, trigger in picks:
-        if _used_today(session, now_kst) >= get_settings().vertex.daily_limit:
-            log.warning("왜 오르나 — 하루 상한에 닿아 오늘은 멈춘다 (%s개 남김)", len(picks) - made)
-            break
-        row = make(region, schedule, targets[code], trigger, now.date(), now_kst)
-        # 한 종목에 10~15초 — 실행 시작 시각을 그대로 찍으면 뒤 종목일수록 "기준" 시각이 실제보다 이르다.
-        # 벽시계를 다시 읽지 않고 경과만 더한다: 30분·3분 규칙이 같은 시계로 계산된다
-        row.generated_at = now_kst + timedelta(seconds=monotonic() - started)
-        session.add(row)
-        session.commit()  # 한 종목씩 — 뒤 종목이 실패해도 앞 종목은 남는다
-        made += 1
+    # 종목마다 Vertex를 두 번 기다린다 — 동시에 돌려 뒤 종목이 앞 종목을 기다리지 않게 한다.
+    # 세션은 이 스레드만 만진다. 트레이스가 잡 스팬 아래에 남도록 컨텍스트를 종목마다 복사해 넘긴다
+    with ThreadPoolExecutor(max_workers=MAX_CONCURRENCY, thread_name_prefix="insight") as pool:
+        futures = [
+            pool.submit(copy_context().run, make, region, schedule, targets[code], trigger, now.date(), now_kst)
+            for code, trigger in picks
+        ]
+        for future in as_completed(futures):
+            row = future.result()
+            # 한 종목에 10~15초 — 실행 시작 시각을 그대로 찍으면 "기준" 시각이 실제보다 이르다.
+            # 벽시계를 다시 읽지 않고 경과만 더한다: 30분·3분 규칙이 같은 시계로 계산된다
+            row.generated_at = now_kst + timedelta(seconds=monotonic() - started)
+            session.add(row)
+            session.commit()  # 끝난 종목부터 하나씩 — 느리거나 실패한 종목이 다른 종목을 붙잡지 않는다
+            made += 1
     return made
 
 

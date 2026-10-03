@@ -3,6 +3,7 @@
 Vertex·기사 사이트·주도주 풀은 바깥이라 mock으로 바꾸고, DB는 컨테이너 MySQL을 쓴다.
 """
 
+import threading
 from datetime import date, datetime
 
 import pytest
@@ -141,8 +142,28 @@ class Test사유_만들기:
             application.run(s, Region.KR, kst(10, 15))
             application.run(s, Region.KR, kst(11, 0))
 
-        assert [(r.code, r.trigger) for r in 행들()] == [("011070", "entry"), ("009830", "entry"), ("011070", "scheduled")]
+        rows = [(r.code, r.trigger) for r in 행들()]
+        # 같은 실행의 종목은 끝난 순서대로 저장된다
+        assert sorted(rows[:2]) == [("009830", "entry"), ("011070", "entry")]
+        assert rows[2:] == [("011070", "scheduled")]
         application.leadingstock.find_candidate_stocks.assert_called_with(5.0)
+
+    def test_여러_종목을_동시에_만들어_뒤_종목이_앞_종목을_기다리지_않는다(self, 빈_테이블, 바깥):
+        ground, _ = 바깥
+        application.leadingstock.find_leaders.return_value = [국내("011070", "LG이노텍"), 국내("009830", "한화솔루션")]
+        # 두 종목이 모두 1차 호출에 들어와야 풀린다 — 하나씩 만들면 첫 종목이 여기서 막혀 실패한다
+        만남 = threading.Barrier(2, timeout=5)
+        답 = ground.return_value
+
+        def 둘이_만나야_답한다(prompt):
+            만남.wait()
+            return 답
+
+        ground.side_effect = 둘이_만나야_답한다
+        with 세션() as s:
+            assert application.run(s, Region.KR, kst(10, 15)) == 2
+
+        assert all(r.published for r in 행들())
 
 
 @pytest.mark.integration
