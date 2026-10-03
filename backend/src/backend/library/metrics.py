@@ -89,6 +89,11 @@ LLM_SEARCH_QUERIES = Counter(
     "그라운딩 검색이 실행한 검색어 수",
     ["model"],
 )
+LLM_FAILURES = Counter(
+    "llm_failures_total",
+    "LLM 답을 게시하지 못한 까닭",
+    ["model", "kind"],  # kind: timeout | unavailable | client_error | bad_answer
+)
 
 # ── 스레드가 지금 무엇을 하고 있는가 ────────────────────────────────────
 #

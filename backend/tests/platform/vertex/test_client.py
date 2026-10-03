@@ -14,7 +14,8 @@ URL = (
 @pytest.fixture(autouse=True)
 def 버텍스_초기화(monkeypatch):
     vertex.reset()
-    monkeypatch.setattr(vertex, "_token", lambda: "test-token")
+    monkeypatch.setattr(vertex, "_token", lambda refresh=False: "test-token")
+    monkeypatch.setattr(vertex, "_wait", lambda seconds: None)
     yield
     vertex.reset()
 
@@ -81,8 +82,9 @@ class TestJSON_호출:
     def test_JSON이_깨지면_실패로_본다(self, respx_mock):
         respx_mock.post(URL).mock(return_value=답('{"explained": tru'))
 
-        with pytest.raises(VertexError, match="JSON"):
+        with pytest.raises(VertexError, match="JSON") as e:
             structure("정리해", {"type": "OBJECT"})
+        assert e.value.kind == "bad_answer"
 
     @respx.mock
     def test_객체가_아닌_JSON도_실패로_본다(self, respx_mock):
@@ -94,25 +96,86 @@ class TestJSON_호출:
 
 class Test실패:
     @respx.mock
-    def test_한도_초과는_실패로_올린다(self, respx_mock):
-        respx_mock.post(URL).mock(return_value=httpx.Response(429, json={"error": {"message": "quota"}}))
+    def test_한도_초과는_잠깐_기다렸다_두_번_더_묻는다(self, respx_mock):
+        route = respx_mock.post(URL).mock(side_effect=[
+            httpx.Response(429, json={"error": {"message": "quota"}}),
+            httpx.Response(503, text="busy"),
+            답("이제 된다"),
+        ])
 
-        with pytest.raises(VertexError, match="429"):
-            ground("왜")
+        assert ground("왜").text == "이제 된다"
+        assert route.call_count == 3
 
     @respx.mock
-    def test_시간_초과도_실패로_올린다(self, respx_mock):
+    def test_두_번_더_물어도_한도_초과면_일시_장애로_올린다(self, respx_mock):
+        route = respx_mock.post(URL).mock(return_value=httpx.Response(429, json={"error": {"message": "quota"}}))
+
+        with pytest.raises(VertexError, match="429") as e:
+            ground("왜")
+        assert e.value.kind == "unavailable"
+        assert route.call_count == 3
+
+    @respx.mock
+    def test_다시_묻기_전_기다림에_지터를_섞는다(self, respx_mock, monkeypatch):
+        waits: list[float] = []
+        monkeypatch.setattr(vertex, "_wait", waits.append)
+        respx_mock.post(URL).mock(return_value=httpx.Response(500, text="boom"))
+
+        with pytest.raises(VertexError):
+            ground("왜")
+        assert 1.0 <= waits[0] <= 3.0 and 2.5 <= waits[1] <= 7.5
+
+    @respx.mock
+    def test_시간_초과는_다시_묻지_않고_바로_올린다(self, respx_mock):
+        route = respx_mock.post(URL).mock(side_effect=httpx.ReadTimeout("느림"))
+
+        with pytest.raises(VertexError, match="ReadTimeout") as e:
+            ground("왜")
+        assert e.value.kind == "timeout"
+        assert route.call_count == 1
+
+    @pytest.mark.parametrize("status", [400, 403, 404])
+    @respx.mock
+    def test_설정이_틀린_오류는_다시_묻지_않는다(self, respx_mock, status):
+        route = respx_mock.post(URL).mock(return_value=httpx.Response(status, text="no"))
+
+        with pytest.raises(VertexError) as e:
+            ground("왜")
+        assert e.value.kind == "client_error"
+        assert route.call_count == 1
+
+    @respx.mock
+    def test_인증이_만료되면_토큰을_새로_받아_한_번_더_묻는다(self, respx_mock, monkeypatch):
+        tokens = iter(["old", "new"])
+        monkeypatch.setattr(vertex, "_token", lambda refresh=False: next(tokens))
+        route = respx_mock.post(URL).mock(side_effect=[httpx.Response(401, text="expired"), 답("답")])
+
+        ground("왜")
+
+        assert route.calls.last.request.headers["authorization"] == "Bearer new"
+
+    @respx.mock
+    def test_새_토큰으로도_인증이_안_되면_설정_오류다(self, respx_mock):
+        respx_mock.post(URL).mock(return_value=httpx.Response(401, text="expired"))
+
+        with pytest.raises(VertexError) as e:
+            ground("왜")
+        assert e.value.kind == "client_error"
+
+    @respx.mock
+    def test_어느_호출에서_실패했는지_문구에_남긴다(self, respx_mock):
         respx_mock.post(URL).mock(side_effect=httpx.ReadTimeout("느림"))
 
-        with pytest.raises(VertexError, match="ReadTimeout"):
-            ground("왜")
+        with pytest.raises(VertexError, match="^structure "):
+            structure("정리해", {"type": "OBJECT"})
 
     @respx.mock
     def test_안전_차단으로_끝난_답은_쓰지_않는다(self, respx_mock):
         respx_mock.post(URL).mock(return_value=답("", finish="SAFETY"))
 
-        with pytest.raises(VertexError, match="SAFETY"):
+        with pytest.raises(VertexError, match="SAFETY") as e:
             ground("왜")
+        assert e.value.kind == "bad_answer"
 
     @respx.mock
     def test_후보가_없으면_실패다(self, respx_mock):

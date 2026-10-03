@@ -39,6 +39,13 @@ def 빈_테이블(통합_db):
         s.commit()
 
 
+@pytest.fixture(autouse=True)
+def 서킷_초기화():
+    application.reset()
+    yield
+    application.reset()
+
+
 @pytest.fixture
 def 바깥(mocker):
     """주도주 풀·Vertex·기사 사이트. 기본은 LG이노텍 하나가 제대로 설명되는 경우."""
@@ -113,18 +120,57 @@ class Test사유_만들기:
         assert ground.call_count == 2
         assert [r.trigger for r in 행들()] == ["entry", "scheduled"]
 
-    def test_Vertex가_실패해도_행을_남기고_3분_뒤_한_번_다시_한다(self, 빈_테이블, 바깥):
+    def test_Vertex가_아파도_행을_남기고_1분_5분_뒤에_다시_한다(self, 빈_테이블, 바깥):
         ground, _ = 바깥
-        ground.side_effect = [VertexError("HTTP 429"), VertexError("HTTP 429"), VertexError("HTTP 429")]
+        ground.side_effect = [VertexError("unavailable", "ground HTTP 429"), VertexError("timeout", "ground 요청 실패")]
         with 세션() as s:
             application.run(s, Region.KR, kst(10, 15))
-            application.run(s, Region.KR, kst(10, 17))
+            application.run(s, Region.KR, kst(10, 16))
             application.run(s, Region.KR, kst(10, 18))
-            application.run(s, Region.KR, kst(10, 25))
 
         rows = 행들()
-        assert [(r.trigger, r.published) for r in rows] == [("entry", False), ("retry", False)]
+        assert [(r.trigger, r.published, r.failure) for r in rows] == [
+            ("entry", False, "unavailable"), ("retry", False, "timeout"),
+        ]
         assert "429" in rows[0].error
+
+    def test_설정이_틀린_오류는_다시_하지_않고_재배포_전까지_Vertex를_부르지_않는다(self, 빈_테이블, 바깥):
+        ground, _ = 바깥
+        ground.side_effect = VertexError("client_error", "ground HTTP 403")
+        with 세션() as s:
+            application.run(s, Region.KR, kst(10, 15))
+            application.leadingstock.find_leaders.return_value = [국내("011070", "LG이노텍"), 국내("009830", "한화솔루션")]
+            assert application.run(s, Region.KR, kst(11, 0)) == 0
+
+        assert ground.call_count == 1
+        assert [r.failure for r in 행들()] == ["client_error"]
+
+    def test_일시_장애가_세_번_이어지면_서킷이_열려_남은_종목은_행_없이_건너뛴다(self, 빈_테이블, 바깥, monkeypatch):
+        monkeypatch.setattr(application, "MAX_CONCURRENCY", 1)  # 차례가 정해져야 몇 번째에서 열리는지 본다
+        ground, _ = 바깥
+        ground.side_effect = VertexError("timeout", "ground 요청 실패")
+        application.leadingstock.find_leaders.return_value = [국내(f"00000{i}", f"종목{i}") for i in range(1, 8)]
+        with 세션() as s:
+            assert application.run(s, Region.KR, kst(10, 15)) == 3
+            # 5분 동안은 아무것도 부르지 않는다
+            assert application.run(s, Region.KR, kst(10, 17)) == 0
+
+        assert ground.call_count == 3
+        assert len(행들()) == 3
+
+    def test_서킷이_열린_뒤엔_한_종목으로_시험하고_성공하면_건너뛴_종목을_만든다(self, 빈_테이블, 바깥, monkeypatch):
+        monkeypatch.setattr(application, "MAX_CONCURRENCY", 1)
+        ground, _ = 바깥
+        ground.side_effect = [VertexError("timeout", "느림")] * 3 + [ground.return_value] * 10
+        application.leadingstock.find_leaders.return_value = [국내(f"00000{i}", f"종목{i}") for i in range(1, 5)]
+        with 세션() as s:
+            assert application.run(s, Region.KR, kst(10, 15)) == 3  # 넷째는 서킷에 막혀 건너뜀
+            assert application.run(s, Region.KR, kst(10, 21)) == 1  # 5분 뒤 한 종목으로 시험
+            assert application.run(s, Region.KR, kst(10, 22)) == 3  # 닫혔으니 나머지
+
+        published = [r for r in 행들() if r.published]
+        assert sorted(r.code for r in published) == ["000001", "000002", "000003", "000004"]
+        assert sorted(r.trigger for r in published) == ["entry", "retry", "retry", "retry"]
 
     def test_하루_상한에_닿으면_그날은_멈춘다(self, 빈_테이블, 바깥, monkeypatch):
         monkeypatch.setenv("VERTEX_DAILY_LIMIT", "1")

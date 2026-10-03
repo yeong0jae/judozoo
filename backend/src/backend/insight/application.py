@@ -6,6 +6,7 @@ Gemini는 두 번 부른다 — 검색 켠 문장 → 서버가 출처를 실제
 """
 
 import logging
+import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextvars import copy_context
@@ -19,7 +20,10 @@ from sqlalchemy.orm import Session
 from backend.insight.domain import (
     SCHEDULES,
     Attempts,
+    Circuit,
+    CircuitState,
     Draft,
+    Failure,
     Schedule,
     Sources,
     Trigger,
@@ -31,6 +35,7 @@ from backend.insight.domain import (
 )
 from backend.insight.entities import StockReason
 from backend.leadingstock import application as leadingstock
+from backend.library import metrics
 from backend.library.time import KST
 from backend.market import calendar
 from backend.market.calendar import Region
@@ -48,6 +53,10 @@ LEADERS_COUNT = 5
 CANDIDATE_MIN_CHANGE_RATE = 5.0
 #: 한 번에 동시에 만드는 종목 수. 주도주 5종목은 한 번에, 08:30 같은 진입 몰림은 빈 자리가 나는 대로
 MAX_CONCURRENCY = 5
+
+#: 국내·해외가 같은 Vertex를 부르므로 서킷도 하나다. 프로세스가 새로 뜨면(재배포) 닫힌 채로 시작한다
+_circuit = Circuit()
+_circuit_lock = threading.Lock()
 
 _SCHEMA = {
     "type": "OBJECT",
@@ -87,6 +96,10 @@ def run(session: Session, region: Region, now_kst: datetime) -> int:
     now = local(region, now_kst)
     if not schedule.in_window(now.time()):
         return 0
+    with _circuit_lock:
+        state = _circuit.state(now_kst)
+    if state is CircuitState.OPEN:
+        return 0
 
     leaders, candidates = _targets(region)
     targets = {t.code: t for t in [*candidates, *leaders]}
@@ -104,31 +117,56 @@ def run(session: Session, region: Region, now_kst: datetime) -> int:
     if len(picks) > room:
         log.warning("왜 오르나 — 하루 상한에 닿아 오늘은 멈춘다 (%s개 남김)", len(picks) - room)
         picks = picks[:room]
+    if state is CircuitState.HALF_OPEN:
+        # 한 종목으로 시험한다. 나머지는 행 없이 건너뛰어, 서킷이 닫힌 뒤 다시 골라진다
+        picks = picks[:1]
     if not picks:
         return 0
 
     started = monotonic()
+
+    def build(code: str, trigger: Trigger) -> StockReason | None:
+        """워커 스레드에서 한 종목. 출발 직전에 서킷을 보고, 끝나자마자 기록한다 —
+        앞 종목들이 서킷을 열었으면 아직 출발하지 않은 종목은 행 없이 건너뛰어 닫힌 뒤 다시 골라진다."""
+        with _circuit_lock:
+            if _circuit.state(now_kst) is CircuitState.OPEN:
+                return None
+        row = make(region, schedule, targets[code], trigger, now.date(), now_kst)
+        # 한 종목에 10~15초 — 실행 시작 시각을 그대로 찍으면 "기준" 시각이 실제보다 이르다.
+        # 벽시계를 다시 읽지 않고 경과만 더한다: 30분 규칙·재시도 간격·서킷이 같은 시계로 계산된다
+        row.generated_at = now_kst + timedelta(seconds=monotonic() - started)
+        _record(row.failed, row.generated_at)
+        return row
+
     made = 0
     # 종목마다 Vertex를 두 번 기다린다 — 동시에 돌려 뒤 종목이 앞 종목을 기다리지 않게 한다.
     # 세션은 이 스레드만 만진다. 트레이스가 잡 스팬 아래에 남도록 컨텍스트를 종목마다 복사해 넘긴다
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENCY, thread_name_prefix="insight") as pool:
-        futures = [
-            pool.submit(copy_context().run, make, region, schedule, targets[code], trigger, now.date(), now_kst)
-            for code, trigger in picks
-        ]
+        futures = [pool.submit(copy_context().run, build, code, trigger) for code, trigger in picks]
         for future in as_completed(futures):
-            row = future.result()
-            # 한 종목에 10~15초 — 실행 시작 시각을 그대로 찍으면 "기준" 시각이 실제보다 이르다.
-            # 벽시계를 다시 읽지 않고 경과만 더한다: 30분·3분 규칙이 같은 시계로 계산된다
-            row.generated_at = now_kst + timedelta(seconds=monotonic() - started)
+            if (row := future.result()) is None:
+                continue
             session.add(row)
             session.commit()  # 끝난 종목부터 하나씩 — 느리거나 실패한 종목이 다른 종목을 붙잡지 않는다
             made += 1
     return made
 
 
+def _record(failure: Failure | None, at: datetime) -> None:
+    if failure is not None:
+        metrics.LLM_FAILURES.labels(get_settings().vertex.model, failure.value).inc()
+    if failure is Failure.CLIENT_ERROR:
+        log.error("왜 오르나 — Vertex 클라이언트 오류. 설정을 고쳐 재배포할 때까지 Vertex를 부르지 않는다")
+    with _circuit_lock:
+        before = _circuit.state(at)
+        _circuit.record(failure, at)
+        after = _circuit.state(at)
+    if before is not CircuitState.OPEN and after is CircuitState.OPEN:
+        log.warning("왜 오르나 — Vertex 서킷 열림 (%s)", failure.value if failure else "")
+
+
 def make(region: Region, schedule: Schedule, leader: Leader, trigger: Trigger, day: date, now_kst: datetime) -> StockReason:
-    """한 종목. Vertex가 실패해도 행은 남긴다 — 3분 재시도가 그 행을 보고 돈다."""
+    """한 종목. Vertex가 실패해도 행은 남긴다 — 실패 종류를 보고 `pick`이 다시 만들지 정한다."""
     since = schedule.articles_since(_previous_open_day(region, day))
     try:
         grounded = vertex.ground(_explain_prompt(region, leader, day, since))
@@ -141,7 +179,7 @@ def make(region: Region, schedule: Schedule, leader: Leader, trigger: Trigger, d
         data, _ = vertex.structure(_structure_prompt(leader, day, grounded.text, sources), _SCHEMA)
         verdict = judge(Draft.from_json(data), sources, stock_name=leader.name)
     except VertexError as exc:
-        verdict = Verdict(published=False, error=str(exc))
+        verdict = Verdict(published=False, error=str(exc), failure=Failure(exc.kind))
     if not verdict.published:
         log.info("왜 오르나 거절 %s %s — %s", region.value, leader.code, verdict.error)
     return StockReason.made(
@@ -239,3 +277,10 @@ def reasons(session: Session, region: Region, now_kst: datetime) -> list[StockRe
     for r in _rows(session, region, session_day(region, now_kst)):
         by_code[r.code].append(r)
     return [row for rows in by_code.values() if (row := shown(rows)) is not None]
+
+
+def reset() -> None:
+    """테스트 격리용."""
+    global _circuit
+    with _circuit_lock:
+        _circuit = Circuit()

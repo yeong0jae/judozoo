@@ -338,3 +338,43 @@ groups:
                 - evaluator:
                     type: gt
                     params: [0]
+
+  # ── 왜 오르나: Vertex 클라이언트 오류 ──────────────────────────────
+  # 400·403·404는 우리 설정이 틀린 것이라 다시 해도 같다. 서킷이 열린 채 재배포 전까지 Vertex를
+  # 부르지 않고, 화면은 이전 사유를 그대로 보여 주므로 **알림이 없으면 아무도 모른다**(026 §실패 처리).
+  # 한 건이면 충분하다 — 평소엔 0이다.
+  - orgId: 1
+    name: 왜 오르나
+    folder: judozoo
+    interval: 1m
+    rules:
+      - uid: insight-vertex-client-error
+        title: Vertex 클라이언트 오류로 사유 생성이 멈췄다
+        condition: THRESHOLD
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: '최근 10분 {{ $values.QUERY.Value }}건 — 프롬프트·스키마(400), IAM·API(403), 모델 이름(404)을 본다. 고쳐 재배포하면 서킷이 닫힌다'
+          runbook: 'docs/tasks/026-주도주-왜-오르나.md'
+        data:
+          - refId: QUERY
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: QUERY
+              instant: true
+              expr: sum(increase(llm_failures_total{kind="client_error"}[10m]))
+          - refId: THRESHOLD
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: THRESHOLD
+              type: threshold
+              expression: QUERY
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]

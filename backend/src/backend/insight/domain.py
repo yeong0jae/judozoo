@@ -85,8 +85,9 @@ SCHEDULES: dict[Region, Schedule] = {
 
 #: 정해진 시각에 이만큼 안에 만든 종목은 건너뛴다 — 09:28 진입 → 09:29 생성 → 09:30 또 생성을 막는다
 RECENT = timedelta(minutes=30)
-#: 실패하면 이만큼 뒤에 한 번만 다시
-RETRY_AFTER = timedelta(minutes=3)
+#: Vertex가 아파 실패한 종목을 다시 만들기까지 기다리는 시간. 이어진 실패가 n번이면 n번째 값을 쓴다 —
+#: 세 번 다 실패하면 정해진 시각에 맡긴다. 한 번만 다시 하면 몇 분 이어지는 장애에 그대로 진다
+RETRY_AFTER = (timedelta(minutes=1), timedelta(minutes=5), timedelta(minutes=15))
 
 
 class Trigger(str, Enum):
@@ -95,14 +96,32 @@ class Trigger(str, Enum):
     RETRY = "retry"
 
 
+class Failure(str, Enum):
+    """게시하지 못한 까닭. 다시 할지, 서킷이 셀지가 여기서 갈린다(026 §실패 처리)."""
+
+    #: 시간 안에 답이 없다
+    TIMEOUT = "timeout"
+    #: 429·5xx — 같은 호출 안에서 다시 물어도 안 풀렸다
+    UNAVAILABLE = "unavailable"
+    #: 400·403·404 등 — 우리 설정이 틀렸다. 다시 해도 같다
+    CLIENT_ERROR = "client_error"
+    #: 답은 왔는데 쓸 수 없다 — 깨진 JSON, 목록에 없는 기사 번호
+    BAD_ANSWER = "bad_answer"
+
+    @property
+    def transient(self) -> bool:
+        """Vertex가 잠시 아픈 것 — 시간이 지나면 풀린다. 종목을 다시 만들고, 서킷이 센다."""
+        return self in (Failure.TIMEOUT, Failure.UNAVAILABLE)
+
+
 @dataclass(frozen=True)
 class Attempt:
-    """한 번 만든 기록 — 게시됐는가, 재시도였는가, 설명됐는가만 판단에 쓴다."""
+    """한 번 만든 기록 — 언제, 게시됐는가, 설명됐는가, 왜 실패했는가만 판단에 쓴다."""
 
     at: datetime
     published: bool
-    retry: bool = False
     explained: bool = False
+    failure: Failure | None = None
 
 
 @dataclass(frozen=True)
@@ -125,9 +144,15 @@ class Attempts:
         return any(a.published and a.explained for a in self.items)
 
     def needs_retry(self, now: datetime) -> bool:
-        """마지막이 실패였고, 그게 이미 재시도가 아니고, 3분이 지났으면."""
-        last = self.last
-        return last is not None and not last.published and not last.retry and now - last.at >= RETRY_AFTER
+        """끝에서부터 이어진 일시 장애 실패가 n번이고, 마지막 실패 뒤 `RETRY_AFTER[n-1]`이 지났으면."""
+        streak = 0
+        for a in sorted(self.items, key=lambda a: a.at, reverse=True):
+            if a.failure is None or not a.failure.transient:
+                break
+            streak += 1
+        if not 0 < streak <= len(RETRY_AFTER):
+            return False
+        return now - self.last.at >= RETRY_AFTER[streak - 1]
 
 
 def pick(
@@ -140,7 +165,7 @@ def pick(
     """지금 만들 종목과 그 이유. 대상은 **지금 주도주**와 **등락률 기준을 넘은 후보**다 —
     빠진 종목은 사유만 남고 다시 만들지 않는다.
 
-    후보는 새로 들어올 때와 3분 재시도, 그리고 **아직 설명 없음일 때만** 정해진 시각에 다시 만든다 —
+    후보는 새로 들어올 때와 실패 재시도, 그리고 **아직 설명 없음일 때만** 정해진 시각에 다시 만든다 —
     사유가 있는 후보까지 매번 다시 만들면 검색이 무료 한도를 넘는다(026 §설계 결정). 급등 직후엔 기사가
     없는 경우가 많아 설명 없음은 한 번 더 본다. 주도주로 올라오면 그때부터 매번 다시 만든다.
     """
@@ -158,6 +183,56 @@ def pick(
         elif slot and not done.made_within(now, RECENT) and (code in lead or not done.explained):
             picked.append((code, Trigger.SCHEDULED))
     return picked
+
+
+# --- 서킷 -----------------------------------------------------------------
+
+#: 일시 장애가 이만큼 이어지면 Vertex를 쉰다
+CIRCUIT_THRESHOLD = 3
+#: 쉬는 시간. 지나면 한 종목으로 시험한다
+CIRCUIT_COOLDOWN = timedelta(minutes=5)
+
+
+class CircuitState(Enum):
+    CLOSED = "closed"
+    #: Vertex를 부르지 않는다. 고른 종목은 행 없이 건너뛴다 — 닫힌 뒤 다시 골라진다
+    OPEN = "open"
+    #: 한 종목만 시험한다
+    HALF_OPEN = "half_open"
+
+
+@dataclass
+class Circuit:
+    """Vertex가 아플 때 종목마다 타임아웃까지 매달리지 않게 한다. 시각은 부르는 쪽이 준다.
+
+    일시 장애(`Failure.transient`)만 센다. 답이 이상한 건 Vertex가 답한 것이라 성공으로 본다.
+    클라이언트 오류는 다시 해도 같으니 사람이 고쳐 재배포할 때까지(새 프로세스가 뜰 때까지) 연다.
+    """
+
+    failures: int = 0
+    open_until: datetime | None = None
+    stuck: bool = False
+
+    def state(self, now: datetime) -> CircuitState:
+        if self.stuck:
+            return CircuitState.OPEN
+        if self.open_until is None:
+            return CircuitState.CLOSED
+        return CircuitState.OPEN if now < self.open_until else CircuitState.HALF_OPEN
+
+    def record(self, failure: Failure | None, now: datetime) -> None:
+        if failure is Failure.CLIENT_ERROR:
+            self.stuck = True
+            return
+        if failure is None or not failure.transient:
+            self.failures = 0
+            self.open_until = None
+            return
+        trial = self.state(now) is CircuitState.HALF_OPEN
+        self.failures += 1
+        if trial or self.failures >= CIRCUIT_THRESHOLD:
+            self.open_until = now + CIRCUIT_COOLDOWN
+            self.failures = 0
 
 
 # --- 출처 -----------------------------------------------------------------
@@ -250,8 +325,10 @@ _GENERIC_KEYWORDS = frozenset({
     "상승", "급등", "강세", "호재", "기대", "기대감", "주가", "반등", "특징주", "매수세", "신고가", "수급",
     "rally", "surge", "stock", "shares",
 })
-#: 직접적인 투자 권유. 목표가·투자의견 변경과 "매수세" 같은 사실 전달은 막지 않는다
-_ADVICE = re.compile(r"추천|매[수도]\s*(하|할|해)|담아|사야|팔아|\bbuy\b|\bsell\b", re.IGNORECASE)
+#: 직접적인 투자 권유. 목표가·투자의견 변경과 "매수세"·"외국인이 매수하며"·"팔아치운" 같은 사실 전달은 막지 않는다
+_ADVICE = re.compile(
+    r"추천|매[수도]\s*(?:하(?![며는고])|할|해(?!서))|담아(?![내낸])|사야|팔아(?!치)|\bbuy\b|\bsell\b", re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -284,15 +361,15 @@ class Verdict:
     evidence: list[Source] = field(default_factory=list)
     related: list[Source] = field(default_factory=list)
     error: str | None = None
+    #: 게시하지 못했으면 그 까닭
+    failure: Failure | None = None
 
 
 def judge(draft: Draft, sources: Sources, stock_name: str = "") -> Verdict:
     """게시할지, 무엇을 게시할지. 거절은 행으로 남되 화면에는 이전 사유가 그대로 보인다."""
     unknown = [i for i in [*draft.evidence, *draft.related] if sources.get(i) is None]
     if unknown:
-        return Verdict(published=False, error=f"목록에 없는 기사 번호 {unknown}")
-    if _ADVICE.search(" ".join([draft.reason, *draft.keywords])):
-        return Verdict(published=False, error="권유 표현")
+        return Verdict(published=False, error=f"목록에 없는 기사 번호 {unknown}", failure=Failure.BAD_ANSWER)
 
     evidence = _unique(draft.evidence)[:MAX_ARTICLES]
     related = [i for i in _unique(draft.related) if i not in evidence][:MAX_ARTICLES]
@@ -300,9 +377,13 @@ def judge(draft: Draft, sources: Sources, stock_name: str = "") -> Verdict:
 
     # 목록 한 줄은 명사형으로 끊는다("~ 매수세 유입"). 끝 마침표는 코드로 떼고, "~다" 말투는 프롬프트가 막는다
     reason = draft.reason.strip().rstrip(".。").strip()
-    # 근거 없는 사유는 믿지 않는다 — 모델은 설명 없음을 잘 쓰지 않는다(026 §알려진 함정)
-    if not draft.explained or not evidence or not reason:
-        return Verdict(published=True, explained=False, related=to_sources(related))
+    # 근거 없는 사유는 믿지 않는다 — 모델은 설명 없음을 잘 쓰지 않는다(026 §알려진 함정).
+    # 권유 표현도 설명 없음으로 내린다 — 근거 기사가 권하는 말투면 다시 만들어도 같은 답이 나오기 쉽다
+    advice = _ADVICE.search(" ".join([draft.reason, *draft.keywords])) is not None
+    if not draft.explained or not evidence or not reason or advice:
+        return Verdict(
+            published=True, explained=False, related=to_sources(related), error="권유 표현" if advice else None,
+        )
     return Verdict(
         published=True, explained=True, keywords=_keywords(draft.keywords, stock_name), reason=reason,
         evidence=to_sources(evidence), related=to_sources(related),

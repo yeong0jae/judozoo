@@ -9,7 +9,7 @@ from datetime import date, datetime
 from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, Enum, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from backend.insight.domain import Attempt, Source, Trigger, Verdict
+from backend.insight.domain import Attempt, Failure, Source, Trigger, Verdict
 from backend.library.db import Base
 from backend.market.calendar import Region
 
@@ -31,7 +31,7 @@ class StockReason(Base):
     #: KST. 화면의 "기준" 시각
     generated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     trigger: Mapped[str] = mapped_column(String(10), nullable=False)
-    #: 거절되면 False — 화면에 안 쓰이고, 3분 뒤 한 번 다시 만든다
+    #: 거절되면 False — 화면에 안 쓰인다. 다시 만들지는 `failure`가 정한다
     published: Mapped[bool] = mapped_column(Boolean, nullable=False)
     explained: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     keywords: Mapped[list] = mapped_column(JSON, nullable=False)
@@ -41,6 +41,8 @@ class StockReason(Base):
     related: Mapped[list] = mapped_column(JSON, nullable=False)
     model: Mapped[str] = mapped_column(String(40), nullable=False)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: 거절된 까닭(`domain.Failure`). 게시됐으면 NULL. 이 열이 생기기 전(2026-10-03) 거절 행도 NULL이다
+    failure: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     @classmethod
     def made(
@@ -52,14 +54,16 @@ class StockReason(Base):
             trigger=trigger.value, published=verdict.published, explained=verdict.explained,
             keywords=verdict.keywords, reason=verdict.reason[:200],
             evidence=[_article(s) for s in verdict.evidence], related=[_article(s) for s in verdict.related],
-            model=model, error=verdict.error,
+            model=model, error=verdict.error, failure=verdict.failure.value if verdict.failure else None,
         )
 
     def attempt(self, local_at: datetime) -> Attempt:
         """30분·재시도 판단용. 시각은 부르는 쪽이 시장 현지 시각으로 바꿔 준다."""
-        return Attempt(
-            at=local_at, published=self.published, retry=self.trigger == Trigger.RETRY.value, explained=self.explained,
-        )
+        return Attempt(at=local_at, published=self.published, explained=self.explained, failure=self.failed)
+
+    @property
+    def failed(self) -> Failure | None:
+        return Failure(self.failure) if self.failure else None
 
 
 def _article(s: Source) -> dict:

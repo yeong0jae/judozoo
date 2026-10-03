@@ -1,7 +1,7 @@
 """왜 오르나 — 언제 만들고, 무엇을 믿고, 무엇을 보여주는가."""
 
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 
 import pytest
 
@@ -9,7 +9,10 @@ from backend.insight.domain import (
     SCHEDULES,
     Attempt,
     Attempts,
+    Circuit,
+    CircuitState,
     Draft,
+    Failure,
     Source,
     Sources,
     Trigger,
@@ -91,8 +94,12 @@ class Test보여줄_세션_날짜:
         assert US.session_day(at(4, 0, ny), today_open=True, previous_open_day=date(2026, 9, 24)) == ny
 
 
-def made(hh: int, mm: int, ok: bool = True, retry: bool = False, explained: bool = True) -> Attempt:
-    return Attempt(at=at(hh, mm), published=ok, retry=retry, explained=explained)
+def made(hh: int, mm: int, ok: bool = True, explained: bool = True, failure: Failure | None = None) -> Attempt:
+    return Attempt(at=at(hh, mm), published=ok, explained=explained, failure=failure)
+
+
+def failed(hh: int, mm: int, failure: Failure = Failure.TIMEOUT) -> Attempt:
+    return made(hh, mm, ok=False, explained=False, failure=failure)
 
 
 class Test만들_종목_고르기:
@@ -112,13 +119,32 @@ class Test만들_종목_고르기:
         history = {"A": Attempts([made(10, 41)]), "B": Attempts([made(9, 30)])}
         assert pick(KR, ["A", "B"], history, at(11, 0)) == [("B", Trigger.SCHEDULED)]
 
-    def test_실패하면_3분_뒤_한_번_다시_시도한다(self):
-        history = {"A": Attempts([made(10, 15, ok=False)])}
-        assert pick(KR, ["A"], history, at(10, 17)) == []
-        assert pick(KR, ["A"], history, at(10, 18)) == [("A", Trigger.RETRY)]
+    def test_Vertex가_아파_실패하면_1분_뒤_다시_만든다(self):
+        history = {"A": Attempts([failed(10, 15)])}
+        assert pick(KR, ["A"], history, at(10, 15)) == []
+        assert pick(KR, ["A"], history, at(10, 16)) == [("A", Trigger.RETRY)]
 
-    def test_다시_시도도_실패하면_다음_정해진_시각까지_기다린다(self):
-        history = {"A": Attempts([made(10, 15, ok=False), made(10, 18, ok=False, retry=True)])}
+    def test_다시_실패하면_5분_그다음엔_15분_뒤에_다시_만든다(self):
+        두_번 = {"A": Attempts([failed(10, 15), failed(10, 16, Failure.UNAVAILABLE)])}
+        assert pick(KR, ["A"], 두_번, at(10, 20)) == []
+        assert pick(KR, ["A"], 두_번, at(10, 21)) == [("A", Trigger.RETRY)]
+
+        세_번 = {"A": Attempts([failed(10, 15), failed(10, 16), failed(10, 21)])}
+        assert pick(KR, ["A"], 세_번, at(10, 35)) == []
+        assert pick(KR, ["A"], 세_번, at(10, 36)) == [("A", Trigger.RETRY)]
+
+    def test_세_번_다시_해도_실패하면_다음_정해진_시각까지_기다린다(self):
+        history = {"A": Attempts([failed(10, 15), failed(10, 16), failed(10, 21), failed(10, 36)])}
+        assert pick(KR, ["A"], history, at(10, 59)) == []
+        assert pick(KR, ["A"], history, at(14, 0)) == [("A", Trigger.SCHEDULED)]
+
+    def test_성공_뒤의_실패는_처음부터_다시_센다(self):
+        history = {"A": Attempts([failed(9, 0), failed(9, 1), failed(9, 6), made(9, 30), failed(10, 15)])}
+        assert pick(KR, ["A"], history, at(10, 16)) == [("A", Trigger.RETRY)]
+
+    @pytest.mark.parametrize("failure", [Failure.CLIENT_ERROR, Failure.BAD_ANSWER])
+    def test_다시_해도_같은_실패는_다시_만들지_않는다(self, failure):
+        history = {"A": Attempts([failed(10, 15, failure)])}
         assert pick(KR, ["A"], history, at(10, 30)) == []
 
     def test_후보는_새로_들어올_때_바로_만든다(self):
@@ -142,9 +168,9 @@ class Test만들_종목_고르기:
         history = {"C": Attempts([made(9, 30, explained=False)])}
         assert pick(KR, [], history, at(10, 40), candidates=["C"]) == []
 
-    def test_후보도_실패하면_3분_뒤_한_번_다시_시도한다(self):
-        history = {"C": Attempts([made(10, 15, ok=False)])}
-        assert pick(KR, [], history, at(10, 18), candidates=["C"]) == [("C", Trigger.RETRY)]
+    def test_후보도_Vertex가_아파_실패하면_다시_만든다(self):
+        history = {"C": Attempts([failed(10, 15)])}
+        assert pick(KR, [], history, at(10, 16), candidates=["C"]) == [("C", Trigger.RETRY)]
 
     def test_주도주와_후보에_같은_종목이_있으면_주도주로_본다(self):
         history = {"A": Attempts([made(9, 30)])}
@@ -220,7 +246,7 @@ class Test답_검사:
 
     def test_목록에_없는_번호를_대면_거절한다(self):
         v = judge(draft(evidence=[1, 9]), SOURCES)
-        assert not v.published
+        assert not v.published and v.failure is Failure.BAD_ANSWER
         assert "번호" in v.error
 
     @pytest.mark.parametrize("reason", [
@@ -228,9 +254,18 @@ class Test답_검사:
         "이 종목 추천", "지금 담아", "지금 사야 한다", "지금 팔아", "Buy now", "Sell now",
         "증권사 목표가 상향, 지금 매수하세요",
     ])
-    def test_직접_투자를_권하면_거절한다(self, reason):
+    def test_직접_투자를_권하면_설명_없음으로_내린다(self, reason):
         v = judge(draft(reason=reason), SOURCES)
-        assert not v.published and v.error == "권유 표현"
+        assert v.published and not v.explained and v.error == "권유 표현"
+        assert v.reason == "" and v.keywords == [] and v.evidence == []
+
+    @pytest.mark.parametrize("reason", [
+        "외국인이 매수하며 강세", "외국인이 대거 매수해서 반등", "외국인 매수했다", "기관이 팔아치운 물량 되사",
+        "실적 기대를 담아낸 리포트",
+    ])
+    def test_사고판_사실을_전하는_말은_권유가_아니다(self, reason):
+        v = judge(draft(reason=reason), SOURCES)
+        assert v.explained and v.reason == reason
 
     @pytest.mark.parametrize("reason", [
         "증권사 목표가 상향에 상승", "증권가 목표주가 상향",
@@ -243,9 +278,9 @@ class Test답_검사:
         assert v.reason == reason
         assert v.keywords == ["목표가 상향", "투자의견 상향"]
 
-    def test_키워드에서_직접_투자를_권해도_거절한다(self):
+    def test_키워드에서_직접_투자를_권해도_설명_없음으로_내린다(self):
         v = judge(draft(reason="증권사 목표가 상향", keywords=["매수 추천"]), SOURCES)
-        assert not v.published and v.error == "권유 표현"
+        assert v.published and not v.explained and v.error == "권유 표현"
 
     def test_일반어_키워드는_그_칩만_뺀다(self):
         v = judge(draft(keywords=["상승", "라이다"]), SOURCES)
@@ -272,6 +307,55 @@ class Test답_검사:
     def test_근거와_관련에_같은_기사가_있으면_근거에만_둔다(self):
         v = judge(draft(evidence=[1], related=[1, 3]), SOURCES)
         assert [s.id for s in v.related] == [3]
+
+
+class Test서킷:
+    def test_처음엔_닫혀_있다(self):
+        assert Circuit().state(at(10, 0)) is CircuitState.CLOSED
+
+    def test_일시_장애가_세_번_이어지면_5분_동안_연다(self):
+        c = Circuit()
+        for m in (0, 0, 1):
+            c.record(Failure.TIMEOUT, at(10, m))
+        assert c.state(at(10, 5)) is CircuitState.OPEN
+        assert c.state(at(10, 6)) is CircuitState.HALF_OPEN
+
+    def test_사이에_성공이_끼면_처음부터_센다(self):
+        c = Circuit()
+        c.record(Failure.TIMEOUT, at(10, 0))
+        c.record(Failure.UNAVAILABLE, at(10, 0))
+        c.record(None, at(10, 0))
+        c.record(Failure.TIMEOUT, at(10, 1))
+        assert c.state(at(10, 1)) is CircuitState.CLOSED
+
+    def test_답이_이상한_건_Vertex가_답한_것이라_세지_않는다(self):
+        c = Circuit()
+        c.record(Failure.TIMEOUT, at(10, 0))
+        c.record(Failure.TIMEOUT, at(10, 0))
+        c.record(Failure.BAD_ANSWER, at(10, 0))
+        c.record(Failure.TIMEOUT, at(10, 1))
+        assert c.state(at(10, 1)) is CircuitState.CLOSED
+
+    def test_시험에_성공하면_닫고_실패하면_다시_5분_연다(self):
+        def 열린_서킷() -> Circuit:
+            c = Circuit()
+            for _ in range(3):
+                c.record(Failure.TIMEOUT, at(10, 0))
+            return c
+
+        성공 = 열린_서킷()
+        성공.record(None, at(10, 6))
+        assert 성공.state(at(10, 6)) is CircuitState.CLOSED
+
+        실패 = 열린_서킷()
+        실패.record(Failure.TIMEOUT, at(10, 6))
+        assert 실패.state(at(10, 10)) is CircuitState.OPEN
+        assert 실패.state(at(10, 11)) is CircuitState.HALF_OPEN
+
+    def test_클라이언트_오류는_사람이_고칠_때까지_열어_둔다(self):
+        c = Circuit()
+        c.record(Failure.CLIENT_ERROR, at(10, 0))
+        assert c.state(at(10, 0) + timedelta(days=1)) is CircuitState.OPEN
 
 
 @dataclass
