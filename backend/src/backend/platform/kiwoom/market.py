@@ -219,7 +219,7 @@ def fetch_daily_candles(stock_code: str, count: int = 60, base_date: date | None
     return _fetch_daily_page(stock_code.split("_", 1)[0], base_date or today())[:count]
 
 
-@ttl_cache("dailyCandles", ttl_seconds=30, maxsize=60, skip_if=is_empty)
+@ttl_cache("dailyCandles", ttl_seconds=60, maxsize=60, skip_if=is_empty)
 def _fetch_daily_page(stock_code: str, base: date) -> list[DailyCandle]:
     """ka10081 한 페이지(600봉, 최신순)를 통째로.
 
