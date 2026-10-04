@@ -174,19 +174,19 @@ def settle_today_minutes() -> int:
 _MINUTE_ARCHIVE_RETENTION = timedelta(days=14)
 
 
-@ttl_cache("candidateStocks", ttl_seconds=5, maxsize=15)
 def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingStockSnapshot]:
     """Phase 1 필터만 적용한 후보 (거래대금 순위 + 당일 등락률). 거래대금 내림차순.
 
-    등락률 임계값은 사용자가 고르므로 **캐시 키도 그 값으로 분리**한다.
+    **따로 캐시하지 않는다.** 풀 50종목에 값 비교뿐이라 매번 걸러도 수십 µs이고,
+    캐시를 두면 풀이 갈아 끼워진 뒤에도 후보만 옛 풀에 머문다.
 
     거래대금 1·2위를 등락률과 무관하게 끼워 넣던 예외는 없앴다 — 목록 위쪽이 주도주
     구간으로 바뀌면서 대장주를 보여주는 일은 그쪽이 맡는다. 예외를 남겨두면 "거래대금 순"
     구간에 기준 미달 종목이 설명 없이 섞인다.
     """
-    log.info("후보 종목 조회 (Phase 1) — 등락률 >= %s%%", min_daily_price_change_rate)
+    log.debug("후보 종목 조회 (Phase 1) — 등락률 >= %s%%", min_daily_price_change_rate)
     candidates = _trading_value_pool()
-    log.info("거래대금 순위에서 %d건 수집", len(candidates))
+    log.debug("거래대금 순위에서 %d건 수집", len(candidates))
 
     # 사용자 지정 등락률만 덮어쓴 임계값으로 Phase 1 구성
     effective = _criteria().model_copy(update={"min_daily_price_change_rate": min_daily_price_change_rate})
@@ -196,7 +196,7 @@ def find_candidate_stocks(min_daily_price_change_rate: float) -> list[LeadingSto
         flt.TradingValueRankFilter(effective),
         flt.DailyPriceChangeFilter(effective),
     ]).apply(candidates)
-    log.info("Phase 1 통과 %d건", len(survivors))
+    log.debug("Phase 1 통과 %d건", len(survivors))
     return survivors
 
 
@@ -216,7 +216,7 @@ def find_limit_ups() -> list[LeadingStockSnapshot]:
     **주도주 탑5가 아니라 후보 풀 전체를 본다.** 상한가는 잠기면서 거래가 말라 거래대금
     점수가 낮아지므로, 탑5 안에서만 찾으면 대개 한 종목도 안 나온다.
 
-    `find_candidate_stocks`가 캐시돼 있어 주도주와 같은 응답을 나눠 쓴다 — 키움을 두 번
+    후보는 캐시된 거래대금 풀에서 거르므로 주도주와 같은 응답을 나눠 쓴다 — 키움을 두 번
     두드리지 않는다. 후보 컷이 거래대금 35위라 **시장 전체 상한가가 아니다**(화면도 그렇게 말한다).
     """
     return LeadingStocks(find_candidate_stocks(0.0)).limit_ups()
