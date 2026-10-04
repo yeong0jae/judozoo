@@ -156,7 +156,6 @@ def fetch_top_price_change_rate_stocks(count: int = 50) -> list[LeadingStockSnap
         return []
 
 
-@ttl_cache("stockDetail", ttl_seconds=5, maxsize=60, skip_if=lambda r: r is None)
 def fetch_stock_detail(stock_code: str) -> LeadingStockSnapshot | None:
     """종목 기본 정보 (ka10001).
 
