@@ -46,7 +46,7 @@ def parse_amount(value: str | None) -> int:
 
 
 @ttl_cache(
-    "programTrading", ttl_seconds=10, maxsize=100,
+    "programTrading", ttl_seconds=60, maxsize=100,
     key=lambda stock_code: (stock_code, today()), skip_if=lambda data: data is None,
 )
 def fetch_program_trading(stock_code: str) -> ProgramTradingData | None:
