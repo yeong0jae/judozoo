@@ -279,6 +279,8 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         *history,
     ]
     criteria = _criteria()
+    # 필터는 결과를 만들며 통과 여부를 다시 계산한다 — 키움을 두 번 부르지 않게 값을 먼저 받아 넘긴다
+    program_net_buy = kiwoom_program.fetch_program_net_buy(stock_code)
     # 나열 순서가 곧 화면 표시 순서다. 판별력이 큰 것부터 둔다 —
     # 주도주를 정의하는 둘 → 진입 자리 → 과열 배제(상한) → 기준이 느슨해 대부분 통과하는 둘.
     all_filters: list[flt.StockFilter] = [
@@ -293,7 +295,7 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         flt.OpeningPriceFilter(criteria, lambda _c: daily[:3]),
         # 하한이 느슨해 거래대금 상위면 대체로 통과한다
         flt.MarketCapFilter(criteria),
-        flt.ProgramNetBuyFilter(criteria, kiwoom_program.fetch_program_net_buy),
+        flt.ProgramNetBuyFilter(criteria, lambda _c: program_net_buy),
     ]
 
     return StockEvaluation(

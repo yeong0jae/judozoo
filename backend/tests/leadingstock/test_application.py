@@ -76,6 +76,22 @@ class Test주도주_상세_시세:
         assert application.evaluate_stock("005930").stock == base
         detail.assert_called_once_with("005930")
 
+    def test_프로그램_매매는_상세_한_번에_한_번만_조회한다(self, mocker):
+        mocker.patch.object(application, "_trading_value_pool", return_value=[])
+        mocker.patch.object(application.kiwoom_market, "fetch_stock_detail", return_value=LeadingStockSnapshot(
+            stock_code="005930", stock_name="삼성전자", current_price=100,
+            price_change_rate=2, trading_value_rank=0, accumulated_trading_value=0,
+            market_cap=5000, opening_price=98,
+        ))
+        mocker.patch.object(application.kiwoom_market, "fetch_daily_candles", return_value=[])
+        program = mocker.patch.object(application.kiwoom_program, "fetch_program_net_buy", return_value=500)
+        mocker.patch.object(application.stock_app, "market_of", return_value=None)
+
+        result = next(r for r in application.evaluate_stock("005930").filter_results if r.filter_name == "프로그램 양매수")
+
+        assert result.passed
+        program.assert_called_once_with("005930")
+
 
 def 장_상태(monkeypatch, 휴장: bool, 거래시간: bool, 지금: datetime) -> None:
     monkeypatch.setattr("backend.market.calendar.market_status", lambda: (휴장, 거래시간))
