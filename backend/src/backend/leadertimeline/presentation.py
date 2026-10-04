@@ -75,5 +75,5 @@ def get_day(
         ))
     stocks = [TimelineStock(exchange=ex, code=code, name=names[i]) for (ex, code), i in index.items()]
     return ApiResponse.ok(TimelineResponse(
-        stocks=stocks, ticks=items, last_taken_at=application.last_taken_at(db, region, date_),
+        stocks=stocks, ticks=items, last_taken_at=ticks[-1].taken_at if ticks else None,
     ))

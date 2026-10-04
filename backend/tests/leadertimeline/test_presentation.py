@@ -21,11 +21,10 @@ def 종목(rank: int, code: str, name: str, rate: float) -> LeaderTickStock:
 @pytest.fixture
 def 하루(mocker):
     조회 = mocker.patch.object(application, "find_day", return_value=[
-        RecordedTick(datetime(2026, 9, 23, 10, 15), [종목(1, "000660", "SK하이닉스", 2.2), 종목(2, "005930", "삼성전자", 0.7)]),
-        RecordedTick(datetime(2026, 9, 23, 10, 16), [종목(1, "005930", "삼성전자", 0.8)]),
-        RecordedTick(datetime(2026, 9, 23, 10, 17), []),
+        RecordedTick(datetime(2026, 9, 23, 10, 15), datetime(2026, 9, 23, 10, 15, 1), [종목(1, "000660", "SK하이닉스", 2.2), 종목(2, "005930", "삼성전자", 0.7)]),
+        RecordedTick(datetime(2026, 9, 23, 10, 16), datetime(2026, 9, 23, 10, 16, 1), [종목(1, "005930", "삼성전자", 0.8)]),
+        RecordedTick(datetime(2026, 9, 23, 10, 17), datetime(2026, 9, 23, 10, 17, 1), []),
     ])
-    mocker.patch.object(application, "last_taken_at", return_value=datetime(2026, 9, 23, 10, 17, 1))
     return 조회
 
 

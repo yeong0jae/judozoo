@@ -25,6 +25,8 @@ LEADERS_COUNT = 5
 @dataclass(frozen=True)
 class RecordedTick:
     at: datetime
+    #: 실제로 찍은 시각(KST). 화면의 "47초 전"이 여기서 나온다
+    taken_at: datetime
     stocks: list[LeaderTickStock]
 
 
@@ -56,21 +58,20 @@ def _record(session: Session, region: Region, at: datetime, taken_at: datetime, 
 
 def find_day(session: Session, region: Region, trade_date: date, since: datetime | None = None) -> list[RecordedTick]:
     """그날의 분들, 시각 순. `since`가 있으면 그 **뒤** 분만 — 장중에 새 분만 받아 붙일 때 쓴다."""
-    query = select(LeaderTick).where(LeaderTick.region == region, LeaderTick.trade_date == trade_date)
+    query = (
+        select(LeaderTick, LeaderTickStock)
+        .outerjoin(LeaderTickStock, LeaderTickStock.leader_tick_id == LeaderTick.id)
+        .where(LeaderTick.region == region, LeaderTick.trade_date == trade_date)
+    )
     if since is not None:
         query = query.where(LeaderTick.at > since)
-    ticks = session.scalars(query.order_by(LeaderTick.at)).all()
-    if not ticks:
-        return []
-    stocks = session.scalars(
-        select(LeaderTickStock)
-        .where(LeaderTickStock.leader_tick_id.in_([t.id for t in ticks]))
-        .order_by(LeaderTickStock.rank)
-    ).all()
-    by_tick: dict[int, list[LeaderTickStock]] = {t.id: [] for t in ticks}
-    for s in stocks:
-        by_tick[s.leader_tick_id].append(s)
-    return [RecordedTick(t.at, by_tick[t.id]) for t in ticks]
+    rows = session.execute(query.order_by(LeaderTick.at, LeaderTickStock.rank)).all()
+    ticks: dict[int, RecordedTick] = {}
+    for tick, stock in rows:
+        recorded = ticks.setdefault(tick.id, RecordedTick(tick.at, tick.created_at, []))
+        if stock is not None:
+            recorded.stocks.append(stock)
+    return list(ticks.values())
 
 
 def latest(session: Session, region: Region, trade_date: date) -> RecordedTick | None:
@@ -86,14 +87,4 @@ def latest(session: Session, region: Region, trade_date: date) -> RecordedTick |
     stocks = session.scalars(
         select(LeaderTickStock).where(LeaderTickStock.leader_tick_id == tick.id).order_by(LeaderTickStock.rank)
     ).all()
-    return RecordedTick(tick.at, list(stocks))
-
-
-def last_taken_at(session: Session, region: Region, trade_date: date) -> datetime | None:
-    """그날 마지막으로 찍은 실제 시각(KST). 화면의 "47초 전"이 여기서 나온다."""
-    return session.scalars(
-        select(LeaderTick.created_at)
-        .where(LeaderTick.region == region, LeaderTick.trade_date == trade_date)
-        .order_by(LeaderTick.at.desc())
-        .limit(1)
-    ).first()
+    return RecordedTick(tick.at, tick.created_at, list(stocks))

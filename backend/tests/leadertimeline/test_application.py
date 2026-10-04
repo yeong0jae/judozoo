@@ -55,7 +55,7 @@ class Test1분_스냅샷:
         with 세션() as s:
             ticks = application.find_day(s, Region.KR, 그날)
 
-        assert [t.at for t in ticks] == [분(10, 15)]
+        assert [(t.at, t.taken_at) for t in ticks] == [(분(10, 15), TAKEN)]
         assert [(x.rank, x.code, x.name) for x in ticks[0].stocks] == [(1, "000660", "SK하이닉스"), (2, "009150", "삼성전기")]
 
     def test_주도주가_없는_분도_분은_남는다(self, 빈_타임라인, mocker):
