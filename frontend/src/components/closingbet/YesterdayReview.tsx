@@ -251,6 +251,9 @@ export function RankingCard({ round, me, inDrawer = false }: { round: ClosingBet
         </>
       )}
 
+      {/* 08:05~09:05엔 NXT 종목에 건 사람만 올라 있다 — 1위가 바뀔 수 있다고 미리 말한다 */}
+      {!round.settled && ranks.length > 0 && <span className="text-xs text-zinc-500">중간 순위예요. KRX 종목이 09:05에 팔리면 확정돼요.</span>}
+
       {me && (
         <div className={`grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl px-2 py-2.5 ${inDrawer ? "bg-zinc-800" : "bg-zinc-850"}`}>
           <span className="num text-center text-xs font-bold text-blue-700">{myRank ?? "–"}</span>
