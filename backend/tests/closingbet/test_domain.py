@@ -85,9 +85,9 @@ class Test하루_네_칸:
         p = phase_at(at(FRI, 21, 0), DAYS)
         assert (p.betting, p.next_at) == (FRI, at(MON, 8))
 
-    def test_휴장일에는_직전_판을_복기하고_다음_개장일_아침을_센다(self):
+    def test_휴장일에는_금요일_판을_기다리며_다음_개장일_아침을_센다(self):
         p = phase_at(at(SAT, 12, 0), DAYS)
-        assert (p.moment, p.betting, p.review, p.next_at) == (Moment.HOLIDAY, None, THU, at(MON, 8))
+        assert (p.moment, p.betting, p.review, p.next_at) == (Moment.NIGHT, FRI, THU, at(MON, 8))
 
     def test_월요일_새벽은_금요일_판을_기다린다(self):
         p = phase_at(at(MON, 7, 0), DAYS)

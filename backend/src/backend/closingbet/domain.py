@@ -28,7 +28,6 @@ class Moment(str, Enum):
     BET = "bet"
     NIGHT = "night"
     RESULT = "result"
-    HOLIDAY = "holiday"
 
 
 class OpenDays:
@@ -75,20 +74,16 @@ class Phase:
 def phase_at(now: datetime, days: OpenDays) -> Phase:
     today = now.date()
     t = now.time()
-    if not days.is_open(today):
-        last = days.previous(today)
-        upcoming = days.next(today)
+    previous = days.previous(today)
+    if not days.is_open(today) or t < RESULT_START:
+        # 직전 개장일 밤에 체결된 판이 아직 안 팔렸다. 쉬는 날도 다음 개장일 아침까지 그 판을 기다린다
+        upcoming = today if days.is_open(today) else days.next(today)
         return Phase(
-            Moment.HOLIDAY,
-            betting=None,
-            review=days.previous(last) if last else None,
+            Moment.NIGHT,
+            betting=previous,
+            review=days.previous(previous) if previous else None,
             next_at=datetime.combine(upcoming, RESULT_START) if upcoming else None,
         )
-
-    previous = days.previous(today)
-    if t < RESULT_START:
-        # 어젯밤에 체결된 판이 아직 안 팔렸다
-        return Phase(Moment.NIGHT, betting=previous, review=days.previous(previous) if previous else None, next_at=datetime.combine(today, RESULT_START))
     if t < RESULT_END:
         return Phase(Moment.RESULT, betting=None, review=previous, next_at=datetime.combine(today, RESULT_END))
     if t < BET_OPEN:

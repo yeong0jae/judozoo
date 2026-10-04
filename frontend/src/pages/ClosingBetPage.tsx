@@ -30,16 +30,24 @@ import { ApiError } from "../api/client";
 
 /**
  * 모의 종가베팅 — 시간대가 화면을 정한다(지금 칸은 서버가 알려 준다).
- *  복기 09:05~15:00 · 베팅 15:00~20:00 · 대기 20:00~08:00 · 결과 08:00~09:05 · 휴장
+ *  복기 09:05~15:00 · 베팅 15:00~20:00 · 대기 20:00~08:00 · 결과 08:00~09:05
+ *  쉬는 날은 직전 개장일 판을 기다리는 대기
  */
 
-const SUB: Record<Moment, (next: Date | null) => string> = {
+const SUB: Record<Moment, (next: Date | null, offDay: boolean) => string> = {
   review: () => "오늘 판은 15:00에 열려요.",
   bet: () => "20:00 종가로 체결돼요. 그 전까지는 바꾸거나 취소할 수 있어요.",
-  night: () => "야간선물이 밤새 움직여요. 08:05에 NXT 종목부터 결과가 나와요.",
+  night: (next, offDay) =>
+    offDay && next ? `오늘은 쉬는 날이에요. ${dayLabel(next)} 08:05에 NXT 종목부터 결과가 나와요.` : "야간선물이 밤새 움직여요. 08:05에 NXT 종목부터 결과가 나와요.",
   result: () => "08:05 NXT 종목 → 09:05 KRX 종목과 최종 랭킹",
-  holiday: (next) => (next ? `다음 판은 ${dayLabel(next)}에 이어져요. 직전 판을 돌아봐요.` : "직전 판을 돌아봐요."),
 };
+
+/** 대기 칸 중 쉬는 날 — 오늘이 판이 선 날도, 결과가 나오는 날도 아니다 */
+function offDay(n: ClosingBetNow, next: Date | null, clock: Date): boolean {
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const today = ymd(clock);
+  return n.moment === "night" && today !== n.bettingDay && (!next || today !== ymd(next));
+}
 
 function nightOf(raw: ClosingBetMarketRaw, note: string) {
   return raw.night ? { ...raw.night, note } : { price: 0, rate: 0, note: "야간선물 없음" };
@@ -239,7 +247,7 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
   );
 }
 
-// --- 복기 · 결과 · 휴장 -------------------------------------------------------------
+// --- 복기 · 결과 -------------------------------------------------------------------
 
 function ReviewBoard({ now, member, me }: { now: ClosingBetNow; member: boolean; me: Me | null }) {
   const roundQ = useClosingBetRound(now.reviewDay, now.moment);
@@ -325,7 +333,7 @@ export default function ClosingBetPage() {
         <div className="py-20 text-center text-[13px] text-zinc-500">{nowQ.isError ? "종가베팅을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요." : "불러오는 중…"}</div>
       ) : (
         <>
-          <DayStrip moment={n.moment} sub={SUB[n.moment](nextAt)} timer={nextAt ? countdown(nextAt, clock) : "--:--:--"} />
+          <DayStrip moment={n.moment} sub={SUB[n.moment](nextAt, offDay(n, nextAt, clock))} timer={nextAt ? countdown(nextAt, clock) : "--:--:--"} />
           {n.moment === "bet" || n.moment === "night" ? <TodayBoard now={n} clock={clock} member={member} me={me} /> : <ReviewBoard now={n} member={member} me={me} />}
         </>
       )}

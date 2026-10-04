@@ -12,7 +12,6 @@ const COPY: Record<Moment, { chip: string; title: string; timerLabel: string; co
   bet: { chip: "베팅 중", title: "오늘 종가에 뭘 걸까요?", timerLabel: "마감까지", color: "#3182f6" },
   night: { chip: "체결 완료 · 대기", title: "베팅이 잠겼어요", timerLabel: "결과 공개까지", color: "#f59e0b" },
   result: { chip: "결과 발표 중", title: "어제 판 결과가 나오고 있어요", timerLabel: "최종 랭킹까지", color: "#f87171" },
-  holiday: { chip: "휴장", title: "오늘은 쉬는 날이에요", timerLabel: "다음 판까지", color: "#8b95a1" },
 };
 
 /** 지금 — 하루 흐름 네 칸 중 지금 칸에 불이 들어오고, 다음 칸까지 남은 시간을 센다 */
