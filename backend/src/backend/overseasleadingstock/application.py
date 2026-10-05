@@ -41,8 +41,8 @@ def _pool_ttl() -> float:
     return calendar.seconds_until_us_session()
 
 
-@ttl_cache("overseasRankingPool", ttl_seconds=_pool_ttl, maxsize=1)
-def _ranking_pool() -> list[OverseasStockRank]:
+@ttl_cache("overseasTradingValuePool", ttl_seconds=_pool_ttl, maxsize=1)
+def _trading_value_pool() -> list[OverseasStockRank]:
     """세 거래소를 합쳐 순위를 매기고, 상위 컷 안에서 ETF를 걷어낸다.
 
     랭킹(전시)과 상세 평가가 공유하는 후보 풀이다.
@@ -62,9 +62,9 @@ def _ranking_pool() -> list[OverseasStockRank]:
     return [r for r in ranked[:TOP_N] if not r.is_etf]
 
 
-def refresh_ranking_pool() -> None:
+def refresh_trading_value_pool() -> None:
     """후보 풀을 만료 전에 새로 받아 갈아 끼운다 — 장중 갱신 폴러가 부른다."""
-    _ranking_pool.refresh()
+    _trading_value_pool.refresh()
 
 
 def get_candidates(min_change_rate: float) -> list[OverseasStockRank]:
@@ -73,7 +73,7 @@ def get_candidates(min_change_rate: float) -> list[OverseasStockRank]:
     순위는 풀에서 받은 통합 순위를 그대로 둔다 — 걸러낸 뒤 다시 매기면 그 숫자가
     "몇 위인가"가 아니라 "이 목록의 몇 번째인가"가 된다. 목록의 번호는 화면이 매긴다.
     """
-    return [r for r in _ranking_pool() if r.rate >= min_change_rate]
+    return [r for r in _trading_value_pool() if r.rate >= min_change_rate]
 
 
 def get_leaders(count: int) -> list[OverseasStockRank]:
@@ -82,7 +82,7 @@ def get_leaders(count: int) -> list[OverseasStockRank]:
     랭킹과 달리 **등락률 기준을 받지 않는다.** 첫 화면은 보는 사람이 랭킹 화면에
     걸어둔 기준과 무관하게 같은 답을 보여야 한다.
     """
-    return OverseasStockRanks(_ranking_pool()).leaders(count)
+    return OverseasStockRanks(_trading_value_pool()).leaders(count)
 
 
 def evaluate_stock(exchange: str, symbol: str) -> dict:
@@ -92,7 +92,7 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
     D·E의 시가는 차트가 받아 두는 1분봉 저장소에서 읽는다 — 새 요청을 늘리지 않는다.
     """
     stock = next(
-        (r for r in _ranking_pool() if r.exchange == exchange and r.symbol == symbol),
+        (r for r in _trading_value_pool() if r.exchange == exchange and r.symbol == symbol),
         None,
     )
     if stock is None:

@@ -16,7 +16,7 @@ from backend.overseasleadingstock import application
 
 log = logging.getLogger(__name__)
 
-_POOL_REFRESH_JOB = "overseas-ranking-pool-refresher"
+_POOL_REFRESH_JOB = "overseas-trading-value-pool-refresher"
 _MINUTE_SETTLE_JOB = "overseas-minute-settler"
 
 # 후보 풀 캐시(TTL 20초)를 만료 전에 갈아 끼우는 주기
@@ -24,13 +24,13 @@ _POOL_REFRESH_SECONDS = 15
 
 
 @tracing.traced_job(_POOL_REFRESH_JOB)
-def refresh_ranking_pool() -> None:
+def refresh_trading_value_pool() -> None:
     """실패해도 기존 값은 TTL이 남은 동안 그대로 쓰인다. 다음 회차가 다시 시도한다."""
     holiday, trading_hours = calendar.us_market_status()
     if holiday or not trading_hours:
         return
     try:
-        application.refresh_ranking_pool()
+        application.refresh_trading_value_pool()
     except Exception:
         metrics.job_failed(_POOL_REFRESH_JOB)
         log.warning("해외 후보 풀 갱신 실패", exc_info=True)
@@ -57,7 +57,7 @@ def settle_minutes() -> None:
 
 def register(scheduler: BaseScheduler) -> None:
     scheduler.add_job(
-        refresh_ranking_pool,
+        refresh_trading_value_pool,
         IntervalTrigger(seconds=_POOL_REFRESH_SECONDS),
         id=_POOL_REFRESH_JOB, replace_existing=True,
     )
