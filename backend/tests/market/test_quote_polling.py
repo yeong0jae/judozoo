@@ -92,7 +92,7 @@ class Test선물_근월물_공유:
 
         assert application.futures_quote(Market.KOSPI).futures_price == 300
         assert application.night_futures_quote().price == 300
-        assert application.futures_candles(Market.KOSPI, "1d", 90) == []
+        assert application.futures_daily_candles(Market.KOSPI, 90) == []
         assert application.night_futures_candles("1d", 90) == []
         assert application.futures_quote.refresh(Market.KOSPI).futures_price == 300
         assert near.call_count == 1

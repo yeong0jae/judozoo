@@ -438,7 +438,7 @@ export function useFuturesCandles(market: MarketType, interval: "1d" | "1m", cou
       apiFetch<MarketCandleItem[]>(
         `/api/market/futures/${market}/candles?interval=${interval}&count=${count}`,
       ),
-    refetchInterval: interval === "1m" ? 30_000 : false,
+    refetchInterval: interval === "1m" ? 60_000 : false,
   });
 }
 

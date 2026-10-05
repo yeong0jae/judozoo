@@ -46,7 +46,7 @@ class Test지난_거래일_선물_분봉:
 
         mocker.patch.object(application.kis_futures, "fetch_minute", side_effect=조회)
 
-        assert application.futures_candles(market, "1m", 90) == [
+        assert application.futures_minute_candles(market) == [
             봉(previous, "08:45:00"), 봉(previous, "09:00:00"),
             봉(current, "08:45:00"), 봉(current, "09:00:00"),
         ]
@@ -56,7 +56,7 @@ class Test지난_거래일_선물_분봉:
 
         clear_all()
         호출.clear()
-        application.futures_candles(market, "1m", 90)
+        application.futures_minute_candles(market)
         assert 호출 == [current]
 
     def test_전날_야간_세션은_DB에서_복원한다(self, 선물_보관소, mocker):
@@ -116,6 +116,6 @@ class Test지난_거래일_선물_분봉:
             [봉(day, "09:30:00")] * 102 if day == previous and hour.hour == 15 else []
         ))
 
-        application.futures_candles(Market.KOSPI, "1m", 90)
+        application.futures_minute_candles(Market.KOSPI)
 
         assert 선물_보관소.get(Market.KOSPI, "CONTRACT", False, previous) is None

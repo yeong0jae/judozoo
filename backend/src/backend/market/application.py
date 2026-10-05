@@ -502,30 +502,30 @@ def _expiry_of(name: str) -> str | None:
     return (first_thu + timedelta(weeks=1)).isoformat()
 
 
-@ttl_cache(
-    "futuresCandles",
-    ttl_seconds=30,
-    maxsize=8,
-    key=lambda market, interval, count: f"{market.name}:{interval}:{count}",
-    skip_if=is_empty,
-)
-def futures_candles(market: Market, interval: str, count: int) -> list[kis_futures.FuturesBar]:
+@ttl_cache("futuresDailyCandles", ttl_seconds=60, maxsize=4, skip_if=is_empty)
+def futures_daily_candles(market: Market, count: int) -> list[kis_futures.FuturesBar]:
+    """근월물 최근 `count`봉 일봉. 근월물이 막 바뀌어 옛 코드가 비면 새 코드로 한 번 더 받는다."""
     near = _near_month(market)
     if near is None:
         return []
     current = today()
-    if interval == "1d":
-        daily = kis_futures.fetch_daily(near.iscd, current - timedelta(days=count * 2 + 10), current)
-        if daily is None:
-            refreshed = _changed_near_month(market, near.iscd)
-            if refreshed is not None:
-                daily = kis_futures.fetch_daily(
-                    refreshed.iscd, current - timedelta(days=count * 2 + 10), current
-                )
-        return daily.candles if daily else []
-    if interval == "1m":
-        return _recent_futures_minutes(market, near.iscd)
-    return []
+    daily = kis_futures.fetch_daily(near.iscd, current - timedelta(days=count * 2 + 10), current)
+    if daily is None:
+        refreshed = _changed_near_month(market, near.iscd)
+        if refreshed is not None:
+            daily = kis_futures.fetch_daily(
+                refreshed.iscd, current - timedelta(days=count * 2 + 10), current
+            )
+    return daily.candles if daily else []
+
+
+@ttl_cache("futuresMinuteCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
+def futures_minute_candles(market: Market) -> list[kis_futures.FuturesBar]:
+    """근월물 최근 2거래일 분봉. 화면이 1분마다 다시 묻는다."""
+    near = _near_month(market)
+    if near is None:
+        return []
+    return _recent_futures_minutes(market, near.iscd)
 
 
 def _recent_futures_minutes(market: Market, iscd: str) -> list[kis_futures.FuturesBar]:

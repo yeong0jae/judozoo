@@ -375,7 +375,13 @@ def futures_investor_sessions(
 def futures_candles(
     market: Market, interval: str = Query(), count: int = Query(90)
 ) -> ApiResponse[list[CandleItem]]:
-    return ApiResponse.ok(_bar_items(application.futures_candles(market, interval, count)))
+    if interval == "1d":
+        bars = application.futures_daily_candles(market, count)
+    elif interval == "1m":
+        bars = application.futures_minute_candles(market)
+    else:
+        bars = []
+    return ApiResponse.ok(_bar_items(bars))
 
 
 # ── 시장 {market} ───────────────────────────────────────────────────────
