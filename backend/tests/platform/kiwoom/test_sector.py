@@ -147,12 +147,3 @@ class Test업종_투자자_순매수:
         )
 
         assert sector_investor.fetch_sector_net_buy("0") is None
-
-    @respx.mock
-    def test_기준일자를_주면_요청에_싣는다(self, respx_mock, 토큰_발급):
-        route = respx_mock.post(SECT_URL).mock(return_value=httpx.Response(200, json=self.응답()))
-
-        sector_investor.fetch_sector_net_buy("1", "20260911")
-
-        import json
-        assert json.loads(route.calls[0].request.content)["base_dt"] == "20260911"

@@ -7,7 +7,6 @@ amt_qty_tp=0(금액) 기준이라 순매수 단위는 **억원**, stex_tp=3(통�
 import logging
 from dataclasses import dataclass
 
-from backend.library.cache import ttl_cache
 from backend.platform.kiwoom import client
 from backend.platform.kiwoom.client import parse_signed_int
 
@@ -36,24 +35,14 @@ class SectorInvestorNetBuy:
     change_rate: float
 
 
-@ttl_cache(
-    "sectorNetBuy",
-    ttl_seconds=30,
-    maxsize=2,
-    key=lambda mrkt_tp, base_dt=None: f"{mrkt_tp}|{base_dt or ''}",
-    skip_if=lambda r: r is None,
-)
-def fetch_sector_net_buy(mrkt_tp: str, base_dt: str | None = None) -> SectorInvestorNetBuy | None:
-    """`mrkt_tp` 0=코스피, 1=코스닥. `base_dt`(YYYYMMDD)가 None이면 당일 누적(라이브)."""
+def fetch_sector_net_buy(mrkt_tp: str) -> SectorInvestorNetBuy | None:
+    """`mrkt_tp` 0=코스피, 1=코스닥. 당일 누적(라이브)."""
     try:
         payload = {
             "mrkt_tp": mrkt_tp,
             "amt_qty_tp": "0",  # 0=금액(억원)
             "stex_tp": "3",     # 3=통합(KRX+NXT)
         }
-        if base_dt is not None:
-            payload["base_dt"] = base_dt
-
         response = client.get_client().post(
             _SECT_URL, headers=client.query_headers("ka10051"), json=payload
         )
