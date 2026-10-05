@@ -24,8 +24,6 @@ log = logging.getLogger(__name__)
 
 SESSION_DAYS = 2       # 분봉 표시 거래일 수 (최신일 프리~애프터 + 직전일 정규장)
 MAX_MINUTE_PAGES = 20  # 2거래일(~1,350분/120) ≈ 12페이지에 여유
-DAILY_COUNT = 200      # 일봉 표시 거래일 수 (국내와 동일)
-MAX_DAILY_PAGES = 3    # 1회 100건 한도라 200건 = 2페이지에 여유
 
 #: KIS 초당 거래건수 초과. HTTP 500에 실려 온다 — 잠깐 쉬었다 한 번 더 부르면 대개 지나간다.
 _RATE_LIMITED = "EGW00201"
@@ -119,26 +117,10 @@ def _finish(collected: list[dict[str, Any]], trading_days: list[str], since: dat
     return [c for c in candles if c.trading_day.strftime(_DAILY_FMT) in keep_days]
 
 
-@ttl_cache("kisOverseasDailyCandles", ttl_seconds=30, maxsize=60)
+@ttl_cache("kisOverseasDailyCandles", ttl_seconds=60, maxsize=60)
 def fetch_daily_candles(excd: str, symb: str) -> list[OverseasDailyCandle]:
-    """최근 [DAILY_COUNT]거래일 일봉. 최신→과거 순."""
-    collected: list[dict[str, Any]] = []
-    bymd = ""
-
-    for _ in range(MAX_DAILY_PAGES):
-        items = _fetch_daily_page(excd, symb, bymd)
-        if not items:
-            break
-        collected += items
-        if len(collected) >= DAILY_COUNT or len(items) < 100:
-            break  # 목표를 채웠거나 더 없음
-
-        oldest = _parse_date(items[-1].get("xymd"))
-        if oldest is None:
-            break
-        bymd = (oldest - timedelta(days=1)).strftime(_DAILY_FMT)
-
-    candles = (_to_daily_candle(item) for item in collected[:DAILY_COUNT])
+    """최근 100거래일 일봉. 최신→과거 순. KIS 한 번(1회 100건 한도)으로 끝난다."""
+    candles = (_to_daily_candle(item) for item in _fetch_daily_page(excd, symb))
     return [c for c in candles if c is not None]
 
 
@@ -190,7 +172,7 @@ def _get_minute_page(excd: str, symb: str, next_: str, keyb: str):
     )
 
 
-def _fetch_daily_page(excd: str, symb: str, bymd: str) -> list[dict[str, Any]]:
+def _fetch_daily_page(excd: str, symb: str) -> list[dict[str, Any]]:
     """실패 시 빈 페이지 — 일봉은 없으면 차트만 짧아지고 끝이라 호출측을 깨우지 않는다."""
     try:
         response = get_client().get(
@@ -200,7 +182,7 @@ def _fetch_daily_page(excd: str, symb: str, bymd: str) -> list[dict[str, Any]]:
                 "EXCD": excd,
                 "SYMB": symb,
                 "GUBN": "0",   # 0:일
-                "BYMD": bymd,  # 공란=오늘, 값 있으면 그 일자 이하
+                "BYMD": "",    # 공란=오늘
                 "MODP": "1",   # 수정주가 반영
                 "KEYB": "",
             },
@@ -209,11 +191,11 @@ def _fetch_daily_page(excd: str, symb: str, bymd: str) -> list[dict[str, Any]]:
         response.raise_for_status()
         body = response.json()
     except Exception:
-        log.exception("KIS 해외 일봉 조회 실패 (%s:%s, bymd=%s)", excd, symb, bymd)
+        log.exception("KIS 해외 일봉 조회 실패 (%s:%s)", excd, symb)
         return []
 
     if body.get("rt_cd") != "0":
-        log.error("KIS 해외 일봉 오류: %s (%s:%s, bymd=%s)", body.get("msg1"), excd, symb, bymd)
+        log.error("KIS 해외 일봉 오류: %s (%s:%s)", body.get("msg1"), excd, symb)
         return []
     return body.get("output2") or []
 

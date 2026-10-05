@@ -251,35 +251,14 @@ class Test분봉_중간에_끊기면:
         assert route.call_count == 2
 
 
-class Test일봉_페이징:
+class Test일봉_조회:
     @respx.mock
-    def test_다음_커서는_마지막_일자에서_하루를_뺀_값이다(self, respx_mock, 토큰_발급):
-        첫페이지 = [일봉(f"2026081{i % 10}") for i in range(100)]
-        첫페이지[-1] = 일봉("20260501")
-        route = respx_mock.get(DAILY_URL).mock(
-            side_effect=[일봉응답(첫페이지), 일봉응답([일봉("20260430")])]
-        )
+    def test_오늘부터_한_페이지만_받는다(self, respx_mock, 토큰_발급):
+        route = respx_mock.get(DAILY_URL).mock(return_value=일봉응답([일봉("20260825") for _ in range(100)]))
 
-        fetch_daily_candles("NAS", "AAPL")
-
-        assert route.calls[1].request.url.params["BYMD"] == "20260430"
-
-    @respx.mock
-    def test_100건_미만이_오면_더_없다고_보고_멈춘다(self, respx_mock, 토큰_발급):
-        route = respx_mock.get(DAILY_URL).mock(return_value=일봉응답([일봉("20260825")]))
-
-        fetch_daily_candles("NAS", "AAPL")
-
+        assert len(fetch_daily_candles("NAS", "AAPL")) == 100
         assert route.call_count == 1
-
-    @respx.mock
-    def test_목표_건수를_넘으면_잘라서_준다(self, respx_mock, 토큰_발급):
-        페이지 = [일봉("20260825") for _ in range(100)]
-        respx_mock.get(DAILY_URL).mock(
-            side_effect=[일봉응답(페이지), 일봉응답(페이지), 일봉응답(페이지)]
-        )
-
-        assert len(fetch_daily_candles("NAS", "AAPL")) == 200
+        assert route.calls[0].request.url.params["BYMD"] == ""
 
 
 class Test일봉_실패:
