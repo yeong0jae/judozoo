@@ -305,7 +305,7 @@ export function useMarketCandles(
         `/api/market/${market}/candles?interval=${interval}&count=${count}`,
       ),
     enabled: market !== null,
-    refetchInterval: interval === "1m" ? 30_000 : false,
+    refetchInterval: interval === "1m" ? 60_000 : false,
   });
 }
 

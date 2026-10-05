@@ -73,9 +73,9 @@ _MAX_PAGE_SIZE = 200
 _MAX_PAGES = 6  # 200×6=1200봉 — 2일치 정규장(780분)을 여유 있게 덮는다
 
 
-# 지수 캔들은 차트를 보는 사람마다, 1분봉은 30초마다 다시 묻는다. 캐시가 없으면 보는 사람 수만큼
-# 토스를 부르고, 그룹 한도가 초당 5건이라 금방 닿는다. 30초면 1분봉 화면 주기와 같다.
-# 일봉은 화면이 다시 묻지 않고 오늘 봉이 1분 늦어도 지장이 없어 1분으로 둔다.
+# 지수 캔들은 차트를 보는 사람마다, 1분봉은 1분마다 다시 묻는다. 캐시가 없으면 보는 사람 수만큼
+# 토스를 부르고, 그룹 한도가 초당 5건이라 금방 닿는다. 1분이면 1분봉 화면 주기와 같다.
+# 일봉은 화면이 다시 묻지 않고 오늘 봉이 1분 늦어도 지장이 없어 같은 1분으로 둔다.
 @ttl_cache("indexDailyCandles", ttl_seconds=60, maxsize=4, skip_if=is_empty)
 def daily_candles(market: Market, count: int) -> list[toss_indicator.TossCandle]:
     """최근 `count`봉 일봉(오름차순)."""
@@ -83,7 +83,7 @@ def daily_candles(market: Market, count: int) -> list[toss_indicator.TossCandle]
     return sorted(page.candles, key=lambda c: c.timestamp)
 
 
-@ttl_cache("indexMinuteCandles", ttl_seconds=30, maxsize=2, skip_if=is_empty)
+@ttl_cache("indexMinuteCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
 def minute_candles_today(market: Market) -> list[toss_indicator.TossCandle]:
     """가장 최근 2영업일의 1분봉(오름차순) — 여러 페이지를 모아 2일치를 덮는다."""
     current = today()
