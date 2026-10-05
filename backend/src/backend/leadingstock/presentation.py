@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from backend.auth.presentation import current_user
 from backend.leadingstock import application, events
 from backend.leadingstock.entities import step_eok
-from backend.leadingstock.infrastructure import investor_snapshot_at
+from backend.leadingstock.infrastructure import investor_snapshot_at, latest_investor_snapshot
 from backend.leadingstock.signals import MarketSignalType
 from backend.library.db import get_db
 from backend.library.time import now, today
@@ -359,37 +359,28 @@ def get_market_signal_events(
 def get_market_investor_net_buy(
     at: datetime | None = Query(None), db: Session = Depends(get_db)
 ) -> ApiResponse[list[MarketInvestorNetBuyItem]]:
-    """`at` 지정 시 그 시각 이하 가장 가까운 스냅샷(시그널 발생 시점 값), 미지정 시 당일 라이브 누적."""
+    """`at` 지정 시 그 시각 이하 가장 가까운 스냅샷(시그널 발생 시점 값), 미지정 시 가장 최근 스냅샷.
+
+    라이브도 키움을 부르지 않는다 — 시그널 폴러가 1분마다 같은 값을 받아 적재한다.
+    지수값·등락률은 시그널 시점 조회에서만 비운다.
+    """
     items = []
-    if at is not None:
-        for market in Market:
-            s = investor_snapshot_at(db, market, at)
-            if s is None:
-                continue
-            items.append(
-                MarketInvestorNetBuyItem(
-                    market=market.name, foreign_eok=s.foreign_eok,
-                    institution_eok=s.institution_eok, individual_eok=s.individual_eok,
-                    other_corp_eok=s.other_corp_eok,
-                    financial_investment_eok=s.financial_investment_eok, trust_eok=s.trust_eok,
-                    pension_fund_eok=s.pension_fund_eok, private_equity_eok=s.private_equity_eok,
-                    insurance_eok=s.insurance_eok, bank_eok=s.bank_eok,
-                    index_value=None, change_rate=None,
-                )
+    for market in Market:
+        s = investor_snapshot_at(db, market, at) if at is not None else latest_investor_snapshot(db, market, now())
+        if s is None:
+            continue
+        items.append(
+            MarketInvestorNetBuyItem(
+                market=market.name, foreign_eok=s.foreign_eok,
+                institution_eok=s.institution_eok, individual_eok=s.individual_eok,
+                other_corp_eok=s.other_corp_eok,
+                financial_investment_eok=s.financial_investment_eok, trust_eok=s.trust_eok,
+                pension_fund_eok=s.pension_fund_eok, private_equity_eok=s.private_equity_eok,
+                insurance_eok=s.insurance_eok, bank_eok=s.bank_eok,
+                index_value=None if at is not None else s.index_value,
+                change_rate=None if at is not None else s.change_rate,
             )
-    else:
-        for market, nb in events.investor_net_buy().items():
-            items.append(
-                MarketInvestorNetBuyItem(
-                    market=market.name, foreign_eok=nb.foreign_eok,
-                    institution_eok=nb.institution_eok, individual_eok=nb.individual_eok,
-                    other_corp_eok=nb.other_corp_eok,
-                    financial_investment_eok=nb.financial_investment_eok, trust_eok=nb.trust_eok,
-                    pension_fund_eok=nb.pension_fund_eok, private_equity_eok=nb.private_equity_eok,
-                    insurance_eok=nb.insurance_eok, bank_eok=nb.bank_eok,
-                    index_value=nb.index_value, change_rate=nb.change_rate,
-                )
-            )
+        )
     return ApiResponse.ok(items)
 
 

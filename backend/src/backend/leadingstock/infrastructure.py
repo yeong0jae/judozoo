@@ -82,6 +82,22 @@ def investor_snapshot_at(
     )
 
 
+def latest_investor_snapshot(
+    session: Session, market: Market, at: datetime
+) -> MarketInvestorSnapshot | None:
+    """한 시장의 `at` 이하 가장 최근 순매수 스냅샷 — 날짜를 가리지 않는다.
+
+    장 전·휴장일엔 직전 거래일의 마지막 스냅샷이 나온다. 거래일과 시각이 함께 늘어나므로
+    (trade_date, captured_at) 역순이 곧 시각 역순이라 인덱스를 거꾸로 읽고 한 행에서 멈춘다.
+    """
+    return session.scalar(
+        select(MarketInvestorSnapshot)
+        .where(MarketInvestorSnapshot.market == market, MarketInvestorSnapshot.captured_at <= at)
+        .order_by(MarketInvestorSnapshot.trade_date.desc(), MarketInvestorSnapshot.captured_at.desc())
+        .limit(1)
+    )
+
+
 class StockMinuteCandleEntity(Base):
     """지난 거래일 종목 1분봉. **완성된 날만** 들어온다 — 하루치를 통째로 갈아 끼운다.
 

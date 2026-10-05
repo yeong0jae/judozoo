@@ -497,3 +497,63 @@ class Test브로커_토큰_백오프:
         assert 백오프_기록, "백오프를 한 줄로 남겨야 한다"
         assert all(r.exc_info is None for r in 백오프_기록), "트레이스를 붙이면 안 된다"
         assert all(r.levelno == logging.WARNING for r in 백오프_기록)
+
+
+@pytest.fixture
+def 수급_스냅샷_테이블(통합_db):
+    from backend.leadingstock.infrastructure import MarketInvestorSnapshot
+
+    MarketInvestorSnapshot.__table__.create(get_engine(), checkfirst=True)
+    with get_session_factory()() as s:
+        s.query(MarketInvestorSnapshot).delete()
+        s.commit()
+    yield
+
+
+def 수급_스냅샷(market: Market, at: datetime, 외인: int):
+    from backend.leadingstock.infrastructure import MarketInvestorSnapshot
+
+    return MarketInvestorSnapshot(
+        market=market, trade_date=at.date(), captured_at=at,
+        foreign_eok=외인, institution_eok=0, individual_eok=0, other_corp_eok=0,
+        index_value=2600.5, change_rate=1.2, created_at=at, updated_at=at,
+    )
+
+
+@pytest.mark.integration
+class Test시장_수급_라이브:
+    def test_키움을_부르지_않고_가장_최근_스냅샷을_준다(self, 로그인_client, 수급_스냅샷_테이블, mocker):
+        from backend.leadingstock import presentation
+
+        mocker.patch.object(presentation, "now", return_value=AT)
+        키움 = mocker.patch("backend.platform.kiwoom.sector_investor.fetch_sector_net_buy")
+        with get_session_factory()() as s:
+            s.add_all([
+                수급_스냅샷(Market.KOSPI, datetime(2026, 9, 11, 9, 58), 100),
+                수급_스냅샷(Market.KOSPI, datetime(2026, 9, 11, 9, 59), 200),
+                수급_스냅샷(Market.KOSPI, datetime(2026, 9, 11, 10, 1), 999),
+                수급_스냅샷(Market.KOSDAQ, datetime(2026, 9, 11, 9, 59), -50),
+            ])
+            s.commit()
+
+        데이터 = 로그인_client.get("/api/leading-stocks/market/investor-net-buy").json()["data"]
+
+        assert [(d["market"], d["foreignEok"], d["indexValue"]) for d in 데이터] == [
+            ("KOSPI", 200, 2600.5), ("KOSDAQ", -50, 2600.5),
+        ]
+        키움.assert_not_called()
+
+    def test_장_전에는_직전_거래일_마지막_스냅샷을_준다(self, 로그인_client, 수급_스냅샷_테이블, mocker):
+        from backend.leadingstock import presentation
+
+        mocker.patch.object(presentation, "now", return_value=datetime(2026, 9, 14, 7, 0))
+        with get_session_factory()() as s:
+            s.add_all([
+                수급_스냅샷(Market.KOSPI, datetime(2026, 9, 11, 19, 59), 300),
+                수급_스냅샷(Market.KOSPI, datetime(2026, 9, 11, 20, 0), 400),
+            ])
+            s.commit()
+
+        데이터 = 로그인_client.get("/api/leading-stocks/market/investor-net-buy").json()["data"]
+
+        assert [(d["market"], d["foreignEok"]) for d in 데이터] == [("KOSPI", 400)]
