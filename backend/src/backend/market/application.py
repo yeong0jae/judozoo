@@ -855,11 +855,15 @@ def nasdaq_futures_quote() -> QuoteResult | None:
     return _quote_of(NASDAQ_FUTURES_SYMBOL)
 
 
-@ttl_cache("nasdaqFuturesCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
-def nasdaq_futures_candles(interval: str) -> list:
-    if interval == "1m":
-        return yahoo.fetch_candles(NASDAQ_FUTURES_SYMBOL, "1m", "1d")
-    return _yahoo_candles(NASDAQ_FUTURES_SYMBOL, interval)
+@ttl_cache("nasdaqFuturesDailyCandles", ttl_seconds=60, maxsize=1, skip_if=is_empty)
+def nasdaq_futures_daily_candles() -> list[yahoo.YahooBar]:
+    return yahoo.fetch_candles(NASDAQ_FUTURES_SYMBOL, "1d", "6mo")
+
+
+@ttl_cache("nasdaqFuturesMinuteCandles", ttl_seconds=60, maxsize=1, skip_if=is_empty)
+def nasdaq_futures_minute_candles() -> list[yahoo.YahooBar]:
+    """야후 최근 하루 창. 지수·매크로 분봉과 달리 지난 세션을 DB에 보관하지 않는다."""
+    return yahoo.fetch_candles(NASDAQ_FUTURES_SYMBOL, "1m", "1d")
 
 
 def macro_quotes() -> MacroQuotes:
@@ -891,14 +895,6 @@ def _macro_minute_candles(symbol: str) -> list[yahoo.YahooBar]:
 @ttl_cache("macroDailyCandles", ttl_seconds=60, maxsize=4, skip_if=is_empty)
 def _macro_daily_candles(symbol: str) -> list[yahoo.YahooBar]:
     return yahoo.fetch_candles(symbol, "1d", "6mo")
-
-
-def _yahoo_candles(symbol: str, interval: str) -> list:
-    if interval == "1m":
-        return yahoo.fetch_candles(symbol, "1m", "2d")
-    if interval == "1d":
-        return yahoo.fetch_candles(symbol, "1d", "6mo")
-    return []
 
 
 # ── 홈 — 오늘의 수급 ────────────────────────────────────────────────────

@@ -332,7 +332,13 @@ def nasdaq_futures_quote() -> ApiResponse[QuoteItem | None]:
 
 @router.get("/futures/nasdaq/candles")
 def nasdaq_futures_candles(interval: str = Query()) -> ApiResponse[list[CandleItem]]:
-    return ApiResponse.ok(_bar_items(application.nasdaq_futures_candles(interval)))
+    if interval == "1d":
+        bars = application.nasdaq_futures_daily_candles()
+    elif interval == "1m":
+        bars = application.nasdaq_futures_minute_candles()
+    else:
+        bars = []
+    return ApiResponse.ok(_bar_items(bars))
 
 
 # ── 선물 {market} ───────────────────────────────────────────────────────
