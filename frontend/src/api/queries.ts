@@ -354,7 +354,7 @@ export function useNasdaqIndexCandles(interval: "1d" | "1m") {
     queryKey: QK.nasdaqIndexCandles(interval),
     queryFn: () =>
       apiFetch<MarketCandleItem[]>(`/api/market/nasdaq/candles?interval=${interval}`),
-    refetchInterval: interval === "1m" ? 30_000 : false,
+    refetchInterval: interval === "1m" ? 60_000 : false,
   });
 }
 

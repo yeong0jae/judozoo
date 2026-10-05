@@ -820,7 +820,7 @@ def _complete_yahoo_day(symbol: str, day: date, bars: list[yahoo.YahooBar]) -> b
     return min(times) <= start and max(times) >= end
 
 
-@ttl_cache("nasdaqIndexMinuteCandles", ttl_seconds=30, maxsize=1, skip_if=is_empty)
+@ttl_cache("nasdaqIndexMinuteCandles", ttl_seconds=60, maxsize=1, skip_if=is_empty)
 def _nasdaq_minute_candles() -> list[yahoo.YahooBar]:
     return _yahoo_minute_candles(NASDAQ_SYMBOL)
 
