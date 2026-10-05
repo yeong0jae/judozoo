@@ -316,7 +316,13 @@ def night_quote() -> ApiResponse[NightFuturesQuoteItem | None]:
 
 @router.get("/futures/night/candles")
 def night_candles(interval: str = Query(), count: int = Query(90)) -> ApiResponse[list[CandleItem]]:
-    return ApiResponse.ok(_bar_items(application.night_futures_candles(interval, count)))
+    if interval == "1d":
+        bars = application.night_futures_daily_candles(count)
+    elif interval == "1m":
+        bars = application.night_futures_minute_candles()
+    else:
+        bars = []
+    return ApiResponse.ok(_bar_items(bars))
 
 
 @router.get("/futures/nasdaq/quote")

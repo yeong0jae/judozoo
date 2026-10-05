@@ -68,7 +68,7 @@ class Test지난_거래일_선물_분봉:
             봉(previous, "18:00:00"), 봉(current, "05:59:00"),
         ])
 
-        assert application.night_futures_candles("1m", 90) == [
+        assert application.night_futures_minute_candles() == [
             봉(previous, "18:00:00"), 봉(current, "05:59:00"),
         ]
         assert 선물_보관소.get(Market.KOSPI, "CONTRACT", True, previous) is not None
@@ -76,7 +76,7 @@ class Test지난_거래일_선물_분봉:
 
         clear_all()
         외부.reset_mock()
-        application.night_futures_candles("1m", 90)
+        application.night_futures_minute_candles()
         외부.assert_not_called()
 
     def test_진행_중인_야간_세션은_DB에_저장하지_않는다(self, 선물_보관소, mocker):
@@ -87,11 +87,11 @@ class Test지난_거래일_선물_분봉:
             봉(current, "18:00:00"), 봉(current, "19:00:00"),
         ])
 
-        application.night_futures_candles("1m", 90)
+        application.night_futures_minute_candles()
         assert 선물_보관소.get(Market.KOSPI, "CONTRACT", True, current) is None
 
         clear_all()
-        application.night_futures_candles("1m", 90)
+        application.night_futures_minute_candles()
         assert 외부.call_count == 2
 
     def test_자정_이후에도_전날_시작한_야간_세션으로_묶는다(self, 선물_보관소, mocker):
@@ -102,7 +102,7 @@ class Test지난_거래일_선물_분봉:
             봉(start, "18:00:00"), 봉(after_midnight, "02:00:00"),
         ])
 
-        결과 = application.night_futures_candles("1m", 90)
+        결과 = application.night_futures_minute_candles()
 
         assert 결과 == [봉(start, "18:00:00"), 봉(after_midnight, "02:00:00")]
         assert 외부.call_args.args[1] == start

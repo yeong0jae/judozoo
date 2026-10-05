@@ -638,32 +638,32 @@ def night_futures_quote() -> NightFuturesQuote | None:
     )
 
 
-@ttl_cache(
-    "nightFuturesCandles",
-    ttl_seconds=30,
-    maxsize=4,
-    key=lambda interval, count: f"{interval}:{count}",
-    skip_if=is_empty,
-)
-def night_futures_candles(interval: str, count: int) -> list[kis_futures.FuturesBar]:
+@ttl_cache("nightFuturesDailyCandles", ttl_seconds=60, maxsize=2, skip_if=is_empty)
+def night_futures_daily_candles(count: int) -> list[kis_futures.FuturesBar]:
+    """코스피 야간 근월물 최근 `count`봉 일봉. 근월물이 막 바뀌어 옛 코드가 비면 새 코드로 한 번 더 받는다."""
     near = _near_month(Market.KOSPI)
     if near is None:
         return []
     current = today()
-    if interval == "1d":
-        daily = kis_futures.fetch_daily(
-            near.iscd, current - timedelta(days=count * 2 + 10), current, kis_futures.NIGHT
-        )
-        if daily is None:
-            refreshed = _changed_near_month(Market.KOSPI, near.iscd)
-            if refreshed is not None and refreshed.iscd != near.iscd:
-                daily = kis_futures.fetch_daily(
-                    refreshed.iscd, current - timedelta(days=count * 2 + 10), current, kis_futures.NIGHT
-                )
-        return daily.candles if daily else []
-    if interval == "1m":
-        return _recent_night_session(near.iscd)
-    return []
+    daily = kis_futures.fetch_daily(
+        near.iscd, current - timedelta(days=count * 2 + 10), current, kis_futures.NIGHT
+    )
+    if daily is None:
+        refreshed = _changed_near_month(Market.KOSPI, near.iscd)
+        if refreshed is not None and refreshed.iscd != near.iscd:
+            daily = kis_futures.fetch_daily(
+                refreshed.iscd, current - timedelta(days=count * 2 + 10), current, kis_futures.NIGHT
+            )
+    return daily.candles if daily else []
+
+
+@ttl_cache("nightFuturesMinuteCandles", ttl_seconds=60, maxsize=1, skip_if=is_empty)
+def night_futures_minute_candles() -> list[kis_futures.FuturesBar]:
+    """코스피 야간 근월물 최근 세션 하나의 분봉. 화면이 1분마다 다시 묻는다."""
+    near = _near_month(Market.KOSPI)
+    if near is None:
+        return []
+    return _recent_night_session(near.iscd)
 
 
 def _recent_night_session(iscd: str) -> list[kis_futures.FuturesBar]:

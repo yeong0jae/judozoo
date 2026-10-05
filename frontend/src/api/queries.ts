@@ -335,7 +335,7 @@ export function useNightFuturesCandles(interval: "1d" | "1m", count = 90) {
       apiFetch<MarketCandleItem[]>(
         `/api/market/futures/night/candles?interval=${interval}&count=${count}`,
       ),
-    refetchInterval: interval === "1m" ? 30_000 : false,
+    refetchInterval: interval === "1m" ? 60_000 : false,
   });
 }
 
