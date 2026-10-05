@@ -60,7 +60,7 @@ class Test오늘의_수급:
     ):
         session = 빈_스냅샷_테이블
         mocker.patch.object(application, "now", return_value=AT)
-        외부수급 = mocker.patch.object(application.kiwoom_sector, "fetch_sector_net_buy")
+        외부수급 = mocker.patch("backend.platform.kiwoom.sector_investor.fetch_sector_net_buy")
         mocker.patch.object(application, "futures_quote", return_value=None)
         session.add_all([
             스냅샷(Market.KOSPI, AT.replace(minute=29), 개인=100, 지수=2600),

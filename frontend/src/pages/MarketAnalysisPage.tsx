@@ -1029,7 +1029,7 @@ const dayRowLabel = (date: string) => <span className="num text-[13px] text-zinc
 
 /**
  * 현물 수급 — 시간대별은 당일 누적 스냅샷 경계 diff(구간별 증분)라 스냅샷이 아직 없는 구간은 "집계 전".
- * 최근 5일은 키움 ka10051 — 일자별 1회씩 호출하므로 유량 제한(초당 5건) 안에서 5일로 제한.
+ * 최근 5일은 같은 스냅샷에서 거래일마다 마지막 값(= 그날 누적)이다. 선물과 같다.
  */
 function SpotSupply({ market, date }: { market: MarketType; date: string }) {
   const sessions = useMarketInvestorSessions(market, date);

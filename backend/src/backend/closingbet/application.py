@@ -186,7 +186,7 @@ def market_flows(session: Session, on: date) -> dict:
     """시장 수급 표 — 코스피·코스닥 × 외인·기관 × [현물 당일, 현물 5일, 선물 당일, 선물 5일, 마감, 애프터](억원·계약) + 야간선물."""
     out: dict = {}
     for market in (Market.KOSPI, Market.KOSDAQ):
-        spot = market_app.investor_daily_history(market, _FLOW_DAYS)
+        spot = market_app.investor_daily_history(session, market, _FLOW_DAYS)
         spot_today = next((d for d in spot if d.date == on), None)
         fut = market_app.futures_investor_daily_history(session, market, _FLOW_DAYS)
         fut_today = next((d for d in fut if d.date == on), None)

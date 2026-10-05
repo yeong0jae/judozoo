@@ -395,7 +395,9 @@ def market_candles(
 
 
 @router.get("/{market}/investor/daily")
-def investor_daily(market: Market, count: int = Query(10)) -> ApiResponse[list[MarketInvestorDayItem]]:
+def investor_daily(
+    market: Market, count: int = Query(10), db: Session = Depends(get_db)
+) -> ApiResponse[list[MarketInvestorDayItem]]:
     return ApiResponse.ok(
         [
             MarketInvestorDayItem(
@@ -406,7 +408,7 @@ def investor_daily(market: Market, count: int = Query(10)) -> ApiResponse[list[M
                 other_corp_eok=d.other_corp_eok,
                 breakdown=OrgBreakdownItem(**vars(d.breakdown)),
             )
-            for d in application.investor_daily_history(market, count)
+            for d in application.investor_daily_history(db, market, count)
         ]
     )
 
