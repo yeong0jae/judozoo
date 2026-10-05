@@ -75,7 +75,8 @@ _MAX_PAGES = 6  # 200×6=1200봉 — 2일치 정규장(780분)을 여유 있게 
 
 # 지수 캔들은 차트를 보는 사람마다, 1분봉은 30초마다 다시 묻는다. 캐시가 없으면 보는 사람 수만큼
 # 토스를 부르고, 그룹 한도가 초당 5건이라 금방 닿는다. 30초면 1분봉 화면 주기와 같다.
-@ttl_cache("indexDailyCandles", ttl_seconds=30, maxsize=4, skip_if=is_empty)
+# 일봉은 화면이 다시 묻지 않고 오늘 봉이 1분 늦어도 지장이 없어 1분으로 둔다.
+@ttl_cache("indexDailyCandles", ttl_seconds=60, maxsize=4, skip_if=is_empty)
 def daily_candles(market: Market, count: int) -> list[toss_indicator.TossCandle]:
     """최근 `count`봉 일봉(오름차순)."""
     page = toss_indicator.fetch_candles(market.name, "1d", max(1, min(count, _MAX_PAGE_SIZE)))
