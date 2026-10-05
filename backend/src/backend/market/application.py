@@ -883,7 +883,7 @@ def macro_candles(target: str, interval: str) -> list:
     return []
 
 
-@ttl_cache("macroMinuteCandles", ttl_seconds=30, maxsize=4, skip_if=is_empty)
+@ttl_cache("macroMinuteCandles", ttl_seconds=60, maxsize=4, skip_if=is_empty)
 def _macro_minute_candles(symbol: str) -> list[yahoo.YahooBar]:
     return _yahoo_minute_candles(symbol)
 

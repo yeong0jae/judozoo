@@ -394,7 +394,7 @@ export function useMacroCandles(target: MacroTarget, interval: "1d" | "1m") {
       apiFetch<MarketCandleItem[]>(
         `/api/market/macro/candles?target=${target}&interval=${interval}`,
       ),
-    refetchInterval: interval === "1m" ? 30_000 : false,
+    refetchInterval: interval === "1m" ? 60_000 : false,
   });
 }
 
