@@ -228,7 +228,7 @@ APScheduler `BackgroundScheduler`, 시각 기준 KST 고정(해외 잡은 `Ameri
 | `today-minute-settler` | 20:01 | 평일 KST | 감시 풀 당일 1분봉을 마감 확정해 지난 날 보관소(메모리·`stock_minute_candle`)에 넘기기 — 다음 날 아침 어제 봉을 키움에서 다시 받지 않게. 2주 지난 봉도 여기서 지운다 |
 | `overseas-minute-settler` | 20:01 | 평일 뉴욕 | 들고 있는(최근 10분 안에 연) 해외 종목의 당일 1분봉을 마감 확정해 `overseas_minute_candle`에 넘기기. 2주 지난 봉도 여기서 지운다 |
 | `signal-event-poller` | 10초 | 08:00~20:00 KST | 종목 시그널 전이 |
-| `market-signal-event-poller` | 60초 | 08:00~20:00 KST | 시장 순매수 단계·흐름 전환, 투자자 스냅샷 |
+| `market-flow-poller` | 60초 | 08:00~20:00 KST | 투자자 스냅샷, 시장 순매수 단계·흐름 전환 |
 | `index-rebound-poller` | 30초 | 09:00~15:30 KST | 지수 5분봉 20이평 |
 | `futures-investor-poller` | 60초 | 08:45~15:45 KST | 선물 투자자 스냅샷 |
 

@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 # 잡 id. `register()`와 메트릭 라벨이 같은 값을 써야 해서 상수로 둔다 —
 # 한쪽만 바뀌면 실패 카운터가 실행 카운터와 다른 라벨로 쌓인다.
 _SIGNAL_JOB = "signal-event-poller"
-_MARKET_SIGNAL_JOB = "market-signal-event-poller"
+_MARKET_FLOW_JOB = "market-flow-poller"
 _INDEX_REBOUND_JOB = "index-rebound-poller"
 _POOL_REFRESH_JOB = "trading-value-pool-refresher"
 _MINUTE_SYNC_JOB = "today-minute-syncer"
@@ -211,8 +211,8 @@ _flow_states: dict[str, InvestorFlowState] = {}
 _market_trade_date: date | None = None
 
 
-@tracing.traced_job(_MARKET_SIGNAL_JOB)
-def poll_market_signal_events() -> None:
+@tracing.traced_job(_MARKET_FLOW_JOB)
+def poll_market_flows() -> None:
     if calendar.is_holiday(calendar.Region.KR):
         return
     if not (_SNAPSHOT_START <= now().time() <= _SNAPSHOT_END):
@@ -220,7 +220,7 @@ def poll_market_signal_events() -> None:
     try:
         _detect_market_signals()
     except Exception:
-        metrics.job_failed(_MARKET_SIGNAL_JOB)
+        metrics.job_failed(_MARKET_FLOW_JOB)
         log.warning("시장 시그널 적재 실패", exc_info=True)
 
 
@@ -443,9 +443,9 @@ def register(scheduler: BaseScheduler) -> None:
         id=_SIGNAL_JOB, replace_existing=True,
     )
     scheduler.add_job(
-        poll_market_signal_events,
+        poll_market_flows,
         IntervalTrigger(seconds=s.market_signal.poll_interval_millis / 1000),
-        id=_MARKET_SIGNAL_JOB, replace_existing=True,
+        id=_MARKET_FLOW_JOB, replace_existing=True,
     )
     scheduler.add_job(
         poll_index_rebound,
