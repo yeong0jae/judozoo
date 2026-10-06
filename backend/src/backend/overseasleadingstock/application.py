@@ -41,7 +41,7 @@ def _pool_ttl() -> float:
     return calendar.seconds_until_us_session()
 
 
-@ttl_cache("overseasTradingValuePool", ttl_seconds=_pool_ttl, maxsize=1)
+@ttl_cache("overseasTradingValuePool", ttl_seconds=_pool_ttl, maxsize=1, serve_stale=True)
 def _trading_value_pool() -> list[OverseasStockRank]:
     """세 거래소를 합쳐 순위를 매기고, 상위 컷 안에서 ETF를 걷어낸다.
 

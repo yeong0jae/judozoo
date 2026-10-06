@@ -119,7 +119,7 @@ def _seconds_until_session() -> float:
     return (reopen - at).total_seconds()
 
 
-@ttl_cache("tradingValuePool", ttl_seconds=_pool_ttl, maxsize=1)
+@ttl_cache("tradingValuePool", ttl_seconds=_pool_ttl, maxsize=1, serve_stale=True)
 def _trading_value_pool() -> list[LeadingStockSnapshot]:
     """거래대금 상위 — 후보 목록·주도주·상세 평가가 같은 응답을 나눠 쓴다.
 

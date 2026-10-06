@@ -319,6 +319,21 @@ class Test폴러가_갱신하는_캐시:
         assert 조회() == 2
         assert len(calls) == 2
 
+    def test_수명을_함수로_줘도_만료된_뒤_마지막_정상값을_받는다(self):
+        """거래대금 풀처럼 장 상태로 수명을 정하는 캐시도 폴러가 늦으면 옛 값으로 버틴다."""
+        calls = []
+
+        @ttl_cache("테스트_폴러_가변수명", ttl_seconds=lambda: 0, serve_stale=True)
+        def 조회():
+            calls.append(1)
+            return len(calls)
+
+        assert 조회() == 1
+        assert 조회() == 1            # 이미 만료됐지만 다시 부르지 않고 보관값을 받는다
+        assert 조회.refresh() == 2
+        assert 조회() == 2
+        assert len(calls) == 2
+
     def test_갱신_예외와_빈_응답은_이전_시세를_덮지_않는다(self):
         state = {"value": 100}
 
