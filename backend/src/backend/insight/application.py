@@ -51,8 +51,8 @@ log = logging.getLogger(__name__)
 LEADERS_COUNT = 5
 #: 주도주가 아니어도 이만큼(%) 넘게 오른 후보는 사유를 만든다 — 새로 들어올 때 한 번만(026)
 CANDIDATE_MIN_CHANGE_RATE = 5.0
-#: 한 번에 동시에 만드는 종목 수. 주도주 5종목은 한 번에, 08:30 같은 진입 몰림은 빈 자리가 나는 대로
-MAX_CONCURRENCY = 5
+#: 한 번에 동시에 만드는 종목 수. 주도주 5종목에 후보가 더해진 진입 몰림도 한 번에, 넘치면 빈 자리가 나는 대로
+MAX_CONCURRENCY = 10
 
 #: 국내·해외가 같은 Vertex를 부르므로 서킷도 하나다. 프로세스가 새로 뜨면(재배포) 닫힌 채로 시작한다
 _circuit = Circuit()
