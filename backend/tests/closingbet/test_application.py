@@ -219,3 +219,20 @@ class Test닉네임_바꾸기:
             with pytest.raises(NicknameRejected, match="10/8"):
                 application.rename(s, 1, "수달여왕", kst(금, 10))
             assert s.get(BetPlayer, 1).nickname == "수달왕"
+
+
+@pytest.mark.integration
+class Test닉네임_읽기:
+    def test_사용자_번호로_닉네임을_찾는다(self, 빈_테이블):
+        with 세션() as s:
+            s.add_all([
+                BetPlayer(user_id=1, nickname="새벽올빼미", created_at=kst(목, 9)),
+                BetPlayer(user_id=2, nickname="수달왕", created_at=kst(목, 9)),
+            ])
+            s.commit()
+
+            assert application.nicknames(s, {1, 2, 3}) == {1: "새벽올빼미", 2: "수달왕"}
+
+    def test_찾을_사용자가_없으면_빈_사전이다(self, 빈_테이블):
+        with 세션() as s:
+            assert application.nicknames(s, set()) == {}

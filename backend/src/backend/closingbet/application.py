@@ -449,7 +449,9 @@ def results(session: Session, day: date) -> Results:
 def nicknames(session: Session, user_ids: set[int]) -> dict[int, str]:
     if not user_ids:
         return {}
-    return dict(session.execute(select(BetPlayer.user_id, BetPlayer.nickname).where(BetPlayer.user_id.in_(user_ids))).tuples())
+    # `dict(결과)`는 안 된다 — 결과 객체에 `keys()`가 있어 dict가 매핑으로 읽고 `결과[키]`를 부른다
+    rows = session.execute(select(BetPlayer.user_id, BetPlayer.nickname).where(BetPlayer.user_id.in_(user_ids)))
+    return {user_id: nickname for user_id, nickname in rows}
 
 
 def round_stocks(session: Session, day: date) -> list[BetRoundStock]:
