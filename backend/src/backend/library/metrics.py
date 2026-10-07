@@ -93,7 +93,7 @@ LLM_SEARCH_QUERIES = Counter(
 LLM_FAILURES = Counter(
     "llm_failures_total",
     "LLM 답을 게시하지 못한 까닭",
-    ["model", "kind"],  # kind: timeout | unavailable | client_error | bad_answer
+    ["model", "kind"],  # kind: timeout | pool_timeout | unavailable | client_error | bad_answer
 )
 # 상태는 시간만 지나도 바뀐다(열림 → 5분 뒤 시험). 스크레이프 때 읽는다 — `insight.application`이 연결한다
 LLM_CIRCUIT_STATE = Gauge("llm_circuit_state", "Vertex 서킷 — 0 닫힘 · 1 시험 · 2 열림")

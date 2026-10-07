@@ -101,6 +101,8 @@ class Failure(str, Enum):
 
     #: 시간 안에 답이 없다
     TIMEOUT = "timeout"
+    #: 로컬 연결 풀 포화 — 재시도하지만 Vertex 서킷에는 영향을 주지 않는다
+    POOL_TIMEOUT = "pool_timeout"
     #: 429·5xx — 같은 호출 안에서 다시 물어도 안 풀렸다
     UNAVAILABLE = "unavailable"
     #: 400·403·404 등 — 우리 설정이 틀렸다. 다시 해도 같다
@@ -110,8 +112,8 @@ class Failure(str, Enum):
 
     @property
     def transient(self) -> bool:
-        """Vertex가 잠시 아픈 것 — 시간이 지나면 풀린다. 종목을 다시 만들고, 서킷이 센다."""
-        return self in (Failure.TIMEOUT, Failure.UNAVAILABLE)
+        """시간이 지나면 풀릴 수 있는 실패 — 종목을 다시 만든다. 로컬 포화는 서킷이 세지 않는다."""
+        return self in (Failure.TIMEOUT, Failure.POOL_TIMEOUT, Failure.UNAVAILABLE)
 
 
 @dataclass(frozen=True)
@@ -205,7 +207,7 @@ class CircuitState(Enum):
 class Circuit:
     """Vertex가 아플 때 종목마다 타임아웃까지 매달리지 않게 한다. 시각은 부르는 쪽이 준다.
 
-    일시 장애(`Failure.transient`)만 센다. 답이 이상한 건 Vertex가 답한 것이라 성공으로 본다.
+    외부 일시 장애만 센다. 로컬 풀 포화는 상태를 유지하고, 답이 이상한 건 Vertex가 답한 것이라 성공으로 본다.
     클라이언트 오류는 다시 해도 같으니 사람이 고쳐 재배포할 때까지(새 프로세스가 뜰 때까지) 연다.
     """
 
@@ -221,6 +223,8 @@ class Circuit:
         return CircuitState.OPEN if now < self.open_until else CircuitState.HALF_OPEN
 
     def record(self, failure: Failure | None, now: datetime) -> None:
+        if failure is Failure.POOL_TIMEOUT:
+            return
         if failure is Failure.CLIENT_ERROR:
             self.stuck = True
             return

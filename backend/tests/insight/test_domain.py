@@ -119,8 +119,9 @@ class Test만들_종목_고르기:
         history = {"A": Attempts([made(10, 41)]), "B": Attempts([made(9, 30)])}
         assert pick(KR, ["A", "B"], history, at(11, 0)) == [("B", Trigger.SCHEDULED)]
 
-    def test_Vertex가_아파_실패하면_1분_뒤_다시_만든다(self):
-        history = {"A": Attempts([failed(10, 15)])}
+    @pytest.mark.parametrize("failure", [Failure.TIMEOUT, Failure.UNAVAILABLE, Failure.POOL_TIMEOUT])
+    def test_일시_실패하면_1분_뒤_다시_만든다(self, failure):
+        history = {"A": Attempts([failed(10, 15, failure)])}
         assert pick(KR, ["A"], history, at(10, 15)) == []
         assert pick(KR, ["A"], history, at(10, 16)) == [("A", Trigger.RETRY)]
 
@@ -310,6 +311,33 @@ class Test답_검사:
 
 
 class Test서킷:
+    def test_풀_포화가_반복되어도_서킷을_열지_않는다(self):
+        c = Circuit()
+        for _ in range(3):
+            c.record(Failure.POOL_TIMEOUT, at(10, 0))
+        assert c.failures == 0
+        assert c.state(at(10, 0)) is CircuitState.CLOSED
+
+    def test_풀_포화는_이전_외부_실패_횟수를_유지한다(self):
+        c = Circuit()
+        c.record(Failure.TIMEOUT, at(10, 0))
+        c.record(Failure.TIMEOUT, at(10, 0))
+        c.record(Failure.POOL_TIMEOUT, at(10, 1))
+        assert c.failures == 2
+        assert c.state(at(10, 1)) is CircuitState.CLOSED
+        c.record(Failure.TIMEOUT, at(10, 2))
+        assert c.state(at(10, 2)) is CircuitState.OPEN
+
+    @pytest.mark.parametrize("minute", [1, 6])
+    def test_풀_포화는_열림과_시험_상태도_유지한다(self, minute):
+        c = Circuit()
+        for _ in range(3):
+            c.record(Failure.TIMEOUT, at(10, 0))
+        before = c.state(at(10, minute))
+        c.record(Failure.POOL_TIMEOUT, at(10, minute))
+        assert c.open_until == at(10, 5)
+        assert c.state(at(10, minute)) is before
+
     def test_처음엔_닫혀_있다(self):
         assert Circuit().state(at(10, 0)) is CircuitState.CLOSED
 

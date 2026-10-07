@@ -125,13 +125,14 @@ class Test실패:
             ground("왜")
         assert 1.0 <= waits[0] <= 3.0 and 2.5 <= waits[1] <= 7.5
 
+    @pytest.mark.parametrize("timeout", [httpx.ConnectTimeout, httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout])
     @respx.mock
-    def test_시간_초과는_다시_묻지_않고_바로_올린다(self, respx_mock):
-        route = respx_mock.post(URL).mock(side_effect=httpx.ReadTimeout("느림"))
+    def test_시간_초과는_다시_묻지_않고_바로_올린다(self, respx_mock, timeout):
+        route = respx_mock.post(URL).mock(side_effect=timeout("느림"))
 
-        with pytest.raises(VertexError, match="ReadTimeout") as e:
+        with pytest.raises(VertexError, match=timeout.__name__) as e:
             ground("왜")
-        assert e.value.kind == "timeout"
+        assert e.value.kind == ("pool_timeout" if timeout is httpx.PoolTimeout else "timeout")
         assert route.call_count == 1
 
     @pytest.mark.parametrize("status", [400, 403, 404])

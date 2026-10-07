@@ -29,8 +29,10 @@ from backend.settings import get_settings
 log = logging.getLogger(__name__)
 
 _SCOPE = "https://www.googleapis.com/auth/cloud-platform"
-#: 평소 가장 느린 응답이 30초 안팎이다. 이보다 길면 Vertex가 아픈 것으로 본다
-_TIMEOUT = 60.0
+#: 생성 응답은 정상일 때도 30초 안팎이라 읽기는 60초 유지. 연결·작은 JSON 전송은
+#: HTTPX 기본값인 5초로 시작한다. 동시 작업 10개에 기본 풀 100개라 풀 대기는 1초만 허용한다.
+#: 실측 최적값이 아닌 초기 정책이며, 근거·조정 기준은 026 §Vertex HTTP 타임아웃 참고.
+_TIMEOUT = httpx.Timeout(connect=5.0, read=60.0, write=5.0, pool=1.0)
 #: 429·5xx에 같은 호출 안에서 다시 묻기 전 기다리는 시간(초). 각각 지터를 섞는다 — 동시에 돈 종목들이
 #: 같은 순간에 거절당하면 같은 순간에 다시 물어 함께 실패하기 쉽다
 _BACKOFF = (2.0, 5.0)
@@ -40,13 +42,14 @@ _credentials: Any = None
 _lock = threading.Lock()
 
 
-FailureKind = Literal["timeout", "unavailable", "client_error", "bad_answer"]
+FailureKind = Literal["timeout", "pool_timeout", "unavailable", "client_error", "bad_answer"]
 
 
 class VertexError(Exception):
     """응답을 쓸 수 없다. `kind`가 부르는 쪽의 대응을 가른다.
 
     - timeout: 시간 안에 답이 없다
+    - pool_timeout: 로컬 풀에서 연결을 확보하지 못했다 — Vertex 장애로 세지 않는다
     - unavailable: 429·5xx·연결 실패 — 같은 호출 안에서 다시 물어도 안 풀렸다
     - client_error: 400·403·404 등 — 우리 설정이 틀렸다. 사람이 고쳐야 한다
     - bad_answer: 답은 왔는데 쓸 수 없다(깨진 JSON, 차단, 후보 없음)
@@ -152,6 +155,8 @@ def _generate(body: dict, stage: str) -> dict:
     while True:
         try:
             response = get_client().post(path, json=body, headers={"Authorization": f"Bearer {_token(refresh)}"})
+        except httpx.PoolTimeout as exc:
+            raise VertexError("pool_timeout", f"{stage} 요청 실패: {type(exc).__name__}") from exc
         except httpx.TimeoutException as exc:
             # 이미 오래 기다렸다 — 바로 다시 물어도 느리기 쉽다. 같은 호출 안에서는 다시 하지 않는다
             raise VertexError("timeout", f"{stage} 요청 실패: {type(exc).__name__}") from exc
