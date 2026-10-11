@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Text
+from sqlalchemy import BigInteger, DateTime, Index, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.library.db import Base
@@ -16,6 +16,8 @@ class Feedback(Base):
     """
 
     __tablename__ = "feedback"
+    # 의견 알림(Grafana)이 매분 "최근 10분"을 찾는다.
+    __table_args__ = (Index("idx_feedback_created_at", "created_at"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
