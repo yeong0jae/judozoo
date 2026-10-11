@@ -8,6 +8,7 @@ import logging
 from datetime import timedelta
 
 from backend.library.cache import ttl_cache
+from backend.library.exception import EntityNotFoundError
 from backend.library.time import KST
 from backend.market import calendar
 from backend.overseasleadingstock import minute_archive, minutes
@@ -85,7 +86,7 @@ def evaluate_stock(exchange: str, symbol: str) -> dict:
         None,
     )
     if stock is None:
-        raise LookupError(f"후보에 없는 종목: {exchange}:{symbol}")
+        raise EntityNotFoundError(f"후보에 없는 종목: {exchange}:{symbol}")
 
     market_cap = overseas_product.fetch_market_cap(exchange, symbol)
     session_open = _session_open(exchange, symbol)

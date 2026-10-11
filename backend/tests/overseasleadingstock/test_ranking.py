@@ -4,6 +4,7 @@ import httpx
 import pytest
 import respx
 
+from backend.library.exception import EntityNotFoundError
 from backend.overseasleadingstock import application
 from backend.overseasleadingstock.domain import OverseasStockRank
 from backend.platform.kis import client as kis_client
@@ -206,7 +207,7 @@ class Test종목_상세:
     def test_후보에_없는_종목은_조회할_수_없다(self, respx_mock, 토큰_발급):
         거래소별_응답(respx_mock, nas=[순위행("AAA", "100")])
 
-        with pytest.raises(LookupError, match="후보에 없는 종목"):
+        with pytest.raises(EntityNotFoundError, match="후보에 없는 종목"):
             application.evaluate_stock("NAS", "ZZZ")
 
 

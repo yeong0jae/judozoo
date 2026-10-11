@@ -3,8 +3,11 @@
 import dataclasses
 from datetime import date, datetime, timedelta
 
+import pytest
+
 from backend.leadingstock import application
 from backend.leadingstock.domain import LeadingStockSnapshot
+from backend.library.exception import EntityNotFoundError
 
 
 class Test주도주_상세_시세:
@@ -75,6 +78,14 @@ class Test주도주_상세_시세:
 
         assert application.evaluate_stock("005930").stock == base
         detail.assert_called_once_with("005930")
+
+    def test_후보풀에도_없고_시세도_없는_종목은_찾을_수_없다(self, mocker):
+        mocker.patch.object(application, "_trading_value_pool", return_value=[])
+        mocker.patch.object(application.kiwoom_market, "fetch_stock_detail", return_value=None)
+        mocker.patch.object(application.kiwoom_market, "fetch_daily_candles", return_value=[])
+
+        with pytest.raises(EntityNotFoundError):
+            application.evaluate_stock("999999")
 
     def test_프로그램_매매는_상세_한_번에_한_번만_조회한다(self, mocker):
         mocker.patch.object(application, "_trading_value_pool", return_value=[])

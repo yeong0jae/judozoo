@@ -22,6 +22,7 @@ from backend.leadingstock.domain import (
     SpikeDirection,
 )
 from backend.library.cache import ttl_cache
+from backend.library.exception import EntityNotFoundError
 from backend.library.time import now, today
 from backend.market import calendar
 from backend.platform.kiwoom import market as kiwoom_market
@@ -245,7 +246,7 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
     if rank_info is not None:
         basics = _stock_basics(stock_code)
         if basics is None:
-            raise LookupError(f"종목을 찾을 수 없습니다: {stock_code}")
+            raise EntityNotFoundError(f"종목을 찾을 수 없습니다: {stock_code}")
         stock = dataclasses.replace(
             rank_info,
             market_cap=basics.market_cap,
@@ -256,7 +257,7 @@ def evaluate_stock(stock_code: str) -> StockEvaluation:
         # 후보 풀 밖의 종목도 과거 시그널 등에서 열 수 있다. 그때만 기본정보로 시세를 받는다.
         stock = kiwoom_market.fetch_stock_detail(stock_code)
         if stock is None:
-            raise LookupError(f"종목을 찾을 수 없습니다: {stock_code}")
+            raise EntityNotFoundError(f"종목을 찾을 수 없습니다: {stock_code}")
 
     # 전일·시가 필터는 최신 봉을 오늘로 간주한다. 변하지 않는 값만 합성하고
     # 당일 거래량은 후보라면 거래대금 순위, 후보 밖이라면 기본정보 시세에서 받는다.
