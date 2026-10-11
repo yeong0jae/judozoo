@@ -14,8 +14,6 @@ from typing import Protocol, TypeVar
 
 from backend.market.calendar import Region
 
-# --- 시각표 ---------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class Schedule:
@@ -81,12 +79,10 @@ SCHEDULES: dict[Region, Schedule] = {
     ),
 }
 
-# --- 고르기 ---------------------------------------------------------------
 
 #: 정해진 시각에 이만큼 안에 만든 종목은 건너뛴다 — 09:28 진입 → 09:29 생성 → 09:30 또 생성을 막는다
 RECENT = timedelta(minutes=30)
-#: Vertex가 아파 실패한 종목을 다시 만들기까지 기다리는 시간. 이어진 실패가 n번이면 n번째 값을 쓴다 —
-#: 세 번 다 실패하면 정해진 시각에 맡긴다. 한 번만 다시 하면 몇 분 이어지는 장애에 그대로 진다
+#: 일시 장애로 실패한 종목의 재시도 대기. n번 이어 실패하면 n번째 값, 세 번 다 실패하면 정해진 시각에 맡긴다
 RETRY_AFTER = (timedelta(minutes=1), timedelta(minutes=5), timedelta(minutes=15))
 
 
@@ -164,12 +160,10 @@ def pick(
     now: datetime,
     candidates: Sequence[str] = (),
 ) -> list[tuple[str, Trigger]]:
-    """지금 만들 종목과 그 이유. 대상은 **지금 주도주**와 **등락률 기준을 넘은 후보**다 —
-    빠진 종목은 사유만 남고 다시 만들지 않는다.
+    """지금 만들 종목과 그 이유. 대상은 **지금 주도주**와 **등락률 기준을 넘은 후보**다.
 
-    후보는 새로 들어올 때와 실패 재시도, 그리고 **아직 설명 없음일 때만** 정해진 시각에 다시 만든다 —
-    사유가 있는 후보까지 매번 다시 만들면 검색이 무료 한도를 넘는다(026 §설계 결정). 급등 직후엔 기사가
-    없는 경우가 많아 설명 없음은 한 번 더 본다. 주도주로 올라오면 그때부터 매번 다시 만든다.
+    후보는 새로 들어올 때·실패 재시도·**아직 설명 없음**일 때만 다시 만든다 — 매번 만들면 검색이
+    무료 한도를 넘는다(026 §설계 결정).
     """
     if not schedule.in_window(now.time()):
         return []
@@ -186,8 +180,6 @@ def pick(
             picked.append((code, Trigger.SCHEDULED))
     return picked
 
-
-# --- 서킷 -----------------------------------------------------------------
 
 #: 일시 장애가 이만큼 이어지면 Vertex를 쉰다
 CIRCUIT_THRESHOLD = 3
@@ -238,8 +230,6 @@ class Circuit:
             self.open_until = now + CIRCUIT_COOLDOWN
             self.failures = 0
 
-
-# --- 출처 -----------------------------------------------------------------
 
 #: 페이지 제목 뒤에 붙는 사이트 경로("< 증시 < 기사본문")
 _BREADCRUMB = re.compile(r"\s+<\s+.*$")
@@ -316,8 +306,6 @@ class Sources:
     def listing(self) -> str:
         return "\n".join(f"[{s.id}] {s.domain} | {s.title}" for s in self.items) or "(기사 없음)"
 
-
-# --- 답 검사 ---------------------------------------------------------------
 
 MAX_ARTICLES = 2
 MAX_KEYWORDS = 2
@@ -408,9 +396,6 @@ def _keywords(raw: Sequence[str], stock_name: str) -> list[str]:
 
 def _unique(ids: Sequence[int]) -> list[int]:
     return list(dict.fromkeys(ids))
-
-
-# --- 보여줄 사유 ---------------------------------------------------------------
 
 
 class _Shown(Protocol):

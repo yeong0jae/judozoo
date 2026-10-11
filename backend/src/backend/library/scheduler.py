@@ -1,10 +1,7 @@
 """APScheduler 설정.
 
-Kotlin `@Scheduled`에 대응한다. 시각 기준은 KST로 고정 — 컨테이너 기본 UTC를 그대로 쓰면
-"06:10 화~토" 같은 cron이 9시간 어긋난다.
-
-테스트에서는 켜지 않는다(Kotlin `@Profile("!test")`에 대응).
-"""
+시각 기준은 KST로 고정 — 컨테이너 기본 UTC를 그대로 쓰면 "06:10 화~토" 같은 cron이 9시간 어긋난다.
+테스트에서는 켜지 않는다."""
 
 import logging
 import os

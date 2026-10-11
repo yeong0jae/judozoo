@@ -34,10 +34,8 @@ def fetch_market_cap(excd: str, symb: str) -> int | None:
 
     종목별·미국 현지 날짜별로 하루 보관한다. 조회 실패는 보관하지 않는다.
 
-    **실패해도 예외를 올리지 않는다.** 시가총액은 상세 화면의 필터 하나일 뿐이라 "조회 불가"로 두면 된다
-    (2026-09-30 META — KIS가 HTTP 500을 주자 상세 화면 전체가 500이 됐다). KIS는 한도 초과도 HTTP 500으로
-    주므로 본문의 `msg_cd`를 읽어 남기고, 한도 초과면 1초 쉬고 한 번 더 부른다.
-    """
+    **실패해도 예외를 올리지 않는다** — 시가총액은 상세 화면의 필터 하나일 뿐이다. KIS는 한도 초과도
+    HTTP 500으로 주므로 `msg_cd`를 남기고, 한도 초과면 1초 쉬고 한 번 더 부른다."""
     prdt_type_cd = _PRDT_TYPE_CD.get(excd)
     if prdt_type_cd is None:
         raise ValueError(f"지원하지 않는 거래소: {excd}")

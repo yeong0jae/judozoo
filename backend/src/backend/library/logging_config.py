@@ -1,13 +1,7 @@
 """로깅 설정.
 
-운영은 **JSON 한 줄**, 로컬은 사람이 읽는 평문이다 (`LOG_FORMAT`).
-
-JSON으로 바꾼 이유는 Loki에서 `| json | level="ERROR"` 처럼 **필드로 거르기** 위해서다.
-평문일 때는 정규식으로 긁어야 했고, 무엇보다 **uvicorn 액세스 로그가 우리 포맷을 따르지
-않아** 한 스트림에 두 모양이 섞여 있었다 — 아래 `_absorb_uvicorn_loggers`가 그걸 없앤다.
-
-로컬까지 JSON으로 하지 않는 이유는 `docker logs`로 눈으로 읽을 때 더 나쁘기 때문이다.
-"""
+운영은 **JSON 한 줄**(Loki에서 필드로 거르려고), 로컬은 눈으로 읽기 좋은 평문이다 (`LOG_FORMAT`).
+uvicorn 액세스 로그도 `_absorb_uvicorn_loggers`가 같은 포맷으로 맞춘다."""
 
 import json
 import logging
@@ -21,14 +15,9 @@ from backend.library.tracing import current_trace_id
 _FORMAT = "%(asctime)s %(levelname)-5s [%(threadName)s] %(name)s : %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# LogRecord가 기본으로 갖는 속성들. `extra=`로 넘어온 것만 골라 싣기 위해 쓴다.
-# 로그인한 사용자를 요청 동안 들고 있는다. 로그 한 줄마다 누구의 요청이었는지 남기기 위한 것 —
-# 이게 있어야 "이 사용자가 무엇을 보고 갔나"를 로그에서 이어 볼 수 있다.
-#
-# uvicorn이 요청마다 태스크를 새로 띄우고 ContextVar는 태스크별로 복사되므로 요청끼리 섞이지 않는다.
-# **되돌리지 않는다** — 응답을 내보내며 찍히는 uvicorn 액세스 로그가 미들웨어가 끝난 뒤에 나와서,
-# 거기서 되돌리면 정작 그 줄에 사용자가 안 실린다. 미들웨어가 요청마다 값을 다시 심고
-# 비로그인은 None으로 덮으므로 남는 값도 없다.
+# 로그인한 사용자를 요청 동안 들고 있는다 — 로그 한 줄마다 누구의 요청이었는지 남긴다.
+# **되돌리지 않는다** — uvicorn 액세스 로그가 미들웨어가 끝난 뒤에 찍혀, 되돌리면 그 줄에 사용자가
+# 안 실린다. 미들웨어가 요청마다 다시 심으므로 남는 값도 없다.
 _user: ContextVar[int | None] = ContextVar("log_user", default=None)
 
 
@@ -41,9 +30,7 @@ def current_user() -> int | None:
     return _user.get()
 
 
-# 어느 요청이었는지. 트레이스백만으로는 URL을 알 수 없어 라우터 prefix를 코드에서 역산해야 했다.
-# 사용자와 같은 수명·같은 이유로 여기 둔다.
-#
+# 어느 요청이었는지 — 트레이스백만으로는 URL을 알 수 없다.
 # **쿼리스트링은 싣지 않는다.** 구글 로그인 콜백이 authorization code를 쿼리로 받는데,
 # 그게 Loki에 평문으로 남는다. 파라미터가 필요하면 허용목록으로 골라 따로 싣는다.
 _request: ContextVar[str | None] = ContextVar("log_request", default=None)
@@ -58,6 +45,7 @@ def current_request() -> str | None:
     return _request.get()
 
 
+# LogRecord가 기본으로 갖는 속성들. `extra=`로 넘어온 것만 골라 싣기 위해 쓴다.
 _RESERVED = frozenset(vars(logging.LogRecord("", 0, "", 0, "", (), None))) | {
     "message",
     "asctime",
@@ -119,13 +107,8 @@ def _absorb_uvicorn_loggers() -> None:
 class QuietExpectedFailures(logging.Filter):
     """예상된 실패에는 스택트레이스를 붙이지 않는다.
 
-    브로커 토큰 백오프는 버그가 아니라 **상태**다. 그런데 화면이 5초마다 폴링하고
-    폴러가 10초마다 돌아서, 트레이스를 찍으면 로그가 트레이스로 뒤덮인다 —
-    2026-09-12에 한 시간 만에 28,000줄이 쌓였고 그 대부분이 같은 트레이스였다.
-
-    호출처(클라이언트 8곳 + 전역 핸들러 + uvicorn)를 각각 고치는 대신 여기서 한 번 막는다.
-    메시지는 그대로 남으므로 "무슨 일이 있었는지"는 잃지 않는다.
-    """
+    브로커 토큰 백오프는 버그가 아니라 **상태**다. 폴링마다 트레이스를 찍으면 로그가 뒤덮인다
+    (2026-09-12 한 시간에 28,000줄). 호출처마다 고치는 대신 여기서 한 번 막고, 메시지는 남긴다."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         if not record.exc_info or not isinstance(record.exc_info[1], BrokerTokenUnavailable):
@@ -144,18 +127,10 @@ class QuietExpectedFailures(logging.Filter):
 
 
 class QuietProbeAccessLogs(logging.Filter):
-    """정상 응답한 프로브 액세스 로그는 버린다.
+    """정상 응답한 프로브(`/health`·`/metrics`) 액세스 로그는 버린다 — 하루 11,000줄이 전부 200이다.
 
-    `/health`는 docker healthcheck가 10초마다, `/metrics`는 alloy가 30초마다 친다.
-    합쳐서 하루 11,000줄이 넘는데 전부 200이고, 사람이 읽을 일이 있는 줄은 하나도 없다.
-    Loki에서 진짜 요청을 찾으려면 이 둘을 눈으로 걸러내야 했다.
-
-    **4xx·5xx는 남긴다.** 프로브가 실패하는 순간은 오히려 봐야 하는 순간이다 —
-    healthcheck가 6번 연속 실패하면 배포 스크립트가 롤백을 건다.
-
-    쿼리스트링이 붙은 `/health?x=1`은 경로가 달라져 그대로 찍힌다. 두 경로 모두
-    쿼리를 받지 않으니 지금은 문제가 없고, 받게 되는 날 여기를 같이 고쳐야 한다.
-    """
+    **4xx·5xx는 남긴다.** 프로브가 실패하는 순간은 오히려 봐야 하는 순간이다.
+    쿼리스트링이 붙은 경로는 걸러지지 않는다 — 두 경로가 쿼리를 받게 되면 여기도 고친다."""
 
     _PATHS = frozenset({"/health", "/metrics"})
 
@@ -196,5 +171,5 @@ def configure_logging(
     # 실행 횟수는 메트릭이 센다. 예외(ERROR)와 누락 실행(WARNING)은 그대로 남는다.
     logging.getLogger("apscheduler.executors").setLevel(logging.WARNING)
 
-    # 애플리케이션 패키지만 DEBUG — logback의 `<logger name="at.backend" level="DEBUG"/>`
+    # 애플리케이션 패키지만 DEBUG
     logging.getLogger(app_package).setLevel(logging.DEBUG)

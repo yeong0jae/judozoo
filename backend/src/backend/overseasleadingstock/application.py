@@ -43,15 +43,10 @@ def _pool_ttl() -> float:
 
 @ttl_cache("overseasTradingValuePool", ttl_seconds=_pool_ttl, maxsize=1, serve_stale=True)
 def _trading_value_pool() -> list[OverseasStockRank]:
-    """세 거래소를 합쳐 순위를 매기고, 상위 컷 안에서 ETF를 걷어낸다.
+    """세 거래소를 합쳐 순위를 매기고, 상위 컷 안에서 ETF를 걷어낸다. 랭킹과 상세 평가가 공유하는 풀이다.
 
-    랭킹(전시)과 상세 평가가 공유하는 후보 풀이다.
-
-    **순위는 ETF를 포함한 통합 순위다.** KIS는 순위를 거래소별로 주기 때문에(나스닥 1위,
-    뉴욕 1위, 아멕스 1위가 따로 온다) 합친 뒤 다시 매길 수밖에 없는데, ETF를 뺀 다음에
-    매기면 "통합 12위"라고 적힌 종목이 실제로는 20위인 일이 생긴다. 국내는 키움이 주는
-    원본 순위(ETF 포함)를 그대로 쓰므로, 자르기 전에 매겨 두 화면의 순위가 같은 뜻이 되게 한다.
-    """
+    **순위는 ETF를 포함한 통합 순위다.** KIS가 거래소별 순위를 주므로 합친 뒤 다시 매기는데, 국내(키움 원본
+    순위, ETF 포함)와 같은 뜻이 되도록 ETF를 빼기 전에 매긴다."""
     rows = [
         _to_rank(item)
         for excd in EXCHANGES
@@ -68,20 +63,14 @@ def refresh_trading_value_pool() -> None:
 
 
 def get_candidates(min_change_rate: float) -> list[OverseasStockRank]:
-    """거래대금 상위 풀에서 등락률 기준을 통과한 것만. 국내와 같이 순위 예외를 두지 않는다.
+    """거래대금 상위 풀에서 등락률 기준을 통과한 것만.
 
-    순위는 풀에서 받은 통합 순위를 그대로 둔다 — 걸러낸 뒤 다시 매기면 그 숫자가
-    "몇 위인가"가 아니라 "이 목록의 몇 번째인가"가 된다. 목록의 번호는 화면이 매긴다.
-    """
+    순위는 풀의 통합 순위를 그대로 둔다 — 걸러낸 뒤 다시 매기면 "몇 위"가 아니라 "몇 번째"가 된다."""
     return [r for r in _trading_value_pool() if r.rate >= min_change_rate]
 
 
 def get_leaders(count: int) -> list[OverseasStockRank]:
-    """첫 화면용 — 거래대금·등락률이 함께 높은 상위 `count`개.
-
-    랭킹과 달리 **등락률 기준을 받지 않는다.** 첫 화면은 보는 사람이 랭킹 화면에
-    걸어둔 기준과 무관하게 같은 답을 보여야 한다.
-    """
+    """첫 화면용 — 거래대금·등락률이 함께 높은 상위 `count`개. 보는 사람의 등락률 기준을 받지 않는다."""
     return OverseasStockRanks(_trading_value_pool()).leaders(count)
 
 

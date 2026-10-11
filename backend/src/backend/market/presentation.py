@@ -1,9 +1,7 @@
-"""시황 API — 지수 / 캔들 / 수급 / 프로그램 / 선물 / 매크로 / 휴장.
+"""시황 API — 지수 / 캔들 / 수급 / 선물 / 매크로 / 휴장.
 
 **라우트 선언 순서가 중요하다.** FastAPI는 선언 순서로 매칭하므로 `calendar` · `macro` ·
-`nasdaq` · `futures/night` 같은 리터럴 경로를 `{market}`보다 **먼저** 둬야 한다.
-Spring은 리터럴 패턴을 우선해 순서가 상관없었다.
-"""
+`nasdaq` · `futures/night` 같은 리터럴 경로를 `{market}`보다 **먼저** 둬야 한다."""
 
 from datetime import date
 
@@ -18,9 +16,6 @@ from backend.market import application, calendar
 from backend.stock.domain import Market
 
 router = APIRouter(prefix="/api/market")
-
-
-# ── 응답 모델 ───────────────────────────────────────────────────────────
 
 
 class CalendarStatus(BaseModel):
@@ -86,7 +81,6 @@ class SessionNetItem(BaseModel):
     time: str
     nets: NetsItem | None
     #: 직전 스냅샷 대비 변화량. 마지막 스냅샷이 속한 구간에만, 그리고 오늘만 실린다.
-    #: 화면은 이 값을 그대로 그리면 된다 — 예전처럼 브라우저가 직접 뺄 필요가 없다.
     delta: NetsItem | None = None
 
 
@@ -198,9 +192,6 @@ class TodayNetItem(BaseModel):
     trade_date: date | None = Field(serialization_alias="tradeDate")
 
 
-# ── 변환기 ─────────────────────────────────────────────────────────────
-
-
 def _bar_items(bars) -> list[CandleItem]:
     """야후·KIS 선물 봉은 이미 date/time 문자열을 들고 있다."""
     return [
@@ -242,7 +233,7 @@ def _quote_item(q) -> QuoteItem | None:
     return None if q is None else QuoteItem(**vars(q))
 
 
-# ── 리터럴 경로 (반드시 {market}보다 먼저) ──────────────────────────────
+# 리터럴 경로는 반드시 `{market}` 경로보다 먼저 등록한다.
 
 
 @router.get("/calendar/status")
@@ -341,9 +332,6 @@ def nasdaq_futures_candles(interval: str = Query()) -> ApiResponse[list[CandleIt
     return ApiResponse.ok(_bar_items(bars))
 
 
-# ── 선물 {market} ───────────────────────────────────────────────────────
-
-
 @router.get("/futures/{market}/quote")
 def futures_quote(market: Market) -> ApiResponse[FuturesQuoteItem | None]:
     q = application.futures_quote(market)
@@ -394,9 +382,6 @@ def futures_candles(
     else:
         bars = []
     return ApiResponse.ok(_bar_items(bars))
-
-
-# ── 시장 {market} ───────────────────────────────────────────────────────
 
 
 @router.get("/{market}/candles")

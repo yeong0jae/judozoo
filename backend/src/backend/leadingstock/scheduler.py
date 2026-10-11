@@ -68,9 +68,6 @@ def _session_window() -> tuple[time, time]:
     return time.fromisoformat(s.session_start), time.fromisoformat(s.session_end)
 
 
-# ── 거래대금 상위 갱신 ──────────────────────────────────────────────────
-
-
 @tracing.traced_job(_POOL_REFRESH_JOB)
 def refresh_trading_value_pool() -> None:
     """장중에는 거래대금 상위를 늘 채워 둔다 — 화면과 시그널 폴러가 키움 응답을 기다리지 않게.
@@ -86,8 +83,6 @@ def refresh_trading_value_pool() -> None:
         metrics.job_failed(_POOL_REFRESH_JOB)
         log.warning("거래대금 상위 갱신 실패", exc_info=True)
 
-
-# ── 당일 분봉 갱신 ──────────────────────────────────────────────────────
 
 # 감시 풀의 오늘 분봉을 이어 받는 주기. 분봉이 이보다 오래 묵지 않는다.
 _MINUTE_SYNC_SECONDS = 20
@@ -116,9 +111,7 @@ def sync_today_minutes() -> None:
 def settle_today_minutes() -> None:
     """마감(20:00) 뒤 감시 풀의 오늘 봉을 확정해 지난 날 보관소에 넘긴다.
 
-    20:01로 둔 건 마지막 봉이 굳을 틈이다. 이게 없으면 다음 날 아침 감시 풀 전체의 "어제 봉"을
-    키움에서 다시 받는다 — 하루 내내 토스로 들고 있던 봉인데도.
-    """
+    20:01은 마지막 봉이 굳을 틈이다. 이게 없으면 다음 날 아침 감시 풀 전체의 어제 봉을 키움에서 다시 받는다."""
     holiday, _ = calendar.market_status()
     if holiday:
         return
@@ -131,8 +124,6 @@ def settle_today_minutes() -> None:
     if failures:
         metrics.job_failed(_MINUTE_SETTLE_JOB)
 
-
-# ── 종목 시그널 폴러 ────────────────────────────────────────────────────
 
 _signal_states: dict[str, SignalState] = {}
 _last_fired: dict[str, datetime] = {}
@@ -203,8 +194,6 @@ def _to_signal_event(event_type: SignalEventType, r, at: datetime, on: date) -> 
         created_at=at, updated_at=at,
     )
 
-
-# ── 시장 시그널 폴러 ────────────────────────────────────────────────────
 
 _level_states: dict[str, InvestorNetBuyState] = {}
 _flow_states: dict[str, InvestorFlowState] = {}
@@ -325,8 +314,6 @@ def _market_event(
         created_at=at, updated_at=at,
     )
 
-
-# ── 지수 반등·꺾임 폴러 ─────────────────────────────────────────────────
 
 _rebound_armed: dict[Market, bool] = {}
 _breakdown_armed: dict[Market, bool] = {}

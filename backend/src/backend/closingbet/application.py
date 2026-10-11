@@ -63,9 +63,6 @@ _FLOW_DAYS = 5
 _BANNED: tuple[str, ...] = ()
 
 
-# --- 시간대 -------------------------------------------------------------------
-
-
 def open_days() -> OpenDays:
     """개장일. 목록을 못 받았으면 앞뒤 30일 평일로 — 휴장 화면이 멀쩡한 평일을 덮지 않게."""
     days = calendar.open_days()
@@ -78,9 +75,6 @@ def open_days() -> OpenDays:
 
 def phase(at: datetime | None = None) -> Phase:
     return phase_at(at or now(), open_days())
-
-
-# --- 오늘의 종목 ----------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -108,9 +102,6 @@ def _pool_stock(s, lead: bool) -> PoolStock:
 
 def _code(stock_code: str) -> str:
     return stock_code.split("_", 1)[0]
-
-
-# --- 종베 체크 ----------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -179,9 +170,6 @@ def _stock_flows(code: str, on: date) -> StockFlows:
     )
 
 
-# --- 시장 수급 ----------------------------------------------------------------
-
-
 def market_flows(session: Session, on: date) -> dict:
     """시장 수급 표 — 코스피·코스닥 × 외인·기관 × [현물 당일, 현물 5일, 선물 당일, 선물 5일, 마감, 애프터](억원·계약) + 야간선물."""
     out: dict = {}
@@ -219,9 +207,6 @@ def market_late(flows: dict) -> dict[Market, int]:
         m: sum(flows[m.value][who][4] + flows[m.value][who][5] for who in ("foreign", "institution"))
         for m in (Market.KOSPI, Market.KOSDAQ)
     }
-
-
-# --- 닉네임 -------------------------------------------------------------------
 
 
 def find_player(session: Session, user_id: int) -> BetPlayer | None:
@@ -262,9 +247,6 @@ def rename(session: Session, user_id: int, raw: str, at: datetime) -> BetPlayer:
         session.rollback()
         raise NicknameRejected("이미 있는 닉네임이에요") from exc
     return me
-
-
-# --- 베팅 ---------------------------------------------------------------------
 
 
 def my_bet(session: Session, user_id: int, day: date) -> ClosingBet | None:
@@ -336,9 +318,6 @@ def feed(session: Session, day: date, after_id: int = 0, limit: int = 20) -> lis
     return [FeedItem(e.id, nick, e.stock_name, e.amount_man, e.at) for e, nick in rows]
 
 
-# --- 매분 ---------------------------------------------------------------------
-
-
 def tick(session: Session, at: datetime) -> None:
     """개장일 08~20시 매분. 20:00이 지나면 오늘 판을 체결하고, 아침부터는 직전 판을 판다.
 
@@ -353,9 +332,6 @@ def tick(session: Session, at: datetime) -> None:
         settle_round(session, previous, today_, at)
     if at.time() >= BET_CLOSE:
         fill_round(session, today_, at)
-
-
-# --- 20:00 체결 · 스냅샷 -------------------------------------------------------
 
 
 def fill_round(session: Session, day: date, at: datetime) -> bool:
@@ -408,8 +384,6 @@ def fill_round(session: Session, day: date, at: datetime) -> bool:
 def checks_json(c: Checks) -> dict:
     return {"near_high": c.near_high, "foreign": c.foreign, "institution": c.institution, "market_late": c.market_late, "recent_high": c.recent_high, "after_hold": c.after_hold}
 
-
-# --- 아침 매도 · 정산 -----------------------------------------------------------
 
 #: 그날 끝까지 체결이 없으면(거래정지) 이 시각에 매수가로 끝낸다
 _GIVE_UP_AT = BET_CLOSE

@@ -46,9 +46,6 @@ def _rejected(code: str, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=409, content={"code": code, "status": 409, "data": {"message": str(exc)}})
 
 
-# --- 지금 ---------------------------------------------------------------------
-
-
 class MyBet(_Camel):
     stock_code: str
     stock_name: str
@@ -99,9 +96,6 @@ def get_now(request: Request, db: Annotated[Session, Depends(get_db)]) -> ApiRes
         moment=p.moment.value, betting_day=p.betting, review_day=p.review, next_at=p.next_at,
         pot_man=stakes.total_man if stakes else 0, players=stakes.players if stakes else 0, me=me,
     ))
-
-
-# --- 오늘의 종목 ----------------------------------------------------------------
 
 
 class CheckItem(_Camel):
@@ -193,9 +187,6 @@ def get_market(_: Annotated[CurrentUser, Depends(require_login)]) -> ApiResponse
     return ApiResponse.ok(_readings(p.betting)["flows"] if p.betting else None)
 
 
-# --- LIVE ---------------------------------------------------------------------
-
-
 class FeedEntry(_Camel):
     id: int
     nickname: str
@@ -210,9 +201,6 @@ def get_feed(db: Annotated[Session, Depends(get_db)], after: int = Query(0, ge=0
     if p.betting is None:
         return ApiResponse.ok([])
     return ApiResponse.ok([FeedEntry(**f.__dict__) for f in application.feed(db, p.betting, after)])
-
-
-# --- 베팅 ---------------------------------------------------------------------
 
 
 class BetRequest(BaseModel):
@@ -248,9 +236,6 @@ def delete_bet(
     return ApiResponse.ok(None)
 
 
-# --- 닉네임 -------------------------------------------------------------------
-
-
 class NicknameRequest(BaseModel):
     nickname: str = Field(max_length=40)
 
@@ -266,9 +251,6 @@ def put_nickname(
     except NicknameRejected as exc:
         return _rejected("NICKNAME_REJECTED", exc)
     return ApiResponse.ok(Me(nickname=p.nickname, next_rename_at=next_rename_at(p.renamed_at), bet=None))
-
-
-# --- 복기 ---------------------------------------------------------------------
 
 
 class RoundStock(_Camel):

@@ -1,7 +1,7 @@
-"""시황 — 지수 / 캔들 / 투자자 수급 / 프로그램매매 / 선물 / 매크로.
+"""시황 — 지수 / 캔들 / 투자자 수급 / 선물 / 매크로.
 
-세션(오전·오후·마감) 순매수는 값을 직접 주는 API가 없다. 폴러가 찍어둔 **당일 누적 스냅샷의
-경계 diff**로 만든다 — 이 계산이 이 모듈의 핵심이고, 경계 시각이 어긋나면 값이 통째로 틀린다.
+세션 순매수는 직접 주는 API가 없어 폴러가 찍어둔 **당일 누적 스냅샷의 경계 diff**로 만든다.
+경계 시각이 어긋나면 값이 통째로 틀린다.
 """
 
 import logging
@@ -40,9 +40,6 @@ _AFTER_END = time(20, 0)
 _INDEX_CODE = {Market.KOSPI: ("001", "0"), Market.KOSDAQ: ("101", "1")}
 
 
-# ── 지수 ────────────────────────────────────────────────────────────────
-
-
 @dataclass(frozen=True)
 class IndexResult:
     current_value: float
@@ -67,15 +64,11 @@ def _index_of(market: Market) -> IndexResult:
     return IndexResult(current_value=snap.current_value, change_rate=snap.change_rate)
 
 
-# ── 지수 캔들 (토스) ────────────────────────────────────────────────────
-
 _MAX_PAGE_SIZE = 200
 _MAX_PAGES = 6  # 200×6=1200봉 — 2일치 정규장(780분)을 여유 있게 덮는다
 
 
-# 지수 캔들은 차트를 보는 사람마다, 1분봉은 1분마다 다시 묻는다. 캐시가 없으면 보는 사람 수만큼
-# 토스를 부르고, 그룹 한도가 초당 5건이라 금방 닿는다. 1분이면 1분봉 화면 주기와 같다.
-# 일봉은 화면이 다시 묻지 않고 오늘 봉이 1분 늦어도 지장이 없어 같은 1분으로 둔다.
+# 캐시가 없으면 보는 사람 수만큼 토스를 불러 그룹 한도(초당 5건)에 금방 닿는다.
 @ttl_cache("indexDailyCandles", ttl_seconds=60, maxsize=4, skip_if=is_empty)
 def daily_candles(market: Market, count: int) -> list[toss_indicator.TossCandle]:
     """최근 `count`봉 일봉(오름차순)."""
@@ -124,9 +117,6 @@ def minute_candles_today(market: Market) -> list[toss_indicator.TossCandle]:
             minute_archive.put(market, day, list(candles.values()))
     valid = sorted(by_day, reverse=True)[:2]
     return sorted((c for day in valid for c in by_day[day].values()), key=lambda c: c.timestamp)
-
-
-# ── 시장 투자자 수급 ────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
@@ -214,9 +204,8 @@ def investor_daily_history(session: Session, market: Market, count: int) -> list
 def _latest_date_with_data(session: Session, model, market: Market, on: date) -> date:
     """`on` 이하에서 **데이터가 실제로 있는** 가장 최근 거래일.
 
-    주말은 프론트가 직전 평일로 물러나 보내지만 공휴일은 못 잡는다. 여기서 받아
-    빈 화면 대신 직전 거래일을 보여준다. 아예 없으면 요청일을 그대로 돌려준다 —
-    호출자가 "그날은 비었다"로 처리하게 둔다.
+    프론트는 주말만 거르고 공휴일은 못 잡아 여기서 직전 거래일로 물러난다.
+    아예 없으면 요청일을 그대로 돌려준다.
     """
     found = session.scalar(
         select(model.trade_date)
@@ -243,8 +232,7 @@ def _last_two(session: Session, model, market: Market, on: date) -> tuple[object
 def _attach_delta(sessions: list, session: Session, model, market: Market, on: date, today_: date):
     """마지막 스냅샷이 속한 구간에 "직전 스냅샷 대비" 변화량을 얹는다.
 
-    **오늘만** 얹는다 — 지난 날짜의 "그날 마지막 1분 변화량"은 며칠 뒤에 볼 값이 아니다.
-    구간 판정은 `SessionNet.time`("HH:MM~HH:MM")을 그대로 쓴다. 경계 시각을 두 번 적지 않게.
+    **오늘만** 얹는다 — 지난 날짜의 마지막 1분 변화량은 며칠 뒤에 볼 값이 아니다.
     """
     if on != today_:
         return sessions
@@ -264,11 +252,8 @@ def _attach_delta(sessions: list, session: Session, model, market: Market, on: d
 def investor_sessions(session: Session, market: Market, on: date) -> tuple[date, list[SessionNet]]:
     """세션별 순매수 — 당일 누적 스냅샷 경계 diff. 데이터 없는 세션은 nets=None.
 
-    다섯 구간의 합 = 그날 최종 누적(= 일별 표의 그날 값). 폴러가 프리 스냅샷을 남기기 전 과거는
-    프리 경계가 없어, 프리를 "집계 전"으로 두고 오전에 프리를 포함해 **합을 보존**한다.
-
-    **실제로 조회한 날짜를 함께 돌려준다** — 공휴일이면 직전 거래일로 물러나므로,
-    화면이 요청한 날짜로 라벨을 붙이면 거짓말이 된다.
+    다섯 구간의 합 = 그날 최종 누적. 프리 스냅샷이 없던 과거는 오전에 프리를 포함해 **합을 보존**한다.
+    공휴일이면 직전 거래일로 물러나므로 **실제로 조회한 날짜를 함께 돌려준다**.
     """
     on = _latest_date_with_data(session, MarketInvestorSnapshot, market, on)
 
@@ -293,8 +278,6 @@ def investor_sessions(session: Session, market: Market, on: date) -> tuple[date,
     ]
     return on, _attach_delta(sessions, session, MarketInvestorSnapshot, market, on, today())
 
-
-# ── 선물 투자자 수급 ────────────────────────────────────────────────────
 
 _FUT_MORNING_END = time(12, 0)
 _FUT_AFTERNOON_END = time(15, 0)
@@ -413,9 +396,7 @@ def _futures_snapshot_at(session: Session, market: Market, at: datetime):
     )
 
 
-# ── 지수선물 시세 ───────────────────────────────────────────────────────
-
-_MINUTE_DAYS = 2                  # 분봉 수집 거래일 수
+_MINUTE_DAYS = 2
 _MINUTE_PAGES = 7                 # 하루(08:45~15:45=420분)를 102봉씩 덮는 최대 페이지 수
 _FUT_SESSION_START = time(8, 45)  # 선물 개장(동시호가 08:30~08:45)
 _FUT_SESSION_END = time(15, 45)   # 조회 상한(마감 동시호가 체결까지 포함)
@@ -586,10 +567,8 @@ def _futures_minutes_of_day(
     return [by_time[t] for t in sorted(by_time)], complete
 
 
-# ── 야간선물 ────────────────────────────────────────────────────────────
-
 _NIGHT_END_HOUR = 6         # 야간 마감 06:00 — 이 시각 전이면 아직 어제 시작한 세션
-_NIGHT_START_MIN = 18 * 60  # 18:00
+_NIGHT_START_MIN = 18 * 60
 _NIGHT_END_MIN = 29 * 60 + 59  # 29:59 = 익일 05:59
 _NIGHT_PAGES = 8            # 세션 720분을 102봉씩 덮는 최대 페이지 수
 
@@ -728,9 +707,6 @@ def _hhmmss(minute: int) -> str:
     return f"{minute // 60:02d}{minute % 60:02d}00"
 
 
-# ── 나스닥 지수 · 매크로 (야후) ─────────────────────────────────────────
-
-
 @dataclass(frozen=True)
 class QuoteResult:
     price: float
@@ -748,10 +724,8 @@ class MacroQuotes:
 
 
 NASDAQ_SYMBOL = "^IXIC"
-#: 나스닥100 선물 근월물. 야후가 `NQ=F` 하나로 근월물을 물려준다 — 만기별 코드를 조립할 일이 없다.
-#: KIS는 CME가 유료시세라 못 쓴다.
+#: 나스닥100 선물 근월물(야후가 알아서 롤오버). KIS는 CME가 유료시세라 못 쓴다.
 NASDAQ_FUTURES_SYMBOL = "NQ=F"
-# 매크로 대상 — 야후 심볼을 여기 한 곳에만 둔다.
 # `^TNX`는 미국채 10년 금리를 **% 그대로** 준다(5.209 = 5.209%). CBOE 원 지수처럼 ×10이 아니다.
 MACRO_SYMBOLS = {"USD_KRW": "KRW=X", "WTI": "CL=F", "VIX": "^VIX", "US10Y": "^TNX"}
 
@@ -848,10 +822,7 @@ def _yahoo_minute_candles(symbol: str) -> list[yahoo.YahooBar]:
 
 
 def nasdaq_futures_quote() -> QuoteResult | None:
-    """현물과 달리 거의 하루 종일 돈다 — **우리 장중에 미국 심리를 읽는 자리**다.
-
-    야후 무료 시세라 **10분쯤 지연**된다. 그래서 화면이 지연 배지를 함께 건다.
-    """
+    """우리 장중에 미국 심리를 읽는 자리. 야후 무료 시세라 **10분쯤 지연**된다."""
     return _quote_of(NASDAQ_FUTURES_SYMBOL)
 
 
@@ -897,9 +868,6 @@ def _macro_daily_candles(symbol: str) -> list[yahoo.YahooBar]:
     return yahoo.fetch_candles(symbol, "1d", "6mo")
 
 
-# ── 홈 — 오늘의 수급 ────────────────────────────────────────────────────
-
-
 @dataclass(frozen=True)
 class TodayNetInvestors:
     """투자자 넷 — 현물은 억원, 선물은 계약이다."""
@@ -918,9 +886,7 @@ class TodayNet:
     futures: bool
     index_value: float
     change_rate: float
-    #: 수급만 못 받았을 때 None. **칸을 지우지 않는다** — KIS가 코스닥150 선물 투자자
-    #: 조회에 간헐적으로 500을 주는데, 그때마다 칸이 사라지면 카드가 넷이었다 셋이었다 한다.
-    #: 가격·등락률은 멀쩡히 왔으므로 그것만 보여주고 수급 줄은 화면이 비운다.
+    #: 수급만 못 받았을 때 None. KIS 선물 투자자 조회가 간헐적으로 500을 줘도 칸은 남긴다.
     nets: TodayNetInvestors | None
     #: 수급이 어느 날 것인지. 장 열기 전·휴장일엔 직전 거래일이라 화면이 "10/2 기준"을 붙인다.
     trade_date: date | None
@@ -944,13 +910,8 @@ def _before_open(session: Session, model, market: Market, at: datetime):
 def today_nets(session: Session) -> list[TodayNet]:
     """코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수.
 
-    현물(억원)과 선물(계약)은 단위가 달라 한 목록에 담겨도 서로 더하거나 견주지 않는다.
-
-    현물·선물 수급은 각각의 폴러가 저장한 오늘의 최신 스냅샷을 쓴다. 장이 열리기 전과
-    휴장일엔 직전 거래일의 마지막 스냅샷을 쓴다. 장중에 아직 스냅샷이 없으면 시세만 보여주고
-    수급은 비운다.
-
-    시세조차 못 받은 시장만 목록에서 빠진다. 수급만 비는 경우는 `nets=None`으로 남는다.
+    현물(억원)과 선물(계약)은 단위가 달라 서로 더하지 않는다. 장 전·휴장일엔 직전 거래일
+    스냅샷을 쓰고, 시세조차 못 받은 시장만 목록에서 빠진다.
     """
     at = now()
     out: list[TodayNet] = []

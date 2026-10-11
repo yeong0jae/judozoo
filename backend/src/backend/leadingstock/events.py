@@ -32,9 +32,6 @@ log = logging.getLogger(__name__)
 MRKT_TP = {Market.KOSPI: "0", Market.KOSDAQ: "1"}
 
 
-# ── 종목 시그널 ─────────────────────────────────────────────────────────
-
-
 def record_signal_events(session: Session, events: list[SignalEvent]) -> None:
     if events:
         session.add_all(events)
@@ -49,9 +46,6 @@ def signal_events_on(session: Session, on: date) -> list[SignalEvent]:
             .order_by(SignalEvent.occurred_at.desc())
         )
     )
-
-
-# ── 시장 시그널 ─────────────────────────────────────────────────────────
 
 
 def record_market_events(session: Session, events: list[MarketSignalEvent]) -> None:
@@ -105,9 +99,6 @@ def investor_net_buy() -> dict[Market, object]:
     return out
 
 
-# ── 흐름 전환 상태 ──────────────────────────────────────────────────────
-
-
 def load_flow_states(session: Session, on: date) -> dict[str, InvestorFlowState]:
     """그날 흐름 전환 상태 복원 — 키 "market|investor".
 
@@ -148,9 +139,6 @@ def save_flow_state(
             )
         )
     session.commit()
-
-
-# ── 지수 1분봉 영속 ─────────────────────────────────────────────────────
 
 
 def upsert_index_candles(session: Session, market: Market, candles: list[IndexMinuteCandle]) -> None:

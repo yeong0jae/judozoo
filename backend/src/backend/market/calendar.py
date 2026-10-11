@@ -13,7 +13,6 @@ from backend.library.time import KST, now, today
 from backend.platform.kis import holiday as kis_holiday
 from backend.platform.toss import market_calendar as toss_calendar
 
-# --- 국내 개장일 (KIS) ---------------------------------------------------
 
 _LOOKBACK_DAYS = 20  # 기준일을 20일 과거로 잡아 최근 10거래일 판정에 충분한 집합을 받는다
 
@@ -62,9 +61,6 @@ def _refreshed_open_days() -> frozenset[date]:
             _open_days = frozenset(fetched)
             _cached_day = current
         return _open_days
-
-
-# --- 지역별 휴장 (토스) --------------------------------------------------
 
 
 class Region(str, Enum):
@@ -136,8 +132,6 @@ def _cached_holiday(region: Region, current: date) -> bool | None:
     return holiday
 
 
-# --- 장 상태 ------------------------------------------------------------
-
 _TRADING_START = time(8, 0)   # NXT 프리마켓(08:00~08:50) 포함
 _TRADING_END = time(20, 0)    # KRX 마감 후 NXT 애프터마켓(~20:00) 포함
 
@@ -147,8 +141,6 @@ def market_status() -> tuple[bool, bool]:
     current = now().time()
     return is_holiday(Region.KR), _TRADING_START <= current <= _TRADING_END
 
-
-# --- 미국 장 상태 --------------------------------------------------------
 
 # 미 동부 기준. 프리마켓부터 애프터마켓 마감까지 — 화면 세션(`lib/marketSession.ts`)과 같다.
 # 실적 발표가 대개 정규장 마감 직후라 애프터마켓까지 본다. 20:00 뒤 데이마켓은 대체거래소라 KIS 순위에 없다

@@ -98,18 +98,9 @@ LLM_FAILURES = Counter(
 # 상태는 시간만 지나도 바뀐다(열림 → 5분 뒤 시험). 스크레이프 때 읽는다 — `insight.application`이 연결한다
 LLM_CIRCUIT_STATE = Gauge("llm_circuit_state", "Vertex 서킷 — 0 닫힘 · 1 시험 · 2 열림")
 
-# ── 스레드가 지금 무엇을 하고 있는가 ────────────────────────────────────
-#
-# `thread_pool_borrowed_threads`는 **몇 개가 쓰이는지**만 알려준다. 40개가 잡혀 있어도
-# 그것이 줄서기인지 브로커 응답 대기인지 DB 조회인지 구분되지 않아, 정작 "무엇을 고쳐야
-# 하나"에는 답하지 못한다. 아래 둘이 그 안을 가른다.
-#
-# `MeteredTransport`가 리미터 **바깥**에 감겨 있어 IN_FLIGHT는 대기까지 포함한다.
-# 따라서 `in_flight - waiting`이 실제로 소켓에 매달린 수다.
-#
-# **합이 borrowed와 맞지 않을 수 있다.** 스케줄러 잡은 anyio 풀이 아니라 APScheduler의
-# 자체 ThreadPoolExecutor에서 도는데 같은 리미터를 쓴다 — 그쪽 대기도 여기 잡힌다.
-# 빼기로 정확한 값을 얻으려 들지 말고, 각 줄을 그 자체로 읽어야 한다.
+# 스레드풀의 쓰인 스레드가 줄서기인지 브로커 응답 대기인지 가른다. IN_FLIGHT는 리미터 대기까지
+# 포함하므로 `in_flight - waiting`이 실제로 소켓에 매달린 수다. 스케줄러 잡도 같은 리미터를 써서
+# 합이 borrowed와 맞지 않을 수 있다 — 각 줄을 그 자체로 읽는다.
 RATE_LIMITER_WAITING = Gauge(
     "rate_limiter_waiting_threads",
     "지금 리미터에서 허가를 기다리며 잠들어 있는 스레드 수",
@@ -122,20 +113,12 @@ HTTP_CLIENT_IN_FLIGHT = Gauge(
     ["vendor"],
 )
 
-# ── 스레드풀 ────────────────────────────────────────────────────────────
-#
-# sync 엔드포인트는 anyio 기본 스레드풀(40)에서 돈다. 브로커 호출이 전부 sync라
-# **리미터 대기가 이 슬롯을 잡은 채로 잠든다** — CPU는 놀고 응답만 밀리는 상태가 되고,
-# 자원 그래프(CPU·디스크)로는 아무것도 안 보인다. 그 구간을 보는 유일한 창이다.
-#
-# Gauge 셋은 `set_function`으로 스크레이프 시점에 읽는다. 폴링 루프를 따로 두면
-# 30초 스크레이프 사이의 값을 놓치거나, 반대로 안 쓰는 값을 계속 재게 된다.
+# sync 엔드포인트는 anyio 기본 스레드풀(40)에서 돌고, **리미터 대기가 이 슬롯을 잡은 채로 잠든다** —
+# CPU 그래프로는 안 보이는 구간이다. Gauge 셋은 `set_function`으로 스크레이프 시점에 읽는다.
 THREAD_POOL_TOTAL = Gauge("thread_pool_total_threads", "anyio 기본 스레드풀 정원")
 THREAD_POOL_BORROWED = Gauge("thread_pool_borrowed_threads", "사용 중인 스레드 수")
 
-# **이 값이 0을 넘으면 그 순간 요청이 밀리고 있다.** 정원이 다 찼고 뒤에 줄이 섰다는 뜻이라,
-# 점유율(borrowed/total)보다 먼저 봐야 할 지표다 — 점유율은 40/40에서 포화를 넘는 순간을
-# 더 보여주지 못하지만 이 값은 계속 자란다.
+# **이 값이 0을 넘으면 요청이 밀리고 있다.** 점유율은 40/40에서 멈추지만 이 값은 계속 자란다.
 THREAD_POOL_WAITING = Gauge("thread_pool_waiting_tasks", "스레드를 얻지 못해 대기 중인 요청 수")
 
 
@@ -151,8 +134,6 @@ def track_thread_pool(limiter: CapacityLimiter) -> None:
     THREAD_POOL_BORROWED.set_function(lambda: limiter.borrowed_tokens)
     THREAD_POOL_WAITING.set_function(lambda: limiter.statistics().tasks_waiting)
 
-
-# ── 스케줄러 ────────────────────────────────────────────────────────────
 
 # 잡 제출 시각. APScheduler 이벤트에는 소요 시간이 없어서 직접 재야 한다.
 # **잡이 자기 자신과 겹치지 않는다는 전제**로 job_id만 키로 쓴다 — 등록된 5개 잡 모두
@@ -190,9 +171,6 @@ def job_failed(job: str) -> None:
     그러면 APScheduler는 성공으로 보므로 `on_job_event`가 그 실패를 영영 못 본다.
     """
     SCHEDULER_ERRORS.labels(job_id=job).inc()
-
-
-# ── 외부 HTTP ───────────────────────────────────────────────────────────
 
 
 class MeteredTransport(httpx.BaseTransport):

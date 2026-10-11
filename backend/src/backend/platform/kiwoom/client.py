@@ -1,7 +1,4 @@
-"""키움 공통 HTTP 인프라 — 조회 공유 리미터, 액세스 토큰.
-
-Kotlin `KiwoomRestClientConfig` + `KiwoomQueryRateLimitInterceptor` + `KiwoomAuthClient`에 대응.
-"""
+"""키움 공통 HTTP 인프라 — 조회 공유 리미터, 액세스 토큰."""
 
 import logging
 import threading
@@ -40,7 +37,7 @@ _token_retry_after = datetime.min.replace(tzinfo=UTC)
 
 
 class QueryRateLimitedTransport(httpx.BaseTransport):
-    """조회 TR에만 허가를 요구한다 — Kotlin 인터셉터와 같은 분기."""
+    """조회 TR에만 허가를 요구한다."""
 
     def __init__(self, limiter: RateLimiter, inner: httpx.BaseTransport) -> None:
         self._limiter = limiter

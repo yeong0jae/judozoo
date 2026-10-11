@@ -1,9 +1,7 @@
 """종목 카탈로그 — 메모리 적재 / DB 영속 / 검색.
 
-검색이 매 호출 DB를 때리지 않도록 카탈로그를 통째로 메모리에 들고 있다.
-교체는 항상 전체 교체라 모듈 전역 하나를 갈아끼우면 된다(할당은 원자적 —
-Kotlin `@Volatile` 필드에 대응). 인스턴스가 1대라 공유 캐시를 두지 않는다.
-"""
+검색이 매번 DB를 때리지 않도록 카탈로그를 통째로 메모리에 든다. 교체는 항상 전체 교체라
+모듈 전역 하나를 갈아끼운다(할당은 원자적)."""
 
 import logging
 from dataclasses import dataclass
@@ -68,9 +66,6 @@ def catalog_sizes() -> tuple[int, int]:
     return len(_domestic), len(_overseas)
 
 
-# --- 영속 ---------------------------------------------------------------
-
-
 def _last_synced_date(session: Session, model: type) -> date | None:
     """가장 최근 row의 생성일 = 마지막 갱신일. 비어 있으면 None."""
     latest = session.scalar(select(model.created_at).order_by(model.created_at.desc()).limit(1))
@@ -81,9 +76,6 @@ def _replace_all(session: Session, model: type, rows: list) -> None:
     session.execute(delete(model))
     session.add_all(rows)
     session.commit()
-
-
-# --- 갱신 ---------------------------------------------------------------
 
 
 def refresh(today: date) -> None:
@@ -139,9 +131,6 @@ def _refresh_overseas(today: date) -> None:
                 _overseas = list(session.scalars(select(OverseasStock)))
         except Exception:
             log.warning("직전 데이터 적재도 실패", exc_info=True)
-
-
-# --- 종목 투자자 수급 -----------------------------------------------------
 
 
 @dataclass(frozen=True)

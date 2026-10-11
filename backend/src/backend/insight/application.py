@@ -51,7 +51,7 @@ log = logging.getLogger(__name__)
 LEADERS_COUNT = 5
 #: 주도주가 아니어도 이만큼(%) 넘게 오른 후보는 사유를 만든다 — 새로 들어올 때 한 번만(026)
 CANDIDATE_MIN_CHANGE_RATE = 5.0
-#: 한 번에 동시에 만드는 종목 수. 주도주 5종목에 후보가 더해진 진입 몰림도 한 번에, 넘치면 빈 자리가 나는 대로
+#: 동시에 만드는 종목 수. 넘치면 빈 자리가 나는 대로 이어 만든다
 MAX_CONCURRENCY = 10
 
 #: 국내·해외가 같은 Vertex를 부르므로 서킷도 하나다. 프로세스가 새로 뜨면(재배포) 닫힌 채로 시작한다
@@ -96,9 +96,6 @@ def local(region: Region, at_kst: datetime) -> datetime:
     return at_kst.replace(tzinfo=KST).astimezone(region.zone).replace(tzinfo=None)
 
 
-# --- 만들기 ---------------------------------------------------------------
-
-
 def run(session: Session, region: Region, now_kst: datetime) -> int:
     """지금 만들 종목을 골라 만든다. 만든 행 수를 돌려준다. 휴장일은 부르는 쪽(스케줄러)이 거른다."""
     schedule = SCHEDULES[region]
@@ -135,20 +132,17 @@ def run(session: Session, region: Region, now_kst: datetime) -> int:
     started = monotonic()
 
     def build(code: str, trigger: Trigger) -> StockReason | None:
-        """워커 스레드에서 한 종목. 출발 직전에 서킷을 보고, 끝나자마자 기록한다 —
-        앞 종목들이 서킷을 열었으면 아직 출발하지 않은 종목은 행 없이 건너뛰어 닫힌 뒤 다시 골라진다."""
+        """워커 스레드에서 한 종목. 출발 직전에 서킷을 보고, 끝나자마자 기록한다."""
         with _circuit_lock:
             if _circuit.state(now_kst) is CircuitState.OPEN:
                 return None
         row = make(region, schedule, targets[code], trigger, now.date(), now_kst)
-        # 한 종목에 10~15초 — 실행 시작 시각을 그대로 찍으면 "기준" 시각이 실제보다 이르다.
-        # 벽시계를 다시 읽지 않고 경과만 더한다: 30분 규칙·재시도 간격·서킷이 같은 시계로 계산된다
+        # 종목당 10~15초라 시작 시각에 경과를 더한다. 벽시계를 다시 읽지 않아 30분 규칙·서킷이 같은 시계를 쓴다
         row.generated_at = now_kst + timedelta(seconds=monotonic() - started)
         _record(row.failed, row.generated_at)
         return row
 
     made = 0
-    # 종목마다 Vertex를 두 번 기다린다 — 동시에 돌려 뒤 종목이 앞 종목을 기다리지 않게 한다.
     # 세션은 이 스레드만 만진다. 트레이스가 잡 스팬 아래에 남도록 컨텍스트를 종목마다 복사해 넘긴다
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENCY, thread_name_prefix="insight") as pool:
         futures = [pool.submit(copy_context().run, build, code, trigger) for code, trigger in picks]
@@ -268,9 +262,6 @@ def _used_today(session: Session, now_kst: datetime) -> int:
     """오늘(KST) 국내·해외를 합쳐 만든 행 수 — 하루 상한은 청구서 기준이라 시장을 나누지 않는다."""
     start = datetime.combine(now_kst.date(), time.min)
     return session.scalar(select(func.count()).select_from(StockReason).where(StockReason.generated_at >= start)) or 0
-
-
-# --- 보여주기 ---------------------------------------------------------------
 
 
 def session_day(region: Region, now_kst: datetime) -> date:

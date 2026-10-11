@@ -1,9 +1,4 @@
-"""KIS 공통 HTTP 인프라 — 공유 리미터, 액세스 토큰.
-
-Kotlin의 `KisRestClientConfig` + `KisAuthClient`에 대응한다.
-Spring의 빈 대신 모듈 수준 지연 초기화를 쓴다 — 프로세스당 하나면 충분하고,
-DI 컨테이너를 흉내 낼 이유가 없다.
-"""
+"""KIS 공통 HTTP 인프라 — 공유 리미터, 액세스 토큰. 프로세스당 하나라 모듈 수준에서 지연 초기화한다."""
 
 import logging
 import threading
@@ -34,7 +29,7 @@ _TOKEN_RETRY_BACKOFF = timedelta(seconds=60)
 
 
 class RateLimitedTransport(httpx.BaseTransport):
-    """요청 직전에 허가를 받는다. Kotlin의 `ClientHttpRequestInterceptor`에 대응."""
+    """요청 직전에 허가를 받는다."""
 
     def __init__(self, limiter: RateLimiter, inner: httpx.BaseTransport) -> None:
         self._limiter = limiter
@@ -51,10 +46,8 @@ class RateLimitedTransport(httpx.BaseTransport):
 def get_limiter() -> RateLimiter:
     """KIS 호출 공유 리미터.
 
-    **1초에 N개를 한꺼번에 충전하지 않는다.** 그렇게 하면 1초 경계에서 이전·이후 창이
-    KIS 윈도우에 겹쳐 최대 2N이 몰리고 EGW00201이 간헐 발생한다. (1000/N)ms마다
-    1개씩 균등 발급해 버스트 자체를 없앤다 — Kotlin 쪽과 같은 구성이다.
-    """
+    **1초에 N개를 한꺼번에 충전하지 않는다** — 1초 경계에서 최대 2N이 몰려 EGW00201이 난다.
+    (1000/N)ms마다 1개씩 균등 발급한다."""
     global _limiter
     if _limiter is None:
         permits = get_settings().kis.query_permits_per_second

@@ -1,12 +1,9 @@
-"""OpenTelemetry 트레이스 설정과 잡 스팬.
+"""OpenTelemetry 트레이스 설정과 잡 스팬([021](../../../../docs/tasks/021-tempo-트레이스.md)).
 
-[021](../../../../docs/tasks/021-tempo-트레이스.md). 요청 경로는 자동 계측(FastAPI·httpx·
-SQLAlchemy)이 덮는다. 여기서 직접 쓰는 것은 **스케줄러 잡 경계** 하나다 —
-OTel에 APScheduler 계측이 없어서, 이걸 안 열면 브로커 호출 스팬이 부모 없이 흩어진다.
-그러면 "이 잡 실행이 어디서 멈췄나"라는 이 작업의 목적 자체를 못 본다.
+요청 경로는 자동 계측(FastAPI·httpx·SQLAlchemy)이 덮는다. 여기서 직접 여는 것은 **스케줄러 잡 경계**
+하나다 — APScheduler 계측이 없어 안 열면 브로커 호출 스팬이 부모 없이 흩어진다.
 
-`OTLP_ENDPOINT`가 비어 있으면 아무것도 켜지 않는다. 로컬·테스트 기본값이 그렇다.
-"""
+`OTLP_ENDPOINT`가 비어 있으면 아무것도 켜지 않는다."""
 
 import logging
 from collections.abc import Callable
@@ -25,7 +22,6 @@ log = logging.getLogger(__name__)
 _tracer = trace.get_tracer("backend")
 
 # 헬스체크는 10초마다, 화면 폴링은 5초마다 온다. 넣어두면 트레이스가 이걸로 뒤덮인다
-# (020에서 메트릭에 한 것과 같은 이유).
 _EXCLUDED_URLS = "health,health/db,metrics"
 
 
@@ -44,17 +40,11 @@ def setup(endpoint: str, service_name: str, engine) -> None:
     from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
-    # **스팬은 리미터 대기를 포함하지 않는다.** 계측이 `httpx.Client.send`가 아니라
-    # `HTTPTransport.handle_request`를 감싸서, transport 체인의 **가장 안쪽**에 들어간다 —
+    # **스팬은 리미터 대기를 포함하지 않는다.** 계측이 transport 체인의 **가장 안쪽**에 들어간다 —
     #   MeteredTransport(메트릭, 대기 포함) → RateLimitedTransport(여기서 대기) → OTel → HTTP
-    # 처음엔 반대로 적었다가 운영 트레이스를 보고 알았다.
+    # 그래서 `http_client_request_duration_seconds`와 이 스팬의 **차이가 곧 대기 시간이다**.
     #
-    # 결과적으로 020의 `http_client_request_duration_seconds`(바깥)와 이 스팬(안쪽)이
-    # 리미터 대기를 사이에 두고 감싼다. **둘의 차이가 곧 대기 시간이다** — 계획서에서
-    # 후속으로 미뤄뒀던 "대기와 왕복 분리"가 이 배치로 이미 가능해졌다.
-    #
-    # 이름을 손보는 이유 — 기본 스팬 이름이 메서드뿐(`POST`)이라, 잡 하나에 70개가 달리면
-    # 워터폴에서 **어느 호출이 느린지 구분이 안 된다**. URL은 속성에 있지만 한 줄씩 열어봐야 한다.
+    # 기본 스팬 이름은 메서드뿐(`POST`)이라 워터폴에서 어느 호출이 느린지 안 보여 이름을 손본다.
     HTTPXClientInstrumentor().instrument(request_hook=_name_client_span)
     SQLAlchemyInstrumentor().instrument(engine=engine)
     log.info("트레이스 활성화 — %s", endpoint)
@@ -99,16 +89,10 @@ F = TypeVar("F", bound=Callable[..., None])
 
 
 def traced_job(job_id: str) -> Callable[[F], F]:
-    """스케줄러 잡 하나를 스팬 하나로 연다.
+    """스케줄러 잡 하나를 스팬 하나로 연다 — 잡이 도는 동안 브로커·DB 호출이 자식으로 붙는다.
 
-    **`metrics.on_job_event` 리스너와 역할이 다르다.** 리스너는 잡이 끝난 뒤 집계하고,
-    이 데코레이터는 잡이 도는 **동안** 스팬을 열어 브로커·DB 호출이 자식으로 붙게 한다.
-    둘 다 필요하다.
-
-    폴러는 예외를 삼키고 정상 리턴하므로(020에서 배운 것) 스팬만으로는 실패가 안 보인다.
-    삼키기 전에 여기서 기록하지는 못한다 — 대신 잡이 예외를 밖으로 내보내는 경우만 잡는다.
-    삼킨 실패는 `scheduler_job_errors_total`이 맡는다.
-    """
+    폴러는 예외를 삼키고 정상 리턴하므로 스팬만으로는 실패가 안 보인다. 밖으로 나온 예외만 여기서
+    기록하고, 삼킨 실패는 `scheduler_job_errors_total`이 맡는다."""
 
     def decorate(fn: F) -> F:
         @wraps(fn)

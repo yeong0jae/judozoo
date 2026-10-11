@@ -71,8 +71,7 @@ class CandlesPage:
 def net_eok(amount: dict | None) -> int:
     """순매수(억) = (매수 − 매도) / 1억.
 
-    Kotlin `roundToLong()`은 `floor(x + 0.5)`라 .5를 항상 위로 보낸다.
-    Python `round()`는 짝수로 보내는 은행가 반올림이라 값이 갈린다 — 그래서 직접 구현한다.
+    `.5`는 항상 위로 올린다 — Python `round()`는 은행가 반올림이라 직접 구현한다.
     """
     if not amount:
         return 0

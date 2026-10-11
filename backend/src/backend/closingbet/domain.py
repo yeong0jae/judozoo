@@ -15,7 +15,6 @@ from enum import Enum
 
 from backend.leadingstock.domain import DailyCandle, MinuteCandle
 
-# --- 시간대 -------------------------------------------------------------------
 
 BET_OPEN = time(15, 0)
 BET_CLOSE = time(20, 0)
@@ -94,8 +93,6 @@ def phase_at(now: datetime, days: OpenDays) -> Phase:
     return Phase(Moment.NIGHT, betting=today, review=previous, next_at=datetime.combine(upcoming, RESULT_START) if upcoming else None)
 
 
-# --- 베팅 ---------------------------------------------------------------------
-
 MIN_AMOUNT_MAN = 100  # 100만원
 MAX_AMOUNT_MAN = 10_000  # 1억
 AMOUNT_STEP_MAN = 100
@@ -127,8 +124,6 @@ def check_bet(phase: Phase, amount_man: int, stock_code: str, pool: Iterable[str
         raise BetRejected("지금 주도주·후보 목록에 있는 종목만 고를 수 있어요")
     return shares_for(amount_man, price)
 
-
-# --- 매도 ---------------------------------------------------------------------
 
 SELL_WINDOW = timedelta(minutes=5)
 NXT_SELL_START = time(8, 0)
@@ -177,8 +172,6 @@ class Outcome:
         """수수료·세금은 빼지 않는다. 0.5원 단위 매도가 때문에 수익금은 원 단위로 반올림."""
         return Outcome(pnl=round(shares * (sell - buy_price)), rate=(sell / buy_price - 1) * 100)
 
-
-# --- 종베 체크 · 등급 -----------------------------------------------------------
 
 NEAR_HIGH_RATE = -1.5  # 고가 대비 %
 #: 최근 고점 — 주도주 조건 "최근 고가 대비 현재가"(`leadingstock.filters.DailyHighPositionFilter`)와 같은 60봉
@@ -260,9 +253,6 @@ class Checks:
         return Grade.S if n == 6 else Grade.A if n == 5 else Grade.B if n == 4 else Grade.C
 
 
-# --- 판돈 ---------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class Stake:
     """한 사람의 걸어 둔 베팅."""
@@ -296,9 +286,6 @@ class Stakes:
         for s in self._stakes:
             counts[s.stock_code] = counts.get(s.stock_code, 0) + 1
         return counts
-
-
-# --- 랭킹 ---------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -341,8 +328,6 @@ class Results:
     def __len__(self) -> int:
         return len(self._results)
 
-
-# --- 닉네임 -------------------------------------------------------------------
 
 NICKNAME_PATTERN = re.compile(r"^[가-힣a-zA-Z0-9]{2,10}$")
 RENAME_COOLDOWN = timedelta(days=7)

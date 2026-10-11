@@ -1,8 +1,4 @@
-"""SQLAlchemy 엔진 / 세션.
-
-기존 MySQL 스키마에 **그대로** 붙는다. 테이블은 Kotlin 쪽 `ddl-auto=update`가
-이미 만들어 둔 것을 쓰고, Python 쪽에서 스키마를 바꾸지 않는다.
-"""
+"""SQLAlchemy 엔진 / 세션."""
 
 from collections.abc import Iterator
 

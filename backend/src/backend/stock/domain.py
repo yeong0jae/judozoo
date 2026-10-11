@@ -1,9 +1,4 @@
-"""종목 마스터 도메인.
-
-Kotlin `stock.domain`과 1:1. 엔티티가 곧 도메인 객체다 — 검색 판정(`matches`)을
-바깥에서 필드를 꺼내 계산하지 않고 객체가 직접 답한다.
-테이블은 Kotlin `ddl-auto=update`가 만들어 둔 것에 그대로 붙는다.
-"""
+"""종목 마스터 도메인. 엔티티가 곧 도메인 객체다 — 검색 판정(`matches`)은 객체가 직접 답한다."""
 
 import enum
 from datetime import datetime

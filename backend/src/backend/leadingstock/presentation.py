@@ -205,9 +205,7 @@ class LimitUpItem(BaseModel):
 class LeadersResponse(BaseModel):
     """첫 화면 주도주 카드가 통째로 쓰는 응답.
 
-    둘을 한 응답에 담는 이유는 **같은 후보 풀에서 나오기 때문**이다. 따로 부르면 호출 사이에
-    풀이 갱신돼 탑5와 상한가가 다른 순간을 말할 수 있다.
-    """
+    둘을 한 응답에 담는다 — 따로 부르면 그 사이 풀이 갱신돼 탑5와 상한가가 다른 순간을 말할 수 있다."""
 
     leaders: list[CandidateStockItem]
     limit_ups: list[LimitUpItem] = Field(serialization_alias="limitUps")
@@ -217,9 +215,7 @@ class LeadersResponse(BaseModel):
 def get_leaders() -> ApiResponse[LeadersResponse]:
     """첫 화면용 — 거래대금·등락률이 함께 높은 상위 `LEADERS_COUNT`개 + 후보 풀의 상한가.
 
-    `/candidates`와 달리 **등락률 파라미터를 받지 않는다.** 첫 화면은 보는 사람이
-    후보 목록에 걸어둔 기준과 무관하게 같은 답을 보여야 한다.
-    """
+    **등락률 파라미터를 받지 않는다** — 보는 사람의 기준과 무관하게 같은 답을 보여야 한다."""
     return ApiResponse.ok(LeadersResponse(
         leaders=[
             CandidateStockItem(
@@ -243,16 +239,11 @@ def get_breakout_radar(
 ) -> ApiResponse[BreakoutRadarResponse]:
     """후보를 돌파선(최근 3거래일 고가) 근접 순으로. 눌림선(최근 3거래일 저가)도 함께 싣는다.
 
-    **등락률 파라미터를 받지 않는다** — 눌림은 내린 종목에서 나오는 신호라 상승률 하한을
-    걸면 그쪽이 빈다. 어느 쪽에 얼마나 가까운 것만 볼지는 화면이 정한다.
+    **등락률 파라미터를 받지 않는다** — 눌림은 내린 종목에서 나오는 신호다. `mode`가 기준 선을 정하고,
+    그 선에서 `RADAR_NEAR_RATE`% 이내인 종목만 가까운 순으로 담는다.
 
-    `mode`가 **어느 선을 기준으로 볼지**를 정한다. 그 선에서 `RADAR_NEAR_RATE`% 이내인
-    종목만 담고, 가까운 순으로 세운다 — 멀리 있는 종목은 지금 할 일이 없다.
-
-    **미로그인이면 상위 `RADAR_PREVIEW_COUNT`개만 내려간다.** `total_count`는 근접 범위로
-    거른 뒤, 건수로 자르기 전의 수다. 받는 쪽이 둘을 비교해 잘렸는지 알고, 두 숫자가
-    같은 모수를 세므로 "N개 중 M개"가 거짓말이 되지 않는다.
-    """
+    **미로그인이면 상위 `RADAR_PREVIEW_COUNT`개만 내려간다.** `total_count`는 건수로 자르기 전의 수라
+    받는 쪽이 잘렸는지 안다."""
     near = [
         BreakoutRadarItem(
             stock_code=s.stock_code, stock_name=s.stock_name,
@@ -284,18 +275,14 @@ def get_breakout_radar(
 #: 미로그인 미리보기로 내려보내는 최신 시그널 건수.
 PREVIEW_COUNT = 3
 
-#: 미로그인 미리보기 등락률 하한(%). 감시 풀이 -12%까지 넓어(`signal_event.min_change_rate`)
-#: 그냥 자르면 미리보기 열 칸이 급락주 전이로 찰 수 있다 — 자르기 전에 건다.
-#: 0이면 "내린 종목만 뺀다"는 뜻이고, 로그인 화면의 등락률 필터 기본값과도 같다.
+#: 미로그인 미리보기 등락률 하한(%). 감시 풀이 -12%까지 넓어 그냥 자르면 급락주 전이로 찰 수 있다.
+#: 0은 "내린 종목만 뺀다"이고 로그인 화면의 등락률 필터 기본값과 같다.
 PREVIEW_MIN_CHANGE_RATE = 0.0
 
-#: 미로그인 미리보기로 내려보내는 눌림·돌파 종목 수. 시그널과 같은 수로 맞춘다 —
-#: 두 화면이 같은 관문을 쓰는데 인심이 다르면 어느 쪽이 기준인지 알 수 없다.
+#: 미로그인 미리보기로 내려보내는 눌림·돌파 종목 수. 시그널과 같은 수로 맞춘다.
 RADAR_PREVIEW_COUNT = 3
 
-#: 눌림·돌파로 볼 근접 범위(%). 선에서 이만큼 안에 든 종목만 목록에 담는다.
-#: 화면이 색을 넣는 기준(`BreakoutRadarPage`의 `NEAR`)과 **같은 값이어야 한다** —
-#: 다르면 목록에 있는데 색이 없는 줄이나 그 반대가 생긴다.
+#: 눌림·돌파로 볼 근접 범위(%). 화면이 색을 넣는 기준(`BreakoutRadarPage`의 `NEAR`)과 **같은 값이어야 한다**.
 RADAR_NEAR_RATE = 3.0
 
 
@@ -305,13 +292,10 @@ def get_signal_events(
     date_: date | None = Query(None, alias="date"),
     db: Session = Depends(get_db),
 ) -> ApiResponse[SignalEventsResponse]:
-    """그날 발생한 돌파/임박/스파이크 전이를 최신순으로.
+    """그날 발생한 시그널 전이를 최신순으로.
 
-    **미로그인이면 등락률 `PREVIEW_MIN_CHANGE_RATE`% 이상 중 최신 `PREVIEW_COUNT`건만
-    내려간다.** 화면에서 자르면 나머지가 이미 브라우저에 도착해 있어 개발자도구로 읽힌다 —
-    잘라내는 일은 서버가 해야 한다. `total_count`는 등락률로 거른 뒤, 건수로 자르기 전의
-    수라 받는 쪽이 둘을 비교해 잘렸는지 안다.
-    """
+    **미로그인이면 등락률 `PREVIEW_MIN_CHANGE_RATE`% 이상 중 최신 `PREVIEW_COUNT`건만 내려간다** —
+    화면에서 자르면 나머지가 개발자도구로 읽힌다. `total_count`는 건수로 자르기 전의 수다."""
     day = date_ or today()
     rows = events.signal_events_on(db, day)
     guest = current_user(request) is None

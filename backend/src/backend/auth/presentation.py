@@ -87,9 +87,7 @@ class MeResponse(BaseModel):
 def me(request: Request, db: Session = Depends(get_db)) -> ApiResponse[MeResponse]:
     """프론트가 헤더 렌더와 로그인 유도 판단에 쓴다. 미로그인도 200으로 답한다.
 
-    **옛 세션의 내부 식별자를 여기서 채운다.** 프론트가 화면을 열 때마다 부르는 경로라
-    사용자가 아무것도 하지 않아도 다음 접속에 자동으로 메워지고, "너 누구냐"에 답하는
-    자리라 성격도 맞는다. DB는 채울 것이 있을 때만 읽는다.
+    화면을 열 때마다 부르는 경로라 **옛 세션의 내부 식별자를 여기서 채운다.**
     """
     user = current_user(request)
     if user is None:

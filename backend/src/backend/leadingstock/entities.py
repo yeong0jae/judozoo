@@ -1,8 +1,6 @@
 """시그널·스냅샷 영속 엔티티.
 
-`event_type`·`kind`는 **varchar로 고정**한다 — MySQL 네이티브 ENUM으로 두면 enum 값을 추가할 때
-`ddl-auto`가 컬럼을 고치지 않아 INSERT가 truncate로 터진다(Kotlin 쪽 주석에 남은 실제 사고).
-"""
+`event_type`·`kind`는 **varchar로 고정**한다 — MySQL 네이티브 ENUM은 값을 추가할 때 INSERT가 truncate로 터진다."""
 
 from datetime import date as date_type
 from datetime import datetime
@@ -137,10 +135,8 @@ def reversal_eok(market: Market) -> int:
 class WideLimitDay(Base):
     """그날 +30%를 넘은 적이 있는 종목 — 제한폭이 넓은 날(상장 첫날)이라는 표시.
 
-    넘은 순간 한 번 넣고, 그날 내내 순위 계산이 이 표시를 본다(`LeadingStockSnapshot.wide_limit_day`).
-    메모리로만 들고 있으면 재시작 뒤 +30% 아래로 내려와 있는 종목을 다시 알아볼 방법이 없다 —
-    키움 거래대금 순위(ka10032)에는 고가도 전일 종가도 오지 않는다.
-    """
+    넘은 순간 한 번 넣고 그날 내내 순위 계산이 본다. 키움 거래대금 순위에는 고가·전일 종가가 없어
+    재시작 뒤 다시 알아볼 방법이 없으므로 DB에 둔다."""
 
     __tablename__ = "wide_limit_day"
     __table_args__ = (UniqueConstraint("trade_date", "stock_code", name="uk_wide_limit_day"),)

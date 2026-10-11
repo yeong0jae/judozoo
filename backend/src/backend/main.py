@@ -38,10 +38,7 @@ log = logging.getLogger(__name__)
 
 
 def load_stock_catalog() -> None:
-    """기동 시 종목 카탈로그 적재 — Kotlin `ApplicationReadyEvent`에 대응.
-
-    내부가 fail-soft라 다운로드가 실패해도 DB의 직전 데이터로 떨어지고 기동은 계속된다.
-    """
+    """기동 시 종목 카탈로그 적재. 다운로드가 실패해도 DB의 직전 데이터로 떨어지고 기동은 계속된다."""
     from backend.stock.scheduler import refresh_catalog
 
     refresh_catalog()
@@ -103,10 +100,7 @@ app = FastAPI(title="주도주 매매 판단 보조 시스템", lifespan=lifespa
 async def _require_login(request: Request, call_next):
     """`/api` 기본 차단. 허용목록(auth/gate.py)에 있는 경로만 연다.
 
-    미들웨어로 두는 이유 — 엔드포인트마다 의존성을 붙이면 새로 추가할 때 빠뜨리기 쉽고,
-    빠뜨린 쪽이 **열린 채로** 남는다. 여기서는 빠뜨리면 막히므로 사고가 노출이 아니라
-    불편으로 끝난다. `/health`와 정적 경로는 `/api`가 아니라 애초에 대상이 아니다.
-    """
+    미들웨어로 두면 등록을 빠뜨려도 노출이 아니라 불편으로 끝난다."""
     user = CurrentUser.from_session(request.session.get(SESSION_KEY))
     # 로그 컨텍스트도 여기서 심는다. 미들웨어를 하나 더 두면 같은 쿠키를 두 번 푸는 셈이고,
     # 관문이 이미 사용자를 손에 쥔 자리가 여기다.
@@ -135,15 +129,11 @@ app.add_middleware(
 )
 app.state.google_redirect_uri = _settings.google.redirect_uri
 
-# 메트릭 계측. **미들웨어 등록이 끝난 뒤**에 붙여야 한다 — 나중에 등록한 것이 바깥에 서므로
-# 여기 와야 세션·인증 관문까지 포함한 전체 시간이 잡힌다.
+# 메트릭 계측. **미들웨어 등록이 끝난 뒤**에 붙여야 세션·인증 관문까지 포함한 시간이 잡힌다.
+# `/health`는 헬스체크가 10초마다 때려 빼지 않으면 히스토그램이 뒤덮인다.
 #
-# `/health`는 compose 헬스체크가 10초마다 때리는 경로다. 빼지 않으면 요청 히스토그램이
-# 헬스체크로 뒤덮여 실제 트래픽이 안 보인다.
-#
-# **`/metrics`를 지키는 건 인증이 아니라 라우팅이다.** `_require_login`은 `/api`로 시작하는
-# 경로만 막고, nginx는 `/api/`만 백엔드로 넘긴다. nginx에 `location /metrics`를 추가하는
-# 순간 인터넷에 열린다 — 그 전제가 깨지지 않게 둔다.
+# **`/metrics`를 지키는 건 인증이 아니라 라우팅이다** — nginx가 `/api/`만 넘긴다. nginx에
+# `location /metrics`를 추가하는 순간 인터넷에 열린다.
 Instrumentator(
     # 라우트에 매칭되지 않은 경로(봇의 /wp-login.php 난사)를 한 라벨로 묶는다.
     # 없으면 요청 경로 하나마다 시계열이 생겨 폭발한다.
@@ -151,10 +141,8 @@ Instrumentator(
     excluded_handlers=["/health", "/health/db", "/metrics"],
 ).instrument(app).expose(app, include_in_schema=False)
 
-# 트레이스. **lifespan이 아니라 여기여야 한다** — FastAPI 계측은 미들웨어를 더하므로
-# 앱이 뜨기 전에 붙어야 하고, 그러려면 provider가 그보다 먼저 서 있어야 한다.
-# lifespan에 두었더니 instrument_app이 "아직 안 켜졌다"고 보고 **조용히 건너뛰었다** —
-# 잡·브로커 스팬만 오고 HTTP 서버 스팬이 0건이었다.
+# 트레이스. **lifespan이 아니라 여기여야 한다** — FastAPI 계측은 앱이 뜨기 전에 붙어야 하고,
+# lifespan에 두면 instrument_app이 **조용히 건너뛴다**(HTTP 서버 스팬 0건).
 tracing.setup(_settings.otlp_endpoint, _settings.app_name, get_engine())
 
 # 메트릭과 같은 이유로 미들웨어 조립이 끝난 뒤에 붙인다.
@@ -173,17 +161,13 @@ app.include_router(closingbet_router)
 
 
 def _error(code: str, status: int) -> JSONResponse:
-    """Kotlin `ApiResponse.error`와 같은 봉투 — 프론트가 이 모양을 기대한다."""
+    """오류 봉투 — 프론트가 이 모양을 기대한다."""
     return JSONResponse(status_code=status, content={"code": code, "status": status, "data": None})
 
 
 @app.exception_handler(BrokerTokenUnavailable)
 async def handle_broker_token_unavailable(request: Request, exc: BrokerTokenUnavailable) -> JSONResponse:
-    """토큰 발급 백오프는 예상된 상태다 — 스택트레이스 없이 한 줄만 남긴다.
-
-    화면이 5초마다 폴링하므로 트레이스를 찍으면 로그가 트레이스로 뒤덮인다.
-    상태코드는 Kotlin과 같게 500으로 둔다.
-    """
+    """토큰 발급 백오프는 예상된 상태다 — 스택트레이스 없이 한 줄만 남기고 500으로 답한다."""
     log.warning("%s %s — %s", request.method, request.url.path, exc)
     return _error("INTERNAL_ERROR", 500)
 

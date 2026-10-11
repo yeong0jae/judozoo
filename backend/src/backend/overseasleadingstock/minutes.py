@@ -44,8 +44,8 @@ class _Stock:
 
 _lock = threading.Lock()
 _stocks: dict[tuple[str, str], _Stock] = {}
-#: 같은 종목을 동시에 받으면 한 번만 부른다 — 처음 열기는 KIS 12페이지 안팎이라, 인기 종목을
-#: 여럿이 동시에 열면 곧장 한도에 걸렸다. 마감 확정(`settle`)은 태우지 않는다(국내와 같은 이유).
+#: 같은 종목을 동시에 받으면 한 번만 부른다 — 처음 열기는 KIS 12페이지 안팎이다.
+#: 마감 확정(`settle`)은 태우지 않는다(국내와 같은 이유).
 _flight = SingleFlight()
 
 

@@ -1,9 +1,4 @@
-"""애플리케이션 설정.
-
-Kotlin의 `@ConfigurationProperties` + `application.yaml`에 대응한다.
-환경변수 이름은 기존 배포(`backend/.env`, Secret Manager)와 **그대로 맞춘다** —
-이관 중에는 두 백엔드가 같은 시크릿을 읽어야 하기 때문이다.
-"""
+"""애플리케이션 설정. 환경변수 이름은 배포(`backend/.env`, Secret Manager)와 그대로 맞춘다."""
 
 from functools import lru_cache
 from urllib.parse import quote

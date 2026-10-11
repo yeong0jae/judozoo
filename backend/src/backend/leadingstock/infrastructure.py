@@ -1,10 +1,7 @@
-"""주도주 쪽 테이블 — 시장 투자자 스냅샷(조회만), 지난 거래일 종목 1분봉.
+"""주도주 쪽 테이블 — 시장 투자자 스냅샷, 지난 거래일 종목 1분봉.
 
-`market_investor_snapshot`은 M5 폴러가 적재하지만, 시황분석의 세션별 수급(`market.sessions`)이
-경계 스냅샷으로 읽는다. 적재 쪽(M5 폴러)은 아직 Kotlin이 담당하므로 여기선 **조회만** 한다.
-
-`stock_minute_candle`은 지난 날 분봉 보관소(`minute_archive`)의 영속 층이다. 완성된 날만 들어온다.
-"""
+`market_investor_snapshot`은 시장 시그널 폴러가 적재하고, 시황의 세션별 수급이 경계 스냅샷으로 읽는다.
+`stock_minute_candle`은 지난 날 분봉 보관소(`minute_archive`)의 영속 층이다. 완성된 날만 들어온다."""
 
 from datetime import date as date_type
 from datetime import datetime
@@ -101,9 +98,8 @@ def latest_investor_snapshot(
 class StockMinuteCandleEntity(Base):
     """지난 거래일 종목 1분봉. **완성된 날만** 들어온다 — 하루치를 통째로 갈아 끼운다.
 
-    배포마다 메모리 보관소가 비어, 다음 날 아침 감시 풀 전체의 어제 봉을 키움에서 다시 받았다.
-    여기 두면 재시작해도 남는다. 수정주가 소급은 반영되지 않으므로 짧게 두고 지운다(`purge_minute_days_before`).
-    """
+    재시작해도 어제 봉을 키움에서 다시 받지 않게 둔다. 수정주가 소급은 반영되지 않으므로 짧게 두고
+    지운다(`purge_minute_days_before`)."""
 
     __tablename__ = "stock_minute_candle"
     __table_args__ = (
