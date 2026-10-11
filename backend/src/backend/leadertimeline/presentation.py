@@ -6,12 +6,11 @@
 from datetime import date, datetime, time
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
 from backend.leadertimeline import application
-from backend.library.db import get_db
+from backend.library.db import SessionDep
 from backend.library.web import ApiResponse
 from backend.market.calendar import Region
 
@@ -45,10 +44,10 @@ class TimelineResponse(BaseModel):
 
 @router.get("")
 def get_day(
+    db: SessionDep,
     market: Literal["kr", "us"] = Query(),
     date_: date = Query(alias="date"),
     since: str | None = Query(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$"),
-    db: Session = Depends(get_db),
 ) -> ApiResponse[TimelineResponse]:
     """`market=kr&date=2026-09-23`. 날짜·시각은 그 시장의 현지 기준 — 해외는 뉴욕.
     `since=10:59`면 그 **뒤** 분만(장중에 새 분만 받아 붙일 때)."""

@@ -5,11 +5,10 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
-from backend.library.db import get_db
+from backend.library.db import SessionDep
 from backend.library.time import today
 from backend.library.web import ApiResponse
 from backend.market import application, calendar
@@ -256,7 +255,7 @@ def kosdaq() -> ApiResponse[IndexItem]:
 
 
 @router.get("/investor/today")
-def investor_today(db: Session = Depends(get_db)) -> ApiResponse[list[TodayNetItem]]:
+def investor_today(db: SessionDep) -> ApiResponse[list[TodayNetItem]]:
     """첫 화면 "오늘의 수급" — 코스피·코스닥 현물과 두 지수선물의 당일 누적 순매수."""
     return ApiResponse.ok(
         [
@@ -342,7 +341,7 @@ def futures_quote(market: Market) -> ApiResponse[FuturesQuoteItem | None]:
 
 @router.get("/futures/{market}/investor/daily")
 def futures_investor_daily(
-    market: Market, count: int = Query(10), db: Session = Depends(get_db)
+    market: Market, db: SessionDep, count: int = Query(10)
 ) -> ApiResponse[list[FuturesInvestorDayItem]]:
     return ApiResponse.ok(
         [
@@ -354,7 +353,7 @@ def futures_investor_daily(
 
 @router.get("/futures/{market}/investor/sessions")
 def futures_investor_sessions(
-    market: Market, date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
+    market: Market, db: SessionDep, date_: date | None = Query(None, alias="date")
 ) -> ApiResponse[FuturesSessionsResponse]:
     used, sessions = application.futures_investor_sessions(db, market, date_ or today())
     return ApiResponse.ok(
@@ -399,7 +398,7 @@ def market_candles(
 
 @router.get("/{market}/investor/daily")
 def investor_daily(
-    market: Market, count: int = Query(10), db: Session = Depends(get_db)
+    market: Market, db: SessionDep, count: int = Query(10)
 ) -> ApiResponse[list[MarketInvestorDayItem]]:
     return ApiResponse.ok(
         [
@@ -418,7 +417,7 @@ def investor_daily(
 
 @router.get("/{market}/investor/sessions")
 def investor_sessions(
-    market: Market, date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
+    market: Market, db: SessionDep, date_: date | None = Query(None, alias="date")
 ) -> ApiResponse[SessionNetsResponse]:
     used, sessions = application.investor_sessions(db, market, date_ or today())
     return ApiResponse.ok(

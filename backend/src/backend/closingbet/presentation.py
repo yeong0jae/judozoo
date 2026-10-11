@@ -11,14 +11,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
-from sqlalchemy.orm import Session
 
 from backend.auth.domain import CurrentUser
 from backend.auth.presentation import current_user, require_login
 from backend.closingbet import application
 from backend.closingbet.domain import BetRejected, NicknameRejected, next_rename_at
 from backend.library.cache import ttl_cache
-from backend.library.db import get_db, get_session_factory
+from backend.library.db import SessionDep, get_session_factory
 from backend.library.time import now
 from backend.library.web import ApiResponse
 from backend.platform.kiwoom import market as kiwoom_market
@@ -76,7 +75,7 @@ class Now(_Camel):
 
 
 @router.get("/now")
-def get_now(request: Request, db: Annotated[Session, Depends(get_db)]) -> ApiResponse[Now]:
+def get_now(request: Request, db: SessionDep) -> ApiResponse[Now]:
     at = now()
     p = application.phase(at)
     stakes = application.stakes(db, p.betting) if p.betting else None
@@ -151,7 +150,7 @@ def _readings(day: date) -> dict:
 
 
 @router.get("/stocks")
-def get_stocks(request: Request, db: Annotated[Session, Depends(get_db)]) -> ApiResponse[list[StockItem]]:
+def get_stocks(request: Request, db: SessionDep) -> ApiResponse[list[StockItem]]:
     """베팅·대기 시간의 오늘 목록. 그 밖의 시간에는 빈 목록 — 복기는 `/rounds/{day}`가 맡는다."""
     p = application.phase()
     if p.betting is None:
@@ -196,7 +195,7 @@ class FeedEntry(_Camel):
 
 
 @router.get("/feed")
-def get_feed(db: Annotated[Session, Depends(get_db)], after: int = Query(0, ge=0)) -> ApiResponse[list[FeedEntry]]:
+def get_feed(db: SessionDep, after: int = Query(0, ge=0)) -> ApiResponse[list[FeedEntry]]:
     p = application.phase()
     if p.betting is None:
         return ApiResponse.ok([])
@@ -212,7 +211,7 @@ class BetRequest(BaseModel):
 def put_bet(
     body: BetRequest,
     user: Annotated[CurrentUser, Depends(require_login)],
-    db: Annotated[Session, Depends(get_db)],
+    db: SessionDep,
 ) -> ApiResponse[MyBet] | JSONResponse:
     try:
         bet = application.place(db, _require_id(user), body.code, body.amount_man, now())
@@ -227,7 +226,7 @@ def put_bet(
 @router.delete("/bet", response_model=None)
 def delete_bet(
     user: Annotated[CurrentUser, Depends(require_login)],
-    db: Annotated[Session, Depends(get_db)],
+    db: SessionDep,
 ) -> ApiResponse[None] | JSONResponse:
     try:
         application.cancel(db, _require_id(user), now())
@@ -244,7 +243,7 @@ class NicknameRequest(BaseModel):
 def put_nickname(
     body: NicknameRequest,
     user: Annotated[CurrentUser, Depends(require_login)],
-    db: Annotated[Session, Depends(get_db)],
+    db: SessionDep,
 ) -> ApiResponse[Me] | JSONResponse:
     try:
         p = application.rename(db, _require_id(user), body.nickname, now())
@@ -315,7 +314,7 @@ class Round(_Camel):
 
 
 @router.get("/rounds/{day}")
-def get_round(day: date, request: Request, db: Annotated[Session, Depends(get_db)]) -> ApiResponse[Round]:
+def get_round(day: date, request: Request, db: SessionDep) -> ApiResponse[Round]:
     round_ = application.bet_round(db, day)
     if round_ is None:
         raise HTTPException(status_code=404, detail="NOT_FOUND")

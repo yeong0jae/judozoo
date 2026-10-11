@@ -2,13 +2,12 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
 from backend.leadercalendar import application
 from backend.leadercalendar.application import RecordedDay
-from backend.library.db import get_db
+from backend.library.db import SessionDep
 from backend.library.web import ApiResponse
 
 router = APIRouter(prefix="/api/leader-calendar")
@@ -43,8 +42,8 @@ class LeaderCalendarResponse(BaseModel):
 
 @router.get("")
 def get_month(
+    db: SessionDep,
     month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
-    db: Session = Depends(get_db),
 ) -> ApiResponse[LeaderCalendarResponse]:
     """`month=2026-09`. 해외는 그달 1일 직전 평일부터 온다."""
     year, mon = (int(v) for v in month.split("-"))

@@ -5,12 +5,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, StringConstraints
-from sqlalchemy.orm import Session
 
 from backend.auth.domain import CurrentUser
 from backend.auth.presentation import require_login
 from backend.feedback import application
-from backend.library.db import get_db
+from backend.library.db import SessionDep
 from backend.library.web import ApiResponse
 
 router = APIRouter()
@@ -26,7 +25,7 @@ class FeedbackRequest(BaseModel):
 def send_feedback(
     body: FeedbackRequest,
     user: Annotated[CurrentUser, Depends(require_login)],
-    db: Annotated[Session, Depends(get_db)],
+    db: SessionDep,
 ) -> ApiResponse[None]:
     """관문이 이미 막지만 보낸 사람이 필요해 의존성으로 한 번 더 받는다."""
     application.receive(db, user, body.content, datetime.now())

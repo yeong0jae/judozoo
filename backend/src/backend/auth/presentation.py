@@ -6,12 +6,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from backend.auth import application
 from backend.auth.domain import SESSION_KEY, CurrentUser
-from backend.library.db import get_db
+from backend.library.db import SessionDep
 from backend.library.web import ApiResponse
 
 log = logging.getLogger(__name__)
@@ -43,7 +42,7 @@ async def login(request: Request):
 
 
 @router.get("/callback")
-async def callback(request: Request, db: Session = Depends(get_db)):
+async def callback(request: Request, db: SessionDep):
     try:
         token = await application.google_client().authorize_access_token(request)
     except Exception:
@@ -70,7 +69,7 @@ def logout(request: Request) -> ApiResponse[None]:
 
 @router.post("/withdraw")
 def withdraw(
-    request: Request, user: CurrentUser = Depends(require_login), db: Session = Depends(get_db)
+    request: Request, db: SessionDep, user: CurrentUser = Depends(require_login)
 ) -> ApiResponse[None]:
     """`/api/auth/*`는 관문 허용목록이라 로그인 확인을 여기서 직접 건다."""
     application.withdraw(db, user)
@@ -84,7 +83,7 @@ class MeResponse(BaseModel):
 
 
 @router.get("/me")
-def me(request: Request, db: Session = Depends(get_db)) -> ApiResponse[MeResponse]:
+def me(request: Request, db: SessionDep) -> ApiResponse[MeResponse]:
     """프론트가 헤더 렌더와 로그인 유도 판단에 쓴다. 미로그인도 200으로 답한다.
 
     화면을 열 때마다 부르는 경로라 **옛 세션의 내부 식별자를 여기서 채운다.**

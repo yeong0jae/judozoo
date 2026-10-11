@@ -1,7 +1,9 @@
 """SQLAlchemy 엔진 / 세션."""
 
 from collections.abc import Iterator
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -38,6 +40,10 @@ def get_db() -> Iterator[Session]:
     """FastAPI 의존성. 요청 하나당 세션 하나."""
     with get_session_factory()() as session:
         yield session
+
+
+#: 라우트 인자에 `db: SessionDep`으로 받는다.
+SessionDep = Annotated[Session, Depends(get_db)]
 
 
 def reset() -> None:

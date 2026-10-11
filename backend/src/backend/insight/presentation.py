@@ -8,13 +8,12 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
 from backend.auth.presentation import current_user
 from backend.insight import application
-from backend.library.db import get_db
+from backend.library.db import SessionDep
 from backend.library.time import now
 from backend.library.web import ApiResponse
 from backend.market.calendar import Region
@@ -48,8 +47,8 @@ class StockReasonItem(BaseModel):
 @router.get("/reasons")
 def get_reasons(
     request: Request,
+    db: SessionDep,
     market: Literal["kr", "us"] = Query(),
-    db: Session = Depends(get_db),
 ) -> ApiResponse[list[StockReasonItem]]:
     member = current_user(request) is not None
     rows = application.reasons(db, _REGIONS[market], now())

@@ -2,16 +2,15 @@
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
 from backend.auth.presentation import current_user
 from backend.leadingstock import application, events
 from backend.leadingstock.entities import step_eok
 from backend.leadingstock.infrastructure import investor_snapshot_at, latest_investor_snapshot
 from backend.leadingstock.signals import MarketSignalType
-from backend.library.db import get_db
+from backend.library.db import SessionDep
 from backend.library.time import now, today
 from backend.library.web import ApiResponse
 from backend.settings import get_settings
@@ -289,8 +288,8 @@ RADAR_NEAR_RATE = 3.0
 @router.get("/signal-events")
 def get_signal_events(
     request: Request,
+    db: SessionDep,
     date_: date | None = Query(None, alias="date"),
-    db: Session = Depends(get_db),
 ) -> ApiResponse[SignalEventsResponse]:
     """그날 발생한 시그널 전이를 최신순으로.
 
@@ -321,8 +320,8 @@ def get_signal_events(
 
 @router.get("/market-signal-events")
 def get_market_signal_events(
+    db: SessionDep,
     date_: date | None = Query(None, alias="date"),
-    db: Session = Depends(get_db),
 ) -> ApiResponse[MarketSignalEventsResponse]:
     """투자자 순매수 단계·흐름 전환 + 지수 반등·꺾임. 실시간 로그가 종목 시그널과 합쳐 보여준다."""
     day = date_ or today()
@@ -341,7 +340,7 @@ def get_market_signal_events(
 
 @router.get("/market/investor-net-buy")
 def get_market_investor_net_buy(
-    at: datetime | None = Query(None), db: Session = Depends(get_db)
+    db: SessionDep, at: datetime | None = Query(None)
 ) -> ApiResponse[list[MarketInvestorNetBuyItem]]:
     """`at` 지정 시 그 시각 이하 가장 가까운 스냅샷(시그널 발생 시점 값), 미지정 시 가장 최근 스냅샷.
 
@@ -370,7 +369,7 @@ def get_market_investor_net_buy(
 
 @router.get("/index/{market}/minute-candles")
 def get_index_minute_candles(
-    market: str, date_: date | None = Query(None, alias="date"), db: Session = Depends(get_db)
+    market: str, db: SessionDep, date_: date | None = Query(None, alias="date")
 ) -> ApiResponse[list[IndexMinuteCandleItem]]:
     """실시간 로그에서 지수 행 선택 시 우측 차트용. 기준일 포함 직전 거래일까지 2거래일치."""
     day = date_ or today()
