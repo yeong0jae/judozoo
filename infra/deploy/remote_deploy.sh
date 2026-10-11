@@ -75,6 +75,10 @@ COMPOSE_ENV=(
 sudo docker image prune -af
 
 sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+# 스키마를 먼저 맞추고 컨테이너를 바꾼다. 새 코드가 아직 없는 열을 읽으면 그 경로가 실패하기 때문이다.
+# 새 이미지로 한 번 돌고 사라지는 컨테이너다. 실패하면 set -e로 여기서 멈추고, 떠 있던 옛 컨테이너는 그대로 남는다.
+# 새 열은 NULL 허용으로 먼저 더한다 — 이 순간에도 옛 코드가 돌고 있다.
+sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --no-deps backend alembic upgrade head
 # **alloy를 무조건 재생성하지 않는다.** 예전에는 deploy.yml이 `rm -rf ~/observability` 후
 # 재-scp해서 inode가 교체됐고, 재사용된 컨테이너가 사라진 inode를 가리켜 설정이 빈 것처럼
 # 보였다. 지금은 rm 대신 소유권만 고쳐 inode를 보존하고, config.alloy가 실제로 바뀔 때만

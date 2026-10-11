@@ -14,6 +14,15 @@ uv run uvicorn backend.main:app --app-dir src --reload --port 8000
 
 DB 접속 정보 등은 `secrets/.env`(리포 루트)에서 읽는다.
 
+앱은 테이블을 만들지 않는다. 처음 띄우기 전과 마이그레이션을 받은 뒤에 한 번씩 올린다.
+
+```bash
+uv run alembic upgrade head                                  # 스키마를 최신으로
+uv run alembic revision --autogenerate -m "무엇을 바꾸는가"     # 모델을 고친 뒤 초안 생성 → 검토
+```
+
+규칙은 [`docs/spec.md`](../docs/spec.md) §4.6.
+
 ## 테스트
 
 ```bash

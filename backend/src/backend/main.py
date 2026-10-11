@@ -14,7 +14,6 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.library.db import get_engine
 from backend.library.exception import BrokerTokenUnavailable, EntityNotFoundError
-from backend.library import token_store
 from backend.library.logging_config import bind_request, bind_user, configure_logging
 from backend.library import metrics
 from backend.library import tracing
@@ -49,43 +48,6 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.debug_package, log_format=settings.log_format)
     log.info("기동 — DB %s:%s/%s", settings.database.host, settings.database.port, settings.database.name)
-    # 브로커 토큰 저장소 — 재기동이 발급을 소비하지 않게 한다. 카탈로그 적재보다 먼저 와야
-    # 한다(적재가 KIS를 쓴다). 실패해도 fail-soft라 기동을 막지 않는다.
-    token_store.create_table()
-    # 가입자·의견 테이블. DB가 잠깐 죽어도 기동은 막지 않는다 — token_store와 같은 fail-soft.
-    # 실패하면 로그인 콜백과 의견 접수만 실패하고 공개 화면은 계속 뜬다.
-    from backend.auth.domain import AppUser
-    from backend.feedback.domain import Feedback
-    from backend.leadercalendar.entities import LeaderDay, LeaderDayStock
-    from backend.leadertimeline.entities import LeaderTick, LeaderTickStock
-    from backend.leadingstock.entities import WideLimitDay
-    from backend.leadingstock.infrastructure import StockMinuteCandleEntity
-    from backend.overseasleadingstock.infrastructure import OverseasMinuteCandleEntity
-    from backend.insight.entities import StockReason
-    from backend.closingbet.entities import BetPlayer, BetRound, BetRoundStock, ClosingBet, ClosingBetEvent
-    from backend.market.domain import FuturesMinuteDay, IndexMinuteDay, YahooMinuteDay
-
-    try:
-        AppUser.__table__.create(get_engine(), checkfirst=True)
-        Feedback.__table__.create(get_engine(), checkfirst=True)
-        LeaderDay.__table__.create(get_engine(), checkfirst=True)
-        LeaderDayStock.__table__.create(get_engine(), checkfirst=True)
-        LeaderTick.__table__.create(get_engine(), checkfirst=True)
-        LeaderTickStock.__table__.create(get_engine(), checkfirst=True)
-        StockMinuteCandleEntity.__table__.create(get_engine(), checkfirst=True)
-        OverseasMinuteCandleEntity.__table__.create(get_engine(), checkfirst=True)
-        WideLimitDay.__table__.create(get_engine(), checkfirst=True)
-        StockReason.__table__.create(get_engine(), checkfirst=True)
-        BetPlayer.__table__.create(get_engine(), checkfirst=True)
-        ClosingBet.__table__.create(get_engine(), checkfirst=True)
-        ClosingBetEvent.__table__.create(get_engine(), checkfirst=True)
-        BetRound.__table__.create(get_engine(), checkfirst=True)
-        BetRoundStock.__table__.create(get_engine(), checkfirst=True)
-        IndexMinuteDay.__table__.create(get_engine(), checkfirst=True)
-        FuturesMinuteDay.__table__.create(get_engine(), checkfirst=True)
-        YahooMinuteDay.__table__.create(get_engine(), checkfirst=True)
-    except Exception:
-        log.warning("가입자·의견·주도주 캘린더·타임라인·지난 날 분봉·종가베팅 테이블 생성 실패 — 그 기록 없이 동작한다", exc_info=True)
     load_stock_catalog()
     start_scheduler()
     # 스레드풀 계측. **여기여야 한다** — anyio 스레드풀은 실행 중인 이벤트 루프에 매여 있어

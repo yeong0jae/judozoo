@@ -13,7 +13,7 @@ from sqlalchemy import BigInteger, DateTime, String, Text, select
 
 from sqlalchemy.orm import Mapped, mapped_column
 
-from backend.library.db import Base, get_engine, get_session_factory
+from backend.library.db import Base, get_session_factory
 
 log = logging.getLogger(__name__)
 
@@ -34,14 +34,6 @@ class BrokerToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-
-def create_table() -> None:
-    """이 테이블만 만든다 — `checkfirst`로 존재하면 넘어간다."""
-    try:
-        BrokerToken.__table__.create(get_engine(), checkfirst=True)
-    except Exception:
-        log.warning("broker_token 테이블 생성 실패 — 토큰 영속화 없이 동작한다", exc_info=True)
 
 
 def load(provider: str) -> tuple[str, datetime] | None:

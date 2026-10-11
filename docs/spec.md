@@ -164,9 +164,14 @@ Backend (Python + FastAPI, package by feature)
 
 ### 4.6 스키마 관리
 
-- 017 이후 추가된 테이블(`app_user`, `feedback`, `broker_token`, `leader_*`, `stock_minute_candle`, `overseas_minute_candle`, `wide_limit_day`)은 기동 시 `create(checkfirst=True)`로 만든다. 실패해도 기동은 막지 않는다 — 그 기능만 실패하고 공개 화면은 뜬다
-- 그 밖의 테이블은 이미 존재하고 앱이 DDL을 만들지 않는다
-- 컬럼 변경·DROP은 `backend/migration/VNNN__*.sql`로 두고 각 환경에 수동 적용한다 (현재 `V010`까지)
+- 스키마는 **Alembic**이 관리한다 (`backend/alembic.ini`, `backend/migrations/versions/`). 앱은 기동할 때 DDL을 만들지 않는다
+- 바꾸는 순서: 모델 수정 → `uv run alembic revision --autogenerate -m "..."` → 생성된 파일 검토 → 커밋
+  - autogenerate는 초안이다. **이름 변경을 DROP + ADD로 만든다** — 그대로 두면 데이터가 사라진다. 데이터 이관도 만들지 않는다
+  - 모델에 없는 DB 테이블은 비교에서 뺀다(`env.py`의 `include_object`). 테이블을 지울 때는 손으로 쓴다
+- 적용은 배포가 한다. `remote_deploy.sh`가 컨테이너를 바꾸기 **직전에** 새 이미지로 `alembic upgrade head`를 돌린다. 실패하면 배포가 멈추고 옛 컨테이너가 그대로 돈다
+- 그 순간에도 옛 코드가 돌고 있으므로 **새 열은 NULL 허용으로 먼저 더한다**(expand). NOT NULL·DROP은 옛 코드가 사라진 다음 배포에서 한다(contract)
+- 첫 마이그레이션(기준선)은 이미 있는 테이블을 건너뛴다. 도입 전 운영 DB(Kotlin JPA, 기동 시 `checkfirst`, 옛 `V001~V010` 수동 SQL)에 기록만 남기기 위해서다. 되돌리기는 막아 두었다
+- `tests/migrations`가 빈 DB에 최신까지 올린 뒤 `alembic check`로 모델과 어긋나지 않는지 본다
 
 ---
 

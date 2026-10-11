@@ -21,7 +21,7 @@ TOSS_TOKEN_URL = "https://openapi.tossinvest.com/oauth2/token"
 
 @pytest.fixture
 def 빈_토큰_테이블(통합_db):
-    token_store.create_table()
+    token_store.BrokerToken.__table__.create(db.get_engine(), checkfirst=True)
     with db.get_session_factory()() as s:
         s.query(token_store.BrokerToken).delete()
         s.commit()
@@ -88,10 +88,6 @@ class Test저장소:
 
     def test_없는_브로커를_지워도_터지지_않는다(self, 빈_토큰_테이블):
         token_store.clear("KIWOOM")  # 예외 없이 통과해야 한다
-
-    def test_테이블_생성은_멱등이다(self, 빈_토큰_테이블):
-        token_store.create_table()
-        token_store.create_table()
 
 
 class TestDB가_없을_때:

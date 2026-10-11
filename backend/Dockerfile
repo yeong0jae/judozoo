@@ -19,6 +19,9 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 COPY --from=build /app/.venv ./.venv
 COPY src ./src
+# 배포 스크립트가 컨테이너 교체 직전에 `alembic upgrade head`를 이 이미지로 돌린다.
+COPY alembic.ini ./
+COPY migrations ./migrations
 
 EXPOSE 8000
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "src"]
