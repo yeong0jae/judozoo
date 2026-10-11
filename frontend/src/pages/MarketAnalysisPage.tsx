@@ -61,7 +61,7 @@ function DelayBadge() {
 }
 
 /** 지수·수급 — 왼쪽 지수 목록(모바일은 가로 칩) + 오른쪽 선택 지수 상세. */
-function ClosingBetPageInner({ ix, authenticated }: { ix: IndexInfo; authenticated: boolean }) {
+function MarketAnalysisPageInner({ ix, authenticated }: { ix: IndexInfo; authenticated: boolean }) {
   const [params] = useSearchParams();
   const macro = MACRO_ITEMS.find((m) => m.key === params.get("t")) ?? MACRO_ITEMS[0];
   const groups = useIndexGroups(ix.slug, macro.key);
@@ -1310,5 +1310,5 @@ export default function MarketAnalysisPage() {
   const ix = INDICES.find((i) => i.slug === slug);
   if (!ix) return <Navigate to={`/market-analysis/${loadLastSlug()}`} replace />;
 
-  return <ClosingBetPageInner ix={ix} authenticated={!!me?.authenticated} />;
+  return <MarketAnalysisPageInner ix={ix} authenticated={!!me?.authenticated} />;
 }
