@@ -21,17 +21,10 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def 담긴_값(user_id: int | None) -> dict:
-    raw = {"sub": "test-sub", "email": "tester@example.com"}
-    if user_id is not None:
-        raw["id"] = user_id
-    return raw
-
-
-def 세션_쿠키(user_id: int | None = 7) -> str:
+def 세션_쿠키(user_id: int = 7, **더_담을_값) -> str:
     """서명된 세션 쿠키 값. 구글을 실제로 다녀오지 않고 관문만 통과시킨다.
 
-    `user_id=None`이면 대체 키(V006) 이전에 발급된 **옛 세션**이 된다.
+    `더_담을_값`으로 옛 모양의 쿠키(구글 `sub`이 실린 것)를 만든다.
     """
     import base64
     import json
@@ -41,7 +34,7 @@ def 세션_쿠키(user_id: int | None = 7) -> str:
     from backend.auth.domain import SESSION_KEY
 
     payload = base64.b64encode(
-        json.dumps({SESSION_KEY: 담긴_값(user_id)}).encode()
+        json.dumps({SESSION_KEY: {"id": user_id, "email": "tester@example.com", **더_담을_값}}).encode()
     )
     return TimestampSigner(get_settings().session_secret).sign(payload).decode()
 

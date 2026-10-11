@@ -34,12 +34,6 @@ def _member_id(request: Request) -> int | None:
     return user.id if user else None
 
 
-def _require_id(user: CurrentUser) -> int:
-    if user.id is None:  # 로그인 전에 발급된 옛 세션 — 다시 로그인하면 채워진다
-        raise HTTPException(status_code=401, detail="UNAUTHORIZED")
-    return user.id
-
-
 def _rejected(code: str, exc: Exception) -> JSONResponse:
     """거절 이유는 화면에 그대로 보여 줄 문장이다 — 봉투 모양은 그대로, `data.message`에 싣는다."""
     return JSONResponse(status_code=409, content={"code": code, "status": 409, "data": {"message": str(exc)}})
@@ -214,7 +208,7 @@ def put_bet(
     db: SessionDep,
 ) -> ApiResponse[MyBet] | JSONResponse:
     try:
-        bet = application.place(db, _require_id(user), body.code, body.amount_man, now())
+        bet = application.place(db, user.id, body.code, body.amount_man, now())
     except BetRejected as exc:
         return _rejected("BET_REJECTED", exc)
     return ApiResponse.ok(MyBet(
@@ -229,7 +223,7 @@ def delete_bet(
     db: SessionDep,
 ) -> ApiResponse[None] | JSONResponse:
     try:
-        application.cancel(db, _require_id(user), now())
+        application.cancel(db, user.id, now())
     except BetRejected as exc:
         return _rejected("BET_REJECTED", exc)
     return ApiResponse.ok(None)
@@ -246,7 +240,7 @@ def put_nickname(
     db: SessionDep,
 ) -> ApiResponse[Me] | JSONResponse:
     try:
-        p = application.rename(db, _require_id(user), body.nickname, now())
+        p = application.rename(db, user.id, body.nickname, now())
     except NicknameRejected as exc:
         return _rejected("NICKNAME_REJECTED", exc)
     return ApiResponse.ok(Me(nickname=p.nickname, next_rename_at=next_rename_at(p.renamed_at), bet=None))

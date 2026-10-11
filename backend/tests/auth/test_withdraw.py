@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from backend.auth import application
-from backend.auth.domain import AppUser, CurrentUser
+from backend.auth.domain import AppUser, CurrentUser, GoogleAccount
 from backend.feedback.domain import Feedback
 from backend.library import db
 
@@ -44,7 +44,7 @@ def 빈_테이블(통합_db):
 
 
 def 가입(sub: str) -> CurrentUser:
-    return application.record_login(db.get_session_factory()(), CurrentUser(google_sub=sub, email=f"{sub}@example.com"), 때)
+    return application.record_login(db.get_session_factory()(), GoogleAccount(sub=sub, email=f"{sub}@example.com"), 때)
 
 
 def 의견(user: CurrentUser, content: str) -> None:
@@ -76,14 +76,6 @@ class Test탈퇴:
         with db.get_session_factory()() as s:
             assert [u.google_sub for u in s.query(AppUser)] == ["222"]
             assert [f.content for f in s.query(Feedback)] == ["남의 의견"]
-
-    def test_내부_식별자가_없는_옛_세션도_탈퇴된다(self, 빈_테이블):
-        가입("111")
-
-        application.withdraw(db.get_session_factory()(), CurrentUser(google_sub="111", email="111@example.com"))
-
-        with db.get_session_factory()() as s:
-            assert s.query(AppUser).count() == 0
 
     def test_이미_탈퇴했으면_아무_일도_없다(self, 빈_테이블):
         나 = 가입("111")

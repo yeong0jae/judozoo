@@ -50,13 +50,13 @@ async def callback(request: Request, db: SessionDep):
         log.warning("구글 콜백 처리 실패", exc_info=True)
         return RedirectResponse("/?login=failed", status_code=302)
 
-    user = application.user_from_token(token)
-    if user is None:
+    account = application.account_from_token(token)
+    if account is None:
         return RedirectResponse("/?login=failed", status_code=302)
 
-    # 내부 식별자가 채워진 사용자를 담는다 — 이후 요청의 로그가 이 값을 쓴다.
+    # 구글 계정이 아니라 내부 식별자로 된 사용자를 담는다 — 이후 요청의 로그가 이 값을 쓴다.
     # 동기 세션이라 이벤트 루프에서 바로 부르면 쿼리 동안 다른 요청이 전부 멈춘다.
-    recorded = await run_in_threadpool(application.record_login, db, user, datetime.now())
+    recorded = await run_in_threadpool(application.record_login, db, account, datetime.now())
     request.session[SESSION_KEY] = recorded.to_session()
     return RedirectResponse("/", status_code=302)
 
@@ -83,16 +83,9 @@ class MeResponse(BaseModel):
 
 
 @router.get("/me")
-def me(request: Request, db: SessionDep) -> ApiResponse[MeResponse]:
-    """프론트가 헤더 렌더와 로그인 유도 판단에 쓴다. 미로그인도 200으로 답한다.
-
-    화면을 열 때마다 부르는 경로라 **옛 세션의 내부 식별자를 여기서 채운다.**
-    """
+def me(request: Request) -> ApiResponse[MeResponse]:
+    """프론트가 헤더 렌더와 로그인 유도 판단에 쓴다. 미로그인도 200으로 답한다."""
     user = current_user(request)
     if user is None:
         return ApiResponse.ok(MeResponse(authenticated=False))
-    if user.id is None:
-        user = application.with_internal_id(db, user)
-        # 세션을 건드리면 SessionMiddleware가 쿠키를 다시 내려보낸다.
-        request.session[SESSION_KEY] = user.to_session()
     return ApiResponse.ok(MeResponse(authenticated=True, email=user.email))

@@ -95,7 +95,7 @@ class Test알림_질의:
     """
 
     def test_방금_들어온_의견을_문구에_필요한_모양으로_돌려준다(self, 빈_의견_테이블):
-        보낸이 = CurrentUser(google_sub="sub", email="a@example.com", id=7)
+        보낸이 = CurrentUser(id=7, email="a@example.com")
         with db.get_session_factory()() as 세션:
             application.receive(세션, 보낸이, "차트가\n느려요", datetime.now())
 
@@ -109,6 +109,6 @@ class Test알림_질의:
     def test_열흘_전_의견은_다시_알리지_않는다(self, 빈_의견_테이블):
         """창이 10분이다 — 지난 것이 섞여 오면 매분 같은 알림이 울린다."""
         with db.get_session_factory()() as 세션:
-            application.receive(세션, CurrentUser("sub", "a@example.com", 7), "옛날 의견", datetime(2026, 9, 9, 10, 0))
+            application.receive(세션, CurrentUser(7, "a@example.com"), "옛날 의견", datetime(2026, 9, 9, 10, 0))
 
             assert 세션.execute(text(알림_질의())).mappings().all() == []

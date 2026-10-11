@@ -10,7 +10,7 @@ from datetime import datetime
 import pytest
 
 from backend.auth import application
-from backend.auth.domain import AppUser, CurrentUser
+from backend.auth.domain import AppUser, GoogleAccount
 from backend.library import db
 
 pytestmark = pytest.mark.integration
@@ -25,8 +25,8 @@ def 빈_가입자_테이블(통합_db):
     yield
 
 
-def 구글_사용자(sub="108111111111111111111", email="a@example.com") -> CurrentUser:
-    return CurrentUser(google_sub=sub, email=email)
+def 구글_사용자(sub="108111111111111111111", email="a@example.com") -> GoogleAccount:
+    return GoogleAccount(sub=sub, email=email)
 
 
 class Test첫_로그인:
@@ -36,7 +36,7 @@ class Test첫_로그인:
         )
 
         assert 기록된.id is not None
-        assert 기록된.google_sub == "108111111111111111111"
+        assert 기록된.email == "a@example.com"
 
     def test_사람마다_다른_식별자를_받는다(self, 빈_가입자_테이블):
         세션 = db.get_session_factory()()
@@ -73,21 +73,3 @@ class Test재방문:
 
         assert 세션.query(AppUser).one().email == "new@example.com"
 
-
-class Test옛_세션_메우기:
-    """다시 로그인하지 않아도 내부 식별자를 되찾아 준다."""
-
-    def test_가입_기록에서_식별자를_찾아_채운다(self, 빈_가입자_테이블):
-        세션 = db.get_session_factory()()
-        가입 = application.record_login(세션, 구글_사용자(), datetime(2026, 9, 18, 20, 0))
-        옛_세션의_사용자 = CurrentUser(google_sub=가입.google_sub, email=가입.email)
-
-        메워진 = application.with_internal_id(세션, 옛_세션의_사용자)
-
-        assert 메워진.id == 가입.id
-
-    def test_가입_기록이_없으면_그대로_돌려준다(self, 빈_가입자_테이블):
-        """탈퇴했거나 기록이 지워진 경우. 로그인 상태를 깨뜨리지는 않는다."""
-        낯선_사용자 = CurrentUser(google_sub="없는-사람", email="x@example.com")
-
-        assert application.with_internal_id(db.get_session_factory()(), 낯선_사용자).id is None

@@ -63,7 +63,12 @@ async def _require_login(request: Request, call_next):
     """`/api` 기본 차단. 허용목록(auth/gate.py)에 있는 경로만 연다.
 
     미들웨어로 두면 등록을 빠뜨려도 노출이 아니라 불편으로 끝난다."""
-    user = CurrentUser.from_session(request.session.get(SESSION_KEY))
+    raw = request.session.get(SESSION_KEY)
+    user = CurrentUser.from_session(raw)
+    # 구글 `sub`이 실린 옛 쿠키를 지금 모양으로 다시 쓴다. Starlette는 세션이 바뀔 때만
+    # 쿠키를 내려보내서, 두면 그 사람이 다시 로그인할 때까지 `sub`이 실려 다닌다.
+    if user is not None and raw != user.to_session():
+        request.session[SESSION_KEY] = user.to_session()
     # 로그 컨텍스트도 여기서 심는다. 미들웨어를 하나 더 두면 같은 쿠키를 두 번 푸는 셈이고,
     # 관문이 이미 사용자를 손에 쥔 자리가 여기다.
     bind_user(user.id if user else None)

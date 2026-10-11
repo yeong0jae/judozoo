@@ -5,22 +5,21 @@ from backend.auth.domain import SESSION_KEY, CurrentUser
 
 class Test세션_복원:
     def test_담아둔_값에서_사용자를_되살린다(self):
-        원본 = CurrentUser(google_sub="1234", email="a@b.com")
+        원본 = CurrentUser(id=7, email="a@b.com")
 
-        복원 = CurrentUser.from_session(원본.to_session())
-
-        assert 복원 == 원본
+        assert CurrentUser.from_session(원본.to_session()) == 원본
 
     def test_세션이_비어_있으면_사용자가_없다(self):
         assert CurrentUser.from_session(None) is None
 
     def test_모양이_다른_값은_사용자로_치지_않는다(self):
         assert CurrentUser.from_session("문자열") is None
-        assert CurrentUser.from_session({"sub": "1234"}) is None
+        assert CurrentUser.from_session({"id": 7}) is None
         assert CurrentUser.from_session({"email": "a@b.com"}) is None
 
-    def test_식별자가_비면_사용자로_치지_않는다(self):
-        assert CurrentUser.from_session({"sub": "", "email": "a@b.com"}) is None
+    def test_식별자가_숫자가_아니면_사용자로_치지_않는다(self):
+        assert CurrentUser.from_session({"id": "일곱", "email": "a@b.com"}) is None
+        assert CurrentUser.from_session({"id": True, "email": "a@b.com"}) is None
 
 
 class Test로그인_상태_조회:
@@ -67,65 +66,48 @@ class Test여정_추적:
         심기.assert_called_with(None)
 
 
-class Test내부_식별자:
-    """로그에 담는 것은 구글 계정 식별자가 아니라 이 시스템이 발급한 id다."""
+def 쿠키에_담긴_사용자(set_cookie: str) -> dict:
+    """응답이 내려보낸 세션 쿠키를 풀어 본다. 서명은 SessionMiddleware가 검증하므로 여기선 내용만 본다."""
+    import base64
+    import json
 
-    def test_세션을_오가며_식별자가_보존된다(self):
-        원본 = CurrentUser(google_sub="1234", email="a@b.com", id=7)
-
-        assert CurrentUser.from_session(원본.to_session()) == 원본
-
-    def test_식별자가_없는_옛_세션도_사용자로_친다(self):
-        """로그인은 계속 되게 두고, 로그에만 사용자가 안 실린다. 다시 로그인하면 채워진다."""
-        복원 = CurrentUser.from_session({"sub": "1234", "email": "a@b.com"})
-
-        assert 복원 is not None
-        assert 복원.id is None
-
-    def test_식별자가_숫자가_아니면_없는_것으로_친다(self):
-        복원 = CurrentUser.from_session({"sub": "1234", "email": "a@b.com", "id": "일곱"})
-
-        assert 복원 is not None and 복원.id is None
+    value = set_cookie.split(";", 1)[0].split("=", 1)[1]
+    payload = value.rsplit(".", 2)[0]  # itsdangerous: 내용.시각.서명
+    return json.loads(base64.b64decode(payload))[SESSION_KEY]
 
 
-class Test옛_세션_메우기:
-    """대체 키(V006) 이전에 발급된 세션에는 내부 식별자가 없다.
+class Test구글_계정_식별자를_쿠키에_싣지_않는다:
+    """쿠키는 서명만 되고 암호화되지 않는다. 모든 앱에 같은 구글 `sub`이 요청마다 실려 다니면 안 된다."""
 
-    다시 로그인하라고 요구하지 않고, 프론트가 화면마다 부르는 /me에서 조용히 채운다.
-    """
+    def test_세션에_담는_값에_구글_식별자가_없다(self):
+        assert CurrentUser(id=7, email="a@b.com").to_session() == {"id": 7, "email": "a@b.com"}
 
-    def 옛_세션_client(self, client):
+    def test_옛_쿠키는_다음_요청에서_구글_식별자를_지운다(self, client):
         from tests.conftest import 세션_쿠키
 
-        client.cookies.set("judozoo_session", 세션_쿠키(user_id=None))
-        return client
+        client.cookies.set("judozoo_session", 세션_쿠키(sub="test-sub"))
 
-    def test_식별자가_없으면_채워_넣는다(self, client, mocker):
-        메우기 = mocker.patch(
-            "backend.auth.application.with_internal_id",
-            return_value=CurrentUser(google_sub="test-sub", email="tester@example.com", id=3),
-        )
+        res = client.get("/api/auth/me")
 
-        res = self.옛_세션_client(client).get("/api/auth/me")
-
-        assert res.status_code == 200
         assert res.json()["data"]["authenticated"] is True
-        assert 메우기.call_count == 1
+        assert 쿠키에_담긴_사용자(res.headers["set-cookie"]) == {"id": 7, "email": "tester@example.com"}
 
-    def test_채운_값이_쿠키로_되돌아간다(self, client, mocker):
-        """되돌아가지 않으면 요청마다 DB를 다시 읽는다."""
-        mocker.patch(
-            "backend.auth.application.with_internal_id",
-            return_value=CurrentUser(google_sub="test-sub", email="tester@example.com", id=3),
-        )
+    def test_지금_모양의_쿠키는_다시_내려보내지_않는다(self, 로그인_client):
+        """다시 쓸 이유가 없는 요청마다 쿠키를 내려보내면 응답이 쓸데없이 커진다."""
+        res = 로그인_client.get("/api/auth/me")
 
-        res = self.옛_세션_client(client).get("/api/auth/me")
+        assert "set-cookie" not in res.headers
 
-        assert "judozoo_session" in res.headers.get("set-cookie", "")
+    def test_내부_식별자가_없는_옛_세션은_로그인이_풀린다(self, client):
+        """대체 키(V006) 이전 쿠키다. 14일 수명이 지나 이제 남아 있지 않다고 보고, 다시 로그인하게 한다."""
+        import base64
+        import json
 
-    def test_이미_있으면_DB를_보지_않는다(self, 로그인_client, mocker):
-        메우기 = mocker.patch("backend.auth.application.with_internal_id")
+        from itsdangerous import TimestampSigner
 
-        로그인_client.get("/api/auth/me")
+        from backend.settings import get_settings
 
-        메우기.assert_not_called()
+        payload = base64.b64encode(json.dumps({SESSION_KEY: {"sub": "test-sub", "email": "a@b.com"}}).encode())
+        client.cookies.set("judozoo_session", TimestampSigner(get_settings().session_secret).sign(payload).decode())
+
+        assert client.get("/api/auth/me").json()["data"]["authenticated"] is False

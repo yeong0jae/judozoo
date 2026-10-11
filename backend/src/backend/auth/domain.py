@@ -12,36 +12,36 @@ SESSION_KEY = "user"
 
 
 @dataclass(frozen=True)
+class GoogleAccount:
+    """구글이 확인해 준 계정. 로그인 콜백 안에서만 쓰고 세션에는 담지 않는다."""
+
+    sub: str
+    email: str
+
+
+@dataclass(frozen=True)
 class CurrentUser:
     """세션 쿠키에 담기는 최소 정보.
 
-    `id`는 로그인 직후 DB에서 채운다 — 요청마다 로그에 실으려면 여기 있어야 한다.
-    구글에서 막 받아온 상태와 옛 세션에는 아직 없어 **없는 것을 허용한다.**
+    **구글 `sub`은 담지 않는다.** 쿠키는 서명만 되고 암호화되지 않아 누구나 읽을 수 있고,
+    요청마다 실려 다닌다. 사람을 가리키는 값은 이 시스템이 발급한 `id`면 충분하다.
     """
 
-    google_sub: str
+    id: int
     email: str
-    id: int | None = None
 
     def to_session(self) -> dict[str, object]:
-        raw: dict[str, object] = {"sub": self.google_sub, "email": self.email}
-        if self.id is not None:
-            raw["id"] = self.id
-        return raw
+        return {"id": self.id, "email": self.email}
 
     @staticmethod
     def from_session(raw: object) -> "CurrentUser | None":
         if not isinstance(raw, dict):
             return None
-        sub, email = raw.get("sub"), raw.get("email")
-        if not isinstance(sub, str) or not isinstance(email, str) or not sub:
+        user_id, email = raw.get("id"), raw.get("email")
+        # bool은 int의 하위 타입이라 따로 거른다
+        if not isinstance(user_id, int) or isinstance(user_id, bool) or not isinstance(email, str):
             return None
-        user_id = raw.get("id")
-        return CurrentUser(
-            google_sub=sub,
-            email=email,
-            id=user_id if isinstance(user_id, int) else None,
-        )
+        return CurrentUser(id=user_id, email=email)
 
 
 class AppUser(Base):
