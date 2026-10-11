@@ -26,6 +26,10 @@ def 최신_버전() -> str:
     return ScriptDirectory.from_config(설정()).get_current_head()
 
 
+def 기준선() -> str:
+    return ScriptDirectory.from_config(설정()).get_base()
+
+
 @pytest.fixture
 def 빈_DB(통합_db):
     """컨테이너는 테스트 세션 전체가 같이 쓴다. 다른 테스트가 만든 테이블을 걷어 낸다."""
@@ -45,8 +49,12 @@ class Test스키마_마이그레이션:
         command.check(설정())  # 모델만 고치고 마이그레이션을 빠뜨렸으면 여기서 실패한다
 
     def test_테이블이_이미_있는_DB도_기록만_남기고_올라간다(self, 빈_DB):
-        """Alembic 도입 전 운영 DB의 모양이다 — 테이블은 다 있고 이력 테이블만 없다."""
-        command.upgrade(설정(), "head")
+        """Alembic 도입 전 운영 DB의 모양이다 — 기준선의 테이블은 다 있고 이력 테이블만 없다.
+
+        최신까지 올린 뒤 이력을 지우면 안 된다. 기준선 뒤의 변경까지 이미 들어가 있어서
+        도입 전 모양이 아니다.
+        """
+        command.upgrade(설정(), 기준선())
         with get_engine().begin() as conn:
             conn.execute(text("DROP TABLE alembic_version"))
 
