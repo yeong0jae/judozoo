@@ -122,10 +122,6 @@ function todayTitle(now: Date): string {
   return `${now.getMonth() + 1}월 ${now.getDate()}일 ${"일월화수목금토"[now.getDay()]}요일`;
 }
 
-// ============================================================
-// 지수
-// ============================================================
-
 function IndexTiles({
   domesticOpen,
   overseasOpen,
@@ -247,10 +243,6 @@ function Tile({
   );
 }
 
-// ============================================================
-// 주도주
-// ============================================================
-
 // 가격은 통화마다 롤링 컴포넌트가 달라 그린 채로 받는다. 거래대금도 통화마다 단위가 달라 글자로 받는다
 type Item = {
   key: string;
@@ -274,13 +266,7 @@ function compactUsd(v: number): string {
 /** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 const shortCode = (code: string) => (code.includes("_") ? code.slice(0, code.indexOf("_")) : code);
 
-/**
- * 첫 화면 주도주 카드.
- *
- * **목록 화면에서 고른 등락률과 무관하다.** 여기는 "오늘 뭐가 주도주냐" 하나만 답하는
- * 자리라, 보는 사람이 어떤 기준을 걸어뒀는지에 따라 답이 달라지면 안 된다. 순서와
- * 종목 선정은 서버가 정한다(거래대금·등락률 두 축의 백분위 기하평균).
- */
+/** 첫 화면 주도주 카드. **목록 화면에서 고른 등락률과 무관하다** — 순서와 종목은 서버가 정한다. */
 type LeadersProps = {
   live: boolean;
   first: boolean;
@@ -383,13 +369,10 @@ const cardCls = "flex min-w-0 flex-col overflow-hidden rounded-2xl bg-zinc-900 p
 const LEADER_COLS = "sm:grid-cols-[1rem_minmax(0,1fr)_7rem_6rem_4.5rem]";
 
 /**
- * 누르면 주도주 필터 화면으로 — 해당 쪽(국내/해외)이 열린 채로.
+ * 누르면 주도주 필터 화면으로 — 해당 쪽(국내/해외)이 열린 채로. 상세는 로그인 뒤라 바로 보내지 않는다.
  *
- * 종목 상세로 바로 보내지 않는다. 상세는 로그인 뒤라, 첫 화면에서 누르자마자
- * 벽을 만나게 된다. 지금 시간대의 주인공(먼저 오는 쪽)은 테두리를 두르고, 다른 쪽은 흐리게 내린다.
- *
- * 맨 아래 "오늘 1위" 줄만 따로 타임라인으로 간다. 링크 안에 링크를 둘 수 없어서, 카드 전체를 덮는
- * 링크를 바닥에 깔고 그 줄만 위로 올린다.
+ * 맨 아래 "오늘 1위" 줄만 타임라인으로 간다. 링크 안에 링크를 둘 수 없어, 카드 전체를 덮는 링크를
+ * 바닥에 깔고 그 줄만 위로 올린다.
  */
 function LeaderCard({
   title,
@@ -592,10 +575,6 @@ function LeaderRow({ rank, item, ratio }: { rank: number; item: Item; ratio: num
   );
 }
 
-// ============================================================
-// 오늘의 수급
-// ============================================================
-
 /** 카드 한 장에 세로로 쌓이는 네 줄. 순서는 화면에서 읽는 순서다. */
 const INVESTORS = [
   { key: "individual", label: "개인" },
@@ -622,10 +601,7 @@ function netLabel(item: TodayNetItem): { name: string; unit: string; slug: strin
 
 /**
  * 오늘의 수급 — 코스피·코스닥 현물과 두 지수선물의 당일 누적 투자자 순매수.
- *
- * **로그인 뒤에만 보인다.** 수급은 공개 API가 아니라(`auth/gate.py`), 게스트에게 띄우면
- * 빈 카드 네 장만 남는다. 주도주 아래에 두는 것도 같은 이유다 — 첫 화면의 주인공은
- * "오늘 뭐가 주도주냐"고, 수급은 그다음에 보는 재료다.
+ * **로그인 뒤에만 보인다** — 수급은 공개 API가 아니다(`auth/gate.py`).
  */
 function TodayNets({ live, clock, today }: { live: boolean; clock: string; today: string }) {
   const { data: me } = useMe();

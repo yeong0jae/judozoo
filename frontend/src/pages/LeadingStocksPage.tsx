@@ -38,14 +38,8 @@ const FLASH_MS = 4000;
 /**
  * 방금 이 목록에 들어온 코드들.
  *
- * `session`은 "이 목록을 같은 조건으로 계속 보고 있다"는 표시다. null이면 아직 볼 준비가
- * 안 된 것이고, 값이 바뀌면 이전 기억을 버린다. 이게 없으면 목록이 **한 번에 채워지지 않는
- * 순간마다** 오탐이 난다 —
- *
- * - 두 조회(주도주·후보)가 따로 도착하면, 먼저 온 쪽만 담긴 목록과 비교해 나머지가 전부 새것이 된다
- * - 등락률을 바꾸면 조회 키가 달라져 목록이 새로 오는데, 옛 목록과 비교하면 늘어난 만큼 전부 반짝인다
- *
- * 첫 비교는 언제나 건너뛴다. 화면을 열자마자 전부 반짝이면 "새로 들어왔다"는 뜻이 사라진다.
+ * `session`은 "같은 조건으로 계속 보고 있다"는 표시다. 바뀌면 이전 기억을 버린다 — 두 조회가 따로
+ * 도착하거나 등락률을 바꾼 순간 비교하면 전부 새것으로 오탐한다. 첫 비교는 언제나 건너뛴다.
  */
 function useMembership(
   codes: string[],
@@ -172,7 +166,6 @@ function DomesticLeadingStocks({
   const rest = (data?.stocks ?? []).filter((s) => !leaderCodes.has(s.stockCode));
   const stocks = [...leaders, ...rest];
 
-  // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(
     stocks.map((s) => s.stockCode),
     openCode,
@@ -291,10 +284,6 @@ function DomesticLeadingStocks({
   return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
 }
 
-// ============================================================
-// Header
-// ============================================================
-
 function Header({
   totalCount,
   fetchedAt,
@@ -315,10 +304,6 @@ function Header({
     />
   );
 }
-
-// ============================================================
-// 목록 — 넓으면 열 맞춘 줄, 좁으면 두 줄 카드
-// ============================================================
 
 /** 데스크톱 줄의 열 — 순위 · 종목 · 거래대금 · 현재가 · 등락률. 머리와 줄이 같은 값을 쓴다. */
 const ROW_COLS =

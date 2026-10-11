@@ -5,16 +5,10 @@ import { formatPct, formatPrice } from "../../lib/format";
 import { overseasIsMain, useMarketSessions } from "../../lib/marketSession";
 
 /**
- * 헤더 시세 티커 — 주인공 쪽 주도주가 왼쪽으로 흐른다.
+ * 헤더 시세 티커 — 주인공 쪽(`overseasIsMain`) 주도주가 왼쪽으로 흐른다.
  *
- * 어느 쪽인지는 `overseasIsMain`이 정한다 — 홈의 지수 타일·주도주 카드와 같은 규칙이라
- * 헤더만 국내를 흘리고 본문은 해외를 세우는 어긋남이 없다.
- *
- * 국내·해외 중 한쪽만 마운트한다. 둘 다 걸어두면 안 보이는 쪽까지 폴링해서다.
- * 등락률 임계값은 각 화면과 store로 공유해, 화면에서 바꾸면 티커도 즉시 따라온다.
- *
- * 끊김 없이 도는 원리 — 같은 목록을 두 벌 이어 붙이고 절반(-50%)만큼 민다.
- * 한 바퀴가 끝나면 두 번째 벌이 첫 벌 자리에 정확히 와 있어 이음매가 보이지 않는다.
+ * 한쪽만 마운트한다 — 둘 다 걸어두면 안 보이는 쪽까지 폴링한다.
+ * 같은 목록을 두 벌 이어 붙이고 절반(-50%)만큼 밀어 이음매 없이 돈다.
  */
 export default function HeaderTicker() {
   const { now } = useMarketSessions();

@@ -1,4 +1,3 @@
-// === Currency / Quantity ===
 export function formatKRW(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(Math.round(value)) + "원";
 }
@@ -9,9 +8,7 @@ export const formatKrw = formatKRW;
 // 한국식 단위 (조/억) — 거래대금처럼 큰 숫자에 사용.
 // 1_073_000_000_000_000 → "1,073조" / 304_436_200_000 → "3,044억"
 //
-// 조·억에는 "원"을 붙이지 않는다 — 단위가 이미 금액이라고 말한다. 같은 화면의 순매수
-// 표기(`formatEok`)도 "2,615억"이라 둘이 어긋나 보이던 걸 맞춘 것이다.
-// 1억 미만만 "원"을 남긴다. 단위 글자가 없어 숫자만 남으면 무엇의 수인지 알 수 없다.
+// 조·억에는 "원"을 붙이지 않는다 — 순매수 표기(`formatEok`)와 맞춘다. 1억 미만만 "원"을 남긴다.
 export function formatKoreanMoney(value: number): string {
   const amount = Math.round(value);
   const absAmount = Math.abs(amount);
@@ -58,7 +55,6 @@ export function formatEok(eok: number): string {
   return `${eok.toLocaleString()}억`;
 }
 
-// === Percentage ===
 // 입력은 소수 (rate). 0.025 → "+2.50%".
 export function formatPct(rate: number, digits = 2): string {
   const pct = rate * 100;
@@ -66,7 +62,6 @@ export function formatPct(rate: number, digits = 2): string {
   return `${sign}${pct.toFixed(digits)}%`;
 }
 
-// === Date / Time ===
 // 백엔드는 LocalDateTime을 timezone 없이 KST 문자열로 보내고 (예: "2026-05-06T13:04:05"),
 // 프론트에서 자체 계산한 시각은 UTC ISO("...Z")가 되므로 둘 다 KST로 정규화해 표시.
 const KST_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -126,7 +121,6 @@ export function formatRelative(iso: string, now = new Date()): string {
   return `${day}일 전`;
 }
 
-// === Color ===
 // 한국 거래소 관행: 양수 빨강, 음수 파랑
 export function colorByPnL(value: number): string {
   if (value > 0) return "text-red-600";

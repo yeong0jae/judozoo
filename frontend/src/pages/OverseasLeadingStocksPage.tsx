@@ -18,7 +18,6 @@ import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 import { useMe } from "../api/auth";
 import { isEtWeekend, useMarketSessions, usOpenClock } from "../lib/marketSession";
 
-
 export default function OverseasLeadingStocks({
   market,
   onMarket,
@@ -43,7 +42,6 @@ export default function OverseasLeadingStocks({
   const mobile = useMobileDetail();
   const reasons = useInsightReasons("us").data;
 
-  // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(
     stocks.map((s) => s.symbol),
     openSymbol,
@@ -151,10 +149,6 @@ function EmptyRanking({ live, now }: { live: boolean; now: Date }) {
   );
 }
 
-// ============================================================
-// Header
-// ============================================================
-
 function Header({
   totalCount,
   loading,
@@ -175,10 +169,6 @@ function Header({
     />
   );
 }
-
-// ============================================================
-// 목록 — 넓으면 열 맞춘 줄, 좁으면 두 줄 카드 (국내와 같은 짜임)
-// ============================================================
 
 /** 데스크톱 줄의 열 — 순위 · 종목 · 거래대금 · 현재가 · 등락률. 머리와 줄이 같은 값을 쓴다. */
 const ROW_COLS =

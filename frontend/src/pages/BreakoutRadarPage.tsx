@@ -120,7 +120,6 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
     if (selectedCode === null && stocks.length > 0) setSelectedCode(stocks[0].stockCode);
   }, [authenticated, stocks, selectedCode]);
 
-  // ↑/↓ 방향키로 선택 종목 이동
   useArrowStockNav(authenticated ? stocks.map((s) => s.stockCode) : [], selectedCode, setSelectedCode);
 
   // 미로그인이면 없다 — 눌러도 열 상세가 없어 클릭을 막는다

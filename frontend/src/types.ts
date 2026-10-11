@@ -1,11 +1,9 @@
-// === REST envelope ===
 export interface ApiResponse<T> {
   code: string;
   status: number;
   data: T | null;
 }
 
-// === REST responses ===
 /** 배너용 시장 휴장 상태. region은 KR(국내)/US(해외). */
 export type MarketRegion = "KR" | "US";
 
@@ -21,16 +19,12 @@ export interface StockSearchResult {
   exchange: string | null; // NAS/NYS/AMS. null이면 국내
 }
 
-// === 시장 지수 ===
-
 export interface MarketIndex {
   currentValue: number;
   changeRate: number; // 단위: % (양수=상승)
 }
 
 export type KospiIndex = MarketIndex;
-
-// === 시장 투자자 순매수 (키움 ka10051, 시황분석 코스피/코스닥 상세용) ===
 
 /** 기관 세부 순매수(억원) — 키움 7종. */
 export interface OrgBreakdown {
@@ -198,8 +192,6 @@ export interface MarketCandleItem {
   volume: number;
 }
 
-// === 주도주 (Leading Stocks) ===
-
 export interface CandidateStockItem {
   rank: number;
   stockCode: string;
@@ -227,7 +219,6 @@ export interface CandidateStocksResponse {
   stocks: CandidateStockItem[];
 }
 
-// === 1분봉 캔들 ===
 export interface MinuteCandleItem {
   time: string; // ISO LocalDateTime (KST 벽시계)
   open: number;
@@ -238,7 +229,6 @@ export interface MinuteCandleItem {
   tradingValue: number;
 }
 
-// === 돌파 임박 레이더 ===
 export interface BreakoutRadarItem {
   stockCode: string;
   stockName: string;
@@ -260,11 +250,9 @@ export interface BreakoutRadarResponse {
   stocks: BreakoutRadarItem[];
 }
 
-// === 시그널 전이 로그 ===
 export type SignalEventType =
   | "VOLUME_SPIKE"
-  // 돌파·임박은 2026-09-13, 반등·꺾임은 2026-09-28에 생성을 중단했다. 과거 날짜를 보면
-  // DB에 남은 행이 조회되므로 표시 경로는 계속 살려 둔다.
+  // 아래는 생성을 멈춘 유형이다. 과거 날짜엔 DB에 남은 행이 조회되므로 표시 경로는 살려 둔다.
   | "MA_REBOUND"
   | "MA_BREAKDOWN"
   | "BREAKOUT"
@@ -293,7 +281,6 @@ export interface SignalEventsResponse {
   events: SignalEventItem[];
 }
 
-// === 시장(코스피/코스닥) 투자자 순매수 시그널 ===
 export type MarketType = "KOSPI" | "KOSDAQ";
 export type InvestorType = "FOREIGN" | "INSTITUTION" | "INDIVIDUAL";
 export type NetTradeSide = "BUY" | "SELL";
@@ -404,8 +391,6 @@ export interface DailyCandleItem {
   volume: number;
 }
 
-// === 해외주식 주도주 (Overseas Leading Stocks) ===
-
 export interface OverseasFilterResult {
   filterName: string;
   criteriaDescription: string;
@@ -496,10 +481,6 @@ export interface LeaderTimelineResponse {
   /** 마지막으로 찍은 실제 시각(KST, 시간대 없는 ISO) */
   lastTakenAt: string | null;
 }
-
-// ============================================================
-// 왜 오르나 (026)
-// ============================================================
 
 export interface InsightArticle {
   source: string;

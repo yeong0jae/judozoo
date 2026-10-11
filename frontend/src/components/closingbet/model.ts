@@ -32,10 +32,6 @@ export type MarketFlow = { foreign: number[]; institution: number[] };
 export const NICKNAME_RULE = /^[가-힣a-zA-Z0-9]{2,10}$/;
 export const NICKNAME_COOLDOWN_DAYS = 7;
 
-// ============================================================
-// 종베 체크
-// ============================================================
-
 /** 체크 한 줄 — 주도주 체크리스트(`detailParts.LeadingConditions`)의 조건 한 줄과 같은 모양으로 그린다 */
 export type Check = {
   key: "high" | "foreign" | "institution" | "late" | "recentHigh" | "after";
@@ -146,10 +142,6 @@ const VERDICT_KEY: Record<Check["key"], keyof Verdict> = { high: "nearHigh", for
 export function withVerdict(checks: Check[], verdict: Verdict): Check[] {
   return checks.map((c) => ({ ...c, ok: verdict[VERDICT_KEY[c.key]] }));
 }
-
-// ============================================================
-// 등급 — 여섯 가지 중 몇 개를 채웠나(서버가 매긴다). 금·은·동·철
-// ============================================================
 
 export type Grade = "S" | "A" | "B" | "C";
 export const GRADE_COLOR: Record<Grade, string> = { S: "#f5c451", A: "#d4d8de", B: "#c98a5a", C: "#8b95a1" };

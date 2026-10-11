@@ -128,10 +128,6 @@ export default function IndexDetailPanel({
   );
 }
 
-// ============================================================
-// 상세 — 코스피·코스닥 투자자 순매수
-// ============================================================
-
 function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; title: string }) {
   // 코스피 먼저
   const sorted = [...items].sort((a) => (a.market === "KOSPI" ? -1 : 1));

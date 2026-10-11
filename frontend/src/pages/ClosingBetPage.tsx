@@ -85,8 +85,6 @@ function MarketLocked() {
   );
 }
 
-// --- 베팅 · 대기 -----------------------------------------------------------------
-
 function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Date; member: boolean; me: Me | null }) {
   const moment = now.moment;
   const live = moment === "bet";
@@ -247,8 +245,6 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
   );
 }
 
-// --- 복기 · 결과 -------------------------------------------------------------------
-
 function ReviewBoard({ now, member, me }: { now: ClosingBetNow; member: boolean; me: Me | null }) {
   const roundQ = useClosingBetRound(now.reviewDay, now.moment);
   const [detailCode, setDetailCode] = useState<string | null>(null);
@@ -291,8 +287,6 @@ function ReviewBoard({ now, member, me }: { now: ClosingBetNow; member: boolean;
     </>
   );
 }
-
-// --- 페이지 -----------------------------------------------------------------------
 
 export default function ClosingBetPage() {
   const nowQ = useClosingBetNow();

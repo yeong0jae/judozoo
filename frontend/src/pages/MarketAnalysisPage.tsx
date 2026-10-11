@@ -60,12 +60,7 @@ function DelayBadge() {
   );
 }
 
-/**
- * 지수·수급 — 왼쪽 지수 목록(모바일은 가로 칩) + 오른쪽 선택 지수 상세.
- *
- * 목록이 세로라 매크로 네 지표도 각자 한 줄을 갖는다. 예전 가로 스트립은 여덟 칸 중
- * 한 칸에 넷을 욱여넣어 좁은 화면에서 줄이 접히고 스트립 전체가 높아졌다.
- */
+/** 지수·수급 — 왼쪽 지수 목록(모바일은 가로 칩) + 오른쪽 선택 지수 상세. */
 function ClosingBetPageInner({ ix, authenticated }: { ix: IndexInfo; authenticated: boolean }) {
   const [params] = useSearchParams();
   const macro = MACRO_ITEMS.find((m) => m.key === params.get("t")) ?? MACRO_ITEMS[0];
@@ -107,9 +102,6 @@ function ClosingBetPageInner({ ix, authenticated }: { ix: IndexInfo; authenticat
   );
 }
 
-// ============================================================
-// 지수 목록 — 데스크톱은 왼쪽 세로 목록, 모바일은 가로 칩
-// ============================================================
 const fmt2 = (v: number) =>
   v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -119,8 +111,7 @@ const signed2 = (v: number) =>
 
 /**
  * 매크로 네 지표 — 목록에서는 한 줄씩이고, 상세는 `?t=`로 고른다.
- * 경로를 지표마다 나누지 않은 이유: `/market-analysis/macro` 하나가 이미 검색에 올라가 있고
- * (seo.json·sitemap), 경로를 늘리면 SEO 목록과 빌드 가드까지 같이 늘어난다.
+ * 경로를 지표마다 나누지 않는다 — 늘리면 SEO 목록(seo.json·sitemap)과 빌드 가드까지 늘어난다.
  */
 type MacroItem = { key: string; target: MacroTarget; name: string; title: string; unit: string; delayed?: boolean };
 const MACRO_ITEMS: MacroItem[] = [
@@ -281,9 +272,6 @@ function IndexChips({ groups }: { groups: ListGroup[] }) {
   );
 }
 
-// ============================================================
-// 중앙: 선택 대상 상세
-// ============================================================
 /**
  * 수급 표 자리 관문 — 표를 아예 렌더하지 않는다.
  *
@@ -716,11 +704,8 @@ function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
 }
 
 /**
- * 나스닥 선물 상세 — 나스닥100 근월물(CME NQ).
- *
- * **현물과 나눠 두는 이유는 도는 시간이 다르기 때문이다.** 나스닥 현물은 미 정규장에만 움직여
- * 우리 장중엔 직전 마감가에 멈춰 있지만, 선물은 거의 하루 종일 돌아 장중 미국 심리를 읽어준다.
- * 야후 무료 시세라 10분쯤 지연된다 — 그 사실을 배지로 함께 적는다.
+ * 나스닥 선물 상세 — 나스닥100 근월물(CME NQ). 현물과 달리 거의 하루 종일 돌아 장중 미국 심리를 읽어준다.
+ * 야후 무료 시세라 10분쯤 지연돼 배지를 함께 단다.
  */
 function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
@@ -940,16 +925,9 @@ function NetNum({ eok }: { eok: number }) {
   );
 }
 
-
 /**
- * 순매수 숫자 + 직전 스냅샷 대비 변화량.
- *
- * **변화량은 서버가 계산해 내려준다.** 예전에는 각 칸이 `localStorage`에 마지막 본 값을 들고
- * 스스로 뺐는데, 그러면 기준이 브라우저마다 달랐다 — 처음 온 사람은 한 주기를 기다려야 했고,
- * 자리를 비웠다 돌아오면 몇 시간치가 1분치인 척 깜빡였다.
- *
- * 값이 바뀔 때만 깜빡인다. 마지막 변화량은 장이 끝난 뒤에도 흐리게 남는다 —
- * 서버가 그날 마지막 두 스냅샷의 차이를 계속 실어 주기 때문이다.
+ * 순매수 숫자 + 직전 스냅샷 대비 변화량. 변화량은 서버가 계산해 내려준다.
+ * 값이 바뀔 때만 깜빡이고, 마지막 변화량은 장이 끝난 뒤에도 흐리게 남는다.
  */
 function FlowNum({ eok, delta }: { eok: number; delta?: number }) {
   // 같은 값이 다시 와도 재생하지 않게, 델타가 바뀔 때만 seq를 올린다
@@ -978,9 +956,6 @@ function DeltaFlash({ delta }: { delta: number }) {
   );
 }
 
-// ============================================================
-// 투자자별 순매수 — 시간대별 / 최근 5일 탭. 현물(억원)·선물(계약) 공용.
-// ============================================================
 /** 순매수 한 묶음 — 현물·선물의 모양이 달라 화면용으로 한 번 맞춘다. */
 type Nets = {
   individual: number;

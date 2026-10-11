@@ -203,8 +203,6 @@ export function useRenameNickname(reviewDay: string | null | undefined) {
   });
 }
 
-// --- 화면 모양으로 ----------------------------------------------------------------
-
 const MARKET_NAME: Record<"KOSPI" | "KOSDAQ", MarketName> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 
 export function toFlows(raw: ClosingBetMarketRaw): Record<MarketName, MarketFlow> {

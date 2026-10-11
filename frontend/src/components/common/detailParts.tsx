@@ -65,10 +65,6 @@ export function Segmented<T extends string>({
   );
 }
 
-// ============================================================
-// 주도주 체크리스트
-// ============================================================
-
 export type FilterResult = {
   filterName: string;
   criteriaDescription: string;

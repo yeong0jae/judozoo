@@ -9,12 +9,8 @@ import HeaderTicker from "./HeaderTicker";
 import Wordmark from "./Wordmark";
 
 /**
- * 슬림 상단바. 네비게이션·계정·설정은 좌측 레일(Sidebar)이 맡는다.
- * 모바일에서는 레일이 숨으므로 여기 햄버거가 드로어로 네비를 제공한다.
- *
- * 시세 티커는 폭이 있는 데스크톱에서만 상단바 안에 들어간다. 모바일은
- * 자리가 없어 한 줄 아래 띠로 내린다. 띠도 이 헤더 안이라 sticky를 함께 타고,
- * 어느 화면을 보고 있든 시세가 계속 보인다.
+ * 슬림 상단바. 네비게이션·계정·설정은 좌측 레일(Sidebar)이 맡고, 모바일에선 여기 햄버거가 드로어를 연다.
+ * 시세 티커는 데스크톱에선 상단바 안, 모바일에선 한 줄 아래 띠로 둔다(같이 sticky).
  */
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);

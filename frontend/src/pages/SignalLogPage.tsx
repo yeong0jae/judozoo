@@ -44,7 +44,7 @@ function clockClass(iso: string): string {
 
 const EVENT_META: Record<SignalEventType, { label: string; chip: string }> = {
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300" },
-  // 생성 중단(반등·꺾임 2026-09-28, 돌파·임박 2026-09-13). 과거 날짜 조회용으로만 남는다 — 흐린 톤으로 구분한다.
+  // 생성을 멈춘 유형 — 과거 날짜 조회용으로만 남아 흐린 톤으로 구분한다.
   MA_REBOUND: { label: "반등", chip: "bg-zinc-700/40 text-zinc-400" },
   MA_BREAKDOWN: { label: "꺾임", chip: "bg-zinc-700/40 text-zinc-400" },
   BREAKOUT: { label: "돌파", chip: "bg-zinc-700/40 text-zinc-400" },

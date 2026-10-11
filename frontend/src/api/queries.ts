@@ -148,12 +148,7 @@ export function useLeadingStockCandidates(minChangeRate: number) {
   });
 }
 
-/**
- * 첫 화면 주도주 — 거래대금·등락률이 함께 높은 다섯 종목.
- *
- * 후보 목록과 달리 **등락률 인자를 받지 않는다.** 첫 화면은 보는 사람이 목록 화면에
- * 걸어둔 기준과 무관하게 같은 답을 보여야 해서, 서버가 정한 규칙 하나만 쓴다.
- */
+/** 첫 화면 주도주 — 거래대금·등락률이 함께 높은 다섯 종목. 보는 사람의 등락률 기준을 받지 않는다. */
 export function useLeadingStockLeaders() {
   return useQuery({
     queryKey: QK.leadingStockLeaders,
