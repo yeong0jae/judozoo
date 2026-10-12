@@ -435,7 +435,7 @@ function LeaderCard({
         </div>
       ) : items.length === 0 ? (
         // 개장 전이거나, 오른 종목이 한 종목도 없는 날. 머리만 남지 않게 한 줄 둔다.
-        <p className="px-3.5 py-7 text-center text-xs text-zinc-500">아직 주도주가 없습니다</p>
+        <p className="px-3.5 py-7 text-center text-xs text-zinc-500">현재 주도주가 없습니다</p>
       ) : (
         <>
           <div className={`hidden gap-x-3 px-[18px] pb-1.5 text-[11px] text-zinc-500 sm:grid ${LEADER_COLS}`}>
