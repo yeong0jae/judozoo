@@ -167,7 +167,7 @@ export default function LeaderGuide({ market }: { market: StockMarket }) {
  */
 const DOTS: { at: [number, number]; leader: boolean; note?: [string, string] }[] = [
   { at: [2, 2], leader: true, note: ["둘 다 2위", " → 주도주 1위"] },
-  { at: [7, 1], leader: true, note: ["돈은 1위", ", 상승률은 낮음"] },
+  { at: [7, 1], leader: true, note: ["거래대금은 1위", ", 상승률은 낮음"] },
   { at: [3, 3], leader: true },
   { at: [5, 4], leader: true },
   { at: [4, 5], leader: true },
