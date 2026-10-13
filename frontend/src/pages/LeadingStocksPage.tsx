@@ -19,6 +19,7 @@ import OverseasLeadingStocks from "./OverseasLeadingStocksPage";
 import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 import MarketToggle from "../components/common/MarketToggle";
 import { loadMarket, rememberMarket, type StockMarket } from "../lib/stockMarket";
+import LeaderGuide from "../components/common/LeaderGuide";
 
 /**
  * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
@@ -360,13 +361,13 @@ function CandidatesList({
           <span className="text-right">현재가</span>
           <span className="text-right">등락률</span>
         </div>
-        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} />}
+        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} guide />}
         {section(leaders, Row)}
         <GroupHeader label="후보" count={rest.length} hint={restHint} />
         {rest.length > 0 ? section(rest, Row) : empty}
       </div>
       <div className="lg:hidden" ref={cardsRef}>
-        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} />}
+        {leaders.length > 0 && <GroupHeader label="주도주" count={leaders.length} guide />}
         {section(leaders, Card)}
         <GroupHeader label="후보" count={rest.length} hint={restHint} />
         {rest.length > 0 ? section(rest, Card) : empty}
@@ -455,11 +456,17 @@ function Card({ stock, rank, flash, isSelected, onOpen, reason }: ItemProps) {
 }
 
 /** 구간 머리 — 목록의 층을 가르는 자리라 줄 글씨보다 크게 세운다. */
-function GroupHeader({ label, count, hint }: { label: string; count: number; hint?: string }) {
+/** `guide`면 건수 옆에 주도주 고르는 법(`?`)을 단다 — 주도주 구간만 쓴다. */
+function GroupHeader({ label, count, hint, guide }: { label: string; count: number; hint?: string; guide?: boolean }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-2.5 pb-1.5 pt-4 lg:px-3.5">
       <span className="text-[15px] font-bold tracking-tight text-zinc-100">{label}</span>
       <span className="num text-xs text-zinc-400">{count}</span>
+      {guide && (
+        <span className="self-center">
+          <LeaderGuide market="domestic" />
+        </span>
+      )}
       {hint && <span className="text-xs text-zinc-500">{hint}</span>}
     </div>
   );

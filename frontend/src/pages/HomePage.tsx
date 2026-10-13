@@ -31,6 +31,7 @@ import NumUsd from "../components/common/NumUsd";
 import Skeleton from "../components/common/Skeleton";
 import GoogleLoginButton from "../components/common/GoogleLoginButton";
 import { ReasonLine } from "../components/common/InsightReason";
+import LeaderGuide from "../components/common/LeaderGuide";
 import type { LimitUpItem, TodayNetItem } from "../types";
 
 /** 카드 한 장에 올리는 주도주 줄 수. 서버가 이미 그만큼만 내려준다 — 뼈대 높이에 쓴다. */
@@ -413,6 +414,7 @@ function LeaderCard({
         more="전체 보기"
         sub={
           <>
+            <LeaderGuide market={market} />
             <span className="num text-xs text-zinc-500">{date}</span>
             {/* 시각은 "장중"에만 붙인다 — 마감 뒤 칩은 "마감 기준"이라, 옆에 지금 시각이 있으면
                 마감 시각으로 읽힌다 */}
