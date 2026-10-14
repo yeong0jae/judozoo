@@ -123,7 +123,7 @@ class Test실패:
 
         with pytest.raises(VertexError):
             ground("왜")
-        assert 1.0 <= waits[0] <= 3.0 and 2.5 <= waits[1] <= 7.5
+        assert 1.0 <= waits[0] <= 3.0 and 2.0 <= waits[1] <= 6.0
 
     @pytest.mark.parametrize("timeout", [httpx.ConnectTimeout, httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout])
     @respx.mock
