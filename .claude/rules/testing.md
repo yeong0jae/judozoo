@@ -47,3 +47,21 @@ Class and test names must convey **scenario and meaning**, written in **Korean**
 ### Fixtures
 
 Shared fixtures live in `tests/conftest.py`: `client` (TestClient), `통합_db` (container MySQL), and an autouse cache reset. A fixture needed by one file only (e.g. `빈_테이블`) stays in that file.
+
+## Kotlin backend (`backend-kotlin/`)
+
+Every rule above carries over. Run with `./gradlew test` from `backend-kotlin/`; `./gradlew unitTest` skips integration.
+
+| Python | Kotlin |
+|---|---|
+| `class Test이슈_메모:` | `@Nested inner class 이슈_메모` inside the file's test class |
+| `def test_작성하고_그날_목록에서_읽는다` | `` @Test fun `작성하고 그날 목록에서 읽는다`() `` |
+| plain `assert` | Kotest assertions (`shouldBe`) |
+| pytest-mock | MockK (`@MockkBean` in Spring slices) |
+| respx | WireMock — platform/infrastructure only, never application |
+| `통합_db` + `@pytest.mark.integration` | `@IntegrationTest` (Testcontainers MySQL, tagged `integration`) |
+| `client` (TestClient) | `@WebMvcTest` + `MockMvc` |
+
+`src/test/kotlin/judozoo` mirrors `src/main/kotlin/judozoo` one-to-one.
+
+Porting a feature ports its tests: **every Python scenario gets a Kotlin counterpart** before nginx routes the path.

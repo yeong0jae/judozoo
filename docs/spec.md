@@ -44,6 +44,8 @@ Backend (Python + FastAPI, package by feature)
 
 **Backend**: Python 3.13 / FastAPI / SQLAlchemy 2.0 + PyMySQL / MySQL 8 (Cloud SQL) / `httpx` / `cachetools` / APScheduler / authlib / prometheus-fastapi-instrumentator / OpenTelemetry / pytest + respx + Testcontainers / uv
 
+**Backend (전환 중, [028](tasks/028-코틀린-스프링-전환.md))**: Kotlin / Spring Boot (MVC) / Spring Data JPA / Micrometer / OpenTelemetry / JUnit 5 + Kotest + MockK + WireMock + Testcontainers / Gradle. 공존하는 동안 nginx가 경로별로 나눈다
+
 **Frontend**: TypeScript + React 18 + Vite / TanStack Query / React Router / Tailwind CSS 4 / React Hook Form + Zod / lightweight-charts / motion / NumberFlow / Pretendard·Outfit·JetBrains Mono
 
 ---
@@ -385,6 +387,8 @@ POST /api/feedback                                       # 500자
 | Presentation | `client` fixture(TestClient) + application 모킹 — 라우트·공개/미리보기 경계·응답 형태 |
 
 Docker가 없으면 `uv run pytest -m "not integration"`.
+
+Kotlin 쪽(`backend-kotlin/`)도 같은 규칙이다. 도구 대응은 `.claude/rules/testing.md` 끝의 표.
 
 ---
 

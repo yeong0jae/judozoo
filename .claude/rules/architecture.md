@@ -51,3 +51,32 @@ Value objects (data types without behavior coupling) may be defined in the upstr
 Example: `stock.domain.Market` is owned by `stock` and imported as a type by `market` and `leadingstock`. Those features **import the type** but do **not call methods** on stock's domain objects.
 
 The "domain modules must not directly collaborate" rule applies to **behavior** (method calls / orchestration), not value-object type references for data exchange.
+
+## Kotlin backend (`backend-kotlin/`, migration in progress — [028](../../docs/tasks/028-코틀린-스프링-전환.md))
+
+The backend is moving to Kotlin + Spring Boot (Spring MVC, JPA) one feature at a time. Until it finishes,
+**both backends run against the same MySQL** and nginx routes each `/api` path to one of them.
+Every rule above applies unchanged; only the file names change.
+
+```
+backend-kotlin/src/main/kotlin/judozoo
+├── <feature>/        # same feature packages as Python
+│   ├── Presentation.kt   # @RestController
+│   ├── Application.kt    # @Service, use cases
+│   ├── Domain.kt         # pure Kotlin
+│   └── Infrastructure.kt
+├── library/
+├── platform/<vendor>/    # Client.kt + one file per endpoint group
+└── JudozooApplication.kt
+```
+
+- A layer is **one file**, holding as many classes as it needs. Split by concern (`Filters.kt`, `Signals.kt`, `Entities.kt`, `Scheduler.kt`) the same way Python does — never a directory per layer.
+- Spring wiring (`@Service`, `@Repository`, `@Component`) stays out of `Domain.kt`.
+
+### While both backends run
+
+- **Alembic owns the schema.** JPA runs with `ddl-auto=validate` and never changes a table.
+- **One owner per scheduled job.** Moving a feature turns its Python `register` off and its Kotlin `@Scheduled` on in the same commit.
+- **One issuer per broker token.** The other side only reads `broker_token`.
+- **Rate limits are split** between the two processes by settings — each bucket lives in its own process memory.
+- A moved feature's Python code stays until no remaining Python feature calls its `application`.

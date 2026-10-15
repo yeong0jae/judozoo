@@ -18,10 +18,14 @@ Collections with domain meaning are wrapped as `class Xxxs` holding the list, so
 
 ### 4. The domain has no external dependencies
 
-Inside `domain`, never directly call FastAPI, HTTP clients (`httpx`), the session/engine, or non-deterministic dependencies (`datetime.now`, `random`). Receive required values as parameters instead.
+Inside `domain`, never directly call FastAPI/Spring, HTTP clients (`httpx`, `RestClient`), the session/engine/`EntityManager`, or non-deterministic dependencies (`datetime.now`, `random`, `LocalDateTime.now()`, `Random`). Receive required values as parameters instead.
 
 ### 5. SQLAlchemy model = domain entity
 
 Persistent domain concepts are declared as SQLAlchemy models on `library.db.Base` and used directly as domain entities. Do not add a parallel "pure" domain class that mirrors the model.
 
 Purely computational value objects stay as `@dataclass` with no ORM involvement — `entities.py` holds the mapped classes when a feature has both.
+
+In Kotlin the same rule holds with JPA: persistent concepts are `@Entity` classes used directly as domain entities, kept in
+`Entities.kt` when a feature has both. Pure value objects are `data class` (or `@JvmInline value class`) with no JPA annotations.
+Tell, Don't Ask still wins over JPA convenience — no public setters on entities; change state through methods.
