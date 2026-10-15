@@ -26,6 +26,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
+	// Vertex AI 인증(ADC) — 운영은 VM 서비스 계정, 로컬은 `gcloud auth application-default login`
+	implementation("com.google.auth:google-auth-library-oauth2-http:1.54.0")
 	implementation("tools.jackson.module:jackson-module-kotlin")
 	runtimeOnly("com.mysql:mysql-connector-j")
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")

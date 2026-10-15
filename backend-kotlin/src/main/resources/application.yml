@@ -23,6 +23,12 @@ judozoo:
   kis:
     app-key: ${REAL_KIS_APP_KEY:}
     app-secret: ${REAL_KIS_APP_SECRET:}
+  # Gemini on Vertex AI(026). Python `VERTEX_*`와 같은 이름 — 비밀값이 아니다
+  vertex:
+    project: ${VERTEX_PROJECT:trading-496508}
+    location: ${VERTEX_LOCATION:global}
+    model: ${VERTEX_MODEL:gemini-3.8-flash}
+    daily-limit: ${VERTEX_DAILY_LIMIT:150}
 
 # `/actuator/prometheus`는 compose 네트워크 안에서 alloy만 긁는다. **nginx는 `/api/`만 넘긴다** —
 # nginx에 `/actuator`를 추가하는 순간 인터넷에 열린다.
