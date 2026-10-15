@@ -1,6 +1,5 @@
 package judozoo.platform.kiwoom
 
-import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.equalTo
 import com.github.tomakehurst.wiremock.client.WireMock.equalToJson
@@ -8,11 +7,11 @@ import com.github.tomakehurst.wiremock.client.WireMock.okJson
 import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.stubbing.Scenario
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import judozoo.SharedWireMock
 import judozoo.library.BrokerTokenUnavailable
 import judozoo.library.RateLimiter
 import judozoo.library.brokertoken.TokenSource
@@ -35,14 +34,14 @@ import java.time.LocalTime
 import java.time.ZoneOffset
 
 class KiwoomClientTest {
-    private val server = WireMockServer(wireMockConfig().dynamicPort())
+    private val server = SharedWireMock.server
     private val registry = SimpleMeterRegistry()
     private val token = FakeToken()
     private lateinit var client: KiwoomClient
 
     @BeforeEach
     fun 서버() {
-        server.start()
+        SharedWireMock.reset()
         client = KiwoomClient(
             KiwoomProperties(baseUrl = server.baseUrl(), queryPermitsPerSecond = 100, peakQueryPermitsPerSecond = 100),
             token,
@@ -52,7 +51,7 @@ class KiwoomClientTest {
     }
 
     @AfterEach
-    fun 정리() = server.stop()
+    fun 정리() = SharedWireMock.reset()
 
     private fun query(apiId: String = "ka10032") = client.query("/api/dostk/rkinfo", apiId, mapOf("mrkt_tp" to "000"))
 

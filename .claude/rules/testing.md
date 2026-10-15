@@ -58,7 +58,7 @@ Every rule above carries over. Run with `./gradlew test` from `backend-kotlin/`;
 | `def test_작성하고_그날_목록에서_읽는다` | `` @Test fun `작성하고 그날 목록에서 읽는다`() `` |
 | plain `assert` | Kotest assertions (`shouldBe`) |
 | pytest-mock | MockK (`@MockkBean` in Spring slices) |
-| respx | WireMock — platform/infrastructure only, never application |
+| respx | WireMock (`SharedWireMock` — one server per JVM, reset per test) — platform/infrastructure only, never application |
 | `통합_db` + `@pytest.mark.integration` | `@IntegrationTest` (Testcontainers MySQL loaded with `schema.sql`, tagged `integration`) |
 | `client` (TestClient) | `@WebMvcTest` + `MockMvc` |
 

@@ -1,23 +1,22 @@
 package judozoo.platform.kiwoom
 
-import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.okJson
 import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import com.github.tomakehurst.wiremock.http.Fault
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import judozoo.SharedWireMock
 import judozoo.library.brokertoken.TokenSource
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 
-/** 키움 엔드포인트 테스트용 — WireMock 서버 + 그 서버를 보는 [KiwoomClient]. 시각은 [now]로 옮긴다(기본 KST 2026-10-15 14:00). */
+/** 키움 엔드포인트 테스트용 — 공유 WireMock + 그 서버를 보는 [KiwoomClient]. 시각은 [now]로 옮긴다(기본 KST 2026-10-15 14:00). */
 class KiwoomStub : AutoCloseable {
-    val server = WireMockServer(wireMockConfig().dynamicPort()).apply { start() }
+    val server = SharedWireMock.server.also { SharedWireMock.reset() }
 
     var now: Instant = Instant.parse("2026-10-15T05:00:00Z")
 
@@ -48,5 +47,5 @@ class KiwoomStub : AutoCloseable {
 
     fun calls(path: String) = server.countRequestsMatching(postRequestedFor(urlEqualTo(path)).build()).count
 
-    override fun close() = server.stop()
+    override fun close() = SharedWireMock.reset()
 }
