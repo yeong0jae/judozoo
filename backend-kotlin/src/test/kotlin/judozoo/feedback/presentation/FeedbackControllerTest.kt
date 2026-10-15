@@ -8,43 +8,27 @@ import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
 import jakarta.servlet.http.Cookie
+import judozoo.LoggedIn
 import judozoo.auth.domain.CurrentUser
-import judozoo.auth.presentation.LoginGateFilter
 import judozoo.feedback.application.FeedbackService
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
-import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
 @WebMvcTest(FeedbackController::class)
-@Import(FeedbackControllerTest.FixedClock::class)
-@TestPropertySource(properties = ["judozoo.session-secret=test-secret"])
+@Import(LoggedIn.ClockAtSigning::class)
+@TestPropertySource(properties = [LoggedIn.SECRET])
 class FeedbackControllerTest @Autowired constructor(private val mvc: MockMvc) {
     @MockkBean
     private lateinit var feedback: FeedbackService
 
-    /** Python이 secret `test-secret`으로 발급한 쿠키(사용자 id 7)가 살아 있는 시각. */
-    @TestConfiguration
-    class FixedClock {
-        @Bean
-        fun clock(): Clock = Clock.fixed(Instant.ofEpochSecond(1_792_070_321), ZoneOffset.UTC)
-    }
-
-    private val loggedIn = Cookie(
-        LoginGateFilter.COOKIE_NAME,
-        "eyJ1c2VyIjogeyJpZCI6IDcsICJlbWFpbCI6ICJhQGV4YW1wbGUuY29tIn0sICJfc3RhdGVfZ29vZ2xlX3giOiB7ImRhdGEiOiAxfX0=" +
-            ".atDSsQ._chmEutnIautJuu1n_0keYIpTb0",
-    )
+    private val loggedIn = LoggedIn.cookie
 
     private fun send(content: String, cookie: Cookie? = loggedIn) = mvc.post("/api/feedback") {
         contentType = MediaType.APPLICATION_JSON
