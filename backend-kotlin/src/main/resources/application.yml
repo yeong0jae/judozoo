@@ -1,0 +1,26 @@
+# 환경변수 이름은 Python 백엔드(`backend/src/backend/settings.py`)와 같다 — 같은 `.env`·Secret Manager 값을 그대로 받는다.
+spring:
+  application:
+    name: backend-kotlin
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:33061}/${DB_NAME:trading}?characterEncoding=UTF-8
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  jpa:
+    # 공존하는 동안 스키마 주인은 Alembic이다(028). JPA는 맞는지 보기만 한다
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+server:
+  port: 8001
+
+judozoo:
+  # Python `SessionMiddleware`와 같은 키여야 그 쿠키를 읽는다
+  session-secret: ${SESSION_SECRET:dev-only-insecure}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
