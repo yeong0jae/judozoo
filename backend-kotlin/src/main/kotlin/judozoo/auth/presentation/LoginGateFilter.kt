@@ -5,7 +5,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import judozoo.JudozooProperties
 import judozoo.auth.domain.CurrentUser
-import judozoo.library.web.ApiError
+import judozoo.library.web.ApiResponse
 import judozoo.library.JsonLogFormatter
 import judozoo.library.StarletteSession
 import org.slf4j.MDC
@@ -39,7 +39,7 @@ class LoginGateFilter(
             if (path.startsWith("/api") && !Gate.isPublic(path) && user == null) {
                 response.status = 401
                 response.contentType = "application/json"
-                objectMapper.writeValue(response.outputStream, ApiError("UNAUTHORIZED", 401))
+                objectMapper.writeValue(response.outputStream, ApiResponse.error("UNAUTHORIZED", 401))
                 return
             }
             chain.doFilter(request, response)
