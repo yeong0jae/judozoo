@@ -1,0 +1,66 @@
+package judozoo.platform.kiwoom
+
+import judozoo.library.KST
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
+import tools.jackson.databind.JsonNode
+import java.time.Clock
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+/**
+ * 종목별 일자별 투자자·기관 순매매 (ka10059). 응답 단위는 백만원(amt_qty_tp=1).
+ *
+ * 거래소 구분은 종목코드 접미사로 한다:
+ * `"005930"` → SOR 통합(KRX+NXT) / `"005930_NX"` → NXT 단독 / `"005930_AL"` → 통합의 별칭
+ */
+@Component
+class KiwoomInvestor(private val client: KiwoomClient, private val clock: Clock) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    /** 실패해도 빈 목록 — 보조 지표라 호출부를 막지 않는다. */
+    fun fetchInvestorTrend(stockCode: String): List<InvestorTrendDay> = try {
+        val body = client.query(
+            STOCK_INFO_URL, "ka10059",
+            mapOf(
+                "dt" to LocalDate.now(clock.withZone(KST)).format(DateTimeFormatter.BASIC_ISO_DATE),
+                "stk_cd" to stockCode,
+                "amt_qty_tp" to "1",
+                "trde_tp" to "0",
+                "unit_tp" to "1000",
+            ),
+        ).body
+        body["stk_invsr_orgn"]?.values()?.map(::toDay).orEmpty()
+    } catch (e: Exception) {
+        log.error("키움 종목 수급 조회 실패 stk_cd={}", stockCode, e)
+        emptyList()
+    }
+
+    private fun toDay(item: JsonNode): InvestorTrendDay {
+        fun signed(field: String) = item[field]?.asString().toSignedLong()
+        return InvestorTrendDay(
+            date = toIsoDate(item["dt"]?.asString()),
+            individualNet = signed("ind_invsr"),
+            foreignNet = signed("frgnr_invsr"),
+            institutionNet = signed("orgn"),
+            otherCorpNet = signed("etc_corp"),
+            financialInvestmentNet = signed("fnnc_invt"),
+            insuranceNet = signed("insrnc"),
+            otherFinanceNet = signed("etc_fnnc"),
+            trustNet = signed("invtrt"),
+            privateEquityNet = signed("samo_fund"),
+            pensionFundNet = signed("penfnd_etc"),
+            bankNet = signed("bank"),
+        )
+    }
+
+    companion object {
+        private const val STOCK_INFO_URL = "/api/dostk/stkinfo"
+
+        /** `"20260912"` → `"2026-09-12"`. 형식이 어긋나면 빈 문자열. */
+        private fun toIsoDate(value: String?): String {
+            val s = value?.trim().orEmpty()
+            return if (s.length == 8) "${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}" else ""
+        }
+    }
+}
