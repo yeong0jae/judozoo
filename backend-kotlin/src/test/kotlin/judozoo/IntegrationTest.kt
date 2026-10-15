@@ -22,8 +22,11 @@ annotation class IntegrationTest
 
 @TestConfiguration(proxyBeanMethods = false)
 class MySqlContainerConfig {
-    /** 운영(Cloud SQL)과 Python 테스트와 같은 판. */
+    /**
+     * Python 테스트와 같은 판. 테이블은 Alembic이 만든 그대로(`schema.sql`, `scripts/dump-schema.sh`)다 —
+     * JPA는 `validate`만 하므로 여기서 테이블이 없으면 기동이 실패한다.
+     */
     @Bean
     @ServiceConnection
-    fun mysql(): MySQLContainer = MySQLContainer(DockerImageName.parse("mysql:8.4"))
+    fun mysql(): MySQLContainer = MySQLContainer(DockerImageName.parse("mysql:8.4")).withInitScript("schema.sql")
 }

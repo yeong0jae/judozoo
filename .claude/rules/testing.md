@@ -59,7 +59,7 @@ Every rule above carries over. Run with `./gradlew test` from `backend-kotlin/`;
 | plain `assert` | Kotest assertions (`shouldBe`) |
 | pytest-mock | MockK (`@MockkBean` in Spring slices) |
 | respx | WireMock — platform/infrastructure only, never application |
-| `통합_db` + `@pytest.mark.integration` | `@IntegrationTest` (Testcontainers MySQL, tagged `integration`) |
+| `통합_db` + `@pytest.mark.integration` | `@IntegrationTest` (Testcontainers MySQL loaded with `schema.sql`, tagged `integration`) |
 | `client` (TestClient) | `@WebMvcTest` + `MockMvc` |
 
 `src/test/kotlin/judozoo` mirrors `src/main/kotlin/judozoo` one-to-one: `auth/presentation/LoginGateFilter.kt` → `auth/presentation/LoginGateFilterTest.kt`.
