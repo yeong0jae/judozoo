@@ -16,7 +16,8 @@ import org.testcontainers.utility.DockerImageName
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @Tag("integration")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// 폴러가 실제 브로커·야후를 부르지 않게 스케줄링을 끈다
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = ["judozoo.scheduling.enabled=false"])
 @Import(MySqlContainerConfig::class)
 annotation class IntegrationTest
 
