@@ -18,6 +18,9 @@ services:
       # 여기서 줄인다. 기능을 더 옮길 때마다 이 몫을 줄이고 Kotlin 몫(`JUDOZOO_KIWOOM_*`)을 늘린다.
       KIWOOM_QUERY_PERMITS_PER_SECOND: "4"
       KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND: "2"
+      # KIS(한도 초당 18)도 나눈다 — 해외 분봉이 Kotlin으로 옮겨 가 KIS를 가장 많이 쓰는 쪽이 바뀌었다.
+      # 합 15로 3을 남긴다(옮기기 전 Python 15와 같은 여유).
+      KIS_QUERY_PERMITS_PER_SECOND: "8"
       # DB_HOST·DB_PORT·DB_USERNAME은 secrets/.env가 준다 (remote_deploy.sh가 씀).
       # 여기 environment에 적으면 env_file을 덮어쓰고, ${...} 보간은 env_file을
       # 읽지 못해 빈 값이 된다 — grafana 쪽에서 이미 겪은 함정이다.
@@ -42,6 +45,8 @@ services:
     environment:
       TZ: Asia/Seoul
       DB_NAME: trading
+      # 브로커 한도의 Kotlin 몫(028). Python 몫은 위 backend에 있다 — 둘을 함께 고친다.
+      JUDOZOO_KIS_QUERY_PERMITS_PER_SECOND: "7"
     env_file:
       - ./secrets/.env
     expose:

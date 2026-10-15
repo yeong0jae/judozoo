@@ -7,7 +7,6 @@
 import logging
 
 from apscheduler.schedulers.base import BaseScheduler
-from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from backend.library import metrics, tracing
@@ -61,9 +60,6 @@ def register(scheduler: BaseScheduler) -> None:
         IntervalTrigger(seconds=_POOL_REFRESH_SECONDS),
         id=_POOL_REFRESH_JOB, replace_existing=True,
     )
-    scheduler.add_job(
-        settle_minutes,
-        # 뉴욕 시각으로 건다 — 서머타임에 따라 한국 시각으로는 09:01·10:01로 바뀐다
-        CronTrigger(day_of_week="mon-fri", hour=20, minute=1, timezone=calendar.Region.US.zone),
-        id=_MINUTE_SETTLE_JOB, replace_existing=True,
-    )
+    # 분봉 마감 확정(`settle_minutes`)은 등록하지 않는다 — 해외 분봉 화면이 Kotlin으로 옮겨 가
+    # 분봉 보관소에 쓰는 일은 Kotlin이 맡는다(028). 두 쪽이 같은 날을 지웠다 넣으면 서로를 덮는다.
+    # 후보 풀 갱신은 남긴다 — 타임라인·캘린더·왜 오르나가 이 프로세스의 풀을 읽는다.
