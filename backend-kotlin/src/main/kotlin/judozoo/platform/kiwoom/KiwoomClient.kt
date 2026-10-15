@@ -45,7 +45,8 @@ class KiwoomClient(
         .baseUrl(properties.baseUrl)
         .requestFactory(
             JdkClientHttpRequestFactory(
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build(),
+                // Python httpx와 같은 HTTP/1.1. 기본(HTTP/2)은 평문에서 h2c 업그레이드를 시도한다
+                HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(10)).build(),
             ).apply { setReadTimeout(Duration.ofSeconds(30)) },
         )
         // 경로 하나에 TR이 여럿 실린다 — 기능을 가르는 건 api-id다
