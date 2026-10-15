@@ -13,6 +13,7 @@ import {
   displayOffset,
   entryAt,
   hhmm,
+  hourMarks,
   isGap,
   lineupAt,
   nearestLive,
@@ -98,13 +99,13 @@ export default function LeaderTimelinePage() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const narrow = useNarrow();
-  // 국내는 가장 최근 거래일로 연다 — 주말만 건너뛰면 추석 같은 휴장일이나 08:00 전엔 빈 화면이다(시그널과 같다).
+  // 국내는 가장 최근 거래일로 연다 — 주말만 건너뛰면 추석 같은 휴장일이나 08:01 전엔 빈 화면이다(시그널과 같다).
   // 사용자가 날짜를 고른 뒤에는 건드리지 않는다
   const krCalendar = useMarketCalendarStatus("KR").data;
   const datePicked = useRef(false);
   useEffect(() => {
     if (market !== "kr" || datePicked.current || !krCalendar?.previousOpenDay) return;
-    if (krCalendar.isHoliday || marketNow("kr").min < 480) setDate(krCalendar.previousOpenDay);
+    if (krCalendar.isHoliday || marketNow("kr").min < MARKET_SPECS.kr.start) setDate(krCalendar.previousOpenDay);
   }, [market, krCalendar]);
   // 추석 같은 국내 휴장일은 뒤늦게 알게 된다 — 시각만 보고 국내로 열었으면 해외로 돌린다(홈도 휴장을 받으면 순서를 바꾼다).
   // 처음 받았을 때 한 번만 본다 — 다시 받을 때마다 보면 보던 도중 20시를 넘길 때 탭이 저절로 바뀐다
@@ -354,8 +355,7 @@ function Chart({
 
   const topLabel = shown === last ? (live ? "지금 주도주 순위" : "마감 주도주 순위") : `${hhmm(spec.start + shown + offset)} 주도주 순위`;
   const sessions = sessionsOf(market, offset);
-  const hours: number[] = [];
-  for (let i = 0; i < spec.slots; i += 60) hours.push(i); // 0, 60, …, 마감 분
+  const hours = hourMarks(spec);
   const gapCols = [...Array(spec.slots).keys()].filter((i) => isGap(spec, i));
 
   return (
@@ -520,7 +520,7 @@ function ScrubChart({
   }, [model]);
 
   const { spec, last } = model;
-  // 양 끝에 반 화면씩 비워 둬야 08:00과 20:00도 세로선 아래까지 온다
+  // 양 끝에 반 화면씩 비워 둬야 첫 분과 20:00도 세로선 아래까지 온다
   const pad = Math.round(width / 2);
   // 장중에는 마지막 찍힌 분까지만 민다 — 하루 끝까지 열어 두면 세로선이 "장 진행 중" 빗금 위로 나간다.
   // 그 뒤는 오른쪽 반 화면 여백에 보이는 만큼만 그리고 잘라 낸다(잘라야 스크롤 폭이 늘지 않는다)
@@ -610,12 +610,12 @@ function ScrubChart({
           onWheel={hold}
         >
           <div className="relative h-full overflow-hidden" style={{ width: pad * 2 + end * PX }}>
-            {[...Array((spec.slots - 1) / 60 + 1).keys()].map((h) => (
-              <span key={h}>
-                <span className="num absolute top-[8px] -translate-x-1/2 text-[11px] text-zinc-500" style={{ left: x(h * 60) }}>
-                  {hhmm(spec.start + h * 60 + offset).slice(0, 2)}
+            {hourMarks(spec).map((i) => (
+              <span key={i}>
+                <span className="num absolute top-[8px] -translate-x-1/2 text-[11px] text-zinc-500" style={{ left: x(i) }}>
+                  {hhmm(spec.start + i + offset).slice(0, 2)}
                 </span>
-                <span className="absolute bottom-0 w-px bg-zinc-800/40" style={{ left: x(h * 60), top: M_AXIS }} />
+                <span className="absolute bottom-0 w-px bg-zinc-800/40" style={{ left: x(i), top: M_AXIS }} />
               </span>
             ))}
             {gapRuns(gapCols).map(([a, b]) => (

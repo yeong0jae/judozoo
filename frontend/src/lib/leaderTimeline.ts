@@ -22,10 +22,11 @@ export interface MarketSpec {
 }
 
 export const MARKET_SPECS: Record<TimelineMarket, MarketSpec> = {
+  // 08:00 분은 찍지 않는다(백엔드 `leadertimeline.domain`과 같다)
   kr: {
-    start: 480,
+    start: 481,
     end: 1200,
-    slots: 721,
+    slots: 720,
     // 단일가·장 전환 구간 — 찍지 않는다(백엔드 `leadertimeline.domain`과 같다)
     gaps: [[530, 540], [930, 940]],
     sessionName: (m) =>
@@ -40,6 +41,10 @@ export const MARKET_SPECS: Record<TimelineMarket, MarketSpec> = {
     sessionName: (m) => (m < 570 ? "프리마켓" : m < 960 ? "정규장" : "애프터마켓"),
   },
 };
+
+/** 시각 눈금을 다는 칸 — 첫 칸과 정시. 국내는 08:01에 시작해 첫 정시(09:00)가 59번째 칸이다 */
+export const hourMarks = (spec: MarketSpec) =>
+  [...Array(spec.slots).keys()].filter((i) => i === 0 || (spec.start + i) % 60 === 0);
 
 /** 흔들림으로 보지 않는 최소 지속 — 이만큼 이어져야 바뀐 것으로 친다 */
 const HOLD = 3;
@@ -66,7 +71,7 @@ export const displayOffset = (market: TimelineMarket, date: string) =>
 /** 세션 띠 — 해외는 한국 시간으로 적는다 */
 export function sessionsOf(market: TimelineMarket, offset: number): Session[] {
   if (market === "kr")
-    return [[480, 530, "프리"], [540, 930, "정규장 09:00–15:30", true], [940, 1200, "애프터 15:40–20:00"]];
+    return [[481, 530, "프리"], [540, 930, "정규장 09:00–15:30", true], [940, 1200, "애프터 15:40–20:00"]];
   return [
     [240, 570, `프리 ${hhmm(240 + offset)}–${hhmm(570 + offset)}`],
     [570, 960, `정규장 ${hhmm(570 + offset)}–${hhmm(960 + offset)}`, true],
