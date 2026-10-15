@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # VM에서 실행되는 배포 스크립트. GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출.
-# 사용: bash ~/remote_deploy.sh <AR_REPO> <REGION> <BACKEND_TAG> <FRONTEND_TAG> <ALLOY_CONFIG_HASH>
+# 사용: bash ~/remote_deploy.sh <AR_REPO> <REGION> <BACKEND_TAG> <FRONTEND_TAG> <ALLOY_CONFIG_HASH> <BACKEND_KOTLIN_TAG>
 #
 # **태그가 서비스마다 다르다.** 각 디렉터리의 git 트리 해시라서 그 서비스 내용이
 # 바뀔 때만 값이 변한다. 안 바뀐 서비스는 태그가 같아 compose가 건드리지 않는다 —
@@ -16,6 +16,7 @@ REGION="${2:?REGION required}"
 BACKEND_TAG="${3:?BACKEND_TAG required}"
 FRONTEND_TAG="${4:?FRONTEND_TAG required}"
 ALLOY_CONFIG_HASH="${5:?ALLOY_CONFIG_HASH required}"
+BACKEND_KOTLIN_TAG="${6:?BACKEND_KOTLIN_TAG required}"
 
 cd "$HOME"
 # backend가 ./secrets/.env 를 읽는다.
@@ -65,6 +66,8 @@ gcloud auth print-access-token \
 COMPOSE_ENV=(
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
   "BACKEND_IMAGE=${AR_REPO}/backend"
+  "BACKEND_KOTLIN_IMAGE=${AR_REPO}/backend-kotlin"
+  "BACKEND_KOTLIN_TAG=${BACKEND_KOTLIN_TAG}"
   "BACKEND_TAG=${BACKEND_TAG}"
   "FRONTEND_TAG=${FRONTEND_TAG}"
   "ALLOY_CONFIG_HASH=${ALLOY_CONFIG_HASH}"
@@ -100,6 +103,16 @@ for i in $(seq 1 18); do
   if [ "$status" = "healthy" ]; then echo "backend health OK ($i)"; break; fi
   if [ "$i" = "18" ]; then echo "backend health check failed (status=${status:-unknown})"; exit 1; fi
   echo "backend not ready ($status), retry $i"; sleep 5
+done
+
+# 1-1) Kotlin 백엔드(028). nginx가 옮긴 경로를 여기로 보내므로 죽어 있으면 그 경로가 502다.
+#      JVM 기동이 느려 Python보다 길게 기다린다.
+for i in $(seq 1 24); do
+  status="$(sudo docker inspect --format '{{.State.Health.Status}}' \
+    "$(sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q backend-kotlin)" 2>/dev/null || true)"
+  if [ "$status" = "healthy" ]; then echo "backend-kotlin health OK ($i)"; break; fi
+  if [ "$i" = "24" ]; then echo "backend-kotlin health check failed (status=${status:-unknown})"; exit 1; fi
+  echo "backend-kotlin not ready ($status), retry $i"; sleep 5
 done
 
 # 2) alloy — 메트릭 exporter(unix·cadvisor)가 호스트 마운트를 읽는다. 마운트가 하나라도

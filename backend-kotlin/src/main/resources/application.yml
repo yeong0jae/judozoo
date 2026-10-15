@@ -19,8 +19,30 @@ judozoo:
   # Python `SessionMiddleware`와 같은 키여야 그 쿠키를 읽는다
   session-secret: ${SESSION_SECRET:dev-only-insecure}
 
+# `/actuator/prometheus`는 compose 네트워크 안에서 alloy만 긁는다. **nginx는 `/api/`만 넘긴다** —
+# nginx에 `/actuator`를 추가하는 순간 인터넷에 열린다.
 management:
   endpoints:
     web:
       exposure:
         include: health,prometheus
+  # 트레이스(021). 기본은 꺼 둔다 — 운영 compose가 켜고 alloy 주소를 준다(Python `OTLP_ENDPOINT`와 같은 자리).
+  tracing:
+    sampling:
+      probability: 1.0
+    export:
+      enabled: false
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          transport: grpc
+  # alloy는 트레이스만 OTLP로 받는다. 메트릭은 Prometheus 긁기, 로그는 stdout이다
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  logging:
+    export:
+      otlp:
+        enabled: false

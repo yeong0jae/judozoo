@@ -4,7 +4,7 @@
 # secrets/.env 가 있어야 부팅됨 (KIS/KIWOOM/토스 시크릿 + DB_PASSWORD).
 # 파일은 git에 올리지 않는다 — 배포 시 remote_deploy.sh가 Secret Manager에서 받아 쓴다.
 services:
-  # 유일한 백엔드. nginx가 /api/ 전체를 여기로 보낸다.
+  # Python 백엔드. nginx가 /api/ 중 Kotlin으로 옮기지 않은 경로를 여기로 보낸다(028).
   # 컨테이너 기본 UTC면 KST 기준 cron·벽시계가 9시간 어긋나므로 TZ를 고정한다.
   backend:
     build: ./backend
@@ -28,6 +28,29 @@ services:
       timeout: 5s
       retries: 6
       start_period: 15s
+    networks:
+      - trading
+
+  # Kotlin 백엔드(028). 기능 단위로 옮기는 중이라 nginx가 옮긴 경로만 여기로 보낸다.
+  # Python과 같은 DB·같은 secrets/.env를 쓴다. 스키마는 건드리지 않는다(JPA validate).
+  backend-kotlin:
+    build: ./backend-kotlin
+    environment:
+      TZ: Asia/Seoul
+      DB_NAME: trading
+    env_file:
+      - ./secrets/.env
+    expose:
+      - "8001"
+    # 힙은 이 한도의 70%다(Dockerfile `MaxRAMPercentage`). 빈 앱이 330MB쯤 쓴다.
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      # JVM 기동이 Python보다 느리다
+      start_period: 40s
     networks:
       - trading
 

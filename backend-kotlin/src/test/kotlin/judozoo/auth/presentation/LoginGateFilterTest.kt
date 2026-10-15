@@ -63,6 +63,23 @@ class LoginGateFilterTest {
         }
 
         @Test
+        fun `요청 동안만 로그에 사용자와 경로를 싣는다`() {
+            val request = MockHttpServletRequest("GET", "/api/leading-stocks/market-signal-events")
+            request.setCookies(Cookie(LoginGateFilter.COOKIE_NAME, pythonCookie))
+            var during: Map<String, String>? = null
+            val chain = MockFilterChain(object : jakarta.servlet.http.HttpServlet() {
+                override fun service(req: jakarta.servlet.ServletRequest, res: jakarta.servlet.ServletResponse) {
+                    during = org.slf4j.MDC.getCopyOfContextMap()
+                }
+            })
+
+            filter.doFilter(request, MockHttpServletResponse(), chain)
+
+            during shouldBe mapOf("user" to "7", "request" to "GET /api/leading-stocks/market-signal-events")
+            org.slf4j.MDC.getCopyOfContextMap().orEmpty() shouldBe emptyMap()
+        }
+
+        @Test
         fun `서명이 틀린 쿠키는 미로그인으로 본다`() {
             call("/api/leading-stocks/market-signal-events", pythonCookie.dropLast(1) + "x").second.status shouldBe 401
         }

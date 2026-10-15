@@ -43,7 +43,7 @@ jobs:
     strategy:
       matrix:
         # 이미지별로 러너를 나눠 병렬 빌드. 디렉터리명 = 이미지명 = 빌드 컨텍스트.
-        image: [backend, frontend]
+        image: [backend, backend-kotlin, frontend]
     name: build ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
@@ -106,7 +106,7 @@ jobs:
           tags: |
             ${{ env.AR_REPO }}/${{ matrix.image }}:${{ steps.tag.outputs.value }}
             ${{ env.AR_REPO }}/${{ matrix.image }}:latest
-          # GHA 캐시로 의존성 레이어(uv sync / npm ci) 재사용 — 매 실행 재다운로드 방지
+          # GHA 캐시로 의존성 레이어(uv sync / gradle / npm ci) 재사용 — 매 실행 재다운로드 방지
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
@@ -258,6 +258,7 @@ jobs:
         run: |
           {
             echo "backend=$(git rev-parse HEAD:backend)"
+            echo "backend_kotlin=$(git rev-parse HEAD:backend-kotlin)"
             echo "frontend=$(git rev-parse HEAD:frontend)"
             echo "alloy=$(git rev-parse HEAD:observability/alloy)"
           } >> "$GITHUB_OUTPUT"
@@ -273,4 +274,5 @@ jobs:
               && bash ~/remote_deploy.sh ${AR_REPO} ${REGION} \
               ${{ steps.tags.outputs.backend }} \
               ${{ steps.tags.outputs.frontend }} \
-              ${{ steps.tags.outputs.alloy }}"
+              ${{ steps.tags.outputs.alloy }} \
+              ${{ steps.tags.outputs.backend_kotlin }}"

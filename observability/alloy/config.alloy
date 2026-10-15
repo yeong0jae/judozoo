@@ -54,6 +54,15 @@ prometheus.scrape "backend" {
   forward_to      = [prometheus.remote_write.ops.receiver]
 }
 
+// Kotlin 백엔드(028). 공존하는 동안 job으로 둘을 가른다.
+prometheus.scrape "backend_kotlin" {
+  targets         = [{ __address__ = "backend-kotlin:8001" }]
+  job_name        = "backend-kotlin"
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.ops.receiver]
+}
+
 // node_exporter를 따로 띄우지 않는다 — alloy에 내장돼 있다.
 //
 // **cadvisor는 뺐다.** 이 호스트의 Docker가 containerd 이미지 스토어를 쓰는데

@@ -65,3 +65,7 @@ tasks.register<Test>("unitTest") {
 	classpath = sourceSets.test.get().runtimeClasspath
 	useJUnitPlatform { excludeTags("integration") }
 }
+
+// 이미지에 넣는 jar 이름을 고정한다. plain jar는 쓰지 않는다
+tasks.bootJar { archiveFileName = "app.jar" }
+tasks.jar { enabled = false }

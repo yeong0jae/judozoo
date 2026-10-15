@@ -1,6 +1,6 @@
 # prod override: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# 필요한 env: FRONTEND_IMAGE, BACKEND_IMAGE (Artifact Registry 경로)
-#             + BACKEND_TAG / FRONTEND_TAG
+# 필요한 env: FRONTEND_IMAGE, BACKEND_IMAGE, BACKEND_KOTLIN_IMAGE (Artifact Registry 경로)
+#             + BACKEND_TAG / BACKEND_KOTLIN_TAG / FRONTEND_TAG
 #
 # **태그를 서비스끼리 공유하지 않는다.** 각각 그 디렉터리의 git 트리 해시라서, 안 바뀐 서비스는
 # 값이 그대로다 → compose가 그 컨테이너를 재생성하지 않는다. 커밋 SHA 하나를 공유하던
@@ -12,6 +12,18 @@ services:
     environment:
       LOG_FORMAT: json
     image: ${BACKEND_IMAGE}:${BACKEND_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+
+  backend-kotlin:
+    build: !reset null
+    environment:
+      # 운영 로그는 JSON 한 줄(`application-prod.yml`) — Python과 같은 필드다.
+      SPRING_PROFILES_ACTIVE: prod
+      # 트레이스를 alloy의 OTLP 수신구로(021). Python `OTLP_ENDPOINT`와 같은 곳이다.
+      MANAGEMENT_TRACING_EXPORT_ENABLED: "true"
+      MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://alloy:4317
+    image: ${BACKEND_KOTLIN_IMAGE}:${BACKEND_KOTLIN_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
 

@@ -6,7 +6,9 @@ import jakarta.servlet.http.HttpServletResponse
 import judozoo.JudozooProperties
 import judozoo.auth.domain.CurrentUser
 import judozoo.library.web.ApiError
+import judozoo.library.JsonLogFormatter
 import judozoo.library.StarletteSession
+import org.slf4j.MDC
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import tools.jackson.databind.ObjectMapper
@@ -28,16 +30,23 @@ class LoginGateFilter(
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
         val user = currentUser(request)
         request.setAttribute(CURRENT_USER, user)
-
-        // 정규화 전 경로로 본다 — `/api/market/kospi/../futures/...` 같은 꼬리로 허용목록을 타지 못하게
+        // 로그 맥락도 여기서 심는다. 관문이 이미 사용자를 손에 쥔 자리가 여기다
         val path = request.requestURI
-        if (path.startsWith("/api") && !Gate.isPublic(path) && user == null) {
-            response.status = 401
-            response.contentType = "application/json"
-            objectMapper.writeValue(response.outputStream, ApiError("UNAUTHORIZED", 401))
-            return
+        user?.let { MDC.put(JsonLogFormatter.MDC_USER, it.id.toString()) }
+        MDC.put(JsonLogFormatter.MDC_REQUEST, "${request.method} $path")
+        try {
+            // 정규화 전 경로로 본다 — `/api/market/kospi/../futures/...` 같은 꼬리로 허용목록을 타지 못하게
+            if (path.startsWith("/api") && !Gate.isPublic(path) && user == null) {
+                response.status = 401
+                response.contentType = "application/json"
+                objectMapper.writeValue(response.outputStream, ApiError("UNAUTHORIZED", 401))
+                return
+            }
+            chain.doFilter(request, response)
+        } finally {
+            MDC.remove(JsonLogFormatter.MDC_USER)
+            MDC.remove(JsonLogFormatter.MDC_REQUEST)
         }
-        chain.doFilter(request, response)
     }
 
     private fun currentUser(request: HttpServletRequest): CurrentUser? {
