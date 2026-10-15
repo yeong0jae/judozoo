@@ -1,4 +1,4 @@
-package judozoo.auth
+package judozoo.auth.presentation
 
 /**
  * 공개 API 허용목록. Python `auth/gate.py`와 **같은 표**다 — 한쪽만 고치면 경로마다 공개 여부가 달라진다.

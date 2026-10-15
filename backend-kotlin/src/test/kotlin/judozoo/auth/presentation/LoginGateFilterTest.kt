@@ -1,9 +1,10 @@
-package judozoo.auth
+package judozoo.auth.presentation
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import jakarta.servlet.http.Cookie
 import judozoo.JudozooProperties
+import judozoo.auth.domain.CurrentUser
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockFilterChain
@@ -14,7 +15,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 
-class PresentationTest {
+class LoginGateFilterTest {
     /** Python이 secret `test-secret`으로 발급한 쿠키 — 사용자 id 7. */
     private val pythonCookie =
         "eyJ1c2VyIjogeyJpZCI6IDcsICJlbWFpbCI6ICJhQGV4YW1wbGUuY29tIn0sICJfc3RhdGVfZ29vZ2xlX3giOiB7ImRhdGEiOiAxfX0=" +

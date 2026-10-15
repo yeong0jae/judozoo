@@ -1,11 +1,11 @@
-package judozoo.auth
+package judozoo.auth.domain
 
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
-class DomainTest {
+class CurrentUserTest {
     @Nested
     inner class 세션_복원 {
         @Test

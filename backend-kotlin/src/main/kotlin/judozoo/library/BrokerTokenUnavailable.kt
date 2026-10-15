@@ -1,8 +1,5 @@
 package judozoo.library
 
-/** 조회 대상이 없다. 전역 핸들러가 404 + NOT_FOUND로 바꾼다. */
-class EntityNotFoundException(message: String) : RuntimeException(message)
-
 /**
  * 브로커가 토큰 발급을 거부해 백오프 중이다.
  *

@@ -1,10 +1,11 @@
-package judozoo.auth
+package judozoo.auth.presentation
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import judozoo.JudozooProperties
-import judozoo.library.ApiError
+import judozoo.auth.domain.CurrentUser
+import judozoo.library.web.ApiError
 import judozoo.library.StarletteSession
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter

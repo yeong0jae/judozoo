@@ -62,6 +62,7 @@ Every rule above carries over. Run with `./gradlew test` from `backend-kotlin/`;
 | `통합_db` + `@pytest.mark.integration` | `@IntegrationTest` (Testcontainers MySQL, tagged `integration`) |
 | `client` (TestClient) | `@WebMvcTest` + `MockMvc` |
 
-`src/test/kotlin/judozoo` mirrors `src/main/kotlin/judozoo` one-to-one.
+`src/test/kotlin/judozoo` mirrors `src/main/kotlin/judozoo` one-to-one: `auth/presentation/LoginGateFilter.kt` → `auth/presentation/LoginGateFilterTest.kt`.
+The Korean naming rule applies to `@Nested` classes and test methods; the file's top-level class is `<ClassUnderTest>Test`.
 
 Porting a feature ports its tests: **every Python scenario gets a Kotlin counterpart** before nginx routes the path.

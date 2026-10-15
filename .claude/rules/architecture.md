@@ -56,22 +56,25 @@ The "domain modules must not directly collaborate" rule applies to **behavior** 
 
 The backend is moving to Kotlin + Spring Boot (Spring MVC, JPA) one feature at a time. Until it finishes,
 **both backends run against the same MySQL** and nginx routes each `/api` path to one of them.
-Every rule above applies unchanged; only the file names change.
+The layer rules and dependency direction above apply unchanged. **The file layout does not** — Kotlin follows
+the usual Spring convention instead of Python's one-module-per-layer.
 
 ```
 backend-kotlin/src/main/kotlin/judozoo
-├── <feature>/        # same feature packages as Python
-│   ├── Presentation.kt   # @RestController
-│   ├── Application.kt    # @Service, use cases
-│   ├── Domain.kt         # pure Kotlin
-│   └── Infrastructure.kt
-├── library/
-├── platform/<vendor>/    # Client.kt + one file per endpoint group
+├── <feature>/                 # same feature packages as Python
+│   ├── presentation/          # LeadingStockController.kt, request/response DTOs
+│   ├── application/           # LeadingStockService.kt, LeadingStockScheduler.kt
+│   ├── domain/                # entities, value objects, first-class collections, repository interfaces
+│   └── infrastructure/        # repository implementations, external adapters
+├── library/                   # cross-cutting, may group by concern (library/web/, ...)
+├── platform/<vendor>/         # KiwoomClient.kt + one file per endpoint group
 └── JudozooApplication.kt
 ```
 
-- A layer is **one file**, holding as many classes as it needs. Split by concern (`Filters.kt`, `Signals.kt`, `Entities.kt`, `Scheduler.kt`) the same way Python does — never a directory per layer.
-- Spring wiring (`@Service`, `@Repository`, `@Component`) stays out of `Domain.kt`.
+- **A layer is a package (directory); one top-level class per file**, named after the class. A sealed hierarchy or a tiny private helper may share its owner's file.
+- A feature still creates only the layers it needs.
+- Python's concern modules (`filters.py`, `signals.py`, `events.py`) become classes in the layer they belong to — usually `domain/` — not extra top-level directories. A sub-package inside a layer (`domain/filter/`) is fine once a concern has several classes.
+- Spring wiring (`@Service`, `@Repository`, `@Component`) stays out of `domain/`. Spring Data repository interfaces may live in `domain/` as the port; anything that touches `EntityManager` or SQL goes to `infrastructure/`.
 
 ### While both backends run
 

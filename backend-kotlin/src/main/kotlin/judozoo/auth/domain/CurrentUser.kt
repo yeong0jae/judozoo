@@ -1,4 +1,4 @@
-package judozoo.auth
+package judozoo.auth.domain
 
 /**
  * 세션 쿠키에 담기는 최소 정보.

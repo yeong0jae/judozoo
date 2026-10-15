@@ -1,4 +1,4 @@
-package judozoo.auth
+package judozoo.auth.presentation
 
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Nested

@@ -1,7 +1,6 @@
-package judozoo.library
+package judozoo.library.web
 
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.string.shouldContain
 import judozoo.IntegrationTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -12,22 +11,11 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 @IntegrationTest
-class WebTest(@Value("\${local.server.port}") private val port: Int) {
+class ApiExceptionHandlerTest(@Value("\${local.server.port}") private val port: Int) {
     private fun get(path: String): HttpResponse<String> = HttpClient.newHttpClient().send(
         HttpRequest.newBuilder(URI("http://localhost:$port$path")).build(),
         HttpResponse.BodyHandlers.ofString(),
     )
-
-    @Nested
-    inner class 헬스체크 {
-        @Test
-        fun `DB까지 붙어 있으면 UP으로 답한다`() {
-            val response = get("/health/db")
-
-            response.statusCode() shouldBe 200
-            response.body() shouldContain "\"database\":\"UP\""
-        }
-    }
 
     @Nested
     inner class 오류_봉투 {
