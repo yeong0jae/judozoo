@@ -16,13 +16,13 @@ class BorrowedToken(
     private val provider: String,
     private val repository: BrokerTokenRepository,
     private val clock: Clock,
-) {
+) : TokenSource {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Volatile private var current: BrokerToken? = null
     @Volatile private var dead: String? = null
 
-    fun get(): String {
+    override fun get(): String {
         val now = clock.instant()
         current?.takeIf { it.isAliveAt(now) }?.let { return it.accessToken }
 
@@ -41,7 +41,7 @@ class BorrowedToken(
     }
 
     /** 브로커가 이 토큰을 거부했다. DB는 건드리지 않는다 — 지우고 새로 받는 건 Python 몫이다. */
-    fun invalidate() {
+    override fun invalidate() {
         synchronized(this) {
             dead = current?.accessToken ?: dead
             current = null

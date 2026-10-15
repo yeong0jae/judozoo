@@ -40,6 +40,7 @@ dependencies {
 	testImplementation("org.testcontainers:testcontainers-mysql")
 	testImplementation("io.kotest:kotest-assertions-core:6.0.4")
 	testImplementation("io.mockk:mockk:1.14.6")
+	testImplementation("org.wiremock:wiremock-standalone:3.13.1")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
