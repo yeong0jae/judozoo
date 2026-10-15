@@ -9,7 +9,7 @@ from backend.market.calendar import Region
 
 
 class Test국내_찍는_분:
-    @pytest.mark.parametrize("at", [time(8, 0), time(8, 49), time(9, 0), time(15, 29), time(15, 40), time(19, 59), time(20, 0)])
+    @pytest.mark.parametrize("at", [time(8, 1), time(8, 49), time(9, 0), time(15, 29), time(15, 40), time(19, 59), time(20, 0)])
     def test_세션_안은_마감_분까지_찍는다(self, at):
         assert captures(Region.KR, at)
 
@@ -17,7 +17,7 @@ class Test국내_찍는_분:
     def test_장_사이_쉬는_구간은_찍지_않는다(self, at):
         assert not captures(Region.KR, at)
 
-    @pytest.mark.parametrize("at", [time(7, 59), time(20, 1), time(23, 0)])
+    @pytest.mark.parametrize("at", [time(7, 59), time(8, 0), time(20, 1), time(23, 0)])
     def test_세션_밖은_찍지_않는다(self, at):
         assert not captures(Region.KR, at)
 

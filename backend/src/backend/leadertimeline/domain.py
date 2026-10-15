@@ -10,7 +10,7 @@ from backend.market.calendar import Region
 #: 찍는 시간 — 홈 풀이 도는 세션과 같다. **끝 시각(마감 분)도 찍는다** — 국내·해외 모두 20:00이 마지막 분.
 #: 애프터마켓 마감 순간의 값이라 화면 끝 눈금(국내 20시·해외 09시)과 맞는다
 _WINDOWS = {
-    Region.KR: (time(8, 0), time(20, 0)),
+    Region.KR: (time(8, 1), time(20, 0)),
     Region.US: (time(4, 0), time(20, 0)),
 }
 
