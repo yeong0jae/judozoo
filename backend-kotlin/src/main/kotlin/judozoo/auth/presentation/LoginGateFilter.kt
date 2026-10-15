@@ -44,9 +44,20 @@ class LoginGateFilter(
             }
             chain.doFilter(request, response)
         } finally {
+            logAccess(request, response.status)
             MDC.remove(JsonLogFormatter.MDC_USER)
             MDC.remove(JsonLogFormatter.MDC_REQUEST)
         }
+    }
+
+    /**
+     * uvicorn 접근 로그와 **같은 문장**을 남긴다 — "사용자 여정" 대시보드가 이 모양을 패턴으로 쪼갠다.
+     * 헬스체크·메트릭은 10초마다 오므로 성공이면 남기지 않는다.
+     */
+    private fun logAccess(request: HttpServletRequest, status: Int) {
+        val path = request.requestURI + (request.queryString?.let { "?$it" } ?: "")
+        if (status < 400 && QUIET_PATHS.any { request.requestURI.startsWith(it) }) return
+        access.info("{}:{} - \"{} {} {}\" {}", request.remoteAddr, request.remotePort, request.method, path, request.protocol, status)
     }
 
     private fun currentUser(request: HttpServletRequest): CurrentUser? {
@@ -56,6 +67,9 @@ class LoginGateFilter(
     }
 
     companion object {
+        private val access = org.slf4j.LoggerFactory.getLogger("judozoo.access")
+        private val QUIET_PATHS = listOf("/health", "/actuator")
+
         const val COOKIE_NAME = "judozoo_session"
         const val CURRENT_USER = "judozoo.currentUser"
     }

@@ -122,7 +122,8 @@ groups:
               refId: QUERY
               datasource: { type: loki, uid: loki }
               queryType: instant
-              expr: 'sum(count_over_time({service="backend"} | json | level = "ERROR" [10m]))'
+              # Kotlin 백엔드로 옮기는 동안(028) 둘 다 본다
+              expr: 'sum(count_over_time({service=~"backend|backend-kotlin"} | json | level = "ERROR" [10m]))'
           - refId: THRESHOLD
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -136,7 +137,7 @@ groups:
                     params: [15]
 
       # ── 사용자에게 나간 500 ────────────────────────────────────────
-      # `backend.main`의 "Unhandled exception"은 전역 핸들러가 잡은 것이다.
+      # `backend.main`(Python)·`ApiExceptionHandler`(Kotlin)의 "Unhandled exception"은 전역 핸들러가 잡은 것이다.
       # 곧 **화면이 깨져 보인 사람이 있다**는 뜻이라, 전체 에러보다 낮은 문턱을 쓴다.
       - uid: log-unhandled-exception
         title: 사용자에게 500이 나가고 있다
@@ -157,7 +158,7 @@ groups:
               refId: QUERY
               datasource: { type: loki, uid: loki }
               queryType: instant
-              expr: 'sum(count_over_time({service="backend"} | json | level = "ERROR" | logger = "backend.main" [10m]))'
+              expr: 'sum(count_over_time({service=~"backend|backend-kotlin"} | json | level = "ERROR" | logger =~ "backend.main|judozoo.library.web.ApiExceptionHandler" [10m]))'
           - refId: THRESHOLD
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__

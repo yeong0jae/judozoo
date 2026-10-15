@@ -56,8 +56,10 @@ services:
 
   frontend:
     build: ./frontend
+    # nginx는 기동 때 upstream 이름을 푼다 — 없으면 nginx가 뜨지 않는다
     depends_on:
       - backend
+      - backend-kotlin
     networks:
       - trading
 

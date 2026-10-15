@@ -26,8 +26,22 @@ class LoginGateFilterTest {
         Clock.fixed(Instant.ofEpochSecond(1_792_070_321), ZoneOffset.UTC),
     )
 
+    private fun captureAccessLog(block: () -> Unit): List<String> {
+        val logger = org.slf4j.LoggerFactory.getLogger("judozoo.access") as ch.qos.logback.classic.Logger
+        val appender = ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+        }
+        return appender.list.map { it.formattedMessage }
+    }
+
     private fun call(path: String, cookie: String? = null): Pair<MockHttpServletRequest, MockHttpServletResponse> {
-        val request = MockHttpServletRequest("GET", path)
+        val request = MockHttpServletRequest("GET", path.substringBefore("?"))
+        if ("?" in path) request.queryString = path.substringAfter("?")
+        request.protocol = "HTTP/1.1"
         cookie?.let { request.setCookies(Cookie(LoginGateFilter.COOKIE_NAME, it)) }
         val response = MockHttpServletResponse()
         filter.doFilter(request, response, MockFilterChain())
@@ -77,6 +91,17 @@ class LoginGateFilterTest {
 
             during shouldBe mapOf("user" to "7", "request" to "GET /api/leading-stocks/market-signal-events")
             org.slf4j.MDC.getCopyOfContextMap().orEmpty() shouldBe emptyMap()
+        }
+
+        /** "사용자 여정" 대시보드가 `<_> - "<method> <path> HTTP/<_>" <status>`로 쪼갠다 — uvicorn과 같은 문장이어야 한다. */
+        @Test
+        fun `요청마다 uvicorn과 같은 모양의 접근 로그를 남긴다`() {
+            val lines = captureAccessLog {
+                call("/api/leading-stocks/market-signal-events?limit=5")
+                call("/health")
+            }
+
+            lines shouldBe listOf("""127.0.0.1:80 - "GET /api/leading-stocks/market-signal-events?limit=5 HTTP/1.1" 401""")
         }
 
         @Test

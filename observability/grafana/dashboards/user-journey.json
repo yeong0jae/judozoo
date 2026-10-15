@@ -98,7 +98,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service=\"backend\"} | json | user =~ \"$user\" | logger = \"uvicorn.access\"",
+          "expr": "{service=~\"backend|backend-kotlin\"} | json | user =~ \"$user\" | logger =~ \"uvicorn.access|judozoo.access\"",
           "queryType": "range"
         }
       ]
@@ -133,7 +133,7 @@
           },
           "queryType": "instant",
           "legendFormat": "{{path}}",
-          "expr": "topk(10, sum by (path) (count_over_time({service=\"backend\"} | json | user =~ \"$user\" | logger = \"uvicorn.access\" | line_format \"{{.msg}}\" | pattern `<_> - \"<method> <path> HTTP/<_>\" <status>` [$__range])))"
+          "expr": "topk(10, sum by (path) (count_over_time({service=~\"backend|backend-kotlin\"} | json | user =~ \"$user\" | logger =~ \"uvicorn.access|judozoo.access\" | line_format \"{{.msg}}\" | pattern `<_> - \"<method> <path> HTTP/<_>\" <status>` [$__range])))"
         }
       ]
     },
@@ -168,7 +168,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service=\"backend\"} | json | user =~ \"$user\" | level = \"ERROR\"",
+          "expr": "{service=~\"backend|backend-kotlin\"} | json | user =~ \"$user\" | level = \"ERROR\"",
           "queryType": "range"
         }
       ]
