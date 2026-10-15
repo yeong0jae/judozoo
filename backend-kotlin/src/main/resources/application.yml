@@ -18,6 +18,11 @@ server:
 judozoo:
   # Python `SessionMiddleware`와 같은 키여야 그 쿠키를 읽는다
   session-secret: ${SESSION_SECRET:dev-only-insecure}
+  # 브로커 앱키는 Python과 같은 환경변수다. 한도(`*-permits-per-second`)는 Python과 나눠 쓴다(028) —
+  # `JUDOZOO_KIWOOM_QUERY_PERMITS_PER_SECOND`처럼 이 이름으로 덮어쓴다
+  kis:
+    app-key: ${REAL_KIS_APP_KEY:}
+    app-secret: ${REAL_KIS_APP_SECRET:}
 
 # `/actuator/prometheus`는 compose 네트워크 안에서 alloy만 긁는다. **nginx는 `/api/`만 넘긴다** —
 # nginx에 `/actuator`를 추가하는 순간 인터넷에 열린다.
