@@ -41,6 +41,7 @@ backend/src/main/kotlin/judozoo
 - A sub-package inside a layer (`domain/filter/`) is fine once a concern has several classes.
 - Spring wiring (`@Service`, `@Repository`, `@Component`) stays out of `domain/`. Spring Data repository interfaces may live in `domain/` as the port; anything that touches `EntityManager` or SQL goes to `infrastructure/`.
 - `platform/<vendor>/` holds `<Vendor>Client.kt` (auth, rate limit, transport) plus one file per endpoint group.
+  Build every `RestClient` from the injected `RestClient.Builder` (`restClient.clone()`), never `RestClient.builder()` — only Spring's builder carries tracing.
 
 ### Feature packages
 

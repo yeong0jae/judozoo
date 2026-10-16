@@ -18,6 +18,7 @@ class KisClient(
     private val token: TokenSource,
     registry: MeterRegistry,
     private val pause: (Duration) -> Unit = { Thread.sleep(it) },
+    restClient: RestClient.Builder = RestClient.builder(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val json = JsonMapper.builder().build()
@@ -28,7 +29,7 @@ class KisClient(
         timeout = Duration.ofSeconds(30),
     )
 
-    private val rest = RestClient.builder()
+    private val rest = restClient.clone()
         .baseUrl(properties.baseUrl)
         .requestFactory(
             JdkClientHttpRequestFactory(

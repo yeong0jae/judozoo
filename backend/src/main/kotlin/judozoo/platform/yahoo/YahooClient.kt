@@ -15,12 +15,12 @@ import java.time.Instant
 import java.time.LocalDateTime
 
 @Component
-class YahooClient(properties: YahooProperties, registry: MeterRegistry) {
+class YahooClient(properties: YahooProperties, registry: MeterRegistry, restClient: RestClient.Builder = RestClient.builder()) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     data class YahooQuote(val name: String, val price: Double, val prevClose: Double)
 
-    private val rest = RestClient.builder()
+    private val rest = restClient.clone()
         .baseUrl(properties.baseUrl)
         .requestFactory(
             JdkClientHttpRequestFactory(

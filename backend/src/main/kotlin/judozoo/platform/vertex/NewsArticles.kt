@@ -12,12 +12,12 @@ import java.nio.charset.Charset
 import java.time.Duration
 
 @Component
-class NewsArticles(registry: MeterRegistry) {
+class NewsArticles(registry: MeterRegistry, restClient: RestClient.Builder = RestClient.builder()) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     data class Article(val url: String, val title: String, val site: String? = null)
 
-    private val rest = RestClient.builder()
+    private val rest = restClient.clone()
         .requestFactory(
             JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).followRedirects(HttpClient.Redirect.NEVER)

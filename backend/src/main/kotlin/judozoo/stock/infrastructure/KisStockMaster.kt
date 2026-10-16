@@ -14,8 +14,8 @@ import java.time.LocalDateTime
 import java.util.zip.ZipInputStream
 
 @Component
-class KisStockMaster(private val baseUrl: String = BASE_URL) {
-    private val rest = RestClient.builder()
+class KisStockMaster(private val baseUrl: String = BASE_URL, restClient: RestClient.Builder = RestClient.builder()) {
+    private val rest = restClient.clone()
         .requestFactory(
             JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).followRedirects(HttpClient.Redirect.NORMAL)

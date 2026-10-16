@@ -20,13 +20,13 @@ import java.util.Base64
 
 @Component
 @EnableConfigurationProperties(GoogleProperties::class)
-class GoogleOAuth(private val properties: GoogleProperties, private val clock: Clock, registry: MeterRegistry) {
+class GoogleOAuth(private val properties: GoogleProperties, private val clock: Clock, registry: MeterRegistry, restClient: RestClient.Builder = RestClient.builder()) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val json = JsonMapper.builder().build()
 
     data class Account(val sub: String, val email: String)
 
-    private val rest = RestClient.builder()
+    private val rest = restClient.clone()
         .requestFactory(
             JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(Duration.ofSeconds(10)).build(),

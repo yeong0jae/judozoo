@@ -5,12 +5,13 @@ import judozoo.library.brokertoken.IssuedToken.Issued
 import judozoo.platform.TokenHttp
 import org.slf4j.LoggerFactory
 import org.springframework.http.MediaType
+import org.springframework.web.client.RestClient
 import java.time.Clock
 import java.time.Duration
 
-class KisTokenIssuer(private val properties: KisProperties, private val clock: Clock, registry: MeterRegistry) {
+class KisTokenIssuer(private val properties: KisProperties, private val clock: Clock, registry: MeterRegistry, restClient: RestClient.Builder = RestClient.builder()) {
     private val log = LoggerFactory.getLogger(javaClass)
-    private val rest = TokenHttp.client(properties.baseUrl, "kis", registry)
+    private val rest = TokenHttp.client(properties.baseUrl, "kis", registry, restClient)
 
     fun issue(): Issued {
         val (status, body) = rest.post().uri("/oauth2/tokenP")

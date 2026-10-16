@@ -22,6 +22,7 @@ class VertexClient(
     private val registry: MeterRegistry,
     private val wait: (Duration) -> Unit = { Thread.sleep(it) },
     private val jitter: () -> Double = { Random.nextDouble(0.5, 1.5) },
+    restClient: RestClient.Builder = RestClient.builder(),
 ) {
     private val json = JsonMapper.builder().build()
 
@@ -31,7 +32,7 @@ class VertexClient(
 
     data class Grounded(val text: String, val sources: List<GroundedSource> = emptyList(), val usage: Usage = Usage())
 
-    private val rest = RestClient.builder()
+    private val rest = restClient.clone()
         .baseUrl(properties.baseUrl)
         .requestFactory(
             JdkClientHttpRequestFactory(

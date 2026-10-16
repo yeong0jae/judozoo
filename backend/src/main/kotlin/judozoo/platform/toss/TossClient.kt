@@ -18,6 +18,7 @@ class TossClient(
     private val token: TokenSource,
     registry: MeterRegistry,
     private val pause: (Duration) -> Unit = { Thread.sleep(it) },
+    restClient: RestClient.Builder = RestClient.builder(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -30,7 +31,7 @@ class TossClient(
         { Duration.ofNanos(1_000_000_000L / properties.indicatorChartPermitsPerSecond) }, Duration.ofSeconds(20),
     )
 
-    private val rest = RestClient.builder()
+    private val rest = restClient.clone()
         .baseUrl(properties.baseUrl)
         .requestFactory(
             JdkClientHttpRequestFactory(

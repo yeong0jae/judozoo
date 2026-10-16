@@ -21,6 +21,7 @@ class KiwoomClient(
     private val token: TokenSource,
     private val clock: Clock,
     registry: MeterRegistry,
+    restClient: RestClient.Builder = RestClient.builder(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -30,7 +31,7 @@ class KiwoomClient(
         timeout = Duration.ofSeconds(20),
     )
 
-    private val rest = RestClient.builder()
+    private val rest = restClient.clone()
         .baseUrl(properties.baseUrl)
         .requestFactory(
             JdkClientHttpRequestFactory(

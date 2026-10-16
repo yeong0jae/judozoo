@@ -8,7 +8,7 @@ import java.net.http.HttpClient
 import java.time.Duration
 
 object TokenHttp {
-    fun client(baseUrl: String, vendor: String, registry: MeterRegistry): RestClient = RestClient.builder()
+    fun client(baseUrl: String, vendor: String, registry: MeterRegistry, restClient: RestClient.Builder): RestClient = restClient.clone()
         .baseUrl(baseUrl)
         .requestFactory(
             JdkClientHttpRequestFactory(

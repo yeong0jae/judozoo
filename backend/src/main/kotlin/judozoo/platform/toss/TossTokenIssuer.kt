@@ -5,11 +5,12 @@ import judozoo.library.brokertoken.IssuedToken.Issued
 import judozoo.platform.TokenHttp
 import org.springframework.http.MediaType
 import org.springframework.util.LinkedMultiValueMap
+import org.springframework.web.client.RestClient
 import java.time.Clock
 import java.time.Duration
 
-class TossTokenIssuer(private val properties: TossProperties, private val clock: Clock, registry: MeterRegistry) {
-    private val rest = TokenHttp.client(properties.baseUrl, "toss", registry)
+class TossTokenIssuer(private val properties: TossProperties, private val clock: Clock, registry: MeterRegistry, restClient: RestClient.Builder = RestClient.builder()) {
+    private val rest = TokenHttp.client(properties.baseUrl, "toss", registry, restClient)
 
     fun issue(): Issued {
         val form = LinkedMultiValueMap<String, String>().apply {
