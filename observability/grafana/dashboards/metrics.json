@@ -430,7 +430,7 @@
           "links": [
             {
               "title": "이 API의 느린 트레이스",
-              "url": "/d/judozoo-traces/?var-api=${__field.labels.handler}&${__url_time_range}"
+              "url": "/d/judozoo-traces/?var-api=${__field.labels.uri}&${__url_time_range}"
             }
           ]
         },

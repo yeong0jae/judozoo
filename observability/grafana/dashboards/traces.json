@@ -18,19 +18,19 @@
       {
         "name": "api",
         "label": "API",
-        "description": "목록은 Prometheus의 handler 라벨에서 온다. Tempo 태그 조회를 쓰지 않는 이유는 트레이스 보존이 7일이라 그 뒤로는 목록이 비기 때문이다 — 메트릭은 30일이고 라우트 목록은 020에서 이미 정규화돼 있다.",
+        "description": "목록은 Prometheus의 uri 라벨에서 온다. Tempo 태그 조회를 쓰지 않는 이유는 트레이스 보존이 7일이라 그 뒤로는 목록이 비기 때문이다 — 메트릭은 30일이고 라우트 목록은 020에서 이미 정규화돼 있다.",
         "type": "query",
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(http_requests_total, handler)",
+        "definition": "label_values(http_server_requests_seconds_count{job=\"backend\"}, uri)",
         "query": {
           "qryType": 1,
-          "query": "label_values(http_requests_total, handler)",
+          "query": "label_values(http_server_requests_seconds_count{job=\"backend\"}, uri)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "regex": "/^\\/.*/",
+        "regex": "/^\\/api\\/.*/",
         "includeAll": true,
         "allValue": ".*",
         "multi": false,
@@ -197,7 +197,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "DOWN이면 Tempo가 안 떴거나 Prometheus가 못 닿는 것이고, UP인데 왼쪽 수집률이 0이면 앱에서 트레이스가 안 나오는 것이다(alloy 설정·OTLP_ENDPOINT를 본다).",
+      "description": "DOWN이면 Tempo가 안 떴거나 Prometheus가 못 닿는 것이고, UP인데 왼쪽 수집률이 0이면 앱에서 트레이스가 안 나오는 것이다(alloy 설정·`MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`를 본다).",
       "gridPos": {
         "h": 7,
         "w": 8,
@@ -270,7 +270,7 @@
         "type": "tempo",
         "uid": "tempo"
       },
-      "description": "**위 드롭다운에서 API 하나를 고르면 그 API만 남는다.** 표는 20건까지만 싣기 때문에, 전체로 두면 무거운 API 한둘이 20줄을 다 먹고 조용한 API의 느린 건은 실리지도 않는다 — 그래서 표 안에서 눈으로 거르는 게 아니라 쿼리 단계에서 고른다.\n\n스팬 이름이 아니라 `http.route` 속성으로 거른다. 라우트 템플릿이라 종목코드마다 갈라지지 않고, 메트릭 대시보드의 `handler` 라벨과 같은 문자열이다(둘 다 FastAPI 라우트에서 나온다).\n\n행을 누르면 스팬 트리로 들어간다. 자식 시간의 합보다 루트가 훨씬 크면 그 차이는 레이트 리미터 대기다 — 스팬은 대기를 제외한 왕복만 잰다(021 실측).",
+      "description": "**위 드롭다운에서 API 하나를 고르면 그 API만 남는다.** 표는 20건까지만 싣기 때문에, 전체로 두면 무거운 API 한둘이 20줄을 다 먹고 조용한 API의 느린 건은 실리지도 않는다 — 그래서 표 안에서 눈으로 거르는 게 아니라 쿼리 단계에서 고른다.\n\n스팬 이름이 아니라 `uri` 속성으로 거른다. 라우트 템플릿이라 종목코드마다 갈라지지 않고, 메트릭 대시보드의 `uri` 라벨과 같은 문자열이다(둘 다 Spring MVC 매핑에서 나온다).\n\n행을 누르면 스팬 트리로 들어간다. 자식 스팬이 브로커 호출이다. 키움·KIS는 리미터가 요청 인터셉터라 자식 스팬 안에 대기가 들어 있고, 토스는 리미터를 호출 전에 거쳐 자식 스팬 밖에 있다 — 자식 합보다 루트가 훨씬 크면 토스 리미터 대기를 의심한다.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -303,7 +303,7 @@
             "uid": "tempo"
           },
           "queryType": "traceql",
-          "query": "{span.http.route =~ \"$api\" && duration > $slow}",
+          "query": "{span.uri =~ \"$api\" && duration > $slow}",
           "limit": 20,
           "tableType": "traces"
         }
@@ -317,7 +317,7 @@
         "type": "tempo",
         "uid": "tempo"
       },
-      "description": "폴러 주기(10s·30s)를 넘는 실행이 여기 쌓이면 미스파이어로 이어진다 — 메트릭 대시보드 ②번 패널과 같이 본다.",
+      "description": "폴러 주기(10s·30s)를 넘는 실행이 여기 쌓이면 다음 차례가 밀린다 — 메트릭 대시보드의 스케줄러 포화율과 같이 본다. 왜 오르나 잡은 Vertex를 기다려 수십 초가 정상이다.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -350,7 +350,7 @@
             "uid": "tempo"
           },
           "queryType": "traceql",
-          "query": "{name =~ \"job.*\" && duration > 3s}",
+          "query": "{name =~ \"task .*\" && duration > 3s}",
           "limit": 20,
           "tableType": "traces"
         }
@@ -411,7 +411,7 @@
         "type": "tempo",
         "uid": "tempo"
       },
-      "description": "키움 왕복이 실제로 느린 경우. 리미터 대기는 여기 안 잡힌다 — 대기까지 보려면 메트릭 대시보드 ⑥번(브로커 p95)과 대조한다.",
+      "description": "외부 호출(키움·KIS·토스·야후·Vertex 등)이 느린 경우. 키움·KIS 스팬에는 리미터 대기가 들어 있다 — 순수 대기는 메트릭 대시보드의 리미터 대기 p95와 대조한다.",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -444,7 +444,7 @@
             "uid": "tempo"
           },
           "queryType": "traceql",
-          "query": "{name =~ \"POST /api/dostk.*\" && duration > 200ms}",
+          "query": "{kind = client && duration > 200ms}",
           "limit": 20,
           "tableType": "traces"
         }
