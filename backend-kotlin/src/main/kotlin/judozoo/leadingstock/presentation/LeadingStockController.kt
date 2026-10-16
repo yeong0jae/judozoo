@@ -21,7 +21,7 @@ import java.time.LocalDateTime
  * 국내 주도주 API — 후보 / 첫 화면 주도주 / 저항·지지 / 종목 상세·분봉·일봉.
  *
  * 후보·주도주·저항·지지는 공개, 종목 상세 이하는 로그인 뒤다([judozoo.auth.presentation.Gate]).
- * 시그널 로그·시장 시그널·시장 수급·지수 분봉은 아직 Python이다 — Python 폴러가 쓰는 표를 읽는다.
+ * 시그널 로그·시장 시그널·시장 수급·지수 분봉은 [LeadingStockSignalController]가 맡는다.
  */
 @RestController
 @RequestMapping("/api/leading-stocks")

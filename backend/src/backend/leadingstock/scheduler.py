@@ -408,7 +408,6 @@ def _merge_index_candles(session, market: Market, on: date, fresh: list[IndexMin
 
 
 def register(scheduler: BaseScheduler) -> None:
-    s = get_settings()
     scheduler.add_job(
         refresh_trading_value_pool,
         IntervalTrigger(seconds=_POOL_REFRESH_SECONDS),
@@ -424,18 +423,6 @@ def register(scheduler: BaseScheduler) -> None:
         CronTrigger(day_of_week="mon-fri", hour=20, minute=1, timezone=KST),
         id=_MINUTE_SETTLE_JOB, replace_existing=True,
     )
-    scheduler.add_job(
-        poll_signal_events,
-        IntervalTrigger(seconds=s.signal_event.poll_interval_millis / 1000),
-        id=_SIGNAL_JOB, replace_existing=True,
-    )
-    scheduler.add_job(
-        poll_market_flows,
-        IntervalTrigger(seconds=s.market_signal.poll_interval_millis / 1000),
-        id=_MARKET_FLOW_JOB, replace_existing=True,
-    )
-    scheduler.add_job(
-        poll_index_rebound,
-        IntervalTrigger(seconds=s.market_signal.candle_poll_interval_millis / 1000),
-        id=_INDEX_REBOUND_JOB, replace_existing=True,
-    )
+    # 종목 시그널·시장 수급·지수 반등(`poll_signal_events`·`poll_market_flows`·`poll_index_rebound`)은
+    # 등록하지 않는다 — 실시간 로그 화면과 함께 Kotlin으로 옮겨 가 그 표에 쓰는 일은 Kotlin이 맡는다(028).
+    # 두 쪽이 돌면 같은 전이가 두 번 쌓인다. 후보 풀·당일 분봉은 남긴다 — 타임라인·종가베팅이 이 프로세스의 풀을 읽는다.

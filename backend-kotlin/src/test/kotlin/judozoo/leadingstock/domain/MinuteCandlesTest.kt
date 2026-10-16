@@ -94,4 +94,60 @@ class MinuteCandlesTest {
             MinuteCandles(listOf(bar(0, 900))).troughSignal(0).shouldBeNull()
         }
     }
+
+    @Nested
+    inner class 거래대금_스파이크 {
+        private fun valued(minute: Long, value: Long) = MinuteCandle(base.plusMinutes(minute), 0, 0, 0, 0, 0, value)
+
+        private fun candle(minute: Long, open: Long, close: Long) = MinuteCandle(base.plusMinutes(minute), open, maxOf(open, close) + 2, minOf(open, close) - 1, close, 0, 500)
+
+        private val flat = (0L until 3).map { MinuteCandle(base.plusMinutes(it), 100, 100, 100, 100, 0, 100) }
+
+        @Test
+        fun `최신 봉이 직전 평균의 N배면 배율 N`() {
+            val spike = MinuteCandles(listOf(valued(0, 100), valued(1, 100), valued(2, 100), valued(3, 500))).volumeSpike(3)!!
+
+            spike.latestTradingValue shouldBe 500
+            spike.at shouldBe base.plusMinutes(3)
+            spike.ratio shouldBe (5.0 plusOrMinus 0.001)
+        }
+
+        @Test
+        fun `직전 평균은 지정한 봉 수로 제한된다`() {
+            MinuteCandles(listOf(valued(0, 1000), valued(1, 1000), valued(2, 200), valued(3, 200), valued(4, 400))).volumeSpike(2)!!.ratio shouldBe (2.0 plusOrMinus 0.001)
+        }
+
+        @Test
+        fun `봉이 하나뿐이면 없다`() {
+            MinuteCandles(listOf(valued(0, 100))).volumeSpike(20).shouldBeNull()
+        }
+
+        @Test
+        fun `직전 평균이 0이면 없다`() {
+            MinuteCandles(listOf(valued(0, 0), valued(1, 500))).volumeSpike(20).shouldBeNull()
+        }
+
+        /** 차트 거래량 막대 색과 같다 — 빨강(종가 ≥ 시가)은 매수, 파랑은 매도. 꼬리 위치는 보지 않는다. */
+        @Test
+        fun `양봉이면 매수 음봉이면 매도다`() {
+            MinuteCandles(flat + candle(3, 100, 118)).volumeSpike(3)!!.direction shouldBe SpikeDirection.BUY
+            MinuteCandles(flat + candle(3, 120, 102)).volumeSpike(3)!!.direction shouldBe SpikeDirection.SELL
+        }
+
+        @Test
+        fun `위로 찔렀다 되밀려도 양봉이면 매수다`() {
+            MinuteCandles(flat + MinuteCandle(base.plusMinutes(3), 100, 112, 99, 101, 0, 500)).volumeSpike(3)!!.direction shouldBe SpikeDirection.BUY
+        }
+
+        @Test
+        fun `고가 근처로 회복해도 음봉이면 매도다`() {
+            MinuteCandles(flat + MinuteCandle(base.plusMinutes(3), 110, 111, 98, 109, 0, 500)).volumeSpike(3)!!.direction shouldBe SpikeDirection.SELL
+        }
+
+        @Test
+        fun `종가가 시가와 같으면 차트처럼 매수다`() {
+            MinuteCandles(flat + MinuteCandle(base.plusMinutes(3), 100, 105, 95, 100, 0, 500)).volumeSpike(3)!!.direction shouldBe SpikeDirection.BUY
+            MinuteCandles(flat + MinuteCandle(base.plusMinutes(3), 100, 100, 100, 100, 0, 500)).volumeSpike(3)!!.direction shouldBe SpikeDirection.BUY
+        }
+    }
 }

@@ -4,6 +4,8 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import judozoo.stock.domain.Market
@@ -13,7 +15,7 @@ import java.time.LocalDateTime
 /**
  * 한 시장의 장중 투자자 순매수 스냅샷(당일 누적). 단위는 억원(부호 포함).
  *
- * **적재는 주도주 시장 시그널 폴러가 한다**(공존하는 동안 Python). 여기서는 읽기만 한다 — 시황의 세션별 수급이 경계 스냅샷으로 읽는다.
+ * **적재는 주도주 시장 시그널 폴러가 한다**(1분마다, [judozoo.market.application.MarketInvestors.record]로). 시황의 세션별 수급이 경계 스냅샷으로 읽는다.
  * 지수값·등락률은 **단정밀도 `float` 컬럼**이라 [exact]로 MySQL 글자 표현과 같은 값을 낸다.
  */
 @Entity
@@ -42,6 +44,7 @@ class MarketInvestorSnapshot(
     @Column(name = "updated_at") val updatedAt: LocalDateTime,
 ) {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int? = null
 
     /** 캡처 시점 지수 레벨. */

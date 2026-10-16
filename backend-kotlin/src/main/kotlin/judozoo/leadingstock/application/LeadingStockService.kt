@@ -31,7 +31,7 @@ import java.time.LocalTime
  * 거래대금 순위 + 당일 등락률로 후보를 추리고, 상세 보기에서 전체 필터를 평가한다.
  * 분봉은 차트·돌파선이 **같은 저장소를 공유**하도록 한 경로로 모은다 — 따로 부르면 키움 한도에 걸린다.
  *
- * **후보 풀은 Python도 따로 채운다**(028) — 시그널·타임라인·캘린더·왜 오르나·종가베팅이 Python의 풀을 읽는다.
+ * **후보 풀은 Python도 따로 채운다**(028) — 타임라인·캘린더·왜 오르나·종가베팅이 Python의 풀을 읽는다.
  */
 @Service
 class LeadingStockService(
@@ -90,7 +90,7 @@ class LeadingStockService(
         pool.refresh(Unit, ::loadPool)
     }
 
-    /** 감시 풀(Python 시그널·돌파와 같은 풀)의 당일 분봉을 이어 받는다. 실패한 종목 수를 돌려준다. */
+    /** 감시 풀(시그널·돌파와 같은 풀)의 당일 분봉을 이어 받는다. 실패한 종목 수를 돌려준다. */
     fun syncTodayMinutes(): Int = todayMinutes.sync(findCandidates(WATCH_MIN_CHANGE_RATE).map { it.stockCode })
 
     /**
@@ -178,6 +178,19 @@ class LeadingStockService(
         // 지지선은 같은 분봉에서 대칭으로 뽑는다. 없더라도 저항은 보여준다
         BreakoutRadarStock(stock, peak, candles.troughSignal(stock.currentPrice))
     }.sortedBy { it.peak.gapRate }
+
+    /** 시그널 판정용 후보 한 종목 — 최신 1분봉 거래대금 스파이크. 거래대금 임계에 못 미치거나 봉이 없으면 [spike]는 null. */
+    data class SignalReading(val stock: LeadingStockSnapshot, val spike: MinuteCandles.VolumeSpike?)
+
+    /**
+     * 감시 풀의 스파이크를 읽는다 — 시그널 폴러가 쓴다. 스파이크는 **당일 봉끼리만** 비교한다.
+     *
+     * 임계 거래대금 미만이면 null로 둬야 히스테리시스 해제가 동작한다.
+     */
+    fun signalReadings(): List<SignalReading> = findCandidates(WATCH_MIN_CHANGE_RATE).map { stock ->
+        val spike = MinuteCandles(todayMinuteCandles(stock.stockCode)).volumeSpike(SPIKE_BASELINE_BARS)
+        SignalReading(stock, spike?.takeIf { it.latestTradingValue >= SPIKE_MIN_TRADING_VALUE })
+    }
 
     /**
      * 상세 차트용 — 최근 3거래일 1분봉, 시간 오름차순.
@@ -293,10 +306,16 @@ class LeadingStockService(
         /** 장이 다시 도는 시각 — 시장 달력의 거래 시간 시작(NXT 프리마켓)과 같다. */
         private val SESSION_START = LocalTime.of(8, 0)
 
-        /** 감시 풀 등락률 하한(%). Python 시그널 폴러의 감시 풀과 같다. */
+        /** 감시 풀 등락률 하한(%). 시그널·저항지지·당일 분봉이 같은 풀을 본다. */
         const val WATCH_MIN_CHANGE_RATE = -12.0
 
         private const val RVOL_LOOKBACK_DAYS = 20
+
+        /** 스파이크의 직전 평균을 내는 봉 수 */
+        private const val SPIKE_BASELINE_BARS = 20
+
+        /** 스파이크로 보는 최신 1분봉 최소 거래대금(원) */
+        private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L
 
         /** 상세 차트 표시 거래일 수(당일 포함). */
         private const val CHART_SESSION_DAYS = 3

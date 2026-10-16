@@ -9,6 +9,7 @@ import judozoo.market.domain.MarketInvestorSnapshotRepository
 import judozoo.market.domain.Nets
 import judozoo.market.domain.Region
 import judozoo.market.domain.SessionOrg
+import judozoo.platform.kiwoom.SectorInvestorNetBuy
 import judozoo.stock.domain.Market
 import org.springframework.data.domain.Limit
 import org.springframework.stereotype.Service
@@ -171,6 +172,25 @@ class MarketInvestors(
     /** 장이 아직 안 열렸거나(08시 전) 쉬는 날이면 직전 거래일의 마지막 스냅샷. 장중에 오늘 것이 없으면(폴러 실패) null — 지난날 값을 오늘 카드에 섞지 않는다. */
     private fun <T> beforeOpen(at: LocalDateTime, latest: () -> T?): T? =
         if (!at.toLocalTime().isBefore(NET_SNAPSHOT_START) && !calendar.isHoliday(Region.KR)) null else latest()
+
+    /** 한 시장의 당일 누적 순매수를 [at] 시각으로 남긴다 — 주도주 시장 시그널 폴러가 1분마다 부른다. */
+    @Transactional
+    fun record(market: Market, tradeDate: LocalDate, at: LocalDateTime, net: SectorInvestorNetBuy) {
+        snapshots.save(
+            MarketInvestorSnapshot(
+                market, tradeDate, at, net.foreignEok, net.institutionEok, net.individualEok, net.otherCorpEok,
+                net.financialInvestmentEok, net.trustEok, net.pensionFundEok, net.privateEquityEok, net.insuranceEok, net.bankEok,
+                net.otherFinanceEok, net.indexValue.toFloat(), net.changeRate.toFloat(), at, at,
+            ),
+        )
+    }
+
+    /** 그날 [at] 이하 가장 가까운 스냅샷 — 시그널이 난 시점의 값. */
+    fun investorSnapshotAt(market: Market, at: LocalDateTime): MarketInvestorSnapshot? = snapshotAt(market, at)
+
+    /** [at] 이하 가장 최근 스냅샷. 장 전·휴장일엔 직전 거래일의 마지막 스냅샷이다. */
+    fun latestInvestorSnapshot(market: Market, at: LocalDateTime): MarketInvestorSnapshot? =
+        snapshots.findFirstByMarketAndCapturedAtLessThanEqualOrderByTradeDateDescCapturedAtDesc(market, at)
 
     private fun snapshotAt(market: Market, at: LocalDateTime) =
         snapshots.findByMarketAndTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(market, at.toLocalDate(), at, Limit.of(1)).firstOrNull()
