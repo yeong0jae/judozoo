@@ -40,7 +40,6 @@ def start() -> BackgroundScheduler | None:
     from backend.closingbet.scheduler import register as register_closingbet
     from backend.insight.scheduler import register as register_insight
     from backend.leadercalendar.scheduler import register as register_leader_calendar
-    from backend.leadertimeline.scheduler import register as register_leader_timeline
     from backend.leadingstock.scheduler import register as register_leading
     from backend.market.scheduler import register as register_market
     from backend.overseasleadingstock.scheduler import register as register_overseas
@@ -52,7 +51,7 @@ def start() -> BackgroundScheduler | None:
     register_leading(_scheduler)
     register_overseas(_scheduler)
     register_leader_calendar(_scheduler)
-    register_leader_timeline(_scheduler)
+    # 주도주 타임라인 1분 스냅샷은 Kotlin이 찍는다(028) — 두 쪽이 찍으면 같은 분을 서로 지웠다 쓴다
     register_insight(_scheduler)
     register_closingbet(_scheduler)
     # 잡마다 데코레이터를 다는 대신 리스너 하나. 잡을 새로 추가할 때 계측을 빠뜨릴 데가 없다.
