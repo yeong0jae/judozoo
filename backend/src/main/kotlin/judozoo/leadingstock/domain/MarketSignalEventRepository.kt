@@ -8,6 +8,6 @@ interface MarketSignalEventRepository : JpaRepository<MarketSignalEvent, Int> {
     fun findByTradeDateOrderByOccurredAtDesc(tradeDate: LocalDate): List<MarketSignalEvent>
 
     fun existsByTradeDateAndKindAndMarketAndInvestorAndSideAndLevel(
-        tradeDate: LocalDate, kind: String, market: Market, investor: InvestorType, side: NetTradeSide, level: Int,
+        tradeDate: LocalDate, kind: MarketSignalType, market: Market, investor: InvestorType, side: NetTradeSide, level: Int,
     ): Boolean
 }

@@ -3,6 +3,7 @@ package judozoo.platform.kiwoom
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import judozoo.stock.domain.Market
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -26,7 +27,7 @@ class KiwoomSectorInvestorTest {
         fun `지수값과 등락률은 100으로 나눈다`() {
             stub.respond(URL, response())
 
-            val result = sector.fetchSectorNetBuy("0")!!
+            val result = sector.fetchSectorNetBuy(Market.KOSPI)!!
 
             result.indexValue shouldBe 2653.81
             result.changeRate shouldBe 3.52
@@ -36,7 +37,7 @@ class KiwoomSectorInvestorTest {
         fun `순매수는 부호를 살린 억원`() {
             stub.respond(URL, response())
 
-            val result = sector.fetchSectorNetBuy("0")!!
+            val result = sector.fetchSectorNetBuy(Market.KOSPI)!!
 
             listOf(result.foreignEok, result.institutionEok, result.individualEok) shouldBe listOf(255L, -622L, 367L)
         }
@@ -45,14 +46,14 @@ class KiwoomSectorInvestorTest {
         fun `종합 행이 없으면 첫 행으로 폴백한다`() {
             stub.respond(URL, response(name = "반도체"))
 
-            sector.fetchSectorNetBuy("0").shouldNotBeNull()
+            sector.fetchSectorNetBuy(Market.KOSPI).shouldNotBeNull()
         }
 
         @Test
         fun `행이 없으면 null`() {
             stub.respond(URL, """{"return_code":0,"inds_netprps":[]}""")
 
-            sector.fetchSectorNetBuy("0").shouldBeNull()
+            sector.fetchSectorNetBuy(Market.KOSPI).shouldBeNull()
         }
     }
 

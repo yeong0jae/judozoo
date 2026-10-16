@@ -45,13 +45,15 @@ class TodayMinutes(private val toss: TossCandles, private val clock: Clock) {
         }
     }
 
-    fun settle(stockCodes: List<String>): Pair<Map<String, List<MinuteCandle>>, Int> {
+    data class Settled(val bars: Map<String, List<MinuteCandle>>, val failures: Int)
+
+    fun settle(stockCodes: List<String>): Settled {
         val started = now()
         val keys = stockCodes.map(::baseCode).distinct()
         val failures = sync(keys)
         return synchronized(lock) {
-            if (day != started.toLocalDate()) return emptyMap<String, List<MinuteCandle>>() to failures
-            keys.filter { it in bars && isSyncedSince(it, started) }.associateWith { bars.getValue(it).values.toList() } to failures
+            if (day != started.toLocalDate()) return Settled(emptyMap(), failures)
+            Settled(keys.filter { it in bars && isSyncedSince(it, started) }.associateWith { bars.getValue(it).values.toList() }, failures)
         }
     }
 

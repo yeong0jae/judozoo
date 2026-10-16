@@ -8,6 +8,8 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -18,7 +20,7 @@ class SignalEvent(
     @Column(name = "trade_date") val tradeDate: LocalDate,
     @Column(name = "stock_code") val stockCode: String,
     @Column(name = "stock_name") val stockName: String,
-    @Column(name = "event_type") val eventType: String,
+    @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR) @Column(name = "event_type") val eventType: SignalEventType,
     @Column(name = "current_price") val currentPrice: Long,
     @Column(name = "price_change_rate") private val priceChangeRateFloat: Float,
     @Column(name = "trading_value") val tradingValue: Long,
@@ -48,7 +50,7 @@ class SignalEvent(
 
     companion object {
         fun volumeSpike(at: LocalDateTime, day: LocalDate, stock: LeadingStockSnapshot, spike: MinuteCandles.VolumeSpike) = SignalEvent(
-            at, day, stock.stockCode, stock.stockName, SignalEventType.VOLUME_SPIKE.name, stock.currentPrice, stock.priceChangeRate.toFloat(),
+            at, day, stock.stockCode, stock.stockName, SignalEventType.VOLUME_SPIKE, stock.currentPrice, stock.priceChangeRate.toFloat(),
             stock.accumulatedTradingValue, spike.ratio.toFloat(), spike.latestTradingValue, spike.direction, at, at,
         )
     }

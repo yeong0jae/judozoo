@@ -114,7 +114,7 @@ class TossMarketIndicatorTest {
             page.nextBefore shouldBe "cursor-1"
             val c = page.candles[0]
             listOf(c.open, c.high, c.low, c.close, c.volume) shouldBe listOf(2600.0, 2650.0, 2590.0, 2640.0, 1200.0)
-            c.timestamp.hour shouldBe 9
+            c.at.hour shouldBe 9
         }
 
         @Test

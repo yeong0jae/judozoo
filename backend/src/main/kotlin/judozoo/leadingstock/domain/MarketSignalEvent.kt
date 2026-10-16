@@ -9,6 +9,8 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import judozoo.stock.domain.Market
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -17,7 +19,7 @@ import java.time.LocalDateTime
 class MarketSignalEvent(
     @Column(name = "occurred_at") val occurredAt: LocalDateTime,
     @Column(name = "trade_date") val tradeDate: LocalDate,
-    val kind: String,
+    @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR) val kind: MarketSignalType,
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "enum('KOSPI','KOSDAQ')")
     val market: Market,
@@ -49,19 +51,19 @@ class MarketSignalEvent(
     companion object {
         fun netBuyLevel(at: LocalDateTime, day: LocalDate, market: Market, investor: InvestorType, transition: InvestorNetBuyState.NetBuyTransition, netEok: Long, indexValue: Double, changeRate: Double) =
             MarketSignalEvent(
-                at, day, MarketSignalType.NET_BUY_LEVEL.name, market, transition.side, investor, transition.level, netEok,
+                at, day, MarketSignalType.NET_BUY_LEVEL, market, transition.side, investor, transition.level, netEok,
                 indexValueFloat = indexValue.toFloat(), changeRateFloat = changeRate.toFloat(),
             )
 
         fun flowTurn(at: LocalDateTime, day: LocalDate, market: Market, investor: InvestorType, turn: InvestorFlowState.FlowTurn, netEok: Long, indexValue: Double, changeRate: Double) =
             MarketSignalEvent(
-                at, day, MarketSignalType.NET_FLOW_TURN.name, market, turn.to, investor, netAmountEok = netEok, extremeAmountEok = turn.extremeEok,
+                at, day, MarketSignalType.NET_FLOW_TURN, market, turn.to, investor, netAmountEok = netEok, extremeAmountEok = turn.extremeEok,
                 indexValueFloat = indexValue.toFloat(), changeRateFloat = changeRate.toFloat(),
             )
 
         fun indexCross(kind: MarketSignalType, at: LocalDateTime, day: LocalDate, market: Market, indexValue: Double, changeRate: Double) =
             MarketSignalEvent(
-                at, day, kind.name, market, if (kind == MarketSignalType.MA_REBOUND) NetTradeSide.BUY else NetTradeSide.SELL,
+                at, day, kind, market, if (kind == MarketSignalType.MA_REBOUND) NetTradeSide.BUY else NetTradeSide.SELL,
                 indexValueFloat = indexValue.toFloat(), changeRateFloat = changeRate.toFloat(),
             )
     }

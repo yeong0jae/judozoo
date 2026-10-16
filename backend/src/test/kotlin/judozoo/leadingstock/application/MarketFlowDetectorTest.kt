@@ -12,6 +12,7 @@ import judozoo.market.application.MarketInvestors
 import judozoo.market.domain.MarketInvestorSnapshotRepository
 import judozoo.platform.kiwoom.KiwoomSectorInvestor
 import judozoo.platform.kiwoom.SectorInvestorNetBuy
+import judozoo.stock.domain.Market
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -43,8 +44,8 @@ class MarketFlowDetectorTest @Autowired constructor(
     private fun fresh() = MarketFlowDetector(sector, investors, events, flowStates, clock)
 
     private fun kospi(foreign: Long, indexValue: Double = 2500.0, changeRate: Double = 1.5) {
-        every { sector.fetchSectorNetBuy("0") } returns SectorInvestorNetBuy(foreign, 50, -150, 0, 10, 10, 10, 10, 5, 5, 0, indexValue, changeRate)
-        every { sector.fetchSectorNetBuy("1") } returns null
+        every { sector.fetchSectorNetBuy(Market.KOSPI) } returns SectorInvestorNetBuy(foreign, 50, -150, 0, 10, 10, 10, 10, 5, 5, 0, indexValue, changeRate)
+        every { sector.fetchSectorNetBuy(Market.KOSDAQ) } returns null
     }
 
     private fun kinds() = jdbc.queryForList("SELECT CONCAT(kind, ':', investor, ':', side) FROM market_signal_event ORDER BY id", String::class.java)

@@ -1,7 +1,7 @@
 package judozoo.platform.yahoo
 
-import com.github.tomakehurst.wiremock.client.WireMock.absent
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.absent
 import com.github.tomakehurst.wiremock.client.WireMock.containing
 import com.github.tomakehurst.wiremock.client.WireMock.equalTo
 import com.github.tomakehurst.wiremock.client.WireMock.get
@@ -19,6 +19,7 @@ import judozoo.SharedWireMock
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.LocalDateTime
 
 class YahooClientTest {
     private val server = SharedWireMock.server.also { SharedWireMock.reset() }
@@ -140,8 +141,7 @@ class YahooClientTest {
 
             val bar = yahoo.fetchCandles("AAPL", "1m", "1d")[0]
 
-            bar.date shouldBe "2025-01-01"
-            bar.time shouldBe "09:00:00"
+            bar.at shouldBe LocalDateTime.of(2025, 1, 1, 9, 0)
             listOf(bar.open, bar.high, bar.low, bar.close, bar.volume) shouldBe listOf(99.0, 101.0, 98.0, 100.0, 5.0)
         }
 

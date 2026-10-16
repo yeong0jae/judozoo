@@ -79,7 +79,7 @@ class LeadingStockSignalController(private val signals: LeadingStockSignals, pri
             .filter { user != null || it.priceChangeRate >= PREVIEW_MIN_CHANGE_RATE }
             .map {
                 SignalEventItem(
-                    it.occurredAt, it.stockCode, it.stockName, it.eventType, it.currentPrice, it.priceChangeRate, it.tradingValue,
+                    it.occurredAt, it.stockCode, it.stockName, it.eventType.name, it.currentPrice, it.priceChangeRate, it.tradingValue,
                     it.gapRate, it.spikeRatio, it.minuteTradingValue, it.spikeDirection?.name, it.ma,
                 )
             }
@@ -91,7 +91,7 @@ class LeadingStockSignalController(private val signals: LeadingStockSignals, pri
         val day = date ?: today()
         val items = signals.marketEventsOn(day).map {
             MarketSignalEventItem(
-                it.occurredAt, it.kind, it.market.name, it.side.name, it.investor?.name, it.level, it.thresholdEok,
+                it.occurredAt, it.kind.name, it.market.name, it.side.name, it.investor?.name, it.level, it.thresholdEok,
                 it.netAmountEok, it.extremeAmountEok, it.indexValue, it.changeRate,
             )
         }

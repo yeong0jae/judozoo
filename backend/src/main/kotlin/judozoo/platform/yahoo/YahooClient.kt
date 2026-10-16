@@ -3,6 +3,7 @@ package judozoo.platform.yahoo
 import io.micrometer.core.instrument.MeterRegistry
 import judozoo.library.KST
 import judozoo.library.web.MeteredInterceptor
+import judozoo.market.domain.MarketCandle
 import org.slf4j.LoggerFactory
 import org.springframework.http.client.JdkClientHttpRequestFactory
 import org.springframework.stereotype.Component
@@ -11,23 +12,13 @@ import tools.jackson.databind.JsonNode
 import java.net.http.HttpClient
 import java.time.Duration
 import java.time.Instant
-import java.time.format.DateTimeFormatter
+import java.time.LocalDateTime
 
 @Component
 class YahooClient(properties: YahooProperties, registry: MeterRegistry) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     data class YahooQuote(val name: String, val price: Double, val prevClose: Double)
-
-    data class YahooBar(
-        val date: String,
-        val time: String,
-        val open: Double,
-        val high: Double,
-        val low: Double,
-        val close: Double,
-        val volume: Double,
-    )
 
     private val rest = RestClient.builder()
         .baseUrl(properties.baseUrl)
@@ -61,21 +52,20 @@ class YahooClient(properties: YahooProperties, registry: MeterRegistry) {
         return YahooQuote(meta.text("shortName"), regularPrice, prevClose)
     }
 
-    fun fetchCandles(symbol: String, interval: String, range: String): List<YahooBar> {
+    fun fetchCandles(symbol: String, interval: String, range: String): List<MarketCandle> {
         val result = fetch(symbol, interval, range) ?: return emptyList()
         val times = result["timestamp"]?.values()?.toList().orEmpty()
         val quote = firstQuote(result) ?: return emptyList()
 
-        val byTime = sortedMapOf<String, YahooBar>()
+        val byTime = sortedMapOf<LocalDateTime, MarketCandle>()
         times.forEachIndexed { i, epoch ->
             val close = quote.at("close", i) ?: return@forEachIndexed
-            val at = Instant.ofEpochSecond(epoch.asLong()).atZone(KST)
-            val bar = YahooBar(
-                date = at.format(DATE), time = at.format(TIME),
+            val bar = MarketCandle(
+                at = Instant.ofEpochSecond(epoch.asLong()).atZone(KST).toLocalDateTime().withNano(0),
                 open = quote.at("open", i) ?: close, high = quote.at("high", i) ?: close, low = quote.at("low", i) ?: close,
                 close = close, volume = quote.at("volume", i) ?: 0.0,
             )
-            byTime["${bar.date} ${bar.time}"] = bar
+            byTime[bar.at] = bar
         }
         return byTime.values.toList()
     }
@@ -111,9 +101,6 @@ class YahooClient(properties: YahooProperties, registry: MeterRegistry) {
     }
 
     companion object {
-        private val DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        private val TIME = DateTimeFormatter.ofPattern("HH:mm:ss")
-
         private fun JsonNode.number(field: String): Double? = get(field)?.takeIf { it.isNumber }?.asDouble()
         private fun JsonNode.text(field: String): String = get(field)?.takeUnless { it.isNull }?.asString().orEmpty()
 

@@ -1,6 +1,5 @@
 package judozoo.leadingstock.application
 
-import judozoo.leadingstock.application.StockMinuteArchive.Companion.baseCode
 import judozoo.leadingstock.domain.LeadingStockSnapshot
 import judozoo.leadingstock.domain.WideLimitDayEntity
 import judozoo.leadingstock.domain.WideLimitDayRepository
@@ -20,13 +19,13 @@ class WideLimitDays(private val repository: WideLimitDayRepository, private val 
 
     fun mark(stocks: List<LeadingStockSnapshot>, today: LocalDate, at: LocalDateTime): List<LeadingStockSnapshot> {
         val known = today(today)
-        val fresh = stocks.filter { it.exceedsNormalLimit }.map { baseCode(it.stockCode) }.toSet() - known
+        val fresh = stocks.filter { it.exceedsNormalLimit }.map { it.code }.toSet() - known
         if (fresh.isNotEmpty()) {
             synchronized(lock) { codes.addAll(fresh) }
             save(today, fresh, at)
         }
         val marked = synchronized(lock) { codes.toSet() }
-        return stocks.map { if (baseCode(it.stockCode) in marked) it.copy(wideLimitDay = true) else it }
+        return stocks.map { if (it.code in marked) it.copy(wideLimitDay = true) else it }
     }
 
     private fun today(today: LocalDate): Set<String> {

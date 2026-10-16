@@ -10,18 +10,19 @@ import io.mockk.mockk
 import io.mockk.verify
 import judozoo.IntegrationTest
 import judozoo.library.KST
+import judozoo.market.domain.CandleInterval
+import judozoo.market.domain.FuturesSession
+import judozoo.market.domain.Indicator
+import judozoo.market.domain.MarketCandle
 import judozoo.market.domain.Region
 import judozoo.market.infrastructure.FuturesMinuteArchive
 import judozoo.market.infrastructure.IndexMinuteArchive
 import judozoo.market.infrastructure.YahooMinuteArchive
 import judozoo.platform.kis.KisFutures
-import judozoo.platform.kis.KisFutures.FuturesBar
 import judozoo.platform.kis.KisFutures.NearMonth
 import judozoo.platform.toss.TossMarketIndicator
 import judozoo.platform.toss.TossMarketIndicator.CandlesPage
-import judozoo.platform.toss.TossMarketIndicator.TossCandle
 import judozoo.platform.yahoo.YahooClient
-import judozoo.platform.yahoo.YahooClient.YahooBar
 import judozoo.stock.domain.Market
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -66,9 +67,9 @@ class MarketCandlesTest @Autowired constructor(
         every { futures.fetchNearMonth(any()) } returns NearMonth("CONTRACT", "F 202612", 50)
     }
 
-    private fun candle(at: LocalDateTime) = TossCandle(at, 1.0, 1.0, 1.0, 1.0, 1.0)
-    private fun bar(day: LocalDate, time: String) = FuturesBar(day.toString(), time, 1.0, 2.0, 0.5, 1.5, 10.0)
-    private fun yahooBar(day: LocalDate, time: String) = YahooBar(day.toString(), time, 1.0, 2.0, 0.5, 1.5, 10.0)
+    private fun candle(at: LocalDateTime) = MarketCandle(at, 1.0, 1.0, 1.0, 1.0, 1.0)
+    private fun bar(day: LocalDate, time: String) = MarketCandle(day.atTime(LocalTime.parse(time)), 1.0, 2.0, 0.5, 1.5, 10.0)
+    private fun yahooBar(day: LocalDate, time: String) = MarketCandle(day.atTime(LocalTime.parse(time)), 1.0, 2.0, 0.5, 1.5, 10.0)
 
     @Nested
     inner class 지수_캔들 {
@@ -150,9 +151,9 @@ class MarketCandlesTest @Autowired constructor(
             every { futures.fetchMinute("CONTRACT", any(), any<LocalTime>(), any()) } answers { listOf(bar(secondArg(), "08:45:00"), bar(secondArg(), "09:00:00")) }
 
             fresh().futuresMinute(market) shouldBe listOf(bar(previous, "08:45:00"), bar(previous, "09:00:00"), bar(current, "08:45:00"), bar(current, "09:00:00"))
-            futuresArchive.get(market, "CONTRACT", false, previous).shouldNotBeNull()
-            futuresArchive.get(market, "CONTRACT", false, current).shouldBeNull()
-            futuresArchive.get(market, "OTHER", false, previous).shouldBeNull()
+            futuresArchive.get(market, "CONTRACT", FuturesSession.DAY, previous).shouldNotBeNull()
+            futuresArchive.get(market, "CONTRACT", FuturesSession.DAY, current).shouldBeNull()
+            futuresArchive.get(market, "OTHER", FuturesSession.DAY, previous).shouldBeNull()
 
             clearMocks(futures, answers = false)
             fresh().futuresMinute(market)
@@ -169,17 +170,17 @@ class MarketCandlesTest @Autowired constructor(
 
             fresh().futuresMinute(Market.KOSPI)
 
-            futuresArchive.get(Market.KOSPI, "CONTRACT", false, previous).shouldBeNull()
+            futuresArchive.get(Market.KOSPI, "CONTRACT", FuturesSession.DAY, previous).shouldBeNull()
         }
 
         @Test
         fun `전날 야간 세션은 DB에서 복원한다`() {
             now = current.atTime(14, 0)
-            every { futures.fetchMinute("CONTRACT", any(), any<String>(), KisFutures.NIGHT) } returns listOf(bar(previous, "18:00:00"), bar(current, "05:59:00"))
+            every { futures.fetchMinute("CONTRACT", any(), any<String>(), FuturesSession.NIGHT) } returns listOf(bar(previous, "18:00:00"), bar(current, "05:59:00"))
 
             fresh().nightMinute() shouldBe listOf(bar(previous, "18:00:00"), bar(current, "05:59:00"))
-            futuresArchive.get(Market.KOSPI, "CONTRACT", true, previous).shouldNotBeNull()
-            futuresArchive.get(Market.KOSPI, "CONTRACT", false, previous).shouldBeNull()
+            futuresArchive.get(Market.KOSPI, "CONTRACT", FuturesSession.NIGHT, previous).shouldNotBeNull()
+            futuresArchive.get(Market.KOSPI, "CONTRACT", FuturesSession.DAY, previous).shouldBeNull()
 
             clearMocks(futures, answers = false)
             fresh().nightMinute()
@@ -189,27 +190,27 @@ class MarketCandlesTest @Autowired constructor(
         @Test
         fun `진행 중인 야간 세션은 DB에 저장하지 않는다`() {
             now = current.atTime(19, 0)
-            every { futures.fetchMinute("CONTRACT", any(), any<String>(), KisFutures.NIGHT) } returns listOf(bar(current, "18:00:00"), bar(current, "19:00:00"))
+            every { futures.fetchMinute("CONTRACT", any(), any<String>(), FuturesSession.NIGHT) } returns listOf(bar(current, "18:00:00"), bar(current, "19:00:00"))
 
             fresh().nightMinute()
 
-            futuresArchive.get(Market.KOSPI, "CONTRACT", true, current).shouldBeNull()
+            futuresArchive.get(Market.KOSPI, "CONTRACT", FuturesSession.NIGHT, current).shouldBeNull()
         }
 
         @Test
         fun `자정 이후에도 전날 시작한 야간 세션으로 묶는다`() {
             now = current.atTime(2, 0)
-            every { futures.fetchMinute("CONTRACT", any(), any<String>(), KisFutures.NIGHT) } returns listOf(bar(previous, "18:00:00"), bar(current, "02:00:00"))
+            every { futures.fetchMinute("CONTRACT", any(), any<String>(), FuturesSession.NIGHT) } returns listOf(bar(previous, "18:00:00"), bar(current, "02:00:00"))
 
             fresh().nightMinute() shouldBe listOf(bar(previous, "18:00:00"), bar(current, "02:00:00"))
-            verify { futures.fetchMinute("CONTRACT", previous, "295900", KisFutures.NIGHT) }
-            futuresArchive.get(Market.KOSPI, "CONTRACT", true, previous).shouldBeNull()
+            verify { futures.fetchMinute("CONTRACT", previous, "295900", FuturesSession.NIGHT) }
+            futuresArchive.get(Market.KOSPI, "CONTRACT", FuturesSession.NIGHT, previous).shouldBeNull()
         }
     }
 
     @Nested
     inner class 야후_지난_거래_세션 {
-        private fun usBar(at: LocalDateTime): YahooBar {
+        private fun usBar(at: LocalDateTime): MarketCandle {
             val kst = at.atZone(Region.US.zone).withZoneSameInstant(KST)
             return yahooBar(kst.toLocalDate(), kst.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")))
         }
@@ -230,12 +231,12 @@ class MarketCandlesTest @Autowired constructor(
             every { yahoo.fetchCandles(symbol, "1m", any()) } answers { if (thirdArg<String>() == "1d") current else previous + current }
 
             val candles = fresh()
-            candles.macro(target, "1m") shouldBe previous + current
+            candles.indicator(Indicator.valueOf(target), CandleInterval.MINUTE) shouldBe previous + current
             yahooArchive.recent(symbol, LocalDate.of(2026, 9, 30)) shouldBe mapOf(LocalDate.of(2026, 9, 29) to previous)
-            candles.macro(target, "1m") shouldBe previous + current
+            candles.indicator(Indicator.valueOf(target), CandleInterval.MINUTE) shouldBe previous + current
             verify(exactly = 1) { yahoo.fetchCandles(symbol, "1m", "2d") }
 
-            fresh().macro(target, "1m") shouldBe previous + current
+            fresh().indicator(Indicator.valueOf(target), CandleInterval.MINUTE) shouldBe previous + current
             verify(exactly = 1) { yahoo.fetchCandles(symbol, "1m", "1d") }
             (LocalDate.of(2026, 9, 30) in yahooArchive.recent(symbol, LocalDate.of(2026, 9, 30))) shouldBe false
         }
@@ -252,7 +253,7 @@ class MarketCandlesTest @Autowired constructor(
             val day = LocalDate.of(2026, 9, 29)
             every { yahoo.fetchCandles(symbol, "1m", any()) } returns listOf(usBar(day, from), usBar(day, to))
 
-            fresh().macro(target, "1m")
+            fresh().indicator(Indicator.valueOf(target), CandleInterval.MINUTE)
 
             yahooArchive.recent(symbol, LocalDate.of(2026, 9, 30)) shouldBe emptyMap()
         }
@@ -264,10 +265,10 @@ class MarketCandlesTest @Autowired constructor(
             val current = listOf(yahooBar(LocalDate.of(2026, 9, 30), "22:30:00"), yahooBar(LocalDate.of(2026, 10, 1), "03:00:00"))
             every { yahoo.fetchCandles("^IXIC", "1m", any()) } answers { if (thirdArg<String>() == "1d") current else previous + current }
 
-            fresh().nasdaq("1m") shouldBe previous + current
+            fresh().indicator(Indicator.NASDAQ, CandleInterval.MINUTE) shouldBe previous + current
             yahooArchive.recent("^IXIC", LocalDate.of(2026, 9, 30)) shouldBe mapOf(LocalDate.of(2026, 9, 29) to previous)
 
-            fresh().nasdaq("1m") shouldBe previous + current
+            fresh().indicator(Indicator.NASDAQ, CandleInterval.MINUTE) shouldBe previous + current
             verify(exactly = 1) { yahoo.fetchCandles("^IXIC", "1m", "2d") }
             verify(exactly = 1) { yahoo.fetchCandles("^IXIC", "1m", "1d") }
         }
@@ -280,7 +281,7 @@ class MarketCandlesTest @Autowired constructor(
                 yahooBar(LocalDate.of(2026, 9, 30), "04:59:00"),
             )
 
-            fresh().nasdaq("1m")
+            fresh().indicator(Indicator.NASDAQ, CandleInterval.MINUTE)
 
             yahooArchive.recent("^IXIC", LocalDate.of(2026, 9, 30)).keys.shouldBeEmpty()
         }

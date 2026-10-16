@@ -48,7 +48,7 @@ class MarketFlowDetector(
 
         val recorded = mutableListOf<MarketSignalEvent>()
         for (market in Market.entries) {
-            val net = sector.fetchSectorNetBuy(MARKET_TYPES.getValue(market)) ?: continue
+            val net = sector.fetchSectorNetBuy(market) ?: continue
             investors.record(market, today, at, net)
             if (!emitSignals) continue
 
@@ -59,7 +59,7 @@ class MarketFlowDetector(
                 val (transition, level) = levels.getOrDefault(key, InvestorNetBuyState()).advance(netEok, scale.stepEok, scale.bufferEok)
                 levels[key] = level
                 if (transition != null &&
-                    !events.existsByTradeDateAndKindAndMarketAndInvestorAndSideAndLevel(today, MarketSignalType.NET_BUY_LEVEL.name, market, investor, transition.side, transition.level)
+                    !events.existsByTradeDateAndKindAndMarketAndInvestorAndSideAndLevel(today, MarketSignalType.NET_BUY_LEVEL, market, investor, transition.side, transition.level)
                 ) {
                     recorded += MarketSignalEvent.netBuyLevel(at, today, market, investor, transition, netEok, net.indexValue, net.changeRate)
                 }
@@ -83,8 +83,6 @@ class MarketFlowDetector(
     }
 
     companion object {
-        private val MARKET_TYPES = mapOf(Market.KOSPI to "0", Market.KOSDAQ to "1")
-
         val SIGNAL_START: LocalTime = LocalTime.of(9, 0)
         val SIGNAL_END: LocalTime = LocalTime.of(15, 30)
     }

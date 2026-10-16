@@ -3,6 +3,9 @@ package judozoo.market.application
 import judozoo.library.KST
 import judozoo.library.TtlCache
 import judozoo.market.domain.FuturesExpiry
+import judozoo.market.domain.FuturesSession
+import judozoo.market.domain.Indicator
+import judozoo.market.domain.QuoteHours
 import judozoo.platform.kis.KisFutures
 import judozoo.platform.kiwoom.KiwoomIndex
 import judozoo.platform.yahoo.YahooClient
@@ -54,7 +57,7 @@ class MarketQuotes(
     private val indexes = TtlCache<Market, IndexResult>("index", Duration.ofSeconds(40), maxSize = 2, serveStale = true)
     private val futuresQuotes = TtlCache<Market, FuturesQuote?>("futuresQuote", Duration.ofSeconds(40), maxSize = 2, skipIf = { it == null }, serveStale = true)
     private val nightQuotes = TtlCache<Unit, NightFuturesQuote?>("nightFuturesQuote", Duration.ofSeconds(40), maxSize = 1, skipIf = { it == null }, serveStale = true)
-    private val yahooQuotes = TtlCache<String, QuoteResult?>("yahooQuotes", Duration.ofSeconds(40), maxSize = 6, skipIf = { it == null }, serveStale = true)
+    private val yahooQuotes = TtlCache<Indicator, QuoteResult?>("yahooQuotes", Duration.ofSeconds(40), maxSize = 6, skipIf = { it == null }, serveStale = true)
 
     fun index(market: Market): IndexResult = indexes.get(market) { loadIndex(market) }
 
@@ -62,36 +65,27 @@ class MarketQuotes(
 
     fun nightFuturesQuote(): NightFuturesQuote? = nightQuotes.get(Unit) { loadNightQuote() }
 
-    fun nasdaqQuote(): QuoteResult? = quoteOf(NASDAQ_SYMBOL)
+    fun nasdaqQuote(): QuoteResult? = quoteOf(Indicator.NASDAQ)
 
-    fun nasdaqFuturesQuote(): QuoteResult? = quoteOf(NASDAQ_FUTURES_SYMBOL)
+    fun nasdaqFuturesQuote(): QuoteResult? = quoteOf(Indicator.NASDAQ_FUTURES)
 
-    fun macroQuotes() = MacroQuotes(
-        quoteOf(MACRO_SYMBOLS.getValue("USD_KRW")), quoteOf(MACRO_SYMBOLS.getValue("WTI")),
-        quoteOf(MACRO_SYMBOLS.getValue("VIX")), quoteOf(MACRO_SYMBOLS.getValue("US10Y")),
-    )
+    fun macroQuotes() = MacroQuotes(quoteOf(Indicator.USD_KRW), quoteOf(Indicator.WTI), quoteOf(Indicator.VIX), quoteOf(Indicator.US10Y))
 
-    fun quoteOf(symbol: String): QuoteResult? = yahooQuotes.get(symbol) { loadQuote(symbol) }
+    fun quoteOf(indicator: Indicator): QuoteResult? = yahooQuotes.get(indicator) { loadQuote(indicator) }
 
-    class Refresh(val name: String, private val held: () -> Any?, private val refresh: () -> Any?) {
+    class Refresh(val name: String, val hours: QuoteHours, private val held: () -> Any?, private val refresh: () -> Any?) {
         fun run(active: () -> Boolean): Boolean = if (held() == null || active()) refresh() != null else true
     }
 
-    fun refreshers(): Map<String, Refresh> = linkedMapOf(
-        "kospi" to Refresh("kospi", { indexes.peek(Market.KOSPI) }) { indexes.refresh(Market.KOSPI) { loadIndex(Market.KOSPI) } },
-        "kosdaq" to Refresh("kosdaq", { indexes.peek(Market.KOSDAQ) }) { indexes.refresh(Market.KOSDAQ) { loadIndex(Market.KOSDAQ) } },
-        "futures-kospi" to Refresh("futures-kospi", { futuresQuotes.peek(Market.KOSPI) }) { futuresQuotes.refresh(Market.KOSPI) { loadFuturesQuote(Market.KOSPI) } },
-        "futures-kosdaq" to Refresh("futures-kosdaq", { futuresQuotes.peek(Market.KOSDAQ) }) { futuresQuotes.refresh(Market.KOSDAQ) { loadFuturesQuote(Market.KOSDAQ) } },
-        "night" to Refresh("night", { nightQuotes.peek(Unit) }) { nightQuotes.refresh(Unit) { loadNightQuote() } },
-    ).apply {
-        (listOf(NASDAQ_SYMBOL, NASDAQ_FUTURES_SYMBOL) + MACRO_SYMBOLS.values).forEach { symbol ->
-            put(symbol, Refresh(symbol, { yahooQuotes.peek(symbol) }) { yahooQuotes.refresh(symbol) { loadQuote(symbol) } })
-        }
-    }
+    fun refreshers(): List<Refresh> = Market.entries.map { m ->
+        Refresh(m.name, QuoteHours.DOMESTIC_INDEX, { indexes.peek(m) }) { indexes.refresh(m) { loadIndex(m) } }
+    } + Market.entries.map { m ->
+        Refresh("futures-${m.name}", QuoteHours.DOMESTIC_FUTURES, { futuresQuotes.peek(m) }) { futuresQuotes.refresh(m) { loadFuturesQuote(m) } }
+    } + Refresh("night", QuoteHours.NIGHT_FUTURES, { nightQuotes.peek(Unit) }) { nightQuotes.refresh(Unit) { loadNightQuote() } } +
+        Indicator.entries.map { i -> Refresh(i.symbol, i.hours, { yahooQuotes.peek(i) }) { yahooQuotes.refresh(i) { loadQuote(i) } } }
 
     private fun loadIndex(market: Market): IndexResult {
-        val (code, type) = INDEX_CODE.getValue(market)
-        val snapshot = kiwoomIndex.fetchIndex(code, type) ?: throw IllegalStateException("${market.name} 지수 조회 실패")
+        val snapshot = kiwoomIndex.fetchIndex(market) ?: throw IllegalStateException("${market.name} 지수 조회 실패")
         return IndexResult(snapshot.currentValue, snapshot.changeRate)
     }
 
@@ -110,25 +104,15 @@ class MarketQuotes(
 
     private fun loadNightQuote(): NightFuturesQuote? {
         val near = contracts.nearMonth(Market.KOSPI) ?: return null
-        val p = futures.fetchPrice(near.iscd, KisFutures.NIGHT)
-            ?: contracts.changed(Market.KOSPI, near.iscd)?.let { futures.fetchPrice(it.iscd, KisFutures.NIGHT) }
+        val p = futures.fetchPrice(near.iscd, FuturesSession.NIGHT)
+            ?: contracts.changed(Market.KOSPI, near.iscd)?.let { futures.fetchPrice(it.iscd, FuturesSession.NIGHT) }
             ?: return null
         return NightFuturesQuote(p.price, p.changeRate, p.prevClose, p.priceChange, p.open, p.high, p.low, p.volume, p.openInterest, p.openInterestChange)
     }
 
-    private fun loadQuote(symbol: String): QuoteResult? {
-        val q = yahoo.fetchQuote(symbol) ?: return null
+    private fun loadQuote(indicator: Indicator): QuoteResult? {
+        val q = yahoo.fetchQuote(indicator.symbol) ?: return null
         val change = q.price - q.prevClose
         return QuoteResult(q.price, q.prevClose, change, if (q.prevClose == 0.0) 0.0 else change / q.prevClose * 100)
-    }
-
-    companion object {
-        private val INDEX_CODE = mapOf(Market.KOSPI to ("001" to "0"), Market.KOSDAQ to ("101" to "1"))
-
-        const val NASDAQ_SYMBOL = "^IXIC"
-
-        const val NASDAQ_FUTURES_SYMBOL = "NQ=F"
-
-        val MACRO_SYMBOLS = linkedMapOf("USD_KRW" to "KRW=X", "WTI" to "CL=F", "VIX" to "^VIX", "US10Y" to "^TNX")
     }
 }

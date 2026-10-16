@@ -2,6 +2,8 @@ package judozoo.market.application
 
 import judozoo.library.JobFailures
 import judozoo.library.KST
+import judozoo.library.isWeekend
+import judozoo.market.domain.QuoteHours
 import judozoo.market.domain.Region
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -23,30 +25,25 @@ class MarketQuoteScheduler(
     @Scheduled(fixedDelay = 30_000, initialDelay = 0)
     fun poll() {
         val at = LocalDateTime.now(clock.withZone(KST))
-        val active: Map<String, () -> Boolean> = mapOf(
-            "kospi" to { domesticOpen(at, LocalTime.of(9, 0), LocalTime.of(15, 42)) },
-            "kosdaq" to { domesticOpen(at, LocalTime.of(9, 0), LocalTime.of(15, 42)) },
-            "futures-kospi" to { domesticOpen(at, LocalTime.of(8, 45), LocalTime.of(15, 47)) },
-            "futures-kosdaq" to { domesticOpen(at, LocalTime.of(8, 45), LocalTime.of(15, 47)) },
-            "night" to { nightOpen(at) },
-            MarketQuotes.NASDAQ_SYMBOL to { usCashOpen(at) },
-            MarketQuotes.NASDAQ_FUTURES_SYMBOL to { globalOpen(at) },
-            "KRW=X" to { globalOpen(at) },
-            "CL=F" to { globalOpen(at) },
-            "^VIX" to { usCashOpen(at) },
-            "^TNX" to { usCashOpen(at) },
-        )
-        quotes.refreshers().forEach { (name, refresh) ->
+        quotes.refreshers().forEach { refresh ->
             try {
-                if (!refresh.run(active.getValue(name))) {
-                    log.warn("시세 갱신 빈 값 ({}) — 마지막 정상값 유지", name)
+                if (!refresh.run { opens(refresh.hours, at) }) {
+                    log.warn("시세 갱신 빈 값 ({}) — 마지막 정상값 유지", refresh.name)
                     failures.record(JOB)
                 }
             } catch (e: Exception) {
-                log.warn("시세 갱신 실패 ({}) — 마지막 정상값 유지", name, e)
+                log.warn("시세 갱신 실패 ({}) — 마지막 정상값 유지", refresh.name, e)
                 failures.record(JOB)
             }
         }
+    }
+
+    private fun opens(hours: QuoteHours, at: LocalDateTime): Boolean = when (hours) {
+        QuoteHours.DOMESTIC_INDEX -> domesticOpen(at, LocalTime.of(9, 0), LocalTime.of(15, 42))
+        QuoteHours.DOMESTIC_FUTURES -> domesticOpen(at, LocalTime.of(8, 45), LocalTime.of(15, 47))
+        QuoteHours.NIGHT_FUTURES -> nightOpen(at)
+        QuoteHours.US_CASH -> usCashOpen(at)
+        QuoteHours.GLOBAL -> globalOpen(at)
     }
 
     internal fun domesticOpen(at: LocalDateTime, start: LocalTime, end: LocalTime): Boolean =
@@ -56,7 +53,7 @@ class MarketQuoteScheduler(
         val time = at.toLocalTime()
         if (time.isBefore(LocalTime.of(18, 0)) && time.isAfter(LocalTime.of(6, 2))) return false
         val day = if (!time.isBefore(LocalTime.of(18, 0))) at.toLocalDate() else at.toLocalDate().minusDays(1)
-        return calendar.isOpen(day) ?: (day.dayOfWeek != DayOfWeek.SATURDAY && day.dayOfWeek != DayOfWeek.SUNDAY)
+        return calendar.isOpen(day) ?: !day.isWeekend
     }
 
     internal fun usCashOpen(at: LocalDateTime): Boolean {
@@ -75,7 +72,7 @@ class MarketQuoteScheduler(
         }
     }
 
-    private fun ny(at: LocalDateTime) = at.atZone(KST).withZoneSameInstant(Region.US.zone).toLocalDateTime()
+    private fun ny(at: LocalDateTime) = Region.US.local(at)
 
     companion object {
         const val JOB = "market-quote-poller"

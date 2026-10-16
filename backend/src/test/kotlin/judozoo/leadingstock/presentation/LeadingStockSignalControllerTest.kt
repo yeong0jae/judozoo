@@ -9,8 +9,10 @@ import judozoo.leadingstock.application.LeadingStockSignals
 import judozoo.leadingstock.domain.IndexMinuteCandle
 import judozoo.leadingstock.domain.InvestorType
 import judozoo.leadingstock.domain.MarketSignalEvent
+import judozoo.leadingstock.domain.MarketSignalType
 import judozoo.leadingstock.domain.NetTradeSide
 import judozoo.leadingstock.domain.SignalEvent
+import judozoo.leadingstock.domain.SignalEventType
 import judozoo.leadingstock.domain.SpikeDirection
 import judozoo.market.domain.MarketInvestorSnapshot
 import judozoo.stock.domain.Market
@@ -37,7 +39,7 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
     private val at = day.atTime(10, 0)
 
     private fun event(i: Int, rate: Double = 5.0) = SignalEvent(
-        at.plusMinutes(i.toLong()), day, "%06d".format(i), "종목%02d".format(i), "VOLUME_SPIKE", 1000, rate.toFloat(), 100,
+        at.plusMinutes(i.toLong()), day, "%06d".format(i), "종목%02d".format(i), SignalEventType.VOLUME_SPIKE, 1000, rate.toFloat(), 100,
         3.5f, 2_000_000_000, SpikeDirection.BUY, at, at,
     )
 
@@ -107,8 +109,8 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
         @Test
         fun `단계에 해당하는 임계액을 함께 Python과 같은 모양으로 준다`() {
             every { signals.marketEventsOn(day) } returns listOf(
-                MarketSignalEvent(at, day, "NET_BUY_LEVEL", Market.KOSPI, NetTradeSide.BUY, InvestorType.FOREIGN, 3, 32_000, indexValueFloat = 2653.81f, changeRateFloat = 1.2f),
-                MarketSignalEvent(at, day, "MA_REBOUND", Market.KOSDAQ, NetTradeSide.BUY),
+                MarketSignalEvent(at, day, MarketSignalType.NET_BUY_LEVEL, Market.KOSPI, NetTradeSide.BUY, InvestorType.FOREIGN, 3, 32_000, indexValueFloat = 2653.81f, changeRateFloat = 1.2f),
+                MarketSignalEvent(at, day, MarketSignalType.MA_REBOUND, Market.KOSDAQ, NetTradeSide.BUY),
             )
 
             mvc.get("/api/leading-stocks/market-signal-events") { param("date", "2026-09-11"); cookie(LoggedIn.cookie) }.andExpect {

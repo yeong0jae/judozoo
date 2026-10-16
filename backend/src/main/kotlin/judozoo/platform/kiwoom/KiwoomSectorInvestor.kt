@@ -1,5 +1,6 @@
 package judozoo.platform.kiwoom
 
+import judozoo.stock.domain.Market
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import kotlin.math.abs
@@ -8,16 +9,16 @@ import kotlin.math.abs
 class KiwoomSectorInvestor(private val client: KiwoomClient) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun fetchSectorNetBuy(marketType: String): SectorInvestorNetBuy? = try {
+    fun fetchSectorNetBuy(market: Market): SectorInvestorNetBuy? = try {
         val rows = client.query(
             SECT_URL, "ka10051",
-            mapOf("mrkt_tp" to marketType, "amt_qty_tp" to "0", "stex_tp" to "3"),
+            mapOf("mrkt_tp" to MARKET_TYPES.getValue(market), "amt_qty_tp" to "0", "stex_tp" to "3"),
         ).body["inds_netprps"]?.toList().orEmpty()
 
         rows.firstOrNull { "종합" in it["inds_nm"]?.asString().orEmpty() }?.let(::toNetBuy)
             ?: rows.firstOrNull()?.let(::toNetBuy)
     } catch (e: Exception) {
-        log.error("키움 업종 투자자 순매수 조회 실패 mrkt_tp={}", marketType, e)
+        log.error("키움 업종 투자자 순매수 조회 실패 market={}", market, e)
         null
     }
 
@@ -42,5 +43,7 @@ class KiwoomSectorInvestor(private val client: KiwoomClient) {
 
     companion object {
         private const val SECT_URL = "/api/dostk/sect"
+
+        private val MARKET_TYPES = mapOf(Market.KOSPI to "0", Market.KOSDAQ to "1")
     }
 }

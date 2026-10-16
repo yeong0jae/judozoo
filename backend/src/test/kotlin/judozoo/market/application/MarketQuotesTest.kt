@@ -8,6 +8,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import judozoo.library.KST
 import judozoo.market.domain.FuturesExpiry
+import judozoo.market.domain.FuturesSession
+import judozoo.market.domain.Indicator
 import judozoo.platform.kis.KisFutures
 import judozoo.platform.kis.KisFutures.FuturesDaily
 import judozoo.platform.kis.KisFutures.FuturesPrice
@@ -23,6 +25,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+
+private fun MarketQuotes.refresher(name: String) = refreshers().single { it.name == name }
 
 class MarketQuotesTest {
     private val kiwoomIndex = mockk<KiwoomIndex>()
@@ -43,24 +47,24 @@ class MarketQuotesTest {
     inner class 시세_폴러 {
         @Test
         fun `사용자가 없어도 채우고 들고 있는 값이 있으면 장 밖에서는 다시 받지 않는다`() {
-            every { kiwoomIndex.fetchIndex(any(), any()) } returns KiwoomIndex.IndexSnapshot("001", 2700.0, 1.5)
-            val kospi = quotes.refreshers().getValue("kospi")
+            every { kiwoomIndex.fetchIndex(any()) } returns KiwoomIndex.IndexSnapshot("001", 2700.0, 1.5)
+            val kospi = quotes.refresher("KOSPI")
 
             kospi.run { false } shouldBe true
             kospi.run { false }
             kospi.run { true }
 
             quotes.index(Market.KOSPI).currentValue shouldBe 2700.0
-            verify(exactly = 2) { kiwoomIndex.fetchIndex("001", "0") }
+            verify(exactly = 2) { kiwoomIndex.fetchIndex(Market.KOSPI) }
         }
 
         @Test
         fun `갱신이 실패하면 마지막 정상값을 유지한다`() {
-            every { kiwoomIndex.fetchIndex(any(), any()) } returns KiwoomIndex.IndexSnapshot("001", 2700.0, 1.5)
-            quotes.refreshers().getValue("kospi").run { true }
-            every { kiwoomIndex.fetchIndex(any(), any()) } returns null
+            every { kiwoomIndex.fetchIndex(any()) } returns KiwoomIndex.IndexSnapshot("001", 2700.0, 1.5)
+            quotes.refresher("KOSPI").run { true }
+            every { kiwoomIndex.fetchIndex(any()) } returns null
 
-            shouldThrow<IllegalStateException> { quotes.refreshers().getValue("kospi").run { true } }
+            shouldThrow<IllegalStateException> { quotes.refresher("KOSPI").run { true } }
 
             quotes.index(Market.KOSPI).currentValue shouldBe 2700.0
         }
@@ -68,10 +72,10 @@ class MarketQuotesTest {
         @Test
         fun `매크로 한 항목이 실패해도 나머지는 갱신한다`() {
             every { yahoo.fetchQuote(any()) } returns YahooClient.YahooQuote("", 100.0, 80.0)
-            quotes.refreshers().values.filter { it.name in MarketQuotes.MACRO_SYMBOLS.values }.forEach { it.run { true } }
+            quotes.refreshers().filter { it.name in Indicator.MACRO.map { m -> m.symbol } }.forEach { it.run { true } }
             every { yahoo.fetchQuote(any()) } answers { if (firstArg<String>() == "KRW=X") null else YahooClient.YahooQuote("", 120.0, 80.0) }
 
-            quotes.refreshers().values.filter { it.name in MarketQuotes.MACRO_SYMBOLS.values }.forEach { it.run { true } }
+            quotes.refreshers().filter { it.name in Indicator.MACRO.map { m -> m.symbol } }.forEach { it.run { true } }
 
             val macro = quotes.macroQuotes()
             macro.usdKrw!!.price shouldBe 100.0
@@ -86,7 +90,7 @@ class MarketQuotesTest {
             quotes.futuresQuote(Market.KOSPI)!!.futuresPrice shouldBe 300.0
             every { futures.fetchDaily("101", any(), any(), any()) } returns null
 
-            quotes.refreshers().getValue("futures-kospi").run { true } shouldBe false
+            quotes.refresher("futures-KOSPI").run { true } shouldBe false
 
             quotes.futuresQuote(Market.KOSPI)!!.futuresPrice shouldBe 300.0
             verify(exactly = 0) { futures.fetchInvestors(any()) }
@@ -99,11 +103,11 @@ class MarketQuotesTest {
         fun `정규장과 야간 시세가 근월물 조회 한 번을 공유한다`() {
             every { futures.fetchNearMonth(Market.KOSPI) } returns NearMonth("CONTRACT", "F 202612", 50)
             every { futures.fetchDaily("CONTRACT", any(), any(), any()) } returns FuturesDaily(summary(), emptyList())
-            every { futures.fetchPrice("CONTRACT", KisFutures.NIGHT) } returns price()
+            every { futures.fetchPrice("CONTRACT", FuturesSession.NIGHT) } returns price()
 
             quotes.futuresQuote(Market.KOSPI)!!.futuresPrice shouldBe 300.0
             quotes.nightFuturesQuote()!!.price shouldBe 300.0
-            quotes.refreshers().getValue("futures-kospi").run { true }
+            quotes.refresher("futures-KOSPI").run { true }
 
             verify(exactly = 1) { futures.fetchNearMonth(Market.KOSPI) }
         }
@@ -112,8 +116,8 @@ class MarketQuotesTest {
         fun `만기 교체로 옛 코드가 실패하면 근월물을 다시 확인한다`() {
             now = LocalDateTime.of(2026, 9, 30, 17, 59)
             every { futures.fetchNearMonth(Market.KOSPI) } returnsMany listOf(NearMonth("OLD", "F 202609", 0), NearMonth("NEW", "F 202612", 90))
-            every { futures.fetchPrice("OLD", KisFutures.NIGHT) } returns null
-            every { futures.fetchPrice("NEW", KisFutures.NIGHT) } returns price(310.0)
+            every { futures.fetchPrice("OLD", FuturesSession.NIGHT) } returns null
+            every { futures.fetchPrice("NEW", FuturesSession.NIGHT) } returns price(310.0)
 
             quotes.nightFuturesQuote()!!.price shouldBe 310.0
             verify(exactly = 2) { futures.fetchNearMonth(Market.KOSPI) }
@@ -127,7 +131,7 @@ class MarketQuotesTest {
             quotes.nightFuturesQuote()
 
             now = LocalDateTime.of(2026, 9, 30, 18, 0)
-            quotes.refreshers().getValue("night").run { true }
+            quotes.refresher("night").run { true }
 
             verify(exactly = 2) { futures.fetchNearMonth(Market.KOSPI) }
         }
@@ -140,7 +144,7 @@ class MarketQuotesTest {
             quotes.nightFuturesQuote()
 
             now = LocalDateTime.of(2026, 10, 1, 1, 0)
-            quotes.refreshers().getValue("night").run { true }
+            quotes.refresher("night").run { true }
 
             verify(exactly = 1) { futures.fetchNearMonth(Market.KOSPI) }
         }

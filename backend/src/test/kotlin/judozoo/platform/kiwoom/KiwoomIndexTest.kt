@@ -29,7 +29,7 @@ class KiwoomIndexTest {
         fun `지수값은 절대값 등락률은 부호를 살린다`() {
             stub.respond(URL, """{"return_code":0,"cur_prc":"-2653.81","flu_rt":"-1.25"}""")
 
-            val result = index.fetchIndex("001")!!
+            val result = index.fetchIndex(Market.KOSPI)!!
 
             result.currentValue shouldBe 2653.81
             result.changeRate shouldBe -1.25
@@ -39,14 +39,14 @@ class KiwoomIndexTest {
         fun `오류 코드면 null`() {
             stub.respond(URL, """{"return_code":3,"return_msg":"오류"}""")
 
-            index.fetchIndex("001").shouldBeNull()
+            index.fetchIndex(Market.KOSPI).shouldBeNull()
         }
 
         @Test
         fun `연결이 끊기면 null`() {
             stub.fail(URL)
 
-            index.fetchIndex("001").shouldBeNull()
+            index.fetchIndex(Market.KOSPI).shouldBeNull()
         }
 
         @Test
@@ -73,7 +73,7 @@ class KiwoomIndexTest {
                 {"tm_n":"1430","cur_prc_n":"2650.00"},{"tm_n":"143000","cur_prc_n":"2650.00"}]}""",
             )
 
-            index.fetchIndexIntraday("001", "0", day)!!.ticks shouldHaveSize 1
+            index.fetchIndexIntraday(Market.KOSPI, day)!!.ticks shouldHaveSize 1
         }
 
         @Test

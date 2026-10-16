@@ -19,7 +19,12 @@ class KiwoomIndex(private val client: KiwoomClient, private val clock: Clock) {
 
     data class IndexIntraday(val value: Double, val changeRate: Double, val ticks: List<IndexTick>)
 
-    fun fetchIndex(industryCode: String, marketType: String = "0"): IndexSnapshot? = try {
+    fun fetchIndex(market: Market): IndexSnapshot? {
+        val (industryCode, marketType) = MARKET_CODES.getValue(market)
+        return fetchIndex(industryCode, marketType)
+    }
+
+    private fun fetchIndex(industryCode: String, marketType: String): IndexSnapshot? = try {
         log.info("키움 업종 지수 조회 mrkt_tp={} inds_cd={}", marketType, industryCode)
         val body = fetch(industryCode, marketType)
         IndexSnapshot(industryCode, abs(body["cur_prc"]?.asString().toSignedDouble()), body["flu_rt"]?.asString().toSignedDouble())
@@ -33,7 +38,7 @@ class KiwoomIndex(private val client: KiwoomClient, private val clock: Clock) {
         return fetchIndexIntraday(industryCode, marketType, on)
     }
 
-    fun fetchIndexIntraday(industryCode: String, marketType: String, on: LocalDate? = null): IndexIntraday? {
+    private fun fetchIndexIntraday(industryCode: String, marketType: String, on: LocalDate?): IndexIntraday? {
         val day = on ?: LocalDate.now(clock.withZone(KST))
         return try {
             val body = fetch(industryCode, marketType)

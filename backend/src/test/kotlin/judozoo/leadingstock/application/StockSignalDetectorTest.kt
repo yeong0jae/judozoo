@@ -9,6 +9,7 @@ import judozoo.leadingstock.domain.LeadingStockSnapshot
 import judozoo.leadingstock.domain.MinuteCandles.VolumeSpike
 import judozoo.leadingstock.domain.SignalEvent
 import judozoo.leadingstock.domain.SignalEventRepository
+import judozoo.leadingstock.domain.SignalEventType
 import judozoo.leadingstock.domain.SpikeDirection
 import judozoo.library.KST
 import org.junit.jupiter.api.Nested
@@ -45,7 +46,7 @@ class StockSignalDetectorTest {
 
             saved.size shouldBe 1
             saved[0].run {
-                eventType shouldBe "VOLUME_SPIKE"
+                eventType shouldBe SignalEventType.VOLUME_SPIKE
                 (occurredAt to tradeDate) shouldBe (at to at.toLocalDate())
                 (spikeRatio to minuteTradingValue) shouldBe (5.0 to 2_000_000_000L)
                 spikeDirection shouldBe SpikeDirection.BUY

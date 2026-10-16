@@ -1,5 +1,7 @@
 package judozoo.platform.kis
 
+import judozoo.market.domain.FuturesSession
+import judozoo.market.domain.MarketCandle
 import judozoo.stock.domain.Market
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -15,16 +17,6 @@ class KisFutures(private val client: KisClient) {
 
     data class NearMonth(val iscd: String, val name: String, val remainingDays: Int)
 
-    data class FuturesBar(
-        val date: String,
-        val time: String,
-        val open: Double,
-        val high: Double,
-        val low: Double,
-        val close: Double,
-        val volume: Double,
-    )
-
     data class FuturesSummary(
         val name: String,
         val futuresPrice: Double,
@@ -36,7 +28,7 @@ class KisFutures(private val client: KisClient) {
         val openInterestChange: Long,
     )
 
-    data class FuturesDaily(val summary: FuturesSummary, val candles: List<FuturesBar>)
+    data class FuturesDaily(val summary: FuturesSummary, val candles: List<MarketCandle>)
 
     data class FuturesPrice(
         val name: String,
@@ -81,11 +73,11 @@ class KisFutures(private val client: KisClient) {
             .minByOrNull { it.remainingDays }
     }
 
-    fun fetchDaily(iscd: String, from: LocalDate, to: LocalDate, market: String = DAY): FuturesDaily? = guarded("선물 일봉 조회 iscd=$iscd", null) {
+    fun fetchDaily(iscd: String, from: LocalDate, to: LocalDate, session: FuturesSession = FuturesSession.DAY): FuturesDaily? = guarded("선물 일봉 조회 iscd=$iscd", null) {
         val body = okBody(
             DAILY_URL, "FHKIF03020100", "선물 일봉 (iscd=$iscd)",
             mapOf(
-                "FID_COND_MRKT_DIV_CODE" to market, "FID_INPUT_ISCD" to iscd,
+                "FID_COND_MRKT_DIV_CODE" to codeOf(session), "FID_INPUT_ISCD" to iscd,
                 "FID_INPUT_DATE_1" to from.format(YMD), "FID_INPUT_DATE_2" to to.format(YMD), "FID_PERIOD_DIV_CODE" to "D",
             ),
         ) ?: return@guarded null
@@ -103,31 +95,31 @@ class KisFutures(private val client: KisClient) {
             openInterest = o.long("hts_otst_stpl_qty"),
             openInterestChange = o.long("otst_stpl_qty_icdc"),
         )
-        FuturesDaily(summary, body["output2"]?.values().orEmpty().mapNotNull(::dailyBar).sortedBy { it.date + it.time })
+        FuturesDaily(summary, body["output2"]?.values().orEmpty().mapNotNull(::dailyBar).sortedBy { it.at })
     }
 
-    fun fetchMinute(iscd: String, on: LocalDate, hour: LocalTime, market: String = DAY): List<FuturesBar> =
-        fetchMinute(iscd, on, hour.format(HMS), market)
+    fun fetchMinute(iscd: String, on: LocalDate, hour: LocalTime, session: FuturesSession = FuturesSession.DAY): List<MarketCandle> =
+        fetchMinute(iscd, on, hour.format(HMS), session)
 
-    fun fetchMinute(iscd: String, on: LocalDate, hhmmss: String, market: String = DAY): List<FuturesBar> =
-        guarded("선물 분봉 조회 iscd=$iscd market=$market", emptyList()) {
+    fun fetchMinute(iscd: String, on: LocalDate, hhmmss: String, session: FuturesSession = FuturesSession.DAY): List<MarketCandle> =
+        guarded("선물 분봉 조회 iscd=$iscd session=$session", emptyList()) {
             val body = okBody(
-                MINUTE_URL, "FHKIF03020200", "선물 분봉 (iscd=$iscd, market=$market)",
+                MINUTE_URL, "FHKIF03020200", "선물 분봉 (iscd=$iscd, session=$session)",
                 mapOf(
-                    "FID_COND_MRKT_DIV_CODE" to market, "FID_INPUT_ISCD" to iscd,
+                    "FID_COND_MRKT_DIV_CODE" to codeOf(session), "FID_INPUT_ISCD" to iscd,
                     "FID_HOUR_CLS_CODE" to "60",
                     "FID_PW_DATA_INCU_YN" to "N",
                     "FID_FAKE_TICK_INCU_YN" to "N",
                     "FID_INPUT_DATE_1" to on.format(YMD), "FID_INPUT_HOUR_1" to hhmmss,
                 ),
             ) ?: return@guarded emptyList()
-            body["output2"]?.values().orEmpty().mapNotNull(::minuteBar).sortedBy { it.date + it.time }
+            body["output2"]?.values().orEmpty().mapNotNull(::minuteBar).sortedBy { it.at }
         }
 
-    fun fetchPrice(iscd: String, market: String): FuturesPrice? = guarded("선물 시세 조회 iscd=$iscd market=$market", null) {
+    fun fetchPrice(iscd: String, session: FuturesSession): FuturesPrice? = guarded("선물 시세 조회 iscd=$iscd session=$session", null) {
         val body = okBody(
-            PRICE_URL, "FHMIF10000000", "선물 시세 (iscd=$iscd, market=$market)",
-            mapOf("FID_COND_MRKT_DIV_CODE" to market, "FID_INPUT_ISCD" to iscd),
+            PRICE_URL, "FHMIF10000000", "선물 시세 (iscd=$iscd, session=$session)",
+            mapOf("FID_COND_MRKT_DIV_CODE" to codeOf(session), "FID_INPUT_ISCD" to iscd),
         ) ?: return@guarded null
         val o = body["output1"]?.takeIf { it.isObject && !it.isEmpty } ?: return@guarded null
         val price = o.doubleOrNull("futs_prpr") ?: return@guarded null
@@ -187,13 +179,11 @@ class KisFutures(private val client: KisClient) {
         fallback
     }
 
-    private fun dailyBar(item: JsonNode): FuturesBar? {
-        val ymd = item.text("stck_bsop_date")
-        val close = item.doubleOrNull("futs_prpr")
-        if (ymd.length != 8 || close == null) return null
-        return FuturesBar(
-            date = "${ymd.substring(0, 4)}-${ymd.substring(4, 6)}-${ymd.substring(6, 8)}",
-            time = "00:00:00",
+    private fun dailyBar(item: JsonNode): MarketCandle? {
+        val day = runCatching { LocalDate.parse(item.text("stck_bsop_date"), YMD) }.getOrNull() ?: return null
+        val close = item.doubleOrNull("futs_prpr") ?: return null
+        return MarketCandle(
+            at = day.atStartOfDay(),
             open = item.doubleOrNull("futs_oprc") ?: close,
             high = item.doubleOrNull("futs_hgpr") ?: close,
             low = item.doubleOrNull("futs_lwpr") ?: close,
@@ -202,17 +192,17 @@ class KisFutures(private val client: KisClient) {
         )
     }
 
-    private fun minuteBar(item: JsonNode): FuturesBar? {
+    private fun minuteBar(item: JsonNode): MarketCandle? {
         val ymd = item.text("stck_bsop_date")
         if (ymd.length != 8) return null
         val hms = item.text("stck_cntg_hour").ifEmpty { "000000" }.padStart(6, '0')
         val close = item.doubleOrNull("futs_prpr") ?: return null
         val hour = hms.substring(0, 2).toIntOrNull() ?: return null
-        var on = runCatching { LocalDate.parse(ymd, YMD) }.getOrNull() ?: return null
-        if (hour >= 24) on = on.plusDays(1)
-        return FuturesBar(
-            date = on.toString(),
-            time = "%02d:%s:%s".format(hour % 24, hms.substring(2, 4), hms.substring(4, 6)),
+        val minute = hms.substring(2, 4).toIntOrNull() ?: return null
+        val second = hms.substring(4, 6).toIntOrNull() ?: return null
+        val on = runCatching { LocalDate.parse(ymd, YMD) }.getOrNull() ?: return null
+        return MarketCandle(
+            at = runCatching { on.plusDays(hour / 24L).atTime(hour % 24, minute, second) }.getOrNull() ?: return null,
             open = item.doubleOrNull("futs_oprc") ?: close,
             high = item.doubleOrNull("futs_hgpr") ?: close,
             low = item.doubleOrNull("futs_lwpr") ?: close,
@@ -222,10 +212,6 @@ class KisFutures(private val client: KisClient) {
     }
 
     companion object {
-        const val DAY = "F"
-
-        const val NIGHT = "CM"
-
         private const val BOARD_URL = "/uapi/domestic-futureoption/v1/quotations/display-board-futures"
         private const val DAILY_URL = "/uapi/domestic-futureoption/v1/quotations/inquire-daily-fuopchartprice"
         private const val MINUTE_URL = "/uapi/domestic-futureoption/v1/quotations/inquire-time-fuopchartprice"
@@ -240,6 +226,11 @@ class KisFutures(private val client: KisClient) {
 
         private val YMD = DateTimeFormatter.BASIC_ISO_DATE
         private val HMS = DateTimeFormatter.ofPattern("HHmmss")
+
+        private fun codeOf(session: FuturesSession): String = when (session) {
+            FuturesSession.DAY -> "F"
+            FuturesSession.NIGHT -> "CM"
+        }
 
         private fun signed(magnitude: String, sign: String): Double {
             val value = abs(magnitude.toDoubleOrNull() ?: 0.0)

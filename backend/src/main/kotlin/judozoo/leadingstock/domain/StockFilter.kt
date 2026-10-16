@@ -102,8 +102,7 @@ sealed class StockFilter(val name: String) {
 
     class DailyHighPosition(private val criteria: LeadingStockCriteria, daily: List<DailyCandle>, asOf: LocalDate) :
         StockFilter("최근 고가 대비 현재가") {
-        private val maxHigh: Long? = daily.filter { it.date < asOf }.sortedByDescending { it.date }.take(60)
-            .maxOfOrNull { it.highPrice }?.takeIf { it > 0 }
+        private val maxHigh: Long? = DailyCandles(daily).recentHigh(asOf, RECENT_HIGH_DAYS)
 
         private fun dropRate(stock: LeadingStockSnapshot) = maxHigh?.let { (stock.currentPrice - it).toDouble() / it * 100 }
 
@@ -127,6 +126,8 @@ sealed class StockFilter(val name: String) {
     }
 
     companion object {
+        private const val RECENT_HIGH_DAYS = 60
+
         private const val EOK = 100_000_000L
         private const val MILLION = 1_000_000L
 

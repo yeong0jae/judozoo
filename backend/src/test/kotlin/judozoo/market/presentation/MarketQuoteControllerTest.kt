@@ -6,8 +6,10 @@ import judozoo.LoggedIn
 import judozoo.market.application.MarketCalendar
 import judozoo.market.application.MarketCandles
 import judozoo.market.application.MarketQuotes
+import judozoo.market.domain.CandleInterval
+import judozoo.market.domain.Indicator
+import judozoo.market.domain.MarketCandle
 import judozoo.market.domain.Region
-import judozoo.platform.toss.TossMarketIndicator.TossCandle
 import judozoo.stock.domain.Market
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -43,7 +45,7 @@ class MarketQuoteControllerTest @Autowired constructor(private val mvc: MockMvc)
     inner class 리터럴_경로_우선 {
         @Test
         fun `나스닥 캔들과 시세는 시장 경로로 새지 않는다`() {
-            every { candles.nasdaq("1d") } returns emptyList()
+            every { candles.indicator(Indicator.NASDAQ, CandleInterval.DAILY) } returns emptyList()
             every { quotes.nasdaqQuote() } returns null
 
             get("/api/market/nasdaq/candles", "interval" to "1d").andExpect { status { isOk() }; jsonPath("$.data") { isEmpty() } }
@@ -53,9 +55,9 @@ class MarketQuoteControllerTest @Autowired constructor(private val mvc: MockMvc)
         @Test
         fun `야간선물과 나스닥 선물은 선물 시장 경로로 새지 않는다`() {
             every { quotes.nightFuturesQuote() } returns null
-            every { candles.nightMinute() } returns emptyList()
+            every { candles.nightFutures(CandleInterval.MINUTE, 90) } returns emptyList()
             every { quotes.nasdaqFuturesQuote() } returns null
-            every { candles.nasdaqFutures("1m") } returns emptyList()
+            every { candles.indicator(Indicator.NASDAQ_FUTURES, CandleInterval.MINUTE) } returns emptyList()
 
             get("/api/market/futures/night/quote").andExpect { status { isOk() }; jsonPath("$.data") { value(null as Any?) } }
             get("/api/market/futures/night/candles", "interval" to "1m").andExpect { status { isOk() } }
@@ -65,7 +67,7 @@ class MarketQuoteControllerTest @Autowired constructor(private val mvc: MockMvc)
 
         @Test
         fun `매크로 캔들은 시장 캔들로 새지 않는다`() {
-            every { candles.macro("WTI", "1d") } returns emptyList()
+            every { candles.indicator(Indicator.WTI, CandleInterval.DAILY) } returns emptyList()
 
             get("/api/market/macro/candles", "target" to "WTI", "interval" to "1d").andExpect { status { isOk() } }
         }
@@ -86,7 +88,7 @@ class MarketQuoteControllerTest @Autowired constructor(private val mvc: MockMvc)
     inner class 시장_경로 {
         @Test
         fun `코스피 캔들은 날짜와 시각을 나눠 준다`() {
-            every { candles.indexDaily(Market.KOSPI, 90) } returns listOf(TossCandle(LocalDateTime.of(2026, 9, 28, 9, 0), 1.0, 2.0, 0.5, 1.5, 100.0))
+            every { candles.index(Market.KOSPI, CandleInterval.DAILY, 90) } returns listOf(MarketCandle(LocalDateTime.of(2026, 9, 28, 9, 0), 1.0, 2.0, 0.5, 1.5, 100.0))
 
             get("/api/market/KOSPI/candles", "interval" to "1d").andExpect {
                 content {

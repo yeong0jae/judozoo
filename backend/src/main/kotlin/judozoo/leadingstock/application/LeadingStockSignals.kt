@@ -6,12 +6,12 @@ import judozoo.leadingstock.domain.MarketSignalEvent
 import judozoo.leadingstock.domain.MarketSignalEventRepository
 import judozoo.leadingstock.domain.SignalEvent
 import judozoo.leadingstock.domain.SignalEventRepository
+import judozoo.library.previousWeekday
 import judozoo.market.application.MarketInvestors
 import judozoo.market.domain.MarketInvestorSnapshot
 import judozoo.stock.domain.Market
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -33,11 +33,5 @@ class LeadingStockSignals(
     }.toMap()
 
     fun indexMinuteCandles(market: Market, day: LocalDate): List<IndexMinuteCandle> =
-        indexCandles.findByMarketAndTradeDateBetweenOrderByMinuteAt(market, previousWeekday(day), day).map { it.toCandle() }
-
-    private fun previousWeekday(on: LocalDate): LocalDate {
-        var d = on.minusDays(1)
-        while (d.dayOfWeek == DayOfWeek.SATURDAY || d.dayOfWeek == DayOfWeek.SUNDAY) d = d.minusDays(1)
-        return d
-    }
+        indexCandles.findByMarketAndTradeDateBetweenOrderByMinuteAt(market, day.previousWeekday(), day).map { it.toCandle() }
 }

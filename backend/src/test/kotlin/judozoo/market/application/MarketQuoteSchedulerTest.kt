@@ -27,7 +27,7 @@ class MarketQuoteSchedulerTest {
 
     @Nested
     inner class 시세_폴러 {
-        private val kiwoomIndex = mockk<KiwoomIndex> { every { fetchIndex(any(), any()) } returns KiwoomIndex.IndexSnapshot("001", 2700.0, 1.5) }
+        private val kiwoomIndex = mockk<KiwoomIndex> { every { fetchIndex(any()) } returns KiwoomIndex.IndexSnapshot("001", 2700.0, 1.5) }
         private val yahoo = mockk<YahooClient> { every { fetchQuote(any()) } returns YahooClient.YahooQuote("", 100.0, 80.0) }
         private val clock = Clock.fixed(LocalDateTime.of(2026, 9, 30, 10, 0).atZone(KST).toInstant(), KST)
         private val futures = mockk<judozoo.platform.kis.KisFutures> { every { fetchNearMonth(any()) } returns null }
@@ -42,7 +42,7 @@ class MarketQuoteSchedulerTest {
             scheduler(quotes = quotes).poll()
 
             quotes.index(judozoo.stock.domain.Market.KOSPI).currentValue shouldBe 2700.0
-            verify(exactly = 4) { kiwoomIndex.fetchIndex(any(), any()) }
+            verify(exactly = 4) { kiwoomIndex.fetchIndex(any()) }
         }
 
         @Test
@@ -63,7 +63,7 @@ class MarketQuoteSchedulerTest {
             scheduler(quotes = quotes).poll()
             scheduler(quotes = quotes).poll()
 
-            verify(exactly = 2) { kiwoomIndex.fetchIndex(any(), any()) }
+            verify(exactly = 2) { kiwoomIndex.fetchIndex(any()) }
         }
     }
 

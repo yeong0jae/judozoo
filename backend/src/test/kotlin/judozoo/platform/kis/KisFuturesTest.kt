@@ -9,11 +9,13 @@ import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import judozoo.market.domain.FuturesSession
 import judozoo.stock.domain.Market
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 class KisFuturesTest {
@@ -103,7 +105,7 @@ class KisFuturesTest {
 
             val bar = futures.fetchDaily("101W09", from, to)!!.candles[0]
 
-            (bar.date to bar.time) shouldBe ("2026-09-11" to "00:00:00")
+            bar.at shouldBe LocalDateTime.of(2026, 9, 11, 0, 0)
         }
 
         @Test
@@ -124,9 +126,9 @@ class KisFuturesTest {
                 "futs_oprc":"352.00","futs_hgpr":"353.00","futs_lwpr":"351.50","cntg_vol":"120"}]}""",
             )
 
-            val bar = futures.fetchMinute("101W09", to, "253000", KisFutures.NIGHT)[0]
+            val bar = futures.fetchMinute("101W09", to, "253000", FuturesSession.NIGHT)[0]
 
-            (bar.date to bar.time) shouldBe ("2026-09-12" to "01:30:00")
+            bar.at shouldBe LocalDateTime.of(2026, 9, 12, 1, 30)
         }
 
         @Test
@@ -135,7 +137,7 @@ class KisFuturesTest {
 
             val bar = futures.fetchMinute("101W09", to, LocalTime.of(14, 30))[0]
 
-            (bar.date to bar.time) shouldBe ("2026-09-11" to "14:30:00")
+            bar.at shouldBe LocalDateTime.of(2026, 9, 11, 14, 30)
         }
 
         @Test
@@ -146,7 +148,7 @@ class KisFuturesTest {
                 {"stck_bsop_date":"20260911","stck_cntg_hour":"090000","futs_prpr":"1"}]}""",
             )
 
-            futures.fetchMinute("101W09", to, LocalTime.of(14, 30)).map { it.time } shouldBe listOf("09:00:00", "14:30:00")
+            futures.fetchMinute("101W09", to, LocalTime.of(14, 30)).map { it.at.toLocalTime() } shouldBe listOf(LocalTime.of(9, 0), LocalTime.of(14, 30))
         }
 
         @Test
@@ -167,7 +169,7 @@ class KisFuturesTest {
                 "futs_prdy_ctrt":"0.71","prdy_vrss_sign":"2","acml_vol":"120000"}}""",
             )
 
-            val price = futures.fetchPrice("101W09", KisFutures.NIGHT)!!
+            val price = futures.fetchPrice("101W09", FuturesSession.NIGHT)!!
 
             price.priceChange shouldBe 2.50
             price.prevClose shouldBe (350.00 plusOrMinus 1e-9)
@@ -177,7 +179,7 @@ class KisFuturesTest {
         fun `OHLC가 없으면 현재가로 채운다`() {
             stub.respond(PRICE, """{"rt_cd":"0","output1":{"futs_prpr":"352.50","futs_prdy_vrss":"0","prdy_vrss_sign":"3"}}""")
 
-            val price = futures.fetchPrice("101W09", KisFutures.DAY)!!
+            val price = futures.fetchPrice("101W09", FuturesSession.DAY)!!
 
             listOf(price.open, price.high, price.low) shouldBe listOf(352.50, 352.50, 352.50)
         }
@@ -186,7 +188,7 @@ class KisFuturesTest {
         fun `output1이 없으면 null`() {
             stub.respond(PRICE, """{"rt_cd":"0"}""")
 
-            futures.fetchPrice("101W09", KisFutures.DAY).shouldBeNull()
+            futures.fetchPrice("101W09", FuturesSession.DAY).shouldBeNull()
         }
     }
 

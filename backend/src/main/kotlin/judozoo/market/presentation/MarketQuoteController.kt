@@ -4,10 +4,10 @@ import judozoo.library.web.ApiResponse
 import judozoo.market.application.MarketCalendar
 import judozoo.market.application.MarketCandles
 import judozoo.market.application.MarketQuotes
+import judozoo.market.domain.CandleInterval
+import judozoo.market.domain.Indicator
+import judozoo.market.domain.MarketCandle
 import judozoo.market.domain.Region
-import judozoo.platform.kis.KisFutures.FuturesBar
-import judozoo.platform.toss.TossMarketIndicator.TossCandle
-import judozoo.platform.yahoo.YahooClient.YahooBar
 import judozoo.stock.domain.Market
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -30,7 +30,11 @@ class MarketQuoteController(
 
     data class IndexItem(val currentValue: Double, val changeRate: Double)
 
-    data class CandleItem(val date: String, val time: String, val open: Double, val high: Double, val low: Double, val close: Double, val volume: Double)
+    data class CandleItem(val date: String, val time: String, val open: Double, val high: Double, val low: Double, val close: Double, val volume: Double) {
+        companion object {
+            fun of(c: MarketCandle) = CandleItem(c.at.toLocalDate().toString(), c.at.toLocalTime().format(SECONDS), c.open, c.high, c.low, c.close, c.volume)
+        }
+    }
 
     @GetMapping("/calendar/status")
     fun calendarStatus(@RequestParam region: Region): ApiResponse<CalendarStatus> {
@@ -48,59 +52,43 @@ class MarketQuoteController(
     fun macroQuotes() = ApiResponse.ok(quotes.macroQuotes())
 
     @GetMapping("/macro/candles")
-    fun macroCandles(@RequestParam target: String, @RequestParam interval: String) = ApiResponse.ok(candles.macro(target, interval).map(::yahooItem))
+    fun macroCandles(@RequestParam target: String, @RequestParam interval: String) =
+        ApiResponse.ok(candlesOf(interval) { Indicator.macro(target)?.let { m -> candles.indicator(m, it) }.orEmpty() })
 
     @GetMapping("/nasdaq/quote")
     fun nasdaqQuote() = ApiResponse.ok(quotes.nasdaqQuote())
 
     @GetMapping("/nasdaq/candles")
-    fun nasdaqCandles(@RequestParam interval: String) = ApiResponse.ok(candles.nasdaq(interval).map(::yahooItem))
+    fun nasdaqCandles(@RequestParam interval: String) = ApiResponse.ok(candlesOf(interval) { candles.indicator(Indicator.NASDAQ, it) })
 
     @GetMapping("/futures/night/quote")
     fun nightQuote() = ApiResponse.ok(quotes.nightFuturesQuote())
 
     @GetMapping("/futures/night/candles")
-    fun nightCandles(@RequestParam interval: String, @RequestParam(defaultValue = "90") count: Int) = ApiResponse.ok(
-        when (interval) {
-            "1d" -> candles.nightDaily(count)
-            "1m" -> candles.nightMinute()
-            else -> emptyList()
-        }.map(::barItem),
-    )
+    fun nightCandles(@RequestParam interval: String, @RequestParam(defaultValue = "90") count: Int) =
+        ApiResponse.ok(candlesOf(interval) { candles.nightFutures(it, count) })
 
     @GetMapping("/futures/nasdaq/quote")
     fun nasdaqFuturesQuote() = ApiResponse.ok(quotes.nasdaqFuturesQuote())
 
     @GetMapping("/futures/nasdaq/candles")
-    fun nasdaqFuturesCandles(@RequestParam interval: String) = ApiResponse.ok(candles.nasdaqFutures(interval).map(::yahooItem))
+    fun nasdaqFuturesCandles(@RequestParam interval: String) = ApiResponse.ok(candlesOf(interval) { candles.indicator(Indicator.NASDAQ_FUTURES, it) })
 
     @GetMapping("/futures/{market}/quote")
     fun futuresQuote(@PathVariable market: Market) = ApiResponse.ok(quotes.futuresQuote(market))
 
     @GetMapping("/futures/{market}/candles")
-    fun futuresCandles(@PathVariable market: Market, @RequestParam interval: String, @RequestParam(defaultValue = "90") count: Int) = ApiResponse.ok(
-        when (interval) {
-            "1d" -> candles.futuresDaily(market, count)
-            "1m" -> candles.futuresMinute(market)
-            else -> emptyList()
-        }.map(::barItem),
-    )
+    fun futuresCandles(@PathVariable market: Market, @RequestParam interval: String, @RequestParam(defaultValue = "90") count: Int) =
+        ApiResponse.ok(candlesOf(interval) { candles.futures(market, it, count) })
 
     @GetMapping("/{market}/candles")
-    fun marketCandles(@PathVariable market: Market, @RequestParam interval: String, @RequestParam(defaultValue = "90") count: Int) = ApiResponse.ok(
-        when (interval) {
-            "1d" -> candles.indexDaily(market, count)
-            "1m" -> candles.indexMinute(market)
-            else -> emptyList()
-        }.map(::tossItem),
-    )
+    fun marketCandles(@PathVariable market: Market, @RequestParam interval: String, @RequestParam(defaultValue = "90") count: Int) =
+        ApiResponse.ok(candlesOf(interval) { candles.index(market, it, count) })
+
+    private fun candlesOf(interval: String, load: (CandleInterval) -> List<MarketCandle>): List<CandleItem> =
+        CandleInterval.of(interval)?.let(load).orEmpty().map(CandleItem::of)
 
     companion object {
         private val SECONDS = DateTimeFormatter.ofPattern("HH:mm:ss")
-
-        private fun yahooItem(b: YahooBar) = CandleItem(b.date, b.time, b.open, b.high, b.low, b.close, b.volume)
-        private fun barItem(b: FuturesBar) = CandleItem(b.date, b.time, b.open, b.high, b.low, b.close, b.volume)
-        private fun tossItem(c: TossCandle) =
-            CandleItem(c.timestamp.toLocalDate().toString(), c.timestamp.toLocalTime().format(SECONDS), c.open, c.high, c.low, c.close, c.volume)
     }
 }

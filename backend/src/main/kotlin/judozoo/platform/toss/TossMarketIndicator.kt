@@ -1,5 +1,6 @@
 package judozoo.platform.toss
 
+import judozoo.market.domain.MarketCandle
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import tools.jackson.databind.JsonNode
@@ -32,16 +33,7 @@ class TossMarketIndicator(private val client: TossClient) {
         val breakdown: InstitutionBreakdown,
     )
 
-    data class TossCandle(
-        val timestamp: LocalDateTime,
-        val open: Double,
-        val high: Double,
-        val low: Double,
-        val close: Double,
-        val volume: Double,
-    )
-
-    data class CandlesPage(val candles: List<TossCandle>, val nextBefore: String?)
+    data class CandlesPage(val candles: List<MarketCandle>, val nextBefore: String?)
 
     fun fetchInvestorTrading(symbol: String, interval: String = "1d", count: Int = 10, until: LocalDate? = null): List<MarketInvestorRecord> =
         try {
@@ -97,11 +89,11 @@ class TossMarketIndicator(private val client: TossClient) {
         )
     }
 
-    private fun toCandle(item: JsonNode): TossCandle? {
+    private fun toCandle(item: JsonNode): MarketCandle? {
         val ts = parseWallClock(item.text("timestamp")) ?: return null
         val (open, high, low, close) = listOf("openPrice", "highPrice", "lowPrice", "closePrice")
             .map { item.text(it)?.toDoubleOrNull() ?: return null }
-        return TossCandle(ts, open, high, low, close, item.text("volume")?.toDoubleOrNull() ?: 0.0)
+        return MarketCandle(ts, open, high, low, close, item.text("volume")?.toDoubleOrNull() ?: 0.0)
     }
 
     companion object {
