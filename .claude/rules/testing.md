@@ -1,68 +1,47 @@
 # Testing Rules
 
-Backend tests are pytest. Run with `uv run pytest` from `backend/`.
+Backend tests are JUnit 5 + Kotest assertions + MockK. Run with `./gradlew test` from `backend/`;
+`./gradlew unitTest` skips the Docker-backed integration tests.
 
 ### Convention
 
-Group related cases in a `class Test<이름>:` and write each case as a `def test_<설명>(self)`.
-No `unittest.TestCase`, no bare module-level test functions when a grouping exists.
+Group related cases in a `@Nested inner class <이름>` inside the file's test class and write each case as a
+backtick method `` @Test fun `<설명>`() ``.
 
-```python
-class Test이슈_메모:
-    def test_작성하고_그날_목록에서_읽는다(self, 빈_테이블):
-        ...
+```kotlin
+class FeedbackServiceTest {
+    @Nested
+    inner class 이슈_메모 {
+        @Test
+        fun `작성하고 그날 목록에서 읽는다`() { ... }
+    }
+}
 ```
 
 ### Description principles
 
-Class and test names must convey **scenario and meaning**, written in **Korean**. Do not encode implementation details such as function names or field names — they make tests brittle when refactoring. Domain concepts (signal types, filter names, and other ubiquitous language) are fine to use.
+Nested class and test names must convey **scenario and meaning**, written in **Korean**. Do not encode implementation details such as function names or field names — they make tests brittle when refactoring. Domain concepts (signal types, filter names, and other ubiquitous language) are fine to use. The file's top-level class is `<ClassUnderTest>Test`.
 
 ### Layout
 
-`tests/` mirrors `src/backend/` one-to-one — `tests/platform/kiwoom/test_client.py` covers `backend/platform/kiwoom/client.py`. Every test directory has an `__init__.py`; without it pytest rejects duplicate file basenames across directories.
+`src/test/kotlin/judozoo` mirrors `src/main/kotlin/judozoo` one-to-one: `auth/presentation/LoginGateFilter.kt` → `auth/presentation/LoginGateFilterTest.kt`.
 
 ### Per-layer guidelines
 
-1. Domain (`domain.py`, `filters.py`, `signals.py`)
+1. Domain (`domain/`)
 - Tests must be the purest and most independent.
-- Do not start the app, touch the DB, or mock anything — construct real objects and assert on them.
+- Do not start Spring, touch the DB, or mock anything — construct real objects and assert on them.
 
-2. Platform / Infrastructure (`platform/**`, `infrastructure.py`)
-- External API: use **respx** to simulate external-server response scenarios (success, failure, timeout, malformed payload).
+2. Platform / Infrastructure (`platform/**`, `infrastructure/`)
+- External API: use **WireMock** (`SharedWireMock` — one server per JVM, reset per test) to simulate external-server response scenarios (success, failure, timeout, malformed payload).
 - This is where broker response traps belong — sign variants, time offsets, exchange codes. Assert on the parsed result, not on the request.
 
-3. Application (`application.py`, `scheduler.py`)
-- DB-backed tests use the `통합_db` fixture (Testcontainers MySQL) and must be marked `@pytest.mark.integration`.
-- Verify collaboration between components; isolate only the uncontrollable parts (external API calls) with `pytest-mock`.
-- **Never use respx at this layer.** respx belongs to platform/infrastructure, where the HTTP client itself is under test. Application tests verify business logic, not HTTP parsing.
+3. Application (`application/`)
+- DB-backed tests are `@IntegrationTest` (Testcontainers MySQL, schema built by Flyway, scheduling off, tagged `integration`).
+- Verify collaboration between components; isolate only the uncontrollable parts (external API calls) with MockK (`@MockkBean` in Spring contexts).
+- **Never use WireMock at this layer.** It belongs to platform/infrastructure, where the HTTP client itself is under test. Application tests verify business logic, not HTTP parsing.
+- Inject a movable `Clock` instead of sleeping or reading the wall clock.
 
-4. Presentation (`presentation.py`)
-- Use the `client` fixture (FastAPI `TestClient`). Focus on route mapping, query/path validation, and response shape.
-- Mock the application layer with `pytest-mock` to keep API-contract verification fast.
-
-### Markers
-
-`@pytest.mark.integration` means the test needs Docker. `uv run pytest -m "not integration"` skips those — use it when Docker is unavailable.
-
-### Fixtures
-
-Shared fixtures live in `tests/conftest.py`: `client` (TestClient), `통합_db` (container MySQL), and an autouse cache reset. A fixture needed by one file only (e.g. `빈_테이블`) stays in that file.
-
-## Kotlin backend (`backend-kotlin/`)
-
-Every rule above carries over. Run with `./gradlew test` from `backend-kotlin/`; `./gradlew unitTest` skips integration.
-
-| Python | Kotlin |
-|---|---|
-| `class Test이슈_메모:` | `@Nested inner class 이슈_메모` inside the file's test class |
-| `def test_작성하고_그날_목록에서_읽는다` | `` @Test fun `작성하고 그날 목록에서 읽는다`() `` |
-| plain `assert` | Kotest assertions (`shouldBe`) |
-| pytest-mock | MockK (`@MockkBean` in Spring slices) |
-| respx | WireMock (`SharedWireMock` — one server per JVM, reset per test) — platform/infrastructure only, never application |
-| `통합_db` + `@pytest.mark.integration` | `@IntegrationTest` (Testcontainers MySQL loaded with `schema.sql`, tagged `integration`) |
-| `client` (TestClient) | `@WebMvcTest` + `MockMvc` |
-
-`src/test/kotlin/judozoo` mirrors `src/main/kotlin/judozoo` one-to-one: `auth/presentation/LoginGateFilter.kt` → `auth/presentation/LoginGateFilterTest.kt`.
-The Korean naming rule applies to `@Nested` classes and test methods; the file's top-level class is `<ClassUnderTest>Test`.
-
-Porting a feature ports its tests: **every Python scenario gets a Kotlin counterpart** before nginx routes the path.
+4. Presentation (`presentation/`)
+- Use `@WebMvcTest` + `MockMvc`. Focus on route mapping, query/path validation, and response shape (`JsonCompareMode.STRICT` for the API contract).
+- Mock the application layer with `@MockkBean` to keep API-contract verification fast. `LoggedIn` gives a signed session cookie.

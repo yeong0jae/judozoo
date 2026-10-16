@@ -1,27 +1,24 @@
 # --- build stage ---
-FROM python:3.13-slim AS build
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
 
-# 의존성 캐싱: 매니페스트 먼저 복사해 소스 변경 시 재설치를 피한다.
-COPY pyproject.toml uv.lock* ./
-RUN uv sync --no-dev --no-install-project
+# 의존성 캐싱: 빌드 스크립트 먼저 복사해 소스 변경 시 재다운로드를 피한다.
+COPY gradlew settings.gradle.kts build.gradle.kts ./
+COPY gradle ./gradle
+RUN ./gradlew dependencies --no-daemon -q > /dev/null
 
 COPY src ./src
-RUN uv sync --no-dev
+RUN ./gradlew bootJar --no-daemon -q
 
 # --- runtime stage ---
-FROM python:3.13-slim AS runtime
+FROM eclipse-temurin:25-jre AS runtime
 WORKDIR /app
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+# compose healthcheck가 curl을 쓴다. 베이스 이미지에 없다
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# 컨테이너 메모리 한도(compose `mem_limit`)의 비율로 힙을 잡는다. 남는 몫은 메타스페이스·스레드 스택이다.
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=70"
 
-COPY --from=build /app/.venv ./.venv
-COPY src ./src
-# 배포 스크립트가 컨테이너 교체 직전에 `alembic upgrade head`를 이 이미지로 돌린다.
-COPY alembic.ini ./
-COPY migrations ./migrations
+COPY --from=build /app/build/libs/app.jar ./app.jar
 
-EXPOSE 8000
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "src"]
+EXPOSE 8001
+ENTRYPOINT ["java", "-jar", "app.jar"]

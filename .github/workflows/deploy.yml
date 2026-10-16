@@ -43,7 +43,7 @@ jobs:
     strategy:
       matrix:
         # 이미지별로 러너를 나눠 병렬 빌드. 디렉터리명 = 이미지명 = 빌드 컨텍스트.
-        image: [backend, backend-kotlin, frontend]
+        image: [backend, frontend]
     name: build ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v4
@@ -258,7 +258,6 @@ jobs:
         run: |
           {
             echo "backend=$(git rev-parse HEAD:backend)"
-            echo "backend_kotlin=$(git rev-parse HEAD:backend-kotlin)"
             echo "frontend=$(git rev-parse HEAD:frontend)"
             echo "alloy=$(git rev-parse HEAD:observability/alloy)"
           } >> "$GITHUB_OUTPUT"
@@ -274,5 +273,4 @@ jobs:
               && bash ~/remote_deploy.sh ${AR_REPO} ${REGION} \
               ${{ steps.tags.outputs.backend }} \
               ${{ steps.tags.outputs.frontend }} \
-              ${{ steps.tags.outputs.alloy }} \
-              ${{ steps.tags.outputs.backend_kotlin }}"
+              ${{ steps.tags.outputs.alloy }}"

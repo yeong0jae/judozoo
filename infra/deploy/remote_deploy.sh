@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # VM에서 실행되는 배포 스크립트. GitHub Actions가 홈 디렉토리로 scp 후 ssh로 호출.
-# 사용: bash ~/remote_deploy.sh <AR_REPO> <REGION> <BACKEND_TAG> <FRONTEND_TAG> <ALLOY_CONFIG_HASH> <BACKEND_KOTLIN_TAG>
+# 사용: bash ~/remote_deploy.sh <AR_REPO> <REGION> <BACKEND_TAG> <FRONTEND_TAG> <ALLOY_CONFIG_HASH>
 #
 # **태그가 서비스마다 다르다.** 각 디렉터리의 git 트리 해시라서 그 서비스 내용이
 # 바뀔 때만 값이 변한다. 안 바뀐 서비스는 태그가 같아 compose가 건드리지 않는다 —
@@ -16,7 +16,6 @@ REGION="${2:?REGION required}"
 BACKEND_TAG="${3:?BACKEND_TAG required}"
 FRONTEND_TAG="${4:?FRONTEND_TAG required}"
 ALLOY_CONFIG_HASH="${5:?ALLOY_CONFIG_HASH required}"
-BACKEND_KOTLIN_TAG="${6:?BACKEND_KOTLIN_TAG required}"
 
 cd "$HOME"
 # backend가 ./secrets/.env 를 읽는다.
@@ -66,8 +65,6 @@ gcloud auth print-access-token \
 COMPOSE_ENV=(
   "FRONTEND_IMAGE=${AR_REPO}/frontend"
   "BACKEND_IMAGE=${AR_REPO}/backend"
-  "BACKEND_KOTLIN_IMAGE=${AR_REPO}/backend-kotlin"
-  "BACKEND_KOTLIN_TAG=${BACKEND_KOTLIN_TAG}"
   "BACKEND_TAG=${BACKEND_TAG}"
   "FRONTEND_TAG=${FRONTEND_TAG}"
   "ALLOY_CONFIG_HASH=${ALLOY_CONFIG_HASH}"
@@ -78,10 +75,8 @@ COMPOSE_ENV=(
 sudo docker image prune -af
 
 sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-# 스키마를 먼저 맞추고 컨테이너를 바꾼다. 새 코드가 아직 없는 열을 읽으면 그 경로가 실패하기 때문이다.
-# 새 이미지로 한 번 돌고 사라지는 컨테이너다. 실패하면 set -e로 여기서 멈추고, 떠 있던 옛 컨테이너는 그대로 남는다.
-# 새 열은 NULL 허용으로 먼저 더한다 — 이 순간에도 옛 코드가 돌고 있다.
-sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --no-deps backend alembic upgrade head
+# 스키마는 백엔드가 기동하면서 Flyway로 맞춘다(028 4단계). 마이그레이션이 실패하면 새 컨테이너가 뜨지 않아
+# 아래 헬스체크에서 멈춘다. 새 열은 NULL 허용으로 먼저 더한다 — 교체 직전까지 옛 코드가 돌고 있다.
 # **alloy를 무조건 재생성하지 않는다.** 예전에는 deploy.yml이 `rm -rf ~/observability` 후
 # 재-scp해서 inode가 교체됐고, 재사용된 컨테이너가 사라진 inode를 가리켜 설정이 빈 것처럼
 # 보였다. 지금은 rm 대신 소유권만 고쳐 inode를 보존하고, config.alloy가 실제로 바뀔 때만
@@ -89,30 +84,21 @@ sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-comp
 # loki·grafana·prometheus·tempo는 ops VM으로 떠났다 — remote_deploy_ops.sh가 맡는다.
 # --remove-orphans: compose 파일에서 서비스를 지워도 **이미 떠 있는 컨테이너는 남는다**.
 # Kotlin 백엔드를 제거했을 때 실제로 고아 컨테이너로 계속 돌아 폴러가 중복 적재됐다.
+# (028 4단계에서 `backend-kotlin` 서비스가 `backend`로 이름을 바꿨다 — 옛 컨테이너는 이 옵션이 걷는다.)
 sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
 # 교체로 막 쓰임이 끝난 직전 배포 이미지까지 정리(-a) — 디스크 누적 방지.
 sudo docker image prune -af
 
 # 헬스체크 — IAP SSH 터널을 별도로 한 번 더 열지 않도록 배포와 같은 세션에서 검사.
 
-# 1) Python 백엔드. 죽어 있으면 nginx가 /api/ 요청에 502를 준다.
-#    프론트만 검사하면 이 실패가 배포 성공으로 묻힌다.
-for i in $(seq 1 18); do
+# 1) 백엔드. 죽어 있으면 nginx가 /api/ 요청에 502를 준다. 프론트만 검사하면 이 실패가 배포 성공으로 묻힌다.
+#    JVM 기동·Flyway가 있어 넉넉히 기다린다.
+for i in $(seq 1 24); do
   status="$(sudo docker inspect --format '{{.State.Health.Status}}' \
     "$(sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q backend)" 2>/dev/null || true)"
   if [ "$status" = "healthy" ]; then echo "backend health OK ($i)"; break; fi
-  if [ "$i" = "18" ]; then echo "backend health check failed (status=${status:-unknown})"; exit 1; fi
+  if [ "$i" = "24" ]; then echo "backend health check failed (status=${status:-unknown})"; exit 1; fi
   echo "backend not ready ($status), retry $i"; sleep 5
-done
-
-# 1-1) Kotlin 백엔드(028). nginx가 옮긴 경로를 여기로 보내므로 죽어 있으면 그 경로가 502다.
-#      JVM 기동이 느려 Python보다 길게 기다린다.
-for i in $(seq 1 24); do
-  status="$(sudo docker inspect --format '{{.State.Health.Status}}' \
-    "$(sudo env "${COMPOSE_ENV[@]}" docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -q backend-kotlin)" 2>/dev/null || true)"
-  if [ "$status" = "healthy" ]; then echo "backend-kotlin health OK ($i)"; break; fi
-  if [ "$i" = "24" ]; then echo "backend-kotlin health check failed (status=${status:-unknown})"; exit 1; fi
-  echo "backend-kotlin not ready ($status), retry $i"; sleep 5
 done
 
 # 2) alloy — 메트릭 exporter(unix·cadvisor)가 호스트 마운트를 읽는다. 마운트가 하나라도

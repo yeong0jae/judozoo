@@ -4,54 +4,13 @@
 # secrets/.env 가 있어야 부팅됨 (KIS/KIWOOM/토스 시크릿 + DB_PASSWORD).
 # 파일은 git에 올리지 않는다 — 배포 시 remote_deploy.sh가 Secret Manager에서 받아 쓴다.
 services:
-  # Python 백엔드. nginx가 /api/ 중 Kotlin으로 옮기지 않은 경로를 여기로 보낸다(028).
-  # 컨테이너 기본 UTC면 KST 기준 cron·벽시계가 9시간 어긋나므로 TZ를 고정한다.
+  # 백엔드(Kotlin · Spring Boot). nginx가 /api/를 여기로 보낸다.
+  # 스키마는 기동할 때 Flyway가 맞춘다. 컨테이너 기본 UTC면 KST 기준 cron·벽시계가 9시간 어긋나므로 TZ를 고정한다.
   backend:
     build: ./backend
     environment:
       TZ: Asia/Seoul
       DB_NAME: trading
-      # 트레이스를 alloy의 OTLP 수신구로 보낸다(021). 같은 compose 네트워크라
-      # 호스트 포트가 필요 없다. 비우면 계측 자체가 꺼진다 — 로컬 기본값이 그렇다.
-      OTLP_ENDPOINT: alloy:4317
-      # 브로커 한도를 Kotlin과 나눠 쓴다(028). 조회하는 기능이 모두 Kotlin으로 옮겨 가 Python에는 최소만 둔다 —
-      # Python에 남은 브로커 일은 토큰 발급뿐이고, 발급은 조회 리미터를 타지 않는다. 합은 늘 각 한도 이하다.
-      KIWOOM_QUERY_PERMITS_PER_SECOND: "1"
-      KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND: "1"
-      KIS_QUERY_PERMITS_PER_SECOND: "1"
-      TOSS_INDICATOR_CHART_PERMITS_PER_SECOND: "1"
-      TOSS_CHART_PERMITS_PER_SECOND: "1"
-      # DB_HOST·DB_PORT·DB_USERNAME은 secrets/.env가 준다 (remote_deploy.sh가 씀).
-      # 여기 environment에 적으면 env_file을 덮어쓰고, ${...} 보간은 env_file을
-      # 읽지 못해 빈 값이 된다 — grafana 쪽에서 이미 겪은 함정이다.
-    env_file:
-      - ./secrets/.env
-    expose:
-      - "8000"
-    # 이미지에 curl이 없어 python으로 검사한다. 배포 스크립트가 이 상태를 보고 실패를 감지한다.
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 15s
-    networks:
-      - trading
-
-  # Kotlin 백엔드(028). 기능 단위로 옮기는 중이라 nginx가 옮긴 경로만 여기로 보낸다.
-  # Python과 같은 DB·같은 secrets/.env를 쓴다. 스키마는 건드리지 않는다(JPA validate).
-  backend-kotlin:
-    build: ./backend-kotlin
-    environment:
-      TZ: Asia/Seoul
-      DB_NAME: trading
-      # 브로커 한도의 Kotlin 몫(028). Python 몫은 위 backend에 있다 — 둘을 함께 고친다.
-      # 키움 초당 5(09~10시 3) · KIS 15(한도 18에서 3 여유) · 토스 캔들 15(한도 20) · 지수 캔들 4(한도 5)
-      JUDOZOO_KIWOOM_QUERY_PERMITS_PER_SECOND: "4"
-      JUDOZOO_KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND: "2"
-      JUDOZOO_KIS_QUERY_PERMITS_PER_SECOND: "14"
-      JUDOZOO_TOSS_CHART_PERMITS_PER_SECOND: "15"
-      JUDOZOO_TOSS_INDICATOR_CHART_PERMITS_PER_SECOND: "4"
     env_file:
       - ./secrets/.env
     expose:
@@ -73,7 +32,6 @@ services:
     # nginx는 기동 때 upstream 이름을 푼다 — 없으면 nginx가 뜨지 않는다
     depends_on:
       - backend
-      - backend-kotlin
     networks:
       - trading
 

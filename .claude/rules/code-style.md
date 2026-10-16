@@ -2,7 +2,7 @@
 
 ## Domain Layer — Object-Oriented Principles
 
-Code in the `domain` module keeps data and responsibility together in the object. Don't pull data out and compute externally — send a message to the object and delegate the work.
+Code in the `domain` package keeps data and responsibility together in the object. Don't pull data out and compute externally — send a message to the object and delegate the work.
 
 ### 1. Tell, Don't Ask
 
@@ -10,7 +10,7 @@ If a decision can be made using the data an object already holds, the object mak
 
 ### 2. No utility function collections
 
-Modules that are just a bag of free functions over someone else's data (`*_utils.py`, `format_utils`) must be distributed to the domain objects that own the relevant data.
+Files that are just a bag of free functions over someone else's data (`*Utils.kt`, `FormatUtils`) must be distributed to the domain objects that own the relevant data.
 
 ### 3. Wrap lists in first-class collections
 
@@ -18,13 +18,11 @@ Collections with domain meaning are wrapped as `class Xxxs` holding the list, so
 
 ### 4. The domain has no external dependencies
 
-Inside `domain`, never directly call FastAPI/Spring, HTTP clients (`httpx`, `RestClient`), the session/engine/`EntityManager`, or non-deterministic dependencies (`datetime.now`, `random`, `LocalDateTime.now()`, `Random`). Receive required values as parameters instead.
+Inside `domain`, never directly call Spring, HTTP clients (`RestClient`), the `EntityManager`, or non-deterministic dependencies (`LocalDateTime.now()`, `Random`). Receive required values as parameters instead.
 
-### 5. SQLAlchemy model = domain entity
+### 5. JPA entity = domain entity
 
-Persistent domain concepts are declared as SQLAlchemy models on `library.db.Base` and used directly as domain entities. Do not add a parallel "pure" domain class that mirrors the model.
+Persistent domain concepts are `@Entity` classes in `domain/`, used directly as domain entities. Do not add a parallel "pure" domain class that mirrors the entity.
 
-Purely computational value objects stay as `@dataclass` with no ORM involvement — `entities.py` holds the mapped classes when a feature has both.
-
-In Kotlin the same rule holds with JPA: persistent concepts are `@Entity` classes in `domain/`, used directly as domain entities. Pure value objects are `data class` (or `@JvmInline value class`) with no JPA annotations.
-Tell, Don't Ask still wins over JPA convenience — no public setters on entities; change state through methods.
+Purely computational value objects are `data class` (or `@JvmInline value class`) with no JPA annotations.
+Tell, Don't Ask still wins over JPA convenience — no public setters on entities (`protected set`); change state through methods.

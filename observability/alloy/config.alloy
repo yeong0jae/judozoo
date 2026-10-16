@@ -47,17 +47,8 @@ loki.write "default" {
 // 로그와 방향이 같아지는 것도 이유다.
 
 prometheus.scrape "backend" {
-  targets         = [{ __address__ = "backend:8000" }]
+  targets         = [{ __address__ = "backend:8001" }]
   job_name        = "backend"
-  metrics_path    = "/metrics"
-  scrape_interval = "30s"
-  forward_to      = [prometheus.remote_write.ops.receiver]
-}
-
-// Kotlin 백엔드(028). 공존하는 동안 job으로 둘을 가른다.
-prometheus.scrape "backend_kotlin" {
-  targets         = [{ __address__ = "backend-kotlin:8001" }]
-  job_name        = "backend-kotlin"
   metrics_path    = "/actuator/prometheus"
   scrape_interval = "30s"
   forward_to      = [prometheus.remote_write.ops.receiver]
