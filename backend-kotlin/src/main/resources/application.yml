@@ -21,6 +21,9 @@ spring:
 
 server:
   port: 8001
+  # 리다이렉트(로그인 콜백 → `/`)를 상대 주소로 보낸다. 절대 주소로 바꾸면 TLS가 끝난 뒤 받은 http를 써서 `http://judozoo.com/`으로 보낸다
+  tomcat:
+    use-relative-redirects: true
 
 judozoo:
   # Python `SessionMiddleware`와 같은 키여야 그 쿠키를 읽는다
