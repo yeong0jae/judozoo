@@ -39,7 +39,6 @@ class KisTokenIssuerTest {
             server.verify(postRequestedFor(urlEqualTo("/oauth2/tokenP")).withRequestBody(equalToJson("""{"grant_type":"client_credentials","appkey":"key","appsecret":"secret"}""")))
         }
 
-        /** KIS는 같은 앱키로 1분 안에 재발급하면 거부한다(EGW00133). 사유 코드가 본문에 온다. */
         @Test
         fun `거부되면 예외로 올린다`() {
             server.stubFor(post(urlEqualTo("/oauth2/tokenP")).willReturn(aResponse().withStatus(403).withBody("""{"error_code":"EGW00133"}""")))

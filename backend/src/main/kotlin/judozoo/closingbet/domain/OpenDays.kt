@@ -2,7 +2,6 @@ package judozoo.closingbet.domain
 
 import java.time.LocalDate
 
-/** 개장일 집합. 이 범위 밖의 날짜는 묻지 않는다 — 지어내지 않는다. */
 class OpenDays(days: Iterable<LocalDate>) {
     private val days = days.toSortedSet()
 

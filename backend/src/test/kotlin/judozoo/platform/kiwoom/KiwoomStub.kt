@@ -14,7 +14,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 
-/** 키움 엔드포인트 테스트용 — 공유 WireMock + 그 서버를 보는 [KiwoomClient]. 시각은 [now]로 옮긴다(기본 KST 2026-10-15 14:00). */
 class KiwoomStub : AutoCloseable {
     val server = SharedWireMock.server.also { SharedWireMock.reset() }
 
@@ -40,7 +39,6 @@ class KiwoomStub : AutoCloseable {
         server.stubFor(post(urlEqualTo(path)).willReturn(okJson(json)))
     }
 
-    /** 연결이 끊긴다 — 타임아웃과 같은 갈래(예외)로 떨어진다. */
     fun fail(path: String) {
         server.stubFor(post(urlEqualTo(path)).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
     }

@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.LocalDateTime
 
-/** 선물 투자자 폴러 — 선물 장중에만 1분마다 당일 누적을 찍는다. 돌지 않은 과거는 소급할 수 없다. */
 class FuturesInvestorSchedulerTest {
     private val net = KisFutures.FuturesInvestors(100, -50, -50, 1, 2, 3, 4, 5, 6, 7, 8, 9)
     private val futures = mockk<KisFutures> { every { fetchInvestors(any()) } returns net }

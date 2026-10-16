@@ -21,7 +21,6 @@ import org.springframework.test.web.servlet.get
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 시황 라우트 — 리터럴 경로가 `{market}`으로 새지 않는지, 응답 모양이 Python과 같은지. */
 @WebMvcTest(MarketQuoteController::class)
 @Import(LoggedIn.ClockAtSigning::class)
 @TestPropertySource(properties = [LoggedIn.SECRET])
@@ -85,7 +84,6 @@ class MarketQuoteControllerTest @Autowired constructor(private val mvc: MockMvc)
 
     @Nested
     inner class 시장_경로 {
-        /** 토스 캔들 시각은 초까지 적는다 — Python `time.isoformat()`과 같다. */
         @Test
         fun `코스피 캔들은 날짜와 시각을 나눠 준다`() {
             every { candles.indexDaily(Market.KOSPI, 90) } returns listOf(TossCandle(LocalDateTime.of(2026, 9, 28, 9, 0), 1.0, 2.0, 0.5, 1.5, 100.0))
@@ -132,7 +130,6 @@ class MarketQuoteControllerTest @Autowired constructor(private val mvc: MockMvc)
 
     @Nested
     inner class 직전_개장일 {
-        /** 로그인 없이 연다 — 휴장 배너는 공개다. */
         @Test
         fun `국내는 직전 개장일을 싣는다`() {
             every { calendar.isHoliday(Region.KR) } returns true
@@ -141,7 +138,6 @@ class MarketQuoteControllerTest @Autowired constructor(private val mvc: MockMvc)
             mvc.get("/api/market/calendar/status") { param("region", "KR") }.andExpect { jsonPath("$.data.previousOpenDay") { value("2026-09-23") } }
         }
 
-        /** 개장일 목록(KIS)이 국내 것뿐이다 — 미국 날짜를 국내 달력으로 짚으면 틀린다. */
         @Test
         fun `해외는 싣지 않는다`() {
             every { calendar.isHoliday(Region.US) } returns false

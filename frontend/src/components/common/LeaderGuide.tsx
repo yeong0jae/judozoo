@@ -2,19 +2,12 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { createPortal } from "react-dom";
 import type { StockMarket } from "../../lib/stockMarket";
 
-/** 설명창 폭(px). 폰에서는 화면 폭에 맞춰 줄어든다 */
 const WIDTH = 400;
-/** 화면 가장자리와 띄우는 거리(px) */
 const GUTTER = 16;
-/** 마우스가 버튼에서 설명창으로 건너가는 동안(사이 8px) 닫히지 않게 기다리는 시간(ms) */
 const LEAVE_DELAY = 150;
 
 const strong = (text: string) => <b className="font-semibold text-zinc-100">{text}</b>;
 
-/**
- * 시장마다 다른 규칙. 두 쪽 백엔드의 값과 맞춰야 한다 —
- * 국내 `leadingstock` (35위 컷·가중치 0.65·상장 첫날 보정), 해외 `overseasleadingstock` (40위 컷·0.55).
- */
 const RULES: Record<StockMarket, ReactNode[]> = {
   domestic: [
     <>거래대금 상위 35종목 중 {strong("오른 종목")}만 봅니다.</>,
@@ -28,15 +21,6 @@ const RULES: Record<StockMarket, ReactNode[]> = {
   ],
 };
 
-/**
- * 주도주를 어떻게 고르는지 — 카드 제목 옆 `?`.
- *
- * 카드가 `overflow-hidden`이라 설명창은 body에 포털하고 버튼 아래에 고정 위치로 띄운다.
- * 스크롤하면 버튼과 어긋나므로 닫는다.
- *
- * 마우스를 올리면 열리고, 버튼과 설명창 밖으로 나가면 닫힌다. 터치 화면에는 hover가 없어
- * 누르면 열리고, 바깥을 누르거나 ×로 닫는다.
- */
 export default function LeaderGuide({ market }: { market: StockMarket }) {
   const titleId = useId();
   const [open, setOpen] = useState(false);
@@ -89,7 +73,6 @@ export default function LeaderGuide({ market }: { market: StockMarket }) {
 
   return (
     <>
-      {/* 카드 전체를 덮는 링크(z-[1]) 위로 올린다 */}
       <button
         ref={buttonRef}
         type="button"
@@ -157,14 +140,6 @@ export default function LeaderGuide({ market }: { market: StockMarket }) {
   );
 }
 
-/**
- * 두 순위로 본 후보 자리 — **실제 데이터가 아닌 그림이다.**
- * 8종목 예시를 서비스와 같은 공식(백분위 가중 기하평균, 거래대금 0.65)으로 세웠을 때의 자리다.
- * 해외 가중치(0.55)로 세워도 위 5개는 같다 — 그래서 그림 하나를 두 시장이 함께 쓴다.
- * 값은 [상승률 순위, 거래대금 순위], 둘 다 1이 1위. 위 5개가 주도주다.
- *
- * 설명은 한 줄로 단다. 두 줄이면 이웃한 점·축 이름과 겹친다.
- */
 const DOTS: { at: [number, number]; leader: boolean; note?: [string, string] }[] = [
   { at: [2, 2], leader: true, note: ["둘 다 2위", " → 주도주 1위"] },
   { at: [7, 1], leader: true, note: ["거래대금 1위", ", 상승률은 낮음"] },
@@ -179,14 +154,12 @@ const N = DOTS.length;
 
 function GuidePlot() {
   const L = 44, R = 300, T = 24, B = 196;
-  // 순위 → 좌표. 1위가 오른쪽·위 끝
   const x = (rank: number) => R - ((rank - 1) / (N - 1)) * (R - L);
   const y = (rank: number) => T + ((rank - 1) / (N - 1)) * (B - T);
   const mid = (N + 1) / 2;
 
   return (
     <svg viewBox="0 0 320 236" className="h-auto w-full text-zinc-400" role="img" aria-label="거래대금 순위와 상승률 순위로 본 후보 종목 자리 예시">
-      {/* 순위마다 옅은 격자. 설명창 바탕과 겹치지 않게 축과 같은 색을 흐리게 쓴다 */}
       <g className="stroke-zinc-500" strokeOpacity={0.2}>
         {Array.from({ length: N }, (_, i) => (
           <g key={i}>
@@ -214,7 +187,6 @@ function GuidePlot() {
         />
       ))}
       {DOTS.filter((d) => d.note).map(({ at: [rr, tr], note }, i) => {
-        // 왼쪽 절반의 점은 오른쪽에, 오른쪽 절반의 점은 왼쪽에 글을 단다
         const onLeft = rr > mid;
         return (
           <text key={i} x={x(rr) + (onLeft ? 10 : -10)} y={y(tr) + 4} textAnchor={onLeft ? "start" : "end"} fontSize={11}>

@@ -16,7 +16,6 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.Duration
 import java.time.LocalDate
 
-/** 지난 날 종목 분봉 보관소 — 재시작해도 어제 봉을 키움에서 다시 받지 않게 DB에 둔다. Python과 같은 표다. */
 @IntegrationTest
 class StockMinuteArchiveTest @Autowired constructor(
     private val repository: StockMinuteCandleRepository,
@@ -26,7 +25,6 @@ class StockMinuteArchiveTest @Autowired constructor(
     private val day = LocalDate.of(2026, 9, 25)
     private var ticks = 0L
 
-    /** 재시작한 상황을 만들려면 메모리를 비운 새 보관소가 필요하다. */
     private fun fresh() = StockMinuteArchive(repository, transaction) { ticks }
 
     private fun bar(on: LocalDate, hour: Int, minute: Int = 0, close: Long = 100) = MinuteCandle(on.atTime(hour, minute), close, close + 1, close - 1, close, 10, close * 10)
@@ -54,7 +52,6 @@ class StockMinuteArchiveTest @Autowired constructor(
             archive.get("005930", day)!!.size shouldBe 1
         }
 
-        /** 없는 날과 못 받은 날을 섞지 않는다. */
         @Test
         fun `빈 날은 넣지 않는다`() {
             val archive = fresh()
@@ -76,7 +73,6 @@ class StockMinuteArchiveTest @Autowired constructor(
 
     @Nested
     inner class DB {
-        /** 배포로 재시작한 상황. Python이 넣은 날도 같은 표라 그대로 읽힌다. */
         @Test
         fun `메모리가 비어도 DB에서 그날 봉을 꺼낸다`() {
             fresh().put("005930", day, listOf(bar(day, 9, close = 71_500), bar(day, 9, 1)))

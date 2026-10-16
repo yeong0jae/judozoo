@@ -12,18 +12,14 @@ import {
 } from "lightweight-charts";
 import type { DailyCandleItem, MinuteCandleItem } from "../../types";
 
-const UP = "rgba(240,68,82,0.5)"; // 상승 빨강
-const DOWN = "rgba(59,130,246,0.5)"; // 하락 파랑
+const UP = "rgba(240,68,82,0.5)";
+const DOWN = "rgba(59,130,246,0.5)";
 
 export interface CandleSeries {
   candles: CandlestickData[];
   volumes: HistogramData[];
 }
 
-/**
- * 분봉 → 시리즈. ISO LocalDateTime(KST 벽시계)을 UTC로 취급해 축 라벨이 09:00.. 로 보이게 하고,
- * 키움 cntr_tm이 HTS보다 1분 이르므로 +1분 보정. 거래량 막대는 거래대금(원).
- */
 export function minuteSeries(items: MinuteCandleItem[]): CandleSeries {
   const candles: CandlestickData[] = [];
   const volumes: HistogramData[] = [];
@@ -38,7 +34,6 @@ export function minuteSeries(items: MinuteCandleItem[]): CandleSeries {
   return { candles, volumes };
 }
 
-/** 일봉 → 시리즈. time은 영업일(yyyy-MM-dd), 오름차순. 거래량 막대 ≈ 종가×거래량(거래대금). */
 export function dailySeries(items: DailyCandleItem[]): CandleSeries {
   const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date));
   const candles: CandlestickData[] = [];
@@ -50,7 +45,6 @@ export function dailySeries(items: DailyCandleItem[]): CandleSeries {
   return { candles, volumes };
 }
 
-/** 한국 관행: 상승 빨강, 하락 파랑. 가격축 정수+쉼표, 하단 거래량 막대. */
 export default function CandleChart({
   series,
   timeVisible = true,
@@ -60,9 +54,8 @@ export default function CandleChart({
 }: {
   series: CandleSeries;
   timeVisible?: boolean;
-  /** 가로 기준선들 — 저항선(고가)·지지선(저가). 값이 바뀌면 통째로 교체한다. */
   priceLines?: { price: number; title: string; color: string }[];
-  priceDecimals?: number; // 가격축 소수 자릿수 (국내 원=0, 해외 달러=2)
+  priceDecimals?: number;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -100,7 +93,6 @@ export default function CandleChart({
       wickUpColor: "#f04452",
       wickDownColor: "#3b82f6",
       borderVisible: false,
-      // 가격축: priceDecimals 자리(원=0, 달러=2) + 천 단위 쉼표
       priceFormat: {
         type: "custom",
         minMove: priceDecimals > 0 ? 1 / 10 ** priceDecimals : 1,
@@ -111,7 +103,6 @@ export default function CandleChart({
           }),
       },
     });
-    // 캔들은 위 75%, 거래량은 아래 20%에 별도 오버레이 스케일로
     chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.05, bottom: 0.25 } });
     const volume = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
@@ -134,7 +125,6 @@ export default function CandleChart({
     if (!s) return;
     s.setData(series.candles);
     volumeRef.current?.setData(series.volumes);
-    // 가로 기준선 — 값 바뀌면 통째로 교체
     for (const line of priceLineRefs.current) s.removePriceLine(line);
     priceLineRefs.current = (priceLines ?? []).map((l) =>
       s.createPriceLine({

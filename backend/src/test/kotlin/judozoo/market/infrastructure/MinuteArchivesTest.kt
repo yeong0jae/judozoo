@@ -14,7 +14,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 공존하는 동안 두 쪽이 서로 쓴 행을 읽는다 — Python이 쓴 JSON 모양 그대로 넣고 읽어 본다. */
 @IntegrationTest
 class MinuteArchivesTest @Autowired constructor(
     private val index: IndexMinuteArchive,
@@ -64,7 +63,6 @@ class MinuteArchivesTest @Autowired constructor(
 
     @Nested
     inner class Kotlin이_쓴_행 {
-        /** Python `datetime.fromisoformat`이 읽는 모양이어야 한다 — 초가 0이어도 적는다. */
         @Test
         fun `지수 분봉의 시각을 초까지 적는다`() {
             index.put(Market.KOSPI, day, listOf(TossCandle(LocalDateTime.of(2026, 9, 28, 9, 0), 1.0, 1.0, 1.0, 1.0, 1.0)))

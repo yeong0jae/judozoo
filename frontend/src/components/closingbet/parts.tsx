@@ -5,16 +5,13 @@ export const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 export const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${won(Math.abs(n))}`;
 export const pct = (n: number) => `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
 
-/** "2026-09-30" → "9/30" */
 export const md = (iso: string) => {
   const [, m, d] = iso.split("-").map(Number);
   return `${m}/${d}`;
 };
 
-/** 원 → "+41.9만" */
 export const signedMan = (wonValue: number) => `${wonValue >= 0 ? "+" : "−"}${(Math.abs(wonValue) / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}만`;
 
-/** 만원 → "4억 8,500만" */
 export function eok(man: number): string {
   const e = Math.floor(Math.abs(man) / 10000);
   const r = Math.round(Math.abs(man) % 10000);
@@ -22,7 +19,6 @@ export function eok(man: number): string {
   return sign + (e ? `${e}억` : "") + (r ? `${e ? " " : ""}${won(r)}만` : e ? "" : "0");
 }
 
-/** 등급 — 앱의 종목 아바타처럼 회색 면에 글자만 금·은·동·철. 못 매긴 종목은 "–" */
 export function GradeAvatar({ grade, size = 24 }: { grade: Grade | null; size?: number }) {
   return (
     <span
@@ -48,7 +44,6 @@ export function DivergingBar({ value, max, height = 8 }: { value: number; max: n
   );
 }
 
-/** 목표값이 바뀌면 0.7초에 걸쳐 숫자가 차오른다(처음엔 빠르게, 끝에서 천천히) */
 export function useCountUp(target: number, duration = 700): number {
   const [shown, setShown] = useState(target);
   const from = useRef(target);

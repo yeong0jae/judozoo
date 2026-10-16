@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class SignalStateTest {
-    /** 측정값을 차례로 흘려보내고 **마지막** 전이 결과만 본다. */
     private fun flow(vararg ratios: Double?): List<SignalEventType> {
         var state = SignalState()
         var last = emptyList<SignalEventType>()
@@ -31,7 +30,6 @@ class SignalStateTest {
             flow(4.0, 1.5, 3.2) shouldBe listOf(SignalEventType.VOLUME_SPIKE)
         }
 
-        /** 임계 거래대금 미달은 측정값이 없는 것과 같다 — 식은 것으로 본다. */
         @Test
         fun `측정값이 사라지면 해제되어 다음에 다시 낸다`() {
             flow(4.0, null, 3.0) shouldBe listOf(SignalEventType.VOLUME_SPIKE)

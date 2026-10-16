@@ -45,13 +45,6 @@ import type {
 } from "../types";
 import { marketDailySeries, marketMinuteSeries } from "../components/common/tossCandles";
 
-/**
- * 실시간이 아닌 시세임을 알리는 배지.
- *
- * 회색이면 라벨에 묻혀 안 읽힌다 — "지금 값이 아니다"는 놓치면 오독으로 이어지는 정보다.
- * 색은 테마의 배지 패턴(`bg-X-50` + `text-X-700`)을 쓰고, 그중 경고 자리인 amber를 고른다
- * (파랑은 "장중" 칩이, 빨강·파랑은 손익이 이미 쓴다).
- */
 function DelayBadge() {
   return (
     <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
@@ -60,7 +53,6 @@ function DelayBadge() {
   );
 }
 
-/** 지수·수급 — 왼쪽 지수 목록(모바일은 가로 칩) + 오른쪽 선택 지수 상세. */
 function MarketAnalysisPageInner({ ix, authenticated }: { ix: IndexInfo; authenticated: boolean }) {
   const [params] = useSearchParams();
   const macro = MACRO_ITEMS.find((m) => m.key === params.get("t")) ?? MACRO_ITEMS[0];
@@ -105,18 +97,12 @@ function MarketAnalysisPageInner({ ix, authenticated }: { ix: IndexInfo; authent
 const fmt2 = (v: number) =>
   v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** 부호 붙인 값 — 음수는 하이픈이 아니라 마이너스 기호. */
 const signed2 = (v: number) =>
   `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/**
- * 매크로 네 지표 — 목록에서는 한 줄씩이고, 상세는 `?t=`로 고른다.
- * 경로를 지표마다 나누지 않는다 — 늘리면 SEO 목록(seo.json·sitemap)과 빌드 가드까지 늘어난다.
- */
 type MacroItem = { key: string; target: MacroTarget; name: string; title: string; unit: string; delayed?: boolean };
 const MACRO_ITEMS: MacroItem[] = [
   { key: "usd-krw", target: "USD_KRW", name: "원달러", title: "원달러 환율", unit: "원" },
-  // WTI만 CME 시세라 나스닥 선물과 같이 10분쯤 늦다
   { key: "wti", target: "WTI", name: "WTI", title: "WTI 유가", unit: "달러", delayed: true },
   { key: "vix", target: "VIX", name: "VIX", title: "VIX", unit: "지수" },
   { key: "us10y", target: "US10Y", name: "미국채 10년", title: "미국채 10년 금리", unit: "%" },
@@ -133,7 +119,6 @@ type ListRow = {
 };
 type ListGroup = { title: string; rows: ListRow[] };
 
-/** 값이 아직 안 온 칸은 대시로 둔다(목값을 보여줬다 실값으로 바뀌면 오독한다). */
 const quoteOf = (value?: number, pct?: number) =>
   value === undefined || pct === undefined ? { value: null, pct: null } : { value, pct };
 
@@ -238,7 +223,6 @@ function IndexList({ groups }: { groups: ListGroup[] }) {
   );
 }
 
-/** 모바일 — 세로 목록이 들어갈 폭이 없어 가로로 넘기는 칩. 고른 칩이 화면 밖이면 끌어온다. */
 function IndexChips({ groups }: { groups: ListGroup[] }) {
   const activeRef = useRef<HTMLAnchorElement>(null);
   const rows = groups.flatMap((g) => g.rows);
@@ -272,16 +256,9 @@ function IndexChips({ groups }: { groups: ListGroup[] }) {
   );
 }
 
-/**
- * 수급 표 자리 관문 — 표를 아예 렌더하지 않는다.
- *
- * 컴포넌트를 안 그리면 그 안의 훅도 안 돌아, 미로그인에게 401이 폴링마다 쌓이지 않는다.
- * 막대는 가짜다. 시그널·지지저항과 달리 여기는 잘라 보낼 일부가 없어 서버는 그대로 401이다.
- */
 function SupplyGate({ what }: { what: string }) {
   return (
     <div className="relative px-1">
-      {/* 아래로 갈수록 지워진다 — 줄마다 농도를 주면 계단이 생겨 "이어진다"가 덜 읽힌다 */}
       <div
         aria-hidden
         className="select-none opacity-60"
@@ -309,7 +286,6 @@ function SupplyGate({ what }: { what: string }) {
 }
 
 function SubjectDetail({ ix, macro, authenticated }: { ix: IndexInfo; macro: MacroItem; authenticated: boolean }) {
-  // 야간선물·나스닥·매크로는 수급 표가 없어 그대로 둔다
   const detail =
     ix.id === "kospiF" ? <FuturesIndexDetail index={ix} market="KOSPI" authenticated={authenticated} />
     : ix.id === "kosdaqF" ? <FuturesIndexDetail index={ix} market="KOSDAQ" authenticated={authenticated} />
@@ -323,16 +299,8 @@ function SubjectDetail({ ix, macro, authenticated }: { ix: IndexInfo; macro: Mac
 }
 
 const titleCls = "text-sm font-semibold text-zinc-400";
-/** 차트 높이 — 큰 화면에서는 늘린다. 차트가 autoSize라 컨테이너 높이만 바꾸면 된다. */
 const CHART_H = "h-[21.25rem] 2xl:h-[26rem]";
 
-/**
- * 마지막 세션의 시가·고가·저가와 마지막 봉 — 헤더에 싣는다.
- *
- * 세션은 **55분 이상 끊긴 자리 뒤부터**로 자른다. 날짜로 자르면 자정을 넘는 미국장·야간선물이
- * 둘로 쪼개진다. 나스닥 선물·WTI는 CME 휴장(1시간)이 이 경계가 된다.
- * 원달러처럼 하루 넘게 끊김 없이 도는 시세는 "시가"가 없으므로 시고저를 싣지 않는다.
- */
 function lastSession(items: MarketCandleItem[] | undefined) {
   if (!items?.length) return null;
   const at = (c: MarketCandleItem) => new Date(`${c.date}T${c.time.slice(0, 8)}+09:00`).getTime();
@@ -355,14 +323,12 @@ function lastSession(items: MarketCandleItem[] | undefined) {
   return { stats, last };
 }
 
-/** 마지막 봉 시각 → "09-23(수) 15:30 기준" */
 function asOfLabel(c: MarketCandleItem): string {
   const [y, m, d] = c.date.split("-").map(Number);
   const dow = "일월화수목금토"[new Date(y, m - 1, d).getDay()];
   return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}(${dow}) ${c.time.slice(0, 5)} 기준`;
 }
 
-/** 지수 상세 헤더 — 이름·기준 시각 / 큰 가격·등락·등락률 배지 / 오른쪽에 시가·고가·저가·전일. */
 function DetailHeader({
   name,
   price,
@@ -374,11 +340,10 @@ function DetailHeader({
   name: string;
   price: number;
   pct: number;
-  chg?: number; // 전일 대비를 API가 정확히 줄 때. 없으면 등락률에서 역산
+  chg?: number;
   badge?: ReactNode;
-  candles?: MarketCandleItem[]; // 1분봉 — 기준 시각과 시고저를 여기서 뽑는다
+  candles?: MarketCandleItem[];
 }) {
-  // 지수·선물은 소수 2자리(주가용 정수 반올림을 쓰면 1,210.50이 1,211로 뭉개짐)
   const chg = chgProp ?? price - price / (1 + pct / 100);
   const session = lastSession(candles);
   const stats: [string, number][] = [
@@ -420,7 +385,6 @@ function DetailHeader({
   );
 }
 
-/** 차트 카드 — 제목 + 1분봉/일봉 토글 + 차트. */
 function ChartCard({
   title,
   interval,
@@ -450,7 +414,6 @@ const INTERVAL_TABS: { key: ChartInterval; label: string }[] = [
 
 type ChartInterval = "1m" | "1d";
 
-/** 차트 위 1분봉/일봉 토글. */
 function IntervalToggle({ value, onChange }: { value: ChartInterval; onChange: (v: ChartInterval) => void }) {
   return (
     <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
@@ -479,8 +442,6 @@ function LiveIndexDetail({
   name: string;
   authenticated: boolean;
 }) {
-  // 백엔드가 데이터 있는 가장 최근 거래일로 물러나고 실제 날짜를 함께 준다.
-  // 여기서는 오늘을 그대로 보내면 된다 — 주말·공휴일 판정을 두 곳에 두지 않는다.
   const date = todayStr();
   const kospiQ = useKospiIndex();
   const kosdaqQ = useKosdaqIndex();
@@ -508,7 +469,6 @@ function LiveIndexDetail({
   );
 }
 
-/** 지수선물 상세 — 종가베팅용. 헤더(선물가·베이시스·만기) + 베이시스 패널 + 차트. KIS 근월물 실시세. */
 function FuturesIndexDetail({
   index,
   market,
@@ -528,14 +488,14 @@ function FuturesIndexDetail({
 
   const futValue = data.futuresPrice;
   const futPct = data.changeRate;
-  const basis = data.basis; // 시장 베이시스 = 선물 − 현물
+  const basis = data.basis;
   const oi = data.openInterest;
   const oiChg = data.openInterestChange;
   const expiryDate = data.expiryDate;
   const dday = Math.max(
     0,
     Math.ceil((new Date(`${expiryDate}T00:00:00+09:00`).getTime() - Date.now()) / 86_400_000),
-  ); // 만기까지 남은 일수
+  );
   const contango = basis >= 0;
   const tone = contango ? "text-red-400" : "text-blue-400";
   const badge = contango ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400";
@@ -588,11 +548,6 @@ function FuturesIndexDetail({
   );
 }
 
-/**
- * 야간선물 상세(18:00~익일 06:00) — KIS 시장구분 CM.
- * 야간엔 코스피200 현물이 멈춰 있어 베이시스·괴리율·수급은 의미가 없어 싣지 않는다.
- * 대신 다음날 시초가를 가늠하는 값, 즉 직전 정규장 종가 대비 갭을 전면에 둔다.
- */
 function NightFuturesDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data, isLoading } = useNightFuturesQuote();
@@ -654,10 +609,6 @@ function NightFuturesDetail({ index }: { index: IndexInfo }) {
   );
 }
 
-/**
- * 나스닥 종합지수(^IXIC) 상세 — 야후 파이낸스.
- * 현물이라 미 정규장(23:30~06:00 KST)에만 움직인다. 우리 장중엔 직전 마감가에 멈춰 있다.
- */
 function NasdaqIndexDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data, isLoading } = useNasdaqIndexQuote();
@@ -682,7 +633,6 @@ function NasdaqIndexDetail({ index }: { index: IndexInfo }) {
   );
 }
 
-/** 나스닥 지수 1분봉(최근 2일)/일봉(6개월) — 야후 캔들. */
 function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
   const { data, isLoading } = useNasdaqIndexCandles(interval);
   const items = data ?? [];
@@ -703,10 +653,6 @@ function NasdaqIndexChart({ interval }: { interval: ChartInterval }) {
   );
 }
 
-/**
- * 나스닥 선물 상세 — 나스닥100 근월물(CME NQ). 현물과 달리 거의 하루 종일 돌아 장중 미국 심리를 읽어준다.
- * 야후 무료 시세라 10분쯤 지연돼 배지를 함께 단다.
- */
 function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
   const [chartInterval, setChartInterval] = useState<ChartInterval>("1m");
   const { data, isLoading } = useNasdaqFuturesQuote();
@@ -732,7 +678,6 @@ function NasdaqFuturesDetail({ index }: { index: IndexInfo }) {
   );
 }
 
-/** 나스닥 선물 1분봉(최근 1일)/일봉(6개월) — 야후 캔들. */
 function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
   const { data, isLoading } = useNasdaqFuturesCandles(interval);
   const items = data ?? [];
@@ -753,11 +698,6 @@ function NasdaqFuturesChart({ interval }: { interval: ChartInterval }) {
   );
 }
 
-/**
- * 매크로 상세 — 목록에서 고른 지표 하나(`?t=`).
- * 환율은 24시간 돌지만 WTI는 CME 정산 휴식(06:00~07:00 KST)에, VIX는 미 정규장 밖에서 값이 멈춘다.
- * 미국채 10년(`^TNX`)은 미 채권시장 시간(KST 21:20~04:00, 2026-09 실측)에만 움직인다.
- */
 function MacroDetail({ item }: { item: MacroItem }) {
   const { data, isLoading } = useMacroQuotes();
   const minute = useMacroCandles(item.target, "1m");
@@ -788,7 +728,6 @@ function MacroDetail({ item }: { item: MacroItem }) {
   );
 }
 
-/** 매크로 1분봉(최근 2개 미국 거래 세션)/일봉(6개월) — 야후 캔들. */
 function MacroChart({ target, interval }: { target: MacroTarget; interval: ChartInterval }) {
   const { data, isLoading } = useMacroCandles(target, interval);
   const items = data ?? [];
@@ -809,7 +748,6 @@ function MacroChart({ target, interval }: { target: MacroTarget; interval: Chart
   );
 }
 
-/** 야간선물 1분봉(최근 세션)/일봉 — KIS 근월물 캔들. */
 function NightFuturesChart({ interval }: { interval: ChartInterval }) {
   const { data, isLoading } = useNightFuturesCandles(interval);
   const items = data ?? [];
@@ -836,7 +774,6 @@ function NightFuturesChart({ interval }: { interval: ChartInterval }) {
   );
 }
 
-/** 지수선물 1분봉/일봉 — KIS 근월물 캔들(OHLCV). */
 function FuturesChart({ market, interval }: { market: MarketType; interval: ChartInterval }) {
   const { data, isLoading } = useFuturesCandles(market, interval);
   const items = data ?? [];
@@ -861,7 +798,6 @@ function FuturesChart({ market, interval }: { market: MarketType; interval: Char
   );
 }
 
-/** 지수 1분봉/일봉 — 토스 캔들(OHLCV). */
 function LiveChart({ market, interval }: { market: MarketType; interval: "1m" | "1d" }) {
   const { data, isLoading } = useMarketCandles(market, interval);
   const items = data ?? [];
@@ -890,7 +826,6 @@ function LiveChart({ market, interval }: { market: MarketType; interval: "1m" | 
   );
 }
 
-// 기관상세 컬럼 (이미지 순서: 금융투자·보험·기타금융·투신·사모펀드·연기금등·은행)
 const ORG_COLS: { key: keyof MarketInvestorDay["breakdown"]; label: string }[] = [
   { key: "financialInvestmentEok", label: "금융투자" },
   { key: "insuranceEok", label: "보험" },
@@ -901,7 +836,6 @@ const ORG_COLS: { key: keyof MarketInvestorDay["breakdown"]; label: string }[] =
   { key: "bankEok", label: "은행" },
 ];
 
-// 선물 기관상세 — KIS 선물 분류(현물의 금융투자↔증권, 연기금등↔기금, 기타금융↔종금에 대응).
 const FUTURES_ORG_COLS: { key: keyof FuturesOrgBreakdown; label: string }[] = [
   { key: "securities", label: "증권" },
   { key: "insurance", label: "보험" },
@@ -913,7 +847,6 @@ const FUTURES_ORG_COLS: { key: keyof FuturesOrgBreakdown; label: string }[] = [
   { key: "otherOrg", label: "기타단체" },
 ];
 
-/** 순매수 숫자 — 부호색(+빨강/−파랑) · 천단위 · 축약 없음(억원 그대로). */
 function NetNum({ eok }: { eok: number }) {
   const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-600";
   const sign = eok > 0 ? "+" : eok < 0 ? "−" : "";
@@ -925,12 +858,7 @@ function NetNum({ eok }: { eok: number }) {
   );
 }
 
-/**
- * 순매수 숫자 + 직전 스냅샷 대비 변화량. 변화량은 서버가 계산해 내려준다.
- * 값이 바뀔 때만 깜빡이고, 마지막 변화량은 장이 끝난 뒤에도 흐리게 남는다.
- */
 function FlowNum({ eok, delta }: { eok: number; delta?: number }) {
-  // 같은 값이 다시 와도 재생하지 않게, 델타가 바뀔 때만 seq를 올린다
   const seqRef = useRef(0);
   const prevRef = useRef<number | undefined>(undefined);
   if (delta !== prevRef.current) {
@@ -945,7 +873,6 @@ function FlowNum({ eok, delta }: { eok: number; delta?: number }) {
   );
 }
 
-/** 변화량 배지 — key(seq)로 재마운트될 때마다 flow-delta 애니메이션이 다시 재생된다. */
 function DeltaFlash({ delta }: { delta: number }) {
   const tone = delta > 0 ? "text-red-400" : "text-blue-400";
   return (
@@ -956,7 +883,6 @@ function DeltaFlash({ delta }: { delta: number }) {
   );
 }
 
-/** 순매수 한 묶음 — 현물·선물의 모양이 달라 화면용으로 한 번 맞춘다. */
 type Nets = {
   individual: number;
   foreign: number;
@@ -967,20 +893,17 @@ type Nets = {
 type FlowCol = { key: string; label: string };
 type FlowRow = { key: string; label: ReactNode; nets: Nets | null; delta?: Nets | null };
 
-/** 조회 기준일 라벨. 주말엔 직전 평일을 보게 되므로 언제 것인지 밝힌다. */
 function dayLabel(date: string): string {
   if (date === todayStr()) return "오늘";
   return shortDay(date);
 }
 
-/** "2026-09-23" → "09-23(수)" */
 function shortDay(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dow = "일월화수목금토"[new Date(y, m - 1, d).getDay()];
   return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}(${dow})`;
 }
 
-/** 행 합계 — 집계 전(null) 행은 건너뛴다. 전부 비면 null. */
 function sumNets(rows: FlowRow[], cols: FlowCol[]): Nets | null {
   const got = rows.map((r) => r.nets).filter((n): n is Nets => n !== null);
   if (!got.length) return null;
@@ -1002,10 +925,6 @@ const sessionLabel = (name: string, time: string) => (
 );
 const dayRowLabel = (date: string) => <span className="num text-[13px] text-zinc-300">{shortDay(date)}</span>;
 
-/**
- * 현물 수급 — 시간대별은 당일 누적 스냅샷 경계 diff(구간별 증분)라 스냅샷이 아직 없는 구간은 "집계 전".
- * 최근 5일은 같은 스냅샷에서 거래일마다 마지막 값(= 그날 누적)이다. 선물과 같다.
- */
 function SpotSupply({ market, date }: { market: MarketType; date: string }) {
   const sessions = useMarketInvestorSessions(market, date);
   const daily = useMarketInvestorDaily(market, 5);
@@ -1020,7 +939,6 @@ function SpotSupply({ market, date }: { market: MarketType; date: string }) {
     <SupplyView
       unit="억원"
       cols={ORG_COLS}
-      // 공휴일이면 백엔드가 직전 거래일로 물러난다 — 실제 조회된 날짜로 라벨을 붙인다
       sessionDate={sessions.data?.date ?? date}
       sessionRows={(sessions.data?.sessions ?? []).map((x) => ({
         key: x.name,
@@ -1035,11 +953,6 @@ function SpotSupply({ market, date }: { market: MarketType; date: string }) {
   );
 }
 
-/**
- * 선물 수급(계약) — 시간대별은 현물과 같은 경계 diff다.
- * 최근 5일은 거래일별 마지막 스냅샷(= 그날의 당일 누적). 선물엔 일별 조회 API가 없어
- * 폴러가 쌓은 스냅샷으로만 만든다. 적재 시작 전 과거는 소급되지 않는다.
- */
 function FuturesSupply({ market, date }: { market: MarketType; date: string }) {
   const sessions = useFuturesInvestorSessions(market, date);
   const daily = useFuturesInvestorDaily(market, 5);
@@ -1126,7 +1039,6 @@ function SupplyView({
         <EmptyState message={isSession ? "시간대별 수급 데이터가 없습니다" : "일별 수급 데이터가 없습니다"} />
       ) : (
         <>
-          {/* 날짜·기간은 칸마다 적지 않는다 — 섹션 머리에 이미 있다 */}
           <FlowTiles nets={total} />
           <p className="-mb-1 text-[11px] text-zinc-500 xl:hidden">옆으로 밀어 기관 상세 보기 ›</p>
           <FlowTable
@@ -1142,7 +1054,6 @@ function SupplyView({
   );
 }
 
-/** 수급 섹션 틀 — 제목 · 기준 · 오른쪽 탭. 관문(미로그인)도 같은 틀을 쓴다. */
 function SupplySection({ sub, tabs, children }: { sub?: string; tabs?: ReactNode; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3.5">
@@ -1166,7 +1077,6 @@ function SupplyGateSection({ what }: { what: string }) {
   );
 }
 
-/** 개인·외국인·기관 요약 — 가운데 0에서 좌우로 뻗는 막대. 셋 중 가장 큰 값이 반 폭이다. */
 function FlowTiles({ nets }: { nets: Nets | null }) {
   const items: [string, number | undefined][] = [
     ["개인", nets?.individual],
@@ -1201,10 +1111,6 @@ function FlowTiles({ nets }: { nets: Nets | null }) {
   );
 }
 
-/**
- * 순매수 표 — 개인·외국인·기관계 + 기관 상세(펼친 채) + 기타법인, 맨 아래 합계.
- * 좁은 화면에서는 가로로 밀리고 첫 열(시간대·일자)은 붙어 있다.
- */
 function FlowTable({
   firstLabel,
   cols,
@@ -1296,12 +1202,6 @@ function FlowTable({
   );
 }
 
-/**
- * 지수는 URL이 정한다 — `/market-analysis/<slug>`.
- *
- * 지수·선물의 **시세와 차트는 로그인 없이 다 열린다**. 투자자 수급 표만 관문 뒤다 —
- * 가격은 어디서나 구할 수 있지만 투자자별 순매수는 이 화면이 가공해 주는 값이라서다.
- */
 export default function MarketAnalysisPage() {
   const { slug } = useParams();
   const { data: me, isLoading } = useMe();

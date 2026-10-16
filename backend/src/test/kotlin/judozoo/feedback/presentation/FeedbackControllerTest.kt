@@ -38,7 +38,6 @@ class FeedbackControllerTest @Autowired constructor(private val mvc: MockMvc) {
 
     @Nested
     inner class 로그인_관문 {
-        /** 허용목록에 없는 `/api` 경로라 관문이 먼저 막는다. */
         @Test
         fun `로그인하지 않으면 막힌다`() {
             send("여기 좋네요", cookie = null).andExpect {
@@ -57,7 +56,7 @@ class FeedbackControllerTest @Autowired constructor(private val mvc: MockMvc) {
             every { feedback.receive(capture(user), capture(content), any()) } just runs
 
             send("차트가 느려요").andExpect {
-                status { isOk() } // HTTP는 200, 201은 봉투 안에만
+                status { isOk() }
                 jsonPath("$.status") { value(201) }
             }
 

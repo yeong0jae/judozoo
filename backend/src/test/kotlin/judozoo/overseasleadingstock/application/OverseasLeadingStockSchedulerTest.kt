@@ -13,7 +13,6 @@ import judozoo.market.domain.Region
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
-/** 해외 폴러 — 후보 풀 갱신은 미국 장중에만, 분봉 마감 확정은 미국 개장일에만 돈다. */
 class OverseasLeadingStockSchedulerTest {
     private val service = mockk<OverseasLeadingStockService>()
     private val calendar = mockk<MarketCalendar>()

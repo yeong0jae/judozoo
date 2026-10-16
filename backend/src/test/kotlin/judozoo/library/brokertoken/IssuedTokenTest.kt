@@ -20,7 +20,6 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 
-/** 브로커 토큰은 희소 자원이다 — 재기동이 발급을 소비하지 않게 DB를 먼저 보고, 거부되면 쉰다. */
 @IntegrationTest
 class IssuedTokenTest @Autowired constructor(
     private val repository: BrokerTokenRepository,
@@ -43,7 +42,6 @@ class IssuedTokenTest @Autowired constructor(
         jdbc.update("DELETE FROM broker_token")
     }
 
-    /** 다른 프로세스(재기동 전의 자신, 공존하는 동안의 Python)가 남긴 토큰. */
     private fun stored(accessToken: String, expiresAt: Instant) {
         val naiveUtc = LocalDateTime.ofInstant(expiresAt, ZoneOffset.UTC)
         jdbc.update(
@@ -97,7 +95,6 @@ class IssuedTokenTest @Autowired constructor(
             repository.findByProvider("KIWOOM")!!.accessToken shouldBe "tok-2"
         }
 
-        /** 다른 프로세스가 같은 앱키로 토큰을 받으면 이쪽 토큰이 즉시 죽는다. 남겨 두면 재기동 때 죽은 토큰을 되살린다. */
         @Test
         fun `무효화하면 DB에서도 지우고 다시 발급받는다`() {
             val t = token()
@@ -110,7 +107,6 @@ class IssuedTokenTest @Autowired constructor(
         }
     }
 
-    /** 백오프가 없으면 실패할 때마다 매 호출이 토큰을 재요청한다 — 운영에서 11분에 185회를 두드린 적이 있다. */
     @Nested
     inner class 토큰_발급_백오프 {
         @Test

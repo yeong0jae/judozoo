@@ -22,20 +22,17 @@ repositories {
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-	// 스키마 주인. Alembic에서 넘어왔다 — V1이 그때의 스키마 그대로다(028 4단계)
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
 	implementation("org.flywaydb:flyway-mysql")
 	implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
-	// Vertex AI 인증(ADC) — 운영은 VM 서비스 계정, 로컬은 `gcloud auth application-default login`
 	implementation("com.google.auth:google-auth-library-oauth2-http:1.54.0")
 	implementation("tools.jackson.module:jackson-module-kotlin")
 	runtimeOnly("com.mysql:mysql-connector-j")
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
-	// 메트릭이 Prometheus에 나가는 이름을 테스트가 본다 — 알림 규칙이 그 이름에 걸려 있다
 	testImplementation("io.micrometer:micrometer-registry-prometheus")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-opentelemetry-test")
@@ -68,13 +65,11 @@ tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
-// Docker 없이 도는 테스트만. `@IntegrationTest`가 붙은 것은 `integration` 태그로 빠진다
 tasks.register<Test>("unitTest") {
 	testClassesDirs = sourceSets.test.get().output.classesDirs
 	classpath = sourceSets.test.get().runtimeClasspath
 	useJUnitPlatform { excludeTags("integration") }
 }
 
-// 이미지에 넣는 jar 이름을 고정한다. plain jar는 쓰지 않는다
 tasks.bootJar { archiveFileName = "app.jar" }
 tasks.jar { enabled = false }

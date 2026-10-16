@@ -15,7 +15,6 @@ class KisConfig {
         KisClient(properties, IssuedToken(PROVIDER, repository, transaction, clock, KisTokenIssuer(properties, clock, registry)::issue), registry)
 
     companion object {
-        /** `broker_token.provider` */
         const val PROVIDER = "KIS"
     }
 }

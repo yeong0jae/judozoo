@@ -1,13 +1,6 @@
 import type { ReactNode } from "react";
 import type { InsightArticle, InsightReasonItem } from "../../types";
 
-/**
- * 왜 오르나(026) — 목록의 한 줄과 상세의 카드.
- *
- * 키워드·사유 문장·기준 시각은 방문자에게도 보인다. 근거·관련 기사는 로그인일 때만 서버가 싣고,
- * 방문자에게는 건수만 와서 "n건은 로그인 후 볼 수 있습니다"를 그린다.
- */
-
 function Keyword({ word }: { word: string }) {
   return (
     <span className="shrink-0 rounded-[5px] bg-emerald-700/16 px-1.5 text-[11px] font-semibold leading-[18px] text-emerald-700">
@@ -16,10 +9,6 @@ function Keyword({ word }: { word: string }) {
   );
 }
 
-/**
- * 목록 한 줄 — `[키워드] [키워드] 사유 문장`. 넘치면 문장을 말줄임한다.
- * **설명 없음이면 아무것도 그리지 않는다** — 목록이 "없음" 문구로 차지 않게(설명 없음 문구는 상세 카드에만).
- */
 export function ReasonLine({ item, className = "" }: { item?: InsightReasonItem; className?: string }) {
   if (!item?.explained || !item.reason) return null;
   return (
@@ -32,15 +21,10 @@ export function ReasonLine({ item, className = "" }: { item?: InsightReasonItem;
   );
 }
 
-/** "2026-09-28T10:41:15" → "10:41". 해외도 한국 시각이다(홈 "오늘 1위" 줄과 같은 기준). */
 function clock(iso: string): string {
   return iso.slice(11, 16);
 }
 
-/**
- * 상세 카드 — 로그인이면 기존 종목 상세의 머리 아래에(`head` 없이), 방문자면 로그인 안내 위에(`head`로 종목 머리를 얹어) 둔다.
- * 사유가 아직 없는 종목(주도주가 아니었거나 만들기 전)이면 그리지 않는다.
- */
 export function ReasonCard({
   item,
   member,
@@ -117,7 +101,6 @@ function Articles({ label, items }: { label: string; items: InsightArticle[] }) 
   );
 }
 
-/** 방문자용 카드 머리 — 종목 상세가 로그인 뒤라, 카드가 어느 종목 이야기인지 여기서 밝힌다. */
 export function ReasonHead({ name, code, rate }: { name: string; code: string; rate: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">

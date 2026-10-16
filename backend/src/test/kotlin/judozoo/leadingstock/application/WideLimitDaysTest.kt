@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.LocalDate
 
-/** 제한폭이 넓은 날(상장 첫날) 표시 — 한 번 +30%를 넘으면 그날 내내 환산한다. 재시작해도 잃지 않는다. */
 @IntegrationTest
 class WideLimitDaysTest @Autowired constructor(
     private val repository: WideLimitDayRepository,
@@ -75,7 +74,6 @@ class WideLimitDaysTest @Autowired constructor(
             fresh().marked(stock("A", 20.0)) shouldBe listOf("A")
         }
 
-        /** Python이 먼저 넣은 행도 같은 표다 — 유니크 키에 걸리지 않게 이미 있는 종목은 넣지 않는다. */
         @Test
         fun `같은 종목을 여러 번 넘어도 한 번만 남긴다`() {
             jdbc.update("INSERT INTO wide_limit_day (trade_date, stock_code, created_at) VALUES (?, 'A', ?)", today, at)

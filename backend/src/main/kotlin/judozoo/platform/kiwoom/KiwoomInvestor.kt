@@ -8,17 +8,10 @@ import java.time.Clock
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-/**
- * 종목별 일자별 투자자·기관 순매매 (ka10059). 응답 단위는 백만원(amt_qty_tp=1).
- *
- * 거래소 구분은 종목코드 접미사로 한다:
- * `"005930"` → SOR 통합(KRX+NXT) / `"005930_NX"` → NXT 단독 / `"005930_AL"` → 통합의 별칭
- */
 @Component
 class KiwoomInvestor(private val client: KiwoomClient, private val clock: Clock) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 실패해도 빈 목록 — 보조 지표라 호출부를 막지 않는다. */
     fun fetchInvestorTrend(stockCode: String): List<InvestorTrendDay> = try {
         val body = client.query(
             STOCK_INFO_URL, "ka10059",
@@ -57,7 +50,6 @@ class KiwoomInvestor(private val client: KiwoomClient, private val clock: Clock)
     companion object {
         private const val STOCK_INFO_URL = "/api/dostk/stkinfo"
 
-        /** `"20260912"` → `"2026-09-12"`. 형식이 어긋나면 빈 문자열. */
         private fun toIsoDate(value: String?): String {
             val s = value?.trim().orEmpty()
             return if (s.length == 8) "${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}" else ""

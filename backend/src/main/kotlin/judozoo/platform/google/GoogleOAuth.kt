@@ -18,19 +18,12 @@ import java.time.Duration
 import java.time.Instant
 import java.util.Base64
 
-/**
- * 구글 OpenID Connect 로그인 — 인가 주소 만들기와 code 교환.
- *
- * ID 토큰은 **토큰 엔드포인트에서 TLS로 직접 받은 것**이라 서명 검증 대신 서버 인증서로 발급자를 믿는다(OIDC Core 3.1.3.7).
- * 대신 `iss`·`aud`·만료·`nonce`는 직접 확인한다 — nonce가 맞아야 이 로그인 시작에서 나온 토큰이다.
- */
 @Component
 @EnableConfigurationProperties(GoogleProperties::class)
 class GoogleOAuth(private val properties: GoogleProperties, private val clock: Clock, registry: MeterRegistry) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val json = JsonMapper.builder().build()
 
-    /** 구글이 확인해 준 계정. 로그인 콜백 안에서만 쓰고 세션에는 담지 않는다. */
     data class Account(val sub: String, val email: String)
 
     private val rest = RestClient.builder()
@@ -44,7 +37,6 @@ class GoogleOAuth(private val properties: GoogleProperties, private val clock: C
 
     val configured: Boolean get() = properties.configured
 
-    /** 구글 로그인 화면 주소. [state]는 CSRF, [nonce]는 토큰 재사용을 막는다 — 둘 다 세션에 두고 콜백에서 대조한다. */
     fun authorizeUrl(state: String, nonce: String): String = UriComponentsBuilder.fromUriString(properties.authorizeUrl)
         .queryParam("response_type", "code")
         .queryParam("client_id", properties.clientId)
@@ -54,7 +46,6 @@ class GoogleOAuth(private val properties: GoogleProperties, private val clock: C
         .queryParam("nonce", nonce)
         .encode().build().toUriString()
 
-    /** code를 토큰으로 바꾸고 ID 토큰에서 계정을 꺼낸다. 검증에 실패하거나 sub·email이 없으면 null. */
     fun exchange(code: String, nonce: String): Account? {
         val form = LinkedMultiValueMap<String, String>().apply {
             add("grant_type", "authorization_code")

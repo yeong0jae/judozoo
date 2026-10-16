@@ -9,7 +9,6 @@ import java.time.Clock
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
-/** 로그인 관문이 세션 키(`judozoo.session-secret`)와 세션 쿠키를 쓴다 — 웹 슬라이스 테스트에도 함께 실리도록 여기서 켠다. */
 @Configuration
 @EnableConfigurationProperties(JudozooProperties::class)
 class AuthWebConfig(private val currentUser: CurrentUserArgumentResolver) : WebMvcConfigurer {

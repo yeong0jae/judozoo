@@ -54,7 +54,6 @@ class LeadingStockServiceTest {
         }
     }
 
-    /** 보관소는 DB 없이 메모리 층만 — DB 층은 [StockMinuteArchiveTest]가 본다. */
     private val repository = mockk<StockMinuteCandleRepository>(relaxed = true) {
         every { findByStockCodeAndTradeDateOrderByMinuteAt(any(), any()) } returns emptyList()
         every { saveAll(any<List<StockMinuteCandleEntity>>()) } answers { firstArg() }
@@ -111,7 +110,6 @@ class LeadingStockServiceTest {
             verify(exactly = 1) { kiwoom.fetchDailyCandles("005930", 61) }
         }
 
-        /** 오늘 봉은 시세로 합성한다 — 캐시된 일봉의 오늘 거래량은 낡았다. */
         @Test
         fun `풀이 갱신되면 새 시세로 상대거래량을 다시 낸다`() {
             pool(stock(volume = 2000))
@@ -213,7 +211,6 @@ class LeadingStockServiceTest {
             service.poolTtl() shouldBe Duration.ofMinutes(14 * 60 + 50)
         }
 
-        /** 등락률이 달라도 그 밑의 거래대금 상위는 하나다. */
         @Test
         fun `장이 멈춘 동안은 한 번 받은 거래대금 상위를 다시 부르지 않는다`() {
             now = LocalDateTime.of(2026, 9, 25, 21, 0)
@@ -225,7 +222,6 @@ class LeadingStockServiceTest {
         }
     }
 
-    /** 장이 열리기 전·휴장일에 키움이 주는 순위는 직전 거래일 값이다 — 그날 것으로 기억한다. */
     @Nested
     inner class 상장_첫날_표시의_거래일 {
         @Test
@@ -263,7 +259,6 @@ class LeadingStockServiceTest {
         }
     }
 
-    /** 저장소에서 꺼내고 낡았으면 새 봉만 받는다. 마감이 굳은 뒤엔 확정본을 다음 장까지 쓴다. */
     @Nested
     inner class 당일_분봉_읽기 {
         private val today = LocalDate.of(2026, 9, 28)
@@ -294,8 +289,8 @@ class LeadingStockServiceTest {
 
             read()
 
-            tossCalls[0].shouldBeNull() // 처음엔 통째로
-            tossCalls[1] shouldBe today.atTime(8, 58) // 그다음엔 마지막 봉 근처부터
+            tossCalls[0].shouldBeNull()
+            tossCalls[1] shouldBe today.atTime(8, 58)
         }
 
         @Test
@@ -309,7 +304,6 @@ class LeadingStockServiceTest {
             tossCalls.size shouldBe 1
         }
 
-        /** 20:00 직전 값은 마지막 봉이 덜 찼을 수 있다. */
         @Test
         fun `마감 전에 받은 값은 마감이 굳은 뒤 다시 받는다`() {
             now = today.atTime(20, 0, 30)
@@ -328,11 +322,10 @@ class LeadingStockServiceTest {
             now = today.atTime(21, 0)
             tossFails = true
 
-            read().shouldNotBeEmpty() // 옛 봉이라도 보여준다
+            read().shouldNotBeEmpty()
             archive.get("035720", today).shouldBeNull()
         }
 
-        /** Python 마감 확정(20:01)이 DB에 넣은 확정본을 읽는다. */
         @Test
         fun `오늘 확정본이 보관소에 있으면 토스를 부르지 않는다`() {
             now = today.atTime(20, 30)
@@ -360,7 +353,6 @@ class LeadingStockServiceTest {
         }
     }
 
-    /** 거래일은 달력이 짚고, 지난 날은 보관소에서 먼저 찾는다 — 어제 봉을 키움에서 다시 받지 않게. */
     @Nested
     inner class 최근_3거래일_분봉_달력으로 {
         private val today = LocalDate.of(2026, 9, 28)
@@ -368,8 +360,7 @@ class LeadingStockServiceTest {
 
         init {
             now = today.atTime(10, 0)
-            openDays = listOf(LocalDate.of(2026, 9, 22), LocalDate.of(2026, 9, 23), LocalDate.of(2026, 9, 25)) // 9/24는 휴장이라 치자
-            // 그날 전체 + 전날 끝자락
+            openDays = listOf(LocalDate.of(2026, 9, 22), LocalDate.of(2026, 9, 23), LocalDate.of(2026, 9, 25))
             every { kiwoom.fetchHistoricalMinuteCandles(any(), any()) } answers {
                 val base = secondArg<LocalDate>()
                 bases += base
@@ -409,7 +400,7 @@ class LeadingStockServiceTest {
         fun `페이지 끝에서 잘린 날은 보관하지 않는다`() {
             days()
 
-            archive.get("005930", LocalDate.of(2026, 9, 22)).shouldBeNull() // 9/23 페이지 끝자락뿐이었다
+            archive.get("005930", LocalDate.of(2026, 9, 22)).shouldBeNull()
         }
 
         @Test
@@ -418,10 +409,9 @@ class LeadingStockServiceTest {
         }
     }
 
-    /** 달력이 모를 때 — 지난 날 조회가 오늘을 기준일로 부르면 오늘 봉이 섞인다. */
     @Nested
     inner class 최근_3거래일_분봉_달력_없이 {
-        private val today = LocalDate.of(2026, 9, 28) // 월요일 — 어제(일)는 휴장이라 키움이 금요일부터 채운다
+        private val today = LocalDate.of(2026, 9, 28)
         private val bases = mutableListOf<LocalDate>()
         private var kiwoomFails = false
         private val pages = mapOf(

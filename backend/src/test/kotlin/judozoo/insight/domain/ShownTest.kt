@@ -20,7 +20,6 @@ class ShownTest {
             Shown.of(rows) shouldBe rows[1]
         }
 
-        /** 검색 결과는 매번 달라서, 나중에 나온 설명 없음이 멀쩡하던 사유를 지우면 안 된다. */
         @Test
         fun `나중에 나온 설명 없음은 앞의 사유를 덮지 않는다`() {
             val rows = listOf(Row(at(9, 30), true, true), Row(at(11, 0), true, false))

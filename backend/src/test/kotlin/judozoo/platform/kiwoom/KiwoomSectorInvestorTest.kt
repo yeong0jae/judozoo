@@ -22,7 +22,6 @@ class KiwoomSectorInvestorTest {
 
     @Nested
     inner class 업종_투자자_순매수 {
-        /** ka10051의 cur_prc/flu_rt는 소수점이 빠진 정수 — 2653.81이 "+265381". */
         @Test
         fun `지수값과 등락률은 100으로 나눈다`() {
             stub.respond(URL, response())

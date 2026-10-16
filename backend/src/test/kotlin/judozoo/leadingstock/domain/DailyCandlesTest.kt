@@ -18,7 +18,6 @@ class DailyCandlesTest {
             DailyCandles(listOf(daily(1, 100), daily(2, 100), daily(3, 100))).relativeVolumeFrom(300, today, 3) shouldBe 3.0
         }
 
-        /** 오늘 봉의 거래량은 캐시된 값이라 쓰지 않는다 — 시세에서 받은 누적이 앞선다. */
         @Test
         fun `오늘 봉이 섞여 있어도 기준선에서 뺀다`() {
             DailyCandles(listOf(daily(0, 100), daily(1, 200), daily(2, 200))).relativeVolumeFrom(600, today, 20) shouldBe 3.0

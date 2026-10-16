@@ -6,12 +6,6 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.util.Locale
 
-/**
- * 주도주 후보 필터. [evaluate]가 만드는 문자열은 화면에 그대로 나간다 — Python `filters.py`와 글자까지 같다.
- *
- * 바깥 데이터(일봉·프로그램 매매)는 값으로 받는다 — 부르는 쪽이 한 번 받아 넘긴다.
- * 한 가족이라 한 파일에 둔다.
- */
 sealed class StockFilter(val name: String) {
     abstract fun passes(stock: LeadingStockSnapshot): Boolean
 
@@ -38,7 +32,6 @@ sealed class StockFilter(val name: String) {
         )
     }
 
-    /** 시총·기준 모두 억원 단위 — 원으로 환산해 표시한다. */
     class MarketCap(private val criteria: LeadingStockCriteria) : StockFilter("시가총액") {
         override fun passes(stock: LeadingStockSnapshot) = stock.marketCap >= criteria.minMarketCap
 
@@ -56,7 +49,6 @@ sealed class StockFilter(val name: String) {
         }
     }
 
-    /** [daily]의 [0]은 오늘, [1]은 어제다. */
     class PrevDayClose(private val criteria: LeadingStockCriteria, private val daily: List<DailyCandle>) : StockFilter("전일 등락률") {
         private val rate = daily.getOrNull(1)?.changeRate
 
@@ -67,7 +59,6 @@ sealed class StockFilter(val name: String) {
         )
     }
 
-    /** [daily]의 [0]은 오늘, [1]은 어제다. 어제 종가 대비 오늘 시가. */
     class OpeningPrice(private val criteria: LeadingStockCriteria, private val daily: List<DailyCandle>) : StockFilter("시초가") {
         private val rate: Double? = run {
             if (daily.size < 2) return@run null
@@ -88,7 +79,6 @@ sealed class StockFilter(val name: String) {
         }
     }
 
-    /** 키움 응답에 종목 유형 필드가 없어 **종목명 prefix**(운용사 브랜드)로 거른다. */
     data object EtfExclusion : StockFilter("ETF/ETN 제외") {
         private val BRAND_PREFIXES = listOf(
             "KODEX ", "TIGER ", "KOSEF ", "KBSTAR ", "ARIRANG ",
@@ -96,7 +86,6 @@ sealed class StockFilter(val name: String) {
             "KOACT ", "히어로즈 ", "PLUS ", "MASTER ",
         )
 
-        // 뒤에 ETN이 붙는 경우("한투 ETN 코스피200 H")도 거른다
         override fun passes(stock: LeadingStockSnapshot) =
             BRAND_PREFIXES.none { stock.stockName.startsWith(it) } && " ETN" !in stock.stockName
 
@@ -104,7 +93,6 @@ sealed class StockFilter(val name: String) {
             result(stock, "개별 종목만 (ETF/ETN 제외)", if (passes(stock)) "개별 종목" else "ETF/ETN")
     }
 
-    /** 스팩(기업인수목적회사) 제외 — 종목명에 "스팩"이 들어가는지로 거른다. */
     data object SpacExclusion : StockFilter("스팩 제외") {
         override fun passes(stock: LeadingStockSnapshot) = "스팩" !in stock.stockName
 
@@ -112,7 +100,6 @@ sealed class StockFilter(val name: String) {
             result(stock, "개별 종목만 (스팩 제외)", if (passes(stock)) "개별 종목" else "스팩")
     }
 
-    /** [asOf] 전날까지의 최근 60거래일 고가 대비 현재가. 오늘 찍은 고가는 뺀다. */
     class DailyHighPosition(private val criteria: LeadingStockCriteria, daily: List<DailyCandle>, asOf: LocalDate) :
         StockFilter("최근 고가 대비 현재가") {
         private val maxHigh: Long? = daily.filter { it.date < asOf }.sortedByDescending { it.date }.take(60)
@@ -131,7 +118,6 @@ sealed class StockFilter(val name: String) {
         }
     }
 
-    /** 순매수·기준 모두 백만원 단위 — 원으로 환산해 만원까지 표시한다. */
     class ProgramNetBuy(private val criteria: LeadingStockCriteria, private val netBuy: Long) : StockFilter("프로그램 양매수") {
         override fun passes(stock: LeadingStockSnapshot) = netBuy >= criteria.minProgramNetBuy
 
@@ -144,10 +130,6 @@ sealed class StockFilter(val name: String) {
         private const val EOK = 100_000_000L
         private const val MILLION = 1_000_000L
 
-        /**
-         * 소수 둘째 자리. Python `f"{x:.2f}"`와 같게 **이진값 그대로 반올림(짝수 쪽)**한다 —
-         * `String.format`은 짧은 십진 표기에서 올림해 `1.005`가 Python과 다르게 나온다.
-         */
         private fun fixed(value: Double, sign: Boolean = false): String =
             String.format(Locale.ROOT, if (sign) "%+.2f" else "%.2f", BigDecimal(value).setScale(2, RoundingMode.HALF_EVEN))
 

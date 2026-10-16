@@ -4,10 +4,6 @@ import { GRADE_PERF, GRADE_TEXT, GRADE_TINT, type BetStock, type Grade } from ".
 import { goLogin } from "../../api/auth";
 import { colorByPnL } from "../../lib/format";
 
-/**
- * 베팅 → 체결 → 매도·랭킹. 지금 단계에 불이 들어온다.
- * 매도 시각은 종목 따라 — NXT 종목은 08:05, 아니면 09:05. 모르거나 고르기 전에는 "내일 아침".
- */
 function Steps({ at, nxt }: { at: number; nxt?: boolean | null }) {
   const steps: [string, string][] = [
     ["베팅", "15:00~20:00"],
@@ -36,10 +32,6 @@ function Steps({ at, nxt }: { at: number; nxt?: boolean | null }) {
   );
 }
 
-/**
- * 모의 종베 티켓 — 머리 칸과 절취선이 등급색으로 물든다(금·은·동·철).
- * 금(S)·은(A)은 고르는 순간 빛이 한 번 지나간다.
- */
 export default function BetTicket({
   stock,
   grade,
@@ -62,27 +54,21 @@ export default function BetTicket({
 }: {
   stock: BetStock | null;
   grade: Grade;
-  amount: number; // 만원
+  amount: number;
   onAmount: (v: number) => void;
   confirmed: boolean;
   onConfirm: () => void;
   onEdit: () => void;
   onCancel: () => void;
-  /** 20:00 체결 뒤 — 금액·종목을 더는 못 바꾼다 */
   filled?: boolean;
   nxt?: boolean | null;
-  /** "10/1" */
   dayLabel: string;
-  /** 체결 뒤 — 20:00 종가와 주식 수 */
   buyPrice?: number | null;
   shares?: number | null;
-  /** 종가로 한 주도 못 사서 판에서 빠졌다 */
   voided?: boolean;
   member: boolean;
   busy?: boolean;
-  /** 서버가 돌려준 거절 이유 */
   error?: string;
-  /** 걸어 둔 종목이 지금 목록에서 빠졌다 — 등급을 모르고, 금액은 못 바꾼다(취소·종목 바꾸기는 된다) */
   dropped?: boolean;
 }) {
   if (!member) {
@@ -123,7 +109,6 @@ export default function BetTicket({
 
   return (
     <div className="relative flex flex-col rounded-[20px] bg-zinc-900">
-      {/* 절취 홈 — 머리 칸 위에 그려야 왼쪽도 티켓 모양대로 파인다 */}
       <span aria-hidden className="absolute -left-[11px] z-[2] h-5 w-5 rounded-full bg-zinc-950" style={notch} />
       <span aria-hidden className="absolute -right-[11px] z-[2] h-5 w-5 rounded-full bg-zinc-950" style={notch} />
 

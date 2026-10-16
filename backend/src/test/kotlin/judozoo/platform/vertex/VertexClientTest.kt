@@ -154,7 +154,6 @@ class VertexClientTest {
             calls() shouldBe 3
         }
 
-        /** 동시에 돈 종목들이 같은 순간에 거절당하면 같은 순간에 다시 물어 함께 실패하기 쉽다. */
         @Test
         fun `다시 묻기 전 기다림에 지터를 섞는다`() {
             jitter = 0.5
@@ -162,10 +161,9 @@ class VertexClientTest {
 
             shouldThrow<VertexException> { vertex.ground("왜") }
 
-            waits shouldBe listOf(Duration.ofSeconds(1), Duration.ofSeconds(2)) // 2초·4초 × 0.5
+            waits shouldBe listOf(Duration.ofSeconds(1), Duration.ofSeconds(2))
         }
 
-        /** 이미 오래 기다렸다 — 바로 다시 물어도 느리기 쉽다. */
         @Test
         fun `시간 초과는 다시 묻지 않고 바로 올린다`() {
             server.stubFor(post(urlEqualTo(URL)).willReturn(okJson(answer("늦은 답")).withFixedDelay(1_000)))

@@ -3,11 +3,6 @@ import { apiFetch } from "./client";
 import type { BetStock, MarketFlow, MarketName } from "../components/closingbet/model";
 import type { Moment } from "../components/closingbet/moment";
 
-/**
- * 모의 종가베팅 API — `/api/closingbet/*`.
- * 순매수는 서버가 백만원으로 준다. 화면의 종목 수급은 억원이라 여기서 바꾼다.
- */
-
 export type ClosingBetMyBet = {
   stockCode: string;
   stockName: string;
@@ -36,9 +31,7 @@ type Details = {
   institution: number | null;
   foreignWeek: number | null;
   institutionWeek: number | null;
-  /** 최근 60거래일 고가 대비 % */
   recentHighGap: number | null;
-  /** 15:30 정규장 종가 */
   regularClose: number | null;
   checks: ClosingBetChecks | null;
 };
@@ -50,7 +43,6 @@ export type ClosingBetStock = Details & {
   price: number;
   changeRate: number;
   market: "KOSPI" | "KOSDAQ" | null;
-  /** NXT 상장 — 매도 창 08:00 / 09:00. 모르면 null */
   nxt: boolean | null;
   grade: "S" | "A" | "B" | "C" | null;
   crowd: number;
@@ -87,7 +79,6 @@ export type ClosingBetMyResult = {
   rateRank: number | null;
 };
 
-/** 서버 모양 — 코스피·코스닥 × 외인·기관 × [현물 당일, 현물 5일, 선물 당일, 선물 5일, 마감, 애프터] + 야간선물 */
 export type ClosingBetMarketRaw = {
   KOSPI: MarketFlow;
   KOSDAQ: MarketFlow;
@@ -116,7 +107,6 @@ const QK = {
   round: (day: string) => ["closingbet", "round", day] as const,
 };
 
-/** 베팅 시간엔 판돈이 움직이니 5초, 그 밖엔 1분 */
 const pace = (moment: Moment | undefined) => (moment === "bet" ? 5_000 : 60_000);
 
 export function useClosingBetNow() {
@@ -154,7 +144,6 @@ export function useClosingBetFeed(moment: Moment | undefined) {
   });
 }
 
-/** 결과 발표 중엔 종목이 하나씩 공개되니 20초마다 */
 export function useClosingBetRound(day: string | null | undefined, moment: Moment | undefined) {
   return useQuery({
     queryKey: QK.round(day ?? ""),
@@ -209,10 +198,8 @@ export function toFlows(raw: ClosingBetMarketRaw): Record<MarketName, MarketFlow
   return { 코스피: raw.KOSPI, 코스닥: raw.KOSDAQ };
 }
 
-/** 백만원 → 억원 */
 const eokOf = (million: number | null) => (million ?? 0) / 100;
 
-/** 서버 종목 → 화면 종목. 방문자는 등급 이유 값이 없어 0으로 채운다(`hasDetails`로 가린다). */
 export function toBetStock(
   s: { code: string; name: string; lead: boolean; changeRate: number; crowd: number } & Details,
   price: number,

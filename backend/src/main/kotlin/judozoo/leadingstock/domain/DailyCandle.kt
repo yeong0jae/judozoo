@@ -9,6 +9,5 @@ data class DailyCandle(
     val lowPrice: Long,
     val closePrice: Long,
     val volume: Long,
-    /** 등락률(%) */
     val changeRate: Double,
 )

@@ -16,7 +16,6 @@ class KisOverseasRankingTest {
 
     @Nested
     inner class 거래대금순위 {
-        /** 등락 방향은 sign이 정하고 diff·rate는 크기라, 파싱은 쓰는 쪽에 맡긴다. */
         @Test
         fun `응답 필드를 그대로 전달한다`() {
             stub.respond(
@@ -28,8 +27,8 @@ class KisOverseasRankingTest {
             val item = ranking.fetchTradingValueRanking("NAS")[0]
 
             item.symb shouldBe "AAPL"
-            item.sign shouldBe "5" // 5=하락
-            item.rate shouldBe "0.52" // 크기 그대로
+            item.sign shouldBe "5"
+            item.rate shouldBe "0.52"
         }
 
         @Test

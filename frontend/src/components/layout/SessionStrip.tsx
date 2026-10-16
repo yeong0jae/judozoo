@@ -1,26 +1,17 @@
 import { useMarketCalendarStatus } from "../../api/queries";
 import { formatRange, useMarketSessions, type MarketSession } from "../../lib/marketSession";
 
-/** 구간별 점 색. 휴장 노랑은 이 줄이 대신하기 전 휴장 배너가 쓰던 값 그대로다. */
 const TONE = {
   open: "bg-emerald-400",
   pre: "bg-warning",
   post: "bg-indigo-500",
 } as const;
 
-/**
- * 지금 어느 장이 도는지 — 화면 제목 아래 한 줄.
- *
- * 국내는 늘 자리를 지킨다(휴장·장 닫힘도 말한다). 해외는 프리마켓~애프터마켓일
- * 때만 나타나고 그 밖에는 사라진다 — 데이마켓은 앱이 받는 순위에 없어서,
- * 그 시간에 해외를 적어 봐야 알려주는 게 없다.
- */
 export default function SessionStrip({ size = "sm" }: { size?: "sm" | "lg" }) {
   const { kr, us } = useMarketSessions();
   const krHoliday = useMarketCalendarStatus("KR").data?.isHoliday;
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
-  // 홈에서는 이 줄이 화면의 머리라 한 단계 크게, 헤더 부제 자리에서는 작게
   const lg = size === "lg";
 
   return (

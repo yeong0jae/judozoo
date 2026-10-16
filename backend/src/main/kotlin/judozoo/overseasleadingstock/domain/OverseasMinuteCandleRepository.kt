@@ -7,10 +7,8 @@ import org.springframework.data.jpa.repository.Query
 import java.time.LocalDate
 
 interface OverseasMinuteCandleRepository : JpaRepository<OverseasMinuteCandleEntity, Int> {
-    /** 그날 봉(시각 오름차순). */
     fun findByExchangeAndSymbolAndTradingDayOrderByMinuteAt(exchange: String, symbol: String, tradingDay: LocalDate): List<OverseasMinuteCandleEntity>
 
-    /** 들고 있는 날 중 최근 것부터. */
     @Query(
         "select distinct c.tradingDay from OverseasMinuteCandleEntity c " +
             "where c.exchange = :exchange and c.symbol = :symbol order by c.tradingDay desc",

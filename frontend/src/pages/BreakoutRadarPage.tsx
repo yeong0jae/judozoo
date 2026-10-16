@@ -15,17 +15,11 @@ import StockDetailPanel from "../components/common/StockDetailPanel";
 import { useArrowStockNav } from "../lib/useArrowStockNav";
 import ListDetail, { useMobileDetail } from "../components/layout/ListDetail";
 
-/** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
   const idx = stockCode.indexOf("_");
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
 }
 
-
-
-/** 근접 강조 — 3% 이내면 색으로 띄운다.
- *  저항은 따뜻한 색(위), 지지는 차가운 색(아래). 등락률의 red-600/blue-600과는
- *  명도가 달라 한 행에 같이 있어도 구분된다. */
 const NEAR = 3;
 const MODE_KEY = "radar.mode";
 
@@ -35,7 +29,6 @@ const MODES: { key: RadarMode; label: string }[] = [
   { key: "resistance", label: "돌파" },
 ];
 
-/** 보는 모드를 고른다. 정렬 기준도 같이 바뀐다 — 돌파매매와 눌림매매는 동시에 보는 게 아니다. */
 function ModeToggle({ value, onChange }: { value: RadarMode; onChange: (v: RadarMode) => void }) {
   return (
     <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
@@ -61,17 +54,9 @@ const resistanceCls = (gap: number) =>
 const supportCls = (gap: number | null) =>
   gap !== null && gap <= NEAR ? "text-sky-400" : "text-zinc-400";
 
-/**
- * 미리보기 끝 — 아래로 더 있다는 걸 보이고 로그인으로 잇는다.
- *
- * 막대는 가짜다. 서버가 이미 잘라서 채울 내용이 없다(진짜 행을 흐리게 깔면
- * 그 데이터가 브라우저까지 내려와야 하므로 차단이 아니라 가리기가 된다).
- * 목록이 표(데스크톱)와 카드(모바일) 두 벌이라 껍데기도 두 벌이다.
- */
 function PreviewGateBody({ shown, total, widths }: { shown: number; total: number; widths: number[] }) {
   return (
     <div className="relative">
-      {/* 아래로 갈수록 지워진다 — 줄마다 농도를 주면 계단이 생겨 "이어진다"가 덜 읽힌다 */}
       <div
         aria-hidden
         className="select-none opacity-60"
@@ -108,12 +93,9 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
 
   const radarQ = useBreakoutRadar(mode);
   const data = radarQ.data;
-  // 지금 보는 선에서 NEAR% 이내인 것만 오고, 가까운 순으로 정렬돼 있다 — 거르고 세우는 일은
-  // 서버가 한다. 화면에서 또 거르면 `totalCount`와 모수가 달라져 "N개 중 M개"가 어긋난다.
   const stocks = data?.stocks ?? [];
   const mobile = useMobileDetail();
 
-  // 우측 상세에 띄울 선택 종목 — 첫 로드 시 1위 자동 선택
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   useEffect(() => {
     if (!authenticated) return;
@@ -122,7 +104,6 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
 
   useArrowStockNav(authenticated ? stocks.map((s) => s.stockCode) : [], selectedCode, setSelectedCode);
 
-  // 미로그인이면 없다 — 눌러도 열 상세가 없어 클릭을 막는다
   const onSelect = authenticated
     ? (code: string) => {
         setSelectedCode(code);
@@ -137,7 +118,6 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
       <div className="flex flex-col gap-3 lg:px-3.5">
         <PageHeader
           title="눌림·돌파"
-          // 근접 범위로 거른 뒤의 전체 수 — 미로그인은 그중 다섯 줄만 받는다
           count={data?.totalCount}
           fetchedAt={radarQ.dataUpdatedAt}
           refreshMs={LIVE_REFRESH_MS}
@@ -211,10 +191,8 @@ function BreakoutRadarPageInner({ authenticated }: { authenticated: boolean }) {
   return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
 }
 
-/** 데스크톱 줄의 열 — 종목 · 선 · 남은 거리 · 현재가와 거래대금 · 등락률. */
 const RADAR_COLS = "grid-cols-[minmax(0,1fr)_6.5rem_5rem_6.5rem_4.5rem]";
 
-/** 선까지 남은 거리 — 넘었으면 "돌파"/"이탈", 아니면 원과 %. */
 function radarGap(mode: RadarMode, s: BreakoutRadarItem) {
   if (mode === "resistance") {
     return {
@@ -232,7 +210,6 @@ function radarGap(mode: RadarMode, s: BreakoutRadarItem) {
   };
 }
 
-/** 선이 만들어진 시각 — "23일 10:42". 키움 분봉 cntr_tm이 HTS보다 1분 이르게 라벨링돼 고점은 +1분 보정. */
 function formedAt(mode: RadarMode, s: BreakoutRadarItem): { price: number | null; at: string | null } {
   const hm = (d: Date) => `${d.getDate()}일 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   if (mode === "resistance") {
@@ -252,7 +229,6 @@ function RadarRow({
   mode: RadarMode;
   s: BreakoutRadarItem;
   selected: boolean;
-  /** 미로그인이면 없다 — 눌러도 열 상세가 없어 클릭을 막는다 */
   onSelect?: (code: string) => void;
 }) {
   const gap = radarGap(mode, s);
@@ -312,7 +288,6 @@ function RadarRow({
   );
 }
 
-/** 모바일 카드 — 윗줄 종목·남은 거리, 아랫줄 선·형성 시각과 현재가·등락률. */
 function RadarCard({
   mode,
   s,
@@ -322,7 +297,6 @@ function RadarCard({
   mode: RadarMode;
   s: BreakoutRadarItem;
   selected: boolean;
-  /** 미로그인이면 없다 — 표 행과 같다 */
   onSelect?: (code: string) => void;
 }) {
   const gap = radarGap(mode, s);
@@ -358,9 +332,6 @@ function RadarCard({
   );
 }
 
-
-/** 로그인한 사용자만 본다. 미로그인이면 데이터를 부르지 않는다 —
- *  호출해봐야 401이고, 화면 폴링 주기마다 반복된다. */
 export default function BreakoutRadarPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;

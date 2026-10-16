@@ -15,7 +15,6 @@ import org.springframework.scheduling.support.CronExpression
 import java.time.Clock
 import java.time.ZonedDateTime
 
-/** 왜 오르나 스케줄 — 휴장일은 쉬고, 해외는 뉴욕 시간대로 깨어난다. */
 class InsightSchedulerTest {
     private val service = mockk<InsightService>()
     private val calendar = mockk<MarketCalendar>()
@@ -43,7 +42,6 @@ class InsightSchedulerTest {
             registry.find("scheduler.job.errors").tag("job_id", "insight-reason-overseas").counter()!!.count() shouldBe 1.0
         }
 
-        /** 뉴욕 08:00 — 서머타임엔 KST 21시, 표준시엔 22시. */
         @Test
         fun `해외 첫 실행은 한국 시각으로 여름 21시 겨울 22시다`() {
             val scheduled = InsightScheduler::class.java.getMethod("runOverseas").getAnnotation(Scheduled::class.java)

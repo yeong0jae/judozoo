@@ -28,7 +28,6 @@ class KisHolidayTest {
             holiday.fetchOpenDays(base) shouldBe setOf(LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 14))
         }
 
-        /** 호출측이 주말만으로 폴백하게 한다. */
         @Test
         fun `오류면 빈 집합`() {
             stub.respond(URL, """{"rt_cd":"1","msg1":"오류"}""")

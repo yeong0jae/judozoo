@@ -2,13 +2,8 @@ export function formatKRW(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(Math.round(value)) + "원";
 }
 
-// 기존 호출부 호환
 export const formatKrw = formatKRW;
 
-// 한국식 단위 (조/억) — 거래대금처럼 큰 숫자에 사용.
-// 1_073_000_000_000_000 → "1,073조" / 304_436_200_000 → "3,044억"
-//
-// 조·억에는 "원"을 붙이지 않는다 — 순매수 표기(`formatEok`)와 맞춘다. 1억 미만만 "원"을 남긴다.
 export function formatKoreanMoney(value: number): string {
   const amount = Math.round(value);
   const absAmount = Math.abs(amount);
@@ -38,7 +33,6 @@ export function formatQty(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(value) + "주";
 }
 
-// 미국 주식 가격 — 소수 2자리 달러.
 export function formatUsd(value: number): string {
   return value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -46,7 +40,6 @@ export function formatUsd(value: number): string {
   });
 }
 
-// 억원 단위 입력 → "1.2조" / "3,500억". 시장 순매수 표시용.
 export function formatEok(eok: number): string {
   if (Math.abs(eok) >= 10000) {
     const jo = eok / 10000;
@@ -55,15 +48,12 @@ export function formatEok(eok: number): string {
   return `${eok.toLocaleString()}억`;
 }
 
-// 입력은 소수 (rate). 0.025 → "+2.50%".
 export function formatPct(rate: number, digits = 2): string {
   const pct = rate * 100;
   const sign = pct > 0 ? "+" : "";
   return `${sign}${pct.toFixed(digits)}%`;
 }
 
-// 백엔드는 LocalDateTime을 timezone 없이 KST 문자열로 보내고 (예: "2026-05-06T13:04:05"),
-// 프론트에서 자체 계산한 시각은 UTC ISO("...Z")가 되므로 둘 다 KST로 정규화해 표시.
 const KST_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   year: "numeric",
   month: "2-digit",
@@ -78,7 +68,6 @@ const KST_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
 export function formatDateTime(input: string | Date): string {
   const d = typeof input === "string" ? new Date(input) : input;
   if (Number.isNaN(d.getTime())) return "-";
-  // ko-KR + Asia/Seoul → "2026. 05. 06. 13:04:05" → 정규화해 "2026-05-06 13:04:05" 형태로 변환
   const parts = new Intl.DateTimeFormat("ko-KR", KST_FORMAT_OPTIONS).formatToParts(d);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
@@ -121,7 +110,6 @@ export function formatRelative(iso: string, now = new Date()): string {
   return `${day}일 전`;
 }
 
-// 한국 거래소 관행: 양수 빨강, 음수 파랑
 export function colorByPnL(value: number): string {
   if (value > 0) return "text-red-600";
   if (value < 0) return "text-blue-600";

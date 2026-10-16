@@ -1,4 +1,3 @@
-/** 인스타그램 글리프 — 브랜드 색 대신 `currentColor` 단색이라 놓인 자리의 글자색을 따른다. 24 그리드·1.8 획 */
 export default function InstagramIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

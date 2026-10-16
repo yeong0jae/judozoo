@@ -37,7 +37,6 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
-/** 분봉은 진행 중인 세션은 외부에서, 완성된 지난 세션은 DB에서 — 캐시를 비워도(재시작) 지난 날은 다시 받지 않는다. */
 @IntegrationTest
 class MarketCandlesTest @Autowired constructor(
     private val indexArchive: IndexMinuteArchive,
@@ -59,7 +58,6 @@ class MarketCandlesTest @Autowired constructor(
         override fun instant(): Instant = now.atZone(KST).toInstant()
     }
 
-    /** 캐시가 빈 새 서비스 — 재시작한 상황. */
     private fun fresh() = MarketCandles(toss, futures, FuturesContracts(futures, clock), yahoo, calendar, indexArchive, futuresArchive, yahooArchive, clock)
 
     @BeforeEach
@@ -102,7 +100,7 @@ class MarketCandlesTest @Autowired constructor(
 
             clearMocks(toss, answers = false)
             fresh().indexMinute(Market.KOSPI) shouldBe yesterday + today
-            verify(exactly = 1) { toss.fetchCandles(any(), any(), any(), any()) } // 첫 페이지만
+            verify(exactly = 1) { toss.fetchCandles(any(), any(), any(), any()) }
             indexArchive.get(Market.KOSDAQ, LocalDate.of(2026, 9, 28)).shouldBeNull()
         }
 
@@ -140,7 +138,6 @@ class MarketCandlesTest @Autowired constructor(
         }
     }
 
-    /** 지수선물 분봉: 진행 중인 세션은 메모리, 완성된 세션은 DB에 둔다. */
     @Nested
     inner class 지난_거래일_선물_분봉 {
         private val current = LocalDate.of(2026, 9, 30)
@@ -205,15 +202,13 @@ class MarketCandlesTest @Autowired constructor(
             every { futures.fetchMinute("CONTRACT", any(), any<String>(), KisFutures.NIGHT) } returns listOf(bar(previous, "18:00:00"), bar(current, "02:00:00"))
 
             fresh().nightMinute() shouldBe listOf(bar(previous, "18:00:00"), bar(current, "02:00:00"))
-            verify { futures.fetchMinute("CONTRACT", previous, "295900", KisFutures.NIGHT) } // 29:59 = 익일 05:59부터 거꾸로
+            verify { futures.fetchMinute("CONTRACT", previous, "295900", KisFutures.NIGHT) }
             futuresArchive.get(Market.KOSPI, "CONTRACT", true, previous).shouldBeNull()
         }
     }
 
-    /** 미국 지표 1분봉은 지난 미국 거래 세션을 보관하고 진행 중인 세션만 갱신한다. */
     @Nested
     inner class 야후_지난_거래_세션 {
-        /** 미국 동부 시각으로 적은 봉을 한국 시각 봉으로. */
         private fun usBar(at: LocalDateTime): YahooBar {
             val kst = at.atZone(Region.US.zone).withZoneSameInstant(KST)
             return yahooBar(kst.toLocalDate(), kst.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")))
@@ -281,7 +276,7 @@ class MarketCandlesTest @Autowired constructor(
         fun `나스닥의 잘린 지난날은 DB에 확정하지 않는다`() {
             now = LocalDateTime.of(2026, 10, 1, 3, 0)
             every { yahoo.fetchCandles("^IXIC", "1m", any()) } returns listOf(
-                yahooBar(LocalDate.of(2026, 9, 30), "00:00:00"), // 미국 동부 11:00 — 장 시작이 잘렸다
+                yahooBar(LocalDate.of(2026, 9, 30), "00:00:00"),
                 yahooBar(LocalDate.of(2026, 9, 30), "04:59:00"),
             )
 

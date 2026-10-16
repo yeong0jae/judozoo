@@ -42,7 +42,6 @@ class StockControllerTest @Autowired constructor(private val mvc: MockMvc) {
                 jsonPath("$.code") { value("SUCCESS") }
                 jsonPath("$.data[0].stockCode") { value("207940") }
                 jsonPath("$.data[0].stockName") { value("삼성바이오로직스") }
-                // 국내 종목은 거래소가 비어 있다 — 필드는 빠지지 않고 null로 온다
                 jsonPath("$.data[0].exchange") { value(null as Any?) }
                 jsonPath("$.data[1].exchange") { value("NAS") }
             }

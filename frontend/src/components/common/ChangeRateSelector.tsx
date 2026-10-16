@@ -1,10 +1,8 @@
 import { useId } from "react";
 import { motion } from "motion/react";
 
-// 당일 등락률 임계값 선택지 — -12 하한 + -7~+7 홀수 구간 + 0
 export const CHANGE_RATE_OPTIONS = [-12, -7, -5, -3, 0, 3, 5, 7];
 
-// 한국 거래소 관행 — 상승(양수) 빨강 / 하락(음수) 파랑 / 0 중립
 function thumbTone(rate: number): string {
   if (rate > 0) return "bg-red-500/15";
   if (rate < 0) return "bg-blue-500/15";
@@ -16,10 +14,6 @@ function textTone(rate: number, active: boolean): string {
   return active ? "text-zinc-100" : "text-zinc-400";
 }
 
-/**
- * 당일 등락률 임계값 선택 — 소프트 세그먼트. 활성 표시(썸)가 버튼 사이를 슬라이드하며
- * 부호색(상승 빨강/하락 파랑/0 중립)으로 물든다. [options]로 선택지 주입 가능.
- */
 export default function ChangeRateSelector({
   value,
   onChange,

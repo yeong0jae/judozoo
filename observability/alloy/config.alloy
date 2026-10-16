@@ -1,4 +1,3 @@
-// Docker 컨테이너 stdout/stderr를 스크레이프해 Loki로 전송.
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
@@ -6,7 +5,6 @@ discovery.docker "containers" {
 discovery.relabel "containers" {
   targets = []
 
-  // 앞의 슬래시만 떼어낸다 — "/judozoo-backend-1" → "judozoo-backend-1"
   rule {
     source_labels = ["__meta_docker_container_name"]
     regex         = "/(.*)"
@@ -29,22 +27,11 @@ loki.source.docker "default" {
   relabel_rules = discovery.relabel.containers.rules
 }
 
-// Loki는 ops VM(judozoo-ops-prod)에 있다. alloy는 앱 VM에만 있으므로 호스트별로
-// 달라질 값이 없어 내부 DNS를 그대로 적는다.
-//
-// **이 주소가 틀려도 에러로 드러나지 않는다.** 앱은 멀쩡히 돌고 Grafana 대시보드만
-// 빈다. 로그가 사라졌다면 여기부터 본다.
 loki.write "default" {
   endpoint {
     url = "http://judozoo-ops-prod.asia-northeast3-a.c.trading-496508.internal:3100/loki/api/v1/push"
   }
 }
-
-// ── 메트릭 ──────────────────────────────────────────────────────────────
-// [020](../../docs/tasks/020-prometheus-메트릭.md). Prometheus가 ops VM에서 이쪽을
-// 긁는(pull) 대신 alloy가 밀어 넣는다(push) — pull로 하려면 backend에 호스트 포트를
-// 내야 하고, `default-allow-internal` 아래에서는 그게 곧 VPC 전체 노출이다.
-// 로그와 방향이 같아지는 것도 이유다.
 
 prometheus.scrape "backend" {
   targets         = [{ __address__ = "backend:8001" }]
@@ -54,26 +41,12 @@ prometheus.scrape "backend" {
   forward_to      = [prometheus.remote_write.ops.receiver]
 }
 
-// node_exporter를 따로 띄우지 않는다 — alloy에 내장돼 있다.
-//
-// **cadvisor는 뺐다.** 이 호스트의 Docker가 containerd 이미지 스토어를 쓰는데
-// (storage driver `overlayfs`), cadvisor는 `/var/lib/docker/image/<driver>/layerdb`에서
-// 레이어를 찾는다. 그 경로가 아예 없어서 도커 컨테이너를 **하나도** 인식하지 못하고,
-// systemd 유닛 시계열 2천여 개와 분당 에러 로그만 남겼다(그 로그는 Loki로도 들어간다).
-// 컨테이너 메모리는 backend가 스스로 내는 `process_resident_memory_bytes`로 본다.
-//
-// **경로 인자와 compose의 마운트가 짝이다. 한쪽만 바꾸면 alloy가 통째로 죽는다** —
-// 빈 메트릭으로 넘어가지 않고 설정 평가에서 exit 1이다(v1.7.5 실측). 즉 메트릭
-// 마운트 실수 하나가 **로그 수집까지 멈춘다.** remote_deploy.sh가 이걸 검사한다.
 prometheus.exporter.unix "host" {
   procfs_path = "/host/proc"
   sysfs_path  = "/sys"
   rootfs_path = "/rootfs"
 }
 
-// **instance를 고정한다.** 내장 exporter의 기본 instance는 alloy 컨테이너 ID라
-// 배포할 때마다 바뀌고, 그때마다 호스트 시계열이 통째로 새로 갈라진다(옛 것은 stale로
-// 남는다). 한 달 보존이면 배포 횟수만큼 조각이 쌓인다 — 머신은 하나인데.
 discovery.relabel "host" {
   targets = prometheus.exporter.unix.host.targets
 
@@ -90,8 +63,6 @@ prometheus.scrape "host" {
   forward_to      = [prometheus.remote_write.ops.receiver]
 }
 
-// Loki와 같은 ops VM. **이 주소가 틀려도 에러로 드러나지 않는다** — 로그 쪽과 똑같이
-// 앱은 멀쩡히 돌고 Grafana 패널만 빈다.
 prometheus.remote_write "ops" {
   endpoint {
     url = "http://judozoo-ops-prod.asia-northeast3-a.c.trading-496508.internal:9090/api/v1/write"
@@ -101,12 +72,6 @@ prometheus.remote_write "ops" {
   }
 }
 
-// ── 트레이스 ────────────────────────────────────────────────────────────
-// [021](../../docs/tasks/021-tempo-트레이스.md). backend가 OTLP로 여기 보내고,
-// alloy가 ops VM의 Tempo로 넘긴다. 로그·메트릭과 같은 방향이다.
-//
-// 호스트 포트가 필요 없다 — backend와 같은 compose 네트워크에 있어 `alloy:4317`로 닿는다.
-// 로그(Loki)·메트릭(Prometheus)과 달리 **받는 쪽이 앱 VM 안**이라는 점이 다르다.
 otelcol.receiver.otlp "default" {
   grpc {
     endpoint = "0.0.0.0:4317"
@@ -117,20 +82,16 @@ otelcol.receiver.otlp "default" {
   }
 }
 
-// 스팬마다 보내면 10초 폴러가 도는 이 앱에서 연결 수립 비용이 계속 붙는다.
 otelcol.processor.batch "default" {
   output {
     traces = [otelcol.exporter.otlp.tempo.input]
   }
 }
 
-// **이 주소가 틀려도 에러로 드러나지 않는다** — 로그·메트릭과 같은 함정이다.
-// 앱은 멀쩡히 돌고 Tempo만 빈다.
 otelcol.exporter.otlp "tempo" {
   client {
     endpoint = "judozoo-ops-prod.asia-northeast3-a.c.trading-496508.internal:4317"
 
-    // VPC 내부 평문. Loki·Prometheus로 보내는 것과 같은 수준이다.
     tls {
       insecure = true
     }

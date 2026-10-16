@@ -25,7 +25,6 @@ class GateTest {
                 "/api/market/macro/quotes",
                 "/api/market/futures/night/quote",
                 "/api/market/futures/night/candles",
-                // 지수·선물의 시세와 차트 — 수급만 로그인 뒤로 남긴다
                 "/api/market/KOSPI/candles",
                 "/api/market/futures/KOSPI/quote",
                 "/api/market/futures/KOSDAQ/candles",
@@ -40,7 +39,6 @@ class GateTest {
             Gate.isPublic(path) shouldBe true
         }
 
-        /** 허용목록 전체를 묶지 않으면 이 꼬리가 마지막 항목에만 걸린다. */
         @ParameterizedTest
         @ValueSource(
             strings = [
@@ -60,12 +58,10 @@ class GateTest {
         @ParameterizedTest
         @ValueSource(
             strings = [
-                // 목록은 열어도 종목 상세는 닫는다 — 국내·해외 모두
                 "/api/leading-stocks/candidates/005930",
                 "/api/leading-stocks/candidates/005930/minute-candles",
                 "/api/overseas-leading-stocks/NAS/NVDA",
                 "/api/overseas-leading-stocks/NAS/NVDA/daily-candles",
-                // 시세·차트는 열었지만 투자자 수급은 닫은 채다 — 경로가 한 겹 차이라 섞이기 쉽다
                 "/api/market/KOSPI/investor/sessions",
                 "/api/market/KOSPI/investor/daily",
                 "/api/market/KOSDAQ/investor/sessions",
@@ -74,11 +70,8 @@ class GateTest {
                 "/api/market/futures/KOSPI/investor/daily",
                 "/api/market/futures/KOSDAQ/investor/sessions",
                 "/api/market/futures/KOSDAQ/investor/daily",
-                // 첫 화면 "오늘의 수급"도 수급이다 — 홈에 실린다고 열리지 않는다
                 "/api/market/investor/today",
-                // 종목별 수급도 종목 상세라 닫은 채다
                 "/api/stocks/005930/investor/daily",
-                // 가공한 판단 결과들 — 종목 시그널 미리보기만 열고 나머지는 닫는다
                 "/api/leading-stocks/market-signal-events",
                 "/api/leading-stocks/market/investor-net-buy",
             ],

@@ -9,15 +9,10 @@ import jakarta.persistence.Table
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/**
- * 사람·판마다 한 행. 취소하면 지운다(LIVE 이력은 [ClosingBetEvent]에 남는다).
- * [status]는 open(베팅 중) → filled(20:00 체결) → settled(아침 매도). 한 주도 못 사게 오르면 void.
- */
 @Entity
 @Table(name = "closing_bet")
 class ClosingBet(
     @Column(name = "user_id") val userId: Long,
-    /** 판 — 베팅한 거래일 */
     @Column(name = "trading_day") val tradingDay: LocalDate,
     stockCode: String,
     stockName: String,
@@ -40,7 +35,6 @@ class ClosingBet(
     var amountMan: Int = amountMan
         protected set
 
-    /** 지금 종목·금액으로 정한 시각 — 동점일 때 줄 순서 */
     @Column(name = "placed_at")
     var placedAt: LocalDateTime = placedAt
         protected set
@@ -55,7 +49,6 @@ class ClosingBet(
     var shares: Int? = null
         protected set
 
-    /** (고가 + 저가) ÷ 2 — 0.5원 단위가 나온다 */
     @Column(name = "sell_price", columnDefinition = "decimal(12,1)")
     var sellPrice: Double? = null
         protected set
@@ -76,7 +69,6 @@ class ClosingBet(
         status = OPEN
     }
 
-    /** 20:00 종가로 산다. 걸 때보다 올라 한 주도 못 사면 판에서 뺀다. */
     fun fill(price: Long) {
         buyPrice = price
         try {

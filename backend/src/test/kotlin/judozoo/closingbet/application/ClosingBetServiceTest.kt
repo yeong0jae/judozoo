@@ -43,10 +43,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/**
- * 모의 종가베팅 — 베팅을 받고, 20:00에 체결하고, 아침에 파는가.
- * 주도주 풀·시세·수급·개장일은 바깥이라 대역으로 바꾸고, DB는 컨테이너 MySQL을 쓴다.
- */
 @IntegrationTest
 class ClosingBetServiceTest @Autowired constructor(
     private val bets: ClosingBetRepository,
@@ -76,7 +72,6 @@ class ClosingBetServiceTest @Autowired constructor(
     }
     private val closes = mapOf("000660" to 400_000L, "247540" to 200_000L, "277810" to 300_000L)
 
-    /** 오늘 봉(종가 = 20:00 체결) + 과거 60봉. 하이닉스는 고점 바로 아래, 나머지는 고점에서 한참 아래. */
     private fun daily(code: String, base: LocalDate): List<DailyCandle> {
         val close = closes.getValue(code)
         val pastHigh = if (code == "000660") close - 1 else close * 2
@@ -86,7 +81,6 @@ class ClosingBetServiceTest @Autowired constructor(
 
     private fun bar(day: LocalDate, h: Int, m: Int, high: Long, low: Long) = MinuteCandle(day.atTime(h, m), low, high, low, high, 10, 0)
 
-    /** 15:30 정규장 종가 — 종가보다 조금 아래라 애프터 버팀은 맞아요. 아침 매도 봉은 테스트가 갈아 끼운다. */
     private var minuteBars: (String, LocalDate) -> List<MinuteCandle> = { code, day -> listOf(bar(day, 15, 30, closes.getValue(code) - 1_000, closes.getValue(code) - 1_000)) }
     private val kiwoom = mockk<KiwoomMarket> {
         every { fetchDailyCandles(any(), 61, any()) } answers { daily(firstArg(), thirdArg()) }
@@ -194,7 +188,6 @@ class ClosingBetServiceTest @Autowired constructor(
             service.roundStocks(thu).map { it.stockCode }.contains("247540") shouldBe true
         }
 
-        /** 걸 때 가격으로는 살 수 있었는데 종가로는 못 사는 경우 — 금액을 직접 낮춰 만든다. */
         @Test
         fun `한 주도 못 사게 오르면 판에서 뺀다`() {
             service.place(1, "277810", 100, thu.atTime(15, 10))
@@ -239,7 +232,6 @@ class ClosingBetServiceTest @Autowired constructor(
             service.myBet(2, thu)!!.status shouldBe "filled"
         }
 
-        /** 하이닉스 50주 × +8,000 = 40만 / 레인보우 66주 × +3,000 = 19.8만. */
         @Test
         fun `09시05분에 나머지를 팔고 랭킹을 확정한다`() {
             service.settleRound(thu, fri, fri.atTime(8, 5))

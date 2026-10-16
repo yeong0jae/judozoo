@@ -36,13 +36,12 @@ class TossMarketIndicatorTest {
 
     @Nested
     inner class 순매수_환산 {
-        /** floor(x + 0.5) — Python 기본 round()의 은행가 반올림과 갈린다. 옛 Kotlin `roundToLong()`과 같은 값이다. */
         @Test
         fun `매수에서 매도를 빼 억원으로 반올림한다`() {
-            TossMarketIndicator.netEok(amount("300000000", "100000000")) shouldBe 2 // +2억
-            TossMarketIndicator.netEok(amount("100000000", "300000000")) shouldBe -2 // -2억
-            TossMarketIndicator.netEok(amount("250000000", "0")) shouldBe 3 // 2.5억 → 올림
-            TossMarketIndicator.netEok(amount("0", "250000000")) shouldBe -2 // -2.5억 → +무한대 쪽으로
+            TossMarketIndicator.netEok(amount("300000000", "100000000")) shouldBe 2
+            TossMarketIndicator.netEok(amount("100000000", "300000000")) shouldBe -2
+            TossMarketIndicator.netEok(amount("250000000", "0")) shouldBe 3
+            TossMarketIndicator.netEok(amount("0", "250000000")) shouldBe -2
             TossMarketIndicator.netEok(amount(null, null)) shouldBe 0
         }
 
@@ -70,7 +69,7 @@ class TossMarketIndicatorTest {
 
             val r = indicator.fetchInvestorTrading("KOSPI")[0]
 
-            r.institutionNetEok shouldBe 1 // 5억 − 4억
+            r.institutionNetEok shouldBe 1
             r.breakdown.pensionFundEok shouldBe 1
             r.breakdown.trustEok shouldBe -1
         }
@@ -142,7 +141,6 @@ class TossMarketIndicatorTest {
 
     @Nested
     inner class 지수_캔들_리미터 {
-        /** 1분봉 차트 하나가 페이지를 연달아 받는다 — 리미터 없이는 요청 하나가 한도를 넘는다. */
         @Test
         fun `페이지마다 지수 캔들 한도를 얻는다`() {
             val registry = SimpleMeterRegistry()

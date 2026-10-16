@@ -45,7 +45,6 @@ class KiwoomTokenIssuerTest {
             server.verify(postRequestedFor(urlEqualTo("/oauth2/token")).withRequestBody(equalToJson("""{"grant_type":"client_credentials","appkey":"key","secretkey":"secret"}""")))
         }
 
-        /** 응답이 token 대신 access_token으로 오는 경우가 있다. */
         @Test
         fun `access_token 필드로 와도 받는다`() {
             respond("""{"access_token":"tok-alt","return_code":0}""")
@@ -67,7 +66,6 @@ class KiwoomTokenIssuerTest {
             shouldThrow<IllegalStateException> { issuer.issue() }.message!! shouldContain "토큰 없음"
         }
 
-        /** 키움은 거부할 때 `start.html`로 302를 준다 — 따라가면 거부가 200으로 보인다. */
         @Test
         fun `리다이렉트로 거부하면 따라가지 않고 예외`() {
             server.stubFor(post(urlEqualTo("/oauth2/token")).willReturn(aResponse().withStatus(302).withHeader("location", "https://openapi.kiwoom.com/start.html")))

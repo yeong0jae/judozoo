@@ -34,7 +34,6 @@ class LeaderCalendarControllerTest @Autowired constructor(private val mvc: MockM
 
     @Nested
     inner class 주도주_캘린더_API {
-        /** 로그인 없이 본다. */
         @Test
         fun `요청한 달로 조회한다`() {
             month()

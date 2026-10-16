@@ -41,7 +41,6 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
         3.5f, 2_000_000_000, SpikeDirection.BUY, at, at,
     )
 
-    /** 최신순으로 받는다(저장소가 그렇게 준다). */
     private fun events(vararg rates: Double) = rates.mapIndexed { i, r -> event(i, r) }.reversed()
 
     @Nested
@@ -62,7 +61,6 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
             }
         }
 
-        /** 화면에서 자르면 나머지가 브라우저까지 내려가 읽힌다 — 서버가 자른다. 자르기 전 전체 건수는 그대로 알려준다. */
         @Test
         fun `미로그인은 최신 세 건만 받는다`() {
             every { signals.signalEventsOn(any()) } returns events(*DoubleArray(12) { 5.0 })
@@ -75,7 +73,6 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
             }
         }
 
-        /** 감시 풀이 -12%까지 넓어 거르지 않으면 미리보기가 급락주 전이로 찰 수 있다. 거른 뒤가 전체 건수다. */
         @Test
         fun `미로그인은 내린 종목의 전이를 못 본다`() {
             every { signals.signalEventsOn(any()) } returns events(-8.0, -0.1, 0.0, 9.0)
@@ -163,7 +160,6 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
             }
         }
 
-        /** 화면은 시그널의 `occurredAt`을 그대로 `at`으로 보낸다. 그 시점 지수값은 시그널 행이 이미 들고 있다. */
         @Test
         fun `시그널 시각을 주면 그 시점 값이고 지수값은 비운다`() {
             every { signals.investorNetBuy(at, any()) } returns mapOf(Market.KOSPI to snapshot)
@@ -188,7 +184,6 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
             }
         }
 
-        /** Python도 같다 — 순수 이관이라 그대로 뒀다. */
         @Test
         fun `알 수 없는 시장은 INTERNAL_ERROR 봉투로 떨어진다`() {
             mvc.get("/api/leading-stocks/index/NIKKEI/minute-candles") { cookie(LoggedIn.cookie) }.andExpect {

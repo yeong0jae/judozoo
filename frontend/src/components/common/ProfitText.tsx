@@ -4,7 +4,6 @@ interface Props {
   value: number | null;
   format: (v: number) => string;
   className?: string;
-  // value === 0 일 때 "-" 로 표기. 종료 직후 등 의미 없는 0 표현용.
   zeroAsDash?: boolean;
 }
 

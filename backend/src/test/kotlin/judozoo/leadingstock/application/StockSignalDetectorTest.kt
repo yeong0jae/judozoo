@@ -18,7 +18,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/** 종목 시그널 폴러 — 상태 관리가 틀리면 같은 시그널이 반복 적재되거나 영영 안 울린다. 둘 다 조용히 잘못된다. */
 class StockSignalDetectorTest {
     private val at = LocalDateTime.of(2026, 9, 11, 10, 0)
     private var now = at
@@ -53,7 +52,6 @@ class StockSignalDetectorTest {
             }
         }
 
-        /** 이평 칸은 종목 반등·꺾임이 쓰던 자리다 — 생성이 멈춘 뒤로는 비어 있어야 한다. */
         @Test
         fun `스파이크 행에는 이평과 돌파 갭이 비어 있다`() {
             detector.detect()
@@ -70,7 +68,6 @@ class StockSignalDetectorTest {
             saved.shouldBeEmpty()
         }
 
-        /** 프리마켓 출렁임으로 같은 전이가 반복 적재되는 걸 막는다. 재시작으로 상태가 비어도 같다. */
         @Test
         fun `쿨다운 안에 같은 전이가 또 뜨면 건너뛴다`() {
             detector.detect()
@@ -93,7 +90,6 @@ class StockSignalDetectorTest {
             saved.size shouldBe 2
         }
 
-        /** 어제 상태를 들고 있으면 오늘 첫 전이를 놓친다. */
         @Test
         fun `일자가 바뀌면 직전 상태를 버린다`() {
             detector.detect()

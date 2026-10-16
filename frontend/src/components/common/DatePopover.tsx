@@ -4,15 +4,14 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const WEEKDAYS = ["월", "화", "수", "목", "금"];
 
-/** 그 달의 평일(월~금)만 주 단위 5열로 배치. 빈칸은 null. */
 function weeksOf(year: number, month: number): (number | null)[][] {
   const last = new Date(year, month + 1, 0).getDate();
   const weeks: (number | null)[][] = [];
   let week: (number | null)[] = Array(5).fill(null);
   for (let d = 1; d <= last; d++) {
-    const wd = new Date(year, month, d).getDay(); // 0=일 … 6=토
+    const wd = new Date(year, month, d).getDay();
     if (wd === 0 || wd === 6) continue;
-    const col = wd - 1; // 월(1)→0 … 금(5)→4
+    const col = wd - 1;
     if (col === 0 && week.some((x) => x !== null)) {
       weeks.push(week);
       week = Array(5).fill(null);
@@ -23,7 +22,6 @@ function weeksOf(year: number, month: number): (number | null)[][] {
   return weeks;
 }
 
-/** 거래일(평일) 단일 선택 팝업 달력. value/today/max는 YYYY-MM-DD. */
 export default function DatePopover({
   value,
   today,
@@ -35,14 +33,12 @@ export default function DatePopover({
   today: string;
   onChange: (v: string) => void;
   onClose: () => void;
-  /** 어느 쪽 끝을 트리거에 맞출지. 달력이 트리거보다 넓어, 맞춘 반대쪽으로 펼쳐진다 */
   align?: "left" | "right";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [vy, vm] = value.split("-").map(Number);
-  const [view, setView] = useState({ year: vy, month: vm - 1 }); // month: 0-index
+  const [view, setView] = useState({ year: vy, month: vm - 1 });
 
-  // 바깥 클릭·Esc로 닫기
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();

@@ -29,7 +29,7 @@ class KiwoomInvestorTest {
             day.date shouldBe "2026-09-11"
             day.individualNet shouldBe 1200
             day.foreignNet shouldBe -800
-            day.institutionNet shouldBe -400 // "400-" 후위 부호
+            day.institutionNet shouldBe -400
         }
 
         @Test

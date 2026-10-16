@@ -1,13 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { CHANGE_RATE_OPTIONS } from "../components/common/ChangeRateSelector";
 
-/**
- * 당일 등락률 임계값(%) — 사용자가 고르고 새로고침해도 유지된다.
- *
- * 화면과 헤더 티커가 **같은 값**을 봐야 조회가 합쳐진다(쿼리 키가 이 값이다). 그래서 store 하나를
- * 구독한다. 기본이 0인 건 넓게 보여주고 사용자가 좁히게 하려는 것이다 — 후보 필터 기준값
- * 7.0(`settings.py`)과는 다른 값이다.
- */
 export const DEFAULT_MIN_CHANGE_RATE = 0;
 
 function read(key: string): number {
@@ -21,7 +14,6 @@ function read(key: string): number {
 }
 
 function createStore(key: string) {
-  // getSnapshot은 같은 상태면 같은 값을 돌려줘야 한다 — 매번 읽지 않고 담아 둔다.
   let current = read(key);
   const listeners = new Set<() => void>();
   const emit = () => listeners.forEach((l) => l());
@@ -29,7 +21,6 @@ function createStore(key: string) {
   return {
     subscribe(listener: () => void) {
       listeners.add(listener);
-      // 다른 탭에서 바꾼 것도 따라간다
       const onStorage = (e: StorageEvent) => {
         if (e.key !== key) return;
         current = read(key);
@@ -48,7 +39,6 @@ function createStore(key: string) {
       try {
         localStorage.setItem(key, String(value));
       } catch {
-        // 저장 못 해도 이번 세션 동안은 동작한다
       }
       emit();
     },
@@ -58,12 +48,10 @@ function createStore(key: string) {
 const domestic = createStore("leadingStock.minChangeRate");
 const overseas = createStore("overseasStock.minChangeRate");
 
-/** 국내 주도주 등락률 임계값 — `useState`처럼 쓰되 값이 전역으로 공유된다. */
 export function useMinChangeRate(): [number, (v: number) => void] {
   return [useSyncExternalStore(domestic.subscribe, domestic.get), domestic.set];
 }
 
-/** 해외 주도주 등락률 임계값. */
 export function useOverseasMinChangeRate(): [number, (v: number) => void] {
   return [useSyncExternalStore(overseas.subscribe, overseas.get), overseas.set];
 }

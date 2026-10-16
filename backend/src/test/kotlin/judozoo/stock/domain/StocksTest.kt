@@ -36,8 +36,8 @@ class StocksTest {
 
         @Test
         fun `종목명 시작 일치를 코드 시작 일치보다 앞에 둔다`() {
-            val nameFirst = stock("999999", "ABC전자") // 종목명이 "abc"로 시작 → 관련도 0
-            val codeFirst = stock("ABC123", "주식회사가나") // 종목코드가 "abc"로 시작 → 관련도 1
+            val nameFirst = stock("999999", "ABC전자")
+            val codeFirst = stock("ABC123", "주식회사가나")
 
             Stocks(listOf(codeFirst, nameFirst)).search("abc", limit = 10) shouldBe listOf(nameFirst, codeFirst)
         }
@@ -60,7 +60,6 @@ class StocksTest {
 
     @Nested
     inner class 단축코드로_찾기 {
-        /** 시세 쪽은 SOR 통합 코드(`_AL`)를 쓰지만 카탈로그는 단축코드로 적재된다. */
         @Test
         fun `거래소 접미사가 붙어 와도 찾는다`() {
             catalog.find("005930_AL") shouldBe samsung

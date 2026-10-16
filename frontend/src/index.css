@@ -1,60 +1,45 @@
 @import "tailwindcss";
 
-/* 폰트 — UI는 Pretendard Variable, 숫자/코드는 JetBrains Mono Variable, 워드마크는 Outfit */
 @import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 @import "@fontsource-variable/jetbrains-mono";
 @import "@fontsource-variable/outfit";
 
 @theme {
-  /* 폰트 패밀리 — Tailwind의 font-sans/font-mono 유틸이 이 토큰을 가리킨다 */
   --font-sans:
     "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --font-mono:
     "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular,
     Menlo, monospace;
-  /* 로고 워드마크 전용 — 본문에는 쓰지 않는다 */
   --font-brand: "Outfit Variable", Outfit, var(--font-sans);
 
-  /* ─── 라이트 정석 Toss 팔레트 ─────────────────────────────────────────
-     Tailwind 기본 zinc/emerald/rose를 재매핑해, 페이지 코드의
-     bg-zinc-900 · border-zinc-800 · bg-emerald-700 · text-rose-400 등이
-     자동으로 라이트 톤을 가리키게 한다. 명도 스케일이 다크의 역전이라
-     `text-zinc-100`이 이제 진한 텍스트, `bg-zinc-950`이 가장 밝은 베이스. */
   --color-zinc-50: #f9fafb;
-  --color-zinc-100: #191f28; /* 본문 텍스트 (Toss primary) */
+  --color-zinc-100: #191f28;
   --color-zinc-200: #333d4b;
-  --color-zinc-300: #4e5968; /* 부차 라벨 (Toss secondary) */
-  --color-zinc-400: #6b7684; /* tertiary */
+  --color-zinc-300: #4e5968;
+  --color-zinc-400: #6b7684;
   --color-zinc-500: #8b95a1;
   --color-zinc-600: #b0b8c1;
   --color-zinc-700: #d1d6db;
-  --color-zinc-800: #e5e8eb; /* 카드 경계선 */
-  --color-zinc-850: #f1f3f5; /* 호버·옅은 채움 */
-  --color-zinc-900: #f4f6f8; /* 카드 표면 — 흰 바탕에서 한 단계 눌린 면 */
-  --color-zinc-950: #ffffff; /* 페이지 베이스·헤더·레일 */
-  /* 떠 있는 면 — 세그먼트 선택 썸·타일. 라이트/다크 모두 바탕보다 밝다. */
+  --color-zinc-800: #e5e8eb;
+  --color-zinc-850: #f1f3f5;
+  --color-zinc-900: #f4f6f8;
+  --color-zinc-950: #ffffff;
   --color-elevated: #ffffff;
 
-  /* 액센트 — 매매 시작 / 강조 = Toss Blue */
-  --color-emerald-600: #1b64da; /* CTA hover */
-  --color-emerald-700: #3182f6; /* CTA primary */
+  --color-emerald-600: #1b64da;
+  --color-emerald-700: #3182f6;
 
-  /* 이익 표시(작은 success 텍스트) — Toss green */
   --color-emerald-300: #34c759;
   --color-emerald-400: #16a34a;
   --color-emerald-500: #16a34a;
 
-  /* 선택된 행 — 호버보다 한 단계 진한 회색 */
   --color-selected: #e3e7ec;
 
-  /* 손익 빨강 — Toss red. rose-900/-950는 라이트 배너에서 쓰지 않으므로
-     기본값(다크) 유지. 어두운 알파 배경을 쓰던 컴포넌트는 라이트 패턴으로 직접 교체. */
   --color-rose-400: #f04452;
   --color-rose-500: #f04452;
   --color-rose-700: #be1f2c;
 
-  /* 시멘틱 토큰 */
   --color-surface: #f4f6f8;
   --color-surface-2: #ffffff;
   --color-border-soft: #e5e8eb;
@@ -72,26 +57,17 @@ body,
   height: 100%;
 }
 
-/* 루트 폰트 크기 — rem 기반 Tailwind 유틸(텍스트/패딩/간격/아이콘/컨테이너 폭)이 전부 여기 비례한다.
-   화면 폭에 물려 둔다. 상수로 두면 27인치에서 맞춘 크기가 노트북에서도 그대로라
-   칸이 밀려 종목명이 잘리고, 결국 브라우저 축소로 손수 되돌리게 된다.
-     1440 이하 16px · 1728(맥북 16") 17.4px · 2200 이상 20px
-   폰도 이 식의 하한(16px)에 걸리므로 따로 미디어쿼리를 두지 않는다. */
 html {
   font-size: clamp(16px, 0.5vw + 8.8px, 20px);
 }
 
-/* 페이지 베이스/본문 색상 — 라이트 기본값. .dark에서 오버라이드 */
 :root {
-  /* 브라우저 기본 UI(스크롤바·폼 컨트롤)도 테마를 따라가게 한다 */
   color-scheme: light;
   --page-bg: #ffffff;
   --text-primary: #191f28;
   --scrollbar-thumb: rgba(0, 0, 0, 0.16);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
 
-  /* 종목 아바타 — 면은 무채색, 색은 글자에만(StockAvatar.tsx의 규칙).
-     명도만 테마에 따라 뒤집는다. 밝은 면에는 글자가 어두워야 읽힌다. */
   --avatar-surface: #e8ebef;
   --avatar-ring: rgba(0, 0, 0, 0.07);
   --avatar-ink-0: #be123c;
@@ -103,15 +79,12 @@ html {
   --avatar-ink-6: #0e7490;
   --avatar-ink-7: #c2410c;
 
-  /* 주도주 캘린더의 해외 띠 — 한 칸에서 국내와 섞이지 않게 면과 라벨 색을 나눈다 */
   --leader-overseas: #6d5bd0;
   --leader-overseas-tint: #f5f3fd;
   --leader-closed-line: rgba(0, 0, 0, 0.03);
 
-  /* 주도주 타임라인 순위 — 파랑 한 색 5단계. 흰 바탕에선 1위가 가장 진하다(더 큰 값 = 더 진하게) */
   --tl-r1: #184f95; --tl-r2: #256abf; --tl-r3: #3987e5; --tl-r4: #6da7ec; --tl-r5: #9ec5f4;
   --tl-r1-fg: #fff; --tl-r2-fg: #fff; --tl-r3-fg: #fff; --tl-r4-fg: #0b1220; --tl-r5-fg: #0b1220;
-  /* 새로 들어옴 — 민트. 등락(빨강·파랑)·반등·꺾임(주황·하늘)·승격(보라)과 겹치지 않는다 */
   --tl-new: #0d9488; --tl-new-bg: rgba(13, 148, 136, 0.1);
   --tl-hatch: rgba(0, 0, 0, 0.05);
 }
@@ -120,26 +93,18 @@ body {
   font-family: var(--font-sans);
   background-color: var(--page-bg);
   color: var(--text-primary);
-  /* 한국어는 기본 줄바꿈이 글자 단위라 "봅니다"가 "봅 / 니다"로 갈린다 — 어절 단위로 끊는다.
-     긴 영문·URL은 넘칠 수 있어 overflow-wrap으로 그때만 강제로 자른다
-     (anywhere가 아니라 break-word — anywhere는 최소 너비 계산까지 바꿔 표 폭이 틀어진다). */
   word-break: keep-all;
   overflow-wrap: break-word;
-  /* 트레이딩 화면 — 숫자 세로 정렬을 전역 기본값으로 */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* 숫자 표시 유틸 — 고정폭 글꼴로 시세를 또렷하게. 자릿수 정렬은 그대로 유지.
-   주의: JetBrains Mono엔 한글 글리프가 없어 "1조 2,840억" 같은 값은
-   조·억만 본문 폰트로 떨어진다(한 값 안에서 글꼴이 갈린다). */
 .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* 헤더 시세 티커 — 같은 목록 두 벌을 이어 붙이고 절반만큼 밀어 이음매를 없앤다. */
 @keyframes ticker-marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
@@ -147,14 +112,10 @@ body {
 
 .ticker-viewport {
   overflow: hidden;
-  /* 양 끝을 서서히 지워 글자가 모서리에서 뚝 잘리지 않게 */
   mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent);
 }
 
-/* 한 바퀴 시간을 고정하면 종목이 많을수록 빨라진다 — 종목 수에 비례해 늘려
-   길이와 무관하게 같은 속도로 흐르게 한다. `--items`는 티커가 넣어 준다.
-   `max()`는 목록이 두세 개뿐일 때 한 바퀴가 너무 짧아지는 걸 막는 바닥이다. */
 .ticker-track {
   display: flex;
   width: max-content;
@@ -162,18 +123,14 @@ body {
   animation: ticker-marquee max(14s, calc(var(--per-item) * var(--items, 12))) linear infinite;
 }
 
-/* 지나가는 종목을 읽으려면 멈춰야 한다 */
 .ticker-viewport:hover .ticker-track {
   animation-play-state: paused;
 }
 
-/* 모바일은 한 칸이 좁아(px-3) 같은 시간이면 흐름이 그만큼 느려진다 — 칸당 시간을 줄여
-   체감 속도를 데스크톱에 맞춘다. */
 @media (max-width: 767px) {
   .ticker-track { --per-item: 2.2s; }
 }
 
-/* 움직임을 줄이는 설정이면 흐르지 않게 하고 직접 밀어 보게 둔다 */
 @media (prefers-reduced-motion: reduce) {
   .ticker-track { animation: none; }
   .ticker-viewport {
@@ -183,7 +140,6 @@ body {
   }
 }
 
-/* 스크롤바 — 다크 테마에 맞춰 얇고 은은하게 (트랙 투명, 둥근 thumb). 보이는 막대는 4px */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -200,7 +156,6 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover);
 }
-/* Firefox만 — Chrome(121+)은 scrollbar-width가 있으면 위 ::-webkit-scrollbar를 버리고 기본 막대를 그린다 */
 @supports (-moz-appearance: none) {
   * {
     scrollbar-width: thin;
@@ -208,16 +163,9 @@ body {
   }
 }
 
-/* 주도주 목록의 행 하이라이트 — 4초간 물들였다가 걷힌다(JS의 FLASH_MS와 같은 길이).
-   두 사건은 뜻이 달라 색을 나눈다. amber는 "목록에 새로 들어왔다",
-   violet은 "주도주 구간으로 올라왔다" — 후자가 드물고 더 중요한 소식이다.
-   등락률(빨강·파랑)·돌파눌림(주황·하늘)과 겹치지 않는 색으로 골랐다.
-
-   **농도는 낮게 잡는다.** 진하면 배경이 글자와 경쟁해서, 어느 종목이 들어왔는지
-   읽기 전에 색부터 눈에 들어온다. 알림이지 강조가 아니다. */
 @keyframes leading-stock-new {
   from {
-    background-color: rgba(251, 191, 36, 0.1); /* amber-400 / 10% */
+    background-color: rgba(251, 191, 36, 0.1);
   }
   to {
     background-color: transparent;
@@ -229,7 +177,7 @@ body {
 
 @keyframes leading-stock-promoted {
   from {
-    background-color: rgba(139, 92, 246, 0.12); /* violet-500 / 12% */
+    background-color: rgba(139, 92, 246, 0.12);
   }
   to {
     background-color: transparent;
@@ -239,8 +187,6 @@ body {
   animation: leading-stock-promoted 4s ease-out;
 }
 
-/* 주도주에서 후보로 내려온 줄 — 색을 주지 않고 무채색으로만 짚는다.
-   나간 건 알아야 하지만 들어온 것만큼 반가운 소식은 아니다. */
 @keyframes leading-stock-demoted {
   from {
     background-color: rgba(255, 255, 255, 0.07);
@@ -253,8 +199,6 @@ body {
   animation: leading-stock-demoted 4s ease-out;
 }
 
-/* 순서가 바뀐 줄이 새 자리로 미끄러진다(FLIP). 자리 차이만큼 되돌려 놓고 0으로 푸는
-   방식이라, 트랜지션은 **움직이는 동안에만** 붙인다 — 늘 걸어두면 첫 그림에서도 흐른다. */
 .row-sliding {
   transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
@@ -265,8 +209,6 @@ body {
   }
 }
 
-/* 모바일 목록 ↔ 상세 — 들어가면 오른쪽에서, 돌아오면 왼쪽에서 밀려 들어온다.
-   `hidden`이 풀리는 순간 애니메이션이 다시 돈다. 목록·상세가 나란히 보이는 폭(lg)에선 걸지 않는다. */
 @keyframes pane-from-right {
   from { opacity: 0; transform: translateX(28px); }
   to { opacity: 1; transform: none; }
@@ -284,7 +226,6 @@ body {
   }
 }
 
-/* 화면 머리의 갱신 고리 — 받은 순간 비었다가 자동 갱신 주기에 걸쳐 찬다(주기는 인라인 animation-duration). */
 @keyframes refresh-ring {
   from { stroke-dashoffset: var(--ring); }
   to { stroke-dashoffset: 0; }
@@ -298,7 +239,6 @@ body {
   }
 }
 
-/* 시간대별 수급 — 값이 갱신될 때 직전 변화량을 세 번 깜빡인 뒤 흐리게 유지 */
 @keyframes flow-delta {
   0% {
     opacity: 0.15;
@@ -320,12 +260,6 @@ body {
   }
 }
 
-/* ─── 다크 모드 ─────────────────────────────────────────────────────────
-   `<html class="dark">` 일 때 활성. Tailwind v4 유틸은 모두 var(--color-X-N)을
-   가리키므로, 토큰만 갈아끼우면 페이지 마크업을 안 건드리고 전환된다.
-
-   면(바탕·카드·선·호버)은 **푸른 기를 살짝 준 어두운 톤**이다(2026-09-26, 024 캘린더 시안에서 가져왔다).
-   무채색(#17181c)보다 한 단계 어둡고 강조색(파랑)과 결이 맞는다. 글자·등락색은 건드리지 않았다. */
 :root.dark {
   color-scheme: dark;
   --page-bg: #121418;
@@ -333,7 +267,6 @@ body {
   --scrollbar-thumb: rgba(255, 255, 255, 0.12);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
 
-  /* 종목 아바타 — 면은 카드보다 한 단계 밝고, 글자는 칩들이 쓰는 "밝은 톤" 자리의 색 */
   --avatar-surface: #2b2d33;
   --avatar-ring: rgba(255, 255, 255, 0.1);
   --avatar-ink-0: #fda4af;
@@ -349,49 +282,36 @@ body {
   --leader-overseas-tint: #1e1c2b;
   --leader-closed-line: rgba(255, 255, 255, 0.035);
 
-  /* 다크 바탕에선 1위가 가장 밝다 — 서열 램프 검증 통과(가장 어두운 5위도 바탕 대비 2:1 이상) */
   --tl-r1: #9ec5f4; --tl-r2: #6da7ec; --tl-r3: #3987e5; --tl-r4: #256abf; --tl-r5: #184f95;
   --tl-r1-fg: #0b1220; --tl-r2-fg: #0b1220; --tl-r3-fg: #0b1220; --tl-r4-fg: #fff; --tl-r5-fg: #fff;
   --tl-new: #5eead4; --tl-new-bg: rgba(94, 234, 212, 0.12);
   --tl-hatch: rgba(255, 255, 255, 0.05);
 
-  /* zinc 스케일 — 라이트의 명도 역전을 다시 역전 */
   --color-zinc-50: #0e0e10;
-  --color-zinc-100: #f1f3f5; /* 본문 */
+  --color-zinc-100: #f1f3f5;
   --color-zinc-200: #e1e3e6;
   --color-zinc-300: #c4c7cc;
-  --color-zinc-400: #8b95a1; /* 보조 라벨 */
+  --color-zinc-400: #8b95a1;
   --color-zinc-500: #6b7684;
   --color-zinc-600: #4e5968;
   --color-zinc-700: #333d4b;
-  --color-zinc-800: #2a2f37; /* 카드 경계선 */
-  --color-zinc-850: #22262d; /* 호버·옅은 채움 */
-  --color-zinc-900: #1b1e24; /* 카드 표면 */
-  --color-zinc-950: #121418; /* 페이지 베이스(이미 위에서 var로 적용) */
-  /* 떠 있는 면 — 세그먼트 선택 썸·타일. 트랙(zinc-800 #2a2f37)보다 확실히 위여야 한다. */
+  --color-zinc-800: #2a2f37;
+  --color-zinc-850: #22262d;
+  --color-zinc-900: #1b1e24;
+  --color-zinc-950: #121418;
   --color-elevated: #353a44;
 
-  /* CTA & 성공 — Toss Blue / Toss green 그대로 유지(다크에서도 잘 보임) */
-  /* (emerald-300/-400/-500/-600/-700은 라이트와 동일값이라 생략) */
-
-  /* 선택된 행 */
   --color-selected: #2a2e36;
 
-  /* 손익 빨강 — 다크에서 보이도록 톤업 */
   --color-rose-400: #f87171;
   --color-rose-500: #f04452;
   --color-rose-700: #fb7185;
 
-  /* 배지 패턴 (bg-X-50 + text-X-700 + border-X-200) — 다크 변형
-     배경은 색조 translucent, 텍스트는 밝은 동계 색으로 readable. */
-
-  /* rose */
   --color-rose-50: rgba(240, 68, 82, 0.12);
   --color-rose-100: rgba(240, 68, 82, 0.20);
   --color-rose-200: rgba(240, 68, 82, 0.30);
   --color-rose-800: #fda4af;
 
-  /* amber */
   --color-amber-50: rgba(245, 158, 11, 0.12);
   --color-amber-100: rgba(245, 158, 11, 0.20);
   --color-amber-200: rgba(245, 158, 11, 0.30);
@@ -399,43 +319,35 @@ body {
   --color-amber-700: #fcd34d;
   --color-amber-800: #fcd34d;
 
-  /* blue */
   --color-blue-50: rgba(59, 130, 246, 0.12);
   --color-blue-200: rgba(59, 130, 246, 0.30);
   --color-blue-500: #3b82f6;
   --color-blue-600: #60a5fa;
   --color-blue-700: #93c5fd;
 
-  /* sky */
   --color-sky-50: rgba(14, 165, 233, 0.12);
   --color-sky-200: rgba(14, 165, 233, 0.30);
   --color-sky-700: #7dd3fc;
 
-  /* gray (StatusPill/배지 중립용) */
   --color-gray-50: rgba(255, 255, 255, 0.04);
   --color-gray-100: rgba(255, 255, 255, 0.06);
   --color-gray-200: rgba(255, 255, 255, 0.10);
-  --color-gray-300: #4e5968; /* 토글 OFF 트랙 */
+  --color-gray-300: #4e5968;
   --color-gray-500: #8b95a1;
   --color-gray-700: #d1d6db;
 
-  /* orange */
   --color-orange-50: rgba(251, 146, 60, 0.12);
   --color-orange-200: rgba(251, 146, 60, 0.30);
   --color-orange-700: #fdba74;
 
-  /* emerald 배지 (성공) */
   --color-emerald-50: rgba(52, 199, 89, 0.12);
   --color-emerald-100: rgba(52, 199, 89, 0.20);
   --color-emerald-200: rgba(52, 199, 89, 0.30);
-  --color-emerald-800: #4ade80; /* 다크에서 readable한 밝은 녹 */
+  --color-emerald-800: #4ade80;
 
-  /* 손익(red/blue) 텍스트 — 다크에서 보이도록 한 단계 밝게.
-     700은 "선택됨"을 뜻해 600보다 더 밝아야 한다 — 파란 쪽(600 #60a5fa → 700 #93c5fd)과 대칭. */
   --color-red-600: #f87171;
   --color-red-700: #fca5a5;
 
-  /* 시멘틱 */
   --color-surface: #1b1e24;
   --color-surface-2: #121418;
   --color-border-soft: #2a2f37;
@@ -443,27 +355,21 @@ body {
   --color-text-subtle: #6b7684;
 }
 
-/* 주도주 캘린더 휴장 칸 — 빗금. 칸은 그대로 두고 "장이 없었다"는 것만 결로 알린다 */
 .leader-closed {
   background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--leader-closed-line) 6px 7px);
 }
 
-/* 주도주 타임라인 — 종목 줄은 절대 위치로 두고 순서가 바뀌면 위아래로 미끄러진다 */
 .tl-chart { --tl-label: 264px; }
 @media (max-width: 640px) { .tl-chart { --tl-label: 180px; } }
 .tl-row { transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .3s ease; will-change: transform; }
 .tl-rows.instant .tl-row { transition: none; }
 @media (prefers-reduced-motion: reduce) { .tl-row { transition: none; } }
 .tl-hatch { background: repeating-linear-gradient(135deg, transparent 0 4px, var(--tl-hatch) 4px 5px); }
-/* 모바일 타임라인 — 띠를 손가락으로 미는 가로 스크롤. 스크롤바 대신 가운데 세로선이 위치를 알린다 */
 .tl-scrub { scrollbar-width: none; overscroll-behavior-x: contain; }
 .tl-scrub::-webkit-scrollbar { display: none; }
-/* 주도주 캘린더 — 달을 스크롤로 넘기지만 막대는 보이지 않게 */
 .cal-scroll { scrollbar-width: none; }
 .cal-scroll::-webkit-scrollbar { display: none; }
 
-/* ─── 모의 종가베팅 ───────────────────────────────────────────── */
-/* 금(S)·은(A) 티켓 머리 칸을 한 번 지나가는 빛 */
 @keyframes cb-sheen {
   0% { transform: translateX(-120%) skewX(-18deg); }
   100% { transform: translateX(260%) skewX(-18deg); }
@@ -475,7 +381,6 @@ body {
 }
 .cb-sheen-a { background: linear-gradient(90deg, rgba(235, 240, 248, 0) 0%, rgba(235, 240, 248, 0.32) 50%, rgba(235, 240, 248, 0) 100%); }
 
-/* 베팅 완료 도장 */
 @keyframes cb-stamp {
   0% { transform: scale(2.2) rotate(-14deg); opacity: 0; }
   60% { transform: scale(0.92) rotate(-8deg); opacity: 1; }
@@ -483,7 +388,6 @@ body {
 }
 .cb-stamp { animation: cb-stamp 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
 
-/* 금액 슬라이더 — 흰 채움 + 흰 손잡이(채움 비율은 인라인 배경으로) */
 .cb-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; margin: 11px 0; border-radius: 999px; cursor: pointer; outline: none; }
 .cb-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 999px; background: #f1f3f5; border: 0; box-shadow: 0 0 0 4px rgba(241, 243, 245, 0.12); }
 .cb-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 999px; background: #f1f3f5; border: 0; }

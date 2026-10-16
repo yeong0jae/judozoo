@@ -12,11 +12,6 @@ import judozoo.stock.domain.Market
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/**
- * 지수선물 시장의 장중 투자자 순매수 스냅샷(당일 누적). 단위는 계약(부호 포함, 양수=순매수).
- *
- * 선물 투자자 폴러가 장중 1분마다 남긴다. 세션별 순매수는 이 스냅샷들의 경계 차이라, 폴러가 돌지 않은 과거는 **소급할 수 없다**.
- */
 @Entity
 @Table(name = "futures_investor_snapshot")
 class FuturesInvestorSnapshot(
@@ -28,7 +23,6 @@ class FuturesInvestorSnapshot(
     @Column(name = "foreign_qty") val foreignQty: Long,
     @Column(name = "institution_qty") val institutionQty: Long,
     @Column(name = "individual_qty") val individualQty: Long,
-    // 기관 세부 — 기관계의 내역
     @Column(name = "securities_qty") val securitiesQty: Long,
     @Column(name = "insurance_qty") val insuranceQty: Long,
     @Column(name = "merchant_bank_qty") val merchantBankQty: Long,

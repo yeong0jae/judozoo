@@ -20,12 +20,6 @@ import java.time.Clock
 import java.time.LocalDateTime
 import java.util.Base64
 
-/**
- * 로그인 — 구글 OAuth(OpenID Connect). `/api/auth/` 아래는 관문 허용목록이라 로그인이 필요한 곳(탈퇴)은 여기서 직접 건다.
- *
- * 로그인 시작에서 만든 `state`·`nonce`는 세션 쿠키에 담아 두고 콜백에서 대조한다(CSRF·토큰 재사용 방어) —
- * Python(authlib)이 쓰던 `_state_google_<state>` 자리 그대로다.
- */
 @RestController
 @RequestMapping("/api/auth")
 class AuthController(
@@ -37,7 +31,6 @@ class AuthController(
     private val log = LoggerFactory.getLogger(javaClass)
     private val random = SecureRandom()
 
-    /** 프론트가 헤더 렌더와 로그인 유도 판단에 쓴다. 미로그인도 200으로 답한다. */
     data class Me(val authenticated: Boolean, val email: String? = null)
 
     @GetMapping("/login")
@@ -49,7 +42,6 @@ class AuthController(
         response.sendRedirect(google.authorizeUrl(state, nonce))
     }
 
-    /** state 불일치·code 만료·네트워크 실패는 전부 첫 화면으로 돌려보낸다. */
     @GetMapping("/callback")
     fun callback(
         @RequestParam(required = false) code: String?,
@@ -77,7 +69,6 @@ class AuthController(
             response.sendRedirect("/?login=failed")
             return
         }
-        // 구글 계정이 아니라 내부 식별자로 된 사용자를 담는다 — 이후 요청의 로그가 이 값을 쓴다
         val user = auth.recordLogin(account, LocalDateTime.now(clock.withZone(KST)))
         cookies.write(response, rest + (CurrentUser.SESSION_KEY to user.toSession()))
         response.sendRedirect("/")
@@ -108,7 +99,6 @@ class AuthController(
     companion object {
         private const val STATE_PREFIX = "_state_google_"
 
-        /** 로그인을 시작하고 돌아오기까지 기다리는 시간 — authlib 기본값과 같다 */
         private const val STATE_TTL_SECONDS = 3600L
     }
 }

@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Query
 import java.time.LocalDate
 
 interface StockMinuteCandleRepository : JpaRepository<StockMinuteCandleEntity, Int> {
-    /** 그날 봉(시각 오름차순). */
     fun findByStockCodeAndTradeDateOrderByMinuteAt(stockCode: String, tradeDate: LocalDate): List<StockMinuteCandleEntity>
 
     @Modifying

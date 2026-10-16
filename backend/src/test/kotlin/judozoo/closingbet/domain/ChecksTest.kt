@@ -83,7 +83,6 @@ class ChecksTest {
 
     @Nested
     inner class 최근_고점과의_거리 {
-        /** age 1 = 어제. 나머지 날은 filler. */
         private fun history(highs: Map<Int, Long>, filler: Long = 100) = (1 until 100).map { age ->
             val high = highs[age] ?: filler
             DailyCandle(FRI.minusDays(age.toLong()), high, high, high, high, 1, 0.0)

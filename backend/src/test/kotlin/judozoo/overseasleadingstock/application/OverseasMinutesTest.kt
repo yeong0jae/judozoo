@@ -23,19 +23,17 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-/** 해외 1분봉 저장소 — 처음만 2거래일을 받고, 그다음은 새 봉만 받는다. */
 class OverseasMinutesTest {
-    private val yesterday = LocalDate.of(2026, 9, 24) // 현지 영업일
+    private val yesterday = LocalDate.of(2026, 9, 24)
     private val today = LocalDate.of(2026, 9, 25)
 
-    private var now = LocalDateTime.of(2026, 9, 25, 23, 0) // KST
+    private var now = LocalDateTime.of(2026, 9, 25, 23, 0)
     private var closed = false
     private var error: Exception? = null
     private var response = listOf<OverseasMinuteCandle>()
     private var gate: CountDownLatch? = null
     private val calls = Collections.synchronizedList(mutableListOf<LocalDateTime?>())
 
-    /** 보관소는 메모리 흉내로 — DB 층은 [OverseasMinuteArchiveTest]가 본다. */
     private val archived = sortedMapOf<Triple<String, String, LocalDate>, List<OverseasMinuteCandle>>(compareBy({ it.first }, { it.second }, { it.third }))
 
     private val chart = mockk<KisOverseasChart> {
@@ -87,7 +85,7 @@ class OverseasMinutesTest {
             error = null
             minutes.minuteCandles("NAS", "AAPL")
 
-            calls shouldBe listOf(null, null) // 다음에도 처음처럼 받는다
+            calls shouldBe listOf(null, null)
         }
     }
 
@@ -129,7 +127,7 @@ class OverseasMinutesTest {
             val next = LocalDate.of(2026, 9, 26)
             response = listOf(bar(next, LocalDateTime.of(2026, 9, 26, 17, 0)))
 
-            minutes.minuteCandles("NAS", "AAPL").map { it.tradingDay }.toSortedSet().toList() shouldBe listOf(today, next) // 그제(어제) 봉은 빠진다
+            minutes.minuteCandles("NAS", "AAPL").map { it.tradingDay }.toSortedSet().toList() shouldBe listOf(today, next)
         }
 
         @Test
@@ -155,7 +153,6 @@ class OverseasMinutesTest {
             calls shouldHaveSize 1
         }
 
-        /** 마감 직전 값은 마지막 봉이 덜 찼을 수 있다. */
         @Test
         fun `장중에 받은 값은 닫힌 뒤 한 번은 다시 받는다`() {
             open()
@@ -187,7 +184,7 @@ class OverseasMinutesTest {
             open()
             now = now.plusMinutes(11)
             response = listOf(bar(today, LocalDateTime.of(2026, 9, 25, 22, 30)))
-            minutes.minuteCandles("NAS", "MSFT") // 다른 종목을 열며 정리가 돈다
+            minutes.minuteCandles("NAS", "MSFT")
 
             minutes.minuteCandles("NAS", "AAPL")
 
@@ -225,7 +222,7 @@ class OverseasMinutesTest {
 
             minutes.minuteCandles("NAS", "AAPL")
 
-            archived.getValue(Triple("NAS", "AAPL", today)).map { it.dateTime.hour } shouldBe listOf(22, 8) // 마지막 봉까지 담겨 넘어간다
+            archived.getValue(Triple("NAS", "AAPL", today)).map { it.dateTime.hour } shouldBe listOf(22, 8)
         }
 
         @Test
@@ -235,7 +232,7 @@ class OverseasMinutesTest {
 
             minutes.settle() shouldBe 0
 
-            calls.last() shouldBe LocalDateTime.of(2026, 9, 25, 22, 28) // 마지막 봉 2분 앞부터
+            calls.last() shouldBe LocalDateTime.of(2026, 9, 25, 22, 28)
             archived.getValue(Triple("NAS", "AAPL", today)).map { it.close } shouldBe listOf(100.0, 120.0)
         }
 
@@ -258,11 +255,10 @@ class OverseasMinutesTest {
 
             val bars = minutes.minuteCandles("NAS", "AAPL")
 
-            calls shouldBe listOf(LocalDateTime.of(2026, 9, 25, 5, 0)) // 보관한 마지막 봉 1분 뒤부터
+            calls shouldBe listOf(LocalDateTime.of(2026, 9, 25, 5, 0))
             bars.map { it.tradingDay } shouldBe listOf(yesterday, today)
         }
 
-        /** 장이 열리기 전 — 오늘 봉이 아직 없다. */
         @Test
         fun `새 봉이 없으면 보관한 두 날을 보여준다`() {
             val dayBefore = LocalDate.of(2026, 9, 23)
@@ -281,7 +277,6 @@ class OverseasMinutesTest {
             calls shouldBe listOf(LocalDateTime.of(2026, 9, 25, 5, 0), null)
         }
 
-        /** 그 뒤를 이어 받으면 2거래일치보다 더 받게 된다. */
         @Test
         fun `보관한 날이 너무 오래됐으면 2거래일치를 받는다`() {
             val old = LocalDate.of(2026, 9, 18)
@@ -297,7 +292,6 @@ class OverseasMinutesTest {
     inner class 동시_요청 {
         private val pool = Executors.newFixedThreadPool(4)
 
-        /** 재시작 직후 인기 종목을 여럿이 한꺼번에 연 상황 — 각자 12페이지씩 받으면 한도에 걸린다. */
         @Test
         fun `같은 종목을 동시에 처음 열면 KIS를 한 번만 부른다`() {
             response = listOf(bar(yesterday, LocalDateTime.of(2026, 9, 25, 4, 59)), bar(today, LocalDateTime.of(2026, 9, 25, 22, 30)))
@@ -322,7 +316,7 @@ class OverseasMinutesTest {
             gate!!.countDown()
             futures.forEach { it.get() }
 
-            calls shouldHaveSize 2 // 처음 열기 + 이어 받기 한 번
+            calls shouldHaveSize 2
         }
     }
 

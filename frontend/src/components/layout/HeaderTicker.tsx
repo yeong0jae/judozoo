@@ -4,12 +4,6 @@ import { useMinChangeRate, useOverseasMinChangeRate } from "../../lib/changeRate
 import { formatPct, formatPrice } from "../../lib/format";
 import { overseasIsMain, useMarketSessions } from "../../lib/marketSession";
 
-/**
- * 헤더 시세 티커 — 주인공 쪽(`overseasIsMain`) 주도주가 왼쪽으로 흐른다.
- *
- * 한쪽만 마운트한다 — 둘 다 걸어두면 안 보이는 쪽까지 폴링한다.
- * 같은 목록을 두 벌 이어 붙이고 절반(-50%)만큼 밀어 이음매 없이 돈다.
- */
 export default function HeaderTicker() {
   const { now } = useMarketSessions();
   const krHoliday = useMarketCalendarStatus("KR").data?.isHoliday;
@@ -54,12 +48,10 @@ type Item = { key: string; name: string; price: string; rate: number };
 function Track({ items }: { items: Item[] }) {
   if (items.length === 0) return null;
 
-  // 두 벌을 이어 붙여야 -50%에서 이음매가 안 보인다
   const doubled = [...items, ...items];
 
   return (
     <div className="ticker-viewport min-w-0 flex-1" aria-label="주도주 시세">
-      {/* 흐르는 속도는 CSS가 정한다 — 여기서는 몇 칸인지만 알려준다 */}
       <div className="ticker-track" style={{ "--items": items.length } as CSSProperties}>
         {doubled.map((s, i) => (
           <Tick key={`${s.key}-${i}`} name={s.name} price={s.price} rate={s.rate} />
@@ -73,7 +65,6 @@ function Tick({ name, price, rate }: { name: string; price: ReactNode; rate: num
   const tone =
     rate > 0 ? "text-red-400" : rate < 0 ? "text-blue-400" : "text-zinc-500";
   return (
-    // 폰은 한 칸을 좁혀야 한 화면에 두 종목이 걸린다 — 데스크톱은 원래 여백 그대로
     <span className="flex items-baseline gap-1.5 whitespace-nowrap border-r border-zinc-800/70 px-3 md:gap-2 md:px-5">
       <span className="text-[13px] font-medium text-zinc-300 md:text-[14px]">{name}</span>
       <span className="num text-[12px] text-zinc-500 md:text-[13px]">{price}</span>

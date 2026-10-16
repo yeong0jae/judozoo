@@ -18,7 +18,6 @@ class TossMarketCalendarTest {
 
     @Nested
     inner class 액세스_토큰 {
-        /** client당 토큰이 1개라 다른 프로세스가 발급받으면 이쪽이 즉시 죽는다. */
         @Test
         fun `401이면 토큰을 버리고 한 번 재시도한다`() {
             stub.respondInOrder(KR, 401 to "{}", 200 to krOpen)
@@ -58,7 +57,6 @@ class TossMarketCalendarTest {
             calendar.isTradingDay("US", day) shouldBe false
         }
 
-        /** 휴장으로 단정하면 안 된다 — 호출측이 폴백하도록 모름을 알린다. */
         @Test
         fun `조회 실패면 null`() {
             stub.respond(KR, "{}", status = 500)

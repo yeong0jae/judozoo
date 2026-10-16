@@ -8,10 +8,6 @@ import { colorByPnL } from "../../lib/format";
 const MEDAL = ["#f5c451", "#d4d8de", "#c98a5a"];
 const MEDAL_INK = ["#1a1405", "#14161a", "#1f1006"];
 
-/**
- * 베팅·대기 시간의 지난 판 — 한 줄로 결과를 보여 주고, 누르면 오른쪽 서랍에 복기를 펼친다.
- * 종목별 시장·수급 복기는 복기 시간(09:05~15:00) 화면에만 둔다.
- */
 export default function LastRound({ round, me, member }: { round: ClosingBetRound; me: Me | null; member: boolean }) {
   const [open, setOpen] = useState(false);
   const mine = round.me;

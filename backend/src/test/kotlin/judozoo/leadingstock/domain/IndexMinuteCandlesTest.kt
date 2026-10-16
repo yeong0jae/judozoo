@@ -25,10 +25,8 @@ class IndexMinuteCandlesTest {
         }
     }
 
-    /** 5분봉 종가 20이평. 진행 중인 마지막 5분봉은 판정에 넣지 않는다. */
     @Nested
     inner class 이평_돌파 {
-        /** 5분봉 종가들을 1분봉으로 깔고, 판정에서 빠질 진행 중인 봉 하나를 뒤에 붙인다. */
         private fun bars(vararg closes: Double) = IndexMinuteCandles(
             (closes.toList() + 0.0).mapIndexed { i, c -> IndexMinuteCandle(open.plusMinutes(i * 5L), c, c, c, c, 0) },
         ).movingAverage(5, 20, 0.005)

@@ -28,12 +28,6 @@ import {
 import { goLogin, useMe } from "../api/auth";
 import { ApiError } from "../api/client";
 
-/**
- * 모의 종가베팅 — 시간대가 화면을 정한다(지금 칸은 서버가 알려 준다).
- *  복기 09:05~15:00 · 베팅 15:00~20:00 · 대기 20:00~08:00 · 결과 08:00~09:05
- *  쉬는 날은 직전 개장일 판을 기다리는 대기
- */
-
 const SUB: Record<Moment, (next: Date | null, offDay: boolean) => string> = {
   review: () => "오늘 판은 15:00에 열려요.",
   bet: () => "20:00 종가로 체결돼요. 그 전까지는 바꾸거나 취소할 수 있어요.",
@@ -42,7 +36,6 @@ const SUB: Record<Moment, (next: Date | null, offDay: boolean) => string> = {
   result: () => "08:05 NXT 종목 → 09:05 KRX 종목과 최종 랭킹",
 };
 
-/** 대기 칸 중 쉬는 날 — 오늘이 판이 선 날도, 결과가 나오는 날도 아니다 */
 function offDay(n: ClosingBetNow, next: Date | null, clock: Date): boolean {
   const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const today = ymd(clock);
@@ -65,7 +58,6 @@ function LoginBox({ title, body, className = "" }: { title: string; body: string
   );
 }
 
-/** 등급 이유 카드 — 로그인 + 서버 판정 + 시장 수급이 있을 때만 */
 function Pager({ row, flows, verdict, member }: { row: StockRow; flows: Record<MarketName, MarketFlow> | null; verdict: Verdict | null; member: boolean }) {
   const box = "min-h-[240px] rounded-[18px] border-2 border-dashed border-zinc-800 p-6";
   if (!member) {
@@ -103,7 +95,6 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
   const [error, setError] = useState("");
   const synced = useRef(false);
   useEffect(() => {
-    // 처음 받은 내 베팅 금액으로 슬라이더를 맞춘다(그 뒤로는 사용자가 움직인 값)
     if (myBet && !synced.current) {
       synced.current = true;
       setAmount(myBet.amountMan);
@@ -124,7 +115,6 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
   const selected = live ? (pick ?? myBet?.stockCode ?? null) : (myBet?.stockCode ?? null);
   const confirmed = !!myBet && selected === myBet.stockCode && !editing;
   const ticketIdx = items.findIndex((s) => s.code === selected);
-  // 목록에서 빠진 종목에 건 베팅 — 티켓은 내 베팅으로 그린다
   const ticketStock: BetStock | null =
     ticketIdx >= 0
       ? list[ticketIdx]
@@ -140,7 +130,7 @@ function TodayBoard({ now, clock, member, me }: { now: ClosingBetNow; clock: Dat
     if (!live || !member) return;
     setError("");
     if (code === selected && code !== myBet?.stockCode) {
-      setPick(null); // 고르기만 한 종목을 다시 누르면 해제
+      setPick(null);
       return;
     }
     setPick(code);
@@ -302,7 +292,6 @@ export default function ClosingBetPage() {
 
   const n = nowQ.data;
   const nextAt = n?.nextAt ? new Date(n.nextAt) : null;
-  // 다음 칸이 시작되면 바로 다시 묻는다(1분 폴링을 기다리지 않는다)
   const refetchedFor = useRef<string | null>(null);
   const { refetch } = nowQ;
   useEffect(() => {

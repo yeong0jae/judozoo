@@ -21,27 +21,15 @@ import MarketToggle from "../components/common/MarketToggle";
 import { loadMarket, rememberMarket, type StockMarket } from "../lib/stockMarket";
 import LeaderGuide from "../components/common/LeaderGuide";
 
-/**
- * 키움 마스터 코드 — 거래 ID로는 6자리 단축코드만 사용.
- * "009150_AL" 같이 거래소 접미사가 붙어 오면 "_" 앞쪽으로 잘라낸다.
- */
 function shortCode(stockCode: string): string {
   const idx = stockCode.indexOf("_");
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
 }
 
-/** 행 하이라이트 종류 — 목록 진입(amber) · 주도주 승격(violet) · 강등(회색). */
 type Flash = "new" | "promoted" | "demoted" | null;
 
-/** 하이라이트가 남아 있는 시간(ms). CSS의 애니메이션 길이와 같아야 한다. */
 const FLASH_MS = 4000;
 
-/**
- * 방금 이 목록에 들어온 코드들.
- *
- * `session`은 "같은 조건으로 계속 보고 있다"는 표시다. 바뀌면 이전 기억을 버린다 — 두 조회가 따로
- * 도착하거나 등락률을 바꾼 순간 비교하면 전부 새것으로 오탐한다. 첫 비교는 언제나 건너뛴다.
- */
 function useMembership(
   codes: string[],
   session: string | null,
@@ -52,13 +40,11 @@ function useMembership(
   const [left, setLeft] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (session === null) return; // 아직 볼 준비가 안 됐다
+    if (session === null) return;
 
     const current = new Set(key ? key.split(",") : []);
     const prev = prevRef.current;
-    // 비교를 마치기 전에 갱신한다 — 갱신을 건너뛰면 다음 폴링이 같은 종목을 또 새것으로 본다
     prevRef.current = { session, codes: current };
-    // 기억이 없거나(첫 비교), 다른 조건에서 본 목록이거나, 직전이 빈 목록이면 비교하지 않는다
     if (prev === null || prev.session !== session || prev.codes.size === 0) return;
 
     const 들어옴 = [...current].filter((c) => !prev.codes.has(c));
@@ -89,12 +75,6 @@ function useMembership(
   return { entered, left };
 }
 
-/**
- * 순서가 바뀐 줄을 새 자리로 미끄러뜨린다(FLIP).
- *
- * 직전 그림의 위치를 기억해 뒀다가, 새로 그려진 직후 **그 차이만큼 되돌려 놓고** 0으로 푼다.
- * 애니메이션이 없으면 다음 응답에서 줄이 갑자기 다른 자리에 나타나, 무엇이 어디로 갔는지 알 수 없다.
- */
 function useSlideOnReorder(ref: RefObject<HTMLElement>, orderKey: string) {
   const prevTops = useRef<Map<string, number>>(new Map());
 
@@ -126,9 +106,6 @@ function useSlideOnReorder(ref: RefObject<HTMLElement>, orderKey: string) {
   }, [ref, orderKey]);
 }
 
-/**
- * 주도주 후보 — 국내/해외 토글로 전환. 안 보이는 쪽은 언마운트되어 폴링이 멈춘다.
- */
 export default function LeadingStocksPage() {
   const [market, setMarket] = useState<StockMarket>(loadMarket);
   useEffect(() => {
@@ -149,9 +126,7 @@ function DomesticLeadingStocks({
   market: StockMarket;
   onMarket: (m: StockMarket) => void;
 }) {
-  // 목록은 공개, 종목 상세는 로그인 뒤다.
   const { data: me } = useMe();
-  // 당일 등락률 임계값(%) — 헤더 티커와 공유한다(같은 값이어야 조회가 합쳐진다).
   const [minChangeRate, setMinChangeRate] = useMinChangeRate();
   const leadersQ = useLeadingStockLeaders();
   const candidatesQ = useLeadingStockCandidates(minChangeRate);
@@ -160,8 +135,6 @@ function DomesticLeadingStocks({
   const reasons = useInsightReasons("kr").data;
 
   const data = candidatesQ.data;
-  // 위는 첫 화면과 같은 규칙으로 서버가 고른 주도주, 아래는 나머지 후보를 거래대금 순으로.
-  // 등락률 임계값은 **아래 구간에만** 걸린다 — 위는 어떤 기준을 걸어두든 같은 답이어야 한다.
   const leaders = leadersQ.data?.leaders ?? [];
   const leaderCodes = new Set(leaders.map((s) => s.stockCode));
   const rest = (data?.stocks ?? []).filter((s) => !leaderCodes.has(s.stockCode));
@@ -173,18 +146,14 @@ function DomesticLeadingStocks({
     setOpenCode,
   );
 
-  // 페이지 진입 시 첫 종목 기본 선택, 선택 종목이 리스트에서 사라지면 다시 첫 종목으로
   useEffect(() => {
     if (stocks.length === 0) return;
     if (openCode === null || !stocks.some((s) => s.stockCode === openCode)) {
       setOpenCode(stocks[0].stockCode);
     }
-    // openCode를 deps에 넣지 않음 — 사용자 클릭 시마다 재실행되는 걸 막기 위해 stocks(데이터)에만 반응
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stocks]);
 
-  // 목록에 새로 든 종목과, 주도주 구간으로 올라온 종목을 따로 센다 — 뜻이 다른 사건이다.
-  // **두 조회가 다 도착해야** 비교를 시작한다. 한쪽만 온 목록과 비교하면 나머지가 전부 새것이 된다.
   const session =
     leadersQ.data && candidatesQ.data ? `domestic:${minChangeRate}` : null;
   const listed = useMembership(stocks.map((s) => s.stockCode), session);
@@ -193,12 +162,10 @@ function DomesticLeadingStocks({
   const shown = new Set(codes);
   const flashOf = (code: string): Flash => {
     if (lead.entered.has(code)) return "promoted";
-    // 주도주에서 빠졌어도 목록에 남아 있을 때만 강등이다 — 아예 나간 종목은 그릴 자리가 없다
     if (lead.left.has(code) && shown.has(code)) return "demoted";
     return listed.entered.has(code) ? "new" : null;
   };
 
-  // 순서가 바뀌면 줄이 새 자리로 미끄러진다 (데스크톱 줄·모바일 줄 각각)
   const orderKey = codes.join(",");
   const rowsRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
@@ -218,7 +185,6 @@ function DomesticLeadingStocks({
           fetchedAt={candidatesQ.dataUpdatedAt}
           loading={candidatesQ.isFetching}
         />
-        {/* 선택기가 맨 위에 있지만 **걸리는 곳은 아래 "후보" 구간뿐**이다 — 주도주는 기준과 무관하다 */}
         <MarketToggle
           value={market}
           onChange={onMarket}
@@ -250,7 +216,6 @@ function DomesticLeadingStocks({
     </div>
   );
 
-  // 왜 오르나 카드(026) — 방문자에게도 보인다. 방문자는 종목 상세가 로그인 뒤라 카드에 종목 머리를 얹는다
   const opened = stocks.find((s) => s.stockCode === openCode);
   const reason = openCode ? reasons?.get(shortCode(openCode)) : undefined;
   const detail = me?.authenticated ? (
@@ -291,7 +256,6 @@ function Header({
   loading,
 }: {
   totalCount: number | undefined;
-  /** 이 화면이 마지막으로 받아 온 시각(ms) — 서버 캐시 시각이 아니라 화면 기준이다 */
   fetchedAt: number;
   loading: boolean;
 }) {
@@ -306,7 +270,6 @@ function Header({
   );
 }
 
-/** 데스크톱 줄의 열 — 순위 · 종목 · 거래대금 · 현재가 · 등락률. 머리와 줄이 같은 값을 쓴다. */
 const ROW_COLS =
   "grid-cols-[1.25rem_minmax(0,1fr)_6.5rem_5.5rem_4.5rem] 2xl:grid-cols-[1.25rem_minmax(0,1fr)_7.25rem_6rem_5rem]";
 
@@ -329,10 +292,8 @@ function CandidatesList({
   flashOf: (code: string) => Flash;
   selectedCode: string | null;
   onOpen: (stockCode: string) => void;
-  /** 왜 오르나 — 단축코드로 찾는다. 주도주에서 빠진 종목도 그날 사유가 있으면 후보 줄에 붙는다 */
   reasons?: Map<string, InsightReasonItem>;
 }) {
-  // 막대는 목록 안에서 가장 큰 거래대금이 꽉 찬 폭이다
   const maxValue = Math.max(1, ...[...leaders, ...rest].map((s) => s.accumulatedTradingValue));
   const section = (list: CandidateStockItem[], Item: typeof Row | typeof Card) =>
     list.map((s, idx) => (
@@ -348,7 +309,6 @@ function CandidatesList({
       />
     ));
   const restHint = `거래대금 순 · 등락률 ${minChangeRate > 0 ? "+" : ""}${minChangeRate}% 이상`;
-  // 통과 종목이 없어도 머리는 그린다 — 없으면 "주도주만 있는 화면"으로 보여 기준이 걸렸다는 걸 알 수 없다
   const empty = <p className="px-4 py-6 text-center text-xs text-zinc-500">이 기준을 통과한 종목이 없습니다</p>;
 
   return (
@@ -379,7 +339,6 @@ function CandidatesList({
 type ItemProps = {
   stock: CandidateStockItem;
   rank: number;
-  /** 목록 최대 거래대금 대비 비율(0~1) — 데스크톱 줄의 막대 */
   valueRatio: number;
   flash: Flash;
   isSelected: boolean;
@@ -387,7 +346,6 @@ type ItemProps = {
   reason?: InsightReasonItem;
 };
 
-/** 데스크톱 한 줄 — 코드는 이름 아래. 왜 오르나 한 줄은 줄 전체 폭을 쓰는 둘째 줄이다. */
 function Row({ stock, rank, valueRatio, flash, isSelected, onOpen, reason }: ItemProps) {
   return (
     <button
@@ -410,13 +368,11 @@ function Row({ stock, rank, valueRatio, flash, isSelected, onOpen, reason }: Ite
         </span>
       </span>
       <span className="num text-right text-[13.5px] text-zinc-100">
-        {/* 가격 변동 flash — 상승 빨강, 하락 파랑 (한국 거래소 관행) */}
         <FlashOnChange value={stock.currentPrice} duration={1000}>
           <NumWon value={stock.currentPrice} />
         </FlashOnChange>
       </span>
       <span className="num text-right text-xs">
-        {/* 키움은 등락률을 이미 % 단위로 주고, formatPct는 분수→% 변환이라 /100 해서 맞춤 */}
         <FlashOnChange value={stock.priceChangeRate} duration={1000}>
           <ProfitText value={stock.priceChangeRate / 100} format={formatPct} />
         </FlashOnChange>
@@ -426,7 +382,6 @@ function Row({ stock, rank, valueRatio, flash, isSelected, onOpen, reason }: Ite
   );
 }
 
-/** 모바일 한 줄 — 왼쪽 이름·거래대금, 오른쪽 현재가·등락률. */
 function Card({ stock, rank, flash, isSelected, onOpen, reason }: ItemProps) {
   return (
     <button
@@ -455,8 +410,6 @@ function Card({ stock, rank, flash, isSelected, onOpen, reason }: ItemProps) {
   );
 }
 
-/** 구간 머리 — 목록의 층을 가르는 자리라 줄 글씨보다 크게 세운다. */
-/** `guide`면 건수 옆에 주도주 고르는 법(`?`)을 단다 — 주도주 구간만 쓴다. */
 function GroupHeader({ label, count, hint, guide }: { label: string; count: number; hint?: string; guide?: boolean }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-2.5 pb-1.5 pt-4 lg:px-3.5">

@@ -27,7 +27,6 @@ class MarketInvestorControllerTest @Autowired constructor(private val mvc: MockM
 
     @Nested
     inner class 경로 {
-        /** `/investor/today`가 `{market}=investor`로 들어가면 Market enum에 걸린다. */
         @Test
         fun `오늘의 수급은 시장 수급 경로로 새지 않는다`() {
             every { investors.todayNets() } returns emptyList()
@@ -35,7 +34,6 @@ class MarketInvestorControllerTest @Autowired constructor(private val mvc: MockM
             mvc.get("/api/market/investor/today") { cookie(LoggedIn.cookie) }.andExpect { status { isOk() }; jsonPath("$.data") { isEmpty() } }
         }
 
-        /** 투자자별 수급은 이 서비스가 가공한 값이라 로그인 뒤다 — 현물과 선물 모두. */
         @Test
         fun `수급은 로그인 뒤다`() {
             listOf("/api/market/investor/today", "/api/market/KOSPI/investor/sessions", "/api/market/futures/KOSDAQ/investor/daily").forEach {

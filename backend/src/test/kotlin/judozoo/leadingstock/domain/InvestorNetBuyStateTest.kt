@@ -6,7 +6,6 @@ import judozoo.leadingstock.domain.InvestorNetBuyState.NetBuyTransition
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
-/** 코스피 기준 단계 1조(10,000억), 완충 1,000억. */
 class InvestorNetBuyStateTest {
     private fun InvestorNetBuyState.feed(net: Long) = advance(net, 10_000, 1_000)
 
@@ -35,8 +34,8 @@ class InvestorNetBuyStateTest {
         @Test
         fun `완충 안에서 오르내려도 같은 단계가 다시 발화하지 않는다`() {
             val second = InvestorNetBuyState().feed(20_000).second
-            val (down, after) = second.feed(19_500) // 19,000 위 → 유지
-            val (up, _) = after.feed(20_500) // 다음 단계선 미달 → 유지
+            val (down, after) = second.feed(19_500)
+            val (up, _) = after.feed(20_500)
 
             (down to up) shouldBe (null to null)
         }

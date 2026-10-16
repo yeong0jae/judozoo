@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
 import GoogleLoginButton from "./GoogleLoginButton";
 
-/** 관문 뒤 화면에서 미로그인일 때 보여준다. 화면을 숨기는 게 아니라 이유와 다음 행동을 준다. */
 export default function LoginGate({ title, description }: { title: string; description: string }) {
   return (
     <motion.div

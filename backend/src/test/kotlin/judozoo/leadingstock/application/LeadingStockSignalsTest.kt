@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 실시간 로그가 읽는 표 — 폴러가 쌓은 것을 그날 것만, 최신순으로. */
 @IntegrationTest
 class LeadingStockSignalsTest @Autowired constructor(private val signals: LeadingStockSignals, private val jdbc: JdbcTemplate) {
     private val today = LocalDate.of(2026, 9, 11)
@@ -63,7 +62,7 @@ class LeadingStockSignalsTest @Autowired constructor(private val signals: Leadin
 
             val (rebound, level) = signals.marketEventsOn(today)
 
-            (level.thresholdEok to level.indexValue) shouldBe (30_000L to 2653.81) // 코스피는 1조 단위 — 3단계면 3조
+            (level.thresholdEok to level.indexValue) shouldBe (30_000L to 2653.81)
             (rebound.thresholdEok to rebound.level).shouldBe(null to null)
             rebound.investor.shouldBeNull()
         }
@@ -89,7 +88,6 @@ class LeadingStockSignalsTest @Autowired constructor(private val signals: Leadin
             signals.investorNetBuy(null, LocalDateTime.of(2026, 9, 14, 7, 0)).mapValues { it.value.foreignEok } shouldBe mapOf(Market.KOSPI to 400L)
         }
 
-        /** 시그널이 난 그 시각의 값 — 다른 날로 넘어가지 않는다. */
         @Test
         fun `시각을 주면 그날 그 시각 이하 가장 가까운 스냅샷이다`() {
             snapshot(Market.KOSPI, today.minusDays(1).atTime(15, 0), 1)
@@ -111,7 +109,7 @@ class LeadingStockSignalsTest @Autowired constructor(private val signals: Leadin
             )
         }
 
-        val bars = signals.indexMinuteCandles(Market.KOSPI, LocalDate.of(2026, 9, 14)) // 월요일 — 직전 평일은 금요일
+        val bars = signals.indexMinuteCandles(Market.KOSPI, LocalDate.of(2026, 9, 14))
 
         bars.map { it.minute.toLocalDate() } shouldBe listOf(LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 14))
         bars[0].open shouldBe 2653.81

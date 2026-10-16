@@ -14,7 +14,6 @@ class SingleFlightTest {
     private val calls = AtomicInteger()
     private val pool = Executors.newFixedThreadPool(4)
 
-    /** 선두가 [release]를 기다리는 동안 나머지가 붙는다. */
     private fun <T> concurrently(count: Int, release: CountDownLatch, task: () -> T): List<java.util.concurrent.Future<T>> {
         val futures = List(count) { pool.submit<T> { task() } }
         Thread.sleep(100)
@@ -66,7 +65,6 @@ class SingleFlightTest {
             calls.get() shouldBe 2
         }
 
-        /** 진행 중 표시를 안 지우면 그 키가 영영 막힌다. */
         @Test
         fun `실패한 뒤에는 다시 부를 수 있다`() {
             shouldThrow<IllegalStateException> { flight.run("AAPL") { throw IllegalStateException("첫 시도 실패") } }

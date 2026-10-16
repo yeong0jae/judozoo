@@ -42,7 +42,6 @@ class KiwoomProgramTest {
             stub.calls(URL) shouldBe 3
         }
 
-        /** 운영 로그에서 이 필드가 없는 응답이 확인됐다. */
         @Test
         fun `목록이 통째로 빠져도 null로 넘긴다`() {
             stub.respond(URL, "{}")
@@ -55,7 +54,6 @@ class KiwoomProgramTest {
 
     @Nested
     inner class 금액_파서 {
-        /** "--123"이 실제로 온다 — 앞의 하나만 떼면 부호가 뒤집힌다. */
         @Test
         fun `음수 변종을 모두 흡수한다`() {
             mapOf("-123" to -123L, "123-" to -123L, "--123" to -123L, "+123" to 123L, "123" to 123L, "" to 0L, "abc" to 0L)

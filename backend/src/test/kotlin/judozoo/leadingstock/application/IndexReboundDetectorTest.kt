@@ -21,10 +21,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/**
- * 지수 반등·꺾임 폴러. 키움은 최근 몇 분의 틱만 주므로 받은 분봉을 쌓아 이평을 낸다 —
- * 쌓은 분봉을 DB에 두어 재시작해도 이평이 끊기지 않는다.
- */
 @IntegrationTest
 class IndexReboundDetectorTest @Autowired constructor(
     private val candles: IndexMinuteCandleRepository,
@@ -44,7 +40,6 @@ class IndexReboundDetectorTest @Autowired constructor(
 
     private fun fresh() = IndexReboundDetector(index, candles, events, clock)
 
-    /** [closes]를 5분봉 종가로 하나씩 받는다 — 매 폴 그 5분봉의 첫 1분 틱 하나만 온다. 끝난 5분봉을 판정하려면 다음 봉이 시작돼야 한다. */
     private fun poll(detector: IndexReboundDetector, vararg closes: Double) = closes.forEach { close ->
         every { index.fetchIndexIntraday(Market.KOSPI, any()) } returns IndexIntraday(close, 0.5, listOf(IndexTick(now, close, 1)))
         every { index.fetchIndexIntraday(Market.KOSDAQ, any()) } returns null
@@ -91,7 +86,6 @@ class IndexReboundDetectorTest @Autowired constructor(
             candles.findByMarketAndTradeDateBetweenOrderByMinuteAt(Market.KOSPI, open.toLocalDate(), open.toLocalDate()).map { it.toCandle().close } shouldBe listOf(100.0, 101.0)
         }
 
-        /** 진행 중이던 분이 더 완성된 값으로 다시 오면 같은 행을 고친다 — (시장, 분)이 유일 키다. */
         @Test
         fun `같은 분이 다시 오면 덮어쓴다`() {
             val detector = fresh()

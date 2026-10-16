@@ -13,7 +13,6 @@ import judozoo.SharedWireMock
 import judozoo.library.brokertoken.TokenSource
 import java.time.Duration
 
-/** KIS 엔드포인트 테스트용 — 공유 WireMock + 그 서버를 보는 [KisClient]. 한도 초과 재시도의 쉼은 [pauses]에 남기만 한다. */
 class KisStub : AutoCloseable {
     val server = SharedWireMock.server.also { SharedWireMock.reset() }
     val pauses = mutableListOf<Duration>()
@@ -36,7 +35,6 @@ class KisStub : AutoCloseable {
         server.stubFor(get(urlPathEqualTo(path)).willReturn(aResponse().withStatus(status).withBody(text)))
     }
 
-    /** 부를 때마다 차례로 답한다. 마지막 응답은 그 뒤로도 계속 준다. */
     fun respondInOrder(path: String, vararg responses: Pair<Int, String>) {
         responses.forEachIndexed { i, (status, json) ->
             val state = if (i == 0) Scenario.STARTED else "$i"
@@ -53,7 +51,6 @@ class KisStub : AutoCloseable {
 
     fun calls(path: String) = server.countRequestsMatching(getRequestedFor(urlPathEqualTo(path)).build()).count
 
-    /** [path]로 간 요청들, 보낸 순서대로. */
     fun requests(path: String) = server.findAll(getRequestedFor(urlPathEqualTo(path)))
 
     override fun close() = SharedWireMock.reset()

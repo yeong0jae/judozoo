@@ -42,10 +42,9 @@ class MarketQuoteSchedulerTest {
             scheduler(quotes = quotes).poll()
 
             quotes.index(judozoo.stock.domain.Market.KOSPI).currentValue shouldBe 2700.0
-            verify(exactly = 4) { kiwoomIndex.fetchIndex(any(), any()) } // 코스피·코스닥 × 2회
+            verify(exactly = 4) { kiwoomIndex.fetchIndex(any(), any()) }
         }
 
-        /** 선물 근월물을 못 받은 상황 — 마지막 정상값은 유지하지만 조용히 넘어가면 안 된다. */
         @Test
         fun `빈 값을 받으면 실패로 센다`() {
             every { calendar.isHoliday(any()) } returns false
@@ -82,8 +81,8 @@ class MarketQuoteSchedulerTest {
         fun `개장일 목록을 모르면 주말만 쉰다`() {
             every { calendar.isOpen(any()) } returns null
 
-            scheduler().nightOpen(LocalDateTime.of(2026, 10, 2, 19, 0)) shouldBe true // 금요일 밤
-            scheduler().nightOpen(LocalDateTime.of(2026, 10, 3, 19, 0)) shouldBe false // 토요일 밤
+            scheduler().nightOpen(LocalDateTime.of(2026, 10, 2, 19, 0)) shouldBe true
+            scheduler().nightOpen(LocalDateTime.of(2026, 10, 3, 19, 0)) shouldBe false
         }
 
         @ParameterizedTest

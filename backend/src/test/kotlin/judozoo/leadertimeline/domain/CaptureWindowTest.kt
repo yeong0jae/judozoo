@@ -8,7 +8,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.time.LocalTime
 
-/** 어느 분을 찍는가 — 세션 안이고 쉬는 구간이 아니면. */
 class CaptureWindowTest {
     private fun kr(at: String) = CaptureWindow.of(Region.KR).captures(LocalTime.parse(at))
 

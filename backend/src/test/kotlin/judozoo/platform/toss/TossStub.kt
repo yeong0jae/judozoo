@@ -12,7 +12,6 @@ import judozoo.SharedWireMock
 import judozoo.library.brokertoken.TokenSource
 import java.time.Duration
 
-/** 토스 엔드포인트 테스트용 — 공유 WireMock + 그 서버를 보는 [TossClient]. 429 뒤의 쉼은 [pauses]에 남기만 한다. */
 class TossStub : AutoCloseable {
     val server = SharedWireMock.server.also { SharedWireMock.reset() }
     val pauses = mutableListOf<Duration>()
@@ -34,7 +33,6 @@ class TossStub : AutoCloseable {
         server.stubFor(get(urlPathEqualTo(path)).willReturn(aResponse().withStatus(status).withHeader("Content-Type", "application/json").withBody(json)))
     }
 
-    /** 부를 때마다 차례로 답한다. 마지막 응답은 그 뒤로도 계속 준다. */
     fun respondInOrder(path: String, vararg responses: Pair<Int, String>) {
         responses.forEachIndexed { i, (status, json) ->
             var mapping: ScenarioMappingBuilder = get(urlPathEqualTo(path)).inScenario(path)

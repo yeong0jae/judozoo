@@ -74,8 +74,8 @@ class RateLimiterTest {
             limiter.acquire()
             val fast = elapsedMillis { limiter.acquire() }
 
-            period = Duration.ofMillis(300) // 피크타임에 들어섰다
-            limiter.acquire() // 남은 토큰을 비운다
+            period = Duration.ofMillis(300)
+            limiter.acquire()
             val slow = elapsedMillis { limiter.acquire() }
 
             fast shouldBeLessThan 100
@@ -98,7 +98,6 @@ class RateLimiterTest {
 
     @Nested
     inner class 대기_계측 {
-        /** CPU도 디스크도 한가한데 화면이 느린 구간을 가리키는 유일한 지표다. */
         @Test
         fun `기다린 시간이 대기 분포에 쌓인다`() {
             val limiter = limiter(1, period = Duration.ofMillis(200), name = "계측-대기")
@@ -109,7 +108,6 @@ class RateLimiterTest {
             waitedSeconds("계측-대기") shouldBeGreaterThanOrEqual 0.05
         }
 
-        /** 0초 대기가 안 쌓이면 '한가해서 빠른 것'과 '호출 자체가 없는 것'이 구분되지 않는다. */
         @Test
         fun `한도에 안 걸린 호출도 건수로 남는다`() {
             limiter(5, name = "계측-무대기").acquire()
@@ -117,7 +115,6 @@ class RateLimiterTest {
             registry.timer("rate_limiter_wait", "limiter", "계측-무대기").count() shouldBe 1
         }
 
-        /** 못 얻은 시간을 섞으면 성공 대기 분포가 타임아웃 상한에 붙어 왜곡된다. */
         @Test
         fun `포기한 호출은 카운터로만 세고 대기 분포는 건드리지 않는다`() {
             val limiter = limiter(1, Duration.ofSeconds(10), Duration.ofMillis(50), "계측-포기")
@@ -138,7 +135,7 @@ class RateLimiterTest {
             val limiter = limiter(1, Duration.ofMillis(300), Duration.ofSeconds(30), "계측-동시")
 
             val threads = List(5) { thread { limiter.acquire() } }
-            Thread.sleep(150) // 토큰 하나만 나간 시점 — 나머지는 자고 있다
+            Thread.sleep(150)
             val during = waitingThreads("계측-동시")
             threads.forEach { it.join() }
 
@@ -146,7 +143,6 @@ class RateLimiterTest {
             waitingThreads("계측-동시") shouldBe 0.0
         }
 
-        /** 예외 경로에서 감소를 빠뜨리면 게이지가 실제보다 높은 채로 굳는다. */
         @Test
         fun `포기하고 나가도 대기 수가 새지 않는다`() {
             val limiter = limiter(1, Duration.ofSeconds(10), Duration.ofMillis(50), "계측-누수")

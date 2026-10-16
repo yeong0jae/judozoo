@@ -1,57 +1,44 @@
-/**
- * 모의 종가베팅 — 화면이 쓰는 모양과 종베 체크 설명.
- *
- * 맞아요/아니에요 판정은 서버가 한다(`api/closingbet`의 `checks`). 여기서는 그 판정을 사람이 읽는 문장으로 푼다.
- */
-
 export type MarketName = "코스피" | "코스닥";
 
 export type BetStock = {
   code: string;
   name: string;
   market: MarketName;
-  lead: boolean; // 주도주(true) · 후보(false)
-  price: number; // 오늘은 현재가, 지난 판은 20:00 종가(= 매수가)
-  chg: number; // 당일 등락률(%)
+  lead: boolean;
+  price: number;
+  chg: number;
   high: number;
   low: number;
-  frgn: number; // 당일 외국인 순매수(억원)
+  frgn: number;
   inst: number;
-  frgn5: number; // 최근 5일 누적
+  frgn5: number;
   inst5: number;
-  recentHighGap: number | null; // 최근 60거래일 고가 대비 %
-  regularClose: number | null; // 15:30 정규장 종가. 정규장이 끝나기 전이면 null
-  crowd: number; // 고른 사람 수
-  result?: number; // 지난 판 — 다음 날 아침 매도 수익률(%)
+  recentHighGap: number | null;
+  regularClose: number | null;
+  crowd: number;
+  result?: number;
 };
 
-/** 시장 수급 — [현물 당일, 현물 5일, 선물 당일, 선물 5일, 마감 구간, 애프터] (현물 억원 · 선물 계약) */
 export type MarketFlow = { foreign: number[]; institution: number[] };
 
-/** 닉네임 — 2~10자, 한글·영문·숫자만. 바꾸면 7일 뒤에 다시 바꿀 수 있다(최종 판정은 서버) */
 export const NICKNAME_RULE = /^[가-힣a-zA-Z0-9]{2,10}$/;
 export const NICKNAME_COOLDOWN_DAYS = 7;
 
-/** 체크 한 줄 — 주도주 체크리스트(`detailParts.LeadingConditions`)의 조건 한 줄과 같은 모양으로 그린다 */
 export type Check = {
   key: "high" | "foreign" | "institution" | "late" | "recentHigh" | "after";
   title: string;
   criteria: string;
   ok: boolean;
   value: string;
-  /** 이 종목에 맞춘 풀이 한 문장 */
   sentence: string;
-  /** 눈금 막대 — 지금 값과 기준(%) */
   scale?: { value: number; threshold: number };
 };
 
 const NEAR_HIGH = -1.5;
-// 기준 −5%는 서버 설정(주도주 조건 `max_high_position_drop_rate`)과 같다. 판정은 서버 값을 따른다
 const RECENT_HIGH_FLOOR = -5;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 const signed = (n: number) => `${n > 0 ? "+" : ""}${won(n)}`;
 
-/** 이 종목이 속한 시장의 마감·애프터 외인+기관 합 */
 export function lateSum(flow: MarketFlow): number {
   return flow.foreign[4] + flow.foreign[5] + flow.institution[4] + flow.institution[5];
 }
@@ -59,7 +46,6 @@ export function lateSum(flow: MarketFlow): number {
 export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): Check[] {
   const fromHigh = (x.price / x.high - 1) * 100;
   const gap = x.recentHighGap;
-  // 애프터 — 지금 가격(체결 뒤면 20:00 종가)이 정규장 종가보다 몇 % 위인가
   const after = x.regularClose ? (x.price / x.regularClose - 1) * 100 : null;
   const near = fromHigh >= NEAR_HIGH;
 
@@ -134,7 +120,6 @@ export function checksOf(x: BetStock, markets: Record<MarketName, MarketFlow>): 
   ];
 }
 
-/** 서버 판정 — 문장은 `checksOf`가 쓰고, 맞아요/아니에요는 이 값을 따른다 */
 export type Verdict = { nearHigh: boolean; foreign: boolean; institution: boolean; marketLate: boolean; recentHigh: boolean; afterHold: boolean };
 
 const VERDICT_KEY: Record<Check["key"], keyof Verdict> = { high: "nearHigh", foreign: "foreign", institution: "institution", late: "marketLate", recentHigh: "recentHigh", after: "afterHold" };
@@ -146,7 +131,5 @@ export function withVerdict(checks: Check[], verdict: Verdict): Check[] {
 export type Grade = "S" | "A" | "B" | "C";
 export const GRADE_COLOR: Record<Grade, string> = { S: "#f5c451", A: "#d4d8de", B: "#c98a5a", C: "#8b95a1" };
 export const GRADE_TEXT: Record<Grade, string> = { S: "여섯 가지 모두 맞아요", A: "다섯 가지가 맞아요", B: "네 가지가 맞아요", C: "맞는 게 세 개 이하예요" };
-/** 티켓 머리 칸 물들이기 */
 export const GRADE_TINT: Record<Grade, string> = { S: "rgba(245,196,81,0.22)", A: "rgba(212,216,222,0.16)", B: "rgba(201,138,90,0.20)", C: "rgba(91,99,110,0.22)" };
 export const GRADE_PERF: Record<Grade, string> = { S: "rgba(245,196,81,0.55)", A: "rgba(212,216,222,0.5)", B: "rgba(201,138,90,0.55)", C: "rgba(107,116,128,0.5)" };
-

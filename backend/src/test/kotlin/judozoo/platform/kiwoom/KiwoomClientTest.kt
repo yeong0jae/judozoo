@@ -175,7 +175,6 @@ class KiwoomClientTest {
 
     @Nested
     inner class 조회_리미터 {
-        /** ka*는 조회 한도를 타고, 주문·계좌(kt*)는 별도 한도라 통과시킨다. */
         @Test
         fun `조회 TR만 허가를 받는다`() {
             val limiter = RateLimiter("테스트", 1, registry, { Duration.ofHours(1) }, Duration.ofMillis(1))
@@ -188,7 +187,7 @@ class KiwoomClientTest {
 
             send("kt10000")
             send(null)
-            send("ka10032") // 버킷의 유일한 허가를 쓴다
+            send("ka10032")
 
             shouldThrow<judozoo.library.RateLimitTimeout> { send("ka10059") }
         }
@@ -196,7 +195,6 @@ class KiwoomClientTest {
 
     @Nested
     inner class 피크타임_한도 {
-        /** 09:00~10:00에는 키움 조회 한도가 초당 5건에서 3건으로 내려간다. */
         @ParameterizedTest
         @CsvSource("08:59:59, 5", "09:00:00, 3", "09:59:59, 3", "10:00:00, 5")
         fun `시간대에 맞는 간격으로 허가를 낸다`(at: String, perSecond: Long) {

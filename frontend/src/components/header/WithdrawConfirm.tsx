@@ -1,7 +1,6 @@
 import { createPortal } from "react-dom";
 import { useWithdraw } from "../../api/auth";
 
-/** 되돌릴 수 없는 일이라 한 번 더 묻는다. 설정 모달과 같은 이유로 body에 포털한다. */
 export default function WithdrawConfirm({ onClose }: { onClose: () => void }) {
   const withdraw = useWithdraw();
   return createPortal(

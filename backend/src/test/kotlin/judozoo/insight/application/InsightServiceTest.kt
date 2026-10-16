@@ -36,10 +36,6 @@ import java.time.LocalDateTime
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 
-/**
- * 왜 오르나 — 매분 실행이 무엇을 만들고 남기는가, 화면에 무엇을 내주는가.
- * Vertex·기사 사이트·주도주 풀은 바깥이라 대역으로 바꾸고, DB는 컨테이너 MySQL을 쓴다.
- */
 @IntegrationTest
 class InsightServiceTest @Autowired constructor(private val repository: StockReasonRepository, private val jdbc: JdbcTemplate) {
     private val today = LocalDate.of(2026, 9, 28)
@@ -106,12 +102,11 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
             listOf(r.region, r.tradingDay, r.code, r.name) shouldBe listOf(Region.KR, today, "011070", "LG이노텍")
             Triple(r.trigger, r.published, r.explained) shouldBe Triple("entry", true, true)
             r.reason shouldBe "美 라이다 업체 Aeva 지분가치 상승"
-            r.keywords shouldBe listOf("Aeva") // 종목 자신의 이름은 뺐다
+            r.keywords shouldBe listOf("Aeva")
             r.evidence shouldBe listOf(StockReason.Article("파이낸셜뉴스", "LG이노텍, 美라이다 기업 지분가치 상승 영향", "https://fnnews.com/1"))
             r.related shouldBe listOf(StockReason.Article("jkn.co.kr", "LG이노텍, 호재성 뉴스 부재 속 급등", "https://jkn.co.kr/2"))
         }
 
-        /** Python이 남긴 행과 같은 JSON 모양이어야 두 백엔드가 같은 표를 읽는다. */
         @Test
         fun `기사는 Python과 같은 JSON 모양으로 남는다`() {
             insight.run(Region.KR, kst(10, 15))
@@ -178,12 +173,12 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
 
         @Test
         fun `일시 장애가 세 번 이어지면 서킷이 열려 남은 종목은 행 없이 건너뛴다`() {
-            insight.maxConcurrency = 1 // 차례가 정해져야 몇 번째에서 열리는지 본다
+            insight.maxConcurrency = 1
             failWith(*Array(7) { Kind.TIMEOUT })
             leaders = (1..7).map { stock("00000$it", "종목$it") }
 
             insight.run(Region.KR, kst(10, 15)) shouldBe 3
-            insight.run(Region.KR, kst(10, 17)) shouldBe 0 // 5분 동안은 아무것도 부르지 않는다
+            insight.run(Region.KR, kst(10, 17)) shouldBe 0
 
             prompts.size shouldBe 3
             rows().size shouldBe 3
@@ -195,9 +190,9 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
             failWith(Kind.TIMEOUT, Kind.TIMEOUT, Kind.TIMEOUT)
             leaders = (1..4).map { stock("00000$it", "종목$it") }
 
-            insight.run(Region.KR, kst(10, 15)) shouldBe 3 // 넷째는 서킷에 막혀 건너뜀
-            insight.run(Region.KR, kst(10, 21)) shouldBe 1 // 5분 뒤 한 종목으로 시험
-            insight.run(Region.KR, kst(10, 22)) shouldBe 3 // 닫혔으니 나머지
+            insight.run(Region.KR, kst(10, 15)) shouldBe 3
+            insight.run(Region.KR, kst(10, 21)) shouldBe 1
+            insight.run(Region.KR, kst(10, 22)) shouldBe 3
 
             val published = rows().filter { it.published }
             published.map { it.code }.sorted() shouldBe listOf("000001", "000002", "000003", "000004")
@@ -222,11 +217,10 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
             insight.run(Region.KR, kst(11, 0))
 
             val made = rows().map { it.code to it.trigger }
-            made.take(2).sortedBy { it.first } shouldBe listOf("009830" to "entry", "011070" to "entry") // 같은 실행의 종목은 끝난 순서대로 남는다
+            made.take(2).sortedBy { it.first } shouldBe listOf("009830" to "entry", "011070" to "entry")
             made.drop(2) shouldBe listOf("011070" to "scheduled")
         }
 
-        /** 두 종목이 모두 1차 호출에 들어와야 풀린다 — 하나씩 만들면 첫 종목이 여기서 막혀 실패한다. */
         @Test
         fun `여러 종목을 동시에 만들어 뒤 종목이 앞 종목을 기다리지 않는다`() {
             leaders = listOf(stock("011070", "LG이노텍"), stock("009830", "한화솔루션"))

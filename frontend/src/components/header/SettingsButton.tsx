@@ -9,8 +9,6 @@ export default function SettingsButton() {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
-  // 쓰던 의견은 버튼 쪽에 둔다 — 모달은 바깥을 누르면 닫히는데, 그때 초안까지 사라지면
-  // 잘못 눌렀다가 처음부터 다시 써야 한다.
   const [feedback, setFeedback] = useState("");
 
   return (
@@ -23,7 +21,6 @@ export default function SettingsButton() {
         }`}
         aria-label="설정"
       >
-        {/* nav 아이콘과 같은 24 그리드·1.8 획 */}
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="3.2" />
           <path d="M19.1 14.4a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.11a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.11a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08A1.7 1.7 0 0 0 10.14 3.1V3a2 2 0 1 1 4 0v.11a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.11a1.7 1.7 0 0 0-1.56 1.03z" />
@@ -58,12 +55,6 @@ export default function SettingsButton() {
   );
 }
 
-/**
- * 설정 모달.
- *
- * body로 포털한다 — 트리거가 좌측 레일 안에 있어서, 그대로 두면 `fixed`가
- * 레일 폭에 갇혀 모달이 찌그러진다.
- */
 function SettingsModal({
   onClose,
   onFeedback,
@@ -104,7 +95,6 @@ function SettingsModal({
         >
           의견 보내기
         </button>
-        {/* 탈퇴는 눈에 띄지 않게 — 오른쪽 작은 밑줄 글자. 로그인했을 때만 */}
         {me?.authenticated && (
           <div className="mt-3 text-right">
             <button
@@ -132,7 +122,6 @@ function ThemeRow() {
   return (
     <div>
       <div className="mb-2 text-sm text-zinc-300">테마</div>
-      {/* 앱의 다른 세그먼트와 같은 규칙 — 눌린 트랙 위로 선택 칸이 떠오른다 */}
       <div className="flex gap-1 rounded-xl bg-zinc-800 p-1">
         {options.map((o) => (
           <button

@@ -11,7 +11,6 @@ class FeedbackTest {
 
     @Nested
     inner class 남는_기록 {
-        /** 알림 문구가 저장된 값을 그대로 읽으므로 들어갈 때 털어야 한다. */
         @Test
         fun `앞뒤 공백을 털고 남긴다`() {
             val feedback = Feedback.write(7, "  줄 간격이 좁아요\n", now)
@@ -20,7 +19,6 @@ class FeedbackTest {
             feedback.userId shouldBe 7
         }
 
-        /** 대체 키 이전 세션에는 내부 식별자가 없다 — 누구인지 몰라도 내용은 잃지 않는다. */
         @Test
         fun `옛 세션이라도 의견은 남는다`() {
             val feedback = Feedback.write(null, "잘 쓰고 있습니다", now)

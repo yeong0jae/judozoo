@@ -9,13 +9,10 @@ const MEDAL = ["#f5c451", "#d4d8de", "#c98a5a"];
 const MEDAL_INK = ["#1a1405", "#14161a", "#1f1006"];
 const PODIUM_HEIGHT = [96, 72, 56];
 
-/** 페이지에서는 판 위 카드, 서랍 안에서는 한 단계 밝은 카드 */
 const surfaceOf = (inDrawer: boolean) => (inDrawer ? "bg-zinc-850 px-5 py-[18px]" : "bg-zinc-900 px-6 py-[22px]");
 
-/** 내 닉네임과 바꾸기. 닉네임은 첫 베팅 때 생긴다 */
 export type Me = { nick: string | null; nextRenameAt: Date | null; rename: (nick: string) => Promise<unknown> };
 
-/** 내 지난 판 — 결과 발표 중에는 내 종목이 공개될 때까지 가려 두고, 공개되면 수익금이 차오른다 */
 export function MyResultCard({ round, member, inDrawer = false }: { round: ClosingBetRound; member: boolean; inDrawer?: boolean }) {
   const result = round.me;
   const revealed = result?.pnl !== null && result?.pnl !== undefined;
@@ -87,7 +84,6 @@ export function MyResultCard({ round, member, inDrawer = false }: { round: Closi
   );
 }
 
-/** 랭킹의 내 줄 — 연필을 누르면 그 자리에서 바꾼다. 바꾼 뒤 7일은 잠긴다 */
 function NicknameEdit({ me }: { me: Me }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -176,7 +172,6 @@ function NicknameEdit({ me }: { me: Me }) {
   );
 }
 
-/** 판 랭킹 — 수익금 · 수익률. 1~3위는 시상대, 그 아래는 한 줄씩, 맨 아래 내 줄 */
 export function RankingCard({ round, me, inDrawer = false }: { round: ClosingBetRound; me: Me | null; inDrawer?: boolean }) {
   const [byRate, setByRate] = useState(false);
   const ranks: ClosingBetRankRow[] = byRate ? round.byRate : round.byProfit;
@@ -216,7 +211,6 @@ export function RankingCard({ round, me, inDrawer = false }: { round: ClosingBet
         <span className="py-6 text-center text-[13px] text-zinc-500">{round.settled ? "이 판엔 참여한 사람이 없어요." : "09:05에 랭킹이 확정돼요."}</span>
       ) : (
         <>
-          {/* 시상대 — 2 · 1 · 3 순서로 세워 1위가 가운데에서 가장 높다 */}
           {podium && (
             <div className="mt-1 grid grid-cols-3 items-end gap-1.5">
               {[1, 0, 2].map((i) => {
@@ -251,7 +245,6 @@ export function RankingCard({ round, me, inDrawer = false }: { round: ClosingBet
         </>
       )}
 
-      {/* 08:05~09:05엔 NXT 종목에 건 사람만 올라 있다 — 1위가 바뀔 수 있다고 미리 말한다 */}
       {!round.settled && ranks.length > 0 && <span className="text-xs text-zinc-500">중간 순위예요. KRX 종목이 09:05에 팔리면 확정돼요.</span>}
 
       {me && (
@@ -275,10 +268,6 @@ export function RankingCard({ round, me, inDrawer = false }: { round: ClosingBet
   );
 }
 
-/**
- * 지난 판 — 복기가 주인공. 내 결과 · 랭킹을 위에 두고, 그 아래 "아, 이거 종베할걸"에
- * 결과순 종목 목록(페이지가 `children`으로 넣는다)을 둔다.
- */
 export default function YesterdayReview({ round, me, member, children }: { round: ClosingBetRound; me: Me | null; member: boolean; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-6">

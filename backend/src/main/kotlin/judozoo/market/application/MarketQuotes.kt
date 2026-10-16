@@ -12,11 +12,6 @@ import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
 
-/**
- * 시세 — 지수 / 지수선물 / 야간선물 / 야후(나스닥·매크로).
- *
- * 모두 **폴러가 채우는 캐시**다([MarketQuoteScheduler]). 만료돼도 마지막 정상값을 주고, 갱신 실패는 그 값을 덮지 않는다.
- */
 @Service
 class MarketQuotes(
     private val kiwoomIndex: KiwoomIndex,
@@ -27,23 +22,18 @@ class MarketQuotes(
 ) {
     data class IndexResult(val currentValue: Double, val changeRate: Double)
 
-    /** 지수선물 시세 요약 — 값은 지수 포인트. */
     data class FuturesQuote(
         val futuresPrice: Double,
         val changeRate: Double,
         val spot: Double,
-        /** 선물 − 현물 */
         val basis: Double,
-        /** 괴리율(%) */
         val dprt: Double,
         val openInterest: Long,
         val openInterestChange: Long,
         val rmnnDays: Int,
-        /** 만기일 yyyy-MM-dd. 모르면 빈 문자열 */
         val expiryDate: String,
     )
 
-    /** 코스피 야간선물 시세. [dayClose]는 직전 정규장 종가, [gap]은 그 대비 갭(다음날 시초가 가늠용). */
     data class NightFuturesQuote(
         val price: Double,
         val changeRate: Double,
@@ -66,21 +56,16 @@ class MarketQuotes(
     private val nightQuotes = TtlCache<Unit, NightFuturesQuote?>("nightFuturesQuote", Duration.ofSeconds(40), maxSize = 1, skipIf = { it == null }, serveStale = true)
     private val yahooQuotes = TtlCache<String, QuoteResult?>("yahooQuotes", Duration.ofSeconds(40), maxSize = 6, skipIf = { it == null }, serveStale = true)
 
-    /** 지수 현재값. 못 받았고 들고 있던 값도 없으면 예외 — 화면에는 500으로 간다(Python과 같다). */
     fun index(market: Market): IndexResult = indexes.get(market) { loadIndex(market) }
 
     fun futuresQuote(market: Market): FuturesQuote? = futuresQuotes.get(market) { loadFuturesQuote(market) }
 
-    /** 근월물 코드는 정규장 전광판에서 뽑은 것을 그대로 쓴다(전광판은 야간을 지원하지 않는다). */
     fun nightFuturesQuote(): NightFuturesQuote? = nightQuotes.get(Unit) { loadNightQuote() }
 
-    /** 현물이라 미 정규장에만 움직인다 — 우리 장중엔 직전 마감가에 멈춰 있다. */
     fun nasdaqQuote(): QuoteResult? = quoteOf(NASDAQ_SYMBOL)
 
-    /** 우리 장중에 미국 심리를 읽는 자리. 야후 무료 시세라 **10분쯤 지연**된다. */
     fun nasdaqFuturesQuote(): QuoteResult? = quoteOf(NASDAQ_FUTURES_SYMBOL)
 
-    /** 일부가 실패해도 나머지는 살려서 준다. */
     fun macroQuotes() = MacroQuotes(
         quoteOf(MACRO_SYMBOLS.getValue("USD_KRW")), quoteOf(MACRO_SYMBOLS.getValue("WTI")),
         quoteOf(MACRO_SYMBOLS.getValue("VIX")), quoteOf(MACRO_SYMBOLS.getValue("US10Y")),
@@ -88,7 +73,6 @@ class MarketQuotes(
 
     fun quoteOf(symbol: String): QuoteResult? = yahooQuotes.get(symbol) { loadQuote(symbol) }
 
-    /** 폴러가 쓰는 갱신 단위 하나. 들고 있는 값이 없거나 [active]면 새로 받는다. 받은 값이 없으면 false. */
     class Refresh(val name: String, private val held: () -> Any?, private val refresh: () -> Any?) {
         fun run(active: () -> Boolean): Boolean = if (held() == null || active()) refresh() != null else true
     }
@@ -143,10 +127,8 @@ class MarketQuotes(
 
         const val NASDAQ_SYMBOL = "^IXIC"
 
-        /** 나스닥100 선물 근월물(야후가 알아서 롤오버). KIS는 CME가 유료시세라 못 쓴다. */
         const val NASDAQ_FUTURES_SYMBOL = "NQ=F"
 
-        /** `^TNX`는 미국채 10년 금리를 **% 그대로** 준다(5.209 = 5.209%). CBOE 원 지수처럼 ×10이 아니다. */
         val MACRO_SYMBOLS = linkedMapOf("USD_KRW" to "KRW=X", "WTI" to "CL=F", "VIX" to "^VIX", "US10Y" to "^TNX")
     }
 }

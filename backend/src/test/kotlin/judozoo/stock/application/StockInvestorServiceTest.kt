@@ -22,7 +22,6 @@ class StockInvestorServiceTest {
 
     @Nested
     inner class 종목_투자자_수급 {
-        /** 억으로 반올림하면 기관 세부 같은 작은 수급이 0으로 뭉개진다. */
         @Test
         fun `백만원 단위로 그대로 돌려준다`() {
             every { kiwoom.fetchInvestorTrend("005930") } returns listOf(day)
@@ -58,7 +57,6 @@ class StockInvestorServiceTest {
             verify(exactly = 1) { kiwoom.fetchInvestorTrend("005930") }
         }
 
-        /** 키움이 실패하면 빈 목록이 온다 — 그걸 들고 있으면 1분 동안 화면이 비어 있다. */
         @Test
         fun `빈 결과는 들고 있지 않는다`() {
             every { kiwoom.fetchInvestorTrend("005930") } returns emptyList()

@@ -9,13 +9,9 @@ import {
 } from "lightweight-charts";
 import type { IndexMinuteCandleItem } from "../../types";
 
-const UP = "#f04452"; // 상승 빨강
-const DOWN = "#3b82f6"; // 하락 파랑
+const UP = "#f04452";
+const DOWN = "#3b82f6";
 
-/**
- * 지수 선차트 — 분봉 종가를 이어 그린다. (지수값은 10초 샘플 합성이라 캔들보다 선이 정직)
- * 등락률이 +면 빨강·−면 파랑 한 가지 색. 등락률 없으면 당일 시초가 대비로 폴백. 거래량 막대 없음, 가격축 소수 2자리.
- */
 export default function IndexLineChart({
   items,
   changeRate,
@@ -79,7 +75,6 @@ export default function IndexLineChart({
       return { time: t, value: c.close };
     });
     s.setData(data);
-    // 등락률 부호로 선 색 결정(+빨강/−파랑). 등락률 없으면 당일 시초가 대비로 폴백.
     const up =
       changeRate != null
         ? changeRate >= 0

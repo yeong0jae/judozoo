@@ -4,10 +4,8 @@ import java.time.Duration
 import java.time.LocalDateTime
 import kotlin.random.Random
 
-/** 닉네임을 받지 않는 이유 — 화면에 그대로 보여 줄 문장. */
 class NicknameRejected(message: String) : RuntimeException(message)
 
-/** 닉네임 규칙 — 2~10자 한글·영문·숫자, 바꾼 뒤 7일은 못 바꾼다, 처음엔 형용사 + 동물. */
 object Nicknames {
     private val PATTERN = Regex("^[가-힣a-zA-Z0-9]{2,10}$")
     val RENAME_COOLDOWN: Duration = Duration.ofDays(7)
@@ -22,7 +20,6 @@ object Nicknames {
         return nick
     }
 
-    /** 다음에 바꿀 수 있는 시각. 처음 받은 랜덤 닉네임은 바로 바꿀 수 있다. */
     fun nextRenameAt(renamedAt: LocalDateTime?): LocalDateTime? = renamedAt?.plus(RENAME_COOLDOWN)
 
     fun checkRename(renamedAt: LocalDateTime?, now: LocalDateTime) {
@@ -30,7 +27,6 @@ object Nicknames {
         if (now.isBefore(at)) throw NicknameRejected("${at.monthValue}/${at.dayOfMonth}부터 바꿀 수 있어요")
     }
 
-    /** 형용사 + 동물. 다 찼으면 숫자를 붙인다. */
     fun random(taken: Set<String>, rng: Random): String {
         val combos = ADJECTIVES.flatMap { a -> ANIMALS.map { a + it } }.filter { it.length <= 10 }
         combos.filterNot { it in taken }.takeIf { it.isNotEmpty() }?.let { return it.random(rng) }

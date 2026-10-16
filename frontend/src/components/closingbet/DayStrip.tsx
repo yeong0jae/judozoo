@@ -14,7 +14,6 @@ const COPY: Record<Moment, { chip: string; title: string; timerLabel: string; co
   result: { chip: "결과 발표 중", title: "어제 판 결과가 나오고 있어요", timerLabel: "최종 랭킹까지", color: "#f87171" },
 };
 
-/** 지금 — 하루 흐름 네 칸 중 지금 칸에 불이 들어오고, 다음 칸까지 남은 시간을 센다 */
 export default function DayStrip({ moment, sub, timer }: { moment: Moment; sub: string; timer: string }) {
   const c = COPY[moment];
   return (
@@ -29,7 +28,6 @@ export default function DayStrip({ moment, sub, timer }: { moment: Moment; sub: 
         <span className="text-[22px] font-bold tracking-tight">{c.title}</span>
         <span className="text-[13px] text-zinc-400">{sub}</span>
       </div>
-      {/* 점과 선으로 이은 하루 흐름 — 티켓의 단계 표시와 같은 모양. 지금 칸만 파랗게 켜진다 */}
       <ol aria-label="하루 흐름" className="relative m-0 grid list-none grid-cols-4 p-0">
         <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[4px] h-0.5 rounded bg-zinc-800" />
         {SEGS.map(([key, label, time]) => {

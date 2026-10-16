@@ -22,12 +22,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/**
- * 세션별 수급 — 당일 누적 스냅샷의 경계 diff. 가장 깨지기 쉬운 곳이다. 값을 직접 주는 API가 없어 스냅샷끼리 빼서 만들기 때문에,
- * 경계 시각이나 폴백 규칙이 어긋나면 **숫자가 통째로 틀린 채 그럴듯하게 보인다**.
- *
- * 스냅샷은 Python 폴러가 적재한다 — 여기서는 그 행을 SQL로 직접 넣는다.
- */
 @IntegrationTest
 class MarketInvestorsTest @Autowired constructor(
     private val snapshots: MarketInvestorSnapshotRepository,
@@ -35,7 +29,7 @@ class MarketInvestorsTest @Autowired constructor(
     private val jdbc: JdbcTemplate,
 ) {
     private val calendar = mockk<MarketCalendar> {
-        every { isOpen(any()) } returns null // KIS를 두드리지 않게 — 판정 불가로 고정
+        every { isOpen(any()) } returns null
         every { isHoliday(any()) } returns false
     }
     private val quotes = mockk<MarketQuotes>()
@@ -74,26 +68,23 @@ class MarketInvestorsTest @Autowired constructor(
 
     private fun at(h: Int, m: Int) = day.atTime(h, m)
 
-    /** 화면의 깜빡이는 변화량. 서버가 직전 스냅샷 기준으로 한 번만 계산한다 — 사람마다 기준이 달라지지 않게. */
     @Nested
     inner class 직전_스냅샷_대비_변화량 {
         @Test
         fun `마지막 스냅샷이 속한 구간에만 실린다`() {
             snapshot(at(9, 0), 100, -50, -50)
             snapshot(at(12, 0), 300, -150, -150)
-            snapshot(at(13, 30), 380, -190, -190) // 직전
-            snapshot(at(13, 31), 420, -210, -210) // 마지막
+            snapshot(at(13, 30), 380, -190, -190)
+            snapshot(at(13, 31), 420, -210, -210)
 
             val byName = investors.investorSessions(Market.KOSPI, day).second.associate { it.name to it.delta }
 
-            // 13:31은 오후(12:00~15:00) 구간이다
             byName.getValue("오후")!!.individual shouldBe 40
             byName.getValue("오후")!!.foreign shouldBe -20
             byName.getValue("오전").shouldBeNull()
             byName.getValue("프리마켓").shouldBeNull()
         }
 
-        /** 그날 마지막 1분 변화량은 며칠 뒤에 볼 값이 아니다. */
         @Test
         fun `지난 날짜에는 싣지 않는다`() {
             now = LocalDateTime.of(2026, 9, 14, 10, 0)
@@ -115,19 +106,18 @@ class MarketInvestorsTest @Autowired constructor(
     inner class 투자자_세션_수급 {
         @Test
         fun `경계 스냅샷의 차이로 세션 순매수를 만든다`() {
-            snapshot(at(9, 0), 100, -50, -50) // 프리 누적
-            snapshot(at(12, 0), 300, -150, -150) // 오전까지 누적
-            snapshot(at(15, 0), 500, -200, -300) // 오후까지 누적
+            snapshot(at(9, 0), 100, -50, -50)
+            snapshot(at(12, 0), 300, -150, -150)
+            snapshot(at(15, 0), 500, -200, -300)
 
             val byName = investors.investorSessions(Market.KOSPI, day).second.associate { it.name to it.nets }
 
-            byName.getValue("프리마켓")!!.individual shouldBe 100 // 누적 그대로
-            byName.getValue("오전")!!.individual shouldBe 200 // 300 − 100
-            byName.getValue("오후")!!.individual shouldBe 200 // 500 − 300
-            byName.getValue("오전")!!.foreign shouldBe -100 // -150 − (-50)
+            byName.getValue("프리마켓")!!.individual shouldBe 100
+            byName.getValue("오전")!!.individual shouldBe 200
+            byName.getValue("오후")!!.individual shouldBe 200
+            byName.getValue("오전")!!.foreign shouldBe -100
         }
 
-        /** 이 성질이 깨지면 일별 표와 세션 표의 숫자가 어긋난다. */
         @Test
         fun `구간 합이 그날 최종 누적과 같다`() {
             listOf(at(9, 0) to 100L, at(12, 0) to 300L, at(15, 0) to 500L, at(15, 40) to 600L, at(20, 0) to 700L).forEach { (t, v) -> snapshot(t, v) }
@@ -135,7 +125,6 @@ class MarketInvestorsTest @Autowired constructor(
             investors.investorSessions(Market.KOSPI, day).second.sumOf { it.nets?.individual ?: 0 } shouldBe 700
         }
 
-        /** 폴러가 프리 스냅샷을 남기기 전 과거 데이터 호환. */
         @Test
         fun `프리 스냅샷이 없으면 오전이 프리를 포함해 합을 보존한다`() {
             snapshot(at(12, 0), 300)
@@ -145,7 +134,7 @@ class MarketInvestorsTest @Autowired constructor(
             val byName = sessions.associate { it.name to it.nets }
 
             byName.getValue("프리마켓").shouldBeNull()
-            byName.getValue("오전")!!.individual shouldBe 300 // 프리 포함 누적 그대로
+            byName.getValue("오전")!!.individual shouldBe 300
             sessions.sumOf { it.nets?.individual ?: 0 } shouldBe 500
         }
 
@@ -157,12 +146,11 @@ class MarketInvestorsTest @Autowired constructor(
             sessions.map { it.name } shouldBe listOf("프리마켓", "오전", "오후", "마감 구간", "애프터마켓")
         }
 
-        /** 폴러는 60~120초 간격이라 정확히 12:00인 스냅샷은 거의 없다. */
         @Test
         fun `경계 시각 이하의 가장 가까운 스냅샷을 쓴다`() {
             snapshot(at(9, 0), 100)
-            snapshot(at(11, 58), 290) // 경계 직전 — 이게 쓰여야 한다
-            snapshot(at(12, 2), 310) // 경계 직후 — 쓰이면 안 된다
+            snapshot(at(11, 58), 290)
+            snapshot(at(12, 2), 310)
 
             investors.investorSessions(Market.KOSPI, day).second.first { it.name == "오전" }.nets!!.individual shouldBe 190
         }
@@ -185,13 +173,12 @@ class MarketInvestorsTest @Autowired constructor(
 
             val sessions = investors.futuresInvestorSessions(Market.KOSPI, day).second
 
-            sessions.first { it.name == "오전" }.nets!!.foreign shouldBe 1000 // 누적 그대로
-            sessions.first { it.name == "오후" }.nets!!.foreign shouldBe 500 // 1500 − 1000
+            sessions.first { it.name == "오전" }.nets!!.foreign shouldBe 1000
+            sessions.first { it.name == "오후" }.nets!!.foreign shouldBe 500
             sessions.map { it.name } shouldBe listOf("오전", "오후", "마감 구간")
         }
     }
 
-    /** 공휴일·주말엔 그날 스냅샷이 없다. 빈 화면 대신 직전 거래일을 보여주되, **실제로 쓴 날짜를 함께 돌려줘야** 거짓 라벨이 붙지 않는다. */
     @Nested
     inner class 데이터_있는_날로_물러나기 {
         @Test
@@ -222,7 +209,6 @@ class MarketInvestorsTest @Autowired constructor(
             sessions.all { it.nets == null } shouldBe true
         }
 
-        /** 요청일 이하만 본다 — 요청일보다 뒤의 데이터를 끌어오면 안 된다. */
         @Test
         fun `미래 데이터로는 물러나지 않는다`() {
             snapshot(at(9, 0), 10)
@@ -231,7 +217,6 @@ class MarketInvestorsTest @Autowired constructor(
         }
     }
 
-    /** 현물 지수의 최근 거래일 수급 — 폴러가 쌓은 스냅샷에서 거래일마다 마지막 값을 읽는다. */
     @Nested
     inner class 최근_거래일_수급 {
         @BeforeEach
@@ -284,7 +269,6 @@ class MarketInvestorsTest @Autowired constructor(
         }
     }
 
-    /** 홈 "오늘의 수급"은 시장 폴러의 스냅샷과 선물 시세 캐시를 합친다. */
     @Nested
     inner class 오늘의_수급 {
         private val at = LocalDateTime.of(2026, 9, 30, 13, 31)
@@ -307,7 +291,6 @@ class MarketInvestorsTest @Autowired constructor(
             val result = investors.todayNets()
 
             result.map { it.market to it.futures } shouldBe listOf(Market.KOSPI to false, Market.KOSDAQ to false)
-            // 단정밀도 컬럼이어도 Python과 같은 값으로 나온다
             (result[0].indexValue to result[0].changeRate) shouldBe (2653.81 to 1.24)
             result[0].nets shouldBe MarketInvestors.TodayNetInvestors(200, 20, -10, 5)
             result[1].nets!!.individual shouldBe -300
@@ -364,7 +347,7 @@ class MarketInvestorsTest @Autowired constructor(
                 listOf(Market.KOSPI, false, 200L, previous), listOf(Market.KOSDAQ, false, -300L, previous),
                 listOf(Market.KOSPI, true, -4220L, previous), listOf(Market.KOSDAQ, true, 630L, previous),
             )
-            result[0].indexValue shouldBe 2653.81 // 현물 지수도 그 수급과 같은 시점 값이다
+            result[0].indexValue shouldBe 2653.81
         }
 
         @Test

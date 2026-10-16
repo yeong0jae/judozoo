@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
 
-/** 국내 날짜 칸에 붙는 해외장 — 직전 평일. */
 class ForeignSessionTest {
     @Nested
     inner class 직전_해외장 {

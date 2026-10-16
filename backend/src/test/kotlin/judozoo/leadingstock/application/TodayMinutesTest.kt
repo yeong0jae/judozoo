@@ -18,7 +18,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-/** 당일 분봉 저장소 — 한 번 채운 뒤 마지막 봉 이후만 받아 이어 붙인다. */
 class TodayMinutesTest {
     private val today = LocalDate.of(2026, 9, 28)
     private var now = LocalDateTime.of(2026, 9, 28, 10, 0)
@@ -66,7 +65,7 @@ class TodayMinutesTest {
 
             minutes.sync(listOf("005930"))
 
-            calls[1] shouldBe ("005930" to today.atTime(9, 0)) // 마지막 09:02에서 2분 앞
+            calls[1] shouldBe ("005930" to today.atTime(9, 0))
         }
 
         @Test
@@ -121,7 +120,6 @@ class TodayMinutesTest {
             calls shouldBe listOf("035720" to null)
         }
 
-        /** 낡은 봉이 없는 봉보다 낫다. */
         @Test
         fun `받다가 실패하면 들고 있던 봉을 준다`() {
             responses["005930"] = listOf(bar(9, 0))
@@ -184,7 +182,6 @@ class TodayMinutesTest {
 
     @Nested
     inner class 동시_요청 {
-        /** 감시 풀 밖의 종목을 여럿이 한꺼번에 연 상황. */
         @Test
         fun `같은 종목을 동시에 열면 토스를 한 번만 부른다`() {
             responses["000660"] = listOf(bar(9, 0), bar(9, 1))

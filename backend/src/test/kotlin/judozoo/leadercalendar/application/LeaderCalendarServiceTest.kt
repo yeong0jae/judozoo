@@ -29,7 +29,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/** 주도주 캘린더 — 마감 스냅샷이 남기는 것과 월 조회. */
 @IntegrationTest
 class LeaderCalendarServiceTest @Autowired constructor(
     private val days: LeaderDayRepository,
@@ -60,7 +59,6 @@ class LeaderCalendarServiceTest @Autowired constructor(
         every { domestic.findLeaders(5) } returns s.toList()
     }
 
-    /** 서비스 메서드는 프록시 밖에서 부르므로 트랜잭션을 직접 건다. */
     private fun <T> tx(block: () -> T): T = transaction.execute { block() }!!
 
     private fun domesticMonth(year: Int = 2026, month: Int = 9) = tx { service.findMonth(year, month) }.first
@@ -110,7 +108,6 @@ class LeaderCalendarServiceTest @Autowired constructor(
             domesticMonth().map { Triple(it.tradeDate, it.stocks, it.closed) } shouldBe listOf(Triple(LocalDate.of(2026, 9, 24), emptyList(), true))
         }
 
-        /** 0개로 남기면 브로커 오류가 "주도주 없음"으로 굳는다. */
         @Test
         fun `주도주를 못 받으면 아무것도 남기지 않는다`() {
             every { domestic.findLeaders(5) } throws IllegalStateException("키움 오류")
@@ -139,7 +136,6 @@ class LeaderCalendarServiceTest @Autowired constructor(
 
     @Nested
     inner class 월_조회 {
-        /** 9/1 칸에는 8/31 해외장이 붙는다. 국내 8/31은 9월 달력에 필요 없다. */
         @Test
         fun `해외는 그달 첫날 직전 평일부터 온다`() {
             leaders(stock("000660", "SK하이닉스"))
@@ -188,7 +184,6 @@ class LeaderCalendarServiceTest @Autowired constructor(
             month[0].stocks.map { it.name } shouldBe listOf("한미반도체")
         }
 
-        /** 장 전에는 풀이 어제 값을 들고 있다 — 타임라인이 찍지 않았으니 오늘 칸에 들어오지 않는다. */
         @Test
         fun `오늘 찍힌 분이 없으면 비워 둔다`() {
             tick(LocalDateTime.of(2026, 9, 22, 20, 0), stock("005930", "삼성전자"))

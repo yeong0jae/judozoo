@@ -52,7 +52,6 @@ class SellWindowTest {
             o.rate shouldBe (2.1005 plusOrMinus 1e-4)
         }
 
-        /** Python `round`와 같게 짝수 쪽으로 — 0.5원 단위 매도가에 홀수 주식 수면 .5가 나온다. */
         @Test
         fun `수익금 반올림은 짝수 쪽으로 한다`() {
             Outcome.of(1, 100, 100.5).pnl shouldBe 0

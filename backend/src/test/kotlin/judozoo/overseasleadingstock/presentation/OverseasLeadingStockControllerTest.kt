@@ -30,7 +30,6 @@ class OverseasLeadingStockControllerTest @Autowired constructor(private val mvc:
 
     @Nested
     inner class 해외_주도주_API {
-        /** 목록은 공개다 — 로그인 없이 부른다. */
         @Test
         fun `랭킹 응답 형식이 기존 계약과 같다`() {
             every { service.candidates(5.0) } returns listOf(aaa)
@@ -47,7 +46,6 @@ class OverseasLeadingStockControllerTest @Autowired constructor(private val mvc:
             }
         }
 
-        /** 사용자가 -12~7 밖의 값을 보내도 범위 안으로 맞춘다. 안 주면 7. */
         @Test
         fun `등락률 인자는 허용 범위로 잘라 쓴다`() {
             every { service.candidates(any()) } returns emptyList()
@@ -60,7 +58,6 @@ class OverseasLeadingStockControllerTest @Autowired constructor(private val mvc:
             verify(exactly = 1) { service.candidates(-12.0) }
         }
 
-        /** FastAPI 기본은 422지만 기존 API 계약은 400이다. */
         @Test
         fun `잘못된 인자는 400으로 돌려준다`() {
             mvc.get("/api/overseas-leading-stocks/candidates") { param("minChangeRate", "abc") }.andExpect {

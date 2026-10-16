@@ -105,7 +105,6 @@ export const QK = {
     ["overseas-leading-stocks", "daily-candles", exchange, symbol] as const,
 };
 
-/** 시장 휴장 상태 — region KR(국내)/US(해외). 토스 장 운영 정보 기반. */
 export function useMarketCalendarStatus(region: MarketRegion) {
   return useQuery({
     queryKey: QK.calendarStatus(region),
@@ -128,13 +127,8 @@ export function useStockSearch(query: string) {
   });
 }
 
-/**
- * 주도주·후보 조회 주기. 서버가 국내·해외 거래대금 상위를 장중 15초마다 갈아 끼우므로 그에 맞춘다 —
- * 더 자주 물어도 같은 값이고, 드물게 물으면 바뀐 값을 한 박자 늦게 본다.
- */
 export const POOL_REFRESH_MS = 15_000;
 
-/** 눌림·돌파와 오늘 시그널의 조회 주기 — 화면 머리의 갱신 고리도 이 값으로 찬다. */
 export const LIVE_REFRESH_MS = 5_000;
 
 export function useLeadingStockCandidates(minChangeRate: number) {
@@ -148,7 +142,6 @@ export function useLeadingStockCandidates(minChangeRate: number) {
   });
 }
 
-/** 첫 화면 주도주 — 거래대금·등락률이 함께 높은 다섯 종목. 보는 사람의 등락률 기준을 받지 않는다. */
 export function useLeadingStockLeaders() {
   return useQuery({
     queryKey: QK.leadingStockLeaders,
@@ -157,7 +150,6 @@ export function useLeadingStockLeaders() {
   });
 }
 
-/** 주도주 캘린더 한 달치. `month`는 "2026-09". 마감 기록 전의 오늘은 매분 바뀌어 이번 달이면 1분마다 다시 받는다. */
 export function useLeaderCalendar(month: string, live: boolean) {
   return useQuery({
     queryKey: QK.leaderCalendar(month),
@@ -166,8 +158,6 @@ export function useLeaderCalendar(month: string, live: boolean) {
   });
 }
 
-/** 주도주 타임라인 하루치. `date`는 그 시장의 현지 거래일(해외는 뉴욕).
- *  장중이면 1분마다 다시 받는다 — 하루 전체라도 수십 KB라 `since`로 잘라 붙이지 않는다. */
 export function useLeaderTimeline(market: "kr" | "us", date: string, live: boolean) {
   return useQuery({
     queryKey: QK.leaderTimeline(market, date),
@@ -176,8 +166,6 @@ export function useLeaderTimeline(market: "kr" | "us", date: string, live: boole
   });
 }
 
-/** `mode`는 미로그인 미리보기를 **어느 쪽 근접 순으로 자를지** 정한다.
- *  전부 받는 로그인 쪽에서는 결과가 같다 — 화면이 어차피 다시 정렬한다. */
 export function useBreakoutRadar(mode: "resistance" | "support" = "resistance") {
   return useQuery({
     queryKey: [...QK.breakoutRadar, mode],
@@ -199,8 +187,6 @@ export function useSignalEvents(date: string) {
   });
 }
 
-/** 지수 시그널은 로그인 뒤다 — 미로그인이면 부르지 않는다. 호출해봐야 401이고
- *  폴링 주기마다 반복된다. 종목 시그널(`useSignalEvents`)은 미리보기로 열려 있다. */
 export function useMarketSignalEvents(date: string, enabled = true) {
   const isToday = date === todayStr();
   return useQuery({
@@ -226,7 +212,6 @@ export function useMarketInvestorNetBuy(enabled: boolean) {
   });
 }
 
-/** 시그널 발생 시각([at], ISO LocalDateTime) 기준 스냅샷 순매수. 그 시각 스냅샷이 없으면 빈 배열. */
 export function useMarketInvestorNetBuyAt(at: string | null, enabled: boolean) {
   return useQuery({
     queryKey: at ? QK.marketInvestorNetBuyAt(at) : ["leading-stocks", "market-investor-net-buy", "at", "null"],
@@ -238,7 +223,6 @@ export function useMarketInvestorNetBuyAt(at: string | null, enabled: boolean) {
   });
 }
 
-/** 첫 화면 "오늘의 수급" — 코스피·코스닥(억원)과 두 지수선물(계약). 로그인 뒤에만 부른다. */
 export function useTodayNets(enabled: boolean) {
   return useQuery({
     queryKey: QK.todayNets,
@@ -264,7 +248,6 @@ export function useKosdaqIndex() {
   });
 }
 
-/** 최근 [count]일 일별 순매수(외/기/개/기타법인 + 기관 세부) — 토스 Market Indicators. */
 export function useMarketInvestorDaily(market: "KOSPI" | "KOSDAQ", count = 10) {
   return useQuery({
     queryKey: QK.marketInvestorDaily(market, count),
@@ -274,7 +257,6 @@ export function useMarketInvestorDaily(market: "KOSPI" | "KOSDAQ", count = 10) {
   });
 }
 
-/** 세션별(오전/오후/마감) 순매수 — 당일 누적 스냅샷 경계 diff. */
 export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: string) {
   return useQuery({
     queryKey: QK.marketInvestorSessions(market, date),
@@ -282,12 +264,10 @@ export function useMarketInvestorSessions(market: "KOSPI" | "KOSDAQ", date: stri
       apiFetch<SessionsResponse<MarketInvestorSession>>(
         `/api/market/${market}/investor/sessions?date=${date}`,
       ),
-    // 백엔드 순매수 스냅샷 폴러(60초)와 같은 주기 — 더 자주 물어도 같은 값을 받는다.
     refetchInterval: 60_000,
   });
 }
 
-/** 시장 지수 캔들(OHLCV) — 토스. interval "1d"는 최근 [count]봉, "1m"은 최근 거래일치. market=null이면 비활성. */
 export function useMarketCandles(
   market: "KOSPI" | "KOSDAQ" | null,
   interval: "1d" | "1m",
@@ -304,7 +284,6 @@ export function useMarketCandles(
   });
 }
 
-/** 코스피 선물(근월물) 시세 요약 — KIS. 선물·현물·베이시스·괴리율·미결제. */
 export function useFuturesQuote(market: MarketType) {
   return useQuery({
     queryKey: QK.futuresQuote(market),
@@ -313,7 +292,6 @@ export function useFuturesQuote(market: MarketType) {
   });
 }
 
-/** 코스피 야간선물 시세 — KIS(CM). 현재가·정규장 종가 대비 갭. */
 export function useNightFuturesQuote() {
   return useQuery({
     queryKey: QK.nightFuturesQuote,
@@ -322,7 +300,6 @@ export function useNightFuturesQuote() {
   });
 }
 
-/** 코스피 야간선물 캔들 — interval "1d"/"1m"(최근 세션). */
 export function useNightFuturesCandles(interval: "1d" | "1m", count = 90) {
   return useQuery({
     queryKey: QK.nightFuturesCandles(interval),
@@ -334,7 +311,6 @@ export function useNightFuturesCandles(interval: "1d" | "1m", count = 90) {
   });
 }
 
-/** 나스닥 종합지수(^IXIC) 시세 — 야후. */
 export function useNasdaqIndexQuote() {
   return useQuery({
     queryKey: QK.nasdaqIndexQuote,
@@ -343,7 +319,6 @@ export function useNasdaqIndexQuote() {
   });
 }
 
-/** 나스닥 종합지수 캔들 — interval "1d"/"1m". */
 export function useNasdaqIndexCandles(interval: "1d" | "1m") {
   return useQuery({
     queryKey: QK.nasdaqIndexCandles(interval),
@@ -353,7 +328,6 @@ export function useNasdaqIndexCandles(interval: "1d" | "1m") {
   });
 }
 
-/** 나스닥100 선물(NQ=F) 시세 — 야후. 현물과 달리 우리 장중에도 돈다. */
 export function useNasdaqFuturesQuote() {
   return useQuery({
     queryKey: QK.nasdaqFuturesQuote,
@@ -362,7 +336,6 @@ export function useNasdaqFuturesQuote() {
   });
 }
 
-/** 나스닥 선물 캔들 — interval "1d"/"1m". */
 export function useNasdaqFuturesCandles(interval: "1d" | "1m") {
   return useQuery({
     queryKey: QK.nasdaqFuturesCandles(interval),
@@ -372,7 +345,6 @@ export function useNasdaqFuturesCandles(interval: "1d" | "1m") {
   });
 }
 
-/** 원달러·WTI·VIX·미국채 10년 시세 — 야후. 상단 스트립이 한 칸에 전부 그린다. */
 export function useMacroQuotes() {
   return useQuery({
     queryKey: QK.macroQuotes,
@@ -381,7 +353,6 @@ export function useMacroQuotes() {
   });
 }
 
-/** 매크로 캔들 — interval "1d"/"1m". */
 export function useMacroCandles(target: MacroTarget, interval: "1d" | "1m") {
   return useQuery({
     queryKey: QK.macroCandles(target, interval),
@@ -393,7 +364,6 @@ export function useMacroCandles(target: MacroTarget, interval: "1d" | "1m") {
   });
 }
 
-/** 코스피 선물 세션별(오전/오후/마감) 투자자 순매수 — 계약. */
 export function useFuturesInvestorSessions(market: MarketType, date: string) {
   return useQuery({
     queryKey: QK.futuresInvestorSessions(market, date),
@@ -405,7 +375,6 @@ export function useFuturesInvestorSessions(market: MarketType, date: string) {
   });
 }
 
-/** 종목 최근 N일 일별 순매수(억원) — 키움 ka10059. 국내 종목만. */
 export function useStockInvestorDaily(stockCode: string, count = 10) {
   return useQuery({
     queryKey: QK.stockInvestorDaily(stockCode, count),
@@ -415,7 +384,6 @@ export function useStockInvestorDaily(stockCode: string, count = 10) {
   });
 }
 
-/** 코스피 선물 일별 투자자 순매수(계약) — 스냅샷을 쌓은 날만 온다. */
 export function useFuturesInvestorDaily(market: MarketType, count = 10) {
   return useQuery({
     queryKey: QK.futuresInvestorDaily(market, count),
@@ -425,7 +393,6 @@ export function useFuturesInvestorDaily(market: MarketType, count = 10) {
   });
 }
 
-/** 지수선물(코스피200/코스닥150) 근월물 캔들 — KIS. interval "1d"/"1m". */
 export function useFuturesCandles(market: MarketType, interval: "1d" | "1m", count = 90) {
   return useQuery({
     queryKey: QK.futuresCandles(market, interval),
@@ -488,7 +455,6 @@ export function useLeadingStockDetail(code: string | null) {
   });
 }
 
-/** 첫 화면 해외 주도주 — 국내와 같은 규칙, 같은 칸 수. */
 export function useOverseasLeaders() {
   return useQuery({
     queryKey: QK.overseasLeaders,
@@ -540,7 +506,6 @@ export function useOverseasMinuteCandles(
         `/api/overseas-leading-stocks/${exchange}/${symbol}/minute-candles`,
       ),
     enabled,
-    // 국내 1분 차트와 같은 주기 — 서버도 30초 넘게 묵은 값만 이어 받는다(`minutes._FRESH`)
     refetchInterval: 30_000,
   });
 }
@@ -563,10 +528,6 @@ export function useOverseasDailyCandles(
   });
 }
 
-/**
- * 왜 오르나 — 지금 세션의 종목별 사유를 코드로 찾게 묶어 준다(국내 6자리 단축코드 / 해외 심볼).
- * 사유는 분 단위로 새로 만들어져 1분마다 다시 받는다. 근거·관련 기사는 로그인일 때만 실려 온다.
- */
 export function useInsightReasons(market: "kr" | "us") {
   return useQuery({
     queryKey: QK.insightReasons(market),

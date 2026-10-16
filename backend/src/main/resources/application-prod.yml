@@ -1,5 +1,3 @@
-# 운영(`docker-compose.prod.yml`이 `SPRING_PROFILES_ACTIVE=prod`를 준다).
-# 운영 로그는 JSON 한 줄 — Python과 같은 필드라 Grafana의 `| json | level="ERROR"`가 그대로 먹는다.
 logging:
   structured:
     format:

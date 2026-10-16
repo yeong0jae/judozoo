@@ -31,12 +31,6 @@ import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/**
- * 모의 종가베팅 API.
- *
- * 방문자는 판돈·LIVE·목록(등급)·랭킹까지 본다. 베팅·닉네임과 **등급 이유·시장 수급 표**는 로그인 뒤다 —
- * 투자자별 수급은 이 서비스가 가공한 값이라 다른 화면과 같이 로그인 뒤에 둔다(PRD).
- */
 @RestController
 @RequestMapping("/api/closingbet")
 class ClosingBetController(private val service: ClosingBetService, private val clock: Clock) {
@@ -48,10 +42,8 @@ class ClosingBetController(private val service: ClosingBetService, private val c
         }
     }
 
-    /** [nickname]은 첫 베팅 때 생긴다 — 그 전에는 null. */
     data class Me(val nickname: String?, val nextRenameAt: LocalDateTime?, val bet: MyBet?)
 
-    /** [bettingDay]는 베팅을 받거나 체결을 기다리는 판, [reviewDay]는 복기·결과 발표에 보여 줄 판. [me]는 로그인일 때만. */
     data class Now(
         val moment: String,
         val bettingDay: LocalDate?,
@@ -68,16 +60,13 @@ class ClosingBetController(private val service: ClosingBetService, private val c
         }
     }
 
-    /** 등급 이유(고가·저가 아래)는 로그인일 때만. 순매수는 백만원, `...Week`는 최근 5일 합. */
     data class StockItem(
         val code: String,
         val name: String,
         val lead: Boolean,
         val price: Long,
         val changeRate: Double,
-        /** KOSPI / KOSDAQ. 등급을 못 매긴 종목은 null */
         val market: String?,
-        /** NXT 상장 — 매도 창(08:00 / 09:00)을 가른다. 못 받았으면 null */
         val nxt: Boolean?,
         val grade: String?,
         val crowd: Int,
@@ -99,7 +88,6 @@ class ClosingBetController(private val service: ClosingBetService, private val c
 
     data class NicknameRequest(@field:Size(max = 40) val nickname: String)
 
-    /** [sellPrice]·[rate]는 공개 전이면 null. 등급 이유는 로그인일 때만. */
     data class RoundStock(
         val code: String,
         val name: String,
@@ -139,7 +127,6 @@ class ClosingBetController(private val service: ClosingBetService, private val c
         val rateRank: Int?,
     )
 
-    /** [market]·[me]는 로그인일 때만. */
     data class Round(
         val day: LocalDate,
         val settled: Boolean,
@@ -163,7 +150,6 @@ class ClosingBetController(private val service: ClosingBetService, private val c
         return ApiResponse.ok(Now(phase.moment.value, phase.betting, phase.review, phase.nextAt, stakes?.totalMan ?: 0, stakes?.players ?: 0, me))
     }
 
-    /** 베팅·대기 시간의 오늘 목록. 그 밖의 시간에는 빈 목록 — 복기는 `/rounds/{day}`가 맡는다. */
     @GetMapping("/stocks")
     fun stocks(user: CurrentUser?): ApiResponse<List<StockItem>> {
         val day = service.phase(at()).betting ?: return ApiResponse.ok(emptyList())
@@ -187,7 +173,6 @@ class ClosingBetController(private val service: ClosingBetService, private val c
         )
     }
 
-    /** 오늘 시장 수급 표(로그인). 베팅·대기 시간 밖이면 null. */
     @GetMapping("/market")
     fun market(@Suppress("UNUSED_PARAMETER") user: CurrentUser): ApiResponse<Map<String, Any?>?> =
         ApiResponse.ok(service.phase(at()).betting?.let { service.readings(it).flows })
@@ -241,7 +226,6 @@ class ClosingBetController(private val service: ClosingBetService, private val c
         )
     }
 
-    /** 거절 이유는 화면에 그대로 보여 줄 문장이다 — 봉투 모양은 그대로, `data.message`에 싣는다. */
     @ExceptionHandler(BetRejected::class)
     fun betRejected(e: BetRejected) = rejected("BET_REJECTED", e)
 

@@ -10,14 +10,6 @@ import org.springframework.stereotype.Component
 import java.time.Clock
 import java.time.LocalTime
 
-/**
- * 국내 주도주 폴러 — 후보 풀 갱신(15초) / 감시 풀 당일 분봉(20초)·마감 확정(20:01) / 종목 시그널(10초) / 시장 수급(1분) / 지수 반등(30초).
- *
- * 폴러는 **화면을 아무도 안 보고 있어도** 쌓이게 하려고 서버가 능동적으로 돈다.
- *
- *
- * 실패는 삼키되 [JobFailures]로 센다 — 잡 이름은 Python과 같다.
- */
 @Component
 class LeadingStockScheduler(
     private val service: LeadingStockService,
@@ -30,7 +22,6 @@ class LeadingStockScheduler(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 실패해도 기존 값은 그대로 쓰인다. 다음 회차가 다시 시도한다. */
     @Scheduled(fixedDelay = 15_000)
     fun refreshTradingValuePool() {
         if (!inSession()) return
@@ -42,12 +33,10 @@ class LeadingStockScheduler(
         }
     }
 
-    /** 종목 하나가 실패하면 그 종목만 기존 봉을 쓴다. */
     @Scheduled(fixedDelay = 20_000)
     fun syncTodayMinutes() {
         if (!inSession()) return
         try {
-            // 실패는 종목 수와 상관없이 회차당 한 번 센다
             val failed = service.syncTodayMinutes()
             if (failed > 0) {
                 log.warn("당일 분봉 갱신 — {}종목 실패", failed)
@@ -59,10 +48,6 @@ class LeadingStockScheduler(
         }
     }
 
-    /**
-     * 마감(20:00) 뒤 감시 풀의 오늘 봉을 확정해 지난 날 보관소에 넘긴다.
-     * 20:01은 마지막 봉이 굳을 틈이다. 이게 없으면 다음 날 아침 감시 풀 전체의 어제 봉을 키움에서 다시 받는다.
-     */
     @Scheduled(cron = "0 1 20 * * MON-FRI", zone = "Asia/Seoul")
     fun settleTodayMinutes() {
         if (calendar.marketStatus().first) return
@@ -89,7 +74,6 @@ class LeadingStockScheduler(
         }
     }
 
-    /** 프리마켓 개장(08:00)부터 애프터마켓 마감(20:00)까지 — 시황의 세션 표가 정규장 밖 스냅샷도 쓴다. */
     @Scheduled(fixedDelay = 60_000)
     fun detectMarketFlows() {
         if (!between(SNAPSHOT_START, SNAPSHOT_END)) return
@@ -101,7 +85,6 @@ class LeadingStockScheduler(
         }
     }
 
-    /** 지수는 정규장에만 체결된다. */
     @Scheduled(fixedDelay = 30_000)
     fun detectIndexRebound() {
         if (!between(MarketFlowDetector.SIGNAL_START, MarketFlowDetector.SIGNAL_END)) return
@@ -118,7 +101,6 @@ class LeadingStockScheduler(
         return !holiday && tradingHours
     }
 
-    /** 휴장이 아니고 [start]~[end](양끝 포함) 안인가. */
     private fun between(start: LocalTime, end: LocalTime): Boolean {
         if (calendar.isHoliday(Region.KR)) return false
         val now = LocalTime.now(clock.withZone(KST))

@@ -6,7 +6,6 @@ data class Result(val userId: Long, val stockCode: String, val placedAt: LocalDa
 
 data class Ranked(val rank: Int, val result: Result)
 
-/** 한 판의 정산된 베팅들. 순위는 공동 순위(1, 1, 3), 같은 값끼리는 먼저 건 사람이 위. */
 class Results(private val results: List<Result>) {
     val size: Int get() = results.size
 

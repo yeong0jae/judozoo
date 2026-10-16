@@ -17,7 +17,6 @@ import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 주도주 캘린더 스냅샷 작업 — 휴장일은 휴장으로 남기고, 거래일은 현지 날짜로 잡는다. */
 class LeaderCalendarSchedulerTest {
     private val taken = mutableListOf<LocalDate>()
     private val closed = mutableListOf<Pair<Region, LocalDate>>()
@@ -56,7 +55,6 @@ class LeaderCalendarSchedulerTest {
 
     @Nested
     inner class 해외_스냅샷_작업 {
-        /** 16:01 뉴욕은 KST로 다음 날 새벽이다 — 한국 날짜를 쓰면 하루 밀린다. */
         @Test
         fun `뉴욕 날짜를 거래일로 잡는다`() {
             every { calendar.isHoliday(any()) } returns false

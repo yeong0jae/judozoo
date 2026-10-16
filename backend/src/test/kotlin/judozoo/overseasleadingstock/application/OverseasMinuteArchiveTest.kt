@@ -16,14 +16,12 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 해외 지난 날 분봉 보관소의 DB 층 — 재시작해도 끝난 날이 남아야 처음 열 때 KIS를 덜 부른다. */
 @IntegrationTest
 class OverseasMinuteArchiveTest @Autowired constructor(
     private val repository: OverseasMinuteCandleRepository,
     private val transaction: TransactionTemplate,
     private val jdbc: JdbcTemplate,
 ) {
-    /** 재시작한 상황을 만들려면 메모리를 비운 새 보관소가 필요하다. */
     private fun fresh() = OverseasMinuteArchive(repository, transaction)
 
     private fun bar(day: LocalDate, kst: LocalDateTime, close: Double = 100.5) =
@@ -36,7 +34,6 @@ class OverseasMinuteArchiveTest @Autowired constructor(
 
     @Nested
     inner class 해외_지난_날_분봉_DB {
-        /** 배포로 재시작한 상황. 미국 장은 한국 자정을 넘나들어 한 영업일이 한국 날짜 이틀에 걸친다. */
         @Test
         fun `메모리가 비어도 최근 날부터 꺼낸다`() {
             val dayBefore = LocalDate.of(2026, 9, 24)
@@ -50,7 +47,6 @@ class OverseasMinuteArchiveTest @Autowired constructor(
 
             days.map { it.first } shouldBe listOf(yesterday, dayBefore)
             days[0].second.map { it.dateTime.hour } shouldBe listOf(23, 0)
-            // 단정밀도 컬럼이어도 Python(MySQL 글자 표현)과 같은 값으로 돌아온다
             days[0].second[0].close shouldBe 100.5
             days[0].second[0].tradingValue shouldBe 1005.0
         }

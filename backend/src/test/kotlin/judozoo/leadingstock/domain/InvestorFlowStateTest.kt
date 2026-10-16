@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class InvestorFlowStateTest {
-    /** 되돌림 임계 0.2조 */
     private fun flow(vararg nets: Long): FlowTurn? {
         var state = InvestorFlowState()
         var last: FlowTurn? = null
@@ -17,7 +16,6 @@ class InvestorFlowStateTest {
 
     @Nested
     inner class 순매수_흐름_전환 {
-        /** 외인 순매도 정점 −6.8조 → −6.5조(0.3조 매수 유입) = 전환 기미. */
         @Test
         fun `정점에서 임계 이상 되돌리면 전환으로 본다`() {
             flow(-10_000, -68_000, -65_000) shouldBe FlowTurn(NetTradeSide.BUY, -68_000)

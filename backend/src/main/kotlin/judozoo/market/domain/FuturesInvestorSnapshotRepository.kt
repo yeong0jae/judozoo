@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 적재는 선물 투자자 폴러([judozoo.market.application.FuturesInvestorScheduler])가 1분마다 한다. */
 interface FuturesInvestorSnapshotRepository : JpaRepository<FuturesInvestorSnapshot, Int> {
     fun findByMarketAndTradeDateAndCapturedAtLessThanEqualOrderByCapturedAtDesc(market: Market, tradeDate: LocalDate, at: LocalDateTime, limit: Limit): List<FuturesInvestorSnapshot>
 

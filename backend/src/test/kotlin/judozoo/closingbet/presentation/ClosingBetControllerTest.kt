@@ -244,7 +244,6 @@ class ClosingBetControllerTest @Autowired constructor(private val mvc: MockMvc) 
             }
         }
 
-        /** 애프터 버팀이 생기기 전에 찍힌 판에는 그 키가 없다 — false로 읽는다. */
         @Test
         fun `로그인하면 내 결과와 순위와 시장 수급이 실린다`() {
             round()

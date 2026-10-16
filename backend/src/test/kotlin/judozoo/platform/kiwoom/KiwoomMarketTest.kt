@@ -26,14 +26,12 @@ class KiwoomMarketTest {
     @AfterEach
     fun 정리() = stub.close()
 
-    /** `pred_pre_sig`는 등락부호 — 1:상한 2:상승 3:보합 4:하한 5:하락. */
     private fun rankRow(
         code: String, name: String, curPrc: String = "+71500", rank: String = "1", amount: String = "1000",
         rate: String = "+3.5", sig: String = "2", volume: String = "123456",
     ) = """{"stk_cd":"$code","stk_nm":"$name","cur_prc":"$curPrc","now_rank":"$rank","flu_rt":"$rate",
         "trde_prica":"$amount","pred_pre_sig":"$sig","now_trde_qty":"$volume"}"""
 
-    /** 요청 본문의 `stk_cd`가 [stockCode]일 때만 답한다 — 접미사를 잘못 붙이면 결과가 비어 드러난다. */
     private fun respondFor(path: String, stockCode: String, json: String) {
         stub.server.stubFor(
             post(urlEqualTo(path)).withRequestBody(matchingJsonPath("$.stk_cd", equalTo(stockCode))).willReturn(okJson(json)),
@@ -51,8 +49,8 @@ class KiwoomMarketTest {
             result shouldHaveSize 1
             val s = result[0]
             (s.stockCode to s.stockName) shouldBe ("005930" to "삼성전자")
-            s.currentPrice shouldBe 71500 // "+71500" → 부호 제거
-            s.accumulatedTradingValue shouldBe 5_000_000_000 // 백만원 단위 → 원
+            s.currentPrice shouldBe 71500
+            s.accumulatedTradingValue shouldBe 5_000_000_000
             s.accumulatedVolume shouldBe 123456
         }
 
@@ -67,7 +65,6 @@ class KiwoomMarketTest {
             market.fetchTopTradingValueStocks().map { it.limitUp } shouldBe listOf(true, false)
         }
 
-        /** 신규상장 종목은 제한폭이 없어 부호 2인 채로 +150%가 온다 — 등락률로 가리면 틀린다. */
         @Test
         fun `많이 올랐어도 부호가 상한이 아니면 상한가가 아니다`() {
             stub.respond(RANK, """{"return_code":0,"trde_prica_upper":[${rankRow("0200G0", "한국제17호스팩", rate = "+153.00", sig = "2")}]}""")
@@ -78,7 +75,6 @@ class KiwoomMarketTest {
             result[0].limitUp shouldBe false
         }
 
-        /** 빈 결과를 캐싱하면 후속 폴링이 TTL 동안 빈 목록을 재사용한다 — 그래서 던진다. */
         @Test
         fun `목록이 없으면 예외로 올린다`() {
             stub.respond(RANK, """{"return_code":0,"return_msg":"no data"}""")
@@ -121,7 +117,6 @@ class KiwoomMarketTest {
         private val detail = """{"stk_cd":"005930","stk_nm":"삼성전자","cur_prc":"+71500","flu_rt":"+1.5","mac":"4200000",
             "open_pric":"71000","base_pric":"70500","high_pric":"72000","low_pric":"70800","trde_qty":"987654"}"""
 
-        /** KRX 기본 코드는 정규장 종가에 멈춘다 — _AL이라야 프리·애프터가 반영된다. */
         @Test
         fun `접미사가 없으면 SOR 통합 코드를 붙인다`() {
             respondFor(STOCK_INFO, "005930_AL", detail)
@@ -155,7 +150,6 @@ class KiwoomMarketTest {
     inner class 일봉 {
         private val base = LocalDate.of(2026, 9, 11)
 
-        /** ka10081은 _AL이면 빈 응답이 오는 경우가 있어 KRX 기본 코드로 부른다. */
         @Test
         fun `일봉은 SOR 접미사를 붙이지 않는다`() {
             respondFor(
@@ -166,7 +160,6 @@ class KiwoomMarketTest {
             market.fetchDailyCandles("005930_AL", baseDate = base) shouldHaveSize 1
         }
 
-        /** 응답에 등락률이 없다 — pred_pre(종가-전일종가)와 종가로 만든다. */
         @Test
         fun `전일대비로 등락률을 역산한다`() {
             stub.respond(
@@ -194,7 +187,6 @@ class KiwoomMarketTest {
             market.fetchDailyCandles("005930", baseDate = base) shouldHaveSize 1
         }
 
-        /** 필터용 60개와 차트 200개는 키움에 보내는 요청이 같다 — 개수는 받은 뒤 자른다. */
         @Test
         fun `개수만 다른 조회는 한 번의 호출을 나눠 쓴다`() {
             val rows = listOf(9, 8).flatMap { m -> (28 downTo 1).map { d -> "%02d%02d".format(m, d) } }.joinToString(",") {
@@ -219,7 +211,6 @@ class KiwoomMarketTest {
         private val bar = """{"stk_min_pole_chart_qry":[{"cntr_tm":"20260911093000","open_pric":"70000","high_pric":"72000",
             "low_pric":"69000","cur_prc":"-71500","trde_qty":"100"}]}"""
 
-        /** KRX 기본은 정규장 봉만 준다 — _AL이라야 NXT 프리·애프터 봉이 함께 온다. */
         @Test
         fun `분봉은 SOR 통합 코드로 부른다`() {
             respondFor(CHART, "005930_AL", bar)
@@ -227,14 +218,13 @@ class KiwoomMarketTest {
             market.fetchHistoricalMinuteCandles("005930", base) shouldHaveSize 1
         }
 
-        /** ka10080 응답엔 거래대금 필드가 없다. */
         @Test
         fun `거래대금을 종가곱거래량으로 근사한다`() {
             stub.respond(CHART, bar)
 
             val candle = market.fetchHistoricalMinuteCandles("005930", base)[0]
 
-            candle.closePrice shouldBe 71500 // "-71500"은 하락 표식이지 음수가 아니다
+            candle.closePrice shouldBe 71500
             candle.tradingValue shouldBe 71500L * 100
             (candle.dateTime.hour to candle.dateTime.minute) shouldBe (9 to 30)
         }

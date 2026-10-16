@@ -12,10 +12,6 @@ import judozoo.stock.domain.Market
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/**
- * 시장 단위 시그널 전이 한 건. `kind`로 종류를 구분한다 — 글자 컬럼이다([SignalEvent]와 같은 까닭).
- * 지수값·등락률은 **단정밀도 `float`**라 [exact]로 MySQL 글자 표현과 같은 값을 낸다.
- */
 @Entity
 @Table(name = "market_signal_event")
 class MarketSignalEvent(
@@ -46,7 +42,6 @@ class MarketSignalEvent(
     val indexValue: Double? get() = indexValueFloat?.let(::exact)
     val changeRate: Double? get() = changeRateFloat?.let(::exact)
 
-    /** 단계에 해당하는 누적 순매수 임계액(억원). 단계가 없는 종류는 null. */
     val thresholdEok: Long? get() = level?.let { it * MarketSignalScale.of(market).stepEok }
 
     private fun exact(value: Float): Double = value.toString().toDouble()
@@ -64,7 +59,6 @@ class MarketSignalEvent(
                 indexValueFloat = indexValue.toFloat(), changeRateFloat = changeRate.toFloat(),
             )
 
-        /** 지수 반등([MarketSignalType.MA_REBOUND], 매수 쪽)·꺾임([MarketSignalType.MA_BREAKDOWN], 매도 쪽). */
         fun indexCross(kind: MarketSignalType, at: LocalDateTime, day: LocalDate, market: Market, indexValue: Double, changeRate: Double) =
             MarketSignalEvent(
                 at, day, kind.name, market, if (kind == MarketSignalType.MA_REBOUND) NetTradeSide.BUY else NetTradeSide.SELL,

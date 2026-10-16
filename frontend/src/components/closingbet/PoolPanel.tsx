@@ -1,24 +1,16 @@
 import { eok, useCountUp, won } from "./parts";
 
-/** LIVE 한 줄. `ago`는 화면에 그대로 쓰는 "방금"·"3초 전" */
 export type FeedItem = { id: number; nick: string; stock: string; amount: number; ago: string };
 
-/**
- * 판돈 — 원 단위로 풀어 쓰고, 베팅이 들어올 때마다 숫자가 차오른다.
- * 참여 인원 · 마감까지 · 방금 들어온 베팅(LIVE)을 한 패널에 둔다.
- */
 export default function PoolPanel({
   totalMan,
   players,
   feed,
   closed = false,
 }: {
-  /** 판돈 합계(만원) */
   totalMan: number;
   players: number;
-  /** 최근 베팅, 맨 앞이 방금 */
   feed: FeedItem[];
-  /** 20:00 마감 뒤 — 더 쌓이지 않고 LIVE도 멈춘다 */
   closed?: boolean;
 }) {
   const shown = useCountUp(totalMan);

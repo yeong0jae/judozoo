@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 
-/** 레일이 80px이라 라벨은 4자(+가운뎃점)까지. 전체 이름은 title 속성으로 붙인다. */
 export type NavItem = { to: string; label: string; full: string; icon: ReactNode; end?: boolean };
 
-/** 한 가지 색 선 아이콘 — `currentColor`라 선택·호버 상태를 그대로 따라간다. */
 const line = {
   fill: "none",
   stroke: "currentColor",
@@ -20,7 +18,6 @@ const Icon = ({ children }: { children: ReactNode }) => (
 
 export const NAV: NavItem[] = [
   {
-    // "/"는 모든 경로의 접두사라 end 없이는 어느 화면에서든 활성으로 칠해진다
     to: "/",
     label: "홈",
     full: "홈",

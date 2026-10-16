@@ -7,7 +7,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.time.LocalDate
 
-/** 하루 네 칸 — 복기 09:05~15:00 · 베팅 15:00~20:00 · 대기 20:00~08:00 · 결과 08:00~09:05. */
 class PhaseTest {
     @Nested
     inner class 하루_네_칸 {
@@ -67,7 +66,6 @@ class PhaseTest {
     }
 
     companion object {
-        /** 2026-10: 1(목) 2(금) 개장, 3(토)·4(일) 휴장, 5(월) 개장, 6(화) 개장 */
         val DAYS = OpenDays(listOf(LocalDate.of(2026, 9, 30), LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 6)))
         val THU: LocalDate = LocalDate.of(2026, 10, 1)
         val FRI: LocalDate = LocalDate.of(2026, 10, 2)

@@ -1,9 +1,3 @@
-/**
- * 지수·수급 화면이 다루는 지수 목록. 화면·라우트·탭 제목이 모두 여기를 본다 —
- * 탭 제목 훅이 큰 페이지 모듈을 끌어다 쓰지 않게 따로 둔다.
- */
-
-/** `slug`가 URL이자 탭 제목의 출처다. `id`는 화면 내부 분기에만 쓴다. */
 export type IndexInfo = { id: string; slug: string; name: string; delayed?: boolean };
 
 export const INDICES: IndexInfo[] = [
@@ -13,18 +7,13 @@ export const INDICES: IndexInfo[] = [
   { id: "kosdaqF", slug: "kosdaq-futures", name: "코스닥 선물" },
   { id: "nightF", slug: "night-futures", name: "코스피 야간 선물" },
   { id: "nasdaq", slug: "nasdaq", name: "나스닥" },
-  // 야후 무료 시세라 10분쯤 지연된다 — 그래도 우리 장중에 도는 유일한 미국 지표다.
   { id: "nasdaqF", slug: "nasdaq-futures", name: "나스닥 선물", delayed: true },
-  // 원달러·WTI·VIX·미국채 10년 묶음 — 목록에서는 한 줄씩 펼치고 상세는 `?t=`로 고른다.
   { id: "macro", slug: "macro", name: "매크로" },
 ];
-
-// 지수는 전부 로그인 없이 본다 — 시세와 차트까지. 투자자 수급 표만 로그인 뒤다.
 
 const DEFAULT_SLUG = "kospi";
 const LAST_SLUG_KEY = "market-analysis:slug";
 
-/** `/market-analysis`로 그냥 들어오면 마지막에 보던 지수로 보낸다. */
 export function loadLastSlug(): string {
   try {
     const raw = localStorage.getItem(LAST_SLUG_KEY);
@@ -38,6 +27,5 @@ export function rememberSlug(slug: string): void {
   try {
     localStorage.setItem(LAST_SLUG_KEY, slug);
   } catch {
-    // 저장 못 해도 화면은 그대로 돈다
   }
 }

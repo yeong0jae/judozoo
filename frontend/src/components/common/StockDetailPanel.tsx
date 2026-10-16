@@ -20,7 +20,6 @@ import NumWon from "./NumWon";
 import Skeleton from "./Skeleton";
 import { CHART_H, ChartCard, ChartEmpty, Chevron, LeadingConditions, Segmented } from "./detailParts";
 
-/** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 function shortCode(stockCode: string): string {
   const idx = stockCode.indexOf("_");
   return idx > 0 ? stockCode.slice(0, idx) : stockCode;
@@ -28,12 +27,6 @@ function shortCode(stockCode: string): string {
 
 type ChartInterval = "1m" | "1d";
 
-/**
- * 종목 상세 — 머리(가격·전일 대비·시고저) / 주도주 체크리스트 · 투자자별 순매수 / 차트.
- * 주도주·눌림·돌파·시그널 세 화면이 같이 쓴다. 스크롤은 부르는 쪽이 맡는다.
- *
- * [onBack]을 주면 모바일에서 맨 위에 "목록" 버튼을 단다 — 모바일은 목록과 상세가 한 화면씩이다.
- */
 export default function StockDetailPanel({
   stockCode,
   preview,
@@ -43,19 +36,15 @@ export default function StockDetailPanel({
   showSupportResistance = false,
 }: {
   stockCode: string | null;
-  /** 주도주 목록에서 이미 받은 시세 — 상세 API를 기다리지 않고 머리를 그린다. */
   preview?: CandidateStockItem;
-  date?: string; // 차트 기준 날짜 — 미지정 시 오늘
+  date?: string;
   onBack?: () => void;
-  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 올랐나요?" 카드(026). 다른 화면은 비워 둔다 */
   insight?: ReactNode;
-  /** 눌림·돌파에서만 1분봉의 지지선·저항선을 표시한다. */
   showSupportResistance?: boolean;
 }) {
   const detailQ = useLeadingStockDetail(stockCode);
   const detail = detailQ.data;
   const [interval, setChartInterval] = useState<ChartInterval>("1m");
-  // 분봉은 차트를 일봉으로 돌려도 부른다 — 머리의 기준 시각이 마지막 분봉에서 나온다
   const minuteQ = useMinuteCandles(stockCode, date);
   const dailyQ = useDailyCandles(interval === "1d" ? stockCode : null, date);
 
@@ -93,9 +82,7 @@ export default function StockDetailPanel({
 
       {insight}
 
-      {/* 넓을 때만 두 열 — 목록 옆에 붙는 상세는 폭이 좁아, 둘로 나누면 조건 칸이 한 글자씩 접힌다 */}
       <div className="grid grid-cols-1 items-start gap-7 2xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        {/* 체크리스트 자리는 늘 왼쪽에 잡아 둔다 — 비워 두면 수급이 먼저 왼쪽에 그려졌다가 오른쪽으로 튄다 */}
         {detail ? (
           <LeadingConditions results={detail.filterResults} />
         ) : detailQ.isError ? (
@@ -155,13 +142,11 @@ export default function StockDetailPanel({
 
 const WEEKDAY = "일월화수목금토";
 
-/** yyyy-MM-dd → "09-23(수)" */
 function dayLabel(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   return `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}(${WEEKDAY[new Date(y, m - 1, d).getDay()]})`;
 }
 
-/** 마지막 분봉 → "09-23(수) 15:30 기준". 키움 분봉은 HTS보다 1분 이르게 찍혀 +1분 보정한다(차트와 같다). */
 function asOfLabel(c: MinuteCandleItem): string {
   const [date, time] = c.time.split("T");
   const [h, mi] = time.split(":").map(Number);
@@ -169,7 +154,6 @@ function asOfLabel(c: MinuteCandleItem): string {
   return `${dayLabel(date)} ${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")} 기준`;
 }
 
-/** 이름·코드 / 목록에서 이미 받은 가격·등락률 / 상세에서 받는 RVOL·분봉 기준 시각. */
 function DetailHeader({
   stockCode,
   quote,
@@ -184,7 +168,6 @@ function DetailHeader({
   const pct = quote.priceChangeRate;
   const pctBadge = pct > 0 ? "bg-red-500/10" : pct < 0 ? "bg-blue-500/10" : "bg-zinc-800";
   const tradingValue = "accumulatedTradingValue" in quote ? quote.accumulatedTradingValue : quote.tradingValue;
-  // RVOL · 거래대금 · 기준 시각 — 값이 없는 칸은 빼고 가운뎃점으로 잇는다
   const facts: ReactNode[] = [
     detail?.relativeVolume != null && (
       <span key="rvol" className="flex items-baseline gap-1.5" title="당일 누적 거래량 / 직전 20거래일 평균 (장 초반엔 낮게 나옴)">
@@ -231,7 +214,6 @@ function DetailHeader({
   );
 }
 
-// 기관 세부 순서 — 시황분석 종목 상세와 동일.
 const ORG_DETAIL: { key: keyof StockOrgBreakdown; label: string }[] = [
   { key: "financialInvestmentMillion", label: "금융투자" },
   { key: "insuranceMillion", label: "보험" },
@@ -242,7 +224,6 @@ const ORG_DETAIL: { key: keyof StockOrgBreakdown; label: string }[] = [
   { key: "bankMillion", label: "은행" },
 ];
 
-/** 키움 ka10059(전체·SOR통합). 한 번에 10일을 받아 오늘은 첫 줄을 쓴다 — 모달을 열어도 다시 부르지 않는다. */
 function InvestorSection({ stockCode }: { stockCode: string }) {
   const { data, isLoading, isError } = useStockInvestorDaily(stockCode, 10);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -278,7 +259,6 @@ function InvestorSection({ stockCode }: { stockCode: string }) {
   );
 }
 
-/** 개인·외국인·기관 — 가운데 0에서 좌우로 뻗는 막대(셋 중 큰 값이 반 폭) + 기관 상세. */
 function TodayFlow({ day }: { day: StockInvestorDay }) {
   const tiles: [string, number][] = [
     ["개인", day.individualMillion],
@@ -291,7 +271,6 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
       <div className="grid grid-cols-3 gap-2">
         {tiles.map(([label, v]) => (
           <div key={label} className="@container flex flex-col gap-2 rounded-xl bg-zinc-900 px-3 py-2.5 sm:px-3.5 sm:py-3">
-            {/* 라벨과 값을 한 줄에 두는 건 칸이 넓을 때만 — 좁으면 "개인 -21,676"처럼 붙어 읽힌다 */}
             <div className="flex flex-col gap-0.5 @[11rem]:flex-row @[11rem]:items-baseline @[11rem]:justify-between">
               <span className="text-xs text-zinc-300">{label}</span>
               <NetMillion million={v} className="text-[15px] font-bold sm:text-[17px]" />
@@ -315,7 +294,6 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
           </div>
         ))}
       </div>
-      {/* 기타법인은 기관이 아니다 — 기관 상세 안에 두면 그 일부로 읽힌다 */}
       <div className="flex justify-between rounded-xl bg-zinc-900 px-3.5 py-2.5 text-xs">
         <span className="font-semibold text-zinc-300">기타법인</span>
         <NetMillion million={day.otherCorpMillion} className="font-semibold" />
@@ -324,12 +302,10 @@ function TodayFlow({ day }: { day: StockInvestorDay }) {
   );
 }
 
-/** 기관상세 묶음을 가르는 세로선 — 시황분석 일별 표와 같은 규칙. */
 const ORG_EDGE = "border-l border-zinc-800";
 const orgPad = (i: number, len: number) =>
   `${i === 0 ? "pl-5" : "pl-2.5"} ${i === len - 1 ? "pr-5" : "pr-2.5"}`;
 
-/** 순매수 백만원 그대로 — 기관 세부까지 펼쳐 보여서, 억으로 반올림하면 작은 칸이 0으로 뭉개진다. 오늘과 최근 10일이 같은 단위를 쓴다. */
 function NetMillion({ million, className = "" }: { million: number; className?: string }) {
   const tone = million > 0 ? "text-red-400" : million < 0 ? "text-blue-400" : "text-zinc-600";
   const sign = million > 0 ? "+" : million < 0 ? "−" : "";
@@ -341,10 +317,6 @@ function NetMillion({ million, className = "" }: { million: number; className?: 
   );
 }
 
-/**
- * 최근 10일 수급 모달 — 개인·외국인·기관계 + 기관 상세 일곱 열 + 기타법인, 맨 위에 합계.
- * 상세 칸은 좁아 이 열들이 다 안 들어간다. 트리거가 스크롤 칸 안에 있어 body로 포털한다.
- */
 function InvestorHistoryModal({ days, onClose }: { days: StockInvestorDay[]; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -399,7 +371,6 @@ function InvestorHistoryModal({ days, onClose }: { days: StockInvestorDay[]; onC
             </svg>
           </button>
         </div>
-        {/* 폰에서는 옆으로 밀어 본다 — 첫 열(일자)은 붙어 있다 */}
         <div className="overflow-x-auto">
           <table className="w-full whitespace-nowrap text-xs">
             <thead className="text-zinc-500">

@@ -20,7 +20,6 @@ class KiwoomConfig {
     ) = KiwoomClient(properties, IssuedToken(PROVIDER, repository, transaction, clock, KiwoomTokenIssuer(properties, clock, registry)::issue), clock, registry)
 
     companion object {
-        /** `broker_token.provider` */
         const val PROVIDER = "KIWOOM"
     }
 }

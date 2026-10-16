@@ -1,6 +1,5 @@
 import { goLogin } from "../../api/auth";
 
-/** 구글 로그인 버튼 — 관문(LoginGate)과 첫 화면 소개 띠가 함께 쓴다. */
 export default function GoogleLoginButton() {
   return (
     <button

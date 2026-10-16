@@ -56,7 +56,6 @@ function AppShell() {
               <Route path="/leader-timeline" element={<LeaderTimelinePage />} />
               <Route path="/leader-calendar" element={<LeaderCalendarPage />} />
               <Route path="/breakout-radar" element={<BreakoutRadarPage />} />
-              {/* 지수는 URL이 정한다 — 슬러그 없이 들어오면 마지막에 보던 것으로 */}
               <Route path="/market-analysis" element={<MarketAnalysisPage />} />
               <Route path="/market-analysis/:slug" element={<MarketAnalysisPage />} />
               <Route path="/closing-bet" element={<ClosingBetPage />} />

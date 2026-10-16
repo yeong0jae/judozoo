@@ -5,20 +5,13 @@ import { colorByPnL } from "../../lib/format";
 
 export type StockRow = { stock: BetStock; grade: Grade | null; potMan: number; contrarian: boolean };
 
-/** 순위 · 종목 · 몰린 판돈 · 가격 · 등락(또는 결과) — 오늘의 주도주 목록과 같은 열 */
 const COLS = "grid-cols-[1.25rem_minmax(0,1fr)_6.5rem_5.5rem_4.5rem]";
 
 const MEDAL = ["#f5c451", "#d4d8de", "#c98a5a"];
 const MEDAL_INK = ["#1a1405", "#14161a", "#1f1006"];
 
-/** 1,000만원 걸었다면 — 주식 수는 ⌊금액 ÷ 매수가⌋ */
 const ifTenMillion = (s: BetStock) => Math.floor(10000000 / s.price) * s.price * ((s.result ?? 0) / 100);
 
-/**
- * 종목 목록 — 오늘은 주도주 · 후보 구간으로 나눈다. 줄을 누르면 내 픽, 내 픽을 다시 누르면 해제.
- * 어제 판은 한 줄로 **오른 순**. 1~3위에 메달과 "1,000만원이면". 결과 발표 중 가려진 종목은 맨 아래에 두고,
- * 공개되면 제자리로 올라간다.
- */
 export default function StockList({
   rows,
   selectedCode,
@@ -28,14 +21,10 @@ export default function StockList({
   covered,
 }: {
   rows: StockRow[];
-  /** 지금 펼쳐 보는 줄 */
   selectedCode: string | null;
-  /** 내가 종베한(오늘은 고른) 종목 */
   mineCode: string | null;
   onPick: (code: string) => void;
-  /** 어제 판 — 가격 열은 매수가, 마지막 열은 다음 날 결과 */
   showResult: boolean;
-  /** 결과 발표 중 — 아직 공개 안 된 종목은 결과 칸을 가린다 */
   covered?: Set<string>;
 }) {
   const maxPot = Math.max(1, ...rows.map((r) => r.potMan));

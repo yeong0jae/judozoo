@@ -22,11 +22,6 @@ export function exchangeLabel(code: string): string {
 
 type ChartInterval = "1m" | "1d";
 
-/**
- * 해외 종목 상세 — 국내 상세와 같은 짜임(머리 / 주도주 체크리스트 / 차트). 해외는 투자자별 수급이 없다.
- * [chartOnly]면 체크리스트 없이 차트만 둔다.
- * [onBack]을 주면 모바일에서 맨 위에 "목록" 버튼을 단다.
- */
 export default function OverseasStockDetailPanel({
   exchange,
   symbol,
@@ -37,11 +32,9 @@ export default function OverseasStockDetailPanel({
 }: {
   exchange: string | null;
   symbol: string | null;
-  /** 주도주 목록에서 이미 받은 시세 — 상세 API를 기다리지 않고 머리를 그린다. */
   preview?: OverseasStockRankItem;
   chartOnly?: boolean;
   onBack?: () => void;
-  /** 머리 바로 아래에 끼울 것 — 주도주 화면의 "왜 올랐나요?" 카드(026) */
   insight?: ReactNode;
 }) {
   const [interval, setChartInterval] = useState<ChartInterval>("1m");
@@ -135,10 +128,8 @@ export default function OverseasStockDetailPanel({
   );
 }
 
-/** 부호 붙인 달러 — 음수는 하이픈이 아니라 마이너스 기호. */
 const signedUsd = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${formatUsd(Math.abs(v))}`;
 
-/** 심볼·이름·거래소 / 큰 가격·전일 대비·등락률 / 통합 순위·거래대금. */
 function DetailHeader({ quote }: { quote: OverseasStockRankItem | OverseasStockDetailResponse }) {
   const pct = quote.rate;
   const pctBadge = pct > 0 ? "bg-red-500/10" : pct < 0 ? "bg-blue-500/10" : "bg-zinc-800";

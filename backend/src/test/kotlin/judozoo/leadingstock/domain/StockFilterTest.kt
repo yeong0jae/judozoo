@@ -10,7 +10,6 @@ import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.time.LocalDate
 
-/** 주도주 후보 필터 — 평가 문구는 화면에 그대로 나간다. 기준값은 운영 기본값이다. */
 class StockFilterTest {
     private val criteria = LeadingStockCriteria()
 
@@ -60,7 +59,6 @@ class StockFilterTest {
             filter.evaluate(stock(rate = 7.25)) shouldBe FilterResult("당일등락률", "7.0% 이상", "+7.25%", true, 7.25, 7.0)
         }
 
-        /** Python은 이진값 그대로 짝수 쪽으로 반올림한다 — 1.005는 실제로 1.00499…라 내려간다. */
         @Test
         fun `소수 둘째 자리 반올림이 Python과 같다`() {
             filter.evaluate(stock(rate = 1.005)).actualValue shouldBe "+1.00%"
@@ -116,7 +114,6 @@ class StockFilterTest {
         }
     }
 
-    /** 일봉[0]은 오늘, [1]은 어제다. 전날 이미 크게 오른 종목은 따라붙기 위험하다. */
     @Nested
     inner class 전일_등락률 {
         private fun filter(vararg candles: DailyCandle) = StockFilter.PrevDayClose(criteria, candles.toList())
@@ -147,7 +144,6 @@ class StockFilterTest {
     inner class 시초가 {
         private fun filter(vararg candles: DailyCandle) = StockFilter.OpeningPrice(criteria, candles.toList())
 
-        /** 어제 종가 70,000 → 오늘 시가 73,000 = +4.29% */
         @Test
         fun `시초가 갭이 기준 이하면 통과하고 가격과 갭을 함께 표시한다`() {
             val result = filter(daily(open = 73_000), daily(close = 70_000)).evaluate(stock())
@@ -192,7 +188,6 @@ class StockFilterTest {
             StockFilter.EtfExclusion.passes(stock(name = "한투 ETN 코스피200 H")) shouldBe false
         }
 
-        /** 접두사는 공백까지 정확히 맞아야 한다 — "ACEM"은 "ACE "가 아니다. */
         @Test
         fun `브랜드와 비슷하지만 다르면 통과한다`() {
             StockFilter.EtfExclusion.passes(stock(name = "ACEM헬스케어")) shouldBe true
@@ -219,7 +214,6 @@ class StockFilterTest {
 
         private fun filter(vararg candles: DailyCandle) = StockFilter.DailyHighPosition(criteria, candles.toList(), asOf)
 
-        /** 고가 71,000 대비 현재가 70,000 = -1.41% */
         @Test
         fun `고가에서 많이 안 빠졌으면 통과`() {
             filter(daily(high = 71_000)).passes(stock(currentPrice = 70_000)) shouldBe true

@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- iOS는 SVG 파비콘을 받지 않는다. design/apple-touch-icon-source.html에서 180×180으로 내보낸다. -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>오늘의 주도주와 타임라인을 한눈에 : judozoo</title>
     <meta
@@ -12,7 +11,6 @@
       content="주도주와 시그널, 지지·저항, 지수·수급을 한 화면에 모아 보여줍니다."
     />
 
-    <!-- 링크 미리보기(카톡·슬랙 등). og.png는 design/og-source.html을 1200×630으로 내보내 만든다. -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://judozoo.com/" />
     <meta property="og:site_name" content="judozoo" />
@@ -26,8 +24,6 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <script>
-      // FOUC 방지 — React 렌더 전에 저장된 테마를 동기 적용.
-      // ThemeProvider와 동일한 키('at.theme')·로직·기본값(dark) 사용.
       (function () {
         try {
           var m = localStorage.getItem("at.theme");
@@ -40,10 +36,6 @@
         } catch (_) {}
       })();
     </script>
-    <!-- Google Analytics. 측정 ID는 페이지 소스에 그대로 드러나는 공개 식별자라 비밀이 아니다.
-         **운영 호스트에서만 로드한다** — 로컬 개발과 미리보기가 통계를 오염시키지 않게.
-         `send_page_view: false` — SPA라 첫 로드 한 번만 자동 집계되고 화면 전환은 안 잡힌다.
-         전환까지 포함해 `usePageView` 훅이 직접 보낸다. 자동 집계를 켜두면 첫 화면이 두 번 세어진다. -->
     <script>
       window.GA_MEASUREMENT_ID = "G-L25RGH4T6F";
       (function () {
@@ -61,9 +53,6 @@
         document.head.appendChild(s);
       })();
     </script>
-    <!-- Cloudflare Web Analytics(실사용자 측정). 토큰은 GA 측정 ID처럼 페이지에 드러나는 공개 값이다.
-         프록시가 켜져 있을 땐 Cloudflare가 자동으로 넣어줬지만, 부하 분산기로 옮기면서(023) 프록시를 꺼서
-         직접 싣는다. 첫 화면 20초 문제를 잡은 도구라 전환 전후 비교에 필요하다. GA와 같이 운영 호스트에서만. -->
     <script>
       (function () {
         if (location.hostname !== "judozoo.com") return;

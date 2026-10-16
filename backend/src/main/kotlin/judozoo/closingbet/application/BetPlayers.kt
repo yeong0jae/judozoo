@@ -11,11 +11,6 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.LocalDateTime
 import kotlin.random.Random
 
-/**
- * 처음 베팅하는 사람에게 랜덤 닉네임을 붙인다. 동시에 같은 닉네임이 나오면 한 번 더 뽑는다.
- *
- * 새 트랜잭션에서 넣는다 — 유니크 키에 걸린 실패가 바깥 베팅 트랜잭션까지 되돌리지 않게.
- */
 @Component
 class BetPlayers(private val players: BetPlayerRepository, transactions: PlatformTransactionManager) {
     private val fresh = TransactionTemplate(transactions).apply { propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW }

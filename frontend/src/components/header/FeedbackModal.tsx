@@ -6,17 +6,12 @@ import { ApiError } from "../../api/client";
 import GoogleLoginButton from "../common/GoogleLoginButton";
 import { useToast } from "../toast/Toast";
 
-/** 빈 칸에 연하게 뜨는 예시. 무엇을 적어야 할지 모르는 것이 백지 앞의 가장 큰 벽이다. */
 const EXAMPLES = [
   "예) 눌림·돌파에서 뒤로 가면 스크롤이 맨 위로 올라가요",
   "예) 삼성전자 수급 숫자가 다른 곳과 달라요",
   "예) 관심 종목만 모아 보는 화면이 있으면 좋겠어요",
 ].join("\n");
 
-/**
- * 의견 모달 — 설정 모달의 "의견 보내기"로 연다. 설정 모달과 같은 이유로 body에 포털한다 —
- * 트리거가 좌측 레일 안이라 그대로 두면 `fixed`가 레일 폭에 갇힌다.
- */
 export default function FeedbackModal({
   content,
   onChange,
@@ -49,7 +44,6 @@ export default function FeedbackModal({
         onSent();
       },
       onError: (e) => {
-        // 세션이 끊긴 것과 서버가 실패한 것은 다음 행동이 다르다.
         const 로그인_끊김 = e instanceof ApiError && e.status === 401;
         toast.show({
           message: 로그인_끊김

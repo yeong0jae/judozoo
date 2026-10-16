@@ -2,13 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { formatRelative } from "../../lib/format";
 import SessionStrip from "./SessionStrip";
 
-/**
- * 화면 상단 공용 헤더 — 제목·장 상태 / 건수·갱신 상태.
- *
- * 왼쪽·오른쪽을 **두 묶음으로 두고 접는다** — 격자로 나누면 폰에서 제목이 글자 단위로 쪼개진다.
- * 좁은 칸(48rem 미만)에선 오른쪽 묶음을 제목 아래 한 줄로 편다.
- * 상대시각은 1초마다 다시 센다 — 폴링 때만 그리면 "방금"에 멈춰 보인다.
- */
 export default function PageHeader({
   title,
   count,
@@ -21,25 +14,17 @@ export default function PageHeader({
 }: {
   title: string;
   count?: number;
-  /** 이 화면이 마지막으로 받아 온 시각(ms, TanStack `dataUpdatedAt`). 0이면 점만 보여준다.
-   *  서버의 `queriedAt`은 쓰지 않는다 — 응답 시각일 뿐 시세를 받아 온 시각이 아니라, 휴장 중엔 캐시가 하루를 간다. */
   fetchedAt?: number;
-  /** 자동 갱신 주기(ms). 주면 고리가 받은 순간부터 이 시간에 걸쳐 차오른다 — 다 차면 다음 갱신이다.
-   *  없으면(지난 날짜처럼 다시 부르지 않는 화면) 고리를 흐린 채 채워 둔다. */
   refreshMs?: number;
-  /** 다시 부르지 않는 화면(지난 날짜)에서 상대시각 대신 적을 말 — 예: "마감".
-   *  "3분 전"이 계속 늘기만 하면 멈춘 것처럼 읽힌다. */
   closedLabel?: string;
   loading: boolean;
-  /** 우측 상단에 건수와 나란히 놓을 컨트롤 (날짜 이동 등). */
   trailing?: ReactNode;
-  /** 제목 밑 장 상태 줄(국내 애프터마켓 15:40 ~ 20:00 …). 시각이 행마다 찍히는 화면은 뺀다 */
   session?: boolean;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!fetchedAt) return;
-    setNow(Date.now()); // 새로 받자마자 "방금"부터 다시 센다
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [fetchedAt]);
@@ -72,13 +57,8 @@ export default function PageHeader({
   );
 }
 
-/** 고리 둘레 — r=5. 채워지는 양을 dashoffset으로 줄여 간다. */
 const RING = 2 * Math.PI * 5;
 
-/**
- * 다음 갱신까지 남은 시간 — 받은 순간 비었다가 주기에 걸쳐 시계 방향으로 찬다.
- * 새로 받으면(`fetchedAt`이 바뀌면) key가 바뀌어 애니메이션이 처음부터 다시 돈다.
- */
 function RefreshRing({ fetchedAt, refreshMs, loading }: { fetchedAt: number; refreshMs?: number; loading: boolean }) {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" className="-rotate-90" role="img" aria-label={loading ? "갱신 중" : "다음 갱신까지"}>

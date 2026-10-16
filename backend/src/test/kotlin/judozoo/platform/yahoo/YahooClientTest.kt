@@ -56,7 +56,6 @@ class YahooClientTest {
             quote.prevClose shouldBe 20000.0
         }
 
-        /** chartPreviousClose는 range에 따라 값이 달라져 기준가로 쓰기 부적절하다. */
         @Test
         fun `조회창 직전 종가보다 전일종가를 우선한다`() {
             respond("AAPL", chart(meta = """{"regularMarketPrice":100.0,"previousClose":90.0,"chartPreviousClose":80.0}"""))
@@ -79,7 +78,6 @@ class YahooClientTest {
         }
     }
 
-    /** meta는 정규장 값만 담는다. 프리·애프터마켓 중엔 마지막 캔들을 현재가로 써야 한다. */
     @Nested
     inner class 확장시간_시세 {
         @Test
@@ -88,15 +86,15 @@ class YahooClientTest {
                 "AAPL",
                 chart(
                     meta = """{"regularMarketPrice":200.0,"regularMarketTime":1000,"previousClose":190.0}""",
-                    timestamps = "[900,1000,1100]", // 1100은 정규장 마감 이후
+                    timestamps = "[900,1000,1100]",
                     quote = """{"close":[198.0,200.0,205.0]}""",
                 ),
             )
 
             val quote = yahoo.fetchExtendedQuote("AAPL")!!
 
-            quote.price shouldBe 205.0 // 애프터마켓 체결이 현재가
-            quote.prevClose shouldBe 200.0 // 직전 정규장 종가가 기준가
+            quote.price shouldBe 205.0
+            quote.prevClose shouldBe 200.0
         }
 
         @Test
@@ -135,7 +133,6 @@ class YahooClientTest {
     inner class 캔들 {
         @Test
         fun `시각을 KST로 바꿔 날짜와 시간을 나눈다`() {
-            // 1735689600 = 2025-01-01 00:00:00 UTC = 2025-01-01 09:00:00 KST
             respond(
                 "AAPL",
                 chart(timestamps = "[1735689600]", quote = """{"close":[100.0],"open":[99.0],"high":[101.0],"low":[98.0],"volume":[5]}"""),
@@ -164,7 +161,6 @@ class YahooClientTest {
             listOf(bar.open, bar.high, bar.low, bar.volume) shouldBe listOf(100.0, 100.0, 100.0, 0.0)
         }
 
-        /** 세션 마감 봉이 거래량 0짜리 중복으로 한 번 더 온다. 차트는 시각이 유일해야 한다. */
         @Test
         fun `같은 시각이 두 번 오면 뒤엣것으로 덮는다`() {
             respond("AAPL", chart(timestamps = "[1735689600,1735689600]", quote = """{"close":[100.0,102.0],"volume":[5,0]}"""))

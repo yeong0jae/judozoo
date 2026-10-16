@@ -32,7 +32,6 @@ class KisOverseasChartTest {
 
     @Nested
     inner class 분봉_페이징 {
-        /** 한국시각(kymd+khms)을 커서로 넣으면 엉뚱한 구간이 온다. */
         @Test
         fun `다음조회 커서는 현지시각에서 1분을 뺀 값이다`() {
             stub.respondInOrder(
@@ -44,7 +43,7 @@ class KisOverseasChartTest {
             chart.fetchMinuteCandles("NAS", "AAPL")
 
             val second = stub.requests(MINUTE)[1]
-            second.queryParameter("KEYB").firstValue() shouldBe "20260825092800" // 현지 09:29에서 1분 뺀 값
+            second.queryParameter("KEYB").firstValue() shouldBe "20260825092800"
             second.queryParameter("NEXT").firstValue() shouldBe "1"
         }
 
@@ -59,7 +58,6 @@ class KisOverseasChartTest {
             first.queryParameter("NEXT").firstValue() shouldBe ""
         }
 
-        /** SESSION_DAYS(2)를 넘는 거래일이 보이면 충분히 받은 것. */
         @Test
         fun `거래일이 기준을 넘으면 더 받지 않는다`() {
             stub.respondInOrder(
@@ -72,7 +70,7 @@ class KisOverseasChartTest {
 
             chart.fetchMinuteCandles("NAS", "AAPL")
 
-            stub.calls(MINUTE) shouldBe 3 // 3번째에서 거래일 3개가 되어 중단
+            stub.calls(MINUTE) shouldBe 3
         }
 
         @Test
@@ -84,7 +82,7 @@ class KisOverseasChartTest {
                 ok(page(bar("20260823", "20260823", "093000", "20260823", "223000", last = "3"))),
             )
 
-            chart.fetchMinuteCandles("NAS", "AAPL").map { it.close }.sorted() shouldBe listOf(1.0, 2.0) // 20260823은 버려진다
+            chart.fetchMinuteCandles("NAS", "AAPL").map { it.close }.sorted() shouldBe listOf(1.0, 2.0)
         }
 
         @Test
@@ -104,7 +102,7 @@ class KisOverseasChartTest {
 
             val candle = chart.fetchMinuteCandles("NAS", "AAPL")[0]
 
-            (candle.dateTime.hour to candle.dateTime.minute) shouldBe (22 to 30) // 현지 09:30이 아니라 한국 22:30
+            (candle.dateTime.hour to candle.dateTime.minute) shouldBe (22 to 30)
         }
 
         @Test
@@ -139,7 +137,6 @@ class KisOverseasChartTest {
 
     @Nested
     inner class 분봉_실패 {
-        /** 페이징 도중 조용히 잘리면 봉이 비는 걸 눈치채기 어렵다. */
         @Test
         fun `오류 코드가 오면 예외를 올린다`() {
             stub.respond(MINUTE, """{"rt_cd":"1","msg1":"조회 오류","output2":null}""")
@@ -186,7 +183,6 @@ class KisOverseasChartTest {
             interrupted.candles.map { it.dateTime.minute } shouldBe listOf(30)
         }
 
-        /** KIS는 한도 초과도 HTTP 500으로 준다 — 상태 코드만으로는 무엇인지 모른다. */
         @Test
         fun `오류 본문의 코드와 메시지를 싣는다`() {
             stub.respond(MINUTE, """{"rt_cd":"1","msg_cd":"EGW00123","msg1":"서버 오류"}""", status = 500)
@@ -230,7 +226,6 @@ class KisOverseasChartTest {
             stub.requests(DAILY)[0].queryParameter("BYMD").firstValue() shouldBe ""
         }
 
-        /** 일봉은 없으면 차트만 짧아지고 끝이라 호출측을 깨우지 않는다. */
         @Test
         fun `오류 코드가 오면 빈 목록을 준다`() {
             stub.respond(DAILY, """{"rt_cd":"1","msg1":"오류","output2":null}""")
@@ -248,7 +243,6 @@ class KisOverseasChartTest {
 
     @Nested
     inner class 요청_형식 {
-        /** 장 초반에도 직전 세션 봉으로 채우기 위해서다. */
         @Test
         fun `분봉은 전일포함으로 요청한다`() {
             stub.respond(MINUTE, page())

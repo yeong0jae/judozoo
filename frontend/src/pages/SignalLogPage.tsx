@@ -24,27 +24,22 @@ import ChangeRateSelector, { CHANGE_RATE_OPTIONS } from "../components/common/Ch
 
 const MIN_RATE_KEY = "signalLog.minRate";
 
-/** 시그널이 쌓이기 시작하는 시각 — NXT 프리마켓이 08:00에 연다. 그 전의 오늘은 빈 날이다. */
 const SIGNAL_START_HOUR = 8;
 
-/** 행 고유 키 — 같은 종목이 여러 행이어도 인덱스로 구분(방향키 행 단위 이동·열림 식별용). */
 const rowKeyOf = (e: SignalEventItem, i: number) =>
   `${e.stockCode}-${e.eventType}-${e.occurredAt}-${i}`;
 
-/** ISO LocalDateTime → HH:mm:ss (타임존 변환 없이 문자열에서 직접). */
 function clockOf(iso: string): string {
   return iso.slice(11, 19);
 }
 
-/** 정규장(09:00~15:20) 시각은 흰색으로 강조, 장외(프리/애프터)는 회색. */
 function clockClass(iso: string): string {
-  const hm = iso.slice(11, 16); // HH:mm
+  const hm = iso.slice(11, 16);
   return hm >= "09:00" && hm <= "15:20" ? "text-zinc-100" : "text-zinc-500";
 }
 
 const EVENT_META: Record<SignalEventType, { label: string; chip: string }> = {
   VOLUME_SPIKE: { label: "스파이크", chip: "bg-rose-500/15 text-rose-300" },
-  // 생성을 멈춘 유형 — 과거 날짜 조회용으로만 남아 흐린 톤으로 구분한다.
   MA_REBOUND: { label: "반등", chip: "bg-zinc-700/40 text-zinc-400" },
   MA_BREAKDOWN: { label: "꺾임", chip: "bg-zinc-700/40 text-zinc-400" },
   BREAKOUT: { label: "돌파", chip: "bg-zinc-700/40 text-zinc-400" },
@@ -53,7 +48,6 @@ const EVENT_META: Record<SignalEventType, { label: string; chip: string }> = {
 
 type TypeFilter = "ALL" | "MARKET" | SignalEventType;
 
-/** 전이 유형 필터 탭 — 상세 패널 토글과 동일 디자인. */
 const TYPE_TABS: { key: TypeFilter; label: string }[] = [
   { key: "ALL", label: "전체" },
   { key: "VOLUME_SPIKE", label: "스파이크" },
@@ -76,26 +70,20 @@ const INVESTOR_LABEL: Record<InvestorType, string> = {
   INDIVIDUAL: "개인",
 };
 
-/** 지수값 → 천 단위 쉼표 + 소수 2자리 (예: 2,653.81). */
 function fmtIndex(v: number): string {
   return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** 억원 → 사람이 읽기 쉬운 단위. 1조 이상은 "N조", 그 미만은 "N억". */
-/** 실시간 로그 한 행 — 종목 시그널 또는 시장(코스피/코스닥) 시그널. at은 정렬용 발생 시각. */
 type FeedRow =
   | { kind: "stock"; key: string; at: string; e: SignalEventItem }
   | { kind: "market"; key: string; at: string; m: MarketSignalEventItem };
 
-/** 부호 포함 억원 표기 — 예: +2,615억 / -4,069억. 흐름 전환처럼 0을 넘나드는 값에 방향을 분명히. */
 function signedEok(eok: number): string {
   return `${eok > 0 ? "+" : eok < 0 ? "-" : ""}${formatEok(Math.abs(eok))}`;
 }
 
-/** 지수 시그널 한 줄 요약 — 왼쪽 라벨/색, 오른쪽(순매수 금액). 행·여정에서 공용. */
 function marketParts(m: MarketSignalEventItem) {
   const sideCls = m.side === "BUY" ? "text-red-400" : "text-blue-400";
-  // accent=라벨을 방향색으로 강조(반등·꺾임처럼 투자자 순매수가 아닌 신호). netText=누적 칸에 표시할 금액.
   const netText: string | null = m.netAmountEok != null ? formatEok(Math.abs(m.netAmountEok)) : null;
   switch (m.kind) {
     case "MA_REBOUND":
@@ -103,7 +91,6 @@ function marketParts(m: MarketSignalEventItem) {
     case "MA_BREAKDOWN":
       return { sideCls, accent: true, leftLabel: "꺾임", rightLabel: "", netText: null };
     case "NET_FLOW_TURN":
-      // 정점 → 전환 시점 누적 (예: 9,000억 → 8,000억). 정점 없는 과거 행은 전환 시점만.
       return {
         sideCls, accent: false,
         leftLabel: INVESTOR_LABEL[m.investor ?? "FOREIGN"],
@@ -123,10 +110,6 @@ function marketParts(m: MarketSignalEventItem) {
   }
 }
 
-/**
- * 지수(코스피/코스닥) 시그널 한 행. kind=NET_BUY_LEVEL은 투자자 순매수 단계, MA_REBOUND는 지수 반등.
- * 누르면 그 시장의 그날 지수 시그널 여정을 펼치고, 우측에 지수 1분봉 차트를 띄운다.
- */
 function renderMarketRow(
   key: string,
   m: MarketSignalEventItem,
@@ -136,9 +119,7 @@ function renderMarketRow(
   journey: MarketSignalEventItem[],
   onShowDetail: () => void,
 ) {
-  // 누적(netText)은 펼친 여정 표에만 싣는다 — 목록 행은 종목 행처럼 한 줄이다
   const { sideCls, accent, leftLabel, rightLabel } = marketParts(m);
-  // 종목 행의 종목명과 같은 자리 — 한 피드에 섞이므로 크기도 같이 간다
   const leftCls = accent ? `text-[13.5px] ${sideCls}` : "text-[13.5px] text-zinc-300";
   return (
     <motion.li
@@ -177,8 +158,6 @@ function renderMarketRow(
 
       {open && (
         <div className="mx-0.5 mb-1.5 mt-0.5 rounded-xl bg-zinc-900 px-4 pb-4 pt-3">
-          {/* 폰에서는 상세 칸이 접혀 행 높이가 들쭉날쭉해진다 — 접지 말고 옆으로 밀어 본다.
-              `-mx-4 px-4`는 스크롤 영역을 카드 가장자리까지 넓혀 잘린 글자가 여백에서 끊기지 않게 한다. */}
           <div className="-mx-4 overflow-x-auto px-4">
             <table className="w-full min-w-[26rem] whitespace-nowrap text-xs num border-separate border-spacing-y-0.5">
               <thead className="text-zinc-600">
@@ -226,11 +205,6 @@ function renderMarketRow(
   );
 }
 
-/**
- * 이벤트별 핵심 수치 한 줄. 돌파선 가격은 그때의 현재가×(1+갭/100)으로 역산.
- * 스파이크는 배율+그 분봉 거래대금(rose)과 그 순간 누적 거래대금(흐리게)을 함께 보인다.
- * 누적은 여정 표에만 싣는다 — 목록 행은 한 줄이라 자리가 없다(`accumulated=false`).
- */
 function detailOf(e: SignalEventItem, accumulated = true) {
   if (e.eventType === "VOLUME_SPIKE") {
     if (!e.spikeRatio) return "";
@@ -250,7 +224,6 @@ function detailOf(e: SignalEventItem, accumulated = true) {
     );
   }
   if (e.eventType === "MA_REBOUND" || e.eventType === "MA_BREAKDOWN") {
-    // 과거 날짜에만 나온다 — 칩처럼 흐린 톤
     const up = e.eventType === "MA_REBOUND";
     return (
       <span className="text-zinc-500">
@@ -276,17 +249,12 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl bg-elevated px-3 py-2">
-      {/* bg-elevated가 카드보다 밝아 zinc-500이면 라벨이 바탕에 묻힌다 */}
       <div className="text-xs text-zinc-400">{label}</div>
       <div className={`num text-base font-bold ${valueClass}`}>{value}</div>
     </div>
   );
 }
 
-/**
- * 종목 여정 — 펼친 종목의 그날 시그널 경로. 상단 요약 스탯 4개(누적 거래대금·매수/매도 스파이크 횟수·최대 스파이크
- * 거래대금·주도주 조건) + 시간순 테이블. [journey]는 최신순으로 들어오고, 테이블도 최신→오래된으로 그대로 그린다.
- */
 function StockJourney({
   stockCode,
   journey,
@@ -294,14 +262,12 @@ function StockJourney({
 }: {
   stockCode: string;
   journey: SignalEventItem[];
-  /** 좁은 화면에서 종목 상세로 넘어가는 버튼 — 넓으면 상세가 이미 옆에 있다 */
   onShowDetail?: () => void;
 }) {
   const detailQ = useLeadingStockDetail(stockCode);
   const filters = detailQ.data?.filterResults;
   const passed = filters?.filter((f) => f.passed).length;
 
-  // 스파이크가 어느 쪽으로 터졌는지 — 보합은 방향이 없어 어느 쪽에도 안 센다
   const spikes = journey.filter((j) => j.eventType === "VOLUME_SPIKE");
   const buySpikes = spikes.filter((j) => j.spikeDirection === "BUY").length;
   const sellSpikes = spikes.filter((j) => j.spikeDirection === "SELL").length;
@@ -310,7 +276,7 @@ function StockJourney({
     .map((j) => j.minuteTradingValue as number);
   const maxSpike = spikeValues.length > 0 ? Math.max(...spikeValues) : null;
   const accTradingValue = journey[0]?.tradingValue ?? 0;
-  const ordered = journey; // 최신 → 오래된
+  const ordered = journey;
 
   return (
     <div className="mx-0.5 mb-1.5 mt-0.5 rounded-xl bg-zinc-900 px-4 pb-4 pt-3">
@@ -344,8 +310,6 @@ function StockJourney({
           }
         />
       </div>
-      {/* 폰에서는 상세 칸이 접혀 행 높이가 들쭉날쭉해진다 — 접지 말고 옆으로 밀어 본다.
-          `-mx-4 px-4`는 스크롤 영역을 카드 가장자리까지 넓혀 잘린 글자가 여백에서 끊기지 않게 한다. */}
       <div className="-mx-4 overflow-x-auto px-4">
         <table className="w-full min-w-[26rem] whitespace-nowrap text-xs num border-separate border-spacing-y-0.5">
           <thead className="text-zinc-600">
@@ -380,7 +344,6 @@ function StockJourney({
   );
 }
 
-/** 여정 아래 — 좁은 화면에서만 보이는 "상세로" 버튼. */
 function ShowDetailButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
@@ -396,23 +359,14 @@ function ShowDetailButton({ label, onClick }: { label: string; onClick: () => vo
   );
 }
 
-/** YYYY-MM-DD → "9월 23일" */
 function dayLabel(iso: string): string {
   const [, m, d] = iso.split("-").map(Number);
   return `${m}월 ${d}일`;
 }
 
-/**
- * 미리보기 끝 — 아래로 더 있다는 걸 보이고 로그인으로 잇는다.
- *
- * 가짜 행이다. 진짜 행을 흐리게 깔면 그 데이터가 브라우저까지 내려와야 하므로
- * 차단이 아니라 가리기가 된다(개발자도구로 읽힌다). 서버가 자른 뒤라 여기엔 채울 내용이 없다.
- */
 function PreviewGate({ shown, total, date }: { shown: number; total: number; date: string }) {
   return (
     <li className="relative">
-      {/* 아래로 갈수록 지워진다 — 줄마다 농도를 주면 계단이 생겨 "이어진다"가 덜 읽힌다.
-          티커 뷰포트(index.css)와 같은 마스크 방식이다. */}
       <div
         aria-hidden
         className="select-none opacity-60"
@@ -431,8 +385,6 @@ function PreviewGate({ shown, total, date }: { shown: number; total: number; dat
         ))}
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
-        {/* 날짜를 옮겨 볼 수 있어 "오늘"로 못 박지 않는다.
-            숫자에만 mono를 건다 — 한글까지 걸면 한 줄 안에서 글꼴이 갈린다 */}
         <p className="text-xs text-zinc-400">
           {date === todayStr() ? "오늘" : dayLabel(date)} <span className="num">{total}</span>건 중 <span className="num">{shown}</span>건을 보고 있습니다
         </p>
@@ -444,8 +396,6 @@ function PreviewGate({ shown, total, date }: { shown: number; total: number; dat
 
 function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
   const [date, setDate] = useState(todayStr());
-  // 처음 열 때는 가장 최근 거래일 — 휴장일이나 프리마켓(08:00) 전에 오늘을 열면 빈 목록뿐이다.
-  // 사용자가 날짜를 한 번 고른 뒤에는 건드리지 않는다.
   const krCalendar = useMarketCalendarStatus("KR").data;
   const datePicked = useRef(false);
   useEffect(() => {
@@ -453,7 +403,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
     const beforeSession = new Date().getHours() < SIGNAL_START_HOUR;
     if (krCalendar.isHoliday || beforeSession) setDate(krCalendar.previousOpenDay);
   }, [krCalendar]);
-  // 발생 시점 등락률 하한 — 행 표시 필터. 새로고침해도 유지(localStorage), 기본 0%.
   const [minRate, setMinRate] = useState(() => {
     const raw = localStorage.getItem(MIN_RATE_KEY);
     const saved = Number(raw);
@@ -462,22 +411,18 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
   useEffect(() => {
     localStorage.setItem(MIN_RATE_KEY, String(minRate));
   }, [minRate]);
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL"); // 전이 유형 필터
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const eventsQ = useSignalEvents(date);
   const marketQ = useMarketSignalEvents(date, authenticated);
   const data = eventsQ.data;
   const allEvents = data?.events ?? [];
-  // 종목 시그널 — 등락률 하한 + 유형 필터. "시장"/특정 유형 선택 시 종목 행은 빠진다.
-  // 미로그인은 필터 조작이 막혀 있다 — 저장돼 있던 값이 미리보기를 조용히 깎지 않게 무시한다
   const events = authenticated
     ? allEvents.filter(
         (e) => e.priceChangeRate >= minRate && (typeFilter === "ALL" || e.eventType === typeFilter),
       )
     : allEvents;
-  const allMarketEvents = marketQ.data?.events ?? []; // 여정용 — 필터 무관 전체
-  // 시장 시그널 — 전체/지수 탭에서만 노출(등락률 필터 무관).
+  const allMarketEvents = marketQ.data?.events ?? [];
   const marketEvents = typeFilter === "ALL" || typeFilter === "MARKET" ? allMarketEvents : [];
-  // 종목·시장 행을 시각 내림차순으로 병합한 렌더용 피드. 방향키·여정은 종목 행(events)에만 적용.
   const feed: FeedRow[] = [
     ...events.map((e, i): FeedRow => ({ kind: "stock", key: rowKeyOf(e, i), at: e.occurredAt, e })),
     ...marketEvents.map(
@@ -492,19 +437,16 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const mobile = useMobileDetail();
 
-  // 우측 패널 선택 — 종목(차트) 또는 지수(시장 차트). 둘 중 하나만 활성.
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<MarketType | null>(null);
-  const [selectedMarketAt, setSelectedMarketAt] = useState<string | null>(null); // 선택한 지수 시그널 발생 시각
+  const [selectedMarketAt, setSelectedMarketAt] = useState<string | null>(null);
   useEffect(() => {
-    // 첫 로드 시 최신 종목 자동 선택 — 단, 사용자가 지수를 고른 상태면 건드리지 않는다.
     if (!authenticated) return;
     if (selectedCode === null && selectedMarket === null && events.length > 0) {
       setSelectedCode(events[0].stockCode);
     }
   }, [authenticated, events, selectedCode, selectedMarket]);
 
-  // ↑/↓ 방향키로 행 단위 이동 — 같은 종목이 여러 행이어도 각 행을 거친다. 그 행을 열고 차트도 갱신.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (!authenticated) return;
@@ -536,14 +478,10 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
           session={false}
           count={data || marketQ.data ? feed.length : undefined}
           fetchedAt={eventsQ.dataUpdatedAt}
-          // 지난 날짜는 다시 부르지 않는다 — 고리도 차오르지 않는다
           refreshMs={date === todayStr() ? LIVE_REFRESH_MS : undefined}
-          // 날짜는 옆의 날짜 이동에 이미 있다
           closedLabel={date === todayStr() ? undefined : "마감"}
           loading={eventsQ.isFetching}
         />
-        {/* 날짜는 제목 줄에 끼우지 않고 제 줄에 둔다 — 목록 칸이 좁아 끼우면 폭에 따라 접혔다 말았다 한다.
-            늘 왼쪽 끝이라 달력은 오른쪽으로 편다 */}
         <DateNavigator
           popoverAlign="left"
           date={date}
@@ -554,7 +492,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
             setSelectedMarket(null);
           }}
         />
-        {/* 유형 필터와 등락률 — 미로그인은 조작이 잠겨 아예 감춘다 */}
         {authenticated && (
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex w-fit rounded-xl bg-zinc-800 p-0.5 text-xs">
@@ -571,7 +508,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                 </button>
               ))}
             </div>
-            {/* 폭이 모자라 줄이 바뀌어도 오른쪽에 붙는다 */}
             <div className="ml-auto">
               <ChangeRateSelector value={minRate} onChange={setMinRate} />
             </div>
@@ -615,7 +551,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
               const rowKey = row.key;
               const meta = EVENT_META[e.eventType];
               const open = openKey === rowKey;
-              // 같은 종목 이벤트 모음(피드·여정 모두 최신순). 여정은 필터와 무관하게 전체 경로를 보여준다
               const journey = open ? allEvents.filter((x) => x.stockCode === e.stockCode) : [];
               return (
                 <motion.li
@@ -627,7 +562,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
                 >
-                  {/* 미로그인은 펼치지 않는다 — 여정이 로그인 전용 상세를 부른다 */}
                   <button
                     type="button"
                     disabled={!authenticated}
@@ -640,15 +574,11 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
                       authenticated ? "hover:bg-zinc-850" : "cursor-default"
                     } ${e.stockCode === selectedCode ? "bg-selected hover:bg-selected" : ""}`}
                   >
-                    {/* 한 줄: 시각·유형·종목·상세 / 현재가·등락률. 줄바꿈하지 않는다 — 좁으면 종목명과 상세가
-                        말줄임으로 줄고 가격은 오른쪽에 남아, 행 높이가 들쭉날쭉하지 않다 */}
                     <span className="flex w-full min-w-0 items-center gap-2">
                       <span className={`num w-[3.75rem] shrink-0 text-xs ${clockClass(e.occurredAt)}`}>
                         {clockOf(e.occurredAt)}
                       </span>
                       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] ${meta.chip}`}>{meta.label}</span>
-                      {/* 좁으면 상세가 준다. 종목명은 줄지 않는다 — "SK하…"로 잘리면 무슨 행인지 모른다.
-                          아주 긴 이름만 줄 폭의 45%에서 자른다 */}
                       <span className="max-w-[45%] shrink-0 truncate text-[13.5px] text-zinc-100">{e.stockName}</span>
                       <span className="num min-w-0 truncate text-[13px] text-zinc-300">{detailOf(e, false)}</span>
                       <span className="ml-auto flex shrink-0 items-baseline gap-2.5 pl-2">
@@ -665,7 +595,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
               );
             })}
           </AnimatePresence>
-          {/* totalCount는 서버가 자르기 전 전체 건수다 — 그린 행 수보다 크면 잘린 것이다 */}
           {!authenticated && (data?.totalCount ?? 0) > feed.length && (
             <PreviewGate shown={feed.length} total={data?.totalCount ?? 0} date={date} />
           )}
@@ -695,7 +624,6 @@ function SignalLogPageInner({ authenticated }: { authenticated: boolean }) {
   return <ListDetail list={list} detail={detail} detailOpen={mobile.open} />;
 }
 
-/** 모바일 상세 맨 위 "목록" — 지수 상세는 종목 상세와 달리 자체 버튼이 없다. */
 function BackToList({ onBack }: { onBack: () => void }) {
   return (
     <button
@@ -711,9 +639,6 @@ function BackToList({ onBack }: { onBack: () => void }) {
   );
 }
 
-
-/** 미로그인도 최신 몇 건은 본다 — 서버가 잘라서 내려준다(`PREVIEW_COUNT`).
- *  날짜 이동은 열려 있다(어느 날이든 서버가 같은 규칙으로 자른다). 필터·지수 시그널·종목 상세는 로그인 뒤다. */
 export default function SignalLogPage() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;

@@ -17,17 +17,9 @@ import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/**
- * 국내 주도주 API — 후보 / 첫 화면 주도주 / 저항·지지 / 종목 상세·분봉·일봉.
- *
- * 후보·주도주·저항·지지는 공개, 종목 상세 이하는 로그인 뒤다([judozoo.auth.presentation.Gate]).
- * 시그널 로그·시장 시그널·시장 수급·지수 분봉은 [LeadingStockSignalController]가 맡는다.
- */
 @RestController
 @RequestMapping("/api/leading-stocks")
 class LeadingStockController(private val service: LeadingStockService, private val clock: Clock) {
-
-    /** Python 응답과 같은 필드만 — 도메인 객체를 그대로 내보내면 계산 속성까지 실린다. */
     data class CandidateStockItem(
         val rank: Int,
         val stockCode: String,
@@ -44,10 +36,8 @@ class LeadingStockController(private val service: LeadingStockService, private v
 
     data class CandidateStocks(val queriedAt: LocalDateTime, val totalCount: Int, val stocks: List<CandidateStockItem>)
 
-    /** 상한가 칩 한 장. **이름만 있으면 되는 자리**라 시세를 싣지 않는다. */
     data class LimitUpItem(val stockCode: String, val stockName: String)
 
-    /** 둘을 한 응답에 담는다 — 따로 부르면 그 사이 풀이 갱신돼 탑5와 상한가가 다른 순간을 말할 수 있다. */
     data class Leaders(val leaders: List<CandidateStockItem>, val limitUps: List<LimitUpItem>)
 
     data class BreakoutRadarItem(
@@ -72,14 +62,12 @@ class LeadingStockController(private val service: LeadingStockService, private v
         val currentPrice: Long,
         val priceChangeRate: Double,
         val relativeVolume: Double?,
-        /** 소속 시장 — 카탈로그에 없으면 null(화면은 그때 아무것도 적지 않는다) */
         val market: String?,
         val filterResults: List<FilterResult>,
         val openingPrice: Long,
         val highPrice: Long,
         val lowPrice: Long,
         val previousClose: Long,
-        /** 누적 거래대금(원) — 거래대금 순위 밖이면 받아오지 않아 null */
         val tradingValue: Long?,
     )
 
@@ -95,7 +83,6 @@ class LeadingStockController(private val service: LeadingStockService, private v
 
     data class DailyCandleItem(val date: String, val open: Long, val high: Long, val low: Long, val close: Long, val volume: Long)
 
-    /** 1단계 후보 — 거래대금 순위 + 등락률 필터만 통과. 등락률 기준은 -12~7 안으로 잘라 쓴다. 안 주면 7. */
     @GetMapping("/candidates")
     fun candidates(@RequestParam(required = false) minChangeRate: Int?): ApiResponse<CandidateStocks> {
         val rate = minChangeRate?.coerceIn(MIN_CHANGE_RATE, MAX_CHANGE_RATE)?.toDouble() ?: LeadingStockCriteria().minDailyPriceChangeRate
@@ -103,11 +90,6 @@ class LeadingStockController(private val service: LeadingStockService, private v
         return ApiResponse.ok(CandidateStocks(now(), items.size, items))
     }
 
-    /**
-     * 첫 화면용 — 거래대금·등락률이 함께 높은 상위 [LEADERS_COUNT]개 + 후보 풀의 상한가.
-     *
-     * **등락률 파라미터를 받지 않는다** — 보는 사람의 기준과 무관하게 같은 답을 보여야 한다.
-     */
     @GetMapping("/leaders")
     fun leaders() = ApiResponse.ok(
         Leaders(
@@ -116,14 +98,6 @@ class LeadingStockController(private val service: LeadingStockService, private v
         ),
     )
 
-    /**
-     * 감시 풀을 돌파선(최근 3거래일 고가) 근접 순으로. 눌림선(최근 3거래일 저가)도 함께 싣는다.
-     *
-     * **등락률 파라미터를 받지 않는다** — 눌림은 내린 종목에서 나오는 신호다. [mode]가 기준 선을 정하고,
-     * 그 선에서 [RADAR_NEAR_RATE]% 이내인 종목만 가까운 순으로 담는다.
-     *
-     * **미로그인이면 상위 [RADAR_PREVIEW_COUNT]개만 내려간다.** `totalCount`는 건수로 자르기 전의 수라 받는 쪽이 잘렸는지 안다.
-     */
     @GetMapping("/breakout-radar")
     fun breakoutRadar(@RequestParam(defaultValue = "resistance") mode: String, user: CurrentUser?): ApiResponse<BreakoutRadar> {
         val support = mode == "support"
@@ -141,7 +115,6 @@ class LeadingStockController(private val service: LeadingStockService, private v
         return ApiResponse.ok(BreakoutRadar(now(), near.size, items))
     }
 
-    /** 상세 캔들차트용 — 기준일 기준 최근 3거래일. */
     @GetMapping("/candidates/{stockCode}/minute-candles")
     fun minuteCandles(@PathVariable stockCode: String, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) date: LocalDate?) =
         ApiResponse.ok(
@@ -156,7 +129,6 @@ class LeadingStockController(private val service: LeadingStockService, private v
                 .map { DailyCandleItem(it.date.toString(), it.openPrice, it.highPrice, it.lowPrice, it.closePrice, it.volume) },
         )
 
-    /** 전체 필터 평가 결과 + 상대거래량. 순서는 판별력이 큰 것부터. */
     @GetMapping("/candidates/{stockCode}")
     fun detail(@PathVariable stockCode: String): ApiResponse<StockDetail> {
         val (s, filters, relativeVolume, market) = service.evaluate(stockCode)
@@ -176,13 +148,10 @@ class LeadingStockController(private val service: LeadingStockService, private v
         private const val MIN_CHANGE_RATE = -12
         private const val MAX_CHANGE_RATE = 7
 
-        /** 첫 화면 주도주 칸 수. 늘리려면 여기만 고친다. */
         const val LEADERS_COUNT = 5
 
-        /** 미로그인 미리보기로 내려보내는 눌림·돌파 종목 수. 시그널과 같은 수로 맞춘다. */
         const val RADAR_PREVIEW_COUNT = 3
 
-        /** 눌림·돌파로 볼 근접 범위(%). 화면이 색을 넣는 기준(`BreakoutRadarPage`의 `NEAR`)과 **같은 값이어야 한다**. */
         const val RADAR_NEAR_RATE = 3.0
     }
 }

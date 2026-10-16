@@ -45,12 +45,6 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/**
- * 모의 종가베팅 — 베팅을 받고, 20:00에 체결하고, 아침에 판다.
- *
- * 판정은 전부 `domain`이 한다. 여기서는 시세·수급을 모으고, 행을 읽고 쓴다.
- * 주도주 풀은 `leadingstock`, 시장·선물 수급은 `market`, 종목 수급은 `stock`의 application에서 받는다.
- */
 @Service
 class ClosingBetService(
     private val bets: ClosingBetRepository,
@@ -71,16 +65,11 @@ class ClosingBetService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /**
-     * 트랜잭션은 직접 연다. 처음 베팅하는 사람의 닉네임([BetPlayers])은 자기 트랜잭션에서 먼저 커밋돼야 한다 —
-     * 바깥 트랜잭션이 먼저 열려 있으면 그 스냅샷에 새 행이 안 보인다. 체결·정산도 [tick] 안에서 서로를 부른다.
-     */
     private val tx = TransactionTemplate(transactions)
     private val json = JsonMapper.builder().build()
 
     data class PoolStock(val code: String, val name: String, val lead: Boolean, val price: Long, val changeRate: Double)
 
-    /** 종목 수급(백만원). 당일과 최근 5일 합 — 통합(KRX+NXT). */
     data class StockFlows(val foreign: Long, val institution: Long, val foreign5d: Long, val institution5d: Long)
 
     data class StockReading(
@@ -90,26 +79,21 @@ class ClosingBetService(
         val high: Long,
         val low: Long,
         val flows: StockFlows,
-        /** 최근 고점과의 거리(%) — 직전 60거래일 최고가 대비 */
         val recentHighGap: Double?,
-        /** 15:30 정규장 종가. 정규장이 끝나기 전이면 null */
         val regularClose: Long?,
         val checks: Checks,
     )
 
-    /** 오늘 목록의 등급 묶음 — 종목마다 일봉·수급을 한 번씩 부르니 30초 묶어 둔다(목록 폴링이 여럿이어도 한 번). */
     data class Readings(val flows: Map<String, Any?>, val readings: Map<String, StockReading?>, val nxt: Map<String, Boolean?>)
 
     data class FeedItem(val id: Long, val nickname: String, val stockName: String, val amountMan: Int, val at: LocalDateTime)
 
     private val readingsCache = TtlCache<LocalDate, Readings>("closingbetReadings", Duration.ofSeconds(30), maxSize = 2)
 
-    /** 정규장 종가는 15:30에 한 번 정해지면 안 바뀐다 — 잡히면 하루 들고 있고, 그 전에는 분봉을 부르지 않는다. */
     private val regularCloses = TtlCache<Pair<String, LocalDate>, Long?>("closingbetRegularClose", Duration.ofHours(24), maxSize = 200, skipIf = { it == null })
 
     private fun now(): LocalDateTime = LocalDateTime.now(clock.withZone(KST))
 
-    /** 개장일. 목록을 못 받았으면 앞뒤 30일 평일로 — 휴장 화면이 멀쩡한 평일을 덮지 않게. */
     fun openDays(): OpenDays {
         calendar.openDays().takeIf { it.isNotEmpty() }?.let { return OpenDays(it) }
         val today = now().toLocalDate()
@@ -118,7 +102,6 @@ class ClosingBetService(
 
     fun phase(at: LocalDateTime = now()): Phase = Phase.at(at, openDays())
 
-    /** 주도주 5 + 후보(오늘 0% 이상 오른 나머지, 거래대금 순). 거래대금 35위·ETF·스팩 거르기는 주도주 목록과 같다. */
     fun pool(): List<PoolStock> {
         val leaders = leading.findLeaders(LEADERS_COUNT)
         val lead = leaders.map { code(it.stockCode) }.toSet()
@@ -126,7 +109,6 @@ class ClosingBetService(
             leading.findCandidates(CANDIDATE_MIN_CHANGE_RATE).filterNot { code(it.stockCode) in lead }.map { poolStock(it, false) }
     }
 
-    /** 한 종목의 종베 체크. 일봉 한 번(오늘 + 60봉)과 수급 한 번. 못 받으면 null — 그 종목은 등급 없이 둔다. */
     fun readStock(stock: PoolStock, on: LocalDate, marketLate: Map<Market, Long>): StockReading? {
         val market = catalog.marketOf(stock.code)
         val candles = kiwoom.fetchDailyCandles(stock.code, DAILY_COUNT, on)
@@ -145,7 +127,6 @@ class ClosingBetService(
         return StockReading(stock, market, todayBar.closePrice, todayBar.highPrice, todayBar.lowPrice, flows, gap, regular, checks)
     }
 
-    /** 오늘 목록의 등급·NXT 상장·시장 수급 표 — 30초 묶어 둔다. */
     fun readings(day: LocalDate): Readings = readingsCache.get(day) {
         val flows = marketFlows(day)
         val late = marketLate(flows)
@@ -153,7 +134,6 @@ class ClosingBetService(
         Readings(flows, stocks.associate { it.code to readStock(it, day, late) }, stocks.associate { it.code to kiwoom.fetchNxtListed(it.code) })
     }
 
-    /** 시장 수급 표 — 코스피·코스닥 × 외인·기관 × [현물 당일, 현물 5일, 선물 당일, 선물 5일, 마감, 애프터](억원·계약) + 야간선물. */
     fun marketFlows(on: LocalDate): Map<String, Any?> {
         val out = linkedMapOf<String, Any?>()
         for (market in listOf(Market.KOSPI, Market.KOSDAQ)) {
@@ -203,7 +183,6 @@ class ClosingBetService(
 
     fun myBet(userId: Long, day: LocalDate): ClosingBet? = bets.findByUserIdAndTradingDay(userId, day)
 
-    /** 베팅·변경. 목록과 가격은 **그 순간** 풀로 검증한다 — 뒤에 목록에서 빠져도 베팅은 그대로. */
     fun place(userId: Long, code: String, amountMan: Int, at: LocalDateTime): ClosingBet {
         val phase = phase(at)
         val stocks = pool().associateBy { it.code }
@@ -237,18 +216,12 @@ class ClosingBetService(
 
     fun stakes(day: LocalDate): Stakes = Stakes(bets.findByTradingDay(day).filter { it.status != ClosingBet.VOID }.map { it.stake() })
 
-    /** LIVE — 최신이 앞. */
     fun feed(day: LocalDate, afterId: Long = 0, limit: Int = 20): List<FeedItem> {
         val rows = events.findByTradingDayAndIdGreaterThanOrderByIdDesc(day, afterId, Limit.of(limit))
         val nicks = nicknames(rows.map { it.userId }.toSet())
-        // 닉네임이 없는 사람의 이벤트는 싣지 않는다 — Python의 내부 조인과 같다
         return rows.mapNotNull { e -> nicks[e.userId]?.let { FeedItem(e.id!!, it, e.stockName, e.amountMan, e.at) } }
     }
 
-    /**
-     * 개장일 08~20시 매분. 20:00이 지나면 오늘 판을 체결하고, 아침부터는 직전 판을 판다.
-     * 둘 다 끝났으면 행 하나 읽고 바로 돌아온다.
-     */
     fun tick(at: LocalDateTime) {
         val days = openDays()
         val today = at.toLocalDate()
@@ -258,10 +231,6 @@ class ClosingBetService(
         if (!at.toLocalTime().isBefore(Phase.BET_CLOSE)) fillRound(today, at)
     }
 
-    /**
-     * 판을 찍고 걸린 베팅에 매수가·주식 수를 넣는다. 이미 찍었으면 아무것도 안 한다.
-     * 매수가는 **일봉 종가**(= 20:00 마지막 체결, 027 0단계). 일봉이 아직 오늘 값이 아니면 false — 몇 분 뒤 다시.
-     */
     fun fillRound(day: LocalDate, at: LocalDateTime): Boolean = inTx { fill(day, at) }
 
     private fun fill(day: LocalDate, at: LocalDateTime): Boolean {
@@ -273,7 +242,6 @@ class ClosingBetService(
         val readings = pool().mapNotNull { readStock(it, day, late) }.toMutableList()
         val dayBets = bets.findByTradingDay(day)
         val betCodes = dayBets.map { it.stockCode }.toSet()
-        // 목록에서 빠진 종목에 걸린 베팅 — 그 종목도 판에 넣는다(복기·정산에 필요)
         (betCodes - readings.map { it.stock.code }.toSet()).forEach { code ->
             val name = dayBets.first { it.stockCode == code }.stockName
             readStock(PoolStock(code, name, false, 0, 0.0), day, late)?.let { readings += it }
@@ -299,7 +267,6 @@ class ClosingBetService(
         return true
     }
 
-    /** 매도 창이 끝난 종목부터 판다. 판의 모든 종목이 끝나면 true(랭킹 확정). */
     fun settleRound(day: LocalDate, sellDay: LocalDate, at: LocalDateTime): Boolean = inTx { settle(day, sellDay, at) }
 
     private fun settle(day: LocalDate, sellDay: LocalDate, at: LocalDateTime): Boolean {
@@ -309,9 +276,7 @@ class ClosingBetService(
         for (s in stocks) {
             if (s.sold || at.isBefore(SellWindow.revealAt(sellDay, s.nxt))) continue
             val got = SellWindow.price(kiwoom.fetchHistoricalMinuteCandles(s.stockCode, sellDay), sellDay, s.nxt, s.closePrice)
-            // 아직 첫 체결이 없다 — 다음에 다시. 그날 끝까지 없으면(거래정지) 20:00에 매수가로 끝낸다
             if (got.windowStart == null && at.toLocalTime().isBefore(GIVE_UP_AT)) continue
-            // 미뤄진 5분이 아직 안 끝났다
             if (got.windowStart != null && at.isBefore(got.windowStart.plus(SellWindow.LENGTH))) continue
             s.sell(got)
             bets.findByTradingDayAndStockCodeAndStatus(day, s.stockCode, ClosingBet.FILLED).forEach { it.settle(got.price) }
@@ -344,22 +309,18 @@ class ClosingBetService(
     companion object {
         const val LEADERS_COUNT = 5
 
-        /** 후보 등락률 하한(%) — 주도주 목록 화면의 기본값(+7%)보다 넓게, 오른 종목이면 다 고를 수 있게 */
         const val CANDIDATE_MIN_CHANGE_RATE = 0.0
 
-        /** 최근 고점 60거래일 + 오늘 */
         private const val DAILY_COUNT = 61
         private const val FLOW_DAYS = 5
         private val BANNED = emptyList<String>()
 
-        /** 그날 끝까지 체결이 없으면(거래정지) 이 시각에 매수가로 끝낸다 */
         private val GIVE_UP_AT = Phase.BET_CLOSE
 
         private fun code(stockCode: String) = stockCode.substringBefore("_")
 
         private fun poolStock(s: LeadingStockSnapshot, lead: Boolean) = PoolStock(code(s.stockCode), s.stockName, lead, s.currentPrice, s.priceChangeRate)
 
-        /** 시장 막판 — 마감 + 애프터 구간의 외인 + 기관 합(억원). */
         @Suppress("UNCHECKED_CAST")
         fun marketLate(flows: Map<String, Any?>): Map<Market, Long> = listOf(Market.KOSPI, Market.KOSDAQ).associateWith { m ->
             val rows = flows[m.name] as Map<String, List<Number>>

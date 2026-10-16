@@ -28,10 +28,8 @@ const ROW_H = 48;
 const DIV_H = 24;
 const RANKS = [1, 2, 3, 4, 5];
 const SPEEDS = [0.5, 1, 2];
-/** 1× = 하루(국내 12시간, 해외 16시간)를 30초 */
 const tickMs = (slots: number, speed: number) => 30000 / slots / speed;
 
-/** 좁은 화면 — 마우스가 없으니 세로선을 가운데 고정하고 띠를 밀어 시각을 옮긴다(`ScrubChart`) */
 const NARROW = "(max-width: 767px)";
 function useNarrow() {
   return useSyncExternalStore(
@@ -49,7 +47,6 @@ const MARKETS: { key: TimelineMarket; label: string }[] = [
   { key: "us", label: "해외" },
 ];
 
-/** 그 시장의 현지 오늘(해외는 뉴욕 날짜)과 현지 분 */
 function marketNow(market: TimelineMarket): { date: string; min: number } {
   if (market === "kr") {
     const d = new Date();
@@ -63,9 +60,7 @@ function marketNow(market: TimelineMarket): { date: string; min: number } {
   return { date: `${get("year")}-${get("month")}-${get("day")}`, min: (Number(get("hour")) % 24) * 60 + Number(get("minute")) };
 }
 
-/** 좁은 왼쪽 칸에 맞춘 짧은 표기 — "5.6조" / "3,005억" (시안과 같다) */
 const krw = (v: number) => (v >= 1e12 ? `${(v / 1e12).toFixed(1)}조` : `${Math.round(v / 1e8).toLocaleString("ko-KR")}억`);
-/** 한국 시각 기준 월/일 — 해외는 한국 자정을 넘으면 다음 날이 된다(뉴욕 9/25 장이 한국 9/26 새벽으로) */
 function monthDay(date: string, kstMin: number) {
   const [y, m, d] = date.split("-").map(Number);
   const dt = new Date(y, m - 1, d + Math.floor(kstMin / 1440));
@@ -75,40 +70,25 @@ const usd = (v: number) => (v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : `$${(v / 1e
 const pct = (r: number) => `${r > 0 ? "+" : ""}${r.toFixed(2)}%`;
 const fmtDur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ""}` : `${m}분`);
 
-/**
- * 주도주 타임라인 — 1분마다 찍은 홈 주도주 5의 하루 흐름.
- *
- * 줄 순서·배지·순위 변동은 3분 넘게 이어진 값(`lib/leaderTimeline`)을, 띠는 1분 원본을 쓴다.
- * 줄은 보고 있는 시각의 순위로 위아래로 미끄러진다 — 재생·클릭·← →·마우스로 훑을 때 모두.
- * 치수는 시안 px 값을 그대로 쓴다(024 캘린더와 같은 이유 — rem이면 넓은 화면에서 성겨진다).
- */
 export default function LeaderTimelinePage() {
-  // 홈 주도주 카드의 "타임라인"은 그 카드의 시장(`?market=kr|us`)으로 들어온다 — 처음 여는 탭만 정하고,
-  // 그 뒤 탭 전환은 주소를 건드리지 않는다. 주소에 없으면 홈이 주인공을 고르는 규칙(`overseasIsMain`)을 따른다
   const [params] = useSearchParams();
   const asked = params.get("market");
   const [market, setMarket] = useState<TimelineMarket>(() =>
     asked === "kr" || asked === "us" ? asked : overseasIsMain(new Date()) ? "us" : "kr",
   );
-  /** 탭을 주소나 클릭으로 정했는가 — 정했으면 휴장일이라도 해외로 돌리지 않는다 */
   const marketPicked = useRef(asked === "kr" || asked === "us");
   const [date, setDate] = useState(() => latestTradingDayStr(marketNow(market).date));
-  /** 고정해 둔 슬롯. null = 최신을 따라간다 */
   const [pinned, setPinned] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const narrow = useNarrow();
-  // 국내는 가장 최근 거래일로 연다 — 주말만 건너뛰면 추석 같은 휴장일이나 08:01 전엔 빈 화면이다(시그널과 같다).
-  // 사용자가 날짜를 고른 뒤에는 건드리지 않는다
   const krCalendar = useMarketCalendarStatus("KR").data;
   const datePicked = useRef(false);
   useEffect(() => {
     if (market !== "kr" || datePicked.current || !krCalendar?.previousOpenDay) return;
     if (krCalendar.isHoliday || marketNow("kr").min < MARKET_SPECS.kr.start) setDate(krCalendar.previousOpenDay);
   }, [market, krCalendar]);
-  // 추석 같은 국내 휴장일은 뒤늦게 알게 된다 — 시각만 보고 국내로 열었으면 해외로 돌린다(홈도 휴장을 받으면 순서를 바꾼다).
-  // 처음 받았을 때 한 번만 본다 — 다시 받을 때마다 보면 보던 도중 20시를 넘길 때 탭이 저절로 바뀐다
   useEffect(() => {
     if (marketPicked.current || !krCalendar) return;
     marketPicked.current = true;
@@ -126,11 +106,9 @@ export default function LeaderTimelinePage() {
 
   const last = model?.last ?? -1;
   const cursor = pinned === null ? last : Math.min(pinned, last);
-  /** 커서를 옮긴다. 마지막 분이면 고정하지 않고 최신을 따라가게 둔다 — 고정하면 새 분이 들어와도 그 분에 멈춘다 */
   const pin = (i: number) => setPinned(i >= last ? null : i);
   const shown = hover ?? cursor;
 
-  // 재생 — 찍힌 분만 밟아 간다. 끝에 닿으면 멈춘다
   useEffect(() => {
     if (!playing || !model) return;
     const id = setInterval(() => {
@@ -184,7 +162,6 @@ export default function LeaderTimelinePage() {
         <div className="flex items-center gap-2.5">
           <h2 className="text-[20px] font-bold">주도주 타임라인</h2>
           {live && data?.lastTakenAt && <Ago iso={data.lastTakenAt} />}
-          {/* 릴스가 이 화면으로 만든 영상이라, 여기 머무는 사람이 곧 팔로우할 사람이다 */}
           <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[13px] text-zinc-300 hover:text-zinc-100">
             <InstagramIcon size={14} />
             매일 릴스로 보기 ↗
@@ -225,7 +202,6 @@ export default function LeaderTimelinePage() {
             </div>
             <div className="flex items-center gap-2 max-md:w-full">
               {live && pinned !== null && cursor !== last && (
-                // 폰은 재생 버튼들과 한 줄이라 "최신 →"으로 줄인다 — 꺾이면 버튼 안에서 화살표가 아래로 떨어진다
                 <button type="button" onClick={() => setPinned(null)} className="h-[30px] shrink-0 whitespace-nowrap rounded-[8px] bg-[var(--tl-r4)] px-3 text-[14px] font-semibold text-[var(--tl-r4-fg)]">
                   최신<span className="max-md:hidden">으로</span> →
                 </button>
@@ -293,7 +269,6 @@ export default function LeaderTimelinePage() {
   );
 }
 
-/** 마지막으로 찍은 뒤 몇 초 — 오늘의 주도주(PageHeader)와 같은 모양 */
 function Ago({ iso }: { iso: string }) {
   const [, tick] = useState(0);
   useEffect(() => {
@@ -323,7 +298,6 @@ function Chart({
 }) {
   const hot = useRef<HTMLDivElement>(null);
   const [instant, setInstant] = useState(true);
-  // 첫 배치는 애니메이션 없이 — 모든 줄이 맨 위에서 미끄러져 내려오지 않게
   useEffect(() => {
     setInstant(true);
     const id = requestAnimationFrame(() => requestAnimationFrame(() => setInstant(false)));
@@ -335,14 +309,13 @@ function Chart({
   const slotAt = (clientX: number) => {
     const r = hot.current!.getBoundingClientRect();
     const i = Math.floor(((clientX - r.left) / r.width) * spec.slots);
-    return nearestLive(model, i); // 안 찍힌 분이면 그 앞 찍힌 분
+    return nearestLive(model, i);
   };
 
   const { top, rest, hidden } = arrangement(model, shown);
   const prevShown = model.live.filter((i) => i < shown).at(-1);
   const prevTop = prevShown === undefined ? null : lineupAt(model, prevShown);
 
-  // 줄 위치
   const y = new Map<string, number>();
   let acc = 0;
   y.set("divTop", acc); acc += DIV_H;
@@ -359,8 +332,6 @@ function Chart({
   const gapCols = [...Array(spec.slots).keys()].filter((i) => isGap(spec, i));
 
   return (
-    // 세로는 자른다 — 숨긴 줄이 박스 바로 아래(`boxH`)에 한 줄 높이로 걸쳐 있어, 가로 스크롤만 열면
-    // 브라우저가 세로도 auto로 바꿔 스크롤이 생긴다
     <div className="overflow-x-auto overflow-y-hidden">
       <div
         className="tl-chart relative min-w-[980px] outline-none"
@@ -371,7 +342,6 @@ function Chart({
           if (e.key === "ArrowLeft") { e.preventDefault(); onStep(-1); }
         }}
       >
-        {/* 시간축 · 세션 */}
         <div className="grid h-[36px] grid-cols-[var(--tl-label)_minmax(0,1fr)]">
           <div className="sticky left-0 z-[2] border-r border-zinc-800 bg-zinc-950" />
           <div className="relative">
@@ -403,7 +373,6 @@ function Chart({
           </div>
         </div>
 
-        {/* 종목 줄 */}
         <div className={`tl-rows relative ${instant ? "instant" : ""}`} style={{ height: boxH }}>
           <Divider y={y.get("divTop")!} label={topLabel} />
           <Divider y={y.get("divRest")!} label="주도주였던 종목" hidden={!rest.length} />
@@ -434,7 +403,6 @@ function Chart({
           })}
         </div>
 
-        {/* 겹쳐 그리는 것들 — 쉬는 구간 빗금, 장 진행 중, 세로선, 마우스 영역 */}
         <div className="pointer-events-none absolute bottom-0 right-0 top-[60px] left-[var(--tl-label)]">
           {gapCols.length > 0 && gapRuns(gapCols).map(([a, b]) => (
             <div key={a} className="tl-hatch absolute inset-y-0" style={{ left: pctOf(a), width: `${((b - a) / spec.slots) * 100}%` }} />
@@ -480,16 +448,11 @@ function Chart({
   );
 }
 
-/** 모바일 치수 — 띠 1분 = 2px라 폰 한 화면에 두 시간쯤 보인다 */
 const PX = 2;
 const M_LABEL = 132;
 const M_ROW = 46;
 const M_AXIS = 30;
 
-/**
- * 모바일 타임라인 — 세로선은 띠 영역 가운데에 고정하고, 띠를 옆으로 밀면 그 아래 시각이 커서가 된다.
- * 가로 스크롤을 그대로 쓰므로 관성도 따라온다. 재생·순위 변동·전체 막대가 커서를 옮기면 스크롤이 따라간다.
- */
 function ScrubChart({
   model, market, offset, live, cursor, onCursor, onTouch,
 }: {
@@ -499,7 +462,6 @@ function ScrubChart({
   live: boolean;
   cursor: number;
   onCursor: (i: number) => void;
-  /** 손을 대면 재생을 멈춘다 */
   onTouch: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -520,19 +482,14 @@ function ScrubChart({
   }, [model]);
 
   const { spec, last } = model;
-  // 양 끝에 반 화면씩 비워 둬야 첫 분과 20:00도 세로선 아래까지 온다
   const pad = Math.round(width / 2);
-  // 장중에는 마지막 찍힌 분까지만 민다 — 하루 끝까지 열어 두면 세로선이 "장 진행 중" 빗금 위로 나간다.
-  // 그 뒤는 오른쪽 반 화면 여백에 보이는 만큼만 그리고 잘라 낸다(잘라야 스크롤 폭이 늘지 않는다)
   const end = live ? last : spec.slots - 1;
   const x = (i: number) => pad + i * PX;
-  /** 안 찍힌 분(쉬는 구간·장 진행 중)이면 그 앞 찍힌 분 */
   const snapTo = (i: number) => {
     return nearestLive(model, i);
   };
   const scrolledSlot = () => snapTo(Math.round(scroller.current!.scrollLeft / PX));
 
-  // 커서 → 스크롤. 스크롤이 이미 그 분을 가리키면 두지 않는다(쉬는 구간에서 손가락과 다투지 않게)
   useLayoutEffect(() => {
     if (!width || scrolledSlot() === cursor) return;
     scroller.current!.scrollLeft = cursor * PX;
@@ -558,7 +515,6 @@ function ScrubChart({
       <MiniMap model={model} market={market} offset={offset} cursor={cursor} visible={width / PX} onCursor={(i) => { hold(); onCursor(snapTo(i)); }} />
 
       <div className={`tl-rows relative border-t border-zinc-800 ${instant ? "instant" : ""}`} style={{ height }}>
-        {/* 왼쪽 종목 칸 — 띠와 같은 높이로 함께 미끄러진다 */}
         <div className="absolute inset-y-0 left-0 z-[2] border-r border-zinc-800 bg-zinc-950" style={{ width: M_LABEL }}>
           <div className="tl-row absolute inset-x-0 top-0 flex items-center px-[10px] text-[11.5px] font-bold text-zinc-500" style={{ ...move("divRest"), height: DIV_H, visibility: rest.length ? undefined : "hidden" }}>
             주도주였던 종목
@@ -599,7 +555,6 @@ function ScrubChart({
           })}
         </div>
 
-        {/* 띠 — 가로 스크롤 */}
         <div
           ref={scroller}
           className="tl-scrub absolute inset-y-0 right-0 overflow-x-auto overflow-y-hidden"
@@ -638,7 +593,6 @@ function ScrubChart({
           </div>
         </div>
 
-        {/* 가운데 고정 세로선 */}
         <div className="pointer-events-none absolute inset-y-0 z-[3]" style={{ left: M_LABEL + pad }}>
           <span className="absolute bottom-0 top-[24px] -ml-px w-[2px] bg-zinc-100/90" />
           <b className="num absolute top-[3px] -translate-x-1/2 whitespace-nowrap rounded-[5px] bg-zinc-100 px-[6px] py-[2px] text-[11.5px] font-bold text-zinc-950">
@@ -655,7 +609,6 @@ function ScrubChart({
   );
 }
 
-/** 띠 한 줄(px) — 종목별로 한 번만 그린다 */
 const PxLane = memo(function PxLane({ segments, pad }: { segments: Segment[]; pad: number }) {
   return (
     <>
@@ -675,7 +628,6 @@ const PxLane = memo(function PxLane({ segments, pad }: { segments: Segment[]; pa
   );
 });
 
-/** 지금 분(또는 그 앞 가장 가까운 분)의 변화 — 모바일에선 순위 변동이 접혀 있어 커서 옆에 한 줄로 보여 준다 */
 function NowChanges({ model, offset, cursor }: { model: TimelineModel; offset: number; cursor: number }) {
   const groups = useMemo(() => eventGroups(model), [model]);
   const group = groups.find(([i]) => i <= cursor);
@@ -695,7 +647,6 @@ function NowChanges({ model, offset, cursor }: { model: TimelineModel; offset: n
   );
 }
 
-/** 하루 전체 막대 — 지금 보이는 구간을 네모로. 누르거나 끌면 그 시각으로 간다 */
 function MiniMap({
   model, market, offset, cursor, visible, onCursor,
 }: {
@@ -703,7 +654,6 @@ function MiniMap({
   market: TimelineMarket;
   offset: number;
   cursor: number;
-  /** 띠 영역에 보이는 분 수 */
   visible: number;
   onCursor: (i: number) => void;
 }) {
@@ -791,7 +741,6 @@ function Placeholder({ n, y, none }: { n: number; y: number; none: boolean }) {
   );
 }
 
-/** 띠는 종목별로 한 번만 그린다 — 마우스를 움직일 때마다 700칸을 다시 그리지 않게 */
 const Lane = memo(function Lane({ segments, slots }: { segments: Segment[]; slots: number }) {
   return (
     <div className="relative h-full">
@@ -876,7 +825,6 @@ function StockRow({
   );
 }
 
-/** 같은 분에 일어난 변화는 한 묶음으로 — 14:35에 여섯 줄이 흩어지면 무슨 일이 한꺼번에 있었는지 안 보인다. 최신이 위 */
 function eventGroups(model: TimelineModel | null): [number, TimelineEvent[]][] {
   const byMin = new Map<number, TimelineEvent[]>();
   (model?.events ?? []).forEach((e) => byMin.set(e.i, [...(byMin.get(e.i) ?? []), e]));
@@ -911,12 +859,9 @@ function ChangeLog({
   offset: number;
   cursor: number;
   onPick: (i: number) => void;
-  /** 좁은 화면 — 타임라인 아래로 밀려 길게 늘어지지 않게 접어 둔다 */
   collapsible?: boolean;
 }) {
   const groups = useMemo(() => eventGroups(model), [model]);
-  // 보고 있는 시각의 직전(또는 그 시각) 묶음을 강조하고, 목록을 그리로 스크롤한다.
-  // scrollIntoView는 페이지까지 끌고 가서(모바일에서 화면이 튄다) 목록의 scrollTop만 옮긴다
   const active = groups.find(([i]) => i <= cursor)?.[0];
   const listRef = useRef<HTMLOListElement>(null);
   const [open, setOpen] = useState(false);
@@ -943,7 +888,6 @@ function ChangeLog({
         <ol ref={listRef} className={`relative flex flex-col overflow-y-auto overflow-x-hidden ${collapsible ? "max-h-[360px]" : ""}`}>
           {groups.map(([i, evs], n) => (
             <li key={i} data-i={i} className="relative grid grid-cols-[48px_14px_minmax(0,1fr)] gap-x-[8px]">
-              {/* 세로 선 — 묶음이 시간 흐름으로 이어져 보이게 */}
               <span aria-hidden className={`absolute left-[58px] w-px bg-zinc-800 ${n === 0 ? "top-[14px]" : "top-0"} ${n === groups.length - 1 ? "h-[14px]" : "bottom-0"}`} />
               <button type="button" onClick={() => onPick(i)} className={`num self-start pt-[7px] text-left text-[12.5px] ${i === active ? "font-bold text-zinc-100" : "text-zinc-500"}`}>
                 {hhmm(model.spec.start + i + offset)}

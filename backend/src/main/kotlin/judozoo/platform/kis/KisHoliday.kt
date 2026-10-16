@@ -5,17 +5,10 @@ import org.springframework.stereotype.Component
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-/**
- * 국내 휴장일 조회 (CTCA0903R).
- *
- * `baseDate`부터 미래로 개장일 여부를 준다. 원장 연동 API라 "1일 1회 호출 권장" — 호출측이 하루 캐시로 감싼다.
- * 실패 시 빈 집합(호출측이 주말만으로 폴백하게).
- */
 @Component
 class KisHoliday(private val client: KisClient) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** [baseDate] 이후 개장일(opnd_yn=Y). 한 응답에 약 24일치가 온다. */
     fun fetchOpenDays(baseDate: LocalDate): Set<LocalDate> = try {
         val response = client.get(
             URL, "CTCA0903R",

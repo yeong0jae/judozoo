@@ -34,36 +34,20 @@ import { ReasonLine } from "../components/common/InsightReason";
 import LeaderGuide from "../components/common/LeaderGuide";
 import type { LimitUpItem, TodayNetItem } from "../types";
 
-/** 카드 한 장에 올리는 주도주 줄 수. 서버가 이미 그만큼만 내려준다 — 뼈대 높이에 쓴다. */
 const LEADERS_COUNT = 5;
 
-/**
- * 첫 화면 — 지금 시장이 어떤지만 보여준다.
- *
- * 로그인 없이 볼 수 있는 것으로만 채운다(지수·야간선물·양쪽 주도주 목록).
- * 장이 도는 쪽이 왼쪽 주인공 자리에 오고, 쉬는 쪽은 흐리게 내려간다 —
- * 밤에 보는 국내 목록은 살아 있는 숫자가 아니라서다.
- */
 export default function HomePage() {
   const { kr, us, now } = useMarketSessions();
   const krCalendar = useMarketCalendarStatus("KR").data;
   const krHoliday = krCalendar?.isHoliday;
   const usHoliday = useMarketCalendarStatus("US").data?.isHoliday;
 
-  // 세션 중인가 — 국내·해외 모두 프리마켓부터 애프터마켓까지다(국내 08:00~20:00 KST,
-  // 해외 04:00~20:00 뉴욕). 주도주 카드의 "장중" 칩이 이 값을 쓴다.
-  // 어느 쪽을 앞에 둘지는 이 값이 아니라 아래 `overseasIsMain`이 정한다.
   const domesticLive = kr !== null && !krHoliday;
   const overseasLive = us !== null && !usHoliday;
-  // 지수 타일만 정규장으로 좁힌다. 지수는 정규장에만 체결돼서, 프리·애프터마켓에 "장중"이라
-  // 붙이면 멈춰 있는 숫자가 살아 있는 값으로 읽힌다.
   const domesticOpen = kr?.tone === "open" && !krHoliday;
   const overseasOpen = us?.tone === "open" && !usHoliday;
-  // 주인공 자리는 시각이 정한다 — 국내가 여는 평일 08:00~19:59만 국내고 나머지는 해외다.
-  // 지수 타일도 같은 규칙을 쓴다(`overseasIsMain`).
   const domesticFirst = !overseasIsMain(now, krHoliday);
 
-  // 두 쪽 날짜가 다를 수 있다 — 해외는 미국 현지 거래일이라 한국 오전에는 하루 뒤처진다
   const clock = formatClock(now);
   const krDay = krTradingDay(now, !!krHoliday, krCalendar?.previousOpenDay);
   const usDay = usTradingDay(now, !!usHoliday);
@@ -113,12 +97,10 @@ export default function HomePage() {
   );
 }
 
-/** 로컬 Date → "yyyy-MM-dd" (시간대 변환 없이 연·월·일만) */
 function isoDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** "9월 26일 토요일" */
 function todayTitle(now: Date): string {
   return `${now.getMonth() + 1}월 ${now.getDate()}일 ${"일월화수목금토"[now.getDay()]}요일`;
 }
@@ -138,7 +120,6 @@ function IndexTiles({
   const nasdaq = useNasdaqIndexQuote();
   const tag = domesticOpen ? "장중" : "종가";
 
-  // 슬러그는 lib/indices.ts가 정의한 것과 같아야 한다
   const tiles = {
     kospi: (
       <Tile
@@ -181,8 +162,6 @@ function IndexTiles({
     ),
   };
 
-  // 주도주 카드와 같은 규칙이다 — 국내가 멈춰 있는 시간대에는 살아 있는 숫자를 앞에 둔다.
-  // 낮에는 국내 둘이 주인공이고 나스닥은 밤사이 분위기를 재는 참고값이라 맨 뒤다.
   const order = domesticFirst
     ? [tiles.kospi, tiles.kosdaq, tiles.night, tiles.nasdaq]
     : [tiles.nasdaq, tiles.night, tiles.kospi, tiles.kosdaq];
@@ -194,7 +173,6 @@ function IndexTiles({
   );
 }
 
-/** 누르면 그 지수의 지수·수급 화면으로. 로그인이 필요한 지수는 거기서 안내가 뜬다. */
 function Tile({
   label,
   slug,
@@ -215,8 +193,6 @@ function Tile({
     >
       <div className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-zinc-300 sm:text-[13.5px]">
         {label}
-        {/* 장중 칩은 주도주 카드의 "장중 14:07"과 같은 색이다 — 한 화면에서 같은 뜻이
-            다른 색으로 보이면, 둘이 다른 상태를 가리키는 줄 읽는다 */}
         {tag && (
           <span
             className={
@@ -232,7 +208,6 @@ function Tile({
       {value === undefined || rate === undefined ? (
         <Skeleton className="h-7 w-28" />
       ) : (
-        // 값은 흰색, 색은 등락률에만 — 지수·수급 목록과 같은 규칙이다
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
           <span className="num text-[19px] font-bold tracking-tight text-zinc-100 sm:text-[22px]">
             {value.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -244,40 +219,33 @@ function Tile({
   );
 }
 
-// 가격은 통화마다 롤링 컴포넌트가 달라 그린 채로 받는다. 거래대금도 통화마다 단위가 달라 글자로 받는다
 type Item = {
   key: string;
   name: string;
   code: string;
   price: ReactNode;
   rate: number;
-  value: number; // 막대 길이용 원값
+  value: number;
   valueLabel: string;
-  /** 왜 오르나 한 줄(026) — 설명 없음이면 비어 있다 */
   reason?: ReactNode;
 };
 
-/** 달러 거래대금 → "$1.23B" / "$456M". 칸 폭에 전체 자릿수가 안 들어간다. */
 function compactUsd(v: number): string {
   if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
   if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
   return `$${Math.round(v).toLocaleString("en-US")}`;
 }
 
-/** 키움 마스터 코드 — "009150_AL" 같이 거래소 접미사가 붙으면 앞쪽 6자리만. */
 const shortCode = (code: string) => (code.includes("_") ? code.slice(0, code.indexOf("_")) : code);
 
-/** 첫 화면 주도주 카드. **목록 화면에서 고른 등락률과 무관하다** — 순서와 종목은 서버가 정한다. */
 type LeadersProps = {
   live: boolean;
   first: boolean;
   date: string;
-  /** 타임라인을 물을 현지 거래일 "yyyy-MM-dd" — 해외는 뉴욕 날짜 */
   tradingDay: string;
   clock: string;
 };
 
-/** 오늘 1위 바통 — 타임라인에서 계산한다. 장중이면 1분마다 새로 받는다 */
 function useRelay(market: "kr" | "us", tradingDay: string, live: boolean): RelayLeg[] {
   const { data } = useLeaderTimeline(market, tradingDay, live);
   return useMemo(() => (data ? leaderRelay(market, tradingDay, data) : []), [market, tradingDay, data]);
@@ -344,7 +312,6 @@ function OverseasLeaders({ live, first, date, tradingDay, clock }: LeadersProps)
   );
 }
 
-/** 카드 머리 — 제목·기준 / 오른쪽 "전체 보기". */
 function CardHead({ title, sub, more }: { title: string; sub?: ReactNode; more?: string }) {
   return (
     <div className="flex items-center justify-between gap-2.5 px-3.5 pb-2 pt-3.5 sm:px-[18px] sm:pb-3 sm:pt-4">
@@ -366,15 +333,8 @@ function CardHead({ title, sub, more }: { title: string; sub?: ReactNode; more?:
 
 const cardCls = "flex min-w-0 flex-col overflow-hidden rounded-2xl bg-zinc-900 pb-1.5 transition-colors hover:bg-zinc-900/80";
 
-/** 데스크톱 줄의 열 — 순위 · 종목 · 거래대금 · 현재가 · 등락률. 머리와 줄이 같은 값을 쓴다. */
 const LEADER_COLS = "sm:grid-cols-[1rem_minmax(0,1fr)_7rem_6rem_4.5rem]";
 
-/**
- * 누르면 주도주 필터 화면으로 — 해당 쪽(국내/해외)이 열린 채로. 상세는 로그인 뒤라 바로 보내지 않는다.
- *
- * 맨 아래 "오늘 1위" 줄만 타임라인으로 간다. 링크 안에 링크를 둘 수 없어, 카드 전체를 덮는 링크를
- * 바닥에 깔고 그 줄만 위로 올린다.
- */
 function LeaderCard({
   title,
   date,
@@ -395,9 +355,7 @@ function LeaderCard({
   first: boolean;
   loading: boolean;
   items: Item[];
-  /** 후보 풀 안의 상한가. 해외는 제한폭 자체가 없어 늘 비어 있다. */
   limitUps?: LimitUpItem[];
-  /** 오늘 1위가 넘어간 순서(타임라인). 비면 줄째 사라진다 */
   relay: RelayLeg[];
 }) {
   const max = Math.max(1, ...items.map((s) => s.value));
@@ -416,8 +374,6 @@ function LeaderCard({
           <>
             <LeaderGuide market={market} />
             <span className="num text-xs text-zinc-500">{date}</span>
-            {/* 시각은 "장중"에만 붙인다 — 마감 뒤 칩은 "마감 기준"이라, 옆에 지금 시각이 있으면
-                마감 시각으로 읽힌다 */}
             {live ? (
               <span className="rounded-full bg-blue-50 px-2 py-px text-[11px] font-medium text-blue-700">
                 장중 <span className="num">{clock}</span>
@@ -436,7 +392,6 @@ function LeaderCard({
           ))}
         </div>
       ) : items.length === 0 ? (
-        // 개장 전이거나, 오른 종목이 한 종목도 없는 날. 머리만 남지 않게 한 줄 둔다.
         <p className="px-3.5 py-7 text-center text-xs text-zinc-500">현재 주도주가 없습니다</p>
       ) : (
         <>
@@ -453,8 +408,6 @@ function LeaderCard({
         </>
       )}
 
-      {/* 상한가 — **없는 날은 줄째 사라진다.** 후보 컷이 거래대금 35위라 0건이 기본값이라,
-          "없음"을 매일 적으면 죽은 줄 하나가 카드에 상주한다. */}
       {limitUps.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-800 px-4 pb-1.5 pt-3">
           <span className="mr-0.5 text-[11.5px] font-medium text-zinc-400">
@@ -473,11 +426,6 @@ function LeaderCard({
   );
 }
 
-/**
- * 카드 맨 아래 "오늘 1위 A 09:02 → B 10:40 …" — 누르면 그 시장 타임라인으로.
- * 넓으면 3개, 좁으면 2개까지. 넘치면 첫 1위와 지금 1위를 남기고 가운데를 "외 N"으로 접는다.
- * 좁은 줄에 그것도 안 들어가면 "첫 1위 → 외 N"까지 줄인다 — 폭이 아니라 실제로 재서 정한다(이름 길이가 날마다 다르다).
- */
 function LeaderRelay({ market, legs }: { market: StockMarket; legs: RelayLeg[] }) {
   const box = useRef<HTMLSpanElement>(null);
   const probe = useRef<HTMLSpanElement>(null);
@@ -499,7 +447,6 @@ function LeaderRelay({ market, legs }: { market: StockMarket; legs: RelayLeg[] }
         <span className="hidden sm:inline">오늘 </span>1위
       </span>
       <span ref={box} className="relative flex min-w-0 flex-1 overflow-hidden sm:hidden">
-        {/* 두 개짜리가 한 줄에 다 들어가는지 재는 보이지 않는 사본 */}
         <span ref={probe} aria-hidden className="invisible absolute left-0 top-0 w-max">
           <RelayLine legs={legs} max={2} />
         </span>
@@ -508,7 +455,6 @@ function LeaderRelay({ market, legs }: { market: StockMarket; legs: RelayLeg[] }
       <span className="hidden min-w-0 flex-1 sm:flex">
         <RelayLine legs={legs} max={3} wrap />
       </span>
-      {/* 좁으면 글자를 빼고 화살표만 */}
       <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-xs text-zinc-400">
         <span className="hidden sm:inline">타임라인</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-zinc-500">
@@ -519,7 +465,6 @@ function LeaderRelay({ market, legs }: { market: StockMarket; legs: RelayLeg[] }
   );
 }
 
-/** `max`개까지 접어 한 줄로. 꺾지 않는 줄은 모자라면 이름이 말줄임으로 준다(시각은 남긴다) */
 function RelayLine({ legs, max, wrap = false }: { legs: RelayLeg[]; max: number; wrap?: boolean }) {
   const { head, folded, tail } = foldRelay(legs, max);
   const parts: ReactNode[] = [
@@ -548,7 +493,6 @@ function RelayItem({ leg }: { leg: RelayLeg }) {
   );
 }
 
-/** 넓으면 열 맞춘 한 줄(거래대금 막대 포함), 좁으면 왼쪽 이름·거래대금 / 오른쪽 현재가·등락률. */
 function LeaderRow({ rank, item, ratio }: { rank: number; item: Item; ratio: number }) {
   return (
     <div className={`flex items-center gap-2.5 border-t border-zinc-800 px-3.5 py-2.5 sm:grid sm:gap-x-3 sm:px-[18px] ${LEADER_COLS}`}>
@@ -577,7 +521,6 @@ function LeaderRow({ rank, item, ratio }: { rank: number; item: Item; ratio: num
   );
 }
 
-/** 카드 한 장에 세로로 쌓이는 네 줄. 순서는 화면에서 읽는 순서다. */
 const INVESTORS = [
   { key: "individual", label: "개인" },
   { key: "foreign", label: "외인" },
@@ -587,12 +530,6 @@ const INVESTORS = [
 
 const MARKET_NAME: Record<string, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 
-/**
- * 현물은 억원, 선물은 계약 — 한 목록에 있어도 단위가 달라 서로 견주지 않는다.
- *
- * `slug`는 `lib/indices.ts`가 정의한 것과 같아야 한다 — 카드를 누르면 그 지수의
- * 지수·수급 화면으로 간다.
- */
 function netLabel(item: TodayNetItem): { name: string; unit: string; slug: string } {
   const name = MARKET_NAME[item.market] ?? item.market;
   const slug = item.market.toLowerCase();
@@ -601,19 +538,13 @@ function netLabel(item: TodayNetItem): { name: string; unit: string; slug: strin
     : { name, unit: "억원", slug };
 }
 
-/**
- * 오늘의 수급 — 코스피·코스닥 현물과 두 지수선물의 당일 누적 투자자 순매수.
- * **로그인 뒤에만 보인다** — 수급은 공개 API가 아니다(`auth/gate.py`).
- */
 function TodayNets({ live, clock, today }: { live: boolean; clock: string; today: string }) {
   const { data: me } = useMe();
   const authenticated = !!me?.authenticated;
   const { data, isLoading } = useTodayNets(authenticated);
-  // 장 열기 전·휴장일엔 서버가 직전 거래일 수급을 준다 — 그날 날짜를 적어 "오늘"과 가른다
   const basis = data?.find((item) => item.nets && item.tradeDate)?.tradeDate;
   const pastBasis = basis && basis !== today ? basis : null;
 
-  // 비로그인은 빈 카드 대신 이 자리가 무엇인지 말하고 로그인으로 잇는다
   if (!authenticated) {
     return (
       <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-dashed border-zinc-800 px-4 py-5 text-center">
@@ -658,7 +589,6 @@ function TodayNets({ live, clock, today }: { live: boolean; clock: string; today
   );
 }
 
-/** "2026-10-02" → "10/2" */
 function shortDay(iso: string): string {
   const [, m, d] = iso.split("-").map(Number);
   return `${m}/${d}`;
@@ -667,7 +597,6 @@ function shortDay(iso: string): string {
 function NetCard({ item }: { item: TodayNetItem }) {
   const { name, unit, slug } = netLabel(item);
   const nets = item.nets;
-  // 막대 길이는 그 카드 안에서만 뜻이 있다 — 가장 큰 값이 반칸을 꽉 채운다
   const top = nets ? Math.max(...INVESTORS.map(({ key }) => Math.abs(nets[key]))) || 1 : 1;
 
   return (
@@ -698,13 +627,7 @@ function NetCard({ item }: { item: TodayNetItem }) {
   );
 }
 
-/**
- * 0선을 가운데 두고 순매수는 오른쪽, 순매도는 왼쪽으로 뻗는다.
- *
- * `value`가 null이면 그 줄만 대시로 비운다 — 줄 높이는 그대로라 카드가 들썩이지 않는다.
- */
 function NetRow({ label, value, top }: { label: string; value: number | null; top: number }) {
-  // 반칸(50%) 기준 — 0이 아닌 값은 최소 한 줄이라도 보이게 바닥을 둔다
   const width = value === null || value === 0 ? 0 : Math.max(1, (Math.abs(value) / top) * 50);
   const tone =
     value === null ? "text-zinc-600"

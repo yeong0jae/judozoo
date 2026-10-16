@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-// 값이 바뀌면 0.3s 동안 색 flash. 한국 거래소 관행: 상승=빨강, 하락=파랑.
 export default function FlashOnChange({
   value,
   children,

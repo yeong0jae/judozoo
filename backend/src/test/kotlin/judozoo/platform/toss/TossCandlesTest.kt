@@ -25,13 +25,11 @@ class TossCandlesTest {
     private val stub = TossStub()
     private val today = LocalDate.of(2026, 9, 28)
 
-    // KST 2026-09-28 10:00
     private val candles = TossCandles(stub.client, Clock.fixed(Instant.parse("2026-09-28T01:00:00Z"), ZoneOffset.UTC))
 
     @AfterEach
     fun 정리() = stub.close()
 
-    /** 토스 모양 그대로 — 시각은 봉이 끝나는 시각이다. */
     private fun bar(end: String, close: Int = 100, volume: Int = 10) =
         """{"timestamp":"$end+09:00","openPrice":"99","highPrice":"101","lowPrice":"98","closePrice":"$close","volume":"$volume","currency":"KRW"}"""
 
@@ -47,7 +45,6 @@ class TossCandlesTest {
             candles.fetchTodayMinuteCandles("005930").single().dateTime shouldBe LocalDateTime.of(2026, 9, 28, 9, 0)
         }
 
-        /** 두면 스파이크의 직전 평균과 이평이 키움 때와 달라진다. */
         @Test
         fun `체결 없는 빈 봉은 버린다`() {
             stub.respond(URL, page(bar("2026-09-28T09:02:00"), bar("2026-09-28T09:01:00", volume = 0)))
@@ -92,7 +89,7 @@ class TossCandlesTest {
             val result = candles.fetchTodayMinuteCandles("005930")
 
             stub.calls(URL) shouldBe 2
-            result.map { it.dateTime.toLocalDate() } shouldBe listOf(today, today) // 전날 봉은 빠진다
+            result.map { it.dateTime.toLocalDate() } shouldBe listOf(today, today)
         }
 
         @Test
@@ -133,7 +130,6 @@ class TossCandlesTest {
             result shouldHaveSize 1
         }
 
-        /** 한 번만 다시 부른다 — 계속 넘치면 부르는 쪽(다음 갱신 회차)에 맡긴다. */
         @Test
         fun `다시 불러도 한도 초과면 예외로 올린다`() {
             stub.respond(URL, "{}", status = 429)
@@ -142,7 +138,6 @@ class TossCandlesTest {
             stub.calls(URL) shouldBe 2
         }
 
-        /** 이어 붙이는 쪽이 기존 봉을 지키려면 실패를 알아야 한다. 한도 초과가 아니면 다시 부르지 않는다. */
         @Test
         fun `한도 초과가 아닌 오류는 다시 부르지 않고 예외로 올린다`() {
             stub.respond(URL, "{}", status = 500)
@@ -151,7 +146,6 @@ class TossCandlesTest {
             stub.calls(URL) shouldBe 1
         }
 
-        /** 과거 분봉(키움)이 수정주가라 오늘 봉도 같은 기준이어야 돌파선이 맞는다. */
         @Test
         fun `수정주가로 청한다`() {
             stub.respond(URL, page())

@@ -1,11 +1,4 @@
-# base: 로컬 개발/CI/프로덕션 공통.
-# - 로컬: docker compose up --build  (이 파일만 사용)
-# - 프로덕션: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# secrets/.env 가 있어야 부팅됨 (KIS/KIWOOM/토스 시크릿 + DB_PASSWORD).
-# 파일은 git에 올리지 않는다 — 배포 시 remote_deploy.sh가 Secret Manager에서 받아 쓴다.
 services:
-  # 백엔드(Kotlin · Spring Boot). nginx가 /api/를 여기로 보낸다.
-  # 스키마는 기동할 때 Flyway가 맞춘다. 컨테이너 기본 UTC면 KST 기준 cron·벽시계가 9시간 어긋나므로 TZ를 고정한다.
   backend:
     build: ./backend
     environment:
@@ -15,27 +8,23 @@ services:
       - ./secrets/.env
     expose:
       - "8001"
-    # 힙은 이 한도의 70%다(Dockerfile `MaxRAMPercentage`). 빈 앱이 330MB쯤 쓴다.
     mem_limit: 768m
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8001/health"]
       interval: 10s
       timeout: 5s
       retries: 6
-      # JVM 기동이 Python보다 느리다
       start_period: 40s
     networks:
       - trading
 
   frontend:
     build: ./frontend
-    # nginx는 기동 때 upstream 이름을 푼다 — 없으면 nginx가 뜨지 않는다
     depends_on:
       - backend
     networks:
       - trading
 
-  # 로그 수집/저장/조회 스택 (Alloy 스크레이프 → Loki → Grafana)
   alloy:
     image: grafana/alloy:v1.7.5
     command:
@@ -46,15 +35,9 @@ services:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
-      # 내장 exporter(unix)가 호스트를 읽는 통로. **config.alloy의 경로
-      # 인자와 짝이다 — 하나라도 빠지면 alloy가 exit 1로 죽고 로그 수집까지 멈춘다.**
-      # /proc은 컨테이너 자기 것을 덮으면 안 되므로 /host/proc으로 받는다.
       - /:/rootfs:ro
       - /sys:/sys:ro
       - /proc:/host/proc:ro
-    # 설정이 바뀔 때만 재생성된다(ops 스택과 같은 방식). 예전에는 배포마다
-    # --force-recreate로 무조건 재시작했다 — 설정 파일이 단일 파일 bind mount라
-    # 내용만 갈아끼워서는 프로세스가 새 설정을 안 읽기 때문이었다.
     labels:
       config.hash: ${ALLOY_CONFIG_HASH}
     networks:

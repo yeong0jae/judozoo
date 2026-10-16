@@ -14,27 +14,15 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-/**
- * 주도주 타임라인 API — 공개다.
- *
- * 하루는 약 700분 × 5종목이라, 종목 이름·코드는 사전으로 한 번만 싣고 분마다 번호만 보낸다.
- */
 @RestController
 @RequestMapping("/api/leader-timeline")
 class LeaderTimelineController(private val service: LeaderTimelineService) {
+    data class TimelineStock(val exchange: String?, val code: String, val name: String)
 
-    data class TimelineStock(val exchange: String?, val code: String, /** 그날 마지막으로 찍힌 이름 */ val name: String)
-
-    /** 한 분. [stocks]는 종목 사전의 번호(순위 순) — 비어 있으면 그 분엔 주도주가 없었다. [at]은 현지 HH:MM. */
     data class TimelineTick(val at: String, val stocks: List<Int>, val rates: List<Double>, val values: List<Double>)
 
-    /** [lastTakenAt]은 그날 마지막으로 찍은 실제 시각(KST) — 화면의 "47초 전". */
     data class Timeline(val stocks: List<TimelineStock>, val ticks: List<TimelineTick>, val lastTakenAt: LocalDateTime?)
 
-    /**
-     * `market=kr&date=2026-09-23`. 날짜·시각은 그 시장의 현지 기준 — 해외는 뉴욕.
-     * `since=10:59`면 그 **뒤** 분만(장중에 새 분만 받아 붙일 때).
-     */
     @GetMapping
     fun day(
         @RequestParam @Pattern(regexp = "kr|us") market: String,

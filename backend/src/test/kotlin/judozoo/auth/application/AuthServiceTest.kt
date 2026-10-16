@@ -89,7 +89,6 @@ class AuthServiceTest @Autowired constructor(
             auth.withdraw(me)
         }
 
-        /** Grafana 탈퇴 규칙은 이 로그 한 줄을 센다 — 로거·문구를 바꾸면 알림이 조용히 끊긴다. */
         @Test
         fun `탈퇴 알림이 세는 로그를 남긴다`() {
             val rules = File("../observability/grafana/provisioning/alerting/rules.yaml").readText()

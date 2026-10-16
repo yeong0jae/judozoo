@@ -14,7 +14,6 @@ import Skeleton from "./Skeleton";
 
 const MARKET_LABEL: Record<MarketType, string> = { KOSPI: "코스피", KOSDAQ: "코스닥" };
 
-/** 지수값 → 천 단위 쉼표 + 소수 2자리. */
 const fmtIndex = (v: number) =>
   v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -26,7 +25,6 @@ const DETAIL_TABS: { key: DetailTab; label: string }[] = [
   { key: "daily", label: "일봉" },
 ];
 
-/** 지수(코스피/코스닥) 상세/1분봉 패널 — 실시간 로그에서 지수 행 선택 시 우측에. */
 export default function IndexDetailPanel({
   market,
   changeRate,
@@ -34,7 +32,6 @@ export default function IndexDetailPanel({
 }: {
   market: MarketType | null;
   changeRate?: number | null;
-  /** 선택한 시그널 발생 시각(ISO). 있으면 그 시점 스냅샷, 없으면 라이브 현재값. */
   at?: string | null;
 }) {
   const [tab, setTab] = useState<DetailTab>("detail");
@@ -48,7 +45,6 @@ export default function IndexDetailPanel({
   const detailOn = tab === "detail" && market !== null;
   const netBuyLiveQ = useMarketInvestorNetBuy(detailOn);
   const netBuyAtQ = useMarketInvestorNetBuyAt(detailOn ? at : null, detailOn);
-  // at 지정 & 그 시점 스냅샷이 있으면 스냅샷, 없으면(과거·적치 이전) 라이브로 폴백.
   const snapshot = at != null && netBuyAtQ.data && netBuyAtQ.data.length > 0 ? netBuyAtQ.data : null;
   const netBuyItems = snapshot ?? netBuyLiveQ.data ?? [];
   const netBuyLoading = (at != null && netBuyAtQ.isLoading) || (snapshot == null && netBuyLiveQ.isLoading);
@@ -79,7 +75,6 @@ export default function IndexDetailPanel({
               </div>
             )}
           </div>
-          {/* 상세/차트 토글 */}
           <div className="flex rounded-xl bg-zinc-800 p-0.5 text-xs shrink-0">
             {DETAIL_TABS.map((t) => (
               <button
@@ -129,7 +124,6 @@ export default function IndexDetailPanel({
 }
 
 function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; title: string }) {
-  // 코스피 먼저
   const sorted = [...items].sort((a) => (a.market === "KOSPI" ? -1 : 1));
   return (
     <div className="p-1 sm:p-3 space-y-4">
@@ -142,7 +136,6 @@ function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; tit
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-sm font-semibold text-zinc-100">{MARKET_LABEL[m.market]}</span>
             <span className="text-xs text-zinc-400 num">
-              {/* 스냅샷 적재 이전 시점은 지수값이 비어 온다 — 순매수는 그대로 보여준다. */}
               {m.indexValue === null ? "—" : fmtIndex(m.indexValue)}
               {m.changeRate !== null && (
                 <ProfitText value={m.changeRate / 100} format={formatPct} className="num ml-1.5" />
@@ -169,7 +162,6 @@ function NetBuyDetail({ items, title }: { items: MarketInvestorNetBuyItem[]; tit
   );
 }
 
-// 키움 ka10051 기관 세부 (연기금·투신·금융투자·사모·보험·은행)
 type OrgKey =
   | "pensionFundEok"
   | "trustEok"
@@ -201,7 +193,6 @@ function OrgCell({ label, eok }: { label: string; eok: number }) {
 }
 
 function NetBuyCell({ label, eok }: { label: string; eok: number }) {
-  // 한국 거래소 관행 — 순매수(양수) 빨강 / 순매도(음수) 파랑
   const tone = eok > 0 ? "text-red-400" : eok < 0 ? "text-blue-400" : "text-zinc-500";
   const sign = eok > 0 ? "+" : eok < 0 ? "-" : "";
   return (

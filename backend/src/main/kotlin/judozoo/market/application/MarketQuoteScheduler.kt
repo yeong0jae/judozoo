@@ -11,11 +11,6 @@ import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
 
-/**
- * 시세 폴러(30초) — 요청자 수와 무관하게 시세를 채운다. 개장 전에는 마지막 정상값을 계속 제공한다.
- *
- * 선물 투자자 스냅샷(DB)은 [FuturesInvestorScheduler]가 따로 찍는다.
- */
 @Component
 class MarketQuoteScheduler(
     private val quotes: MarketQuotes,
@@ -43,7 +38,6 @@ class MarketQuoteScheduler(
         )
         quotes.refreshers().forEach { (name, refresh) ->
             try {
-                // 재기동 직후엔 장 밖이어도 한 번 채운다. 빈 값은 다음 회차에 재시도한다
                 if (!refresh.run(active.getValue(name))) {
                     log.warn("시세 갱신 빈 값 ({}) — 마지막 정상값 유지", name)
                     failures.record(JOB)
@@ -58,7 +52,6 @@ class MarketQuoteScheduler(
     internal fun domesticOpen(at: LocalDateTime, start: LocalTime, end: LocalTime): Boolean =
         !at.toLocalTime().isBefore(start) && !at.toLocalTime().isAfter(end) && !calendar.isHoliday(Region.KR)
 
-    /** 자정 뒤에도 전날 시작한 세션이다. 금요일 밤→토요일 새벽을 포함한다. */
     internal fun nightOpen(at: LocalDateTime): Boolean {
         val time = at.toLocalTime()
         if (time.isBefore(LocalTime.of(18, 0)) && time.isAfter(LocalTime.of(6, 2))) return false
@@ -66,13 +59,11 @@ class MarketQuoteScheduler(
         return calendar.isOpen(day) ?: (day.dayOfWeek != DayOfWeek.SATURDAY && day.dayOfWeek != DayOfWeek.SUNDAY)
     }
 
-    /** 지연 시세의 마지막 값도 받도록 정규장 마감 뒤 15분을 더 갱신한다. */
     internal fun usCashOpen(at: LocalDateTime): Boolean {
         val local = ny(at).toLocalTime()
         return !local.isBefore(LocalTime.of(9, 30)) && !local.isAfter(LocalTime.of(16, 15)) && !calendar.isHoliday(Region.US)
     }
 
-    /** 선물·FX는 주식 휴장일과 다르다. 주말은 쉬고 조기 마감·상품별 휴일은 공급자 값을 따른다. */
     internal fun globalOpen(at: LocalDateTime): Boolean {
         val local = ny(at)
         val time = local.toLocalTime()
@@ -87,7 +78,6 @@ class MarketQuoteScheduler(
     private fun ny(at: LocalDateTime) = at.atZone(KST).withZoneSameInstant(Region.US.zone).toLocalDateTime()
 
     companion object {
-        /** 실패를 세는 잡 이름 — Python과 같다([JobFailures]). */
         const val JOB = "market-quote-poller"
     }
 }

@@ -7,7 +7,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 import java.time.LocalDate
 
-/** 완성된 지난 정규장 거래일·야간 세션 분봉을 계약별로 보관한다(`futures_minute_day`). */
 @Repository
 class FuturesMinuteArchive(private val jdbc: JdbcTemplate) {
     private val log = LoggerFactory.getLogger(javaClass)

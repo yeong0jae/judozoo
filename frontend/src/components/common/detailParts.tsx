@@ -1,11 +1,5 @@
 import { useState, type ReactNode } from "react";
 
-/** 상세 패널 조각 — 국내(`StockDetailPanel`)와 해외(`OverseasStockDetailPanel`)가 같이 쓴다. */
-
-/**
- * 차트 카드 — 테두리만 있는 카드 + 맨 위 라벨 줄(왼쪽 제목, 오른쪽 1분봉·일봉 토글).
- * "왜 올랐나요?" 카드와 같은 모양이다. 국내·해외 상세가 같이 쓴다.
- */
 export function ChartCard({ title, action, children }: { title: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-zinc-800 p-4 sm:p-5">
@@ -18,7 +12,6 @@ export function ChartCard({ title, action, children }: { title: ReactNode; actio
   );
 }
 
-/** 차트 높이 — 지수·수급 상세와 같다. 차트가 autoSize라 컨테이너 높이만 바꾸면 된다. */
 export const CHART_H = "h-[21.25rem] 2xl:h-[26rem]";
 
 export function ChartEmpty({ children }: { children: ReactNode }) {
@@ -33,7 +26,6 @@ export function Chevron({ dir }: { dir: "left" | "right" }) {
   );
 }
 
-/** 탭 두 개짜리 세그먼트 — 지수·수급 화면의 토글과 같은 모양. */
 export function Segmented<T extends string>({
   label,
   items,
@@ -74,7 +66,6 @@ export type FilterResult = {
   threshold?: number | null;
 };
 
-/** 화면에 보이는 이름과 "왜 보나요" 한 줄. 키는 서버의 필터 이름이다(해외는 "당일 등락률"로 띄어 쓴다). */
 const CONDITION_COPY: Record<string, { title: string; why: string }> = {
   거래대금순위: { title: "거래대금 순위", why: "주도주는 돈이 몰리는 곳에서 나와요." },
   시가총액: { title: "회사 규모", why: "작은 회사는 적은 돈에도 가격이 크게 움직여요." },
@@ -87,10 +78,6 @@ const CONDITION_COPY: Record<string, { title: string; why: string }> = {
   시초가: { title: "시작 가격", why: "너무 높게 시작하면 장중에 밀리기 쉬워요." },
 };
 
-/**
- * 눈금 막대 — min~max 위에 충족 구간을 칠하고 지금 값을 꽂는다. 기준값은 서버가 주고 범위만 여기서 정한다.
- * [pass]는 충족 구간이 기준의 어느 쪽인지. 범위를 벗어난 값은 양 끝에 붙인다.
- */
 const pct = (v: number) => `${v > 0 ? "+" : ""}${Number.isInteger(v) ? v : v.toFixed(1)}%`;
 const CONDITION_SCALES: Record<
   string,
@@ -105,7 +92,6 @@ const CONDITION_SCALES: Record<
   시초가: { min: -10, max: 20, pass: "below", label: pct },
 };
 
-/** 두 개씩 한 묶음 — 질문 하나에 조건 둘. 없는 조건은 빠지고, 비는 묶음은 통째로 빠진다. */
 const CONDITION_GROUPS: { title: string; filters: string[] }[] = [
   { title: "돈이 몰리는 큰 종목인가요?", filters: ["거래대금순위", "시가총액"] },
   { title: "오늘 실제로 사고 있나요?", filters: ["당일등락률", "당일 등락률", "프로그램 양매수"] },
@@ -113,10 +99,6 @@ const CONDITION_GROUPS: { title: string; filters: string[] }[] = [
   { title: "이미 너무 오르진 않았나요?", filters: ["전일 등락률", "시초가"] },
 ];
 
-/**
- * 체크리스트 한 벌 — 제목·묶음·문구·눈금. 기본은 주도주 조건이고,
- * 종가베팅의 종베 체크도 같은 모양으로 그리려고 바꿔 끼운다.
- */
 export type ConditionKit = {
   title: string;
   subtitle: (count: number) => string;
@@ -138,7 +120,6 @@ function groupConditions(results: FilterResult[], kit: ConditionKit): { title: s
     title: g.title,
     items: results.filter((r) => g.filters.includes(r.filterName)),
   }));
-  // 서버에 조건이 새로 생기면 묶음 밖에서도 보이게 둔다
   const known = new Set(kit.groups.flatMap((g) => g.filters));
   groups.push({ title: "그 밖의 조건", items: results.filter((r) => !known.has(r.filterName)) });
   return groups.filter((g) => g.items.length > 0);
@@ -153,7 +134,6 @@ function scoreOf(passed: number, total: number): { label: string; className: str
 
 export function LeadingConditions({ results, kit = LEADING_KIT }: { results: FilterResult[]; kit?: ConditionKit }) {
   const groups = groupConditions(results, kit);
-  // leaving = 방금 나간 묶음 — 위로 살짝 사라지고, 나머지는 아래에 대기했다가 떠오른다
   const [{ step: rawStep, leaving }, setPage] = useState<{ step: number; leaving: number | null }>({ step: 0, leaving: null });
   const step = Math.min(rawStep, Math.max(groups.length - 1, 0));
   const go = (i: number) => setPage({ step: (i + groups.length) % groups.length, leaving: step });
@@ -175,7 +155,6 @@ export function LeadingConditions({ results, kit = LEADING_KIT }: { results: Fil
       </div>
 
       {groups.length > 0 && (
-        // 어디를 눌러도 다음 묶음 — 키보드는 아래 화살표·점 버튼으로 넘긴다
         <div className="relative grid">
           {groups.length > 1 && (
             <button
@@ -186,8 +165,6 @@ export function LeadingConditions({ results, kit = LEADING_KIT }: { results: Fil
               className="absolute inset-0 z-0 cursor-pointer"
             />
           )}
-          {/* 묶음을 모두 한 칸에 겹쳐 두고 지금 것만 보인다 — 높이가 가장 긴 묶음에 맞춰져 넘겨도 아래 넘김 줄이 제자리다.
-              넘기면 나가는 묶음은 위로 흐려지고 들어오는 묶음은 아래에서 떠오른다 */}
           {groups.map((g, i) => (
             <div
               key={g.title}

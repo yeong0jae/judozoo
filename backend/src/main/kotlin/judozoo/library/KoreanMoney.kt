@@ -3,7 +3,6 @@ package judozoo.library
 import java.util.Locale
 import kotlin.math.absoluteValue
 
-/** 한국 금액 표기 — 필터 설명·실적값을 사람이 읽는 문자열로 만든다. 프론트가 그대로 뿌린다. Python `library/money.py`와 글자까지 같다. */
 object KoreanMoney {
     private const val JO = 1_000_000_000_000L
     private const val EOK = 100_000_000L
@@ -11,7 +10,6 @@ object KoreanMoney {
 
     private fun comma(n: Long) = String.format(Locale.ROOT, "%,d", n)
 
-    /** 300_000_000_000 → "3,000억원" / 1_073_000_000_000_000 → "1,073조원". */
     fun format(amount: Long): String {
         val sign = if (amount < 0) "-" else ""
         val a = amount.absoluteValue
@@ -25,7 +23,6 @@ object KoreanMoney {
         }
     }
 
-    /** 1_234_567_890 → "12억 3,456만원". 억 미만 잔돈까지 보여야 하는 수급값에 쓴다. */
     fun formatWithMan(amount: Long): String {
         val sign = if (amount < 0) "-" else ""
         val a = amount.absoluteValue

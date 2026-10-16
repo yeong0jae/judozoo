@@ -1,6 +1,3 @@
-// 테마 — 라이트/다크/시스템 3-state. <html>에 .dark 클래스를 토글해 적용.
-// 저장된 선택이 없으면 다크 — 장중에 오래 보는 화면이라 기본을 어둡게 둔다.
-
 import {
   createContext,
   useCallback,
@@ -16,7 +13,7 @@ const STORAGE_KEY = "at.theme";
 
 interface ThemeValue {
   mode: ThemeMode;
-  resolved: "light" | "dark"; // 실제 적용된 테마
+  resolved: "light" | "dark";
   set: (m: ThemeMode) => void;
 }
 
@@ -27,7 +24,6 @@ function loadMode(): ThemeMode {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === "light" || raw === "dark" || raw === "system") return raw;
   } catch {
-    // ignore
   }
   return "dark";
 }
@@ -51,7 +47,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     resolve(loadMode()),
   );
 
-  // mode 변경 시 적용 + 저장
   useEffect(() => {
     const r = resolve(mode);
     setResolved(r);
@@ -59,11 +54,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, mode);
     } catch {
-      // ignore
     }
   }, [mode]);
 
-  // mode === "system" 일 때 OS 다크모드 변경 추적
   useEffect(() => {
     if (mode !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

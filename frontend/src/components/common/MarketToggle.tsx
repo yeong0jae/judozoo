@@ -8,10 +8,6 @@ const TABS: { key: StockMarket; label: string }[] = [
   { key: "overseas", label: "해외" },
 ];
 
-/**
- * 국내/해외 전환 — 언더라인 탭. 활성은 중립(흰색) 언더라인(파랑=하락과 혼동 방지). 하단 보더가 리스트와의 구분선.
- * [trailing]을 주면 같은 줄 우측에 배치(예: 등락률 필터) — 좁으면 아래로 감싼다.
- */
 export default function MarketToggle({
   value,
   onChange,

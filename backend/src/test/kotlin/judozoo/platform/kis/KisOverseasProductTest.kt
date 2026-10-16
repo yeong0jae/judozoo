@@ -39,9 +39,7 @@ class KisOverseasProductTest {
     inner class 시가총액 {
         @Test
         fun `한국 날짜가 먼저 바뀌어도 미국 날짜를 기준으로 삼는다`() {
-            // KST 2026-09-30 00:30 = 뉴욕 09-29 오전
             KisOverseasProduct.usDate(Instant.parse("2026-09-29T15:30:00Z")) shouldBe LocalDate.of(2026, 9, 29)
-            // KST 2026-09-30 13:30 = 뉴욕 09-30 00:30
             KisOverseasProduct.usDate(Instant.parse("2026-09-30T04:30:00Z")) shouldBe LocalDate.of(2026, 9, 30)
         }
 
@@ -105,7 +103,6 @@ class KisOverseasProductTest {
             stub.calls(URL) shouldBe 2
         }
 
-        /** 상세 화면 전체가 500이 되지 않게 — 시가총액만 "조회 불가"로 남는다. */
         @Test
         fun `KIS가 500을 주면 예외 없이 시가총액을 주지 않는다`() {
             stub.respond(URL, """{"rt_cd":"1","msg_cd":"EGW00123","msg1":"기간이 만료된 token"}""", status = 500)

@@ -32,7 +32,6 @@ class TossTokenIssuerTest {
 
     @Nested
     inner class 액세스_토큰 {
-        /** 시크릿 주입 시 끼어든 개행·공백이 남아 있으면 401 invalid_client로 거부된다. */
         @Test
         fun `만료 5분 전까지 쓰고 시크릿의 공백은 걷어 보낸다`() {
             respond("""{"access_token":"tok","expires_in":86400}""")
@@ -43,7 +42,6 @@ class TossTokenIssuerTest {
             server.verify(postRequestedFor(urlEqualTo("/oauth2/token")).withRequestBody(containing("client_id=id&client_secret=secret")))
         }
 
-        /** expires_in이 만료 마진보다 짧으면 음수 수명이 된다. */
         @Test
         fun `수명이 짧아도 최소치는 보장한다`() {
             respond("""{"access_token":"tok","expires_in":60}""")

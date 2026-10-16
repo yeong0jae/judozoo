@@ -12,7 +12,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class TtlCacheTest {
-    /** 손으로 넘기는 시계. */
     private var now = 0L
     private val ticker = { now }
     private fun pass(duration: Duration) {
@@ -59,7 +58,6 @@ class TtlCacheTest {
         }
     }
 
-    /** 키움 거래대금 상위를 빈 리스트로 캐싱하면 후속 폴링이 TTL 동안 빈 결과를 재사용한다. */
     @Nested
     inner class 빈_응답은 {
         @Test
@@ -97,14 +95,13 @@ class TtlCacheTest {
 
             cache.get("A", load("A"))
             cache.get("B", load("B"))
-            cache.get("C", load("C")) // A가 밀려난다
-            cache.get("A", load("A")) // 다시 계산
+            cache.get("C", load("C"))
+            cache.get("A", load("A"))
 
             calls.get() shouldBe 4
         }
     }
 
-    /** TTL 5초에 화면 폴링도 5초라 경계에서 실제로 겹친다. */
     @Nested
     inner class 만료_순간에_여러_스레드가_동시에_물으면 {
         private val pool = Executors.newFixedThreadPool(4)
@@ -135,7 +132,6 @@ class TtlCacheTest {
             results shouldBe codes.map { "값:$it" }
         }
 
-        /** 재시도는 호출부가 정한다 — 캐시가 대신 삼키면 실패가 보이지 않는다. */
         @Test
         fun `선두가 실패하면 대기자도 같은 예외를 받는다`() {
             val cache = TtlCache<Unit, String>("테스트", Duration.ofSeconds(60))
@@ -150,7 +146,6 @@ class TtlCacheTest {
             messages shouldBe List(3) { "브로커 오류" }
         }
 
-        /** 진행 중 표시를 안 지우면 그 키가 영영 막힌다. */
         @Test
         fun `실패한 뒤에는 다시 부를 수 있다`() {
             val cache = TtlCache<Unit, String>("테스트", Duration.ofSeconds(60))
@@ -163,7 +158,6 @@ class TtlCacheTest {
         }
     }
 
-    /** 장중 폴러가 만료 전에 갈아 끼운다 — 화면은 늘 캐시에서 받는다. */
     @Nested
     inner class 미리_갱신하면 {
         @Test
@@ -186,7 +180,7 @@ class TtlCacheTest {
             cache.get(Unit, load)
             pass(Duration.ofMillis(150))
             cache.refresh(Unit, load)
-            pass(Duration.ofMillis(150)) // 처음 넣은 시점으로는 만료됐을 시각
+            pass(Duration.ofMillis(150))
 
             cache.get(Unit, load) shouldBe 2
             calls.get() shouldBe 2
@@ -219,7 +213,6 @@ class TtlCacheTest {
         }
     }
 
-    /** 장중엔 짧게, 장이 멈춘 동안은 다음 장까지 — 넣는 순간의 상황으로 수명을 정한다. */
     @Nested
     inner class 수명을_함수로_주면 {
         @Test
@@ -228,9 +221,9 @@ class TtlCacheTest {
             val cache = TtlCache<Unit, Int>("테스트", { lifetimes.next() }, ticker = ticker)
             val load = { calls.incrementAndGet() }
 
-            cache.get(Unit, load) // 0.1초짜리로 들어간다
+            cache.get(Unit, load)
             pass(Duration.ofMillis(150))
-            cache.get(Unit, load) // 만료돼 다시 부르고, 이번엔 60초짜리로 들어간다
+            cache.get(Unit, load)
             pass(Duration.ofMillis(150))
 
             cache.get(Unit, load) shouldBe 2
@@ -243,11 +236,11 @@ class TtlCacheTest {
             val cache = TtlCache<Unit, Int>("테스트", { lifetimes.next() }, ticker = ticker)
             val load = { calls.incrementAndGet() }
 
-            cache.get(Unit, load) // 60초짜리
-            cache.refresh(Unit, load) // 0.1초짜리로 바뀐다
+            cache.get(Unit, load)
+            cache.refresh(Unit, load)
             pass(Duration.ofMillis(150))
 
-            cache.get(Unit, load) shouldBe 3 // 60초짜리였다면 다시 부르지 않았다
+            cache.get(Unit, load) shouldBe 3
         }
     }
 
@@ -265,14 +258,13 @@ class TtlCacheTest {
             calls.get() shouldBe 2
         }
 
-        /** 거래대금 풀처럼 장 상태로 수명을 정하는 캐시도 폴러가 늦으면 옛 값으로 버틴다. */
         @Test
         fun `수명을 함수로 줘도 만료된 뒤 마지막 정상값을 받는다`() {
             val cache = TtlCache<Unit, Int>("테스트", { Duration.ZERO }, serveStale = true, ticker = ticker)
             val load = { calls.incrementAndGet() }
 
             cache.get(Unit, load) shouldBe 1
-            cache.get(Unit, load) shouldBe 1 // 이미 만료됐지만 다시 부르지 않고 보관값을 받는다
+            cache.get(Unit, load) shouldBe 1
             cache.refresh(Unit, load) shouldBe 2
             cache.get(Unit, load) shouldBe 2
             calls.get() shouldBe 2

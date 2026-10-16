@@ -18,7 +18,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/** 폴러가 언제 도는가 — 휴장·장 밖에는 브로커를 부르지 않고, 실패해도 다음 회차가 살아 있어야 한다. */
 class LeadingStockSchedulerTest {
     private var now = LocalDateTime.of(2026, 9, 11, 10, 0)
     private var holiday = false
@@ -43,7 +42,6 @@ class LeadingStockSchedulerTest {
     private val registry = SimpleMeterRegistry()
     private val scheduler = LeadingStockScheduler(service, stockSignals, marketFlows, indexRebound, calendar, JobFailures(registry), clock)
 
-    /** 알림 규칙이 잡 이름별로 본다 — Python과 같은 이름이어야 한다. */
     private fun failures(job: String) = registry.find("scheduler.job.errors").tag("job_id", job).counter()?.count() ?: 0.0
 
     private fun runAll() {
@@ -119,7 +117,6 @@ class LeadingStockSchedulerTest {
             verify(exactly = 0) { marketFlows.detect() }
         }
 
-        /** 시황의 세션 표가 프리·애프터 구간을 스냅샷 경계 차이로 만든다 — 정규장 밖 누적도 남겨야 한다. */
         @Test
         fun `시장 수급은 프리마켓에도 돌지만 지수 반등은 정규장만 돈다`() {
             now = LocalDateTime.of(2026, 9, 11, 8, 30)

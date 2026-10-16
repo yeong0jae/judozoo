@@ -8,17 +8,12 @@ import org.springframework.util.LinkedMultiValueMap
 import java.time.Clock
 import java.time.Duration
 
-/**
- * 토스 접근토큰 발급(`/oauth2/token`, client credentials). client당 유효 토큰이 1개뿐이다.
- * 만료 5분 전에 갱신하도록 수명을 줄이되, 아주 짧게 와도 최소 1분은 쓴다.
- */
 class TossTokenIssuer(private val properties: TossProperties, private val clock: Clock, registry: MeterRegistry) {
     private val rest = TokenHttp.client(properties.baseUrl, "toss", registry)
 
     fun issue(): Issued {
         val form = LinkedMultiValueMap<String, String>().apply {
             add("grant_type", "client_credentials")
-            // 시크릿 주입 시 끼어든 개행·공백을 흡수한다 — 남아 있으면 401 invalid_client로 거부된다
             add("client_id", properties.clientId.trim())
             add("client_secret", properties.clientSecret.trim())
         }
@@ -32,7 +27,6 @@ class TossTokenIssuer(private val properties: TossProperties, private val clock:
     }
 
     companion object {
-        /** 만료 5분 전에 갱신 */
         private const val EXPIRY_MARGIN_SECONDS = 300L
         private const val MIN_LIFETIME_SECONDS = 60L
         private val MAPPER = tools.jackson.databind.json.JsonMapper.builder().build()

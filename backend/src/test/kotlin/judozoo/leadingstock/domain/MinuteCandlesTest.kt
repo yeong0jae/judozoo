@@ -11,7 +11,6 @@ import java.time.LocalDateTime
 class MinuteCandlesTest {
     private val base = LocalDateTime.of(2026, 6, 12, 9, 0)
 
-    /** 저항선 판정은 고가만, 지지선 판정은 저가만 쓴다 — 나머지 필드는 영향 없음. */
     private fun bar(minute: Long, price: Long) = MinuteCandle(base.plusMinutes(minute), price, price, price, price, 0, 0)
 
     @Nested
@@ -53,7 +52,6 @@ class MinuteCandlesTest {
         }
     }
 
-    /** 저가 근접도 — 저항선(고가)의 대칭. */
     @Nested
     inner class 지지선 {
         @Test
@@ -127,7 +125,6 @@ class MinuteCandlesTest {
             MinuteCandles(listOf(valued(0, 0), valued(1, 500))).volumeSpike(20).shouldBeNull()
         }
 
-        /** 차트 거래량 막대 색과 같다 — 빨강(종가 ≥ 시가)은 매수, 파랑은 매도. 꼬리 위치는 보지 않는다. */
         @Test
         fun `양봉이면 매수 음봉이면 매도다`() {
             MinuteCandles(flat + candle(3, 100, 118)).volumeSpike(3)!!.direction shouldBe SpikeDirection.BUY

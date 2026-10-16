@@ -31,7 +31,6 @@ class GoogleOAuthTest {
     @AfterEach
     fun 정리() = SharedWireMock.reset()
 
-    /** 서명 부분은 보지 않는다 — 토큰 엔드포인트에서 TLS로 직접 받은 토큰이다. */
     private fun idToken(claims: String): String {
         fun b64(s: String) = Base64.getUrlEncoder().withoutPadding().encodeToString(s.toByteArray())
         return "${b64("""{"alg":"RS256"}""")}.${b64(claims)}.sig"
@@ -67,7 +66,6 @@ class GoogleOAuthTest {
             server.verify(postRequestedFor(urlEqualTo("/token")).withRequestBody(containing("grant_type=authorization_code&code=code-1&client_id=app-id&client_secret=app-secret")))
         }
 
-        /** 다른 로그인 시작에서 나온 토큰을 들고 오면 받지 않는다. */
         @Test
         fun `nonce가 다르면 받지 않는다`() {
             answer(good)
@@ -103,7 +101,6 @@ class GoogleOAuthTest {
             google.exchange("code-1", "n-1").shouldBeNull()
         }
 
-        /** code 만료·네트워크 실패는 부르는 쪽이 첫 화면으로 돌려보낸다. */
         @Test
         fun `구글이 거절하면 예외로 올린다`() {
             server.stubFor(post(urlEqualTo("/token")).willReturn(aResponse().withStatus(400).withBody("""{"error":"invalid_grant"}""")))

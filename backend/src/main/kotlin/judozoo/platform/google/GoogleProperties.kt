@@ -2,7 +2,6 @@ package judozoo.platform.google
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-/** `judozoo.google.*` — 구글 OAuth. 값이 비면 로그인 라우트가 503을 준다 — 로컬에서 굳이 안 채워도 나머지는 돈다. */
 @ConfigurationProperties("judozoo.google")
 data class GoogleProperties(
     val clientId: String = "",

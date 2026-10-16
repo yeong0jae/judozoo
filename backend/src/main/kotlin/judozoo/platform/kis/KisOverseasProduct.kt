@@ -9,22 +9,14 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** KIS 상품기본정보 (CTPF1702R) — 해외 종목 시가총액. */
 @Component
 class KisOverseasProduct(private val client: KisClient, private val clock: Clock) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 종목별·미국 현지 날짜별로 하루 보관한다. 조회 실패는 보관하지 않는다. */
     private val marketCaps = TtlCache<Triple<String, String, LocalDate>, Long?>(
         "kisOverseasMarketCap", Duration.ofHours(24), maxSize = 100, skipIf = { it == null },
     )
 
-    /**
-     * 시가총액(달러) = 상장주식수 × 현재가. 데이터가 없거나 KIS가 실패하면 null.
-     *
-     * **실패해도 예외를 올리지 않는다** — 시가총액은 상세 화면의 필터 하나일 뿐이다.
-     * 지원하지 않는 거래소는 호출 자체가 잘못된 것이라 예외를 올린다.
-     */
     fun fetchMarketCap(excd: String, symb: String): Long? {
         val productType = requireNotNull(PRODUCT_TYPE[excd]) { "지원하지 않는 거래소: $excd" }
         return marketCaps.get(Triple(excd, symb, usDate(clock.instant()))) { load(excd, symb, productType) }
@@ -49,12 +41,10 @@ class KisOverseasProduct(private val client: KisClient, private val clock: Clock
     }
 
     companion object {
-        /** 거래소별 상품유형코드. */
         private val PRODUCT_TYPE = mapOf("NAS" to "512", "NYS" to "513", "AMS" to "529")
 
         private val US_EASTERN = ZoneId.of("America/New_York")
 
-        /** 해외 시총 캐시는 한국 날짜가 아닌 미국 현지 날짜에 맞춰 교체한다. */
         fun usDate(at: Instant): LocalDate = at.atZone(US_EASTERN).toLocalDate()
     }
 }

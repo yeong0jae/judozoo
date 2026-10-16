@@ -1,15 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { goLogin, useLogout, useMe } from "../../api/auth";
 
-/**
- * 계정 버튼 — 사람 아이콘을 누르면 로그인/로그아웃이 뜬다.
- *
- * 레일(세로)과 헤더(가로)에서 같이 쓰므로 팝오버가 열리는 방향만 다르게 받는다.
- */
 export default function AccountButton({
   placement = "right",
 }: {
-  /** right = 좌측 레일에서 오른쪽으로, bottom = 헤더에서 아래로 */
   placement?: "right" | "bottom";
 }) {
   const { data: me, isLoading } = useMe();
@@ -17,7 +11,6 @@ export default function AccountButton({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // 바깥 클릭·Esc로 닫기
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {

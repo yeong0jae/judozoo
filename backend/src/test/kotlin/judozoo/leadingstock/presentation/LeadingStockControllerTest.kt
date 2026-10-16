@@ -41,7 +41,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
 
     @Nested
     inner class 후보_목록 {
-        /** 목록은 공개다 — 로그인 없이 부른다. */
         @Test
         fun `순위를 붙여 Python과 같은 모양으로 준다`() {
             every { service.findCandidates(7.0) } returns listOf(stock())
@@ -56,7 +55,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
             }
         }
 
-        /** 사용자가 -12~7 중에서 고른다 — 밖의 값은 경계로 붙인다. 안 주면 7. */
         @Test
         fun `등락률 임계값을 범위로 자르고 안 주면 기본값을 쓴다`() {
             every { service.findCandidates(any()) } returns emptyList()
@@ -72,7 +70,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
 
     @Nested
     inner class 첫_화면_주도주 {
-        /** 따로 부르면 호출 사이에 후보 풀이 갱신돼 둘이 다른 순간을 말할 수 있다. 칩에는 이름과 코드만 싣는다. */
         @Test
         fun `미로그인도 주도주와 상한가를 한 응답으로 받는다`() {
             every { service.findLeaders(5) } returns listOf(stock("005930", "삼성전자"), stock("000660", "SK하이닉스"))
@@ -90,7 +87,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
             }
         }
 
-        /** 첫 화면은 목록 화면에 걸어둔 기준과 무관하게 같은 답을 줘야 한다. */
         @Test
         fun `등락률 파라미터를 받지 않는다`() {
             every { service.findLeaders(any()) } returns emptyList()
@@ -110,7 +106,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
                 .forEach { mvc.get(it).andExpect { status { isUnauthorized() } } }
         }
 
-        /** 상세 머리가 전일 대비와 시고저를 그린다 — 등락률에서 역산하면 큰 가격대에서 원 단위가 어긋난다. */
         @Test
         fun `필터 평가와 상대거래량, 시세를 Python과 같은 모양으로 준다`() {
             val quote = LeadingStockSnapshot(
@@ -136,7 +131,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
             }
         }
 
-        /** 순위 밖 종목은 누적 거래대금을 받아오지 않는다 — 0원으로 그리면 거래가 없던 것처럼 읽힌다. */
         @Test
         fun `거래대금 순위 밖이면 거래대금과 상대거래량과 시장은 null`() {
             every { service.evaluate("005930") } returns StockEvaluation(stock(tradingValue = 0), emptyList(), null, null)
@@ -173,7 +167,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
             stock(code, "종목$code"), SwingHigh(1100, at, gap), supportGap?.let { SwingLow(900, at, it) },
         )
 
-        /** 화면에서 자르면 나머지가 브라우저까지 내려가 읽힌다 — 서버가 자른다. 전체 수는 그대로 알려준다. */
         @Test
         fun `미로그인은 상위 세 개만 받는다`() {
             every { service.breakoutRadar() } returns (0 until 8).map { radar("$it", 0.1 * it) }
@@ -192,7 +185,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
             mvc.get("/api/leading-stocks/breakout-radar") { cookie(LoggedIn.cookie) }.andExpect { jsonPath("$.data.stocks.length()") { value(8) } }
         }
 
-        /** 전체 수도 거른 뒤 기준이라 "N개 중 M개"가 같은 모수를 센다. */
         @Test
         fun `선에서 먼 종목은 목록에 없다`() {
             every { service.breakoutRadar() } returns listOf(radar("가까움", 0.5), radar("경계", 3.0), radar("멂", 3.1), radar("아주멂", 12.0))
@@ -204,7 +196,6 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
             }
         }
 
-        /** 돌파 모드는 돌파선, 눌림 모드는 눌림선 — 각자 3% 안에 든 것만 가까운 순으로 본다. 눌림선을 못 구한 종목은 눌림 모드에서 빠진다. */
         @Test
         fun `모드마다 자기 선으로 거르고 세운다`() {
             every { service.breakoutRadar() } returns listOf(

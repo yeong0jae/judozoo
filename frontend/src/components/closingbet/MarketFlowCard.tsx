@@ -4,7 +4,6 @@ import { signed } from "./parts";
 
 const tone = (n: number) => (n > 0 ? "text-red-400" : n < 0 ? "text-blue-400" : "text-zinc-400");
 
-/** 열 — 현물(당일 · 마감 · 애프터 · 5일) | 선물(당일 · 5일). 값 배열 순서는 mock.MarketFlow 참고 */
 const COLS: { label: string; time?: string; pick: (v: number[]) => number; split?: boolean }[] = [
   { label: "당일", pick: (v) => v[0] },
   { label: "마감", time: "15:00~15:40", pick: (v) => v[4] },
@@ -15,7 +14,6 @@ const COLS: { label: string; time?: string; pick: (v: number[]) => number; split
 ];
 
 export default function MarketFlowCard({
-  /** 화면에는 그리지 않고 읽어 주기에만 쓴다 */
   title,
   flows,
   afterLive,
@@ -23,7 +21,6 @@ export default function MarketFlowCard({
 }: {
   title: string;
   flows: Record<MarketName, MarketFlow>;
-  /** 애프터가 진행 중이면 점을 깜빡인다 */
   afterLive: boolean;
   night: { price: number; rate: number; note: string };
 }) {

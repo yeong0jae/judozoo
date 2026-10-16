@@ -7,11 +7,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
-/**
- * 해외 주도주 폴러 — 후보 풀 갱신(15초) / 분봉 마감 확정(뉴욕 20:01).
- *
- * 장중에는 세 거래소 거래대금 순위를 늘 채워 둔다. 화면이 KIS 응답(거래소 3번)을 기다리지 않게 하려는 것이다.
- */
 @Component
 class OverseasLeadingStockScheduler(
     private val service: OverseasLeadingStockService,
@@ -20,7 +15,6 @@ class OverseasLeadingStockScheduler(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 실패해도 기존 값은 그대로 쓰인다. 다음 회차가 다시 시도한다. */
     @Scheduled(fixedDelay = 15_000)
     fun refreshTradingValuePool() {
         val (holiday, tradingHours) = calendar.usMarketStatus()
@@ -33,10 +27,6 @@ class OverseasLeadingStockScheduler(
         }
     }
 
-    /**
-     * 애프터마켓(뉴욕 20:00)이 끝나고 1분 뒤 들고 있는 종목의 오늘 봉을 굳혀 DB에 넘긴다.
-     * 뉴욕 시각으로 건다 — 서머타임에 따라 한국 시각으로는 09:01·10:01로 바뀐다.
-     */
     @Scheduled(cron = "0 1 20 * * MON-FRI", zone = "America/New_York")
     fun settleMinutes() {
         if (calendar.isHoliday(Region.US)) return
@@ -53,7 +43,6 @@ class OverseasLeadingStockScheduler(
     }
 
     companion object {
-        /** 실패를 세는 잡 이름 — Python과 같다([JobFailures]). */
         const val POOL_REFRESH_JOB = "overseas-trading-value-pool-refresher"
         const val MINUTE_SETTLE_JOB = "overseas-minute-settler"
     }

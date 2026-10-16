@@ -29,7 +29,6 @@ class ApiExceptionHandler {
     @ExceptionHandler(EntityNotFoundException::class, NoResourceFoundException::class)
     fun notFound(): ResponseEntity<ApiResponse<Nothing>> = ApiResponse.error("NOT_FOUND", 404).toResponse()
 
-    /** 기존 API는 검증 실패에 400을 준다. 본문이 JSON이 아니거나 모양이 틀린 것도 같다. */
     @ExceptionHandler(
         HttpMessageNotReadableException::class,
         MethodArgumentNotValidException::class,
@@ -42,7 +41,6 @@ class ApiExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun methodNotAllowed(): ResponseEntity<ApiResponse<Nothing>> = ApiResponse.error("METHOD_NOT_ALLOWED", 405).toResponse()
 
-    /** 엔드포인트가 직접 던지는 상태 — `reason`이 그대로 code가 된다(`BET_REJECTED` 등). */
     @ExceptionHandler(ResponseStatusException::class)
     fun status(e: ResponseStatusException): ResponseEntity<ApiResponse<Nothing>> =
         ApiResponse.error(e.reason ?: "ERROR", e.statusCode.value()).toResponse()

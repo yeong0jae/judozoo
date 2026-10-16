@@ -13,7 +13,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
-/** 왜 오르나 — 언제 만들고, 무엇을 다시 만드는가. */
 class ScheduleTest {
     private val day = LocalDate.of(2026, 9, 28)
 
@@ -45,7 +44,6 @@ class ScheduleTest {
             KR.isSlot(LocalTime.parse(t)) shouldBe true
         }
 
-        /** 앞 실행이 1분을 넘겨 정각 실행이 밀려도 그 시각을 놓치지 않는다. 겹쳐 만드는 건 30분 규칙이 막는다. */
         @Test
         fun `정해진 시각은 5분 폭으로 본다`() {
             KR.isSlot(LocalTime.of(9, 34)) shouldBe true
@@ -53,7 +51,6 @@ class ScheduleTest {
         }
     }
 
-    /** 해외 시각은 뉴욕 기준이다 — 서머타임이 바뀌어도 미국 장의 같은 순간에 돈다. */
     @Nested
     inner class 해외_생성_시간 {
         @ParameterizedTest
@@ -182,13 +179,11 @@ class ScheduleTest {
             KR.pick(listOf("A"), emptyMap(), at(10, 15), candidates = listOf("C")) shouldBe listOf("A" to Trigger.ENTRY, "C" to Trigger.ENTRY)
         }
 
-        /** 후보는 한 번 만든 사유로 둔다 — 비용 때문. 주도주로 올라오면 그때부터 정해진 시각마다 다시 만든다. */
         @Test
         fun `사유가 있는 후보는 정해진 시각에 다시 만들지 않는다`() {
             KR.pick(listOf("A"), history("A" to listOf(made(9, 30)), "C" to listOf(made(9, 30))), at(11, 0), listOf("C")) shouldBe listOf("A" to Trigger.SCHEDULED)
         }
 
-        /** 급등 직후엔 기사가 아직 없는 경우가 많다 — 사유가 나올 때까지 정해진 시각마다 한 번씩 더 본다. */
         @Test
         fun `설명 없음인 후보는 정해진 시각에 다시 만든다`() {
             KR.pick(emptyList(), history("C" to listOf(made(9, 30, explained = false))), at(11, 0), listOf("C")) shouldBe listOf("C" to Trigger.SCHEDULED)

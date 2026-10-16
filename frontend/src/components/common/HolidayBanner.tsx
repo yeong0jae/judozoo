@@ -1,7 +1,6 @@
 import { useMarketCalendarStatus } from "../../api/queries";
 import type { MarketRegion } from "../../types";
 
-/** 오늘이 휴장(주말·공휴일)이면 한 줄 안내. [region] KR(국내)/US(해외), 기본 국내. */
 export default function HolidayBanner({ region = "KR" }: { region?: MarketRegion }) {
   const { data } = useMarketCalendarStatus(region);
   if (!data?.isHoliday) return null;

@@ -4,7 +4,6 @@ import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
-/** 한국 금액 표기 — 화면에 그대로 나가는 문자열이라 Python과 글자까지 같아야 한다. */
 class KoreanMoneyTest {
     @Nested
     inner class 억조_표기 {

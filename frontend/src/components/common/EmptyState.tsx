@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 interface Props {
   message: string;
-  /** 왜 비었는지 — 조건이나 시각처럼 한 줄로 설명이 필요할 때. */
   hint?: ReactNode;
   action?: ReactNode;
 }

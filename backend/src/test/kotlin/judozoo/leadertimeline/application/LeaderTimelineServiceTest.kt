@@ -20,7 +20,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 주도주 타임라인 — 1분 스냅샷이 남기는 것과 하루 조회. */
 @IntegrationTest
 class LeaderTimelineServiceTest @Autowired constructor(private val service: LeaderTimelineService, private val jdbc: JdbcTemplate) {
     @MockkBean
@@ -80,7 +79,6 @@ class LeaderTimelineServiceTest @Autowired constructor(private val service: Lead
             service.findDay(Region.KR, day).single().stocks.map { it.name } shouldBe listOf("한미반도체")
         }
 
-        /** 0개로 남기면 브로커 오류가 "주도주 없음"으로 굳는다. */
         @Test
         fun `주도주를 못 받으면 그 분은 남지 않는다`() {
             every { domestic.findLeaders(5) } throws IllegalStateException("키움 오류")

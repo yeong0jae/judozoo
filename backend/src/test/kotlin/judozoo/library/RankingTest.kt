@@ -19,7 +19,6 @@ class RankingTest {
             top(items, 1) shouldBe listOf("둘다중상")
         }
 
-        /** 크기를 그대로 쓰면 '축2 = 1000'이 1위가 된다. 백분위는 등수만 보므로 한 칸 차이다. */
         @Test
         fun `한 축의 극단값이 순위를 끌고 가지 못한다`() {
             val items = listOf(Item("대장", 1000.0, 12.0), Item("극단값", 10.0, 1000.0), Item("둘다상위", 900.0, 15.0))
@@ -45,7 +44,6 @@ class RankingTest {
             top(items, 1, 0.4) shouldBe listOf("축2우세")
         }
 
-        /** 같은 입력이 같은 순서를 내야 새로고침마다 줄이 바뀌지 않는다. */
         @Test
         fun `점수가 같으면 먼저 온 것이 앞선다`() {
             top(listOf(Item("먼저", 10.0, 20.0), Item("나중", 20.0, 10.0)), 2) shouldBe listOf("먼저", "나중")

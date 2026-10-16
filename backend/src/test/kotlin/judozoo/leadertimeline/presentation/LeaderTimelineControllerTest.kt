@@ -45,7 +45,6 @@ class LeaderTimelineControllerTest @Autowired constructor(private val mvc: MockM
 
     @Nested
     inner class 주도주_타임라인_API {
-        /** 로그인 없이 본다. 하루가 700분 × 5종목이라 종목은 사전으로 한 번만 싣는다. */
         @Test
         fun `종목은 사전으로 한 번만 싣고 분마다 번호로 준다`() {
             day()

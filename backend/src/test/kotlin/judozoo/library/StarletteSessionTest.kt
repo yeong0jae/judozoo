@@ -8,7 +8,6 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.time.Instant
 
-/** 쿠키 값은 Python(Starlette `SessionMiddleware`, secret `test-secret`)이 실제로 발급한 것이다. */
 class StarletteSessionTest {
     private val session = StarletteSession("test-secret", JsonMapper.builder().build())
     private val signedAt = Instant.ofEpochSecond(1_792_070_321)
@@ -65,7 +64,6 @@ class StarletteSessionTest {
         }
     }
 
-    /** 되돌릴 때 Python이 이 쿠키를 그대로 읽어야 한다 — 기대값은 itsdangerous로 같은 내용·같은 시각에 서명한 것이다. */
     @Nested
     inner class Kotlin이_발급한_쿠키 {
         private val data = mapOf("user" to mapOf("id" to 7, "email" to "a@example.com"))

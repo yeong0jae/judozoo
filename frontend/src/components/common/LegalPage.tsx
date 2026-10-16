@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import Wordmark from "../layout/Wordmark";
 
-/** 약관·처리방침 공용 레이아웃. 읽는 문서라 본문 폭을 좁게 잡는다. */
 export default function LegalPage({
   title,
   effectiveDate,

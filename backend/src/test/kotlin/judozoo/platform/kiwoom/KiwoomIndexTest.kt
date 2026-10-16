@@ -25,7 +25,6 @@ class KiwoomIndexTest {
 
     @Nested
     inner class 업종_지수 {
-        /** cur_prc 앞 부호는 등락 방향 표식 — 지수 레벨은 음수일 수 없다. */
         @Test
         fun `지수값은 절대값 등락률은 부호를 살린다`() {
             stub.respond(URL, """{"return_code":0,"cur_prc":"-2653.81","flu_rt":"-1.25"}""")
@@ -61,8 +60,8 @@ class KiwoomIndexTest {
 
             val result = index.fetchIndexIntraday(Market.KOSPI, day)!!
 
-            result.ticks.map { it.at.toLocalTime() } shouldBe listOf(LocalTime.of(9, 0), LocalTime.of(14, 30)) // 오름차순 정렬
-            result.ticks[1].value shouldBe 2650.00 // 부호 제거
+            result.ticks.map { it.at.toLocalTime() } shouldBe listOf(LocalTime.of(9, 0), LocalTime.of(14, 30))
+            result.ticks[1].value shouldBe 2650.00
             result.ticks[0].at.toLocalDate() shouldBe day
         }
 

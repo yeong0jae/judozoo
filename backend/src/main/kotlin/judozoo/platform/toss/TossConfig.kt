@@ -15,7 +15,6 @@ class TossConfig {
         TossClient(properties, IssuedToken(PROVIDER, repository, transaction, clock, TossTokenIssuer(properties, clock, registry)::issue), registry)
 
     companion object {
-        /** `broker_token.provider` */
         const val PROVIDER = "TOSS"
     }
 }

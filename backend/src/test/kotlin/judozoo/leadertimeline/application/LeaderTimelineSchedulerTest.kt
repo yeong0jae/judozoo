@@ -16,7 +16,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/** 1분 스냅샷 작업 — 현지 분으로 찍고, 쉬는 구간·휴장일은 건너뛴다. */
 class LeaderTimelineSchedulerTest {
     private var now = LocalDateTime.of(2026, 9, 23, 10, 15, 0, 420_000_000)
     private var holiday = false
@@ -87,7 +86,6 @@ class LeaderTimelineSchedulerTest {
 
     @Nested
     inner class 해외_1분_작업 {
-        /** KST 9/24 00:30 = 뉴욕 9/23 11:30 (서머타임). */
         @Test
         fun `뉴욕 시각으로 찍는다`() {
             now = LocalDateTime.of(2026, 9, 24, 0, 30)
@@ -97,7 +95,6 @@ class LeaderTimelineSchedulerTest {
             taken shouldBe listOf(Region.US to LocalDateTime.of(2026, 9, 23, 11, 30))
         }
 
-        /** KST 11/10 00:30 = 뉴욕 11/9 10:30 (표준시). */
         @Test
         fun `서머타임이 끝나면 한 시간 더 뒤로 간다`() {
             now = LocalDateTime.of(2026, 11, 10, 0, 30)

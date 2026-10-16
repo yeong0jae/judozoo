@@ -20,7 +20,6 @@ class OverseasStockRankTest {
             stock(ename = ename).isEtf shouldBe true
         }
 
-        /** TRUST·FUND 같은 흔한 단어는 일부러 키워드에서 뺐다 — 오탐을 줄이려는 것. */
         @ParameterizedTest
         @ValueSource(strings = ["APPLE INC", "JPMORGAN CHASE & CO", "TRUST BANK CORP"])
         fun `일반기업은 통과시킨다`(ename: String) {
@@ -65,7 +64,6 @@ class OverseasStockRankTest {
         }
     }
 
-    /** 첫 화면 해외 주도주 선정 — 국내와 같은 규칙. */
     @Nested
     inner class 해외_주도주_선정 {
         @Test

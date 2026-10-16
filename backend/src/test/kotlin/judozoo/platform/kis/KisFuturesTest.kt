@@ -68,7 +68,6 @@ class KisFuturesTest {
 
     @Nested
     inner class 선물_일봉 {
-        /** KIS의 basis 필드는 이론가 − 현물(캐리)이라 쓰지 않는다. */
         @Test
         fun `베이시스는 선물빼기현물로 직접 낸다`() {
             stub.respond(
@@ -84,7 +83,6 @@ class KisFuturesTest {
             summary.changeRate shouldBe 1.25
         }
 
-        /** ctrt는 크기만 오고 방향은 부호코드(4하한 5하락)로 온다. */
         @Test
         fun `하락 부호코드면 등락률이 음수가 된다`() {
             stub.respond(
@@ -118,7 +116,6 @@ class KisFuturesTest {
 
     @Nested
     inner class 선물_분봉 {
-        /** 야간선물은 한 세션을 한 영업일로 묶으려고 자정 이후를 +24시간으로 보낸다(25:30 = 익일 01:30). */
         @Test
         fun `야간의 24시 이상 시각은 익일로 되돌린다`() {
             stub.respond(
@@ -162,7 +159,6 @@ class KisFuturesTest {
 
     @Nested
     inner class 선물_시세 {
-        /** futs_prdy_clpr은 야간(CM)에서 정규장 종가가 아닌 값이 온다. */
         @Test
         fun `전일종가는 전일대비로 역산한다`() {
             stub.respond(
@@ -207,7 +203,6 @@ class KisFuturesTest {
             val result = futures.fetchInvestors(Market.KOSPI)!!
 
             listOf(result.foreign, result.individual, result.institution) shouldBe listOf(1500L, -800L, -700L)
-            // 사모펀드·기타법인만 필드명이 _vol다
             (result.privateEquity to result.otherCorp) shouldBe (-100L to 50L)
         }
 

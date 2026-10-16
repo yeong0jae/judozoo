@@ -1,30 +1,23 @@
 .env
 
-# Terraform
 infra/terraform/.terraform/
 infra/terraform/*.tfstate*
 infra/terraform/*.tfplan
 infra/terraform/terraform.tfvars
 .claude/debt/touched.log
 
-# 에디터 설정 (개인)
 .vscode/
 .DS_Store
 
-# 일회성 프로토타입 스캐치 (화면 확정 전 로컬 확인용)
 prototype/
 
-# Python
 .venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# backlog
 docs/backlog.md
 
-# 개인 메모
 docs/iap-tunnel.md
 
-# 릴스 제작 파일
 /reels/

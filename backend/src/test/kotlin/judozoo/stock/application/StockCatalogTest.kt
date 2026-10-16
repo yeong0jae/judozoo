@@ -18,7 +18,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-/** 종목 카탈로그 — 하루 한 번 마스터 파일로 갈아끼우고, 메모리에 올려 검색한다. */
 @IntegrationTest
 class StockCatalogTest @Autowired constructor(
     private val catalog: StockCatalog,
@@ -121,7 +120,7 @@ class StockCatalogTest @Autowired constructor(
 
             catalog.refresh(today)
 
-            jdbc.queryForList("SELECT short_code FROM stocks", String::class.java) shouldBe listOf("005930") // 옛날종목은 사라진다
+            jdbc.queryForList("SELECT short_code FROM stocks", String::class.java) shouldBe listOf("005930")
             catalog.sizes() shouldBe (1 to 1)
         }
 
@@ -131,7 +130,7 @@ class StockCatalogTest @Autowired constructor(
             every { master.fetchDomestic(any()) } throws IllegalStateException("CDN 죽음")
             every { master.fetchOverseas(any()) } returns emptyList()
 
-            catalog.refresh(today) // 예외가 밖으로 나오지 않는다
+            catalog.refresh(today)
 
             catalog.sizes().first shouldBe 1
             catalog.search("삼성")[0].stockName shouldBe "삼성전자"

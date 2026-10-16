@@ -24,7 +24,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/** 사용자 없이 갱신하고, 만료·외부 장애 중에도 마지막 정상 시세를 제공한다. */
 class MarketQuotesTest {
     private val kiwoomIndex = mockk<KiwoomIndex>()
     private val futures = mockk<KisFutures>()
@@ -47,9 +46,9 @@ class MarketQuotesTest {
             every { kiwoomIndex.fetchIndex(any(), any()) } returns KiwoomIndex.IndexSnapshot("001", 2700.0, 1.5)
             val kospi = quotes.refreshers().getValue("kospi")
 
-            kospi.run { false } shouldBe true // 처음은 장 밖이어도 채운다
+            kospi.run { false } shouldBe true
             kospi.run { false }
-            kospi.run { true } // 장중에는 들고 있어도 갱신한다
+            kospi.run { true }
 
             quotes.index(Market.KOSPI).currentValue shouldBe 2700.0
             verify(exactly = 2) { kiwoomIndex.fetchIndex("001", "0") }
@@ -90,7 +89,7 @@ class MarketQuotesTest {
             quotes.refreshers().getValue("futures-kospi").run { true } shouldBe false
 
             quotes.futuresQuote(Market.KOSPI)!!.futuresPrice shouldBe 300.0
-            verify(exactly = 0) { futures.fetchInvestors(any()) } // 시세에는 투자자 수급을 담지 않는다
+            verify(exactly = 0) { futures.fetchInvestors(any()) }
         }
     }
 

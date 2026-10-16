@@ -8,7 +8,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.time.LocalDateTime
 
-/** Vertex가 아플 때 쉬는 서킷. */
 class CircuitTest {
     private fun at(h: Int, m: Int) = LocalDateTime.of(2026, 9, 28, h, m)
 

@@ -42,7 +42,6 @@ class AuthControllerTest @Autowired constructor(private val mvc: MockMvc) {
         JudozooProperties(sessionSecret = "test-secret"), JsonMapper.builder().build(), Clock.fixed(Instant.ofEpochSecond(1_792_070_321), ZoneOffset.UTC),
     )
 
-    /** 응답이 내려보낸 세션 쿠키를 다시 읽는다. 쿠키는 Secure라 테스트 클라이언트가 받아 두지 않는다 — 헤더로 본다. */
     private fun sessionIn(setCookie: String): Map<String, Any?>? {
         val request = org.springframework.mock.web.MockHttpServletRequest()
         request.setCookies(Cookie(SessionCookies.NAME, setCookie.substringAfter("=").substringBefore(";")))
@@ -77,7 +76,6 @@ class AuthControllerTest @Autowired constructor(private val mvc: MockMvc) {
             }
         }
 
-        /** 로그인을 시작하면 state·nonce를 세션 쿠키에 두고 구글로 보낸다. 콜백이 그 둘을 대조해 로그인한다. */
         @Test
         fun `구글로 보냈다가 돌아오면 내부 식별자로 로그인한다`() {
             every { google.configured } returns true
@@ -97,7 +95,7 @@ class AuthControllerTest @Autowired constructor(private val mvc: MockMvc) {
             back.redirectedUrl shouldBe "/"
             val loggedIn = sessionIn(back.getHeader("Set-Cookie")!!)!!
             loggedIn["user"] shouldBe mapOf("id" to 7, "email" to "a@example.com")
-            loggedIn.keys shouldBe setOf("user") // 쓴 state는 지운다
+            loggedIn.keys shouldBe setOf("user")
         }
 
         @Test
@@ -149,7 +147,6 @@ class AuthControllerTest @Autowired constructor(private val mvc: MockMvc) {
             sessionIn(response.getHeader("Set-Cookie")!!)!!.containsKey("user") shouldBe false
         }
 
-        /** 세션에 아무것도 남지 않으면 Starlette처럼 쿠키를 지운다. */
         @Test
         fun `세션이 비면 쿠키를 지운다`() {
             val r = org.springframework.mock.web.MockHttpServletResponse()
