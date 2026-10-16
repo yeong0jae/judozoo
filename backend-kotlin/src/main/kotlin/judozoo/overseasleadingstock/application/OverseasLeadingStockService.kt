@@ -24,8 +24,6 @@ import java.time.Duration
  *
  * 미국 3개 거래소(나스닥·뉴욕·아멕스)를 합쳐 거래대금 상위를 뽑는다. 국내와 같은 흐름 —
  * 거래대금 상위 풀에서 당일 등락률이 기준 이상인 것만 남긴다.
- *
- * **후보 풀은 Python도 따로 채운다**(028) — 타임라인·캘린더·왜 오르나가 아직 Python에서 그 풀을 읽는다.
  */
 @Service
 class OverseasLeadingStockService(

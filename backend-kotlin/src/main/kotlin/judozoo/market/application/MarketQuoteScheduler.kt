@@ -14,8 +14,7 @@ import java.time.LocalTime
 /**
  * 시세 폴러(30초) — 요청자 수와 무관하게 시세를 채운다. 개장 전에는 마지막 정상값을 계속 제공한다.
  *
- * 공존하는 동안(028) Python도 같은 폴러를 돌린다 — 메모리 시세는 프로세스마다 따로라 각자 채운다.
- * **선물 투자자 스냅샷 폴러(DB 쓰기)는 Python에만 있다** — 종가베팅 등 Python 기능이 그 스냅샷을 읽는다.
+ * 선물 투자자 스냅샷(DB)은 [FuturesInvestorScheduler]가 따로 찍는다.
  */
 @Component
 class MarketQuoteScheduler(

@@ -12,4 +12,8 @@ interface StockMinuteCandleRepository : JpaRepository<StockMinuteCandleEntity, I
     @Modifying
     @Query("delete from StockMinuteCandleEntity c where c.stockCode = :stockCode and c.tradeDate = :day")
     fun deleteDay(stockCode: String, day: LocalDate): Int
+
+    @Modifying
+    @Query("delete from StockMinuteCandleEntity c where c.tradeDate < :day")
+    fun deleteBefore(day: LocalDate): Int
 }

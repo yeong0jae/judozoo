@@ -11,9 +11,6 @@ import org.springframework.stereotype.Component
  * 해외 주도주 폴러 — 후보 풀 갱신(15초) / 분봉 마감 확정(뉴욕 20:01).
  *
  * 장중에는 세 거래소 거래대금 순위를 늘 채워 둔다. 화면이 KIS 응답(거래소 3번)을 기다리지 않게 하려는 것이다.
- *
- * **후보 풀 갱신은 Python에서도 돈다**(028) — 타임라인·캘린더·왜 오르나가 Python의 풀을 읽는다.
- * **분봉 마감 확정은 여기서만** 돈다 — 분봉을 쓰는 화면이 모두 여기로 왔다. Python 쪽 등록은 같은 커밋에서 껐다.
  */
 @Component
 class OverseasLeadingStockScheduler(

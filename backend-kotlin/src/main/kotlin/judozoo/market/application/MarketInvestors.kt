@@ -9,6 +9,7 @@ import judozoo.market.domain.MarketInvestorSnapshotRepository
 import judozoo.market.domain.Nets
 import judozoo.market.domain.Region
 import judozoo.market.domain.SessionOrg
+import judozoo.platform.kis.KisFutures
 import judozoo.platform.kiwoom.SectorInvestorNetBuy
 import judozoo.stock.domain.Market
 import org.springframework.data.domain.Limit
@@ -181,6 +182,18 @@ class MarketInvestors(
                 market, tradeDate, at, net.foreignEok, net.institutionEok, net.individualEok, net.otherCorpEok,
                 net.financialInvestmentEok, net.trustEok, net.pensionFundEok, net.privateEquityEok, net.insuranceEok, net.bankEok,
                 net.otherFinanceEok, net.indexValue.toFloat(), net.changeRate.toFloat(), at, at,
+            ),
+        )
+    }
+
+    /** 한 지수선물 시장의 당일 누적 투자자 순매수(계약)를 [at] 시각으로 남긴다 — 선물 투자자 폴러가 1분마다 부른다. */
+    @Transactional
+    fun recordFutures(market: Market, tradeDate: LocalDate, at: LocalDateTime, net: KisFutures.FuturesInvestors) {
+        val now = now()
+        futuresSnapshots.save(
+            FuturesInvestorSnapshot(
+                market, tradeDate, at, net.foreign, net.institution, net.individual, net.securities, net.insurance, net.merchantBank,
+                net.trust, net.privateEquity, net.fund, net.bank, net.otherOrg, net.otherCorp, now, now,
             ),
         )
     }

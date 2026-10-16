@@ -36,19 +36,12 @@ from backend.settings import get_settings
 log = logging.getLogger(__name__)
 
 
-def load_stock_catalog() -> None:
-    """기동 시 종목 카탈로그 적재. 다운로드가 실패해도 DB의 직전 데이터로 떨어지고 기동은 계속된다."""
-    from backend.stock.scheduler import refresh_catalog
-
-    refresh_catalog()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.debug_package, log_format=settings.log_format)
     log.info("기동 — DB %s:%s/%s", settings.database.host, settings.database.port, settings.database.name)
-    load_stock_catalog()
+    # 종목 카탈로그 적재(마스터 파일로 테이블 갈아끼우기 포함)는 Kotlin이 한다(028) — Python에 남은 auth는 카탈로그를 쓰지 않는다
     start_scheduler()
     # 스레드풀 계측. **여기여야 한다** — anyio 스레드풀은 실행 중인 이벤트 루프에 매여 있어
     # 모듈 로드 시점에는 아직 없다. lifespan은 루프 안이라 그 자리가 여기다.

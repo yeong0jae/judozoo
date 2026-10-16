@@ -11,13 +11,10 @@ import java.time.Clock
 import java.time.LocalTime
 
 /**
- * 국내 주도주 폴러 — 후보 풀 갱신(15초) / 감시 풀 당일 분봉(20초) / 종목 시그널(10초) / 시장 수급(1분) / 지수 반등(30초).
+ * 국내 주도주 폴러 — 후보 풀 갱신(15초) / 감시 풀 당일 분봉(20초)·마감 확정(20:01) / 종목 시그널(10초) / 시장 수급(1분) / 지수 반등(30초).
  *
  * 폴러는 **화면을 아무도 안 보고 있어도** 쌓이게 하려고 서버가 능동적으로 돈다.
  *
- * - 후보 풀·당일 분봉은 **Python에서도 돈다**(028) — 메모리 상태라 Python의 타임라인·종가베팅이 자기 풀을 읽는다.
- * - 시그널 세 개(DB에 쓴다)는 **여기서만** 돈다. Python 쪽 등록은 같은 커밋에서 껐다.
- * - **분봉 마감 확정(20:01, DB에 쓴다)은 Python만** 돈다 — 여기서는 확정본을 DB에서 읽는다.
  *
  * 실패는 삼키되 [JobFailures]로 센다 — 잡 이름은 Python과 같다.
  */
@@ -59,6 +56,25 @@ class LeadingStockScheduler(
         } catch (e: Exception) {
             log.warn("당일 분봉 갱신 실패", e)
             failures.record(MINUTE_SYNC_JOB)
+        }
+    }
+
+    /**
+     * 마감(20:00) 뒤 감시 풀의 오늘 봉을 확정해 지난 날 보관소에 넘긴다.
+     * 20:01은 마지막 봉이 굳을 틈이다. 이게 없으면 다음 날 아침 감시 풀 전체의 어제 봉을 키움에서 다시 받는다.
+     */
+    @Scheduled(cron = "0 1 20 * * MON-FRI", zone = "Asia/Seoul")
+    fun settleTodayMinutes() {
+        if (calendar.marketStatus().first) return
+        try {
+            val failed = service.settleTodayMinutes()
+            if (failed > 0) {
+                log.warn("당일 분봉 마감 확정 — {}종목 실패", failed)
+                failures.record(MINUTE_SETTLE_JOB)
+            }
+        } catch (e: Exception) {
+            log.warn("당일 분봉 마감 확정 실패", e)
+            failures.record(MINUTE_SETTLE_JOB)
         }
     }
 
@@ -112,6 +128,7 @@ class LeadingStockScheduler(
     companion object {
         const val POOL_REFRESH_JOB = "trading-value-pool-refresher"
         const val MINUTE_SYNC_JOB = "today-minute-syncer"
+        const val MINUTE_SETTLE_JOB = "today-minute-settler"
         const val SIGNAL_JOB = "signal-event-poller"
         const val MARKET_FLOW_JOB = "market-flow-poller"
         const val INDEX_REBOUND_JOB = "index-rebound-poller"

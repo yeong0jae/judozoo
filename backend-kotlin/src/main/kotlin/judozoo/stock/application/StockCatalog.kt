@@ -1,25 +1,33 @@
 package judozoo.stock.application
 
+import judozoo.library.KST
 import judozoo.stock.domain.Market
 import judozoo.stock.domain.OverseasStock
 import judozoo.stock.domain.OverseasStockRepository
 import judozoo.stock.domain.StockRepository
 import judozoo.stock.domain.Stocks
+import judozoo.stock.infrastructure.KisStockMaster
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.support.TransactionTemplate
+import java.time.Clock
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 /**
  * 종목 카탈로그 — 메모리 적재와 검색.
  *
  * 검색이 매번 DB를 때리지 않도록 카탈로그를 통째로 메모리에 든다. 교체는 항상 전체 교체라 참조 하나를 갈아끼운다.
  *
- * **마스터 파일을 받아 테이블을 갈아끼우는 일은 Python이 한다(07:40)** — 시장·주도주가 아직 Python에서 이 카탈로그를 쓰고,
- * 두 쪽이 같은 테이블을 지웠다 넣으면 서로를 덮는다. 여기서는 DB에서 읽기만 한다.
+ * 하루 한 번 KIS 마스터 파일을 받아 테이블을 통째로 갈아끼운다([refresh]). 오늘 이미 갈아끼웠으면(재배포) 받지 않고 DB에서 읽는다.
  */
 @Service
 class StockCatalog(
     private val stocks: StockRepository,
     private val overseasStocks: OverseasStockRepository,
+    private val master: KisStockMaster,
+    private val transaction: TransactionTemplate,
+    private val clock: Clock,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -29,7 +37,45 @@ class StockCatalog(
     /** [exchange]가 null이면 국내 종목. 해외는 NAS/NYS/AMS. */
     data class SearchResult(val stockCode: String, val stockName: String, val exchange: String?)
 
-    /** DB에서 다시 읽는다. 실패하면 들고 있던 카탈로그를 그대로 둔다 — 기동을 막지 않는다. 언제 읽을지는 [StockCatalogScheduler]가 정한다. */
+    /**
+     * 국내·해외 카탈로그를 [today] 기준으로 갱신해 메모리에 올린다. 언제 할지는 [StockCatalogScheduler]가 정한다.
+     *
+     * 오늘 이미 동기화됐으면 DB에서 그대로 적재(다운로드 생략), 아니면 마스터 파일을 받아 전체 교체 후 적재한다.
+     * 다운로드 실패는 fail-soft — 기동을 막지 않고 DB에 남은 직전 데이터라도 올린다.
+     */
+    fun refresh(today: LocalDate) {
+        val at = LocalDateTime.now(clock.withZone(KST))
+        try {
+            if (stocks.findFirstByOrderByCreatedAtDesc()?.createdAt?.toLocalDate() == today) {
+                domestic = Stocks(stocks.findAll())
+                log.info("종목 카탈로그 — 오늘 이미 동기화됨, DB에서 {}건 적재", domestic.size)
+            } else {
+                val fetched = master.fetchDomestic(at)
+                transaction.executeWithoutResult { stocks.deleteAllInBatch(); stocks.saveAll(fetched) }
+                domestic = Stocks(fetched)
+                log.info("종목 카탈로그 갱신 완료 — {}건", fetched.size)
+            }
+        } catch (e: Exception) {
+            log.warn("종목 카탈로그 갱신 실패 — DB의 직전 데이터로 폴백", e)
+            runCatching { domestic = Stocks(stocks.findAll()) }.onFailure { log.warn("직전 데이터 적재도 실패", it) }
+        }
+        try {
+            if (overseasStocks.findFirstByOrderByCreatedAtDesc()?.createdAt?.toLocalDate() == today) {
+                overseas = overseasStocks.findAll()
+                log.info("해외 종목 카탈로그 — 오늘 이미 동기화됨, DB에서 {}건 적재", overseas.size)
+            } else {
+                val fetched = master.fetchOverseas(at)
+                transaction.executeWithoutResult { overseasStocks.deleteAllInBatch(); overseasStocks.saveAll(fetched) }
+                overseas = fetched
+                log.info("해외 종목 카탈로그 갱신 완료 — {}건", fetched.size)
+            }
+        } catch (e: Exception) {
+            log.warn("해외 종목 카탈로그 갱신 실패 — DB의 직전 데이터로 폴백", e)
+            runCatching { overseas = overseasStocks.findAll() }.onFailure { log.warn("직전 데이터 적재도 실패", it) }
+        }
+    }
+
+    /** DB에서 다시 읽는다. 실패하면 들고 있던 카탈로그를 그대로 둔다 — 기동을 막지 않는다. */
     fun reload() {
         try {
             domestic = Stocks(stocks.findAll())

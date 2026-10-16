@@ -37,20 +37,10 @@ def start() -> BackgroundScheduler | None:
     if _scheduler is not None:
         return _scheduler
 
-    from backend.leadingstock.scheduler import register as register_leading
-    from backend.market.scheduler import register as register_market
-    from backend.overseasleadingstock.scheduler import register as register_overseas
-    from backend.stock.scheduler import register as register_stock
-
     _scheduler = BackgroundScheduler(timezone=KST)
-    register_stock(_scheduler)
-    register_market(_scheduler)
-    register_leading(_scheduler)
-    register_overseas(_scheduler)
-    # 주도주 캘린더 마감 스냅샷도 Kotlin이 찍는다(028)
-    # 주도주 타임라인 1분 스냅샷은 Kotlin이 찍는다(028) — 두 쪽이 찍으면 같은 분을 서로 지웠다 쓴다
-    # 왜 오르나 생성도 Kotlin이 한다(028) — 두 쪽이 만들면 Vertex 하루 상한을 두 배로 쓴다
-    # 모의 종가베팅 체결·정산도 Kotlin이 한다(028) — 두 쪽이 돌면 같은 판을 두 번 찍으려 든다
+    # 모든 작업이 Kotlin으로 옮겨 갔다(028) — 주도주·해외 주도주·시황·종목 카탈로그·타임라인·캘린더·왜 오르나·종가베팅.
+    # DB에 쓰는 작업은 두 쪽이 돌면 서로를 덮고, 메모리를 채우는 작업은 읽는 Python 기능이 더는 없다.
+    # 스케줄러 자체는 남겨 둔다 — `backend/`를 지울 때(4단계) 함께 걷는다.
     # 잡마다 데코레이터를 다는 대신 리스너 하나. 잡을 새로 추가할 때 계측을 빠뜨릴 데가 없다.
     _scheduler.add_listener(metrics.on_job_submitted, EVENT_JOB_SUBMITTED)
     _scheduler.add_listener(

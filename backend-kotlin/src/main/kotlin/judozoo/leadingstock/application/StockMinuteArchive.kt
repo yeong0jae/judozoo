@@ -19,8 +19,7 @@ import java.time.LocalDate
  * - 키움 페이지에서 가장 이른 날을 뺀 나머지(가장 이른 날은 페이지 끝에서 잘려 있다)
  *
  * **메모리 앞, DB(`stock_minute_candle`) 뒤.** DB가 죽어 있으면 메모리만으로 동작한다.
- * Python도 같은 테이블에 넣는다 — 하루치를 통째로 갈아 끼우므로 양쪽이 넣어도 결과가 같다.
- * 2주 지난 날은 Python 마감 확정(20:01)이 지운다.
+ * 하루치를 통째로 갈아 끼우므로 같은 날이 두 번 들어와도 결과가 같다. 2주 지난 날은 마감 확정(20:01)이 지운다([purge]).
  */
 @Component
 class StockMinuteArchive(
@@ -64,6 +63,12 @@ class StockMinuteArchive(
         } catch (e: Exception) {
             log.warn("지난 날 분봉 DB 저장 실패 stk_cd={} day={}", code, day, e)
         }
+    }
+
+    /** [before] 전의 날을 메모리와 DB에서 지운다. DB에서 지운 행 수를 돌려준다. */
+    fun purge(before: LocalDate): Int {
+        synchronized(days) { days.keys.removeIf { it.second < before } }
+        return transaction.execute { repository.deleteBefore(before) } ?: 0
     }
 
     /** 키움 페이지에서 완성된 날만 골라 넣는다. 가장 이른 날은 페이지 끝에서 잘려 있어 뺀다. */

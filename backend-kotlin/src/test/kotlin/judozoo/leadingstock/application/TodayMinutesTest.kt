@@ -209,4 +209,21 @@ class TodayMinutesTest {
             calls.size shouldBe 1
         }
     }
+
+    @Nested
+    inner class 마감_확정 {
+        @Test
+        fun `이번 회차에 받는 데 성공한 종목만 확정한다`() {
+            responses["005930"] = listOf(bar(19, 59))
+            responses["000660"] = listOf(bar(19, 59))
+            minutes.sync(listOf("005930", "000660"))
+            now = today.atTime(20, 1)
+            failing += "000660"
+
+            val (settled, failures) = minutes.settle(listOf("005930", "000660"))
+
+            settled.keys shouldBe setOf("005930")
+            failures shouldBe 1
+        }
+    }
 }

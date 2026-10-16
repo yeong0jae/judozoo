@@ -4,6 +4,8 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.LocalDateTime
@@ -11,8 +13,7 @@ import java.time.LocalDateTime
 /**
  * 거래 가능한 상장 종목. 검색 판정([matches])은 객체가 직접 답한다.
  *
- * 카탈로그 갱신은 항상 전체 교체(delete-all + insert-all)다. **공존하는 동안(028) 갱신은 Python이 한다** —
- * 시장·주도주가 아직 Python에서 이 카탈로그를 쓴다. Kotlin은 읽기만 한다.
+ * 카탈로그 갱신은 항상 전체 교체(delete-all + insert-all)다(매일 07:40, [judozoo.stock.application.StockCatalog.refresh]).
  */
 @Entity
 @Table(name = "stocks")
@@ -32,6 +33,7 @@ class Stock(
     val updatedAt: LocalDateTime,
 ) {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null
 
     /** 질의가 종목명에 포함되거나 종목코드 접두사로 일치하면 true. 대소문자 무시. */

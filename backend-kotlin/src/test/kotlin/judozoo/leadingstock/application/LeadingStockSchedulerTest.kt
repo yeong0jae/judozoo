@@ -35,6 +35,7 @@ class LeadingStockSchedulerTest {
     private val service = mockk<LeadingStockService> {
         every { refreshTradingValuePool() } just runs
         every { syncTodayMinutes() } returns 0
+        every { settleTodayMinutes() } returns 0
     }
     private val stockSignals = mockk<StockSignalDetector> { every { detect() } just runs }
     private val marketFlows = mockk<MarketFlowDetector> { every { detect() } just runs }
@@ -137,6 +138,37 @@ class LeadingStockSchedulerTest {
             scheduler.detectIndexRebound()
 
             verify(exactly = 1) { indexRebound.detect() }
+        }
+    }
+
+    @Nested
+    inner class 당일_분봉_마감_확정 {
+        @Test
+        fun `평일이면 확정한다`() {
+            tradingHours = false
+            now = LocalDateTime.of(2026, 9, 11, 20, 1)
+
+            scheduler.settleTodayMinutes()
+
+            verify(exactly = 1) { service.settleTodayMinutes() }
+        }
+
+        @Test
+        fun `휴장이면 하지 않는다`() {
+            holiday = true
+
+            scheduler.settleTodayMinutes()
+
+            verify(exactly = 0) { service.settleTodayMinutes() }
+        }
+
+        @Test
+        fun `일부 종목이 실패하면 실패로 센다`() {
+            every { service.settleTodayMinutes() } returns 2
+
+            scheduler.settleTodayMinutes()
+
+            failures("today-minute-settler") shouldBe 1.0
         }
     }
 }

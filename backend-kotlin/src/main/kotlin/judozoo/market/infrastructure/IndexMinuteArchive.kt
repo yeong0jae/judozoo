@@ -11,7 +11,7 @@ import java.time.LocalDate
  * 지수의 완성된 지난 거래일 분봉(`index_minute_day`). 부분 수집·당일 봉은 넣지 않는다.
  * DB 장애 시 조회는 null(외부 조회로 폴백), 저장은 경고만 남긴다.
  *
- * 같은 날은 같은 내용으로 덮는 upsert라 공존하는 동안 Python이 같은 날을 써도 결과가 같다.
+ * 같은 날은 같은 내용으로 덮는 upsert다.
  */
 @Repository
 class IndexMinuteArchive(private val jdbc: JdbcTemplate) {

@@ -66,6 +66,22 @@ class TodayMinutes(private val toss: TossCandles, private val clock: Clock) {
     }
 
     /**
+     * 마감 뒤 한 번 더 이어 받아 마지막 봉까지 확정한다. (확정된 종목별 오늘 봉, 실패 수)를 돌려준다.
+     *
+     * 마지막 정규 갱신은 20:00 전이라 진행 중이던 마지막 봉이 덜 찬 채 남아 있다. 이번 회차에
+     * **성공한 종목만** 확정으로 본다 — 실패한 종목은 마지막 봉이 덜 찼을 수 있다.
+     */
+    fun settle(stockCodes: List<String>): Pair<Map<String, List<MinuteCandle>>, Int> {
+        val started = now()
+        val keys = stockCodes.map(::baseCode).distinct()
+        val failures = sync(keys)
+        return synchronized(lock) {
+            if (day != started.toLocalDate()) return emptyMap<String, List<MinuteCandle>>() to failures
+            keys.filter { it in bars && isSyncedSince(it, started) }.associateWith { bars.getValue(it).values.toList() } to failures
+        }
+    }
+
+    /**
      * 오늘 분봉(시각 오름차순). [freshSince] 이후에 받은 값이 없으면 그 자리에서 이어 받는다.
      *
      * 받다가 실패하면 들고 있던 봉을 그대로 준다(없으면 빈 목록) — 낡은 봉이 없는 봉보다 낫다.

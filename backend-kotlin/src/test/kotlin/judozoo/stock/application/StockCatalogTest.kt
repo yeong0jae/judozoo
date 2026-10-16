@@ -1,21 +1,36 @@
 package judozoo.stock.application
 
+import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
+import io.mockk.every
+import io.mockk.verify
 import judozoo.IntegrationTest
 import judozoo.stock.domain.Market
+import judozoo.stock.domain.OverseasStock
+import judozoo.stock.domain.Stock
+import judozoo.stock.infrastructure.KisStockMaster
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
+import java.time.LocalDate
+import java.time.LocalDateTime
 
-/** 카탈로그 테이블은 Python이 갈아끼운다. 여기서는 Python이 넣은 것처럼 행을 넣고 읽어 온다. */
+/** 종목 카탈로그 — 하루 한 번 마스터 파일로 갈아끼우고, 메모리에 올려 검색한다. */
 @IntegrationTest
 class StockCatalogTest @Autowired constructor(
     private val catalog: StockCatalog,
     private val jdbc: JdbcTemplate,
 ) {
+    @MockkBean
+    private lateinit var master: KisStockMaster
+
+    private val today = LocalDate.of(2026, 9, 12)
+
+    private fun stock(code: String, name: String, at: LocalDateTime) = Stock(code, "KR7$code", name, Market.KOSPI, at, at)
+
     @BeforeEach
     fun 빈_테이블() {
         jdbc.update("DELETE FROM stocks")
@@ -37,7 +52,7 @@ class StockCatalogTest @Autowired constructor(
     @Nested
     inner class 적재 {
         @Test
-        fun `Python이 갈아끼운 카탈로그를 읽어 검색한다`() {
+        fun `DB의 카탈로그를 읽어 검색한다`() {
             pythonInserts()
 
             catalog.reload()
@@ -76,6 +91,61 @@ class StockCatalogTest @Autowired constructor(
             catalog.reload()
 
             catalog.search("애플").map { it.stockName } shouldBe listOf("애플라인", "애플")
+        }
+    }
+
+    @Nested
+    inner class 카탈로그_갱신 {
+        private fun inserted(at: String) = jdbc.update(
+            "INSERT INTO stocks (short_code, standard_code, name, market, created_at, updated_at) VALUES ('005930','KR7005930003','삼성전자','KOSPI',?,?)", at, at,
+        )
+
+        @Test
+        fun `오늘 이미 동기화됐으면 다운로드하지 않고 DB에서 적재한다`() {
+            inserted("2026-09-12 08:30:00")
+            jdbc.update("INSERT INTO overseas_stocks (exchange, symbol, name, english_name, created_at, updated_at) VALUES ('NAS','AAPL','AAPL','AAPL','2026-09-12 08:30:00','2026-09-12 08:30:00')")
+
+            catalog.refresh(today)
+
+            catalog.sizes() shouldBe (1 to 1)
+            catalog.search("삼성")[0].stockCode shouldBe "005930"
+            verify(exactly = 0) { master.fetchDomestic(any()) }
+            verify(exactly = 0) { master.fetchOverseas(any()) }
+        }
+
+        @Test
+        fun `동기화가 어제 것이면 새로 받아 전체 교체한다`() {
+            jdbc.update("INSERT INTO stocks (short_code, standard_code, name, market, created_at, updated_at) VALUES ('000000','KR7000000000','옛날종목','KOSPI','2026-09-11 08:30:00','2026-09-11 08:30:00')")
+            every { master.fetchDomestic(any()) } returns listOf(stock("005930", "삼성전자", LocalDateTime.of(2026, 9, 12, 7, 40)))
+            every { master.fetchOverseas(any()) } returns listOf(OverseasStock("NAS", "AAPL", "애플", "APPLE INC", LocalDateTime.of(2026, 9, 12, 7, 40), LocalDateTime.of(2026, 9, 12, 7, 40)))
+
+            catalog.refresh(today)
+
+            jdbc.queryForList("SELECT short_code FROM stocks", String::class.java) shouldBe listOf("005930") // 옛날종목은 사라진다
+            catalog.sizes() shouldBe (1 to 1)
+        }
+
+        @Test
+        fun `다운로드가 실패하면 DB의 직전 데이터로 폴백한다`() {
+            inserted("2026-09-11 08:30:00")
+            every { master.fetchDomestic(any()) } throws IllegalStateException("CDN 죽음")
+            every { master.fetchOverseas(any()) } returns emptyList()
+
+            catalog.refresh(today) // 예외가 밖으로 나오지 않는다
+
+            catalog.sizes().first shouldBe 1
+            catalog.search("삼성")[0].stockName shouldBe "삼성전자"
+        }
+
+        @Test
+        fun `다운로드도 DB도 비어있으면 빈 카탈로그로 남는다`() {
+            every { master.fetchDomestic(any()) } throws IllegalStateException("CDN 죽음")
+            every { master.fetchOverseas(any()) } throws IllegalStateException("CDN 죽음")
+
+            catalog.refresh(today)
+
+            catalog.sizes() shouldBe (0 to 0)
+            catalog.search("삼성").shouldBeEmpty()
         }
     }
 }

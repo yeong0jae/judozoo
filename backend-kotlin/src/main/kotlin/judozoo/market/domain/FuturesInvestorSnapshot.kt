@@ -4,6 +4,8 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import judozoo.stock.domain.Market
@@ -13,7 +15,7 @@ import java.time.LocalDateTime
 /**
  * 지수선물 시장의 장중 투자자 순매수 스냅샷(당일 누적). 단위는 계약(부호 포함, 양수=순매수).
  *
- * **적재는 Python 선물 투자자 폴러(60초)만 한다**(028) — 종가베팅 등 Python 기능이 이 스냅샷을 읽는다. 여기서는 읽기만 한다.
+ * 선물 투자자 폴러가 장중 1분마다 남긴다. 세션별 순매수는 이 스냅샷들의 경계 차이라, 폴러가 돌지 않은 과거는 **소급할 수 없다**.
  */
 @Entity
 @Table(name = "futures_investor_snapshot")
@@ -40,6 +42,7 @@ class FuturesInvestorSnapshot(
     @Column(name = "updated_at") val updatedAt: LocalDateTime,
 ) {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int? = null
 
     fun nets() = FuturesNets(

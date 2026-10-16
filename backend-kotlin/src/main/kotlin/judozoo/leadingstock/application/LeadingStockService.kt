@@ -31,7 +31,6 @@ import java.time.LocalTime
  * 거래대금 순위 + 당일 등락률로 후보를 추리고, 상세 보기에서 전체 필터를 평가한다.
  * 분봉은 차트·돌파선이 **같은 저장소를 공유**하도록 한 경로로 모은다 — 따로 부르면 키움 한도에 걸린다.
  *
- * **후보 풀은 Python도 따로 채운다**(028) — 타임라인·캘린더·왜 오르나·종가베팅이 Python의 풀을 읽는다.
  */
 @Service
 class LeadingStockService(
@@ -92,6 +91,24 @@ class LeadingStockService(
 
     /** 감시 풀(시그널·돌파와 같은 풀)의 당일 분봉을 이어 받는다. 실패한 종목 수를 돌려준다. */
     fun syncTodayMinutes(): Int = todayMinutes.sync(findCandidates(WATCH_MIN_CHANGE_RATE).map { it.stockCode })
+
+    /**
+     * 마감 뒤 감시 풀의 오늘 봉을 확정해 지난 날 보관소에 넘긴다. 실패한 종목 수를 돌려준다.
+     *
+     * 내일 아침 이 종목들의 "어제 봉"을 키움에서 다시 받지 않게 하려는 것이다. 수정주가 소급이 반영되지 않는 봉을
+     * 오래 두지 않게 2주 지난 날은 여기서 하루 한 번 지운다.
+     */
+    fun settleTodayMinutes(): Int {
+        val (settled, failures) = todayMinutes.settle(findCandidates(WATCH_MIN_CHANGE_RATE).map { it.stockCode })
+        val today = today()
+        settled.forEach { (code, bars) -> archive.put(code, today, bars) }
+        try {
+            archive.purge(today.minusDays(MINUTE_ARCHIVE_RETENTION_DAYS))
+        } catch (e: Exception) {
+            log.warn("지난 날 분봉 정리 실패", e)
+        }
+        return failures
+    }
 
     /**
      * 1단계 필터만 적용한 후보(ETF·스팩 제외 + 거래대금 순위 + 당일 등락률). 거래대금 내림차순.
@@ -275,7 +292,7 @@ class LeadingStockService(
      * 오늘 1분봉. 당일 저장소에서 꺼내고, 낡았으면 그 자리에서 새 봉만 이어 받는다.
      *
      * - 휴장일·08:00 전: 오늘 봉이 있을 수 없다 — 부르지 않는다.
-     * - 마감 확정 뒤: 지난 날 보관소에 넘어간 확정본을 쓴다(Python 마감 확정이 넣는다). 없으면 한 번 받아 확정본으로 넘긴다.
+     * - 마감 확정 뒤: 지난 날 보관소에 넘어간 확정본을 쓴다(20:01 마감 확정이 넣는다). 없으면 한 번 받아 확정본으로 넘긴다.
      * - 장중: 30초 안에 받은 값이면 그대로, 아니면 이어 받는다.
      */
     private fun todayMinuteCandles(stockCode: String): List<MinuteCandle> {
@@ -316,6 +333,9 @@ class LeadingStockService(
 
         /** 스파이크로 보는 최신 1분봉 최소 거래대금(원) */
         private const val SPIKE_MIN_TRADING_VALUE = 1_000_000_000L
+
+        /** 지난 날 분봉 보관 기간. 거래일로 열흘 남짓 — 3거래일 차트와 달력 20일에 넉넉하다. */
+        private const val MINUTE_ARCHIVE_RETENTION_DAYS = 14L
 
         /** 상세 차트 표시 거래일 수(당일 포함). */
         private const val CHART_SESSION_DAYS = 3

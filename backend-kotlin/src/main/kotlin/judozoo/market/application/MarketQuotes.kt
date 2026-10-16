@@ -16,7 +16,6 @@ import java.time.LocalDate
  * 시세 — 지수 / 지수선물 / 야간선물 / 야후(나스닥·매크로).
  *
  * 모두 **폴러가 채우는 캐시**다([MarketQuoteScheduler]). 만료돼도 마지막 정상값을 주고, 갱신 실패는 그 값을 덮지 않는다.
- * 공존하는 동안(028) Python도 자기 폴러로 같은 시세를 채운다 — 종가베팅·타임라인 등이 Python 쪽 값을 읽는다.
  */
 @Service
 class MarketQuotes(

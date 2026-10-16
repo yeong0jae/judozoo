@@ -14,18 +14,13 @@ services:
       # 트레이스를 alloy의 OTLP 수신구로 보낸다(021). 같은 compose 네트워크라
       # 호스트 포트가 필요 없다. 비우면 계측 자체가 꺼진다 — 로컬 기본값이 그렇다.
       OTLP_ENDPOINT: alloy:4317
-      # 키움 조회 한도(초당 5, 09~10시 3)를 Kotlin과 나눠 쓴다(028). 합이 한도를 넘지 않게 여기서 줄인다.
-      # 국내 주도주(화면·시그널·시장 수급 폴러)가 Kotlin으로 옮겨 가 Kotlin이 3/2를 가져갔다.
-      # 기능을 더 옮길 때마다 이 몫을 줄이고 Kotlin 몫(`JUDOZOO_KIWOOM_*`)을 늘린다.
-      KIWOOM_QUERY_PERMITS_PER_SECOND: "2"
+      # 브로커 한도를 Kotlin과 나눠 쓴다(028). 조회하는 기능이 모두 Kotlin으로 옮겨 가 Python에는 최소만 둔다 —
+      # Python에 남은 브로커 일은 토큰 발급뿐이고, 발급은 조회 리미터를 타지 않는다. 합은 늘 각 한도 이하다.
+      KIWOOM_QUERY_PERMITS_PER_SECOND: "1"
       KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND: "1"
-      # KIS(한도 초당 18)도 나눈다 — 해외 분봉이 Kotlin으로 옮겨 가 KIS를 가장 많이 쓰는 쪽이 바뀌었다.
-      # 합 15로 3을 남긴다(옮기기 전 Python 15와 같은 여유).
-      KIS_QUERY_PERMITS_PER_SECOND: "8"
-      # 토스 지수 캔들(한도 초당 5)은 시황 화면만 쓰고, 시황이 Kotlin으로 옮겨 갔다
+      KIS_QUERY_PERMITS_PER_SECOND: "1"
       TOSS_INDICATOR_CHART_PERMITS_PER_SECOND: "1"
-      # 토스 종목 캔들(한도 초당 20)은 감시 풀 당일 분봉을 양쪽이 각자 채운다. 합 16으로 4를 남긴다
-      TOSS_CHART_PERMITS_PER_SECOND: "10"
+      TOSS_CHART_PERMITS_PER_SECOND: "1"
       # DB_HOST·DB_PORT·DB_USERNAME은 secrets/.env가 준다 (remote_deploy.sh가 씀).
       # 여기 environment에 적으면 env_file을 덮어쓰고, ${...} 보간은 env_file을
       # 읽지 못해 빈 값이 된다 — grafana 쪽에서 이미 겪은 함정이다.
@@ -51,12 +46,12 @@ services:
       TZ: Asia/Seoul
       DB_NAME: trading
       # 브로커 한도의 Kotlin 몫(028). Python 몫은 위 backend에 있다 — 둘을 함께 고친다.
-      JUDOZOO_KIS_QUERY_PERMITS_PER_SECOND: "7"
-      JUDOZOO_TOSS_INDICATOR_CHART_PERMITS_PER_SECOND: "4"
-      JUDOZOO_KIWOOM_QUERY_PERMITS_PER_SECOND: "3"
+      # 키움 초당 5(09~10시 3) · KIS 15(한도 18에서 3 여유) · 토스 캔들 15(한도 20) · 지수 캔들 4(한도 5)
+      JUDOZOO_KIWOOM_QUERY_PERMITS_PER_SECOND: "4"
       JUDOZOO_KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND: "2"
-      # 감시 풀 35종목을 20초마다 이어 받으려면 초당 2건 남짓이 든다. 화면이 연 종목 몫까지 6
-      JUDOZOO_TOSS_CHART_PERMITS_PER_SECOND: "6"
+      JUDOZOO_KIS_QUERY_PERMITS_PER_SECOND: "14"
+      JUDOZOO_TOSS_CHART_PERMITS_PER_SECOND: "15"
+      JUDOZOO_TOSS_INDICATOR_CHART_PERMITS_PER_SECOND: "4"
     env_file:
       - ./secrets/.env
     expose:

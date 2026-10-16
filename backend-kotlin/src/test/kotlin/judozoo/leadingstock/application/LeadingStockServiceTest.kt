@@ -478,4 +478,32 @@ class LeadingStockServiceTest {
             service.breakoutRadar().map { it.stock.stockCode } shouldBe listOf("000002", "000001")
         }
     }
+
+    @Nested
+    inner class 마감_확정 {
+        @Test
+        fun `확정된 오늘 봉을 보관소에 넘겨 마감 뒤엔 토스를 부르지 않는다`() {
+            val today = LocalDate.of(2026, 9, 28)
+            now = today.atTime(20, 1)
+            pool(stock("005930_AL"))
+            tossBars = { listOf(bar(today, 19, 59)) }
+            every { kiwoom.fetchHistoricalMinuteCandles(any(), any()) } returns emptyList()
+
+            service.settleTodayMinutes() shouldBe 0
+            tossCalls.clear()
+
+            service.minuteCandles("005930", today).filter { it.dateTime.toLocalDate() == today }.map { it.dateTime } shouldBe listOf(today.atTime(19, 59))
+            tossCalls.shouldBeEmpty()
+        }
+
+        @Test
+        fun `2주 지난 날은 지운다`() {
+            now = LocalDateTime.of(2026, 9, 28, 20, 1)
+            pool()
+
+            service.settleTodayMinutes()
+
+            verify { repository.deleteBefore(LocalDate.of(2026, 9, 14)) }
+        }
+    }
 }

@@ -16,7 +16,6 @@ import java.time.LocalDateTime
  * 지금 등락률만 보면 밀려 내려온 신규상장 종목이 "+26% 급등주"로 순위가 튄다. 그래서 그날 내내 환산한다.
  *
  * **메모리 앞, DB(`wide_limit_day`) 뒤** — 재시작해도 잃지 않는다. DB가 죽어 있으면 메모리만으로 동작한다.
- * Python도 같은 표를 채운다 — 서로 넣은 행을 날이 바뀔 때 읽어 온다.
  */
 @Component
 class WideLimitDays(private val repository: WideLimitDayRepository, private val transaction: TransactionTemplate) {
