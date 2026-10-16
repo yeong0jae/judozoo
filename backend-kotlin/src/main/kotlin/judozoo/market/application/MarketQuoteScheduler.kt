@@ -1,5 +1,6 @@
 package judozoo.market.application
 
+import judozoo.library.JobFailures
 import judozoo.library.KST
 import judozoo.market.domain.Region
 import org.slf4j.LoggerFactory
@@ -20,6 +21,7 @@ import java.time.LocalTime
 class MarketQuoteScheduler(
     private val quotes: MarketQuotes,
     private val calendar: MarketCalendar,
+    private val failures: JobFailures,
     private val clock: Clock,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -43,9 +45,13 @@ class MarketQuoteScheduler(
         quotes.refreshers().forEach { (name, refresh) ->
             try {
                 // 재기동 직후엔 장 밖이어도 한 번 채운다. 빈 값은 다음 회차에 재시도한다
-                if (!refresh.run(active.getValue(name))) log.warn("시세 갱신 빈 값 ({}) — 마지막 정상값 유지", name)
+                if (!refresh.run(active.getValue(name))) {
+                    log.warn("시세 갱신 빈 값 ({}) — 마지막 정상값 유지", name)
+                    failures.record(JOB)
+                }
             } catch (e: Exception) {
                 log.warn("시세 갱신 실패 ({}) — 마지막 정상값 유지", name, e)
+                failures.record(JOB)
             }
         }
     }
@@ -80,4 +86,9 @@ class MarketQuoteScheduler(
     }
 
     private fun ny(at: LocalDateTime) = at.atZone(KST).withZoneSameInstant(Region.US.zone).toLocalDateTime()
+
+    companion object {
+        /** 실패를 세는 잡 이름 — Python과 같다([JobFailures]). */
+        const val JOB = "market-quote-poller"
+    }
 }

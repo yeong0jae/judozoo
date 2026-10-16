@@ -1,5 +1,6 @@
 package judozoo.leadingstock.application
 
+import judozoo.library.JobFailures
 import judozoo.library.KST
 import judozoo.market.application.MarketCalendar
 import judozoo.market.domain.Region
@@ -17,6 +18,8 @@ import java.time.LocalTime
  * - 후보 풀·당일 분봉은 **Python에서도 돈다**(028) — 메모리 상태라 Python의 타임라인·종가베팅이 자기 풀을 읽는다.
  * - 시그널 세 개(DB에 쓴다)는 **여기서만** 돈다. Python 쪽 등록은 같은 커밋에서 껐다.
  * - **분봉 마감 확정(20:01, DB에 쓴다)은 Python만** 돈다 — 여기서는 확정본을 DB에서 읽는다.
+ *
+ * 실패는 삼키되 [JobFailures]로 센다 — 잡 이름은 Python과 같다.
  */
 @Component
 class LeadingStockScheduler(
@@ -25,6 +28,7 @@ class LeadingStockScheduler(
     private val marketFlows: MarketFlowDetector,
     private val indexRebound: IndexReboundDetector,
     private val calendar: MarketCalendar,
+    private val failures: JobFailures,
     private val clock: Clock,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -37,6 +41,7 @@ class LeadingStockScheduler(
             service.refreshTradingValuePool()
         } catch (e: Exception) {
             log.warn("거래대금 상위 갱신 실패", e)
+            failures.record(POOL_REFRESH_JOB)
         }
     }
 
@@ -45,10 +50,15 @@ class LeadingStockScheduler(
     fun syncTodayMinutes() {
         if (!inSession()) return
         try {
-            val failures = service.syncTodayMinutes()
-            if (failures > 0) log.warn("당일 분봉 갱신 — {}종목 실패", failures)
+            // 실패는 종목 수와 상관없이 회차당 한 번 센다
+            val failed = service.syncTodayMinutes()
+            if (failed > 0) {
+                log.warn("당일 분봉 갱신 — {}종목 실패", failed)
+                failures.record(MINUTE_SYNC_JOB)
+            }
         } catch (e: Exception) {
             log.warn("당일 분봉 갱신 실패", e)
+            failures.record(MINUTE_SYNC_JOB)
         }
     }
 
@@ -59,6 +69,7 @@ class LeadingStockScheduler(
             stockSignals.detect()
         } catch (e: Exception) {
             log.warn("시그널 전이 적재 실패", e)
+            failures.record(SIGNAL_JOB)
         }
     }
 
@@ -70,6 +81,7 @@ class LeadingStockScheduler(
             marketFlows.detect()
         } catch (e: Exception) {
             log.warn("시장 시그널 적재 실패", e)
+            failures.record(MARKET_FLOW_JOB)
         }
     }
 
@@ -81,6 +93,7 @@ class LeadingStockScheduler(
             indexRebound.detect()
         } catch (e: Exception) {
             log.warn("지수 반등 적재 실패", e)
+            failures.record(INDEX_REBOUND_JOB)
         }
     }
 
@@ -97,6 +110,12 @@ class LeadingStockScheduler(
     }
 
     companion object {
+        const val POOL_REFRESH_JOB = "trading-value-pool-refresher"
+        const val MINUTE_SYNC_JOB = "today-minute-syncer"
+        const val SIGNAL_JOB = "signal-event-poller"
+        const val MARKET_FLOW_JOB = "market-flow-poller"
+        const val INDEX_REBOUND_JOB = "index-rebound-poller"
+
         private val SNAPSHOT_START = LocalTime.of(8, 0)
         private val SNAPSHOT_END = LocalTime.of(20, 0)
     }

@@ -83,4 +83,6 @@ backend-kotlin/src/main/kotlin/judozoo
 - **One owner per scheduled job.** Moving a feature turns its Python `register` off and its Kotlin `@Scheduled` on in the same commit.
 - **One issuer per broker token.** The other side only reads `broker_token`.
 - **Rate limits are split** between the two processes by settings — each bucket lives in its own process memory.
+- **A Kotlin poller that swallows a failure counts it** with `JobFailures.record(jobId)`, using the Python job id — the
+  "swallowed errors" alert sums `scheduler_job_errors_total` by `job_id` across both services.
 - A moved feature's Python code stays until no remaining Python feature calls its `application`.

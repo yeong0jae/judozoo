@@ -1,9 +1,12 @@
 package judozoo.market.application
 
+import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import judozoo.library.JobFailures
 import judozoo.library.KST
 import judozoo.market.domain.Region
 import judozoo.platform.kiwoom.KiwoomIndex
@@ -18,8 +21,9 @@ import java.time.LocalDateTime
 
 class MarketQuoteSchedulerTest {
     private val calendar = mockk<MarketCalendar>()
+    private val registry = SimpleMeterRegistry()
     private fun scheduler(at: LocalDateTime = LocalDateTime.of(2026, 9, 30, 10, 0), quotes: MarketQuotes = mockk()) =
-        MarketQuoteScheduler(quotes, calendar, Clock.fixed(at.atZone(KST).toInstant(), KST))
+        MarketQuoteScheduler(quotes, calendar, JobFailures(registry), Clock.fixed(at.atZone(KST).toInstant(), KST))
 
     @Nested
     inner class 시세_폴러 {
@@ -39,6 +43,17 @@ class MarketQuoteSchedulerTest {
 
             quotes.index(judozoo.stock.domain.Market.KOSPI).currentValue shouldBe 2700.0
             verify(exactly = 4) { kiwoomIndex.fetchIndex(any(), any()) } // 코스피·코스닥 × 2회
+        }
+
+        /** 선물 근월물을 못 받은 상황 — 마지막 정상값은 유지하지만 조용히 넘어가면 안 된다. */
+        @Test
+        fun `빈 값을 받으면 실패로 센다`() {
+            every { calendar.isHoliday(any()) } returns false
+            every { calendar.isOpen(any()) } returns true
+
+            scheduler(quotes = quotes).poll()
+
+            (registry.find("scheduler.job.errors").tag("job_id", "market-quote-poller").counter()?.count() ?: 0.0) shouldBeGreaterThan 0.0
         }
 
         @Test

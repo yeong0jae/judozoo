@@ -1,10 +1,13 @@
 package judozoo.leadingstock.application
 
+import io.kotest.matchers.shouldBe
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
+import judozoo.library.JobFailures
 import judozoo.library.KST
 import judozoo.market.application.MarketCalendar
 import judozoo.market.domain.Region
@@ -36,7 +39,11 @@ class LeadingStockSchedulerTest {
     private val stockSignals = mockk<StockSignalDetector> { every { detect() } just runs }
     private val marketFlows = mockk<MarketFlowDetector> { every { detect() } just runs }
     private val indexRebound = mockk<IndexReboundDetector> { every { detect() } just runs }
-    private val scheduler = LeadingStockScheduler(service, stockSignals, marketFlows, indexRebound, calendar, clock)
+    private val registry = SimpleMeterRegistry()
+    private val scheduler = LeadingStockScheduler(service, stockSignals, marketFlows, indexRebound, calendar, JobFailures(registry), clock)
+
+    /** 알림 규칙이 잡 이름별로 본다 — Python과 같은 이름이어야 한다. */
+    private fun failures(job: String) = registry.find("scheduler.job.errors").tag("job_id", job).counter()?.count() ?: 0.0
 
     private fun runAll() {
         scheduler.refreshTradingValuePool()
@@ -60,7 +67,7 @@ class LeadingStockSchedulerTest {
         }
 
         @Test
-        fun `실패해도 폴러가 죽지 않는다`() {
+        fun `실패해도 폴러가 죽지 않고 잡마다 실패로 센다`() {
             every { service.refreshTradingValuePool() } throws IllegalStateException("키움 오류")
             every { service.syncTodayMinutes() } throws IllegalStateException("후보 조회 실패")
             every { stockSignals.detect() } throws IllegalStateException("DB 오류")
@@ -68,6 +75,18 @@ class LeadingStockSchedulerTest {
             every { indexRebound.detect() } throws IllegalStateException("키움 오류")
 
             runAll()
+
+            listOf("trading-value-pool-refresher", "today-minute-syncer", "signal-event-poller", "market-flow-poller", "index-rebound-poller")
+                .map(::failures) shouldBe List(5) { 1.0 }
+        }
+
+        @Test
+        fun `분봉을 일부 종목만 못 받아도 회차당 한 번 실패로 센다`() {
+            every { service.syncTodayMinutes() } returns 2
+
+            scheduler.syncTodayMinutes()
+
+            failures("today-minute-syncer") shouldBe 1.0
         }
     }
 
