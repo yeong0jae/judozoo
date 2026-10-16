@@ -12,6 +12,13 @@ spring:
       ddl-auto: validate
     open-in-view: false
 
+  # `@Scheduled`는 기본이 스레드 하나다 — 왜 오르나가 Vertex를 1분 가까이 기다리는 동안 1분 스냅샷·시세 폴러가 밀린다.
+  # 한 작업이 겹쳐 돌지는 않는다(앞 실행이 끝나야 다음 시각을 잡는다)
+  task:
+    scheduling:
+      pool:
+        size: 8
+
 server:
   port: 8001
 
