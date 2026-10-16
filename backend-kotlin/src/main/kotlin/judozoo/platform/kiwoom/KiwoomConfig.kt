@@ -1,10 +1,11 @@
 package judozoo.platform.kiwoom
 
 import io.micrometer.core.instrument.MeterRegistry
-import judozoo.library.brokertoken.BorrowedToken
+import judozoo.library.brokertoken.IssuedToken
 import judozoo.library.brokertoken.BrokerTokenRepository
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
 
 @Configuration
@@ -15,10 +16,11 @@ class KiwoomConfig {
         repository: BrokerTokenRepository,
         clock: Clock,
         registry: MeterRegistry,
-    ) = KiwoomClient(properties, BorrowedToken(PROVIDER, repository, clock), clock, registry)
+        transaction: TransactionTemplate,
+    ) = KiwoomClient(properties, IssuedToken(PROVIDER, repository, transaction, clock, KiwoomTokenIssuer(properties, clock, registry)::issue), clock, registry)
 
     companion object {
-        /** `broker_token.provider`. Python과 같은 값이다. */
+        /** `broker_token.provider` */
         const val PROVIDER = "KIWOOM"
     }
 }

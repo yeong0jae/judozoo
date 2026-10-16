@@ -1,8 +1,13 @@
 package judozoo.library.brokertoken
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
 
-/** 읽기만 한다. 저장·삭제 메서드를 부르지 않는다 — Python이 발급 주인이다(028). */
 interface BrokerTokenRepository : JpaRepository<BrokerToken, Long> {
     fun findByProvider(provider: String): BrokerToken?
+
+    @Modifying
+    @Query("delete from BrokerToken t where t.provider = :provider")
+    fun deleteByProvider(provider: String): Int
 }

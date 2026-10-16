@@ -57,8 +57,8 @@ class KiwoomClient(
     /**
      * 조회 TR 한 쪽을 부른다. `return_code` ≠ 0이면 [KiwoomApiException].
      *
-     * 토큰 무효면 토큰을 버리고 **한 번만** 다시 부른다. 공존하는 동안 새 토큰은 Python이 남긴다 —
-     * 아직 없으면 두 번째 시도는 [judozoo.library.BrokerTokenUnavailable]로 끝난다.
+     * 토큰 무효면 토큰을 버리고 **한 번만** 다시 부른다 — 두 번째 시도가 새로 발급한다.
+     * 발급이 백오프 중이면 [judozoo.library.BrokerTokenUnavailable]로 끝난다.
      */
     fun query(path: String, apiId: String, body: Map<String, Any?>, contYn: String = "N", nextKey: String = ""): KiwoomResponse =
         try {

@@ -81,7 +81,7 @@ backend-kotlin/src/main/kotlin/judozoo
 - **Alembic owns the schema.** JPA runs with `ddl-auto=validate` and never changes a table.
   **Adding an Alembic migration means running `backend-kotlin/scripts/dump-schema.sh` and committing the new `schema.sql`** — Kotlin integration tests build their tables from it.
 - **One owner per scheduled job.** Moving a feature turns its Python `register` off and its Kotlin `@Scheduled` on in the same commit.
-- **One issuer per broker token.** The other side only reads `broker_token`.
+- **One issuer per broker token — Kotlin** (since 2026-10-16). Python no longer calls brokers; if it ever does again, it must only read `broker_token`.
 - **Rate limits are split** between the two processes by settings — each bucket lives in its own process memory.
 - **A Kotlin poller that swallows a failure counts it** with `JobFailures.record(jobId)`, using the Python job id — the
   "swallowed errors" alert sums `scheduler_job_errors_total` by `job_id` across both services.

@@ -25,11 +25,17 @@ server:
 judozoo:
   # Python `SessionMiddleware`와 같은 키여야 그 쿠키를 읽는다
   session-secret: ${SESSION_SECRET:dev-only-insecure}
-  # 브로커 앱키는 Python과 같은 환경변수다. 한도(`*-permits-per-second`)는 Python과 나눠 쓴다(028) —
+  # 브로커 앱키는 Python과 같은 환경변수다. 토큰 발급도 여기서 한다. 한도(`*-permits-per-second`)는 Python과 나눠 쓴다(028) —
   # `JUDOZOO_KIWOOM_QUERY_PERMITS_PER_SECOND`처럼 이 이름으로 덮어쓴다
   kis:
     app-key: ${REAL_KIS_APP_KEY:}
     app-secret: ${REAL_KIS_APP_SECRET:}
+  kiwoom:
+    app-key: ${REAL_KIWOOM_APP_KEY:}
+    app-secret: ${REAL_KIWOOM_APP_SECRET:}
+  toss:
+    client-id: ${REAL_TOSS_CLIENT_ID:}
+    client-secret: ${REAL_TOSS_CLIENT_SECRET:}
   # Gemini on Vertex AI(026). Python `VERTEX_*`와 같은 이름 — 비밀값이 아니다
   vertex:
     project: ${VERTEX_PROJECT:trading-496508}
