@@ -93,7 +93,7 @@ class AuthServiceTest @Autowired constructor(
         fun `탈퇴 알림이 세는 로그를 남긴다`() {
             val rules = File("../observability/grafana/provisioning/alerting/rules.yaml").readText()
             val expr = rules.substringAfter("name: 탈퇴").substringAfter("expr: ").substringBefore("\n")
-            val loggers = Regex("""logger =~ "([^"]+)"""").find(expr)!!.groupValues[1]
+            val loggers = Regex("""logger =~? "([^"]+)"""").find(expr)!!.groupValues[1]
             val pattern = Regex("""msg =~ "([^"]+)"""").find(expr)!!.groupValues[1]
             val logger = org.slf4j.LoggerFactory.getLogger(AuthService::class.java) as ch.qos.logback.classic.Logger
             val appender = ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>().apply { start() }

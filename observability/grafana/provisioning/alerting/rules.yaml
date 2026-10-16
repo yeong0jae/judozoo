@@ -40,13 +40,13 @@ groups:
       - uid: scheduler-missed-runs
         title: 스케줄러 잡이 밀리고 있다
         condition: THRESHOLD
-        for: 2m
+        for: 5m
         noDataState: OK
         execErrState: Error
         labels:
           severity: warning
         annotations:
-          summary: '최근 10분 {{ $values.QUERY.Value }}회 미스파이어 — 잡 소요가 폴링 주기를 넘고 있다'
+          summary: '스케줄러 스레드가 5분째 모두 일하고 있다 — 다른 폴러가 차례를 기다린다'
           runbook: 'docs/tasks/020-prometheus-메트릭.md'
         data:
           - refId: QUERY
@@ -55,7 +55,7 @@ groups:
             model:
               refId: QUERY
               instant: true
-              expr: sum by (job_id) (increase(scheduler_job_runs_total{result="missed"}[10m]))
+              expr: sum(executor_active_threads{job="backend", name="taskScheduler"}) / sum(executor_pool_core_threads{job="backend", name="taskScheduler"})
           - refId: THRESHOLD
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -66,7 +66,7 @@ groups:
               conditions:
                 - evaluator:
                     type: gt
-                    params: [2]
+                    params: [0.99]
 
   - orgId: 1
     name: 로그
@@ -87,12 +87,11 @@ groups:
         data:
           - refId: QUERY
             relativeTimeRange: { from: 600, to: 0 }
-            datasourceUid: loki
+            datasourceUid: prometheus
             model:
               refId: QUERY
-              datasource: { type: loki, uid: loki }
-              queryType: instant
-              expr: 'sum(count_over_time({service=~"backend|backend-kotlin"} | json | level = "ERROR" [10m]))'
+              instant: true
+              expr: sum(increase(logback_events_total{job="backend", level="error"}[10m]))
           - refId: THRESHOLD
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -114,17 +113,16 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: '최근 10분 처리 못 한 예외 {{ $values.QUERY.Value }}건 — 그만큼 500을 받은 요청이 있다'
-          runbook: 'Grafana "사용자 여정"에서 그 사용자의 에러 패널을 본다'
+          summary: '최근 10분 500 응답 {{ $values.QUERY.Value }}건'
+          runbook: 'Grafana "메트릭"의 API 5xx에서 경로를, "사용자 여정"에서 그 사용자의 에러를 본다'
         data:
           - refId: QUERY
             relativeTimeRange: { from: 600, to: 0 }
-            datasourceUid: loki
+            datasourceUid: prometheus
             model:
               refId: QUERY
-              datasource: { type: loki, uid: loki }
-              queryType: instant
-              expr: 'sum(count_over_time({service=~"backend|backend-kotlin"} | json | level = "ERROR" | logger =~ "backend.main|judozoo.library.web.ApiExceptionHandler" [10m]))'
+              instant: true
+              expr: sum(increase(http_server_requests_seconds_count{job="backend", status=~"5.."}[10m]))
           - refId: THRESHOLD
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -253,7 +251,7 @@ groups:
               refId: QUERY
               datasource: { type: loki, uid: loki }
               queryType: instant
-              expr: 'sum by (user) (count_over_time({service=~"backend|backend-kotlin"} | json | logger =~ "backend.auth.application|judozoo.auth.application.AuthService" | msg =~ "탈퇴.*" [10m]))'
+              expr: 'sum by (user) (count_over_time({service="backend"} | json | logger = "judozoo.auth.application.AuthService" | msg =~ "탈퇴.*" [10m]))'
           - refId: THRESHOLD
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__

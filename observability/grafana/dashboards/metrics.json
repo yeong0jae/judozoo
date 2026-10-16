@@ -18,9 +18,22 @@
   },
   "panels": [
     {
-      "id": 1,
+      "id": 100,
+      "type": "row",
+      "title": "지금 괜찮은가",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 9,
       "type": "timeseries",
-      "title": "잡 실행률 (초당)",
+      "title": "API 5xx",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -29,12 +42,12 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 0
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "drawStyle": "line",
+            "drawStyle": "bars",
             "fillOpacity": 10,
             "lineWidth": 2
           },
@@ -61,16 +74,16 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (job_id) (rate(scheduler_job_runs_total{result=\"success\"}[$__rate_interval]))",
-          "legendFormat": "{{job_id}}"
+          "expr": "sum by (uri) (rate(http_server_requests_seconds_count{job=\"backend\", status=~\"5..\"}[$__rate_interval]))",
+          "legendFormat": "{{uri}}"
         }
       ],
-      "description": "폴러 주기와 기울기가 맞아야 한다 — 10초 폴러면 0.1/s."
+      "description": "사용자가 받은 500. 브로커 토큰을 못 받아 낸 500도 여기 들어온다. 알림 \"사용자에게 500이 나가고 있다\"가 같은 값을 본다."
     },
     {
-      "id": 2,
+      "id": 5,
       "type": "timeseries",
-      "title": "삼켜진 실패 · 미스파이어",
+      "title": "브로커 실패율",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -79,7 +92,57 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 0
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (vendor) (rate(http_client_requests_total{status!~\"2..\"}[$__rate_interval])) / sum by (vendor) (rate(http_client_requests_total[$__rate_interval]))",
+          "legendFormat": "{{vendor}}"
+        }
+      ],
+      "description": "status는 HTTP 코드 또는 예외 타입 이름(ConnectTimeout 등)이다. 2xx가 아닌 것을 전부 실패로 센다."
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "삼켜진 실패 · 새어 나온 예외",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
       },
       "fieldConfig": {
         "defaults": {
@@ -120,16 +183,118 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (job_id) (rate(scheduler_job_runs_total{result=\"missed\"}[$__rate_interval]))",
-          "legendFormat": "{{job_id}} 미스파이어"
+          "expr": "label_replace(sum by (code_namespace, code_function) (rate(tasks_scheduled_execution_seconds_count{job=\"backend\", outcome=\"ERROR\"}[$__rate_interval])), \"job\", \"$1\", \"code_namespace\", \".*\\\\.([^.]+)\")",
+          "legendFormat": "{{job}}.{{code_function}} 예외"
         }
       ],
-      "description": "폴러는 예외를 log.warning으로 삼키고 정상 리턴한다. APScheduler에는 성공으로 보이므로 이 패널이 유일한 신호다. 0이 아니면 무언가 조용히 실패하는 중이다."
+      "description": "폴러는 예외를 잡아 로그로 남기고 정상 리턴한다. 스케줄러에는 성공으로 보이므로 `JobFailures`가 세는 첫 줄이 유일한 신호다. 둘째 줄은 잡이 예외를 잡지 못하고 던진 경우다. 0이 아니면 무언가 조용히 실패하는 중이다."
     },
     {
-      "id": 3,
+      "id": 21,
       "type": "timeseries",
-      "title": "잡 소요 p95",
+      "title": "스케줄러 포화율",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(executor_active_threads{job=\"backend\", name=\"taskScheduler\"}) / sum(executor_pool_core_threads{job=\"backend\", name=\"taskScheduler\"})",
+          "legendFormat": "사용 중"
+        }
+      ],
+      "description": "스케줄러 스레드 8개 중 일하고 있는 비율. 100%에 붙어 있으면 다른 폴러가 차례를 기다린다 — 알림 \"스케줄러 잡이 밀리고 있다\"가 5분 넘게 붙어 있는지를 본다."
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "GC 직후 힙",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(jvm_memory_usage_after_gc{job=\"backend\", area=\"heap\"})",
+          "legendFormat": "heap"
+        }
+      ],
+      "description": "오래 사는 객체가 차지한 비율이다. GC가 돌고 나서도 높게 남아 있으면 메모리가 새고 있거나 캐시가 너무 크다. 사용량 그래프와 달리 JVM이 미리 잡아 둔 공간에 속지 않는다."
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "가동 시간",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -138,7 +303,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 0
+        "y": 9
       },
       "fieldConfig": {
         "defaults": {
@@ -170,10 +335,193 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (job_id, le) (rate(scheduler_job_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "{{job_id}}"
+          "expr": "process_uptime_seconds{job=\"backend\"}",
+          "legendFormat": "backend"
         }
-      ]
+      ],
+      "description": "톱니가 떨어진 자리가 재시작이다. 배포가 아닌데 떨어졌으면 컨테이너가 죽었다가 다시 뜬 것이다(메모리 부족 등)."
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "API · 잡",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "API 요청률",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "reqps",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (uri) (rate(http_server_requests_seconds_count{job=\"backend\", uri=~\"/api/.*\"}[$__rate_interval]))",
+          "legendFormat": "{{uri}}"
+        }
+      ],
+      "description": "라우트에 매칭되지 않은 요청(봇 스캔 등)은 uri가 `/api/`로 시작하지 않아 빠진다."
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "API p95 지연",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s",
+          "min": 0,
+          "links": [
+            {
+              "title": "이 API의 느린 트레이스",
+              "url": "/d/judozoo-traces/?var-api=${__field.labels.handler}&${__url_time_range}"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (uri, le) (rate(http_server_requests_seconds_bucket{job=\"backend\", uri=~\"/api/.*\"}[$__rate_interval])))",
+          "legendFormat": "{{uri}}"
+        }
+      ],
+      "description": "선을 누르면 **그 API의 느렸던 실제 요청**으로 넘어간다(트레이스 대시보드). 여기서는 느려진 사실까지만 보이고, 어디서 느렸는지는 스팬 트리에 있다."
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "잡 소요 p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "label_replace(histogram_quantile(0.95, sum by (code_namespace, code_function, le) (rate(tasks_scheduled_execution_seconds_bucket{job=\"backend\"}[$__rate_interval]))), \"job\", \"$1\", \"code_namespace\", \".*\\\\.([^.]+)\")",
+          "legendFormat": "{{job}}.{{code_function}}"
+        }
+      ],
+      "description": "폴러 주기보다 길어지면 다음 차례가 밀린다. 왜 오르나 잡은 Vertex를 기다려 1분 가까이 걸리는 게 정상이다."
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "브로커 · 리미터",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      }
     },
     {
       "id": 4,
@@ -185,9 +533,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 8
+        "y": 27
       },
       "fieldConfig": {
         "defaults": {
@@ -225,56 +573,6 @@
       ]
     },
     {
-      "id": 5,
-      "type": "timeseries",
-      "title": "브로커 실패율",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "percentunit",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (vendor) (rate(http_client_requests_total{status!~\"2..\"}[$__rate_interval])) / sum by (vendor) (rate(http_client_requests_total[$__rate_interval]))",
-          "legendFormat": "{{vendor}}"
-        }
-      ],
-      "description": "status는 HTTP 코드 또는 예외 타입 이름(ConnectTimeout 등)이다. 2xx가 아닌 것을 전부 실패로 센다."
-    },
-    {
       "id": 6,
       "type": "timeseries",
       "title": "브로커 p95 — 리미터 대기 포함",
@@ -284,9 +582,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 8
+        "w": 12,
+        "x": 12,
+        "y": 27
       },
       "fieldConfig": {
         "defaults": {
@@ -325,486 +623,6 @@
       "description": "계측이 레이트 리미터 바깥에 있다. 20~30초는 브로커가 느린 게 아니라 리미터에서 기다린 것일 수 있다."
     },
     {
-      "id": 7,
-      "type": "timeseries",
-      "title": "API 요청률",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 16
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "reqps",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (handler) (rate(http_requests_total[$__rate_interval]))",
-          "legendFormat": "{{handler}}"
-        }
-      ],
-      "description": "handler=\"none\"은 라우트에 매칭되지 않은 요청(봇 스캔 등)을 한데 묶은 것이다."
-    },
-    {
-      "id": 8,
-      "type": "timeseries",
-      "title": "API p95 지연",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 16
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "s",
-          "min": 0,
-          "links": [
-            {
-              "title": "이 API의 느린 트레이스",
-              "url": "/d/judozoo-traces/?var-api=${__field.labels.handler}&${__url_time_range}"
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, sum by (handler, le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "{{handler}}"
-        }
-      ],
-      "description": "선을 누르면 **그 API의 느렸던 실제 요청**으로 넘어간다(트레이스 대시보드). 여기서는 느려진 사실까지만 보이고, 어디서 느렸는지는 스팬 트리에 있다."
-    },
-    {
-      "id": 9,
-      "type": "timeseries",
-      "title": "API 5xx",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 16
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "bars",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "reqps",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (handler) (rate(http_requests_total{status=\"5xx\"}[$__rate_interval]))",
-          "legendFormat": "{{handler}}"
-        }
-      ],
-      "description": "status 라벨은 5xx/4xx/2xx로 묶여 들어온다 — 원본 코드가 아니다."
-    },
-    {
-      "id": 10,
-      "type": "timeseries",
-      "title": "백엔드 프로세스 메모리 (RSS)",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 24
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "bytes",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "process_resident_memory_bytes{job=\"backend\"}",
-          "legendFormat": "backend"
-        }
-      ],
-      "description": "cadvisor가 이 호스트에서 도커 컨테이너를 못 보므로(containerd 이미지 스토어) 프로세스가 스스로 내는 값을 쓴다. 019 실측 backend 172MB와 비교한다."
-    },
-    {
-      "id": 11,
-      "type": "timeseries",
-      "title": "백엔드 프로세스 CPU",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 24
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "percentunit",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "rate(process_cpu_seconds_total{job=\"backend\"}[$__rate_interval])",
-          "legendFormat": "backend"
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "호스트 메모리 여유",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 32
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "bytes",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max by (host) (node_memory_MemAvailable_bytes)",
-          "legendFormat": "{{host}}"
-        }
-      ],
-      "description": "instance가 아니라 host로 묶는다 — 배포로 갈라진 과거 조각이 여러 줄로 보이지 않게."
-    },
-    {
-      "id": 13,
-      "type": "timeseries",
-      "title": "디스크 여유",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 32
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "bytes",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max by (mountpoint) (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"})",
-          "legendFormat": "{{mountpoint}}"
-        }
-      ],
-      "description": "부트디스크 20GB. Prometheus TSDB 상한 4GB와 Loki 7일치가 여기서 나눠 쓴다."
-    },
-    {
-      "id": 14,
-      "type": "timeseries",
-      "title": "스레드풀 점유",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 40
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2
-          },
-          "unit": "none",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "thread_pool_borrowed_threads",
-          "legendFormat": "사용 중"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "thread_pool_total_threads",
-          "legendFormat": "정원"
-        }
-      ],
-      "description": "sync 엔드포인트가 도는 자리다. 브로커 호출이 리미터에서 기다리는 동안에도 슬롯을 쥐고 있어서, CPU가 한가한 채로 이 값만 정원에 붙는 구간이 생긴다."
-    },
-    {
-      "id": 15,
-      "type": "timeseries",
-      "title": "스레드풀 대기 큐",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 40
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "unit": "none",
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "thread_pool_waiting_tasks",
-          "legendFormat": "대기 중"
-        }
-      ],
-      "description": "**0을 넘으면 그 순간 요청이 밀리고 있다.** 정원이 다 찼고 뒤에 줄이 섰다는 뜻이다. 점유율은 40/40에서 더 보여줄 게 없지만 이 값은 계속 자라므로, 포화의 깊이는 여기서만 보인다."
-    },
-    {
       "id": 16,
       "type": "timeseries",
       "title": "리미터 대기 p95",
@@ -814,9 +632,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
-        "y": 48
+        "y": 35
       },
       "fieldConfig": {
         "defaults": {
@@ -852,7 +670,7 @@
           "legendFormat": "{{limiter}}"
         }
       ],
-      "description": "브로커 p95에서 '상대가 느린 것'을 걷어낸 값 — 순수하게 우리 쪽에서 줄 선 시간이다. 이게 올라가면 스레드풀 포화의 원인이 리미터라는 뜻이고, 스레드풀을 늘려도 해결되지 않는다."
+      "description": "브로커 p95에서 '상대가 느린 것'을 걷어낸 값 — 순수하게 우리 쪽에서 줄 선 시간이다. 이게 올라가면 스레드를 늘려도 해결되지 않는다. 상한은 리미터다."
     },
     {
       "id": 17,
@@ -864,9 +682,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 48
+        "w": 8,
+        "x": 8,
+        "y": 35
       },
       "fieldConfig": {
         "defaults": {
@@ -921,78 +739,6 @@
       "description": "허가를 못 얻고 포기한 호출. **이 선이 뜨면 화면에 빈 칸이 뜬다** — 호출자가 예외를 받아 그 자리를 채우지 못한다. 평소 0이어야 정상이다."
     },
     {
-      "id": 18,
-      "type": "timeseries",
-      "title": "스레드가 지금 무엇을 하고 있나",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 56
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 40,
-            "lineWidth": 1,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            }
-          },
-          "unit": "none",
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(rate_limiter_waiting_threads)",
-          "legendFormat": "리미터에서 줄서는 중"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(http_client_in_flight_requests) - sum(rate_limiter_waiting_threads)",
-          "legendFormat": "브로커 응답 기다리는 중"
-        },
-        {
-          "refId": "C",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(thread_pool_borrowed_threads) - sum(http_client_in_flight_requests)",
-          "legendFormat": "그 외 (DB·계산)"
-        }
-      ],
-      "description": "점유된 스레드를 하는 일로 가른다. **맨 아래 칸이 두꺼우면 스레드를 늘려도 소용없다** — 정원이 아니라 리미터가 상한이기 때문이다. 위 두 칸이 두꺼우면 그때는 정원이 답이다. 스케줄러 잡은 anyio 풀 밖(APScheduler 자체 풀)에서 같은 리미터를 쓰므로 합이 정확히 맞지는 않는다 — 각 줄의 두께로 읽어야 한다."
-    },
-    {
       "id": 19,
       "type": "timeseries",
       "title": "리미터 대기 스레드 — 브로커별",
@@ -1002,9 +748,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 56
+        "w": 8,
+        "x": 16,
+        "y": 35
       },
       "fieldConfig": {
         "defaults": {
@@ -1041,6 +787,349 @@
         }
       ],
       "description": "어느 브로커가 줄을 만들고 있는지 가른다. KIS·키움 각각 초당 5건이라 한쪽만 두꺼우면 그 쪽 호출을 줄이거나 캐시 TTL을 늘리는 것이 직접적인 처방이다."
+    },
+    {
+      "id": 103,
+      "type": "row",
+      "title": "JVM · DB",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      }
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "GC 멈춤",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (action) (jvm_gc_pause_seconds_max{job=\"backend\"})",
+          "legendFormat": "{{action}}"
+        }
+      ],
+      "description": "가장 길었던 멈춤. 멈추는 동안 요청과 폴러가 함께 선다. 수백 ms가 자주 보이면 힙을 늘리거나 큰 캐시를 줄인다."
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "DB 커넥션",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(hikaricp_connections_active{job=\"backend\"})",
+          "legendFormat": "사용 중"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(hikaricp_connections_pending{job=\"backend\"})",
+          "legendFormat": "대기"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(hikaricp_connections_max{job=\"backend\"})",
+          "legendFormat": "정원"
+        }
+      ],
+      "description": "폴러와 요청이 같은 풀을 나눠 쓴다. 대기가 0이 아니면 커넥션을 기다리는 스레드가 있다는 뜻이다."
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "락에 막힌 스레드",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "jvm_threads_states_threads{job=\"backend\", state=\"blocked\"}",
+          "legendFormat": "blocked"
+        }
+      ],
+      "description": "`synchronized`에서 다른 스레드를 기다리는 스레드 수. 탐지기·캐시·토큰이 락을 쓴다. 계속 0이 아니면 락 경합이다."
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "백엔드 프로세스 CPU",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 44
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(process_cpu_time_ns_total{job=\"backend\"}[$__rate_interval]) / 1e9",
+          "legendFormat": "backend"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "row",
+      "title": "호스트",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "호스트 메모리 여유",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 53
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (host) (node_memory_MemAvailable_bytes)",
+          "legendFormat": "{{host}}"
+        }
+      ],
+      "description": "instance가 아니라 host로 묶는다 — 배포로 갈라진 과거 조각이 여러 줄로 보이지 않게."
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "디스크 여유",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          },
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (mountpoint) (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"})",
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "description": "부트디스크 20GB. Prometheus TSDB 상한 4GB와 Loki 7일치가 여기서 나눠 쓴다."
     }
   ]
 }

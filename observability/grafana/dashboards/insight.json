@@ -902,8 +902,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (job_id, le) (rate(scheduler_job_duration_seconds_bucket{job_id=~\"insight-reason-.*\"}[$__rate_interval])))",
-          "legendFormat": "{{job_id}}"
+          "expr": "label_replace(histogram_quantile(0.95, sum by (code_namespace, code_function, le) (rate(tasks_scheduled_execution_seconds_bucket{job=\"backend\", code_namespace=~\".*InsightScheduler\"}[$__rate_interval]))), \"job\", \"$1\", \"code_namespace\", \".*\\\\.([^.]+)\")",
+          "legendFormat": "{{code_function}}"
         }
       ],
       "description": "매분 실행 한 번이 걸린 시간. 종목은 동시에 5개까지 만들어서, 가장 느린 종목 하나만큼 걸리는 게 정상이다. 1분을 넘기면 다음 분 실행이 건너뛰어진다."

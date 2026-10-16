@@ -22,6 +22,8 @@ server:
   port: 8001
   tomcat:
     use-relative-redirects: true
+    mbeanregistry:
+      enabled: true
 
 judozoo:
   session-secret: ${SESSION_SECRET:dev-only-insecure}
@@ -45,6 +47,11 @@ judozoo:
     daily-limit: ${VERTEX_DAILY_LIMIT:150}
 
 management:
+  metrics:
+    distribution:
+      slo:
+        "[http.server.requests]": 100ms,250ms,500ms,1s,2s,5s,10s,30s
+        "[tasks.scheduled.execution]": 100ms,1s,5s,10s,30s,60s,120s
   endpoints:
     web:
       exposure:
