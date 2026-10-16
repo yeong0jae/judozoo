@@ -27,12 +27,12 @@ class StockInvestorService(private val kiwoom: KiwoomInvestor) {
         val breakdown: OrgBreakdown,
     )
 
-    private val cache = TtlCache<String, List<InvestorDay>>("stockInvestorDaily", Duration.ofSeconds(60), maxSize = 100, skipIf = { it.isEmpty() })
+    private val cache = TtlCache<Pair<String, Int>, List<InvestorDay>>("stockInvestorDaily", Duration.ofSeconds(60), maxSize = 100, skipIf = { it.isEmpty() })
 
     fun investorDailyHistory(stockCode: String, count: Int): List<InvestorDay> =
-        cache.get("$stockCode:$count") {
+        cache.get(stockCode to count) {
             kiwoom.fetchInvestorTrend(stockCode).take(count).mapNotNull { day ->
-                val date = runCatching { LocalDate.parse(day.date) }.getOrNull() ?: return@mapNotNull null
+                val date = day.date ?: return@mapNotNull null
                 InvestorDay(
                     date = date,
                     individualMillion = day.individualNet,

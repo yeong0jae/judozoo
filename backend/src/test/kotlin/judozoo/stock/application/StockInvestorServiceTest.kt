@@ -16,7 +16,7 @@ class StockInvestorServiceTest {
     private val service = StockInvestorService(kiwoom)
 
     private val day = InvestorTrendDay(
-        date = "2026-09-11", individualNet = 1200, foreignNet = -800, institutionNet = -400,
+        date = LocalDate.of(2026, 9, 11), individualNet = 1200, foreignNet = -800, institutionNet = -400,
         financialInvestmentNet = 100, insuranceNet = -50, trustNet = 200, privateEquityNet = -20, pensionFundNet = 150, bankNet = -10,
     )
 
@@ -35,7 +35,7 @@ class StockInvestorServiceTest {
 
         @Test
         fun `날짜 형식이 어긋난 행은 버린다`() {
-            every { kiwoom.fetchInvestorTrend("005930") } returns listOf(day.copy(date = ""))
+            every { kiwoom.fetchInvestorTrend("005930") } returns listOf(day.copy(date = null))
 
             service.investorDailyHistory("005930", 5).shouldBeEmpty()
         }

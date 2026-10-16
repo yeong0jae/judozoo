@@ -32,7 +32,7 @@ class KiwoomInvestor(private val client: KiwoomClient, private val clock: Clock)
     private fun toDay(item: JsonNode): InvestorTrendDay {
         fun signed(field: String) = item[field]?.asString().toSignedLong()
         return InvestorTrendDay(
-            date = toIsoDate(item["dt"]?.asString()),
+            date = parseDate(item["dt"]?.asString()),
             individualNet = signed("ind_invsr"),
             foreignNet = signed("frgnr_invsr"),
             institutionNet = signed("orgn"),
@@ -50,9 +50,7 @@ class KiwoomInvestor(private val client: KiwoomClient, private val clock: Clock)
     companion object {
         private const val STOCK_INFO_URL = "/api/dostk/stkinfo"
 
-        private fun toIsoDate(value: String?): String {
-            val s = value?.trim().orEmpty()
-            return if (s.length == 8) "${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}" else ""
-        }
+        private fun parseDate(value: String?): LocalDate? =
+            value?.trim()?.takeIf { it.length == 8 }?.let { runCatching { LocalDate.parse(it, DateTimeFormatter.BASIC_ISO_DATE) }.getOrNull() }
     }
 }

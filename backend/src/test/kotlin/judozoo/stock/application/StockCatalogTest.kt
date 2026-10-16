@@ -56,7 +56,7 @@ class StockCatalogTest @Autowired constructor(
 
             catalog.reload()
 
-            catalog.sizes() shouldBe (2 to 1)
+            catalog.sizes() shouldBe StockCatalog.Sizes(2, 1)
             catalog.search("삼성").single().stockCode shouldBe "005930"
             catalog.search("애플").single().exchange shouldBe "NAS"
         }
@@ -74,7 +74,7 @@ class StockCatalogTest @Autowired constructor(
         fun `비어 있으면 빈 카탈로그로 남는다`() {
             catalog.reload()
 
-            catalog.sizes() shouldBe (0 to 0)
+            catalog.sizes() shouldBe StockCatalog.Sizes(0, 0)
             catalog.search("삼성").shouldBeEmpty()
         }
     }
@@ -106,7 +106,7 @@ class StockCatalogTest @Autowired constructor(
 
             catalog.refresh(today)
 
-            catalog.sizes() shouldBe (1 to 1)
+            catalog.sizes() shouldBe StockCatalog.Sizes(1, 1)
             catalog.search("삼성")[0].stockCode shouldBe "005930"
             verify(exactly = 0) { master.fetchDomestic(any()) }
             verify(exactly = 0) { master.fetchOverseas(any()) }
@@ -121,7 +121,7 @@ class StockCatalogTest @Autowired constructor(
             catalog.refresh(today)
 
             jdbc.queryForList("SELECT short_code FROM stocks", String::class.java) shouldBe listOf("005930")
-            catalog.sizes() shouldBe (1 to 1)
+            catalog.sizes() shouldBe StockCatalog.Sizes(1, 1)
         }
 
         @Test
@@ -132,7 +132,7 @@ class StockCatalogTest @Autowired constructor(
 
             catalog.refresh(today)
 
-            catalog.sizes().first shouldBe 1
+            catalog.sizes().domestic shouldBe 1
             catalog.search("삼성")[0].stockName shouldBe "삼성전자"
         }
 
@@ -143,7 +143,7 @@ class StockCatalogTest @Autowired constructor(
 
             catalog.refresh(today)
 
-            catalog.sizes() shouldBe (0 to 0)
+            catalog.sizes() shouldBe StockCatalog.Sizes(0, 0)
             catalog.search("삼성").shouldBeEmpty()
         }
     }

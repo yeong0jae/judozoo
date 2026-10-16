@@ -1,7 +1,9 @@
 package judozoo.platform.kiwoom
 
+import java.time.LocalDate
+
 data class InvestorTrendDay(
-    val date: String,
+    val date: LocalDate?,
     val individualNet: Long,
     val foreignNet: Long,
     val institutionNet: Long,

@@ -80,7 +80,9 @@ class StockCatalog(
 
     fun marketOf(stockCode: String): Market? = domestic.find(stockCode)?.market
 
-    fun sizes(): Pair<Int, Int> = domestic.size to overseas.size
+    data class Sizes(val domestic: Int, val overseas: Int)
+
+    fun sizes(): Sizes = Sizes(domestic.size, overseas.size)
 
     companion object {
         const val SEARCH_LIMIT = 20

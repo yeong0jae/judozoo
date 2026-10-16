@@ -5,6 +5,7 @@ import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.LocalDate
 
 class KiwoomInvestorTest {
     private val stub = KiwoomStub()
@@ -26,7 +27,7 @@ class KiwoomInvestorTest {
 
             val day = investor.fetchInvestorTrend("005930")[0]
 
-            day.date shouldBe "2026-09-11"
+            day.date shouldBe LocalDate.of(2026, 9, 11)
             day.individualNet shouldBe 1200
             day.foreignNet shouldBe -800
             day.institutionNet shouldBe -400
@@ -50,7 +51,7 @@ class KiwoomInvestorTest {
         fun `날짜 형식이 어긋나면 빈 문자열`() {
             stub.respond(URL, """{"return_code":0,"stk_invsr_orgn":[{"dt":"2026"}]}""")
 
-            investor.fetchInvestorTrend("005930")[0].date shouldBe ""
+            investor.fetchInvestorTrend("005930")[0].date shouldBe null
         }
 
         @Test
