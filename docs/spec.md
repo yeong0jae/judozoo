@@ -13,27 +13,29 @@ Frontend (TypeScript + React + Vite + Tailwind)
   - 조회 화면 7개 + 약관 2개, TanStack Query 폴링
   - 실시간 푸시 없음 — 화면별 refetchInterval
 
-Backend (Python + FastAPI, package by feature)
+Backend (Kotlin + Spring Boot, package by feature)
   - leadingstock         : 국내 후보 풀·필터 체인·첫 화면 주도주·눌림/돌파·종목/시장 시그널
   - overseasleadingstock : 미국 3개 거래소 후보 풀·주도주·종목 상세
   - leadertimeline       : 첫 화면 주도주 1분 스냅샷
   - leadercalendar       : 첫 화면 주도주 마감 스냅샷
   - market               : 지수·선물·매크로·투자자 수급·휴장 캘린더
   - stock                : 종목 마스터 카탈로그·검색·종목 수급
+  - insight              : 왜 오르나 — Vertex(Gemini) 검색 근거로 상승 사유
+  - closingbet           : 종가베팅 모의 게임
   - auth                 : 구글 OAuth·세션·공개 허용목록
   - feedback             : 의견 접수
-  - platform/{kis,kiwoom,toss,yahoo} : 외부 API 어댑터
-  - library              : 캐시·DB·레이트리미터·토큰 저장소·스케줄러·로깅·메트릭·트레이스
+  - platform/{kis,kiwoom,toss,yahoo,vertex,google} : 외부 API 어댑터
+  - library              : 캐시·레이트리미터·토큰 저장소·스케줄링·JSON 로그·웹 공통
 
   계층: presentation → application → domain ← infrastructure
-  계층은 디렉터리가 아니라 모듈 파일(application.py 등)이다
+  계층은 패키지(디렉터리)이고, 파일 하나에 최상위 클래스 하나다
 ```
 
 ### 1.2 설계 원칙
 
 - **Package by feature** — 피처 간 호출은 `application` 계층끼리만. 값 객체 타입 참조는 허용하되 도메인 객체에 메시지를 보내지 않는다 (`.claude/rules/architecture.md`)
-- **도메인에 외부 의존 없음** — `domain`에서 FastAPI·HTTP·시간·난수를 직접 쓰지 않고 파라미터로 받는다
-- **SQLAlchemy 모델 = 도메인 엔티티** — 별도 도메인 모델 클래스를 두지 않는다
+- **도메인에 외부 의존 없음** — `domain`에서 Spring·HTTP 클라이언트·`EntityManager`·현재 시각·난수를 직접 쓰지 않고 파라미터로 받는다
+- **JPA 엔티티 = 도메인 엔티티** — 별도 도메인 모델 클래스를 두지 않는다. 엔티티는 public setter 없이 메서드로 상태를 바꾼다
 - **주도주의 정의는 한 곳** — `LeadingStocks.leaders` / `OverseasStockRanks.leaders`. 타임라인·캘린더는 그 답을 기록할 뿐 기준을 새로 만들지 않는다
 - **브로커 분기 없음** — 4개 소스를 한 인스턴스가 모두 호출한다. `if broker == ...` 분기를 두지 않는다
 - **조회 전용** — 쓰기는 스냅샷·이벤트 적재, 가입자 기록, 의견 접수뿐. 사용자가 공용 데이터를 바꾸는 경로는 없다
@@ -42,9 +44,7 @@ Backend (Python + FastAPI, package by feature)
 
 ## 2. 기술 스택
 
-**Backend**: Python 3.13 / FastAPI / SQLAlchemy 2.0 + PyMySQL / MySQL 8 (Cloud SQL) / `httpx` / `cachetools` / APScheduler / authlib / prometheus-fastapi-instrumentator / OpenTelemetry / pytest + respx + Testcontainers / uv
-
-**Backend (전환 중, [028](tasks/028-코틀린-스프링-전환.md))**: Kotlin / Spring Boot (MVC) / Spring Data JPA / Micrometer / OpenTelemetry / JUnit 5 + Kotest + MockK + WireMock + Testcontainers / Gradle. 공존하는 동안 nginx가 경로별로 나눈다
+**Backend**: Kotlin / Spring Boot 4 (MVC, `RestClient`) / Spring Data JPA + Flyway / MySQL 8 (Cloud SQL) / Micrometer + OpenTelemetry / JUnit 5 + Kotest + MockK + WireMock + Testcontainers / Gradle. Python(FastAPI)에서 [028](tasks/028-코틀린-스프링-전환.md)로 옮겼다
 
 **Frontend**: TypeScript + React 18 + Vite / TanStack Query / React Router / Tailwind CSS 4 / React Hook Form + Zod / lightweight-charts / motion / NumberFlow / Pretendard·Outfit·JetBrains Mono
 
@@ -73,24 +73,24 @@ Backend (Python + FastAPI, package by feature)
 
 ### 3.2 Rate Limit
 
-브로커별 한도를 **공유 토큰 버킷 하나**로 통제한다 (`library/rate_limiter.py`). 폴러·상세조회·화면 요청이 각자 리미터를 가지면 합산이 한도를 넘는다.
+브로커별 한도를 **공유 토큰 버킷 하나**로 통제한다 (`library/RateLimiter.kt`). 폴러·상세조회·화면 요청이 각자 리미터를 가지면 합산이 한도를 넘는다.
 
 - 브로커 한도: 키움 초당 5건(**09:00~10:00은 3건**), KIS 초당 18건, 토스는 API 그룹별 — 종목 캔들 `MARKET_DATA_CHART` 20건, 지수 캔들 `MARKET_INDICATOR_CHART` 5건, 장 운영 캘린더 `MARKET_INFO` 3건, 투자자별 매매대금 `MARKET_INDICATOR` 10건(안 씀), `MARKET_DATA` 15건(해당 API 안 씀)
-- 키움 조회: 초당 5건, 09:00~10:00 초당 3건 (`KIWOOM_QUERY_PERMITS_PER_SECOND`, `KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND`). 피크타임은 장 시작 직후라 분봉 캐시를 처음 채우는 때와 겹친다
-- KIS 조회: 초당 15건 (`KIS_QUERY_PERMITS_PER_SECOND`). 한도 18건에서 3건 여유
-- 토스 종목 캔들: 초당 16건 (`TOSS_CHART_PERMITS_PER_SECOND`). 한도 20건에서 4건 여유
-- 토스 지수 캔들: 초당 4건 (`TOSS_INDICATOR_CHART_PERMITS_PER_SECOND`). 1분봉 차트 한 번이 200봉 페이지를 최대 6번 연달아 받아, 리미터 없이는 요청 하나가 한도를 넘는다. 결과는 30초 캐시
+- 키움 조회: 초당 5건, 09:00~10:00 초당 3건 (`JUDOZOO_KIWOOM_QUERY_PERMITS_PER_SECOND`, `JUDOZOO_KIWOOM_PEAK_QUERY_PERMITS_PER_SECOND`). 피크타임은 장 시작 직후라 분봉 캐시를 처음 채우는 때와 겹친다
+- KIS 조회: 초당 15건 (`JUDOZOO_KIS_QUERY_PERMITS_PER_SECOND`). 한도 18건에서 3건 여유
+- 토스 종목 캔들: 초당 16건 (`JUDOZOO_TOSS_CHART_PERMITS_PER_SECOND`). 한도 20건에서 4건 여유
+- 토스 지수 캔들: 초당 4건 (`JUDOZOO_TOSS_INDICATOR_CHART_PERMITS_PER_SECOND`). 1분봉 차트 한 번이 200봉 페이지를 최대 6번 연달아 받아, 리미터 없이는 요청 하나가 한도를 넘는다. 결과는 30초 캐시
 - 토스 장 운영 캘린더: 리미터 없음. 지역별 하루 한 번이고, 몰려도 한 번만 묻는다(잠금). 실패한 폴백은 5분 뒤 다시 묻는다
 - 1초에 몰아 충전하지 않고 균등 발급한다
 - 한도에 닿으면 **거부가 아니라 대기**, timeout 키움 20초 · KIS 30초
 
 ### 3.3 캐시
 
-`library/cache.py`의 `@ttl_cache` — 인프로세스 TTL 캐시. **방문자 수와 브로커 호출 수를 분리하는 장치**다.
+`library/TtlCache.kt`의 `TtlCache` — 인프로세스 TTL 캐시. **방문자 수와 브로커 호출 수를 분리하는 장치**다.
 
 - **single-flight** — 만료 순간 동시에 미스난 요청은 브로커를 한 번만 부르고 결과를 나눠 받는다
-- **`skip_if`** — 빈 응답은 캐싱하지 않는다. 키움 거래대금 상위가 빈 리스트로 캐싱되면 TTL 동안 빈 화면이 된다
-- **`fn.refresh()`** — 폴러가 만료 전에 미리 갈아 끼운다. 실패하면 기존 값을 건드리지 않는다
+- **`skipIf`** — 빈 응답은 캐싱하지 않는다. 키움 거래대금 상위가 빈 리스트로 캐싱되면 TTL 동안 빈 화면이 된다
+- **`refresh()`** — 폴러가 만료 전에 미리 갈아 끼운다. 실패하면 기존 값을 건드리지 않는다
 - **가변 TTL** — 후보 풀은 장중 15초, 장이 멈춘 동안은 다음 장 시작까지 들고 있는다
 
 ### 3.4 알려진 응답 함정
@@ -106,7 +106,7 @@ Backend (Python + FastAPI, package by feature)
 | 토스 캔들 시각·빈 봉 | 시각이 봉 **끝**이라 1분 당겨 키움(봉 시작)과 맞춘다. 체결 없는 분도 거래량 0 봉으로 채워 오므로 버린다. 맞추면 키움 ka10080과 같은 봉이다(2026-09-23 실측 692봉 일치) |
 | 토스 심볼 | `_`를 못 쓴다. 랭킹 코드의 `_AL`을 떼고 부른다 |
 | KIS 해외분봉 `KEYB` | 다음조회 키가 **현지시각** 기준. -1분씩 내려 페이징 |
-| KIS 해외분봉 이어 받기 | 한 번에 120봉이라 2거래일이 12페이지 안팎이다. 종목별로 들고 있다가 새 봉만 받는다(`overseasleadingstock/minutes.py`). 날은 **현지 영업일(tymd)**로 가른다. 한도 초과는 HTTP 500 + `EGW00201`로 온다 — 1초 쉬고 한 번 더 부르고, 뒷페이지가 끊기면 받은 데까지만 보여 준다. 끝난 날은 `overseas_minute_candle`에 넘겨, 처음 열 때 보관한 날 뒤 봉만 받는다. 같은 종목을 동시에 받으려는 화면 요청은 하나로 합친다(`library/singleflight.py`, 국내 당일 분봉도 같다) |
+| KIS 해외분봉 이어 받기 | 한 번에 120봉이라 2거래일이 12페이지 안팎이다. 종목별로 들고 있다가 새 봉만 받는다(`overseasleadingstock/application/OverseasMinutes.kt`). 날은 **현지 영업일(tymd)**로 가른다. 한도 초과는 HTTP 500 + `EGW00201`로 온다 — 1초 쉬고 한 번 더 부르고, 뒷페이지가 끊기면 받은 데까지만 보여 준다. 끝난 날은 `overseas_minute_candle`에 넘겨, 처음 열 때 보관한 날 뒤 봉만 받는다. 같은 종목을 동시에 받으려는 화면 요청은 하나로 합친다(`library/SingleFlight.kt`, 국내 당일 분봉도 같다) |
 | KIS 해외 순위 | ETF 구분 필드가 없다. 발행사 브랜드 키워드로 판별한다 |
 
 ---
@@ -166,14 +166,11 @@ Backend (Python + FastAPI, package by feature)
 
 ### 4.6 스키마 관리
 
-- 스키마는 **Alembic**이 관리한다 (`backend/alembic.ini`, `backend/migrations/versions/`). 앱은 기동할 때 DDL을 만들지 않는다
-- 바꾸는 순서: 모델 수정 → `uv run alembic revision --autogenerate -m "..."` → 생성된 파일 검토 → 커밋
-  - autogenerate는 초안이다. **이름 변경을 DROP + ADD로 만든다** — 그대로 두면 데이터가 사라진다. 데이터 이관도 만들지 않는다
-  - 모델에 없는 DB 테이블은 비교에서 뺀다(`env.py`의 `include_object`). 테이블을 지울 때는 손으로 쓴다
-- 적용은 배포가 한다. `remote_deploy.sh`가 컨테이너를 바꾸기 **직전에** 새 이미지로 `alembic upgrade head`를 돌린다. 실패하면 배포가 멈추고 옛 컨테이너가 그대로 돈다
-- 그 순간에도 옛 코드가 돌고 있으므로 **새 열은 NULL 허용으로 먼저 더한다**(expand). NOT NULL·DROP은 옛 코드가 사라진 다음 배포에서 한다(contract)
-- 첫 마이그레이션(기준선)은 이미 있는 테이블을 건너뛴다. 도입 전 운영 DB(Kotlin JPA, 기동 시 `checkfirst`, 옛 `V001~V010` 수동 SQL)에 기록만 남기기 위해서다. 되돌리기는 막아 두었다
-- `tests/migrations`가 빈 DB에 최신까지 올린 뒤 `alembic check`로 모델과 어긋나지 않는지 본다
+- 스키마는 **Flyway**가 관리한다 (`backend/src/main/resources/db/migration`). 백엔드가 기동하면서 맞춘다. JPA는 `ddl-auto=validate`로 맞는지 보기만 한다
+- `V1__baseline.sql`은 Alembic이 남긴 스키마 그대로다. **고치지 않는다** — 체크섬이 바뀌면 운영 기동이 실패한다. 바꿀 때는 `V2__...`부터 새 파일을 더한다. 운영 DB는 `baseline-on-migrate`로 V1 기준선만 찍었다
+- 마이그레이션이 실패하면 새 컨테이너가 뜨지 않아 배포 헬스체크에서 멈춘다
+- 그 순간에도 옛 컨테이너가 돌고 있으므로 **새 열은 NULL 허용으로 먼저 더한다**(expand). NOT NULL·DROP은 옛 코드가 사라진 다음 배포에서 한다(contract)
+- 통합 테스트(`@IntegrationTest`)가 빈 MySQL에 Flyway로 스키마를 만들고 Hibernate가 엔티티와 대조한다 — 매핑이 어긋나면 테스트가 깨진다
 
 ---
 
@@ -187,17 +184,16 @@ Backend (Python + FastAPI, package by feature)
 
 ### 5.2 필터 체인
 
-`leadingstock/filters.py`의 `StockFilter` 구현을 `FilterChain`으로 묶는다. 각 필터는 `FilterEvaluationResult`로 **통과 여부와 실제 값**을 돌려준다.
+`leadingstock/domain/StockFilter.kt`의 sealed class `StockFilter`를 목록으로 묶는다. 각 필터는 `FilterResult`로 **통과 여부와 실제 값**을 돌려준다.
 
 | 용도 | 필터 |
 |------|------|
-| 후보 목록 (`find_candidate_stocks`) | ETF/ETN 제외 → 스팩 제외 → 거래대금순위 → 당일등락률 |
-| 종목 상세 (`evaluate_stock`) | 거래대금순위 · 당일등락률 · 최근 고가 대비 · 시가 대비 · 전일 등락률 · 시초가 · 시가총액 · 프로그램 양매수 |
+| 후보 목록 (`findCandidates`) | ETF/ETN 제외 → 스팩 제외 → 거래대금순위 → 당일등락률 |
+| 종목 상세 (`evaluate`) | 거래대금순위 · 당일등락률 · 최근 고가 대비 · 시가 대비 · 전일 등락률 · 시초가 · 시가총액 · 프로그램 양매수 |
 
 - 상세의 나열 순서가 곧 화면 표시 순서다. 판별력이 큰 것부터 둔다
-- 기준값은 `LeadingStockCriteria`(`LEADING_STOCK_CRITERIA_*`)로 주입한다. 도메인에 상수를 박지 않는다
+- 기준값은 `LeadingStockCriteria`가 들고 필터에 넘긴다. 필터 안에 상수를 박지 않는다
 - 상세의 일봉 필터 셋은 일봉 1회 조회를 공유한다
-- `MinuteCandleVolumeFilter`·`MinuteCandleFluctuationFilter`는 정의만 있고 어느 체인에도 들어가 있지 않다
 
 ### 5.3 첫 화면 주도주와 상한가
 
@@ -213,9 +209,9 @@ Backend (Python + FastAPI, package by feature)
 
 ## 6. 시그널 판정
 
-- 판정 규칙은 순수 도메인이다 (`signals.py`의 `SignalState.advance`, `InvestorFlowState` 등)
+- 판정 규칙은 순수 도메인이다 (`leadingstock/domain`의 `SignalState.advance`, `InvestorFlowState` 등)
 - **직전 상태는 메모리에 둔다.** 일자가 바뀌면 버린다. 예외는 순매수 흐름 정점으로, `market_flow_state`에 남겨 재시작 후 복원한다
-- 종목 시그널 감시 풀은 등락률 -12% 이상(`LEADING_STOCK_SIGNAL_EVENT_MIN_CHANGE_RATE`)
+- 종목 시그널 감시 풀은 등락률 -12% 이상(`LeadingStockService.WATCH_MIN_CHANGE_RATE`)
 - 쿨다운 — 같은 종목·같은 타입은 `cooldown_minutes`(기본 3분) 동안 재적재하지 않는다
 - `NET_BUY_LEVEL`은 같은 날 같은 (시장·투자자·방향·단계)를 DB로 확인해 재시작 후에도 다시 울리지 않는다
 
@@ -223,7 +219,7 @@ Backend (Python + FastAPI, package by feature)
 
 ## 7. 스케줄러
 
-APScheduler `BackgroundScheduler`, 시각 기준 KST 고정(해외 잡은 `America/New_York`). `SCHEDULERS_ENABLED=false`면 아무 잡도 띄우지 않는다(테스트·로컬).
+Spring `@Scheduled`, 스레드 8개(`spring.task.scheduling.pool.size`). cron은 KST 기준(해외 잡은 `America/New_York`). 한 잡은 겹쳐 돌지 않는다 — 앞 실행이 끝나야 다음 차례를 잡는다. `judozoo.scheduling.enabled=false`면 아무 잡도 띄우지 않는다(통합 테스트).
 
 ### 7.1 폴러
 
@@ -262,9 +258,9 @@ APScheduler `BackgroundScheduler`, 시각 기준 KST 고정(해외 잡은 `Ameri
 
 ### 8.1 인증 관문
 
-`/api`는 **기본 차단**이다 (`main._require_login` 미들웨어 + `auth/gate.py` 허용목록). 엔드포인트마다 의존성을 붙이면 새로 추가할 때 빠뜨린 쪽이 열린 채 남는다. 여기서는 빠뜨리면 막히므로 사고가 노출이 아니라 불편으로 끝난다.
+`/api`는 **기본 차단**이다 (`LoginGateFilter` + `auth/presentation/Gate.kt` 허용목록). 엔드포인트마다 의존성을 붙이면 새로 추가할 때 빠뜨린 쪽이 열린 채 남는다. 여기서는 빠뜨리면 막히므로 사고가 노출이 아니라 불편으로 끝난다.
 
-미리보기처럼 **일부만 여는 경로는 엔드포인트가 직접 잘라** 내려보낸다. 화면에서 자르면 나머지가 이미 브라우저에 도착해 개발자도구로 읽힌다. `total_count`는 자르기 전 수를 줘서 받는 쪽이 잘렸는지 안다.
+미리보기처럼 **일부만 여는 경로는 엔드포인트가 직접 잘라** 내려보낸다. 화면에서 자르면 나머지가 이미 브라우저에 도착해 개발자도구로 읽힌다. `totalCount`는 자르기 전 수를 줘서 받는 쪽이 잘렸는지 안다.
 
 ### 8.2 엔드포인트
 
@@ -318,14 +314,14 @@ POST /api/auth/withdraw                          # 탈퇴 — 가입 기록과 �
 POST /api/feedback                                       # 500자
 ```
 
-`/health`(이벤트 루프에서 바로 응답), `/health/db`, `/metrics`는 `/api` 밖이다. **`/metrics`를 지키는 것은 인증이 아니라 라우팅이다** — nginx는 `/api/`만 백엔드로 넘긴다. nginx에 `/metrics`를 추가하면 인터넷에 열린다.
+`/actuator/health`(DB 포함), `/actuator/prometheus`는 `/api` 밖이다. **`/actuator`를 지키는 것은 인증이 아니라 라우팅이다** — nginx는 `/api/`만 백엔드로 넘긴다. nginx에 `/actuator`를 추가하면 인터넷에 열린다.
 
 ---
 
 ## 9. 인증
 
-- 구글 OAuth Authorization Code (authlib). client secret이 브라우저로 나가지 않는다
-- 세션은 **서명 쿠키** (Starlette `SessionMiddleware`, `judozoo_session`, `https_only`, `SameSite=Lax`). 프론트와 API가 같은 오리진이라 JWT의 이점이 없고 로그아웃만 어려워진다
+- 구글 OAuth Authorization Code (`platform/google/GoogleOAuth.kt`). client secret이 브라우저로 나가지 않는다. ID 토큰의 발급자·대상·만료·nonce를 확인한다
+- 세션은 **서명 쿠키** (`judozoo_session`, `Secure`, `HttpOnly`, `SameSite=Lax`). Python 시절 Starlette 서명 형식을 그대로 쓴다(`library/StarletteSession.kt`) — 옮길 때 아무도 다시 로그인하지 않게. 프론트와 API가 같은 오리진이라 JWT의 이점이 없고 로그아웃만 어려워진다
 - `SESSION_SECRET`이 바뀌면 기존 세션이 전부 끊긴다(데이터는 무사)
 - 구글 설정이 비어 있으면 로그인 라우트가 503을 준다. 로컬에서 안 채워도 나머지는 돈다
 - 가입·의견 알림은 백엔드가 보내지 않는다. Grafana가 테이블을 보고 Slack으로 보낸다. 앱이 웹훅을 들면 시크릿이 늘고, 전송 실패가 사용자 요청의 실패가 된다
@@ -365,30 +361,30 @@ POST /api/feedback                                       # 500자
 
 | 축 | 경로 |
 |----|------|
-| 로그 | 운영은 JSON 한 줄(`LOG_FORMAT=json`), 로컬은 평문. 요청마다 사용자 id·메서드·경로·trace id를 싣는다. alloy → Loki |
-| 메트릭 | HTTP는 Instrumentator, 그 밖에 스케줄러 잡·외부 HTTP 호출·스레드풀·리미터 대기 (`library/metrics.py`). Prometheus가 스크레이프 |
-| 트레이스 | OpenTelemetry — FastAPI·httpx·SQLAlchemy 자동 계측 + 스케줄러 잡 경계 스팬. alloy(OTLP) → Tempo. `OTLP_ENDPOINT`가 비면 꺼진다 |
+| 로그 | 운영은 JSON 한 줄(`prod` 프로필의 `JsonLogFormatter`), 로컬은 평문. 요청마다 사용자 id·메서드·경로·trace id를 MDC로 싣는다. alloy → Loki |
+| 메트릭 | Micrometer `/actuator/prometheus`. Spring이 내는 HTTP 요청·`@Scheduled` 잡·JVM·HikariCP·Tomcat·logback에 더해 직접 세는 잡 실패(`JobFailures`)·외부 HTTP 호출(`MeteredInterceptor`)·리미터 대기·LLM 사용량. alloy가 30초마다 긁어 ops Prometheus로 보낸다 |
+| 트레이스 | Micrometer Tracing + OpenTelemetry — HTTP 요청·`@Scheduled` 잡·외부 HTTP 호출이 스팬이 된다(클라이언트는 Spring이 주는 `RestClient.Builder`를 복제해 만든다 — 직접 `RestClient.builder()`로 만들면 관측이 안 붙는다). alloy(OTLP) → Tempo. 운영 compose가 `MANAGEMENT_TRACING_EXPORT_ENABLED`로 켜고, 기본은 꺼져 있다 |
 
-- `/health`, `/metrics`는 메트릭·트레이스에서 뺀다. 헬스체크와 5초 폴링에 뒤덮이지 않게
-- 잡이 스스로 삼킨 예외는 APScheduler에 성공으로 보이므로 실패 카운터를 직접 올린다
+- `/actuator`는 메트릭·트레이스에서 빠진다(Spring Boot 기본값). 헬스체크와 30초 스크레이프에 뒤덮이지 않게
+- 폴러는 예외를 잡아 로그로 남기고 정상 리턴한다. 스케줄러에는 성공으로 보이므로 `JobFailures.record(jobId)`로 실패를 직접 센다
+- 지연 p95는 SLO 버킷 몇 개(`management.metrics.distribution.slo`)로 그린다. 전체 히스토그램은 시계열당 버킷이 69개라 쓰지 않는다
 - 관측 스택(Loki·Prometheus·Tempo·Grafana)은 **ops VM**에 있다. 앱 VM이 죽어도 로그가 남고, 배포가 관측을 흔들지 않는다
 
 ---
 
 ## 12. 테스트 전략
 
-`.claude/rules/testing.md`를 따른다. pytest, `class Test<이름>` + `def test_<설명>`, 이름은 **한글**로 시나리오와 의미를 쓴다. `tests/`는 `src/backend/`와 1:1로 대응한다.
+`.claude/rules/testing.md`를 따른다. JUnit 5 + Kotest 단언 + MockK. 파일의 테스트 클래스 안에 `@Nested inner class <이름>`으로 묶고
+`` @Test fun `<설명>`() ``로 쓰며, 이름은 **한글**로 시나리오와 의미를 쓴다. `src/test/kotlin/judozoo`는 `src/main/kotlin/judozoo`와 1:1로 대응한다.
 
 | 계층 | 방식 |
 |------|------|
-| Domain | 모킹·DB 없이 실제 객체로. 필터 경계 조건, 시그널 상태 전이, 주도주 점수 |
-| Platform / Infrastructure | respx로 외부 응답 시뮬레이션 — 성공·실패·타임아웃·이상 페이로드. 브로커 응답 함정이 여기 |
-| Application | `통합_db` fixture (Testcontainers MySQL) + `@pytest.mark.integration`. 외부 API만 `pytest-mock`으로 격리 |
-| Presentation | `client` fixture(TestClient) + application 모킹 — 라우트·공개/미리보기 경계·응답 형태 |
+| Domain | 모킹·DB·Spring 없이 실제 객체로. 필터 경계 조건, 시그널 상태 전이, 주도주 점수 |
+| Platform / Infrastructure | WireMock(`SharedWireMock`)으로 외부 응답 시뮬레이션 — 성공·실패·타임아웃·이상 페이로드. 브로커 응답 함정이 여기 |
+| Application | `@IntegrationTest` (Testcontainers MySQL, 스키마는 Flyway, 스케줄링 꺼짐). 외부 API만 MockK로 격리. 시각은 움직이는 `Clock`을 주입한다 |
+| Presentation | `@WebMvcTest` + `MockMvc` + application `@MockkBean` — 라우트·공개/미리보기 경계·응답 형태(`JsonCompareMode.STRICT`). `LoggedIn`이 서명된 쿠키를 준다 |
 
-Docker가 없으면 `uv run pytest -m "not integration"`.
-
-Kotlin 쪽(`backend-kotlin/`)도 같은 규칙이다. 도구 대응은 `.claude/rules/testing.md` 끝의 표.
+`./gradlew test`가 전부, Docker가 없으면 `./gradlew unitTest`(통합 테스트 제외).
 
 ---
 
@@ -397,7 +393,7 @@ Kotlin 쪽(`backend-kotlin/`)도 같은 규칙이다. 도구 대응은 `.claude/
 ```
 사용자 → judozoo.com (Cloudflare DNS만, 프록시 꺼짐)
        → GCP 전역 외부 부하 분산기 (TLS: Certificate Manager, 정적 파일: Cloud CDN, 압축)
-       → 앱 VM :3000 nginx(frontend) ── /api → backend:8000
+       → 앱 VM :3000 nginx(frontend) ── /api → backend:8001
                                           ├→ Cloud SQL (private IP, VPC 피어링)
                                           └→ 브로커 API (고정 외부 IP — 키움 허용목록)
          앱 VM alloy ──────────────────────→ ops VM (Loki·Prometheus·Tempo·Grafana, 외부 IP 없음)
@@ -407,40 +403,31 @@ Kotlin 쪽(`backend-kotlin/`)도 같은 규칙이다. 도구 대응은 `.claude/
 - **Grafana에 공개 경로가 없다.** IAP TCP 터널로만 붙는다 ([`iap-tunnel.md`](./iap-tunnel.md))
 - DB는 Cloud SQL — PITR로 논리적 손상을 초 단위로 되감는다 ([018](./tasks/018-cloud-sql-이관.md))
 - Terraform (`infra/terraform/`) — 앱 VM + ops VM, 고정 IP, Cloud NAT, Cloud SQL, 부하 분산기·인증서, Artifact Registry, Secret Manager, 백업 버킷, Workload Identity Federation
-- GitHub Actions — WIF 인증 → 이미지 빌드·푸시 → ssh 배포(`infra/deploy/remote_deploy.sh`) → 헬스체크. 이미지 태그는 서비스 디렉터리의 git 트리 해시라, 안 바뀐 서비스는 재시작하지 않는다
+- GitHub Actions — WIF 인증 → 이미지 빌드·푸시 → ssh 배포(`infra/deploy/remote_deploy.sh`) → 헬스체크(백엔드는 도커 헬스 = `/actuator/health`). 스키마는 백엔드가 기동하며 Flyway로 맞춘다. 이미지 태그는 서비스 디렉터리의 git 트리 해시라, 안 바뀐 서비스는 재시작하지 않는다
 - compose — 앱 VM `docker-compose.yml` + `docker-compose.prod.yml` (backend·frontend·alloy), ops VM `docker-compose.ops*.yml`
 - 앱 인스턴스는 **1대**다. 폴러·캐시·시그널 직전 상태가 프로세스 안에 있으므로 수평 확장하려면 수집과 서빙을 먼저 분리해야 한다
 
 ---
 
-## 14. 설정 (`settings.py`)
+## 14. 설정 (`application.yml`)
 
-pydantic-settings. 코드에 기본값을 두고 환경변수(`secrets/.env`)가 덮어쓴다.
+`@ConfigurationProperties`가 기본값을 들고, `application.yml`이 환경변수(`secrets/.env`, 운영은 Secret Manager에서 만든다)를 연결한다.
+환경변수 이름은 Python 시절과 같다. 한도처럼 yml에 없는 값은 `JUDOZOO_KIWOOM_QUERY_PERMITS_PER_SECOND`처럼 속성 이름으로 덮어쓴다.
 
 ```
-DatabaseSettings        DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD
-KisSettings             REAL_KIS_APP_KEY / REAL_KIS_APP_SECRET / KIS_QUERY_PERMITS_PER_SECOND
-KiwoomSettings          REAL_KIWOOM_APP_KEY / REAL_KIWOOM_APP_SECRET / KIWOOM_QUERY_PERMITS_PER_SECOND
-TossSettings            REAL_TOSS_CLIENT_ID / REAL_TOSS_CLIENT_SECRET
-StockMasterSettings     KIS 마스터 파일 CDN URL (국내·해외)
-GoogleOAuthSettings     GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI
+spring.datasource       DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD
+judozoo.session-secret  SESSION_SECRET                        세션 쿠키 서명 키 (Starlette 형식 그대로)
+KisProperties           REAL_KIS_APP_KEY / REAL_KIS_APP_SECRET, query-permits-per-second 15
+KiwoomProperties        REAL_KIWOOM_APP_KEY / REAL_KIWOOM_APP_SECRET, query-permits-per-second 5 · peak 3 (09~10시)
+TossProperties          REAL_TOSS_CLIENT_ID / REAL_TOSS_CLIENT_SECRET, chart 16 · indicator-chart 4 (초당)
+GoogleProperties        GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI
+VertexProperties        VERTEX_PROJECT / VERTEX_LOCATION / VERTEX_MODEL / VERTEX_DAILY_LIMIT (150)
+YahooProperties         base-url
+KisStockMaster          KIS 마스터 파일 CDN URL (국내·해외)
 
-LeadingStockCriteria    LEADING_STOCK_CRITERIA_*
-  min_market_cap: 3000                    # 억원
-  max_trading_value_rank: 35
-  min_daily_price_change_rate: 7.0        # %
-  max_high_position_drop_rate: -5.0       # 60봉 고가 대비 %
-  max_prev_close_change_rate: 25.0
-  max_opening_price_change_rate: 7.0
-  min_program_net_buy: 0                  # 백만원
-  ...
-SignalEventSettings     LEADING_STOCK_SIGNAL_EVENT_
-  min_change_rate: -12.0 / poll_interval_millis: 10000 / cooldown_minutes: 3
-MarketSignalSettings    LEADING_STOCK_MARKET_SIGNAL_
-  poll_interval_millis: 60000 / candle_poll_interval_millis: 30000 / session_start: 09:00 / session_end: 15:30
-
-SESSION_SECRET          세션 쿠키 서명 키
-LOG_FORMAT              json | text
-OTLP_ENDPOINT           비면 트레이스 끔
-SCHEDULERS_ENABLED      false면 폴러·스냅샷을 띄우지 않는다
+SPRING_PROFILES_ACTIVE=prod                운영 JSON 로그 (application-prod.yml)
+MANAGEMENT_TRACING_EXPORT_ENABLED          트레이스 내보내기 (운영 compose가 켠다)
+judozoo.scheduling.enabled=false           폴러·스냅샷을 띄우지 않는다 (통합 테스트)
 ```
+
+주도주 기준(`LeadingStockCriteria`), 시그널 문턱·쿨다운, 폴링 주기는 설정이 아니라 코드 상수다 — 바꾸면 배포한다.
