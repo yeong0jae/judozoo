@@ -4,6 +4,8 @@ import com.ninjasquad.springmockk.MockkBean
 import io.mockk.every
 import judozoo.LoggedIn
 import judozoo.market.application.MarketInvestors
+import judozoo.market.domain.InvestorSession
+import judozoo.market.domain.InvestorSessions
 import judozoo.market.domain.Nets
 import judozoo.market.domain.SessionOrg
 import judozoo.stock.domain.Market
@@ -48,7 +50,7 @@ class MarketInvestorControllerTest @Autowired constructor(private val mvc: MockM
         fun `세션 수급은 실제로 쓴 날짜와 함께 Python과 같은 모양으로 준다`() {
             val nets = Nets(100, -50, -50, 0, SessionOrg(1, 2, 3, 4, 5, 6, 7))
             every { investors.investorSessions(Market.KOSPI, LocalDate.of(2026, 9, 14)) } returns
-                (LocalDate.of(2026, 9, 11) to listOf(MarketInvestors.SessionNet("프리마켓", "08:00~09:00", nets)))
+                InvestorSessions(LocalDate.of(2026, 9, 11), listOf(InvestorSessions.Net(InvestorSession.PRE_MARKET, nets)))
 
             mvc.get("/api/market/KOSPI/investor/sessions") {
                 param("date", "2026-09-14")

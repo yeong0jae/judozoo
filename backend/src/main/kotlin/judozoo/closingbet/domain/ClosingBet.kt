@@ -39,7 +39,7 @@ class ClosingBet(
     var placedAt: LocalDateTime = placedAt
         protected set
 
-    var status: String = OPEN
+    var status: BetStatus = BetStatus.OPEN
         protected set
 
     @Column(name = "buy_price", columnDefinition = "int")
@@ -66,18 +66,14 @@ class ClosingBet(
         stockName = name
         amountMan = amount
         placedAt = at
-        status = OPEN
+        status = BetStatus.OPEN
     }
 
     fun fill(price: Long) {
         buyPrice = price
-        try {
-            shares = BetRules.sharesFor(amountMan, price)
-            status = FILLED
-        } catch (e: BetRejected) {
-            shares = 0
-            status = VOID
-        }
+        val bought = BetRules.sharesOrNull(amountMan, price)
+        shares = bought ?: 0
+        status = if (bought == null) BetStatus.VOID else BetStatus.FILLED
     }
 
     fun settle(sell: Double) {
@@ -85,17 +81,10 @@ class ClosingBet(
         sellPrice = sell
         pnl = outcome.pnl
         rateFloat = outcome.rate.toFloat()
-        status = SETTLED
+        status = BetStatus.SETTLED
     }
 
     fun result(): Result = Result(userId, stockCode, placedAt, Outcome(pnl ?: 0, rate ?: 0.0))
 
     fun stake(): Stake = Stake(userId, stockCode, amountMan, placedAt)
-
-    companion object {
-        const val OPEN = "open"
-        const val FILLED = "filled"
-        const val SETTLED = "settled"
-        const val VOID = "void"
-    }
 }

@@ -1,6 +1,8 @@
 package judozoo.leadingstock.domain
 
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 class MinuteCandles(candles: List<MinuteCandle>) {
     private val ordered = candles.sortedBy { it.dateTime }
@@ -21,6 +23,12 @@ class MinuteCandles(candles: List<MinuteCandle>) {
         if (currentPrice <= 0 || ordered.isEmpty()) return null
         val trough = ordered.minBy { it.lowPrice }
         return SwingLow(trough.lowPrice, trough.dateTime, (currentPrice - trough.lowPrice).toDouble() / currentPrice * 100)
+    }
+
+    fun closeAt(day: LocalDate, time: LocalTime): Long? {
+        val traded = ordered.filter { it.dateTime.toLocalDate() == day && it.volume > 0 }
+        if (traded.none { !it.dateTime.toLocalTime().isBefore(time) }) return null
+        return traded.lastOrNull { !it.dateTime.toLocalTime().isAfter(time) }?.closePrice
     }
 
     fun volumeSpike(baselineBars: Int): VolumeSpike? {

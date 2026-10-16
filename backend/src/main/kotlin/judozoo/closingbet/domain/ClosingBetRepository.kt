@@ -8,7 +8,7 @@ interface ClosingBetRepository : JpaRepository<ClosingBet, Long> {
 
     fun findByTradingDay(tradingDay: LocalDate): List<ClosingBet>
 
-    fun findByTradingDayAndStatus(tradingDay: LocalDate, status: String): List<ClosingBet>
+    fun findByTradingDayAndStatus(tradingDay: LocalDate, status: BetStatus): List<ClosingBet>
 
-    fun findByTradingDayAndStockCodeAndStatus(tradingDay: LocalDate, stockCode: String, status: String): List<ClosingBet>
+    fun findByTradingDayAndStockCodeAndStatus(tradingDay: LocalDate, stockCode: String, status: BetStatus): List<ClosingBet>
 }

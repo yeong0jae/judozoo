@@ -38,7 +38,7 @@ class ClosingBetController(private val service: ClosingBetService, private val c
 
     data class MyBet(val stockCode: String, val stockName: String, val amountMan: Int, val status: String, val buyPrice: Long?, val shares: Int?) {
         companion object {
-            fun of(b: ClosingBet) = MyBet(b.stockCode, b.stockName, b.amountMan, b.status, b.buyPrice, b.shares)
+            fun of(b: ClosingBet) = MyBet(b.stockCode, b.stockName, b.amountMan, b.status.value, b.buyPrice, b.shares)
         }
     }
 
@@ -175,7 +175,7 @@ class ClosingBetController(private val service: ClosingBetService, private val c
 
     @GetMapping("/market")
     fun market(@Suppress("UNUSED_PARAMETER") user: CurrentUser): ApiResponse<Map<String, Any?>?> =
-        ApiResponse.ok(service.phase(at()).betting?.let { service.readings(it).flows })
+        ApiResponse.ok(service.phase(at()).betting?.let { service.readings(it).flows.published() })
 
     @GetMapping("/feed")
     fun feed(@RequestParam(defaultValue = "0") after: Long): ApiResponse<List<FeedEntry>> {
@@ -237,13 +237,13 @@ class ClosingBetController(private val service: ClosingBetService, private val c
 
     private fun roundStock(s: BetRoundStock, member: Boolean): RoundStock {
         val item = RoundStock(
-            s.stockCode, s.stockName, s.lead, s.nxt, s.closePrice, s.changeRate, s.market, s.grade, s.crowd, s.potMan, s.sellPrice, s.rate,
+            s.stockCode, s.stockName, s.lead, s.nxt, s.closePrice, s.changeRate, s.market.name, s.grade.name, s.crowd, s.potMan, s.sellPrice, s.rate,
         )
         if (!member) return item
         return item.copy(
             high = s.highPrice, low = s.lowPrice, foreign = s.foreignNet, institution = s.institutionNet,
             foreignWeek = s.foreign5d, institutionWeek = s.institution5d, recentHighGap = s.recentHighGap, regularClose = s.regularClose,
-            checks = CheckItem.of(Checks.fromMap(json.readValue(s.checksJson))),
+            checks = CheckItem.of(s.checks),
         )
     }
 

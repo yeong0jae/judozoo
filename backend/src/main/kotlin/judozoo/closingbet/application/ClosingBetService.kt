@@ -8,11 +8,15 @@ import judozoo.closingbet.domain.BetRoundRepository
 import judozoo.closingbet.domain.BetRoundStock
 import judozoo.closingbet.domain.BetRoundStockRepository
 import judozoo.closingbet.domain.BetRules
+import judozoo.closingbet.domain.BetStatus
 import judozoo.closingbet.domain.Checks
 import judozoo.closingbet.domain.ClosingBet
 import judozoo.closingbet.domain.ClosingBetEvent
 import judozoo.closingbet.domain.ClosingBetEventRepository
 import judozoo.closingbet.domain.ClosingBetRepository
+import judozoo.closingbet.domain.FlowLine
+import judozoo.closingbet.domain.MarketFlow
+import judozoo.closingbet.domain.MarketFlows
 import judozoo.closingbet.domain.NicknameRejected
 import judozoo.closingbet.domain.Nicknames
 import judozoo.closingbet.domain.OpenDays
@@ -21,13 +25,17 @@ import judozoo.closingbet.domain.Results
 import judozoo.closingbet.domain.SellWindow
 import judozoo.closingbet.domain.Stakes
 import judozoo.leadingstock.application.LeadingStockService
+import judozoo.leadingstock.domain.DailyCandles
 import judozoo.leadingstock.domain.LeadingStockCriteria
 import judozoo.leadingstock.domain.LeadingStockSnapshot
+import judozoo.leadingstock.domain.MinuteCandles
 import judozoo.library.KST
 import judozoo.library.TtlCache
+import judozoo.library.isWeekend
 import judozoo.market.application.MarketCalendar
 import judozoo.market.application.MarketInvestors
 import judozoo.market.application.MarketQuotes
+import judozoo.market.domain.InvestorSession
 import judozoo.platform.kiwoom.KiwoomMarket
 import judozoo.stock.application.StockCatalog
 import judozoo.stock.application.StockInvestorService
@@ -40,7 +48,6 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.json.JsonMapper
 import java.time.Clock
-import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -84,7 +91,7 @@ class ClosingBetService(
         val checks: Checks,
     )
 
-    data class Readings(val flows: Map<String, Any?>, val readings: Map<String, StockReading?>, val nxt: Map<String, Boolean?>)
+    data class Readings(val flows: MarketFlows, val readings: Map<String, StockReading?>, val nxt: Map<String, Boolean?>)
 
     data class FeedItem(val id: Long, val nickname: String, val stockName: String, val amountMan: Int, val at: LocalDateTime)
 
@@ -97,16 +104,16 @@ class ClosingBetService(
     fun openDays(): OpenDays {
         calendar.openDays().takeIf { it.isNotEmpty() }?.let { return OpenDays(it) }
         val today = now().toLocalDate()
-        return OpenDays((-30L..30L).map { today.plusDays(it) }.filter { it.dayOfWeek != DayOfWeek.SATURDAY && it.dayOfWeek != DayOfWeek.SUNDAY })
+        return OpenDays((-30L..30L).map { today.plusDays(it) }.filterNot { it.isWeekend })
     }
 
     fun phase(at: LocalDateTime = now()): Phase = Phase.at(at, openDays())
 
     fun pool(): List<PoolStock> {
         val leaders = leading.findLeaders(LEADERS_COUNT)
-        val lead = leaders.map { code(it.stockCode) }.toSet()
+        val lead = leaders.map { it.code }.toSet()
         return leaders.map { poolStock(it, true) } +
-            leading.findCandidates(CANDIDATE_MIN_CHANGE_RATE).filterNot { code(it.stockCode) in lead }.map { poolStock(it, false) }
+            leading.findCandidates(CANDIDATE_MIN_CHANGE_RATE).filterNot { it.code in lead }.map { poolStock(it, false) }
     }
 
     fun readStock(stock: PoolStock, on: LocalDate, marketLate: Map<Market, Long>): StockReading? {
@@ -118,7 +125,7 @@ class ClosingBetService(
             return null
         }
         val flows = stockFlows(stock.code, on)
-        val gap = Checks.recentHighGap(candles.filter { it.date < on }, todayBar.closePrice)
+        val gap = DailyCandles(candles).gapFromRecentHigh(todayBar.closePrice, on, Checks.RECENT_HIGH_DAYS)
         val regular = regularClose(stock.code, on)
         val checks = Checks.of(
             todayBar.closePrice, todayBar.highPrice, flows.foreign, flows.institution, marketLate[market] ?: 0,
@@ -129,34 +136,32 @@ class ClosingBetService(
 
     fun readings(day: LocalDate): Readings = readingsCache.get(day) {
         val flows = marketFlows(day)
-        val late = marketLate(flows)
+        val late = flows.late()
         val stocks = pool()
         Readings(flows, stocks.associate { it.code to readStock(it, day, late) }, stocks.associate { it.code to kiwoom.fetchNxtListed(it.code) })
     }
 
-    fun marketFlows(on: LocalDate): Map<String, Any?> {
-        val out = linkedMapOf<String, Any?>()
-        for (market in listOf(Market.KOSPI, Market.KOSDAQ)) {
+    fun marketFlows(on: LocalDate): MarketFlows {
+        val markets = listOf(Market.KOSPI, Market.KOSDAQ).associateWith { market ->
             val spot = marketInvestors.investorDailyHistory(market, FLOW_DAYS)
             val spotToday = spot.firstOrNull { it.date == on }
             val futures = marketInvestors.futuresInvestorDailyHistory(market, FLOW_DAYS)
             val futuresToday = futures.firstOrNull { it.date == on }
-            val sessions = marketInvestors.investorSessions(market, on).second
-            val close = sessions.firstOrNull { it.name == "마감 구간" }?.nets
-            val after = sessions.firstOrNull { it.name == "애프터마켓" }?.nets
-            out[market.name] = mapOf(
-                "foreign" to listOf(
+            val sessions = marketInvestors.investorSessions(market, on)
+            val close = sessions.of(InvestorSession.CLOSING)
+            val after = sessions.of(InvestorSession.AFTER_MARKET)
+            MarketFlow(
+                foreign = FlowLine(
                     spotToday?.foreignEok ?: 0, spot.sumOf { it.foreignEok }, futuresToday?.nets?.foreign ?: 0, futures.sumOf { it.nets.foreign },
                     close?.foreign ?: 0, after?.foreign ?: 0,
                 ),
-                "institution" to listOf(
+                institution = FlowLine(
                     spotToday?.institutionEok ?: 0, spot.sumOf { it.institutionEok }, futuresToday?.nets?.institution ?: 0, futures.sumOf { it.nets.institution },
                     close?.institution ?: 0, after?.institution ?: 0,
                 ),
             )
         }
-        out["night"] = quotes.nightFuturesQuote()?.let { mapOf("price" to it.price, "rate" to it.changeRate) }
-        return out
+        return MarketFlows(markets, quotes.nightFuturesQuote()?.let { MarketFlows.NightFutures(it.price, it.changeRate) })
     }
 
     fun findPlayer(userId: Long): BetPlayer? = players.findById(userId).orElse(null)
@@ -214,7 +219,7 @@ class ClosingBetService(
         }
     }
 
-    fun stakes(day: LocalDate): Stakes = Stakes(bets.findByTradingDay(day).filter { it.status != ClosingBet.VOID }.map { it.stake() })
+    fun stakes(day: LocalDate): Stakes = Stakes(bets.findByTradingDay(day).filter { it.status != BetStatus.VOID }.map { it.stake() })
 
     fun feed(day: LocalDate, afterId: Long = 0, limit: Int = 20): List<FeedItem> {
         val rows = events.findByTradingDayAndIdGreaterThanOrderByIdDesc(day, afterId, Limit.of(limit))
@@ -236,7 +241,7 @@ class ClosingBetService(
     private fun fill(day: LocalDate, at: LocalDateTime): Boolean {
         if (rounds.existsById(day)) return true
         val flows = marketFlows(day)
-        val late = marketLate(flows)
+        val late = flows.late()
         val current = stakes(day)
         val (pots, crowd) = current.byStock() to current.crowd()
         val readings = pool().mapNotNull { readStock(it, day, late) }.toMutableList()
@@ -254,15 +259,15 @@ class ClosingBetService(
         roundStocks.saveAll(
             readings.map { r ->
                 BetRoundStock(
-                    day, r.stock.code, r.stock.name, r.market.name, r.stock.lead, kiwoom.fetchNxtListed(r.stock.code) == true,
+                    day, r.stock.code, r.stock.name, r.market, r.stock.lead, kiwoom.fetchNxtListed(r.stock.code) == true,
                     r.close, r.high, r.low, r.stock.changeRate.toFloat(), r.flows.foreign, r.flows.institution, r.flows.foreign5d, r.flows.institution5d,
-                    r.recentHighGap?.toFloat(), r.regularClose, json.writeValueAsString(r.checks.toMap()), r.checks.grade.name,
+                    r.recentHighGap?.toFloat(), r.regularClose, r.checks, r.checks.grade,
                     crowd[r.stock.code] ?: 0, pots[r.stock.code] ?: 0,
                 )
             },
         )
-        dayBets.filter { it.status == ClosingBet.OPEN }.forEach { it.fill(byCode.getValue(it.stockCode).close) }
-        rounds.save(BetRound(day, at, json.writeValueAsString(flows), current.players, current.totalMan))
+        dayBets.filter { it.status == BetStatus.OPEN }.forEach { it.fill(byCode.getValue(it.stockCode).close) }
+        rounds.save(BetRound(day, at, json.writeValueAsString(flows.published()), current.players, current.totalMan))
         log.info("종가베팅 체결 {} — {}종목, {}명", day, readings.size, current.players)
         return true
     }
@@ -279,13 +284,13 @@ class ClosingBetService(
             if (got.windowStart == null && at.toLocalTime().isBefore(GIVE_UP_AT)) continue
             if (got.windowStart != null && at.isBefore(got.windowStart.plus(SellWindow.LENGTH))) continue
             s.sell(got)
-            bets.findByTradingDayAndStockCodeAndStatus(day, s.stockCode, ClosingBet.FILLED).forEach { it.settle(got.price) }
+            bets.findByTradingDayAndStockCodeAndStatus(day, s.stockCode, BetStatus.FILLED).forEach { it.settle(got.price) }
         }
         if (stocks.all { it.sold }) round.settle(at)
         return round.settled
     }
 
-    fun results(day: LocalDate): Results = Results(bets.findByTradingDayAndStatus(day, ClosingBet.SETTLED).map { it.result() })
+    fun results(day: LocalDate): Results = Results(bets.findByTradingDayAndStatus(day, BetStatus.SETTLED).map { it.result() })
 
     fun nicknames(userIds: Set<Long>): Map<Long, String> =
         if (userIds.isEmpty()) emptyMap() else players.findAllById(userIds).associate { it.userId to it.nickname }
@@ -297,7 +302,7 @@ class ClosingBetService(
     private fun <T> inTx(block: () -> T): T = tx.execute { block() } as T
 
     private fun regularClose(code: String, on: LocalDate): Long? = regularCloses.get(code to on) {
-        if (now().isBefore(on.atTime(Checks.REGULAR_CLOSE))) null else Checks.regularClose(kiwoom.fetchHistoricalMinuteCandles(code, on), on)
+        if (now().isBefore(on.atTime(Checks.REGULAR_CLOSE))) null else MinuteCandles(kiwoom.fetchHistoricalMinuteCandles(code, on)).closeAt(on, Checks.REGULAR_CLOSE)
     }
 
     private fun stockFlows(code: String, on: LocalDate): StockFlows {
@@ -317,14 +322,6 @@ class ClosingBetService(
 
         private val GIVE_UP_AT = Phase.BET_CLOSE
 
-        private fun code(stockCode: String) = stockCode.substringBefore("_")
-
-        private fun poolStock(s: LeadingStockSnapshot, lead: Boolean) = PoolStock(code(s.stockCode), s.stockName, lead, s.currentPrice, s.priceChangeRate)
-
-        @Suppress("UNCHECKED_CAST")
-        fun marketLate(flows: Map<String, Any?>): Map<Market, Long> = listOf(Market.KOSPI, Market.KOSDAQ).associateWith { m ->
-            val rows = flows[m.name] as Map<String, List<Number>>
-            listOf("foreign", "institution").sumOf { rows.getValue(it)[4].toLong() + rows.getValue(it)[5].toLong() }
-        }
+        private fun poolStock(s: LeadingStockSnapshot, lead: Boolean) = PoolStock(s.code, s.stockName, lead, s.currentPrice, s.priceChangeRate)
     }
 }

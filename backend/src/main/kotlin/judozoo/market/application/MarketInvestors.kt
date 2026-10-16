@@ -4,6 +4,8 @@ import judozoo.library.KST
 import judozoo.market.domain.FuturesInvestorSnapshot
 import judozoo.market.domain.FuturesInvestorSnapshotRepository
 import judozoo.market.domain.FuturesNets
+import judozoo.market.domain.InvestorSession
+import judozoo.market.domain.InvestorSessions
 import judozoo.market.domain.MarketInvestorSnapshot
 import judozoo.market.domain.MarketInvestorSnapshotRepository
 import judozoo.market.domain.Nets
@@ -41,10 +43,6 @@ class MarketInvestors(
 
     data class InvestorDay(val date: LocalDate, val individualEok: Long, val foreignEok: Long, val institutionEok: Long, val otherCorpEok: Long, val breakdown: OrgBreakdown)
 
-    data class SessionNet(val name: String, val time: String, val nets: Nets?, val delta: Nets? = null)
-
-    data class FuturesSessionNet(val name: String, val time: String, val nets: FuturesNets?, val delta: FuturesNets? = null)
-
     data class FuturesInvestorDay(val date: LocalDate, val nets: FuturesNets)
 
     data class TodayNetInvestors(val individual: Long, val foreign: Long, val institution: Long, val otherCorp: Long)
@@ -68,24 +66,28 @@ class MarketInvestors(
         return out.take(count)
     }
 
-    fun investorSessions(market: Market, requested: LocalDate): Pair<LocalDate, List<SessionNet>> {
+    fun investorSessions(market: Market, requested: LocalDate): InvestorSessions<Nets> {
         val on = snapshots.latestDateOnOrBefore(market, requested) ?: requested
-        fun at(t: LocalTime) = snapshotAt(market, on.atTime(t))
-        val (open, morning, afternoon, close, afterClose) = listOf(OPEN, MORNING_END, AFTERNOON_END, CLOSE, AFTER_END).map(::at)
+        fun at(session: InvestorSession) = snapshotAt(market, on.atTime(session.end))
+        val open = at(InvestorSession.PRE_MARKET)
+        val morning = at(InvestorSession.MORNING)
+        val afternoon = at(InvestorSession.AFTERNOON)
+        val close = at(InvestorSession.CLOSING)
+        val afterClose = at(InvestorSession.AFTER_MARKET)
         fun diff(later: MarketInvestorSnapshot?, earlier: MarketInvestorSnapshot?) = if (later == null || earlier == null) null else later.nets() - earlier.nets()
 
         val sessions = listOf(
-            SessionNet("프리마켓", "08:00~09:00", open?.nets()),
-            SessionNet("오전", "09:00~12:00", if (open != null) diff(morning, open) else morning?.nets()),
-            SessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
-            SessionNet("마감 구간", "15:00~15:40", diff(close, afternoon)),
-            SessionNet("애프터마켓", "15:40~20:00", diff(afterClose, close)),
+            InvestorSessions.Net(InvestorSession.PRE_MARKET, open?.nets()),
+            InvestorSessions.Net(InvestorSession.MORNING, if (open != null) diff(morning, open) else morning?.nets()),
+            InvestorSessions.Net(InvestorSession.AFTERNOON, diff(afternoon, morning)),
+            InvestorSessions.Net(InvestorSession.CLOSING, diff(close, afternoon)),
+            InvestorSessions.Net(InvestorSession.AFTER_MARKET, diff(afterClose, close)),
         )
-        if (on != today()) return on to sessions
-        val (latest, previous) = snapshots.findByMarketAndTradeDateOrderByCapturedAtDesc(market, on, Limit.of(2)).let { it.getOrNull(0) to it.getOrNull(1) }
-        if (latest == null || previous == null) return on to sessions
-        val delta = latest.nets() - previous.nets()
-        return on to sessions.map { if (it.nets != null && contains(it.time, latest.capturedAt)) it.copy(delta = delta) else it }
+        if (on != today()) return InvestorSessions(on, sessions)
+        val rows = snapshots.findByMarketAndTradeDateOrderByCapturedAtDesc(market, on, Limit.of(2))
+        if (rows.size < 2) return InvestorSessions(on, sessions)
+        val delta = rows[0].nets() - rows[1].nets()
+        return InvestorSessions(on, sessions.map { if (it.nets != null && rows[0].capturedAt in it.session) it.copy(delta = delta) else it })
     }
 
     fun futuresInvestorDailyHistory(market: Market, count: Int): List<FuturesInvestorDay> =
@@ -94,24 +96,24 @@ class MarketInvestors(
             .take(count)
             .map { day -> FuturesInvestorDay(day, futuresSnapshots.findByMarketAndTradeDateOrderByCapturedAtDesc(market, day, Limit.of(1)).single().nets()) }
 
-    fun futuresInvestorSessions(market: Market, requested: LocalDate): Pair<LocalDate, List<FuturesSessionNet>> {
+    fun futuresInvestorSessions(market: Market, requested: LocalDate): InvestorSessions<FuturesNets> {
         val on = futuresSnapshots.latestDateOnOrBefore(market, requested) ?: requested
-        fun at(t: LocalTime) = futuresSnapshotAt(market, on.atTime(t))
-        val morning = at(FUT_MORNING_END)
-        val afternoon = at(FUT_AFTERNOON_END)
-        val close = at(FUT_CLOSE)
+        fun at(session: InvestorSession) = futuresSnapshotAt(market, on.atTime(session.end))
+        val morning = at(InvestorSession.FUTURES_MORNING)
+        val afternoon = at(InvestorSession.FUTURES_AFTERNOON)
+        val close = at(InvestorSession.FUTURES_CLOSING)
         fun diff(later: FuturesInvestorSnapshot?, earlier: FuturesInvestorSnapshot?) = if (later == null || earlier == null) null else later.nets() - earlier.nets()
 
         val sessions = listOf(
-            FuturesSessionNet("오전", "08:45~12:00", morning?.nets()),
-            FuturesSessionNet("오후", "12:00~15:00", diff(afternoon, morning)),
-            FuturesSessionNet("마감 구간", "15:00~15:45", diff(close, afternoon)),
+            InvestorSessions.Net(InvestorSession.FUTURES_MORNING, morning?.nets()),
+            InvestorSessions.Net(InvestorSession.FUTURES_AFTERNOON, diff(afternoon, morning)),
+            InvestorSessions.Net(InvestorSession.FUTURES_CLOSING, diff(close, afternoon)),
         )
-        if (on != today()) return on to sessions
+        if (on != today()) return InvestorSessions(on, sessions)
         val rows = futuresSnapshots.findByMarketAndTradeDateOrderByCapturedAtDesc(market, on, Limit.of(2))
-        if (rows.size < 2) return on to sessions
+        if (rows.size < 2) return InvestorSessions(on, sessions)
         val delta = rows[0].nets() - rows[1].nets()
-        return on to sessions.map { if (it.nets != null && contains(it.time, rows[0].capturedAt)) it.copy(delta = delta) else it }
+        return InvestorSessions(on, sessions.map { if (it.nets != null && rows[0].capturedAt in it.session) it.copy(delta = delta) else it })
     }
 
     fun todayNets(): List<TodayNet> {
@@ -178,24 +180,8 @@ class MarketInvestors(
     private fun today() = LocalDate.now(clock.withZone(KST))
 
     companion object {
-        private val OPEN = LocalTime.of(9, 0)
-        private val MORNING_END = LocalTime.of(12, 0)
-        private val AFTERNOON_END = LocalTime.of(15, 0)
-        private val CLOSE = LocalTime.of(15, 40)
-        private val AFTER_END = LocalTime.of(20, 0)
-
-        private val FUT_MORNING_END = LocalTime.of(12, 0)
-        private val FUT_AFTERNOON_END = LocalTime.of(15, 0)
-        private val FUT_CLOSE = LocalTime.of(15, 45)
-
         private const val HOLIDAY_MARGIN = 5
 
         private val NET_SNAPSHOT_START = LocalTime.of(8, 0)
-
-        private fun contains(range: String, at: LocalDateTime): Boolean {
-            val (start, end) = range.split("~")
-            val hm = at.toLocalTime().toString().take(5)
-            return start <= hm && hm < end
-        }
     }
 }

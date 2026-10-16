@@ -6,7 +6,9 @@ import io.kotest.matchers.shouldBe
 import judozoo.closingbet.domain.PhaseTest.Companion.FRI
 import judozoo.closingbet.domain.PhaseTest.Companion.THU
 import judozoo.leadingstock.domain.DailyCandle
+import judozoo.leadingstock.domain.DailyCandles
 import judozoo.leadingstock.domain.MinuteCandle
+import judozoo.leadingstock.domain.MinuteCandles
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -62,22 +64,22 @@ class ChecksTest {
 
         @Test
         fun `정규장 종가는 15시30분까지의 마지막 체결이다`() {
-            Checks.regularClose(listOf(bar(THU, 15, 19, 101), bar(THU, 15, 30, 105), bar(THU, 15, 41, 99), bar(THU, 19, 59, 98)), THU) shouldBe 105
+            MinuteCandles(listOf(bar(THU, 15, 19, 101), bar(THU, 15, 30, 105), bar(THU, 15, 41, 99), bar(THU, 19, 59, 98))).closeAt(THU, Checks.REGULAR_CLOSE) shouldBe 105
         }
 
         @Test
         fun `15시30분 봉이 없어도 그 전 마지막 체결로 잡는다`() {
-            Checks.regularClose(listOf(bar(THU, 15, 28, 103), bar(THU, 16, 1, 99)), THU) shouldBe 103
+            MinuteCandles(listOf(bar(THU, 15, 28, 103), bar(THU, 16, 1, 99))).closeAt(THU, Checks.REGULAR_CLOSE) shouldBe 103
         }
 
         @Test
         fun `정규장이 끝나기 전에는 잡지 않는다`() {
-            Checks.regularClose(listOf(bar(THU, 15, 10, 101)), THU).shouldBeNull()
+            MinuteCandles(listOf(bar(THU, 15, 10, 101))).closeAt(THU, Checks.REGULAR_CLOSE).shouldBeNull()
         }
 
         @Test
         fun `다른 날 봉은 보지 않는다`() {
-            Checks.regularClose(listOf(bar(LocalDate.of(2026, 9, 30), 15, 30, 100)), THU).shouldBeNull()
+            MinuteCandles(listOf(bar(LocalDate.of(2026, 9, 30), 15, 30, 100))).closeAt(THU, Checks.REGULAR_CLOSE).shouldBeNull()
         }
     }
 
@@ -90,22 +92,22 @@ class ChecksTest {
 
         @Test
         fun `직전 60거래일 최고가 대비 퍼센트`() {
-            Checks.recentHighGap(history(mapOf(30 to 200)), 190)!! shouldBe (-5.0 plusOrMinus 1e-9)
+            DailyCandles(history(mapOf(30 to 200))).gapFromRecentHigh(190, FRI, Checks.RECENT_HIGH_DAYS)!! shouldBe (-5.0 plusOrMinus 1e-9)
         }
 
         @Test
         fun `60거래일보다 오래된 고점은 보지 않는다`() {
-            Checks.recentHighGap(history(mapOf(80 to 500)), 100)!! shouldBe (0.0 plusOrMinus 1e-9)
+            DailyCandles(history(mapOf(80 to 500))).gapFromRecentHigh(100, FRI, Checks.RECENT_HIGH_DAYS)!! shouldBe (0.0 plusOrMinus 1e-9)
         }
 
         @Test
         fun `고점을 넘어서면 플러스다`() {
-            Checks.recentHighGap(history(emptyMap()), 110)!! shouldBe (10.0 plusOrMinus 1e-9)
+            DailyCandles(history(emptyMap())).gapFromRecentHigh(110, FRI, Checks.RECENT_HIGH_DAYS)!! shouldBe (10.0 plusOrMinus 1e-9)
         }
 
         @Test
         fun `과거 일봉이 없으면 재지 않는다`() {
-            Checks.recentHighGap(emptyList(), 100).shouldBeNull()
+            DailyCandles(emptyList()).gapFromRecentHigh(100, FRI, Checks.RECENT_HIGH_DAYS).shouldBeNull()
         }
 
         @ParameterizedTest

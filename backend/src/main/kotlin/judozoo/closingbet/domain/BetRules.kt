@@ -14,11 +14,12 @@ object BetRules {
         }
     }
 
-    fun sharesFor(amountMan: Int, price: Long): Int {
+    fun sharesOrNull(amountMan: Int, price: Long): Int? {
         val shares = if (price > 0) amountMan * 10_000L / price else 0
-        if (shares < 1) throw BetRejected("이 금액으로는 한 주도 살 수 없어요")
-        return shares.toInt()
+        return shares.takeIf { it >= 1 }?.toInt()
     }
+
+    fun sharesFor(amountMan: Int, price: Long): Int = sharesOrNull(amountMan, price) ?: throw BetRejected("이 금액으로는 한 주도 살 수 없어요")
 
     fun check(phase: Phase, amountMan: Int, stockCode: String, pool: Collection<String>, price: Long): Int {
         if (!phase.acceptsBets) throw BetRejected("베팅은 15:00부터 20:00까지예요")

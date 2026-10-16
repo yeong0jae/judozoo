@@ -77,7 +77,7 @@ class MarketInvestorsTest @Autowired constructor(
             snapshot(at(13, 30), 380, -190, -190)
             snapshot(at(13, 31), 420, -210, -210)
 
-            val byName = investors.investorSessions(Market.KOSPI, day).second.associate { it.name to it.delta }
+            val byName = investors.investorSessions(Market.KOSPI, day).sessions.associate { it.name to it.delta }
 
             byName.getValue("오후")!!.individual shouldBe 40
             byName.getValue("오후")!!.foreign shouldBe -20
@@ -91,14 +91,14 @@ class MarketInvestorsTest @Autowired constructor(
             snapshot(at(12, 0), 300, -150, -150)
             snapshot(at(13, 31), 420, -210, -210)
 
-            investors.investorSessions(Market.KOSPI, day).second.all { it.delta == null } shouldBe true
+            investors.investorSessions(Market.KOSPI, day).sessions.all { it.delta == null } shouldBe true
         }
 
         @Test
         fun `스냅샷이 하나뿐이면 뺄 대상이 없다`() {
             snapshot(at(13, 31), 420, -210, -210)
 
-            investors.investorSessions(Market.KOSPI, day).second.all { it.delta == null } shouldBe true
+            investors.investorSessions(Market.KOSPI, day).sessions.all { it.delta == null } shouldBe true
         }
     }
 
@@ -110,7 +110,7 @@ class MarketInvestorsTest @Autowired constructor(
             snapshot(at(12, 0), 300, -150, -150)
             snapshot(at(15, 0), 500, -200, -300)
 
-            val byName = investors.investorSessions(Market.KOSPI, day).second.associate { it.name to it.nets }
+            val byName = investors.investorSessions(Market.KOSPI, day).sessions.associate { it.name to it.nets }
 
             byName.getValue("프리마켓")!!.individual shouldBe 100
             byName.getValue("오전")!!.individual shouldBe 200
@@ -122,7 +122,7 @@ class MarketInvestorsTest @Autowired constructor(
         fun `구간 합이 그날 최종 누적과 같다`() {
             listOf(at(9, 0) to 100L, at(12, 0) to 300L, at(15, 0) to 500L, at(15, 40) to 600L, at(20, 0) to 700L).forEach { (t, v) -> snapshot(t, v) }
 
-            investors.investorSessions(Market.KOSPI, day).second.sumOf { it.nets?.individual ?: 0 } shouldBe 700
+            investors.investorSessions(Market.KOSPI, day).sessions.sumOf { it.nets?.individual ?: 0 } shouldBe 700
         }
 
         @Test
@@ -130,7 +130,7 @@ class MarketInvestorsTest @Autowired constructor(
             snapshot(at(12, 0), 300)
             snapshot(at(15, 0), 500)
 
-            val sessions = investors.investorSessions(Market.KOSPI, day).second
+            val sessions = investors.investorSessions(Market.KOSPI, day).sessions
             val byName = sessions.associate { it.name to it.nets }
 
             byName.getValue("프리마켓").shouldBeNull()
@@ -140,7 +140,7 @@ class MarketInvestorsTest @Autowired constructor(
 
         @Test
         fun `스냅샷이 없는 세션은 null이다`() {
-            val sessions = investors.investorSessions(Market.KOSPI, day).second
+            val sessions = investors.investorSessions(Market.KOSPI, day).sessions
 
             sessions.map { it.nets } shouldBe List(5) { null }
             sessions.map { it.name } shouldBe listOf("프리마켓", "오전", "오후", "마감 구간", "애프터마켓")
@@ -152,7 +152,7 @@ class MarketInvestorsTest @Autowired constructor(
             snapshot(at(11, 58), 290)
             snapshot(at(12, 2), 310)
 
-            investors.investorSessions(Market.KOSPI, day).second.first { it.name == "오전" }.nets!!.individual shouldBe 190
+            investors.investorSessions(Market.KOSPI, day).sessions.first { it.name == "오전" }.nets!!.individual shouldBe 190
         }
 
         @Test
@@ -160,7 +160,7 @@ class MarketInvestorsTest @Autowired constructor(
             snapshot(LocalDateTime.of(2026, 9, 10, 15, 0), 9999)
             snapshot(at(12, 0), 300)
 
-            investors.investorSessions(Market.KOSPI, day).second.first { it.name == "오전" }.nets!!.individual shouldBe 300
+            investors.investorSessions(Market.KOSPI, day).sessions.first { it.name == "오전" }.nets!!.individual shouldBe 300
         }
     }
 
@@ -171,7 +171,7 @@ class MarketInvestorsTest @Autowired constructor(
             futuresSnapshot(at(12, 0), foreign = 1000)
             futuresSnapshot(at(15, 0), foreign = 1500)
 
-            val sessions = investors.futuresInvestorSessions(Market.KOSPI, day).second
+            val sessions = investors.futuresInvestorSessions(Market.KOSPI, day).sessions
 
             sessions.first { it.name == "오전" }.nets!!.foreign shouldBe 1000
             sessions.first { it.name == "오후" }.nets!!.foreign shouldBe 500
@@ -196,7 +196,7 @@ class MarketInvestorsTest @Autowired constructor(
         fun `요청일에 데이터가 있으면 그날을 그대로 쓴다`() {
             snapshot(at(9, 0), 10)
 
-            investors.investorSessions(Market.KOSPI, day).first shouldBe day
+            investors.investorSessions(Market.KOSPI, day).date shouldBe day
         }
 
         @Test
@@ -213,7 +213,7 @@ class MarketInvestorsTest @Autowired constructor(
         fun `미래 데이터로는 물러나지 않는다`() {
             snapshot(at(9, 0), 10)
 
-            investors.investorSessions(Market.KOSPI, LocalDate.of(2026, 9, 10)).first shouldBe LocalDate.of(2026, 9, 10)
+            investors.investorSessions(Market.KOSPI, LocalDate.of(2026, 9, 10)).date shouldBe LocalDate.of(2026, 9, 10)
         }
     }
 

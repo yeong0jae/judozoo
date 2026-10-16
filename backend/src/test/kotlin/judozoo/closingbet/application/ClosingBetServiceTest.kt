@@ -15,8 +15,13 @@ import judozoo.closingbet.domain.BetPlayerRepository
 import judozoo.closingbet.domain.BetRejected
 import judozoo.closingbet.domain.BetRoundRepository
 import judozoo.closingbet.domain.BetRoundStockRepository
+import judozoo.closingbet.domain.BetStatus
 import judozoo.closingbet.domain.ClosingBetEventRepository
 import judozoo.closingbet.domain.ClosingBetRepository
+import judozoo.closingbet.domain.FlowLine
+import judozoo.closingbet.domain.Grade
+import judozoo.closingbet.domain.MarketFlow
+import judozoo.closingbet.domain.MarketFlows
 import judozoo.closingbet.domain.NicknameRejected
 import judozoo.leadingstock.application.LeadingStockService
 import judozoo.leadingstock.domain.DailyCandle
@@ -164,17 +169,17 @@ class ClosingBetServiceTest @Autowired constructor(
             service.fillRound(thu, thu.atTime(20, 1)) shouldBe true
 
             val bet = service.myBet(1, thu)!!
-            Triple(bet.status, bet.buyPrice, bet.shares) shouldBe Triple("filled", 400_000L, 50)
+            Triple(bet.status, bet.buyPrice, bet.shares) shouldBe Triple(BetStatus.FILLED, 400_000L, 50)
             val stocks = service.roundStocks(thu).associateBy { it.stockCode }
             val hynix = stocks.getValue("000660")
-            listOf(hynix.grade, hynix.nxt, hynix.crowd, hynix.potMan) shouldBe listOf("S", true, 1, 2_000L)
+            listOf(hynix.grade, hynix.nxt, hynix.crowd, hynix.potMan) shouldBe listOf(Grade.S, true, 1, 2_000L)
             hynix.regularClose shouldBe 399_000
-            JsonMapper.builder().build().readTree(hynix.checksJson)["after_hold"].asBoolean() shouldBe true
+            hynix.checks.afterHold shouldBe true
             hynix.recentHighGap!! shouldBe (0.00025 plusOrMinus 1e-4)
             stocks.getValue("277810").nxt shouldBe false
             val round = service.betRound(thu)!!
             (round.players to round.potMan) shouldBe (1 to 2_000L)
-            JsonMapper.builder().build().readTree(round.marketJson) shouldBe JsonMapper.builder().build().valueToTree(FLOWS)
+            JsonMapper.builder().build().run { readTree(round.marketJson) shouldBe readTree(writeValueAsString(FLOWS.published())) }
         }
 
         @Test
@@ -184,7 +189,7 @@ class ClosingBetServiceTest @Autowired constructor(
 
             service.fillRound(thu, thu.atTime(20, 1))
 
-            service.myBet(1, thu)!!.status shouldBe "filled"
+            service.myBet(1, thu)!!.status shouldBe BetStatus.FILLED
             service.roundStocks(thu).map { it.stockCode }.contains("247540") shouldBe true
         }
 
@@ -195,7 +200,7 @@ class ClosingBetServiceTest @Autowired constructor(
 
             service.fillRound(thu, thu.atTime(20, 1))
 
-            service.myBet(1, thu)!!.status shouldBe "void"
+            service.myBet(1, thu)!!.status shouldBe BetStatus.VOID
         }
 
         @Test
@@ -228,8 +233,8 @@ class ClosingBetServiceTest @Autowired constructor(
             service.settleRound(thu, fri, fri.atTime(8, 5)) shouldBe false
 
             val hynix = service.myBet(1, thu)!!
-            Triple(hynix.status, hynix.sellPrice, hynix.pnl) shouldBe Triple("settled", 408_000.0, 50L * 8_000)
-            service.myBet(2, thu)!!.status shouldBe "filled"
+            Triple(hynix.status, hynix.sellPrice, hynix.pnl) shouldBe Triple(BetStatus.SETTLED, 408_000.0, 50L * 8_000)
+            service.myBet(2, thu)!!.status shouldBe BetStatus.FILLED
         }
 
         @Test
@@ -278,10 +283,12 @@ class ClosingBetServiceTest @Autowired constructor(
     }
 
     companion object {
-        val FLOWS: Map<String, Any?> = mapOf(
-            "KOSPI" to mapOf("foreign" to listOf(10, 50, 1, 5, 30, 5), "institution" to listOf(-5, -10, -1, -5, 10, -2)),
-            "KOSDAQ" to mapOf("foreign" to listOf(1, 2, 1, 2, -30, -5), "institution" to listOf(1, 2, 1, 2, -10, -2)),
-            "night" to mapOf("price" to 413.6, "rate" to 0.35),
+        val FLOWS = MarketFlows(
+            mapOf(
+                Market.KOSPI to MarketFlow(FlowLine(10, 50, 1, 5, 30, 5), FlowLine(-5, -10, -1, -5, 10, -2)),
+                Market.KOSDAQ to MarketFlow(FlowLine(1, 2, 1, 2, -30, -5), FlowLine(1, 2, 1, 2, -10, -2)),
+            ),
+            MarketFlows.NightFutures(413.6, 0.35),
         )
     }
 }

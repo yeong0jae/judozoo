@@ -2,10 +2,15 @@ package judozoo.closingbet.domain
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import judozoo.stock.domain.Market
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -15,7 +20,7 @@ class BetRoundStock(
     @Column(name = "trading_day") val tradingDay: LocalDate,
     @Column(name = "stock_code") val stockCode: String,
     @Column(name = "stock_name") val stockName: String,
-    val market: String,
+    @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR) val market: Market,
     @Column(name = "`lead`") val lead: Boolean,
     val nxt: Boolean,
     @Column(name = "close_price", columnDefinition = "int") val closePrice: Long,
@@ -28,8 +33,8 @@ class BetRoundStock(
     @Column(name = "institution_5d") val institution5d: Long,
     @Column(name = "recent_high_gap") private val recentHighGapFloat: Float?,
     @Column(name = "regular_close", columnDefinition = "int") val regularClose: Long?,
-    @Column(name = "checks", columnDefinition = "json") val checksJson: String,
-    val grade: String,
+    @Column(columnDefinition = "json") val checks: Checks,
+    @Enumerated(EnumType.STRING) @JdbcTypeCode(SqlTypes.VARCHAR) val grade: Grade,
     val crowd: Int,
     @Column(name = "pot_man") val potMan: Long,
 ) {

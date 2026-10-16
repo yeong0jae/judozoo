@@ -15,6 +15,10 @@ import judozoo.closingbet.domain.BetRound
 import judozoo.closingbet.domain.BetRoundStock
 import judozoo.closingbet.domain.Checks
 import judozoo.closingbet.domain.ClosingBet
+import judozoo.closingbet.domain.FlowLine
+import judozoo.closingbet.domain.Grade
+import judozoo.closingbet.domain.MarketFlow
+import judozoo.closingbet.domain.MarketFlows
 import judozoo.closingbet.domain.Moment
 import judozoo.closingbet.domain.NicknameRejected
 import judozoo.closingbet.domain.Outcome
@@ -60,7 +64,7 @@ class ClosingBetControllerTest @Autowired constructor(private val mvc: MockMvc) 
         every { service.pool() } returns listOf(hynix)
         every { service.stakes(thu) } returns Stakes(listOf(Stake(1, "000660", 2_000, LocalDateTime.of(2026, 10, 1, 15, 0))))
         val reading = StockReading(hynix, Market.KOSPI, 412_500, 414_000, 386_000, StockFlows(2_640, 910, 8_420, 2_150), -0.4, 410_000, checks)
-        every { service.readings(thu) } returns Readings(mapOf("KOSPI" to emptyMap<String, Any>()), mapOf("000660" to reading), mapOf("000660" to true))
+        every { service.readings(thu) } returns Readings(MarketFlows(mapOf(Market.KOSPI to MarketFlow(FlowLine(0, 0, 0, 0, 0, 0), FlowLine(0, 0, 0, 0, 0, 0))), null), mapOf("000660" to reading), mapOf("000660" to true))
     }
 
     @Nested
@@ -216,8 +220,8 @@ class ClosingBetControllerTest @Autowired constructor(private val mvc: MockMvc) 
             every { service.betRound(thu) } returns BetRound(thu, LocalDateTime.of(2026, 10, 1, 20, 1), """{"KOSPI":{}}""", 2, 4_000).apply { settle(LocalDateTime.of(2026, 10, 2, 9, 5)) }
             every { service.roundStocks(thu) } returns listOf(
                 BetRoundStock(
-                    thu, "000660", "SK하이닉스", "KOSPI", true, true, 400_000, 401_000, 390_000, 3.1f, 100, 50, 500, 200, -0.4f, null,
-                    """{"near_high":true,"foreign":true,"institution":true,"market_late":true,"recent_high":true}""", "S", 2, 4_000,
+                    thu, "000660", "SK하이닉스", Market.KOSPI, true, true, 400_000, 401_000, 390_000, 3.1f, 100, 50, 500, 200, -0.4f, null,
+                    Checks(nearHigh = true, foreign = true, institution = true, marketLate = true, recentHigh = true, afterHold = false), Grade.S, 2, 4_000,
                 ),
             )
             every { service.results(thu) } returns Results(

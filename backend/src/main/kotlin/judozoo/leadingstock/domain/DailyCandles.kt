@@ -11,4 +11,10 @@ class DailyCandles(private val candles: List<DailyCandle>) {
         if (avg <= 0) return null
         return currentVolume / avg
     }
+
+    fun recentHigh(before: LocalDate, days: Int): Long? =
+        candles.filter { it.date < before }.sortedByDescending { it.date }.take(days).maxOfOrNull { it.highPrice }?.takeIf { it > 0 }
+
+    fun gapFromRecentHigh(price: Long, before: LocalDate, days: Int): Double? =
+        recentHigh(before, days)?.let { (price - it).toDouble() / it * 100 }
 }
