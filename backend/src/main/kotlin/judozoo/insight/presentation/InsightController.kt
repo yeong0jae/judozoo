@@ -3,7 +3,7 @@ package judozoo.insight.presentation
 import jakarta.validation.constraints.Pattern
 import judozoo.auth.domain.CurrentUser
 import judozoo.insight.application.InsightService
-import judozoo.insight.domain.StockReason
+import judozoo.insight.domain.Article
 import judozoo.library.KST
 import judozoo.library.web.ApiResponse
 import judozoo.market.domain.Region
@@ -25,17 +25,16 @@ class InsightController(private val service: InsightService, private val clock: 
         val generatedAt: LocalDateTime,
         val evidenceCount: Int,
         val relatedCount: Int,
-        val evidence: List<StockReason.Article>?,
-        val related: List<StockReason.Article>?,
+        val evidence: List<Article>?,
+        val related: List<Article>?,
     )
 
     @GetMapping("/reasons")
     fun reasons(@RequestParam @Pattern(regexp = "kr|us") market: String, user: CurrentUser?) = ApiResponse.ok(
         service.reasons(Region.valueOf(market.uppercase()), LocalDateTime.now(clock.withZone(KST))).map {
-            val (evidence, related) = it.evidence to it.related
             StockReasonItem(
-                it.code, it.explained, it.keywords, it.reason, it.generatedAt, evidence.size, related.size,
-                evidence.takeIf { user != null }, related.takeIf { user != null },
+                it.code, it.explained, it.keywords.values, it.reason, it.generatedAt, it.evidence.size, it.related.size,
+                it.evidence.items.takeIf { user != null }, it.related.items.takeIf { user != null },
             )
         },
     )

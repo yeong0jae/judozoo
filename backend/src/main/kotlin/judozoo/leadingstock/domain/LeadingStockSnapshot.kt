@@ -17,6 +17,8 @@ data class LeadingStockSnapshot(
     val limitUp: Boolean = false,
     val wideLimitDay: Boolean = false,
 ) {
+    val code: String get() = stockCode.substringBefore("_")
+
     val exceedsNormalLimit: Boolean get() = priceChangeRate > NORMAL_LIMIT_RATE
 
     val isWideLimitDay: Boolean get() = wideLimitDay || exceedsNormalLimit

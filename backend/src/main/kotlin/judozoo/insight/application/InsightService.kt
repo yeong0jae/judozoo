@@ -2,17 +2,17 @@ package judozoo.insight.application
 
 import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
+import judozoo.insight.domain.Attempts
 import judozoo.insight.domain.Circuit
 import judozoo.insight.domain.Draft
 import judozoo.insight.domain.Failure
+import judozoo.insight.domain.Publications
 import judozoo.insight.domain.Schedule
-import judozoo.insight.domain.Shown
 import judozoo.insight.domain.Sources
 import judozoo.insight.domain.StockReason
 import judozoo.insight.domain.StockReasonRepository
 import judozoo.insight.domain.Trigger
 import judozoo.insight.domain.Verdict
-import judozoo.insight.domain.Attempts
 import judozoo.leadercalendar.domain.ForeignSession
 import judozoo.leadingstock.application.LeadingStockService
 import judozoo.leadingstock.domain.LeadingStockSnapshot
@@ -27,6 +27,7 @@ import judozoo.platform.vertex.VertexException
 import judozoo.platform.vertex.VertexProperties
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import tools.jackson.databind.JsonNode
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -62,7 +63,7 @@ class InsightService(
 
     fun run(region: Region, nowKst: LocalDateTime): Int {
         val schedule = Schedule.of(region)
-        val now = local(region, nowKst)
+        val now = region.local(nowKst)
         if (!schedule.inWindow(now.toLocalTime())) return 0
         val state = synchronized(circuit) { circuit.state(nowKst) }
         if (state == Circuit.State.OPEN) return 0
@@ -70,7 +71,7 @@ class InsightService(
         val (leaders, candidates) = targets(region)
         val byCode = (candidates + leaders).associateBy { it.code }
         val history = reasons.findByRegionAndTradingDay(region, now.toLocalDate()).groupBy { it.code }
-            .mapValues { (_, rows) -> Attempts(rows.map { it.attempt(local(region, it.generatedAt)) }) }
+            .mapValues { (_, rows) -> Attempts(rows.map { it.attempt(region.local(it.generatedAt)) }) }
         var picks = schedule.pick(leaders.map { it.code }, history, now, candidates.map { it.code })
 
         val room = maxOf(properties.dailyLimit - reasons.countByGeneratedAtGreaterThanEqual(nowKst.toLocalDate().atStartOfDay()).toInt(), 0)
@@ -101,10 +102,10 @@ class InsightService(
     }
 
     fun reasons(region: Region, nowKst: LocalDateTime): List<StockReason> =
-        reasons.findByRegionAndTradingDay(region, sessionDay(region, nowKst)).groupBy { it.code }.values.mapNotNull { Shown.of(it) }
+        reasons.findByRegionAndTradingDay(region, sessionDay(region, nowKst)).groupBy { it.code }.values.mapNotNull { Publications(it).shown() }
 
     internal fun sessionDay(region: Region, nowKst: LocalDateTime): LocalDate {
-        val now = local(region, nowKst)
+        val now = region.local(nowKst)
         return Schedule.of(region).sessionDay(now, !calendar.isHoliday(region), previousOpenDay(region, now.toLocalDate()))
     }
 
@@ -114,9 +115,9 @@ class InsightService(
             val grounded = vertex.ground(explainPrompt(region, leader, day, since))
             val sources = Sources.of(grounded.sources.mapNotNull { s -> articles.resolve(s.uri)?.let { Sources.Raw(it.site ?: s.domain, it.title, it.url) } })
             val (data, _) = vertex.structure(structurePrompt(leader, day, grounded.text, sources), SCHEMA)
-            Draft.of(data).judge(sources, leader.name)
+            draftOf(data).judge(sources, leader.name)
         } catch (e: VertexException) {
-            Verdict(published = false, error = e.message, failure = Failure.of(e.kind.label))
+            Verdict(published = false, error = e.message, failure = failureOf(e.kind))
         }
         if (!verdict.published) log.info("왜 오르나 거절 {} {} — {}", region, leader.code, verdict.error)
         return StockReason.made(region, day, leader.code, leader.name, nowKst, trigger, verdict, properties.model)
@@ -191,12 +192,25 @@ class InsightService(
             "required" to listOf("explained", "keywords", "reason", "evidence", "related"),
         )
 
-        fun local(region: Region, atKst: LocalDateTime): LocalDateTime = atKst.atZone(KST).withZoneSameInstant(region.zone).toLocalDateTime()
+        private fun failureOf(kind: VertexException.Kind): Failure = when (kind) {
+            VertexException.Kind.TIMEOUT -> Failure.TIMEOUT
+            VertexException.Kind.UNAVAILABLE -> Failure.UNAVAILABLE
+            VertexException.Kind.CLIENT_ERROR -> Failure.CLIENT_ERROR
+            VertexException.Kind.BAD_ANSWER -> Failure.BAD_ANSWER
+        }
+
+        private fun draftOf(json: JsonNode): Draft = Draft(
+            explained = json["explained"]?.asBoolean() ?: false,
+            keywords = json["keywords"]?.values()?.map { it.asString() }.orEmpty(),
+            reason = json["reason"]?.takeUnless { it.isNull }?.asString().orEmpty(),
+            evidence = json["evidence"]?.values()?.map { it.asInt() }.orEmpty(),
+            related = json["related"]?.values()?.map { it.asInt() }.orEmpty(),
+        )
 
         private fun signed(rate: Double) = String.format(Locale.ROOT, "%+.2f", rate)
 
         private fun domesticLeader(s: LeadingStockSnapshot) = Leader(
-            s.stockCode.substringBefore("_"), s.stockName, s.stockName, s.priceChangeRate,
+            s.code, s.stockName, s.stockName, s.priceChangeRate,
             String.format(Locale.ROOT, "%,.0f억 원", s.accumulatedTradingValue / 1e8),
         )
 

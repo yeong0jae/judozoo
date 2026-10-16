@@ -3,6 +3,7 @@ package judozoo.insight.domain
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import judozoo.insight.domain.Schedule.KR
+import judozoo.insight.domain.Schedule.Pick
 import judozoo.insight.domain.Schedule.US
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -115,7 +116,7 @@ class ScheduleTest {
 
         @Test
         fun `새로 들어온 종목은 정해진 시각이 아니어도 바로 만든다`() {
-            KR.pick(listOf("A"), emptyMap(), at(10, 15)) shouldBe listOf("A" to Trigger.ENTRY)
+            KR.pick(listOf("A"), emptyMap(), at(10, 15)) shouldBe listOf(Pick("A", Trigger.ENTRY))
         }
 
         @Test
@@ -125,12 +126,12 @@ class ScheduleTest {
 
         @Test
         fun `정해진 시각에는 주도주를 다시 만든다`() {
-            KR.pick(listOf("A"), history("A" to listOf(made(9, 30))), at(11, 0)) shouldBe listOf("A" to Trigger.SCHEDULED)
+            KR.pick(listOf("A"), history("A" to listOf(made(9, 30))), at(11, 0)) shouldBe listOf(Pick("A", Trigger.SCHEDULED))
         }
 
         @Test
         fun `정해진 시각이라도 30분 안에 만든 종목은 건너뛴다`() {
-            KR.pick(listOf("A", "B"), history("A" to listOf(made(10, 41)), "B" to listOf(made(9, 30))), at(11, 0)) shouldBe listOf("B" to Trigger.SCHEDULED)
+            KR.pick(listOf("A", "B"), history("A" to listOf(made(10, 41)), "B" to listOf(made(9, 30))), at(11, 0)) shouldBe listOf(Pick("B", Trigger.SCHEDULED))
         }
 
         @ParameterizedTest
@@ -139,18 +140,18 @@ class ScheduleTest {
             val history = history("A" to listOf(failed(10, 15, failure)))
 
             KR.pick(listOf("A"), history, at(10, 15)).shouldBeEmpty()
-            KR.pick(listOf("A"), history, at(10, 16)) shouldBe listOf("A" to Trigger.RETRY)
+            KR.pick(listOf("A"), history, at(10, 16)) shouldBe listOf(Pick("A", Trigger.RETRY))
         }
 
         @Test
         fun `다시 실패하면 5분 그다음엔 15분 뒤에 다시 만든다`() {
             val twice = history("A" to listOf(failed(10, 15), failed(10, 16, Failure.UNAVAILABLE)))
             KR.pick(listOf("A"), twice, at(10, 20)).shouldBeEmpty()
-            KR.pick(listOf("A"), twice, at(10, 21)) shouldBe listOf("A" to Trigger.RETRY)
+            KR.pick(listOf("A"), twice, at(10, 21)) shouldBe listOf(Pick("A", Trigger.RETRY))
 
             val thrice = history("A" to listOf(failed(10, 15), failed(10, 16), failed(10, 21)))
             KR.pick(listOf("A"), thrice, at(10, 35)).shouldBeEmpty()
-            KR.pick(listOf("A"), thrice, at(10, 36)) shouldBe listOf("A" to Trigger.RETRY)
+            KR.pick(listOf("A"), thrice, at(10, 36)) shouldBe listOf(Pick("A", Trigger.RETRY))
         }
 
         @Test
@@ -158,14 +159,14 @@ class ScheduleTest {
             val history = history("A" to listOf(failed(10, 15), failed(10, 16), failed(10, 21), failed(10, 36)))
 
             KR.pick(listOf("A"), history, at(10, 59)).shouldBeEmpty()
-            KR.pick(listOf("A"), history, at(14, 0)) shouldBe listOf("A" to Trigger.SCHEDULED)
+            KR.pick(listOf("A"), history, at(14, 0)) shouldBe listOf(Pick("A", Trigger.SCHEDULED))
         }
 
         @Test
         fun `성공 뒤의 실패는 처음부터 다시 센다`() {
             val history = history("A" to listOf(failed(9, 0), failed(9, 1), failed(9, 6), made(9, 30), failed(10, 15)))
 
-            KR.pick(listOf("A"), history, at(10, 16)) shouldBe listOf("A" to Trigger.RETRY)
+            KR.pick(listOf("A"), history, at(10, 16)) shouldBe listOf(Pick("A", Trigger.RETRY))
         }
 
         @ParameterizedTest
@@ -176,17 +177,17 @@ class ScheduleTest {
 
         @Test
         fun `후보는 새로 들어올 때 바로 만든다`() {
-            KR.pick(listOf("A"), emptyMap(), at(10, 15), candidates = listOf("C")) shouldBe listOf("A" to Trigger.ENTRY, "C" to Trigger.ENTRY)
+            KR.pick(listOf("A"), emptyMap(), at(10, 15), candidates = listOf("C")) shouldBe listOf(Pick("A", Trigger.ENTRY), Pick("C", Trigger.ENTRY))
         }
 
         @Test
         fun `사유가 있는 후보는 정해진 시각에 다시 만들지 않는다`() {
-            KR.pick(listOf("A"), history("A" to listOf(made(9, 30)), "C" to listOf(made(9, 30))), at(11, 0), listOf("C")) shouldBe listOf("A" to Trigger.SCHEDULED)
+            KR.pick(listOf("A"), history("A" to listOf(made(9, 30)), "C" to listOf(made(9, 30))), at(11, 0), listOf("C")) shouldBe listOf(Pick("A", Trigger.SCHEDULED))
         }
 
         @Test
         fun `설명 없음인 후보는 정해진 시각에 다시 만든다`() {
-            KR.pick(emptyList(), history("C" to listOf(made(9, 30, explained = false))), at(11, 0), listOf("C")) shouldBe listOf("C" to Trigger.SCHEDULED)
+            KR.pick(emptyList(), history("C" to listOf(made(9, 30, explained = false))), at(11, 0), listOf("C")) shouldBe listOf(Pick("C", Trigger.SCHEDULED))
         }
 
         @Test
@@ -201,17 +202,17 @@ class ScheduleTest {
 
         @Test
         fun `후보도 Vertex가 아파 실패하면 다시 만든다`() {
-            KR.pick(emptyList(), history("C" to listOf(failed(10, 15))), at(10, 16), listOf("C")) shouldBe listOf("C" to Trigger.RETRY)
+            KR.pick(emptyList(), history("C" to listOf(failed(10, 15))), at(10, 16), listOf("C")) shouldBe listOf(Pick("C", Trigger.RETRY))
         }
 
         @Test
         fun `주도주와 후보에 같은 종목이 있으면 주도주로 본다`() {
-            KR.pick(listOf("A"), history("A" to listOf(made(9, 30))), at(11, 0), listOf("A")) shouldBe listOf("A" to Trigger.SCHEDULED)
+            KR.pick(listOf("A"), history("A" to listOf(made(9, 30))), at(11, 0), listOf("A")) shouldBe listOf(Pick("A", Trigger.SCHEDULED))
         }
 
         @Test
         fun `주도주에서 빠진 종목은 다시 만들지 않는다`() {
-            KR.pick(listOf("B"), history("A" to listOf(made(9, 30))), at(11, 0)) shouldBe listOf("B" to Trigger.ENTRY)
+            KR.pick(listOf("B"), history("A" to listOf(made(9, 30))), at(11, 0)) shouldBe listOf(Pick("B", Trigger.ENTRY))
         }
     }
 }

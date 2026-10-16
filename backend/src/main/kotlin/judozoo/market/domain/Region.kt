@@ -2,6 +2,7 @@ package judozoo.market.domain
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 
 enum class Region(val zone: ZoneId) {
@@ -10,4 +11,6 @@ enum class Region(val zone: ZoneId) {
     ;
 
     fun today(at: Instant): LocalDate = at.atZone(zone).toLocalDate()
+
+    fun local(kst: LocalDateTime): LocalDateTime = kst.atZone(KR.zone).withZoneSameInstant(zone).toLocalDateTime()
 }

@@ -37,16 +37,18 @@ enum class Schedule(
     fun sessionDay(localNow: LocalDateTime, todayOpen: Boolean, previousOpenDay: LocalDate): LocalDate =
         if (!todayOpen || localNow.toLocalTime().isBefore(reset)) previousOpenDay else localNow.toLocalDate()
 
-    fun pick(leaders: List<String>, history: Map<String, Attempts>, now: LocalDateTime, candidates: List<String> = emptyList()): List<Pair<String, Trigger>> {
+    data class Pick(val code: String, val trigger: Trigger)
+
+    fun pick(leaders: List<String>, history: Map<String, Attempts>, now: LocalDateTime, candidates: List<String> = emptyList()): List<Pick> {
         if (!inWindow(now.toLocalTime())) return emptyList()
         val slot = isSlot(now.toLocalTime())
         val lead = leaders.toSet()
         return (leaders + candidates.filterNot { it in lead }).mapNotNull { code ->
             val done = history[code] ?: Attempts()
             when {
-                done.isEmpty() -> code to Trigger.ENTRY
-                done.needsRetry(now) -> code to Trigger.RETRY
-                slot && !done.madeWithin(now, RECENT) && (code in lead || !done.explained) -> code to Trigger.SCHEDULED
+                done.isEmpty() -> Pick(code, Trigger.ENTRY)
+                done.needsRetry(now) -> Pick(code, Trigger.RETRY)
+                slot && !done.madeWithin(now, RECENT) && (code in lead || !done.explained) -> Pick(code, Trigger.SCHEDULED)
                 else -> null
             }
         }

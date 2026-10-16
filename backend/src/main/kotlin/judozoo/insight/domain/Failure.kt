@@ -13,8 +13,4 @@ enum class Failure(val value: String) {
     ;
 
     val transient: Boolean get() = this == TIMEOUT || this == POOL_TIMEOUT || this == UNAVAILABLE
-
-    companion object {
-        fun of(value: String): Failure = entries.first { it.value == value }
-    }
 }

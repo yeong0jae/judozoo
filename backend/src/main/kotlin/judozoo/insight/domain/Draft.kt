@@ -1,7 +1,5 @@
 package judozoo.insight.domain
 
-import tools.jackson.databind.JsonNode
-
 data class Draft(val explained: Boolean, val keywords: List<String>, val reason: String, val evidence: List<Int>, val related: List<Int>) {
     fun judge(sources: Sources, stockName: String = ""): Verdict {
         val unknown = (evidence + related).filter { sources[it] == null }
@@ -40,14 +38,6 @@ data class Draft(val explained: Boolean, val keywords: List<String>, val reason:
         )
 
         private val ADVICE = Regex("추천|매[수도]\\s*(?:하(?![며는고])|할|해(?!서))|담아(?![내낸])|사야|팔아(?!치)|\\bbuy\\b|\\bsell\\b", RegexOption.IGNORE_CASE)
-
-        fun of(json: JsonNode): Draft = Draft(
-            explained = json["explained"]?.asBoolean() ?: false,
-            keywords = json["keywords"]?.values()?.map { it.asString() }.orEmpty(),
-            reason = json["reason"]?.takeUnless { it.isNull }?.asString().orEmpty(),
-            evidence = json["evidence"]?.values()?.map { it.asInt() }.orEmpty(),
-            related = json["related"]?.values()?.map { it.asInt() }.orEmpty(),
-        )
     }
 }
 

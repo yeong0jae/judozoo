@@ -9,8 +9,11 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import judozoo.IntegrationTest
+import judozoo.insight.domain.Article
+import judozoo.insight.domain.Failure
 import judozoo.insight.domain.StockReason
 import judozoo.insight.domain.StockReasonRepository
+import judozoo.insight.domain.Trigger
 import judozoo.leadingstock.application.LeadingStockService
 import judozoo.leadingstock.domain.LeadingStockSnapshot
 import judozoo.market.application.MarketCalendar
@@ -100,11 +103,11 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
 
             val r = rows().single()
             listOf(r.region, r.tradingDay, r.code, r.name) shouldBe listOf(Region.KR, today, "011070", "LG이노텍")
-            Triple(r.trigger, r.published, r.explained) shouldBe Triple("entry", true, true)
+            Triple(r.trigger, r.published, r.explained) shouldBe Triple(Trigger.ENTRY, true, true)
             r.reason shouldBe "美 라이다 업체 Aeva 지분가치 상승"
-            r.keywords shouldBe listOf("Aeva")
-            r.evidence shouldBe listOf(StockReason.Article("파이낸셜뉴스", "LG이노텍, 美라이다 기업 지분가치 상승 영향", "https://fnnews.com/1"))
-            r.related shouldBe listOf(StockReason.Article("jkn.co.kr", "LG이노텍, 호재성 뉴스 부재 속 급등", "https://jkn.co.kr/2"))
+            r.keywords.values shouldBe listOf("Aeva")
+            r.evidence.items shouldBe listOf(Article("파이낸셜뉴스", "LG이노텍, 美라이다 기업 지분가치 상승 영향", "https://fnnews.com/1"))
+            r.related.items shouldBe listOf(Article("jkn.co.kr", "LG이노텍, 호재성 뉴스 부재 속 급등", "https://jkn.co.kr/2"))
         }
 
         @Test
@@ -146,7 +149,7 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
             listOf(kst(10, 15), kst(10, 40), kst(11, 0)).forEach { insight.run(Region.KR, it) }
 
             prompts.size shouldBe 2
-            rows().map { it.trigger } shouldBe listOf("entry", "scheduled")
+            rows().map { it.trigger } shouldBe listOf(Trigger.ENTRY, Trigger.SCHEDULED)
         }
 
         @Test
@@ -155,7 +158,7 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
 
             listOf(kst(10, 15), kst(10, 16), kst(10, 18)).forEach { insight.run(Region.KR, it) }
 
-            rows().map { Triple(it.trigger, it.published, it.failure?.value) } shouldBe listOf(Triple("entry", false, "unavailable"), Triple("retry", false, "timeout"))
+            rows().map { Triple(it.trigger, it.published, it.failure) } shouldBe listOf(Triple(Trigger.ENTRY, false, Failure.UNAVAILABLE), Triple(Trigger.RETRY, false, Failure.TIMEOUT))
             rows()[0].error!! shouldContain "unavailable"
         }
 
@@ -196,7 +199,7 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
 
             val published = rows().filter { it.published }
             published.map { it.code }.sorted() shouldBe listOf("000001", "000002", "000003", "000004")
-            published.map { it.trigger }.sorted() shouldBe listOf("entry", "retry", "retry", "retry")
+            published.map { it.trigger.value }.sorted() shouldBe listOf("entry", "retry", "retry", "retry")
         }
 
         @Test
@@ -216,7 +219,7 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
             insight.run(Region.KR, kst(10, 15))
             insight.run(Region.KR, kst(11, 0))
 
-            val made = rows().map { it.code to it.trigger }
+            val made = rows().map { it.code to it.trigger.value }
             made.take(2).sortedBy { it.first } shouldBe listOf("009830" to "entry", "011070" to "entry")
             made.drop(2) shouldBe listOf("011070" to "scheduled")
         }
