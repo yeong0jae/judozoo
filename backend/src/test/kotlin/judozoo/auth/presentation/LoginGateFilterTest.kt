@@ -62,7 +62,7 @@ class LoginGateFilterTest {
 
         @Test
         fun `api 밖은 관문이 판단하지 않는다`() {
-            call("/health").second.status shouldBe 200
+            call("/actuator/health").second.status shouldBe 200
         }
 
         @Test
@@ -94,7 +94,7 @@ class LoginGateFilterTest {
         fun `요청마다 uvicorn과 같은 모양의 접근 로그를 남긴다`() {
             val lines = captureAccessLog {
                 call("/api/leading-stocks/market-signal-events?limit=5")
-                call("/health")
+                call("/actuator/health")
             }
 
             lines shouldBe listOf("""127.0.0.1:80 - "GET /api/leading-stocks/market-signal-events?limit=5 HTTP/1.1" 401""")

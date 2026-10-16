@@ -1,8 +1,7 @@
-package judozoo.library.web
+package judozoo
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import judozoo.IntegrationTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Value
@@ -12,18 +11,18 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 @IntegrationTest
-class HealthControllerTest(@Value("\${local.server.port}") private val port: Int) {
+class ActuatorHealthTest(@Value("\${local.server.port}") private val port: Int) {
     @Nested
     inner class 헬스체크 {
         @Test
         fun `DB까지 붙어 있으면 UP으로 답한다`() {
             val response = HttpClient.newHttpClient().send(
-                HttpRequest.newBuilder(URI("http://localhost:$port/health/db")).build(),
+                HttpRequest.newBuilder(URI("http://localhost:$port/actuator/health")).build(),
                 HttpResponse.BodyHandlers.ofString(),
             )
 
             response.statusCode() shouldBe 200
-            response.body() shouldContain "\"database\":\"UP\""
+            response.body() shouldContain "\"db\":{\"status\":\"UP\""
         }
     }
 }

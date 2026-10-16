@@ -56,6 +56,9 @@ management:
     web:
       exposure:
         include: health,prometheus
+  endpoint:
+    health:
+      show-components: always
   tracing:
     sampling:
       probability: 1.0

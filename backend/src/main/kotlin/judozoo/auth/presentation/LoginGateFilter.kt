@@ -47,7 +47,7 @@ class LoginGateFilter(
 
     companion object {
         private val access = org.slf4j.LoggerFactory.getLogger("judozoo.access")
-        private val QUIET_PATHS = listOf("/health", "/actuator")
+        private val QUIET_PATHS = listOf("/actuator")
 
         const val COOKIE_NAME = SessionCookies.NAME
         const val CURRENT_USER = "judozoo.currentUser"
