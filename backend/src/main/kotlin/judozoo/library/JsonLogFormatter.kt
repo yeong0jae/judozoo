@@ -1,6 +1,5 @@
 package judozoo.library
 
-import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.spi.ThrowableProxyUtil
 import org.springframework.boot.json.JsonWriter
@@ -14,7 +13,7 @@ class JsonLogFormatter(private val zone: ZoneId = ZoneId.systemDefault()) : Stru
     override fun format(event: ILoggingEvent): String {
         val payload = linkedMapOf<String, Any>(
             "ts" to TS.format(event.instant.atZone(zone)),
-            "level" to if (event.level == Level.WARN) "WARNING" else event.level.toString(),
+            "level" to event.level.toString(),
             "logger" to event.loggerName,
             "msg" to event.formattedMessage,
             "thread" to event.threadName,

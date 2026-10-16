@@ -53,7 +53,7 @@ class OverseasMinuteArchiveTest @Autowired constructor(
         }
 
         @Test
-        fun `단정밀도로 저장된 소수도 Python과 같은 값으로 읽는다`() {
+        fun `단정밀도로 저장된 소수도 DB에 보이는 값으로 읽는다`() {
             val day = LocalDate.of(2026, 9, 25)
             fresh().put("NAS", "AAPL", day, listOf(bar(day, LocalDateTime.of(2026, 9, 25, 23, 0), close = 230.17)))
 

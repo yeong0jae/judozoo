@@ -11,11 +11,6 @@ infra/terraform/terraform.tfvars
 
 prototype/
 
-.venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-
 docs/backlog.md
 
 docs/iap-tunnel.md

@@ -37,7 +37,7 @@ class StockCatalogTest @Autowired constructor(
         catalog.reload()
     }
 
-    private fun pythonInserts() {
+    private fun storedRows() {
         jdbc.update(
             "INSERT INTO stocks (short_code, standard_code, name, market, created_at, updated_at) VALUES " +
                 "('005930','KR7005930003','삼성전자','KOSPI',NOW(),NOW()), ('247540','KR7247540008','에코프로비엠','KOSDAQ',NOW(),NOW())",
@@ -52,7 +52,7 @@ class StockCatalogTest @Autowired constructor(
     inner class 적재 {
         @Test
         fun `DB의 카탈로그를 읽어 검색한다`() {
-            pythonInserts()
+            storedRows()
 
             catalog.reload()
 
@@ -63,7 +63,7 @@ class StockCatalogTest @Autowired constructor(
 
         @Test
         fun `시장 구분을 읽는다`() {
-            pythonInserts()
+            storedRows()
 
             catalog.reload()
 
@@ -86,7 +86,7 @@ class StockCatalogTest @Autowired constructor(
             jdbc.update(
                 "INSERT INTO stocks (short_code, standard_code, name, market, created_at, updated_at) VALUES ('900110','HK0000057197','애플라인','KOSDAQ',NOW(),NOW())",
             )
-            pythonInserts()
+            storedRows()
             catalog.reload()
 
             catalog.search("애플").map { it.stockName } shouldBe listOf("애플라인", "애플")

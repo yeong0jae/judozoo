@@ -91,7 +91,7 @@ class LoginGateFilterTest {
         }
 
         @Test
-        fun `요청마다 uvicorn과 같은 모양의 접근 로그를 남긴다`() {
+        fun `요청마다 사용자 여정 대시보드가 읽는 모양의 접근 로그를 남긴다`() {
             val lines = captureAccessLog {
                 call("/api/leading-stocks/market-signal-events?limit=5")
                 call("/actuator/health")

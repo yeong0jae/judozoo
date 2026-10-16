@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 
 class JobFailuresTest {
     @Test
-    fun `Python과 같은 이름으로 잡별 실패를 센다`() {
+    fun `알림이 보는 이름으로 잡별 실패를 센다`() {
         val registry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
         val failures = JobFailures(registry)
 

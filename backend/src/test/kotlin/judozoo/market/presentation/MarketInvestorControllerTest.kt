@@ -47,7 +47,7 @@ class MarketInvestorControllerTest @Autowired constructor(private val mvc: MockM
     @Nested
     inner class 응답_모양 {
         @Test
-        fun `세션 수급은 실제로 쓴 날짜와 함께 Python과 같은 모양으로 준다`() {
+        fun `세션 수급은 실제로 쓴 날짜와 함께 준다`() {
             val nets = Nets(100, -50, -50, 0, SessionOrg(1, 2, 3, 4, 5, 6, 7))
             every { investors.investorSessions(Market.KOSPI, LocalDate.of(2026, 9, 14)) } returns
                 InvestorSessions(LocalDate.of(2026, 9, 11), listOf(InvestorSessions.Net(InvestorSession.PRE_MARKET, nets)))

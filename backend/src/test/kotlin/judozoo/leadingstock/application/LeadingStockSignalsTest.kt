@@ -38,7 +38,7 @@ class LeadingStockSignalsTest @Autowired constructor(private val signals: Leadin
     @Nested
     inner class 시그널_로그 {
         @Test
-        fun `그날 전이를 최신순으로 주고 단정밀도 소수는 Python과 같은 값이다`() {
+        fun `그날 전이를 최신순으로 주고 단정밀도 소수는 DB에 보이는 값 그대로다`() {
             listOf(0, 5, 10).forEach { signal("종목$it", at.plusMinutes(it.toLong())) }
             signal("어제것", at.minusDays(1), today.minusDays(1))
 

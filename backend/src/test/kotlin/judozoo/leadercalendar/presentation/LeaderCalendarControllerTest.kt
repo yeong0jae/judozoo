@@ -52,7 +52,7 @@ class LeaderCalendarControllerTest @Autowired constructor(private val mvc: MockM
         }
 
         @Test
-        fun `국내와 해외를 따로 날짜별로 Python과 같은 모양으로 준다`() {
+        fun `국내와 해외를 따로 날짜별로 준다`() {
             val hynix = LeaderStock(1, null, "000660", "SK하이닉스", BigDecimal("250000.0000"), 2.2, BigDecimal("971000000000.00"))
             month(
                 domestic = listOf(

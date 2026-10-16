@@ -48,7 +48,7 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
     @Nested
     inner class 시그널_로그 {
         @Test
-        fun `Python과 같은 모양으로 준다`() {
+        fun `종목 시그널을 발생 시각과 수치와 함께 준다`() {
             every { signals.signalEventsOn(day) } returns listOf(event(0))
 
             mvc.get("/api/leading-stocks/signal-events") { param("date", "2026-09-11"); cookie(LoggedIn.cookie) }.andExpect {
@@ -107,7 +107,7 @@ class LeadingStockSignalControllerTest @Autowired constructor(private val mvc: M
         }
 
         @Test
-        fun `단계에 해당하는 임계액을 함께 Python과 같은 모양으로 준다`() {
+        fun `단계에 해당하는 임계액을 함께 준다`() {
             every { signals.marketEventsOn(day) } returns listOf(
                 MarketSignalEvent(at, day, MarketSignalType.NET_BUY_LEVEL, Market.KOSPI, NetTradeSide.BUY, InvestorType.FOREIGN, 3, 32_000, indexValueFloat = 2653.81f, changeRateFloat = 1.2f),
                 MarketSignalEvent(at, day, MarketSignalType.MA_REBOUND, Market.KOSDAQ, NetTradeSide.BUY),

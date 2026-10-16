@@ -28,7 +28,7 @@ class StockControllerTest @Autowired constructor(private val mvc: MockMvc) {
     @Nested
     inner class 종목_검색_API {
         @Test
-        fun `검색 결과를 Python과 같은 모양으로 준다`() {
+        fun `검색 결과에 종목코드·이름·거래소를 준다`() {
             every { catalog.search("삼성") } returns listOf(
                 StockCatalog.SearchResult("207940", "삼성바이오로직스", null),
                 StockCatalog.SearchResult("AAPL", "애플", "NAS"),
@@ -74,7 +74,7 @@ class StockControllerTest @Autowired constructor(private val mvc: MockMvc) {
     @Nested
     inner class 종목_투자자_수급_API {
         @Test
-        fun `백만원 단위와 날짜를 Python과 같은 모양으로 준다`() {
+        fun `수급을 백만원 단위와 날짜로 준다`() {
             every { investors.investorDailyHistory("005930", 5) } returns listOf(
                 StockInvestorService.InvestorDay(
                     LocalDate.of(2026, 9, 11), 1200, -800, -400, 0,

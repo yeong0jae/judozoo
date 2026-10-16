@@ -28,7 +28,7 @@ class JsonLogFormatterTest {
     private fun parse(line: String) = JsonMapper.builder().build().readValue(line, Map::class.java) as Map<String, Any?>
 
     @Nested
-    inner class Python과_같은_모양 {
+    inner class Loki가_읽는_모양 {
         @Test
         fun `기본 필드를 한 줄에 담는다`() {
             val line = formatter.format(event(Level.INFO, "후보 35종목 갱신"))
@@ -44,8 +44,8 @@ class JsonLogFormatterTest {
         }
 
         @Test
-        fun `경고는 Python 이름으로 적는다`() {
-            parse(formatter.format(event(Level.WARN, "x")))["level"] shouldBe "WARNING"
+        fun `경고는 logback 이름 그대로 WARN으로 적는다`() {
+            parse(formatter.format(event(Level.WARN, "x")))["level"] shouldBe "WARN"
         }
 
         @Test

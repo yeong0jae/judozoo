@@ -69,7 +69,7 @@ class StarletteSessionTest {
         private val data = mapOf("user" to mapOf("id" to 7, "email" to "a@example.com"))
 
         @Test
-        fun `Python과 같은 서명을 만든다`() {
+        fun `Starlette과 같은 서명을 만든다`() {
             session.write(data, signedAt) shouldBe "eyJ1c2VyIjp7ImlkIjo3LCJlbWFpbCI6ImFAZXhhbXBsZS5jb20ifX0=.atDSsQ.5A_KdLJTTgzmu5rIjQ_gHTZzalU"
         }
 

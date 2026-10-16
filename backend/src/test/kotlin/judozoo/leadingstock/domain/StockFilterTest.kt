@@ -60,7 +60,7 @@ class StockFilterTest {
         }
 
         @Test
-        fun `소수 둘째 자리 반올림이 Python과 같다`() {
+        fun `소수 둘째 자리는 짝수 쪽으로 반올림한다`() {
             filter.evaluate(stock(rate = 1.005)).actualValue shouldBe "+1.00%"
             filter.evaluate(stock(rate = 0.125)).actualValue shouldBe "+0.12%"
         }

@@ -111,7 +111,7 @@ class InsightServiceTest @Autowired constructor(private val repository: StockRea
         }
 
         @Test
-        fun `기사는 Python과 같은 JSON 모양으로 남는다`() {
+        fun `기사는 출처·제목·주소 JSON으로 남는다`() {
             insight.run(Region.KR, kst(10, 15))
 
             json.readTree(jdbc.queryForObject("SELECT evidence FROM stock_reason", String::class.java)) shouldBe

@@ -42,7 +42,7 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
     @Nested
     inner class 후보_목록 {
         @Test
-        fun `순위를 붙여 Python과 같은 모양으로 준다`() {
+        fun `순위를 붙여 준다`() {
             every { service.findCandidates(7.0) } returns listOf(stock())
 
             mvc.get("/api/leading-stocks/candidates").andExpect {
@@ -107,7 +107,7 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
         }
 
         @Test
-        fun `필터 평가와 상대거래량, 시세를 Python과 같은 모양으로 준다`() {
+        fun `필터 평가와 상대거래량, 시세를 함께 준다`() {
             val quote = LeadingStockSnapshot(
                 "005930", "삼성전자", 286_500, 3.62, 1, 9_100_600_000_000,
                 openingPrice = 283_000, previousClose = 276_500, highPrice = 289_500, lowPrice = 281_500,
@@ -143,7 +143,7 @@ class LeadingStockControllerTest @Autowired constructor(private val mvc: MockMvc
         }
 
         @Test
-        fun `분봉과 일봉은 기준일을 받아 Python과 같은 모양으로 준다`() {
+        fun `분봉과 일봉은 기준일을 받아 준다`() {
             every { service.minuteCandles("005930", LocalDate.of(2026, 9, 11)) } returns listOf(MinuteCandle(at, 1, 3, 0, 2, 10, 20))
             every { service.dailyCandles("005930", LocalDate.of(2026, 9, 11)) } returns listOf(DailyCandle(LocalDate.of(2026, 9, 10), 1, 3, 0, 2, 10, 1.5))
 
