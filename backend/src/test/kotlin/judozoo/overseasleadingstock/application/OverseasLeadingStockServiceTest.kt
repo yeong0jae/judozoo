@@ -10,11 +10,13 @@ import io.mockk.mockk
 import io.mockk.verify
 import judozoo.library.EntityNotFoundException
 import judozoo.market.application.MarketCalendar
+import judozoo.market.domain.MarketStatus
+import judozoo.overseasleadingstock.domain.OverseasCriteria
+import judozoo.overseasleadingstock.domain.OverseasMinuteCandle
+import judozoo.overseasleadingstock.domain.OverseasStockRank
 import judozoo.platform.kis.KisOverseasChart
-import judozoo.platform.kis.KisOverseasChart.OverseasMinuteCandle
 import judozoo.platform.kis.KisOverseasProduct
 import judozoo.platform.kis.KisOverseasRanking
-import judozoo.platform.kis.KisOverseasRanking.OverseasRankItem
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -29,7 +31,7 @@ class OverseasLeadingStockServiceTest {
     private val product = mockk<KisOverseasProduct>()
     private val minutes = mockk<OverseasMinutes>()
 
-    private var usStatus = false to true
+    private var usStatus = MarketStatus(false, true)
     private val calendar = mockk<MarketCalendar> {
         every { usMarketStatus() } answers { usStatus }
         every { untilUsSession() } returns Duration.ofHours(7)
@@ -39,10 +41,10 @@ class OverseasLeadingStockServiceTest {
         Clock.fixed(Instant.parse("2026-10-01T14:00:00Z"), ZoneOffset.UTC),
     )
 
-    private fun row(symb: String, tamt: String, rate: String = "10.0", ename: String = "SOME CORP", sign: String = "2") =
-        OverseasRankItem("1", "NAS", symb, symb, "100", sign, "5", rate, "1000", tamt, ename)
+    private fun row(symb: String, tamt: String, rate: String = "10.0", ename: String = "SOME CORP") =
+        OverseasStockRank(0, "NAS", symb, symb, ename, 100.0, 5.0, rate.toDouble(), tamt.toDouble())
 
-    private fun exchanges(nas: List<OverseasRankItem>, nys: List<OverseasRankItem> = emptyList(), ams: List<OverseasRankItem> = emptyList()) {
+    private fun exchanges(nas: List<OverseasStockRank>, nys: List<OverseasStockRank> = emptyList(), ams: List<OverseasStockRank> = emptyList()) {
         every { ranking.fetchTradingValueRanking("NAS") } returns nas
         every { ranking.fetchTradingValueRanking("NYS") } returns nys
         every { ranking.fetchTradingValueRanking("AMS") } returns ams
@@ -77,13 +79,6 @@ class OverseasLeadingStockServiceTest {
 
             service.candidates(5.0).shouldBeEmpty()
         }
-
-        @Test
-        fun `등락 방향은 sign으로 대비값에 부호를 준다`() {
-            exchanges(nas = listOf(row("A", "100", sign = "5")))
-
-            service.candidates(0.0)[0].diff shouldBe -5.0
-        }
     }
 
     @Nested
@@ -91,7 +86,7 @@ class OverseasLeadingStockServiceTest {
         @Test
         fun `1조 이상은 T 그 아래는 B로 적는다`() {
             mapOf(4_509_899_684_000L to "$4.51T", 1_000_000_000_000L to "$1.00T", 943_046_066_300L to "$943B", 2_000_000_000L to "$2B")
-                .forEach { (usd, expected) -> OverseasLeadingStockService.formatUsdCap(usd) shouldBe expected }
+                .forEach { (usd, expected) -> OverseasCriteria.formatUsdCap(usd) shouldBe expected }
         }
     }
 
@@ -110,7 +105,7 @@ class OverseasLeadingStockServiceTest {
             filters.drop(3).map { it.actualValue } shouldBe listOf("시가 없음", "시초가 없음")
             filters[1].actualValue shouldBe "+10.00%"
             filters[2].actualValue shouldBe "$100B"
-            (filters[1].value to filters[1].threshold) shouldBe (10.0 to OverseasLeadingStockService.MIN_CHANGE_RATE_PCT)
+            (filters[1].value to filters[1].threshold) shouldBe (10.0 to OverseasCriteria().minChangeRate)
             filters[2].value.shouldBeNull()
         }
 
@@ -128,7 +123,7 @@ class OverseasLeadingStockServiceTest {
 
             (open.actualValue to open.passed) shouldBe ("-0.99%" to false)
             (gap.actualValue to gap.passed) shouldBe ("$101.00 (+6.32%)" to true)
-            gap.threshold shouldBe OverseasLeadingStockService.MAX_OPENING_GAP_PCT
+            gap.threshold shouldBe OverseasCriteria().maxOpeningGap
         }
 
         @Test
@@ -169,14 +164,14 @@ class OverseasLeadingStockServiceTest {
 
         @Test
         fun `장이 멈춘 동안은 다음 미국장까지 들고 있는다`() {
-            usStatus = false to false
+            usStatus = MarketStatus(false, false)
 
             service.poolTtl() shouldBe Duration.ofHours(7)
         }
 
         @Test
         fun `미국 휴장일에는 장 시간이어도 다음 미국장까지 들고 있는다`() {
-            usStatus = true to true
+            usStatus = MarketStatus(true, true)
 
             service.poolTtl() shouldBe Duration.ofHours(7)
         }

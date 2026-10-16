@@ -1,11 +1,17 @@
 package judozoo.overseasleadingstock.domain
 
-import java.time.LocalDateTime
+import judozoo.library.KST
+import judozoo.market.domain.Region
 import java.time.LocalTime
 
 object UsRegularSession {
     val OPEN: LocalTime = LocalTime.of(9, 30)
 
-    fun openPrice(bars: List<Pair<LocalDateTime, Double>>): Double? =
-        bars.filter { (at, price) -> !at.toLocalTime().isBefore(OPEN) && price > 0 }.minByOrNull { it.first }?.second
+    fun openPrice(candles: List<OverseasMinuteCandle>): Double? {
+        val day = candles.maxOfOrNull { it.tradingDay } ?: return null
+        return candles.filter { it.tradingDay == day && it.open > 0 && !newYorkTime(it).isBefore(OPEN) }.minByOrNull { it.dateTime }?.open
+    }
+
+    private fun newYorkTime(candle: OverseasMinuteCandle): LocalTime =
+        candle.dateTime.atZone(KST).withZoneSameInstant(Region.US.zone).toLocalTime()
 }

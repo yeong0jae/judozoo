@@ -10,6 +10,7 @@ import io.mockk.verify
 import judozoo.library.JobFailures
 import judozoo.library.KST
 import judozoo.market.application.MarketCalendar
+import judozoo.market.domain.MarketStatus
 import judozoo.market.domain.Region
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -28,7 +29,7 @@ class LeadingStockSchedulerTest {
         override fun instant(): Instant = now.atZone(KST).toInstant()
     }
     private val calendar = mockk<MarketCalendar> {
-        every { marketStatus() } answers { holiday to tradingHours }
+        every { marketStatus() } answers { MarketStatus(holiday, tradingHours) }
         every { isHoliday(Region.KR) } answers { holiday }
     }
     private val service = mockk<LeadingStockService> {

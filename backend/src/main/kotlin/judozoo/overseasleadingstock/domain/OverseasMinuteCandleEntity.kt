@@ -30,5 +30,13 @@ class OverseasMinuteCandleEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int? = null
 
-    fun exact(value: Float): Double = value.toString().toDouble()
+    fun toCandle() = OverseasMinuteCandle(minuteAt, tradingDay, exact(open), exact(high), exact(low), exact(close), volume, exact(tradingValue))
+
+    private fun exact(value: Float): Double = value.toString().toDouble()
+
+    companion object {
+        fun of(exchange: String, symbol: String, day: LocalDate, c: OverseasMinuteCandle) = OverseasMinuteCandleEntity(
+            exchange, symbol, day, c.dateTime, c.open.toFloat(), c.high.toFloat(), c.low.toFloat(), c.close.toFloat(), c.volume, c.tradingValue.toFloat(),
+        )
+    }
 }

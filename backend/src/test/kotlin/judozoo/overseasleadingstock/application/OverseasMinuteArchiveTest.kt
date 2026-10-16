@@ -5,8 +5,9 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import judozoo.IntegrationTest
+import judozoo.overseasleadingstock.domain.DayCandles
+import judozoo.overseasleadingstock.domain.OverseasMinuteCandle
 import judozoo.overseasleadingstock.domain.OverseasMinuteCandleRepository
-import judozoo.platform.kis.KisOverseasChart.OverseasMinuteCandle
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -45,10 +46,10 @@ class OverseasMinuteArchiveTest @Autowired constructor(
 
             val days = fresh().recent("NAS", "AAPL", 2)
 
-            days.map { it.first } shouldBe listOf(yesterday, dayBefore)
-            days[0].second.map { it.dateTime.hour } shouldBe listOf(23, 0)
-            days[0].second[0].close shouldBe 100.5
-            days[0].second[0].tradingValue shouldBe 1005.0
+            days.map { it.day } shouldBe listOf(yesterday, dayBefore)
+            days[0].candles.map { it.dateTime.hour } shouldBe listOf(23, 0)
+            days[0].candles[0].close shouldBe 100.5
+            days[0].candles[0].tradingValue shouldBe 1005.0
         }
 
         @Test
@@ -56,7 +57,7 @@ class OverseasMinuteArchiveTest @Autowired constructor(
             val day = LocalDate.of(2026, 9, 25)
             fresh().put("NAS", "AAPL", day, listOf(bar(day, LocalDateTime.of(2026, 9, 25, 23, 0), close = 230.17)))
 
-            fresh().recent("NAS", "AAPL", 1)[0].second[0].close shouldBe 230.17
+            fresh().recent("NAS", "AAPL", 1)[0].candles[0].close shouldBe 230.17
         }
 
         @Test
@@ -75,7 +76,7 @@ class OverseasMinuteArchiveTest @Autowired constructor(
                 put("NAS", "AAPL", day, listOf(bar(day, LocalDateTime.of(2026, 9, 25, 23, 0), 105.0)))
             }
 
-            fresh().recent("NAS", "AAPL", 2).single().second.map { it.close } shouldBe listOf(105.0)
+            fresh().recent("NAS", "AAPL", 2).single().candles.map { it.close } shouldBe listOf(105.0)
         }
 
         @Test
@@ -88,7 +89,7 @@ class OverseasMinuteArchiveTest @Autowired constructor(
                 purge(LocalDate.of(2026, 9, 15))
             }
 
-            fresh().recent("NAS", "AAPL", 5).map { it.first } shouldBe listOf(yesterday)
+            fresh().recent("NAS", "AAPL", 5).map { it.day } shouldBe listOf(yesterday)
         }
     }
 
@@ -104,7 +105,7 @@ class OverseasMinuteArchiveTest @Autowired constructor(
 
             archive.put("NAS", "AAPL", day, bars)
 
-            archive.recent("NAS", "AAPL", 2) shouldBe listOf(day to bars)
+            archive.recent("NAS", "AAPL", 2) shouldBe listOf(DayCandles(day, bars))
         }
     }
 }

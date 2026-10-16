@@ -17,8 +17,7 @@ class OverseasLeadingStockScheduler(
 
     @Scheduled(fixedDelay = 15_000)
     fun refreshTradingValuePool() {
-        val (holiday, tradingHours) = calendar.usMarketStatus()
-        if (holiday || !tradingHours) return
+        if (!calendar.usMarketStatus().inSession) return
         try {
             service.refreshTradingValuePool()
         } catch (e: Exception) {

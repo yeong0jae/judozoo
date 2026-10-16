@@ -1,12 +1,13 @@
 package judozoo.market.application
 
 import judozoo.library.KST
+import judozoo.library.isWeekend
+import judozoo.market.domain.MarketStatus
 import judozoo.market.domain.Region
 import judozoo.platform.kis.KisHoliday
 import judozoo.platform.toss.TossMarketCalendar
 import org.springframework.stereotype.Service
 import java.time.Clock
-import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
@@ -53,7 +54,7 @@ class MarketCalendar(
         synchronized(holidayLock) {
             cachedHoliday(region, today)?.let { return it }
             val open = toss.isTradingDay(region.name, today)
-            val holiday = open?.not() ?: (today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY)
+            val holiday = open?.not() ?: today.isWeekend
             holidays[region] = Cached(today, holiday, if (open == null) ticker() + RETRY_AFTER_FAILURE.toNanos() else null)
             return holiday
         }
@@ -66,14 +67,14 @@ class MarketCalendar(
         return cached.holiday
     }
 
-    fun marketStatus(): Pair<Boolean, Boolean> {
+    fun marketStatus(): MarketStatus {
         val now = LocalTime.now(clock.withZone(KST))
-        return isHoliday(Region.KR) to (!now.isBefore(TRADING_START) && !now.isAfter(TRADING_END))
+        return MarketStatus(isHoliday(Region.KR), !now.isBefore(TRADING_START) && !now.isAfter(TRADING_END))
     }
 
-    fun usMarketStatus(): Pair<Boolean, Boolean> {
+    fun usMarketStatus(): MarketStatus {
         val now = clock.instant().atZone(Region.US.zone).toLocalTime()
-        return isHoliday(Region.US) to (!now.isBefore(US_TRADING_START) && now.isBefore(US_TRADING_END))
+        return MarketStatus(isHoliday(Region.US), !now.isBefore(US_TRADING_START) && now.isBefore(US_TRADING_END))
     }
 
     fun untilUsSession(): Duration {

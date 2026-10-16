@@ -1,6 +1,8 @@
 package judozoo.platform.kis
 
 import judozoo.library.TtlCache
+import judozoo.overseasleadingstock.domain.OverseasDailyCandle
+import judozoo.overseasleadingstock.domain.OverseasMinuteCandle
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import tools.jackson.databind.JsonNode
@@ -12,26 +14,6 @@ import java.time.format.DateTimeFormatter
 @Component
 class KisOverseasChart(private val client: KisClient) {
     private val log = LoggerFactory.getLogger(javaClass)
-
-    data class OverseasMinuteCandle(
-        val dateTime: LocalDateTime,
-        val tradingDay: LocalDate,
-        val open: Double,
-        val high: Double,
-        val low: Double,
-        val close: Double,
-        val volume: Long,
-        val tradingValue: Double,
-    )
-
-    data class OverseasDailyCandle(
-        val date: LocalDate,
-        val open: Double,
-        val high: Double,
-        val low: Double,
-        val close: Double,
-        val volume: Long,
-    )
 
     class MinutePagesInterrupted(message: String, val candles: List<OverseasMinuteCandle>, cause: Throwable) :
         RuntimeException(message, cause)

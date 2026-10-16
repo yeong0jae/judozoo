@@ -7,8 +7,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 class OverseasStockRankTest {
+    private fun newYork(at: LocalDateTime, open: Double) =
+        OverseasMinuteCandle(at.atZone(ZoneId.of("America/New_York")).withZoneSameInstant(ZoneId.of("Asia/Seoul")).toLocalDateTime(), at.toLocalDate(), open, open, open, open, 1, open)
+
     private fun stock(symbol: String = "AAA", ename: String = "AAA CORP", price: Double = 100.0, diff: Double = 5.0, rate: Double = 5.26, tradingValue: Double = 1e9) =
         OverseasStockRank(1, "NAS", symbol, symbol, ename, price, diff, rate, tradingValue)
 
@@ -45,9 +49,9 @@ class OverseasStockRankTest {
         @Test
         fun `장전 거래는 건너뛰고 09시30분 첫 봉의 시가를 쓴다`() {
             val bars = listOf(
-                LocalDateTime.of(2026, 10, 1, 9, 29) to 99.0,
-                LocalDateTime.of(2026, 10, 1, 9, 31) to 102.0,
-                LocalDateTime.of(2026, 10, 1, 9, 30) to 101.0,
+                newYork(LocalDateTime.of(2026, 10, 1, 9, 29), 99.0),
+                newYork(LocalDateTime.of(2026, 10, 1, 9, 31), 102.0),
+                newYork(LocalDateTime.of(2026, 10, 1, 9, 30), 101.0),
             )
 
             UsRegularSession.openPrice(bars) shouldBe 101.0
@@ -55,7 +59,7 @@ class OverseasStockRankTest {
 
         @Test
         fun `아직 장전이면 시가가 없다`() {
-            UsRegularSession.openPrice(listOf(LocalDateTime.of(2026, 10, 1, 8, 0) to 99.0)).shouldBeNull()
+            UsRegularSession.openPrice(listOf(newYork(LocalDateTime.of(2026, 10, 1, 8, 0), 99.0))).shouldBeNull()
         }
 
         @Test

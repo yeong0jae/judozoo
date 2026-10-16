@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import judozoo.library.KST
+import judozoo.market.domain.MarketStatus
 import judozoo.market.domain.Region
 import judozoo.platform.kis.KisHoliday
 import judozoo.platform.toss.TossMarketCalendar
@@ -33,27 +34,27 @@ class MarketCalendarTest {
     inner class 미국_장중_판정 {
         @Test
         fun `서머타임엔 한국 17시에 프리마켓이 열린다`() {
-            weekday(LocalDateTime.of(2026, 9, 25, 17, 0)).usMarketStatus() shouldBe (false to true)
+            weekday(LocalDateTime.of(2026, 9, 25, 17, 0)).usMarketStatus() shouldBe MarketStatus(false, true)
         }
 
         @Test
         fun `정규장이 끝나도 애프터마켓 동안은 열려 있다`() {
-            weekday(LocalDateTime.of(2026, 9, 26, 5, 0)).usMarketStatus() shouldBe (false to true)
+            weekday(LocalDateTime.of(2026, 9, 26, 5, 0)).usMarketStatus() shouldBe MarketStatus(false, true)
         }
 
         @Test
         fun `서머타임엔 한국 아침 9시에 애프터마켓이 끝난다`() {
-            weekday(LocalDateTime.of(2026, 9, 26, 9, 0)).usMarketStatus() shouldBe (false to false)
+            weekday(LocalDateTime.of(2026, 9, 26, 9, 0)).usMarketStatus() shouldBe MarketStatus(false, false)
         }
 
         @Test
         fun `표준시엔 한국 17시에 아직 열리지 않는다`() {
-            weekday(LocalDateTime.of(2026, 11, 5, 17, 30)).usMarketStatus() shouldBe (false to false)
+            weekday(LocalDateTime.of(2026, 11, 5, 17, 30)).usMarketStatus() shouldBe MarketStatus(false, false)
         }
 
         @Test
         fun `표준시엔 한국 18시에 열린다`() {
-            weekday(LocalDateTime.of(2026, 11, 5, 18, 0)).usMarketStatus() shouldBe (false to true)
+            weekday(LocalDateTime.of(2026, 11, 5, 18, 0)).usMarketStatus() shouldBe MarketStatus(false, true)
         }
     }
 

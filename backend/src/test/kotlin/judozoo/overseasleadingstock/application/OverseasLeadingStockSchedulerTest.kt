@@ -9,6 +9,7 @@ import io.mockk.runs
 import io.mockk.verify
 import judozoo.library.JobFailures
 import judozoo.market.application.MarketCalendar
+import judozoo.market.domain.MarketStatus
 import judozoo.market.domain.Region
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -24,7 +25,7 @@ class OverseasLeadingStockSchedulerTest {
     @Nested
     inner class 해외_후보_풀_갱신 {
         private fun us(holiday: Boolean, tradingHours: Boolean) {
-            every { calendar.usMarketStatus() } returns (holiday to tradingHours)
+            every { calendar.usMarketStatus() } returns MarketStatus(holiday, tradingHours)
             every { service.refreshTradingValuePool() } just runs
         }
 
@@ -51,7 +52,7 @@ class OverseasLeadingStockSchedulerTest {
 
         @Test
         fun `실패해도 폴러가 죽지 않고 실패로 센다`() {
-            every { calendar.usMarketStatus() } returns (false to true)
+            every { calendar.usMarketStatus() } returns MarketStatus(false, true)
             every { service.refreshTradingValuePool() } throws IllegalStateException("KIS 오류")
 
             scheduler.refreshTradingValuePool()

@@ -16,6 +16,7 @@ import judozoo.leadingstock.domain.StockMinuteCandleRepository
 import judozoo.library.EntityNotFoundException
 import judozoo.library.KST
 import judozoo.market.application.MarketCalendar
+import judozoo.market.domain.MarketStatus
 import judozoo.platform.kiwoom.KiwoomMarket
 import judozoo.platform.kiwoom.KiwoomProgram
 import judozoo.platform.toss.TossCandles
@@ -61,7 +62,7 @@ class LeadingStockServiceTest {
     private val archive = StockMinuteArchive(repository, TransactionTemplate(mockk<PlatformTransactionManager>(relaxed = true)))
     private val wideLimitDays = mockk<WideLimitDays> { every { mark(any(), any(), any()) } answers { firstArg() } }
     private val calendar = mockk<MarketCalendar> {
-        every { marketStatus() } answers { holiday to (now.hour in 8..19) }
+        every { marketStatus() } answers { MarketStatus(holiday, now.hour in 8..19) }
         every { previousOpenDay(any()) } answers { openDays.filter { it < firstArg<LocalDate>() }.maxOrNull() }
         every { isOpen(any()) } answers { !holiday }
     }

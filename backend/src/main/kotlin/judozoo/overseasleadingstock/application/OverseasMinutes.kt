@@ -4,9 +4,11 @@ import judozoo.library.KST
 import judozoo.library.SingleFlight
 import judozoo.market.application.MarketCalendar
 import judozoo.market.domain.Region
+import judozoo.overseasleadingstock.domain.DayCandles
+import judozoo.overseasleadingstock.domain.DayCandles.Companion.byDay
+import judozoo.overseasleadingstock.domain.OverseasMinuteCandle
 import judozoo.platform.kis.KisOverseasChart
 import judozoo.platform.kis.KisOverseasChart.MinutePagesInterrupted
-import judozoo.platform.kis.KisOverseasChart.OverseasMinuteCandle
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.time.Clock
@@ -75,17 +77,17 @@ class OverseasMinutes(
             val latest = synchronized(lock) {
                 held.syncedAt = at
                 held.syncedWhileClosed = true
-                held.latestDay to held.latestBars()
+                DayCandles(held.latestDay, held.latestBars())
             }
-            archive.put(key.exchange, key.symbol, latest.first, latest.second)
+            archive.put(key.exchange, key.symbol, latest.day, latest.candles)
         }
         return failures
     }
 
     private fun chart(key: Key, held: Held): List<OverseasMinuteCandle> {
-        val (day, current) = synchronized(lock) { held.latestDay to held.latestBars() }
+        val (day, current) = synchronized(lock) { DayCandles(held.latestDay, held.latestBars()) }
         val archived = archive.recent(key.exchange, key.symbol, KisOverseasChart.SESSION_DAYS)
-        val previous = archived.firstOrNull { it.first < day }?.second.orEmpty()
+        val previous = archived.firstOrNull { it.day < day }?.candles.orEmpty()
         return (previous + current).sortedBy { it.dateTime }
     }
 
@@ -129,12 +131,12 @@ class OverseasMinutes(
 
     private fun load(key: Key, at: LocalDateTime, closed: Boolean): List<OverseasMinuteCandle> {
         val archived = archive.recent(key.exchange, key.symbol, KisOverseasChart.SESSION_DAYS)
-        if (archived.isNotEmpty() && ChronoUnit.DAYS.between(archived[0].first, localDay(at)) <= ARCHIVE_REACH_DAYS) {
-            val last = archived[0].second.last().dateTime
+        if (archived.isNotEmpty() && ChronoUnit.DAYS.between(archived[0].day, localDay(at)) <= ARCHIVE_REACH_DAYS) {
+            val last = archived[0].candles.last().dateTime
             val fresh = try {
                 chart.fetchMinuteCandles(key.exchange, key.symbol, since = last.plusMinutes(1))
             } catch (e: MinutePagesInterrupted) {
-                return (archived[0].second + e.candles).sortedBy { it.dateTime }
+                return (archived[0].candles + e.candles).sortedBy { it.dateTime }
             }
             afterArchive(archived, fresh)?.let { (latest, finished) ->
                 finished.forEach { (day, bars) -> archive.put(key.exchange, key.symbol, day, bars) }
@@ -151,23 +153,22 @@ class OverseasMinutes(
         val byDay = byDay(candles)
         val days = byDay.keys.sortedDescending()
         if (days.size > 1) archive.put(key.exchange, key.symbol, days[1], byDay.getValue(days[1]))
-        return hold(key, days[0] to byDay.getValue(days[0]), at, closed)
+        return hold(key, DayCandles(days[0], byDay.getValue(days[0])), at, closed)
     }
 
-    private fun afterArchive(
-        archived: List<Pair<LocalDate, List<OverseasMinuteCandle>>>,
-        fresh: List<OverseasMinuteCandle>,
-    ): Pair<Pair<LocalDate, List<OverseasMinuteCandle>>, List<Pair<LocalDate, List<OverseasMinuteCandle>>>>? {
-        val byDay = archived.toMap() + byDay(fresh)
+    private data class Resumed(val latest: DayCandles, val finished: List<DayCandles>)
+
+    private fun afterArchive(archived: List<DayCandles>, fresh: List<OverseasMinuteCandle>): Resumed? {
+        val byDay = archived.associate { it.day to it.candles } + byDay(fresh)
         val days = byDay.keys.sortedDescending()
         if (days.size < 2) return null
-        val kept = archived.map { it.first }.toSet()
-        val finished = days.drop(1).filterNot { it in kept }.map { it to byDay.getValue(it) }
-        return (days[0] to byDay.getValue(days[0])) to finished
+        val kept = archived.map { it.day }.toSet()
+        val finished = days.drop(1).filterNot { it in kept }.map { DayCandles(it, byDay.getValue(it)) }
+        return Resumed(DayCandles(days[0], byDay.getValue(days[0])), finished)
     }
 
-    private fun hold(key: Key, latest: Pair<LocalDate, List<OverseasMinuteCandle>>, at: LocalDateTime, closed: Boolean): List<OverseasMinuteCandle> {
-        val held = Held(latest.first, TreeMap(latest.second.associateBy { it.dateTime }), at, closed, at)
+    private fun hold(key: Key, latest: DayCandles, at: LocalDateTime, closed: Boolean): List<OverseasMinuteCandle> {
+        val held = Held(latest.day, TreeMap(latest.candles.associateBy { it.dateTime }), at, closed, at)
         synchronized(lock) { stocks[key] = held }
         return chart(key, held)
     }
@@ -193,15 +194,14 @@ class OverseasMinutes(
     }
 
     private fun usClosed(): Boolean = try {
-        val (holiday, tradingHours) = calendar.usMarketStatus()
-        holiday || !tradingHours
+        !calendar.usMarketStatus().inSession
     } catch (e: Exception) {
         false
     }
 
     private fun now(): LocalDateTime = LocalDateTime.now(clock.withZone(KST))
 
-    private fun localDay(at: LocalDateTime): LocalDate = at.atZone(KST).withZoneSameInstant(Region.US.zone).toLocalDate()
+    private fun localDay(at: LocalDateTime): LocalDate = Region.US.local(at).toLocalDate()
 
     companion object {
         private val FRESH = Duration.ofSeconds(30)
@@ -211,8 +211,5 @@ class OverseasMinutes(
         private const val MAX_STOCKS = 50
 
         private const val ARCHIVE_REACH_DAYS = 4L
-
-        private fun byDay(candles: List<OverseasMinuteCandle>): Map<LocalDate, List<OverseasMinuteCandle>> =
-            candles.sortedBy { it.dateTime }.groupBy { it.tradingDay }
     }
 }

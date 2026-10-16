@@ -50,7 +50,7 @@ class LeadingStockScheduler(
 
     @Scheduled(cron = "0 1 20 * * MON-FRI", zone = "Asia/Seoul")
     fun settleTodayMinutes() {
-        if (calendar.marketStatus().first) return
+        if (calendar.marketStatus().holiday) return
         try {
             val failed = service.settleTodayMinutes()
             if (failed > 0) {
@@ -96,10 +96,7 @@ class LeadingStockScheduler(
         }
     }
 
-    private fun inSession(): Boolean {
-        val (holiday, tradingHours) = calendar.marketStatus()
-        return !holiday && tradingHours
-    }
+    private fun inSession(): Boolean = calendar.marketStatus().inSession
 
     private fun between(start: LocalTime, end: LocalTime): Boolean {
         if (calendar.isHoliday(Region.KR)) return false

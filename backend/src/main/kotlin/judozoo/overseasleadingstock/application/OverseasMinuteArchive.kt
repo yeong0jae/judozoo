@@ -1,8 +1,9 @@
 package judozoo.overseasleadingstock.application
 
+import judozoo.overseasleadingstock.domain.DayCandles
+import judozoo.overseasleadingstock.domain.OverseasMinuteCandle
 import judozoo.overseasleadingstock.domain.OverseasMinuteCandleEntity
 import judozoo.overseasleadingstock.domain.OverseasMinuteCandleRepository
-import judozoo.platform.kis.KisOverseasChart.OverseasMinuteCandle
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Limit
 import org.springframework.stereotype.Component
@@ -23,7 +24,7 @@ class OverseasMinuteArchive(
 
     private val days = LinkedHashMap<Key, Remembered>()
 
-    fun recent(exchange: String, symbol: String, limit: Int): List<Pair<LocalDate, List<OverseasMinuteCandle>>> {
+    fun recent(exchange: String, symbol: String, limit: Int): List<DayCandles> {
         val known = synchronized(days) { days.keys.filter { it.exchange == exchange && it.symbol == symbol }.map { it.day } }
         val remembered = sortedMapOf<LocalDate, List<OverseasMinuteCandle>>()
         known.forEach { day -> recall(Key(exchange, symbol, day))?.let { remembered[day] = it } }
@@ -40,7 +41,7 @@ class OverseasMinuteArchive(
                 log.warn("해외 지난 날 분봉 DB 조회 실패 ({}:{})", exchange, symbol, e)
             }
         }
-        return remembered.entries.reversed().take(limit).map { it.key to it.value }
+        return remembered.entries.reversed().take(limit).map { DayCandles(it.key, it.value) }
     }
 
     fun put(exchange: String, symbol: String, day: LocalDate, bars: List<OverseasMinuteCandle>) {
@@ -50,7 +51,7 @@ class OverseasMinuteArchive(
         try {
             transaction.executeWithoutResult {
                 repository.deleteDay(exchange, symbol, day)
-                repository.saveAll(ordered.map { entityOf(exchange, symbol, day, it) })
+                repository.saveAll(ordered.map { OverseasMinuteCandleEntity.of(exchange, symbol, day, it) })
             }
         } catch (e: Exception) {
             log.warn("해외 지난 날 분봉 DB 저장 실패 ({}:{}, {})", exchange, symbol, day, e)
@@ -81,17 +82,5 @@ class OverseasMinuteArchive(
         private val TTL = Duration.ofDays(4)
 
         private const val MAX_ENTRIES = 200
-
-        private fun OverseasMinuteCandleEntity.toCandle() = OverseasMinuteCandle(
-            dateTime = minuteAt, tradingDay = tradingDay,
-            open = exact(open), high = exact(high), low = exact(low), close = exact(close),
-            volume = volume, tradingValue = exact(tradingValue),
-        )
-
-        private fun entityOf(exchange: String, symbol: String, day: LocalDate, c: OverseasMinuteCandle) =
-            OverseasMinuteCandleEntity(
-                exchange, symbol, day, c.dateTime, c.open.toFloat(), c.high.toFloat(), c.low.toFloat(), c.close.toFloat(),
-                c.volume, c.tradingValue.toFloat(),
-            )
     }
 }

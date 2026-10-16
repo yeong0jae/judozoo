@@ -64,8 +64,7 @@ class LeadingStockService(
     )
 
     internal fun poolTtl(): Duration {
-        val (holiday, tradingHours) = calendar.marketStatus()
-        if (!holiday && tradingHours) return POOL_TTL
+        if (calendar.marketStatus().inSession) return POOL_TTL
         val at = now()
         val reopen = at.toLocalDate().atTime(SESSION_START).let { if (at.isBefore(it)) it else it.plusDays(1) }
         return Duration.between(at, reopen)
@@ -175,7 +174,7 @@ class LeadingStockService(
     private fun loadPool(): List<LeadingStockSnapshot> = wideLimitDays.mark(kiwoom.fetchTopTradingValueStocks(POOL_SIZE), poolTradeDate(), now())
 
     private fun poolTradeDate(): LocalDate {
-        val (holiday, _) = calendar.marketStatus()
+        val holiday = calendar.marketStatus().holiday
         val at = now()
         if (!holiday && !at.toLocalTime().isBefore(SESSION_START)) return at.toLocalDate()
         return calendar.previousOpenDay(at.toLocalDate()) ?: at.toLocalDate()
@@ -211,7 +210,7 @@ class LeadingStockService(
     }
 
     private fun todayMinuteCandles(stockCode: String): List<MinuteCandle> {
-        val (holiday, _) = calendar.marketStatus()
+        val holiday = calendar.marketStatus().holiday
         val at = now()
         if (holiday || at.toLocalTime().isBefore(SESSION_START)) return emptyList()
         val today = at.toLocalDate()

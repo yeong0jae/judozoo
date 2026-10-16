@@ -17,7 +17,7 @@ class KisOverseasRankingTest {
     @Nested
     inner class 거래대금순위 {
         @Test
-        fun `응답 필드를 그대로 전달한다`() {
+        fun `가격을 숫자로 읽고 하락 부호를 대비값에 붙인다`() {
             stub.respond(
                 URL,
                 """{"rt_cd":"0","msg_cd":"","msg1":"","output2":[{"rank":"1","excd":"NAS","symb":"AAPL","name":"애플","last":"230.5",
@@ -26,16 +26,21 @@ class KisOverseasRankingTest {
 
             val item = ranking.fetchTradingValueRanking("NAS")[0]
 
-            item.symb shouldBe "AAPL"
-            item.sign shouldBe "5"
-            item.rate shouldBe "0.52"
+            item.symbol shouldBe "AAPL"
+            item.exchange shouldBe "NAS"
+            item.price shouldBe 230.5
+            item.diff shouldBe -1.2
+            item.rate shouldBe 0.52
+            item.tradingValue shouldBe 11_500_000_000.0
         }
 
         @Test
-        fun `없는 필드는 빈 문자열로 채운다`() {
+        fun `없는 필드는 빈 이름과 0으로 채운다`() {
             stub.respond(URL, """{"rt_cd":"0","msg1":"","output2":[{"symb":"AAPL"}]}""")
 
-            ranking.fetchTradingValueRanking("NAS")[0].ename shouldBe ""
+            val item = ranking.fetchTradingValueRanking("NAS")[0]
+            item.ename shouldBe ""
+            item.price shouldBe 0.0
         }
 
         @Test

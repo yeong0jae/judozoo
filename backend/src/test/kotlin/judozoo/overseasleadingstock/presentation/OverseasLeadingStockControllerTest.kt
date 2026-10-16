@@ -6,8 +6,8 @@ import io.mockk.verify
 import judozoo.LoggedIn
 import judozoo.overseasleadingstock.application.OverseasLeadingStockService
 import judozoo.overseasleadingstock.domain.FilterResult
+import judozoo.overseasleadingstock.domain.OverseasMinuteCandle
 import judozoo.overseasleadingstock.domain.OverseasStockRank
-import judozoo.platform.kis.KisOverseasChart.OverseasMinuteCandle
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired

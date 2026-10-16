@@ -7,9 +7,11 @@ import io.mockk.every
 import io.mockk.mockk
 import judozoo.library.KST
 import judozoo.market.application.MarketCalendar
+import judozoo.market.domain.MarketStatus
+import judozoo.overseasleadingstock.domain.DayCandles
+import judozoo.overseasleadingstock.domain.OverseasMinuteCandle
 import judozoo.platform.kis.KisOverseasChart
 import judozoo.platform.kis.KisOverseasChart.MinutePagesInterrupted
-import judozoo.platform.kis.KisOverseasChart.OverseasMinuteCandle
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.time.Clock
@@ -48,11 +50,11 @@ class OverseasMinutesTest {
     private val archive = mockk<OverseasMinuteArchive> {
         every { recent(any(), any(), any()) } answers {
             val (ex, sym, limit) = Triple(firstArg<String>(), secondArg<String>(), thirdArg<Int>())
-            synchronized(archived) { archived.filterKeys { it.first == ex && it.second == sym }.entries.reversed().take(limit).map { it.key.third to it.value } }
+            synchronized(archived) { archived.filterKeys { it.first == ex && it.second == sym }.entries.reversed().take(limit).map { DayCandles(it.key.third, it.value) } }
         }
         every { put(any(), any(), any(), any()) } answers { synchronized(archived) { archived[Triple(firstArg(), secondArg(), thirdArg())] = arg(3) } }
     }
-    private val calendar = mockk<MarketCalendar> { every { usMarketStatus() } answers { false to !closed } }
+    private val calendar = mockk<MarketCalendar> { every { usMarketStatus() } answers { MarketStatus(false, !closed) } }
     private val clock = object : Clock() {
         override fun getZone(): ZoneId = KST
         override fun withZone(zone: ZoneId): Clock = fixed(instant(), zone)
