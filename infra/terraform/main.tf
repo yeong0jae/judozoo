@@ -68,7 +68,7 @@ resource "google_compute_firewall" "ssh" {
     ports    = ["22"]
   }
 
-  source_ranges = ["REDACTED_IP/20"]
+  source_ranges = ["35.235.240.0/20"]
   target_tags   = ["auto-trading"]
 
   depends_on = [google_project_service.apis]
@@ -147,7 +147,7 @@ resource "google_compute_firewall" "ops_iap" {
     ports    = ["22", "3000"]
   }
 
-  source_ranges = ["REDACTED_IP/20"]
+  source_ranges = ["35.235.240.0/20"]
   target_tags   = ["judozoo-ops"]
 
   depends_on = [google_project_service.apis]
@@ -295,7 +295,6 @@ locals {
   app_secrets = toset([
     "AT_KIWOOM_APP_KEY",
     "AT_KIWOOM_APP_SECRET",
-    "AT_KIWOOM_ACCOUNT_NO",
     "AT_REAL_KIS_APP_KEY",
     "AT_REAL_KIS_APP_SECRET",
     "AT_REAL_TOSS_CLIENT_ID",
