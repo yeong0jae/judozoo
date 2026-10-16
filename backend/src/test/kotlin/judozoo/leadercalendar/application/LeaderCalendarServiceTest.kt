@@ -61,7 +61,7 @@ class LeaderCalendarServiceTest @Autowired constructor(
 
     private fun <T> tx(block: () -> T): T = transaction.execute { block() }!!
 
-    private fun domesticMonth(year: Int = 2026, month: Int = 9) = tx { service.findMonth(year, month) }.first
+    private fun domesticMonth(year: Int = 2026, month: Int = 9) = tx { service.findMonth(year, month) }.domestic
 
     @BeforeEach
     fun 빈_캘린더() {
@@ -126,7 +126,7 @@ class LeaderCalendarServiceTest @Autowired constructor(
 
             tx { service.snapshotOverseas(LocalDate.of(2026, 9, 22), at) }
 
-            val stock = tx { service.findMonth(2026, 9) }.second[0].stocks[0]
+            val stock = tx { service.findMonth(2026, 9) }.overseas[0].stocks[0]
             Triple(stock.exchange, stock.code, stock.name) shouldBe Triple("NAS", "NVDA", "엔비디아")
             stock.price.toDouble() shouldBe 182.37
             stock.tradingValue.toDouble() shouldBe 44_300_000_000.5

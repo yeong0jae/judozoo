@@ -29,7 +29,7 @@ class LeaderCalendarControllerTest @Autowired constructor(private val mvc: MockM
     private lateinit var service: LeaderCalendarService
 
     private fun month(domestic: List<RecordedDay> = emptyList(), overseas: List<RecordedDay> = emptyList()) {
-        every { service.findMonth(any(), any()) } returns (domestic to overseas)
+        every { service.findMonth(any(), any()) } returns LeaderCalendarService.LeaderMonth(domestic, overseas)
     }
 
     @Nested

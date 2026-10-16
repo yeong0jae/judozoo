@@ -31,7 +31,7 @@ class LeaderDayStock(
 
     companion object {
         fun domestic(dayId: Long, rank: Int, s: LeadingStockSnapshot) = LeaderDayStock(
-            dayId, rank, null, s.stockCode.substringBefore("_"), s.stockName, BigDecimal.valueOf(s.currentPrice),
+            dayId, rank, null, s.code, s.stockName, BigDecimal.valueOf(s.currentPrice),
             s.priceChangeRate.toFloat(), BigDecimal.valueOf(s.accumulatedTradingValue),
         )
 

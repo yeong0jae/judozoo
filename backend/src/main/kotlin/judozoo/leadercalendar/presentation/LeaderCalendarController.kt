@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
+import java.time.YearMonth
 
 @RestController
 @RequestMapping("/api/leader-calendar")
@@ -29,8 +30,8 @@ class LeaderCalendarController(private val service: LeaderCalendarService) {
 
     @GetMapping
     fun month(@RequestParam @Pattern(regexp = "\\d{4}-(0[1-9]|1[0-2])") month: String): ApiResponse<LeaderCalendar> {
-        val (year, mon) = month.split("-").map(String::toInt)
-        val (domestic, overseas) = service.findMonth(year, mon)
+        val yearMonth = YearMonth.parse(month)
+        val (domestic, overseas) = service.findMonth(yearMonth.year, yearMonth.monthValue)
         return ApiResponse.ok(LeaderCalendar(items(domestic), items(overseas)))
     }
 

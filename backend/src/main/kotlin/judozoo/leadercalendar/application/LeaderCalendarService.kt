@@ -38,6 +38,8 @@ class LeaderCalendarService(
         val tradingValue: BigDecimal,
     )
 
+    data class LeaderMonth(val domestic: List<RecordedDay>, val overseas: List<RecordedDay>)
+
     data class RecordedDay(val tradeDate: LocalDate, val stocks: List<LeaderStock>, val closed: Boolean = false, val live: Boolean = false)
 
     @Transactional
@@ -58,12 +60,14 @@ class LeaderCalendarService(
     }
 
     @Transactional(readOnly = true)
-    fun findMonth(year: Int, month: Int): Pair<List<RecordedDay>, List<RecordedDay>> {
+    fun findMonth(year: Int, month: Int): LeaderMonth {
         val first = LocalDate.of(year, month, 1)
         val after = first.plusMonths(1)
         val usStart = ForeignSession.pairedWith(first)
-        return withToday(Region.KR, recorded(Region.KR, first, after), first, after) to
-            withToday(Region.US, recorded(Region.US, usStart, after), usStart, after)
+        return LeaderMonth(
+            withToday(Region.KR, recorded(Region.KR, first, after), first, after),
+            withToday(Region.US, recorded(Region.US, usStart, after), usStart, after),
+        )
     }
 
     private fun record(region: Region, tradeDate: LocalDate, at: LocalDateTime, closed: Boolean, rows: (Long) -> List<LeaderDayStock>): Int {
