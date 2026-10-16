@@ -45,7 +45,7 @@ class AuthControllerTest @Autowired constructor(private val mvc: MockMvc) {
     private fun sessionIn(setCookie: String): Map<String, Any?>? {
         val request = org.springframework.mock.web.MockHttpServletRequest()
         request.setCookies(Cookie(SessionCookies.NAME, setCookie.substringAfter("=").substringBefore(";")))
-        return cookies.read(request)
+        return cookies.read(request)?.values
     }
 
     @Nested
@@ -150,7 +150,7 @@ class AuthControllerTest @Autowired constructor(private val mvc: MockMvc) {
         @Test
         fun `세션이 비면 쿠키를 지운다`() {
             val r = org.springframework.mock.web.MockHttpServletResponse()
-            cookies.write(r, mapOf("user" to mapOf("id" to 7, "email" to "a@example.com")))
+            cookies.write(r, Session(mapOf("user" to mapOf("id" to 7, "email" to "a@example.com"))))
             val value = r.getHeader("Set-Cookie")!!.substringAfter("=").substringBefore(";")
 
             val response = mvc.post("/api/auth/logout") { cookie(Cookie(SessionCookies.NAME, value)) }.andReturn().response

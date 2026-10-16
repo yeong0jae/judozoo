@@ -11,14 +11,14 @@ import java.time.Duration
 class SessionCookies(properties: JudozooProperties, objectMapper: ObjectMapper, private val clock: Clock) {
     private val session = StarletteSession(properties.sessionSecret, objectMapper)
 
-    fun read(request: HttpServletRequest): Map<String, Any?>? {
+    fun read(request: HttpServletRequest): Session? {
         val cookie = request.cookies?.firstOrNull { it.name == NAME } ?: return null
-        return session.read(cookie.value, clock.instant())
+        return session.read(cookie.value, clock.instant())?.let(::Session)
     }
 
-    fun write(response: HttpServletResponse, data: Map<String, Any?>) {
-        if (data.isEmpty()) return clear(response)
-        response.addHeader("Set-Cookie", "$NAME=${session.write(data, clock.instant())}; path=/; Max-Age=${MAX_AGE.seconds}; httponly; samesite=lax; secure")
+    fun write(response: HttpServletResponse, data: Session) {
+        if (data.isEmpty) return clear(response)
+        response.addHeader("Set-Cookie", "$NAME=${session.write(data.values, clock.instant())}; path=/; Max-Age=${MAX_AGE.seconds}; httponly; samesite=lax; secure")
     }
 
     fun clear(response: HttpServletResponse) {

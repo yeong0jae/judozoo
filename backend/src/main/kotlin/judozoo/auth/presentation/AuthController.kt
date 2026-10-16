@@ -37,8 +37,7 @@ class AuthController(
     fun login(request: HttpServletRequest, response: HttpServletResponse) {
         if (!google.configured) throw ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "OAUTH_NOT_CONFIGURED")
         val (state, nonce) = token() to token()
-        val expires = clock.instant().epochSecond + STATE_TTL_SECONDS
-        cookies.write(response, session(request) + (STATE_PREFIX + state to mapOf("data" to mapOf("nonce" to nonce), "exp" to expires)))
+        cookies.write(response, session(request).startLogin(state, nonce, clock.instant().epochSecond + STATE_TTL_SECONDS))
         response.sendRedirect(google.authorizeUrl(state, nonce))
     }
 
@@ -50,55 +49,49 @@ class AuthController(
         response: HttpServletResponse,
     ) {
         val session = session(request)
-        val saved = state?.let { session[STATE_PREFIX + it] } as? Map<*, *>
-        val nonce = (saved?.get("data") as? Map<*, *>)?.get("nonce") as? String
-        val expires = (saved?.get("exp") as? Number)?.toLong() ?: 0
+        val attempt = session.loginAttempt(state)
         val account = try {
             when {
-                code == null || nonce == null -> null.also { log.warn("구글 콜백 처리 실패 — state가 세션에 없다") }
-                clock.instant().epochSecond > expires -> null.also { log.warn("구글 콜백 처리 실패 — 로그인 시작이 만료됐다") }
-                else -> google.exchange(code, nonce)
+                code == null || attempt == null -> null.also { log.warn("구글 콜백 처리 실패 — state가 세션에 없다") }
+                attempt.expiredAt(clock.instant().epochSecond) -> null.also { log.warn("구글 콜백 처리 실패 — 로그인 시작이 만료됐다") }
+                else -> google.exchange(code, attempt.nonce)
             }
         } catch (e: Exception) {
             log.warn("구글 콜백 처리 실패", e)
             null
         }
-        val rest = session - (STATE_PREFIX + state)
+        val rest = session.withoutLogin(state)
         if (account == null) {
             cookies.write(response, rest)
             response.sendRedirect("/?login=failed")
             return
         }
         val user = auth.recordLogin(account, LocalDateTime.now(clock.withZone(KST)))
-        cookies.write(response, rest + (CurrentUser.SESSION_KEY to user.toSession()))
+        cookies.write(response, rest.withUser(user))
         response.sendRedirect("/")
     }
 
     @PostMapping("/logout")
     fun logout(request: HttpServletRequest, response: HttpServletResponse): ApiResponse<Nothing?> {
-        cookies.write(response, session(request) - CurrentUser.SESSION_KEY)
+        cookies.write(response, session(request).withoutUser())
         return ApiResponse.ok(null)
     }
 
     @PostMapping("/withdraw")
     fun withdraw(user: CurrentUser, request: HttpServletRequest, response: HttpServletResponse): ApiResponse<Nothing?> {
         auth.withdraw(user)
-        cookies.write(response, session(request) - CurrentUser.SESSION_KEY)
+        cookies.write(response, session(request).withoutUser())
         return ApiResponse.ok(null)
     }
 
     @GetMapping("/me")
     fun me(user: CurrentUser?): ApiResponse<Me> = ApiResponse.ok(user?.let { Me(true, it.email) } ?: Me(false))
 
-    @Suppress("UNCHECKED_CAST")
-    private fun session(request: HttpServletRequest): Map<String, Any?> =
-        (request.getAttribute(LoginGateFilter.SESSION) as? Map<String, Any?>).orEmpty()
+    private fun session(request: HttpServletRequest): Session = request.getAttribute(LoginGateFilter.SESSION) as? Session ?: Session()
 
     private fun token(): String = ByteArray(24).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
     companion object {
-        private const val STATE_PREFIX = "_state_google_"
-
         private const val STATE_TTL_SECONDS = 3600L
     }
 }

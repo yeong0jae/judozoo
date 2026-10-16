@@ -3,7 +3,6 @@ package judozoo.auth.presentation
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import judozoo.auth.domain.CurrentUser
 import judozoo.library.JsonLogFormatter
 import judozoo.library.web.ApiResponse
 import org.slf4j.MDC
@@ -17,13 +16,11 @@ class LoginGateFilter(
     private val objectMapper: ObjectMapper,
 ) : OncePerRequestFilter() {
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
-        val raw = cookies.read(request).orEmpty()
-        val user = CurrentUser.fromSession(raw[CurrentUser.SESSION_KEY])
-        request.setAttribute(SESSION, raw)
+        val session = cookies.read(request) ?: Session()
+        val user = session.user
+        request.setAttribute(SESSION, session)
         request.setAttribute(CURRENT_USER, user)
-        if (user != null && (raw[CurrentUser.SESSION_KEY] as Map<*, *>).keys != user.toSession().keys) {
-            cookies.write(response, raw + (CurrentUser.SESSION_KEY to user.toSession()))
-        }
+        if (user != null && session.carriesStaleUser) cookies.write(response, session.withUser(user))
         val path = request.requestURI
         user?.let { MDC.put(JsonLogFormatter.MDC_USER, it.id.toString()) }
         MDC.put(JsonLogFormatter.MDC_REQUEST, "${request.method} $path")

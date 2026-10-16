@@ -116,7 +116,7 @@ class LoginGateFilterTest {
 
             request.getAttribute(LoginGateFilter.CURRENT_USER) shouldBe CurrentUser(7, "a@example.com")
             val written = response.getHeader("Set-Cookie")!!.substringAfter("=").substringBefore(";")
-            val read = request.apply { setCookies(Cookie(LoginGateFilter.COOKIE_NAME, written)) }.let { cookies.read(it)!! }
+            val read = request.apply { setCookies(Cookie(LoginGateFilter.COOKIE_NAME, written)) }.let { cookies.read(it)!!.values }
             read["user"] shouldBe mapOf("id" to 7, "email" to "a@example.com")
         }
 
