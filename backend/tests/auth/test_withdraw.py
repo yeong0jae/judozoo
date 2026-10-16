@@ -91,7 +91,7 @@ class Test탈퇴:
             .read_text()
         )
         식 = next(g for g in 규칙["groups"] if g["name"] == "탈퇴")["rules"][0]["data"][0]["model"]["expr"]
-        로거 = re.search(r'logger = "([^"]+)"', 식).group(1)
+        로거 = re.search(r'logger =~ "([^"]+)"', 식).group(1)
         문구 = re.search(r'msg =~ "([^"]+)"', 식).group(1)
         나 = 가입("111")
 
@@ -99,5 +99,5 @@ class Test탈퇴:
             application.withdraw(db.get_session_factory()(), 나)
 
         assert any(
-            r.name == 로거 and re.fullmatch(문구, r.getMessage()) and r.user == 나.id for r in caplog.records
+            re.fullmatch(로거, r.name) and re.fullmatch(문구, r.getMessage()) and r.user == 나.id for r in caplog.records
         )

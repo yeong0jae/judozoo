@@ -64,4 +64,25 @@ class StarletteSessionTest {
             session.read("", signedAt).shouldBeNull()
         }
     }
+
+    /** 되돌릴 때 Python이 이 쿠키를 그대로 읽어야 한다 — 기대값은 itsdangerous로 같은 내용·같은 시각에 서명한 것이다. */
+    @Nested
+    inner class Kotlin이_발급한_쿠키 {
+        private val data = mapOf("user" to mapOf("id" to 7, "email" to "a@example.com"))
+
+        @Test
+        fun `Python과 같은 서명을 만든다`() {
+            session.write(data, signedAt) shouldBe "eyJ1c2VyIjp7ImlkIjo3LCJlbWFpbCI6ImFAZXhhbXBsZS5jb20ifX0=.atDSsQ.5A_KdLJTTgzmu5rIjQ_gHTZzalU"
+        }
+
+        @Test
+        fun `쓴 쿠키를 다시 읽는다`() {
+            session.read(session.write(data, signedAt), signedAt.plusSeconds(1))!!["user"] shouldBe mapOf("id" to 7, "email" to "a@example.com")
+        }
+
+        @Test
+        fun `14일이 지나면 읽지 않는다`() {
+            session.read(session.write(data, signedAt), signedAt + Duration.ofDays(14).plusSeconds(1)).shouldBeNull()
+        }
+    }
 }

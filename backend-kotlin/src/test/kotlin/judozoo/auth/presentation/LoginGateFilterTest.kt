@@ -20,11 +20,9 @@ class LoginGateFilterTest {
     private val pythonCookie =
         "eyJ1c2VyIjogeyJpZCI6IDcsICJlbWFpbCI6ICJhQGV4YW1wbGUuY29tIn0sICJfc3RhdGVfZ29vZ2xlX3giOiB7ImRhdGEiOiAxfX0=" +
             ".atDSsQ._chmEutnIautJuu1n_0keYIpTb0"
-    private val filter = LoginGateFilter(
-        JudozooProperties(sessionSecret = "test-secret"),
-        JsonMapper.builder().build(),
-        Clock.fixed(Instant.ofEpochSecond(1_792_070_321), ZoneOffset.UTC),
-    )
+    private val signedAt = Instant.ofEpochSecond(1_792_070_321)
+    private val cookies = SessionCookies(JudozooProperties(sessionSecret = "test-secret"), JsonMapper.builder().build(), Clock.fixed(signedAt, ZoneOffset.UTC))
+    private val filter = LoginGateFilter(cookies, JsonMapper.builder().build())
 
     private fun captureAccessLog(block: () -> Unit): List<String> {
         val logger = org.slf4j.LoggerFactory.getLogger("judozoo.access") as ch.qos.logback.classic.Logger
@@ -107,6 +105,31 @@ class LoginGateFilterTest {
         @Test
         fun `서명이 틀린 쿠키는 미로그인으로 본다`() {
             call("/api/leading-stocks/market-signal-events", pythonCookie.dropLast(1) + "x").second.status shouldBe 401
+        }
+    }
+
+    /** 쿠키는 서명만 되고 암호화되지 않는다. 모든 앱에 같은 구글 `sub`이 요청마다 실려 다니면 안 된다. */
+    @Nested
+    inner class 구글_계정_식별자를_쿠키에_싣지_않는다 {
+        /** 구글 `sub`이 실린 옛 쿠키 — Python이 같은 secret으로 발급했다. */
+        private val oldCookie = "eyJ1c2VyIjogeyJpZCI6IDcsICJlbWFpbCI6ICJhQGV4YW1wbGUuY29tIiwgInN1YiI6ICJ0ZXN0LXN1YiJ9fQ==.atDSsQ.p7eub9Q7CIr63AJMXsZhvZ2WjTo"
+
+        @Test
+        fun `옛 쿠키는 다음 요청에서 구글 식별자를 지운다`() {
+            val (request, response) = call("/api/auth/me", oldCookie)
+
+            request.getAttribute(LoginGateFilter.CURRENT_USER) shouldBe CurrentUser(7, "a@example.com")
+            val written = response.getHeader("Set-Cookie")!!.substringAfter("=").substringBefore(";")
+            val read = request.apply { setCookies(Cookie(LoginGateFilter.COOKIE_NAME, written)) }.let { cookies.read(it)!! }
+            read["user"] shouldBe mapOf("id" to 7, "email" to "a@example.com")
+        }
+
+        /** 다시 쓸 이유가 없는 요청마다 쿠키를 내려보내면 응답이 쓸데없이 커진다. */
+        @Test
+        fun `지금 모양의 쿠키는 다시 내려보내지 않는다`() {
+            val (_, response) = call("/api/auth/me", pythonCookie)
+
+            response.getHeader("Set-Cookie") shouldBe null
         }
     }
 }

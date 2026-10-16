@@ -8,11 +8,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
-/**
- * 의견 접수.
- *
- * 탈퇴 때 의견을 지우는 일(`erase_by`)은 아직 옮기지 않았다 — 탈퇴는 auth와 함께 Python에 남아 있다(028).
- */
+/** 의견 접수, 그리고 탈퇴한 사람의 의견 지우기. */
 @Service
 class FeedbackService(private val feedbacks: FeedbackRepository) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -27,4 +23,8 @@ class FeedbackService(private val feedbacks: FeedbackRepository) {
         // 알림이 안 오면 규칙이 문제인지 접수가 문제인지 여기서 갈린다
         log.info("의견 접수 — {}자", saved.content.length)
     }
+
+    /** 탈퇴한 사람이 보낸 의견을 지운다(처리방침상 수집 항목). 가입자 행과 한 트랜잭션이어야 해서 바깥 트랜잭션에 얹힌다. */
+    @Transactional
+    fun eraseBy(userId: Long): Int = feedbacks.deleteByUserId(userId)
 }

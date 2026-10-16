@@ -327,7 +327,7 @@ groups:
               refId: QUERY
               datasource: { type: loki, uid: loki }
               queryType: instant
-              expr: 'sum by (user) (count_over_time({service="backend"} | json | logger = "backend.auth.application" | msg =~ "탈퇴.*" [10m]))'
+              expr: 'sum by (user) (count_over_time({service=~"backend|backend-kotlin"} | json | logger =~ "backend.auth.application|judozoo.auth.application.AuthService" | msg =~ "탈퇴.*" [10m]))'
           - refId: THRESHOLD
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__

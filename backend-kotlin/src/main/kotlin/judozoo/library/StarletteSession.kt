@@ -10,8 +10,8 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Python(Starlette `SessionMiddleware`)이 발급한 세션 쿠키를 읽는다. **읽기만 한다** — 공존하는 동안(028)
- * 로그인·쿠키 발급은 Python이 맡는다.
+ * Starlette `SessionMiddleware`와 같은 모양의 세션 쿠키를 읽고 쓴다. Python이 발급한 쿠키를 그대로 이어 쓰려고
+ * 형식을 바꾸지 않았다 — 로그인을 Kotlin으로 옮길 때 아무도 다시 로그인하지 않게(028).
  *
  * 쿠키 모양은 `base64(JSON).타임스탬프.서명`. itsdangerous `TimestampSigner` 기본값을 그대로 따른다:
  * 키 = SHA1("itsdangerous.Signer" + "signer" + secret), 서명 = HMAC-SHA1, 타임스탬프·서명은 패딩 없는 base64url.
@@ -41,6 +41,14 @@ class StarletteSession(
             @Suppress("UNCHECKED_CAST")
             objectMapper.readValue(Base64.getDecoder().decode(payload), Map::class.java) as Map<String, Any?>
         }.getOrNull()
+    }
+
+    /** 세션 내용을 지금 시각으로 서명한 쿠키 값. */
+    fun write(data: Map<String, Any?>, now: Instant): String {
+        val payload = Base64.getEncoder().encodeToString(objectMapper.writeValueAsBytes(data))
+        val timestamp = Base64.getUrlEncoder().withoutPadding().encodeToString(BigInteger.valueOf(now.epochSecond).toByteArray().dropWhile { it == 0.toByte() }.toByteArray())
+        val signed = "$payload.$timestamp"
+        return "$signed.${String(sign(signed))}"
     }
 
     private fun sign(value: String): ByteArray {

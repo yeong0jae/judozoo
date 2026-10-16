@@ -36,6 +36,11 @@ judozoo:
   toss:
     client-id: ${REAL_TOSS_CLIENT_ID:}
     client-secret: ${REAL_TOSS_CLIENT_SECRET:}
+  # 구글 로그인. Python `GOOGLE_*`와 같은 이름 — 시크릿은 secrets/.env가 준다
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:https://judozoo.com/api/auth/callback}
   # Gemini on Vertex AI(026). Python `VERTEX_*`와 같은 이름 — 비밀값이 아니다
   vertex:
     project: ${VERTEX_PROJECT:trading-496508}

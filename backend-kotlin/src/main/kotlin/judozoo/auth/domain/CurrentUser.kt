@@ -7,6 +7,9 @@ package judozoo.auth.domain
  * 사람을 가리키는 값은 이 시스템이 발급한 `id`면 충분하다.
  */
 data class CurrentUser(val id: Long, val email: String) {
+    /** 세션에 담는 모양. 구글 `sub`은 넣지 않는다. */
+    fun toSession(): Map<String, Any> = mapOf("id" to id, "email" to email)
+
     companion object {
         /** 세션에서 이 키 아래에 담긴다. Python `SESSION_KEY`와 같다. */
         const val SESSION_KEY = "user"
